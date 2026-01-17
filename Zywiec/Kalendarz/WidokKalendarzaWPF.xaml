@@ -367,7 +367,7 @@
                                   SelectionChanged="DgDostawy_SelectionChanged" MouseDoubleClick="DgDostawy_MouseDoubleClick" LoadingRow="DgDostawy_LoadingRow">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="LP" Binding="{Binding LP}" Visibility="Collapsed"/>
-                                <DataGridTextColumn x:Name="colDostawcaHeader" Header="Tydzień" Binding="{Binding DostawcaDisplay}" Width="160" IsReadOnly="True">
+                                <DataGridTextColumn x:Name="colDostawcaHeader" Header="Tydzień" Binding="{Binding DostawcaDisplay}" Width="100" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -377,7 +377,7 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Auta" Binding="{Binding AutaDisplay}" Width="45" IsReadOnly="True">
+                                <DataGridTextColumn Header="A" Binding="{Binding AutaDisplay}" Width="28" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="HorizontalAlignment" Value="Center"/>
@@ -385,36 +385,110 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDekDisplay}" Width="65" IsReadOnly="True">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                                <DataGridTextColumn Header="Waga" Binding="{Binding WagaDekDisplay}" Width="60" IsReadOnly="True">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                                <DataGridTextColumn Header="Doby" Binding="{Binding RoznicaDniDisplay}" Width="45" IsReadOnly="True">
+                                <DataGridTemplateColumn Header="Szt" Width="50" IsReadOnly="True">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Padding="2,0">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="Transparent"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding PotwSztuki}" Value="True">
+                                                                <Setter Property="Background" Value="#C8E6C9"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
+                                                                <Setter Property="Background" Value="Transparent"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock Text="{Binding SztukiDekDisplay}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Waga" Width="45" IsReadOnly="True">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Padding="2,0">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="Transparent"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding PotwWaga}" Value="True">
+                                                                <Setter Property="Background" Value="#C8E6C9"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
+                                                                <Setter Property="Background" Value="Transparent"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock Text="{Binding WagaDekDisplay}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="Ub" Binding="{Binding RoznicaDniDisplay}" Width="38" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/></Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Typ" Binding="{Binding TypCenyDisplay}" Width="85" IsReadOnly="True">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/></Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                                <DataGridTextColumn x:Name="colCena" Header="Cena" Binding="{Binding CenaDisplay}" Width="60" IsReadOnly="True">
+                                <DataGridTemplateColumn Header="Typ" Width="38" IsReadOnly="True">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Padding="2,0" CornerRadius="2" Margin="1">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="Transparent"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding TypCenyDisplay}" Value="wol.">
+                                                                <Setter Property="Background" Value="#FFF59D"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding TypCenyDisplay}" Value="rol.">
+                                                                <Setter Property="Background" Value="#2E7D32"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding TypCenyDisplay}" Value="mini.">
+                                                                <Setter Property="Background" Value="#1976D2"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding TypCenyDisplay}" Value="łącz.">
+                                                                <Setter Property="Background" Value="#7B1FA2"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock Text="{Binding TypCenyDisplay}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="Black"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding TypCenyDisplay}" Value="rol.">
+                                                                    <Setter Property="Foreground" Value="White"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding TypCenyDisplay}" Value="mini.">
+                                                                    <Setter Property="Foreground" Value="White"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding TypCenyDisplay}" Value="łącz.">
+                                                                    <Setter Property="Foreground" Value="White"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn x:Name="colCena" Header="Cena" Binding="{Binding CenaDisplay}" Width="45" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="KM" Binding="{Binding KmDisplay}" Width="45" IsReadOnly="True">
+                                <DataGridTextColumn Header="KM" Binding="{Binding KmDisplay}" Width="32" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="HorizontalAlignment" Value="Right"/>
-                                            <Setter Property="FontSize" Value="10"/>
+                                            <Setter Property="FontSize" Value="9"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
@@ -454,7 +528,7 @@
                     <DataGrid x:Name="dgDostawyNastepny" Style="{StaticResource MainDataGridStyle}" LoadingRow="DgDostawy_LoadingRow">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="LP" Binding="{Binding LP}" Visibility="Collapsed"/>
-                            <DataGridTextColumn x:Name="colDostawcaHeader2" Header="Tydzień" Binding="{Binding DostawcaDisplay}" Width="150" IsReadOnly="True">
+                            <DataGridTextColumn x:Name="colDostawcaHeader2" Header="Tydzień" Binding="{Binding DostawcaDisplay}" Width="100" IsReadOnly="True">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="VerticalAlignment" Value="Center"/>
@@ -464,7 +538,7 @@
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Auta" Binding="{Binding AutaDisplay}" Width="40" IsReadOnly="True">
+                            <DataGridTextColumn Header="A" Binding="{Binding AutaDisplay}" Width="28" IsReadOnly="True">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="HorizontalAlignment" Value="Center"/>
@@ -472,22 +546,96 @@
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDekDisplay}" Width="60" IsReadOnly="True">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Header="Waga" Binding="{Binding WagaDekDisplay}" Width="55" IsReadOnly="True">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Header="Typ" Binding="{Binding TypCenyDisplay}" Width="75" IsReadOnly="True">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/></Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Header="Cena" Binding="{Binding CenaDisplay}" Width="55" IsReadOnly="True">
+                            <DataGridTemplateColumn Header="Szt" Width="50" IsReadOnly="True">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border Padding="2,0">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="Transparent"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding PotwSztuki}" Value="True">
+                                                            <Setter Property="Background" Value="#C8E6C9"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
+                                                            <Setter Property="Background" Value="Transparent"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock Text="{Binding SztukiDekDisplay}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Waga" Width="45" IsReadOnly="True">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border Padding="2,0">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="Transparent"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding PotwWaga}" Value="True">
+                                                            <Setter Property="Background" Value="#C8E6C9"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
+                                                            <Setter Property="Background" Value="Transparent"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock Text="{Binding WagaDekDisplay}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Typ" Width="38" IsReadOnly="True">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border Padding="2,0" CornerRadius="2" Margin="1">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="Transparent"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding TypCenyDisplay}" Value="wol.">
+                                                            <Setter Property="Background" Value="#FFF59D"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding TypCenyDisplay}" Value="rol.">
+                                                            <Setter Property="Background" Value="#2E7D32"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding TypCenyDisplay}" Value="mini.">
+                                                            <Setter Property="Background" Value="#1976D2"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding TypCenyDisplay}" Value="łącz.">
+                                                            <Setter Property="Background" Value="#7B1FA2"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock Text="{Binding TypCenyDisplay}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="Black"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding TypCenyDisplay}" Value="rol.">
+                                                                <Setter Property="Foreground" Value="White"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding TypCenyDisplay}" Value="mini.">
+                                                                <Setter Property="Foreground" Value="White"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding TypCenyDisplay}" Value="łącz.">
+                                                                <Setter Property="Foreground" Value="White"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Cena" Binding="{Binding CenaDisplay}" Width="45" IsReadOnly="True">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                 </DataGridTextColumn.ElementStyle>

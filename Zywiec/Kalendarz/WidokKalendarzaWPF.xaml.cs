@@ -455,7 +455,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                     Uwagi = reader["UWAGI"]?.ToString(),
                                     IsConfirmed = reader["bufor"]?.ToString() == "Potwierdzony",
                                     IsWstawienieConfirmed = reader["isConf"] != DBNull.Value && Convert.ToBoolean(reader["isConf"]),
-                                    LpW = reader["LpW"] != DBNull.Value ? reader["LpW"].ToString() : null
+                                    LpW = reader["LpW"] != DBNull.Value ? reader["LpW"].ToString() : null,
+                                    PotwWaga = reader["PotwWaga"] != DBNull.Value && Convert.ToBoolean(reader["PotwWaga"]),
+                                    PotwSztuki = reader["PotwSztuki"] != DBNull.Value && Convert.ToBoolean(reader["PotwSztuki"]),
+                                    Ubytek = reader["Ubytek"] != DBNull.Value ? Convert.ToInt32(reader["Ubytek"]) : 0
                                 };
 
                                 if (reader["DataWstawienia"] != DBNull.Value)
@@ -2841,6 +2844,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
         public string Uwagi { get; set; }
         public int? RoznicaDni { get; set; }
         public string LpW { get; set; }
+        public bool PotwWaga { get; set; }
+        public bool PotwSztuki { get; set; }
+        public int Ubytek { get; set; }
 
         private bool _isConfirmed;
         public bool IsConfirmed { get => _isConfirmed; set { _isConfirmed = value; OnPropertyChanged(); } }
@@ -2861,8 +2867,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
         public int SumaUbytek { get; set; }
 
         // Główna kolumna - dla nagłówka pokazuje datę, dla danych pokazuje dostawcę
+        private static readonly string[] DniSkrot = { "niedz.", "pon.", "wt.", "śr.", "czw.", "pt.", "sob." };
         public string DostawcaDisplay => IsHeaderRow && !IsSeparator
-            ? $"{DataOdbioru:dd.MM.yyyy} {DataOdbioru:dddd}"
+            ? $"{DniSkrot[(int)DataOdbioru.DayOfWeek]} {DataOdbioru:dd.MM}"
             : (IsSeparator ? "" : Dostawca);
 
         public string SztukiDekDisplay => IsHeaderRow
@@ -2878,15 +2885,23 @@ namespace Kalendarz1.Zywiec.Kalendarz
             ? (SredniaKM > 0 ? $"{SredniaKM:0}" : "")
             : (Distance > 0 ? $"{Distance}" : "");
         public string RoznicaDniDisplay => IsHeaderRow
-            ? (SredniaDoby > 0 ? $"{SredniaDoby:0.0}" : "")
+            ? (SumaUbytek > 0 ? $"Ub:{SumaUbytek}" : "")
             : (RoznicaDni.HasValue ? $"{RoznicaDni}" : "");
         public string AutaDisplay => IsHeaderRow
             ? (SumaAuta > 0 ? $"{SumaAuta:0}" : "")
             : (Auta > 0 ? Auta.ToString() : "");
-        public string TypCenyDisplay => IsHeaderRow ? "" : TypCeny;
-        public string UwagiDisplay => IsHeaderRow
-            ? (SumaUbytek > 0 ? $"Ub: {SumaUbytek}" : "")
-            : Uwagi;
+        public string TypCenyDisplay => IsHeaderRow ? "" : GetTypCenyAbbrev(TypCeny);
+        private static string GetTypCenyAbbrev(string typ)
+        {
+            if (string.IsNullOrEmpty(typ)) return "";
+            var lower = typ.ToLowerInvariant();
+            if (lower.Contains("wolny")) return "wol.";
+            if (lower.Contains("rolnic")) return "rol.";
+            if (lower.Contains("minister")) return "mini.";
+            if (lower.Contains("łącz") || lower.Contains("laczo")) return "łącz.";
+            return typ;
+        }
+        public string UwagiDisplay => Uwagi;
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
