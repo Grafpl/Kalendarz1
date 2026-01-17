@@ -96,7 +96,7 @@ namespace Kalendarz1
             {
                 Dock = DockStyle.Top,
                 Height = logoHeight + 10,
-                BackColor = Color.FromArgb(20, 28, 36)
+                BackColor = Color.FromArgb(30, 40, 50)
             };
 
             var logoPanel = new Panel
@@ -299,48 +299,18 @@ namespace Kalendarz1
             };
             panel.Controls.Add(separator);
 
-            // Sekcja z przyciskiem admina (tylko dla adminów)
-            var adminPanel = new Panel
-            {
-                Dock = DockStyle.Top,
-                Height = 60,
-                BackColor = Color.FromArgb(30, 40, 50),
-                Padding = new Padding(10)
-            };
-
-            var adminButton = new Button
-            {
-                Text = "⚙ Panel Admin",
-                Font = new Font("Segoe UI", 9, FontStyle.Bold),
-                Size = new Size(panelWidth - 20, 40),
-                Location = new Point(10, 10),
-                FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(229, 57, 53),
-                ForeColor = Color.White,
-                Cursor = Cursors.Hand,
-                Visible = false,
-                Tag = "adminButton"
-            };
-            adminButton.FlatAppearance.BorderSize = 0;
-            adminButton.FlatAppearance.MouseOverBackColor = Color.FromArgb(244, 81, 77);
-            adminButton.FlatAppearance.MouseDownBackColor = Color.FromArgb(198, 40, 40);
-            adminButton.Click += AdminPanelButton_Click;
-            adminPanel.Controls.Add(adminButton);
-
-            panel.Controls.Add(adminPanel);
-
-            // Dolna sekcja - wyloguj i wersja
+            // Dolna sekcja - wyloguj, admin i wersja
             var footerPanel = new Panel
             {
                 Dock = DockStyle.Bottom,
-                Height = 90,
+                Height = 140,
                 BackColor = Color.FromArgb(20, 28, 36)
             };
 
-            // Przycisk Wyloguj na dole
+            // Przycisk Wyloguj
             var logoutButton = new Button
             {
-                Text = "🚪 Wyloguj",
+                Text = "Wyloguj",
                 Font = new Font("Segoe UI", 9),
                 Size = new Size(panelWidth - 20, 38),
                 Location = new Point(10, 10),
@@ -355,6 +325,26 @@ namespace Kalendarz1
             logoutButton.Click += LogoutButton_Click;
             footerPanel.Controls.Add(logoutButton);
 
+            // Przycisk Panel Admin (pod wyloguj, widoczny tylko dla adminów)
+            var adminButton = new Button
+            {
+                Text = "Panel Admin",
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                Size = new Size(panelWidth - 20, 38),
+                Location = new Point(10, 55),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(229, 57, 53),
+                ForeColor = Color.White,
+                Cursor = Cursors.Hand,
+                Visible = false,
+                Tag = "adminButton"
+            };
+            adminButton.FlatAppearance.BorderSize = 0;
+            adminButton.FlatAppearance.MouseOverBackColor = Color.FromArgb(244, 81, 77);
+            adminButton.FlatAppearance.MouseDownBackColor = Color.FromArgb(198, 40, 40);
+            adminButton.Click += AdminPanelButton_Click;
+            footerPanel.Controls.Add(adminButton);
+
             var versionLabel = new Label
             {
                 Text = "ZPSP v2.0",
@@ -362,7 +352,7 @@ namespace Kalendarz1
                 ForeColor = Color.FromArgb(100, 110, 120),
                 AutoSize = false,
                 Size = new Size(panelWidth - 20, 20),
-                Location = new Point(10, 58),
+                Location = new Point(10, 105),
                 TextAlign = ContentAlignment.MiddleCenter,
                 BackColor = Color.Transparent
             };
