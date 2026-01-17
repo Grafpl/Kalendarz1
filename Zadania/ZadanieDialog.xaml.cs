@@ -120,10 +120,10 @@ namespace Kalendarz1.Zadania
             var stack = new StackPanel { Orientation = Orientation.Horizontal };
 
             // Avatar
-            var avatar = CreateAvatar(pracownik.Id, pracownik.Nazwa, 28);
+            var avatar = CreateAvatar(pracownik.Id, pracownik.Nazwa, 36);
             if (avatar is FrameworkElement fe)
             {
-                fe.Margin = new Thickness(0, 0, 8, 0);
+                fe.Margin = new Thickness(0, 0, 10, 0);
             }
             stack.Children.Add(avatar);
 
@@ -288,10 +288,10 @@ namespace Kalendarz1.Zadania
             var toShow = wybraniPracownicy.Take(5).ToList();
             foreach (var p in toShow)
             {
-                var avatar = CreateAvatar(p.Id, p.Nazwa, 32);
+                var avatar = CreateAvatar(p.Id, p.Nazwa, 40);
                 if (avatar is FrameworkElement fe)
                 {
-                    fe.Margin = new Thickness(0, 0, -8, 0);
+                    fe.Margin = new Thickness(0, 0, -10, 0);
                     fe.ToolTip = p.Nazwa;
                 }
                 pnlWybrani.Children.Add(avatar);
@@ -301,9 +301,9 @@ namespace Kalendarz1.Zadania
             {
                 var more = new Border
                 {
-                    Width = 32,
-                    Height = 32,
-                    CornerRadius = new CornerRadius(16),
+                    Width = 40,
+                    Height = 40,
+                    CornerRadius = new CornerRadius(20),
                     Background = new SolidColorBrush(Color.FromRgb(0x3a, 0x3a, 0x5c)),
                     Margin = new Thickness(4, 0, 0, 0)
                 };
@@ -311,7 +311,7 @@ namespace Kalendarz1.Zadania
                 {
                     Text = $"+{wybraniPracownicy.Count - 5}",
                     Foreground = new SolidColorBrush(Colors.White),
-                    FontSize = 11,
+                    FontSize = 13,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center
                 };

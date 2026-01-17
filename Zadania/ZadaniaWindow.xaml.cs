@@ -267,10 +267,10 @@ namespace Kalendarz1.Zadania
             var maxAvatars = 4;
             foreach (var pracownik in task.Przypisani.Take(maxAvatars))
             {
-                var avatar = CreateAvatar(pracownik.Id, pracownik.Nazwa, 28);
+                var avatar = CreateAvatar(pracownik.Id, pracownik.Nazwa, 36);
                 if (avatar is FrameworkElement fe)
                 {
-                    fe.Margin = new Thickness(0, 0, -6, 0);
+                    fe.Margin = new Thickness(0, 0, -8, 0);
                     fe.ToolTip = pracownik.Nazwa;
                 }
                 avatarsPanel.Children.Add(avatar);
@@ -280,9 +280,9 @@ namespace Kalendarz1.Zadania
             {
                 var more = new Border
                 {
-                    Width = 28,
-                    Height = 28,
-                    CornerRadius = new CornerRadius(14),
+                    Width = 36,
+                    Height = 36,
+                    CornerRadius = new CornerRadius(18),
                     Background = new SolidColorBrush(Color.FromRgb(0x3a, 0x3a, 0x5c)),
                     Margin = new Thickness(2, 0, 0, 0)
                 };
@@ -290,7 +290,7 @@ namespace Kalendarz1.Zadania
                 {
                     Text = $"+{task.Przypisani.Count - maxAvatars}",
                     Foreground = Brushes.White,
-                    FontSize = 10,
+                    FontSize = 12,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center
                 };
