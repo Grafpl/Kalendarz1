@@ -831,7 +831,6 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
@@ -864,8 +863,8 @@
                 </StackPanel>
             </Border>
 
-            <!-- KALENDARZ I NAWIGACJA -->
-            <Border Grid.Row="1" Background="White" CornerRadius="4" Padding="8" Margin="0,0,0,4">
+            <!-- KALENDARZ I PANEL INFORMACYJNY -->
+            <Border Grid.Row="1" Background="White" CornerRadius="4" Padding="6" Margin="0,0,0,4">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
@@ -883,62 +882,121 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <!-- Numer tygodnia i ceny -->
-                    <StackPanel Grid.Column="1" Margin="6,0,0,0">
-                        <!-- Numer tygodnia -->
-                        <Border Background="#ECEFF1" CornerRadius="4" Padding="6,2" Margin="0,0,0,4">
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                <TextBlock Text="TYDZIEŃ " FontSize="10" Foreground="#7F8C8D" VerticalAlignment="Center"/>
-                                <TextBlock x:Name="txtWeekNumber" Text="1" FontSize="20" FontWeight="Bold" Foreground="#2C3E50"/>
-                            </StackPanel>
-                        </Border>
+                    <!-- Panel informacyjny - tydzień + ceny + przyciski -->
+                    <Border Grid.Column="1" Margin="8,0,0,0" Background="#F8F9FA" CornerRadius="6" Padding="8">
+                        <StackPanel>
+                            <!-- TYDZIEŃ - duży badge -->
+                            <Border Background="Linear Gradient" CornerRadius="8" Margin="0,0,0,8">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#1565C0" Offset="0"/>
+                                        <GradientStop Color="#1976D2" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="12,6">
+                                    <TextBlock Text="TYDZIEŃ" FontSize="11" Foreground="#B3E5FC" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="txtWeekNumber" Text="1" FontSize="26" FontWeight="Bold" Foreground="White" Margin="8,0,0,0"/>
+                                </StackPanel>
+                            </Border>
 
-                        <!-- Panel cen rynkowych -->
-                        <GroupBox Header="Ceny rynkowe" Style="{StaticResource ModernGroupBoxStyle}" Padding="2" Margin="0">
-                            <Grid Margin="2">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="70"/>
-                                </Grid.ColumnDefinitions>
+                            <!-- CENY RYNKOWE - kompaktowa siatka -->
+                            <Border Background="White" CornerRadius="6" Padding="6" Margin="0,0,0,8" BorderBrush="#E0E0E0" BorderThickness="1">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Wiersz 1: Rolnicza i Ministerialna -->
+                                    <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,4,4">
+                                        <TextBlock Text="Rolnicza" FontSize="9" Foreground="#757575" FontWeight="SemiBold"/>
+                                        <TextBox x:Name="txtCenaRolnicza" Style="{StaticResource ReadOnlyTextBoxStyle}" FontSize="11" FontWeight="Bold" Foreground="#2E7D32" Background="#E8F5E9" Padding="4,2" BorderThickness="0"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="4,0,0,4">
+                                        <TextBlock Text="Ministerialna" FontSize="9" Foreground="#757575" FontWeight="SemiBold"/>
+                                        <TextBox x:Name="txtCenaMinister" Style="{StaticResource ReadOnlyTextBoxStyle}" FontSize="11" FontWeight="Bold" Foreground="#1565C0" Background="#E3F2FD" Padding="4,2" BorderThickness="0"/>
+                                    </StackPanel>
+
+                                    <!-- Wiersz 2: Łączona i Tuszka -->
+                                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,4,0">
+                                        <TextBlock Text="Łączona" FontSize="9" Foreground="#757575" FontWeight="SemiBold"/>
+                                        <TextBox x:Name="txtCenaLaczona" Style="{StaticResource ReadOnlyTextBoxStyle}" FontSize="11" FontWeight="Bold" Foreground="#7B1FA2" Background="#F3E5F5" Padding="4,2" BorderThickness="0"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="4,0,0,0">
+                                        <TextBlock Text="Tuszka A" FontSize="9" Foreground="#757575" FontWeight="SemiBold"/>
+                                        <TextBox x:Name="txtCenaTuszki" Style="{StaticResource ReadOnlyTextBoxStyle}" FontSize="11" FontWeight="Bold" Foreground="#E65100" Background="#FFF3E0" Padding="4,2" BorderThickness="0"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <!-- PRZYCISKI AKCJI - toolbar -->
+                            <Grid>
                                 <Grid.RowDefinitions>
-                                    <RowDefinition Height="20"/>
-                                    <RowDefinition Height="20"/>
-                                    <RowDefinition Height="20"/>
-                                    <RowDefinition Height="20"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Rolnicza:" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                <TextBox x:Name="txtCenaRolnicza" Grid.Row="0" Grid.Column="1" Style="{StaticResource ReadOnlyTextBoxStyle}" FontSize="10" Padding="2,1"/>
+                                <!-- Wiersz 1: Główne akcje -->
+                                <UniformGrid Grid.Row="0" Columns="4" Margin="0,0,0,4">
+                                    <Button Click="BtnDateUp_Click" ToolTip="Przesuń dzień w górę" Margin="1" Style="{StaticResource ActionButtonStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="▲" FontSize="14" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="Dzień" FontSize="9" HorizontalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Click="BtnDateDown_Click" ToolTip="Przesuń dzień w dół" Margin="1" Style="{StaticResource ActionButtonStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="▼" FontSize="14" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="Dzień" FontSize="9" HorizontalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Click="BtnNowaDostawa_Click" ToolTip="Nowa dostawa" Margin="1" Style="{StaticResource MainButtonStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="➕" FontSize="14" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="Nowa" FontSize="9" HorizontalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Click="BtnDuplikuj_Click" ToolTip="Duplikuj dostawę" Margin="1" Style="{StaticResource ActionButtonStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="📋" FontSize="14" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="Duplikuj" FontSize="9" HorizontalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                </UniformGrid>
 
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Ministerialna:" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                <TextBox x:Name="txtCenaMinister" Grid.Row="1" Grid.Column="1" Style="{StaticResource ReadOnlyTextBoxStyle}" FontSize="10" Padding="2,1"/>
-
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Łączona:" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                <TextBox x:Name="txtCenaLaczona" Grid.Row="2" Grid.Column="1" Style="{StaticResource ReadOnlyTextBoxStyle}" FontSize="10" Padding="2,1"/>
-
-                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Tuszka A:" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                <TextBox x:Name="txtCenaTuszki" Grid.Row="3" Grid.Column="1" Style="{StaticResource ReadOnlyTextBoxStyle}" FontSize="10" Padding="2,1"/>
+                                <!-- Wiersz 2: Narzędzia -->
+                                <UniformGrid Grid.Row="1" Columns="3">
+                                    <Button Click="BtnRefresh_Click" ToolTip="Odśwież dane" Margin="1" Style="{StaticResource ActionButtonStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="🔄" FontSize="14" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="Odśwież" FontSize="9" HorizontalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Click="BtnHistoriaZmian_Click" ToolTip="Historia zmian" Margin="1" Style="{StaticResource ActionButtonStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="📜" FontSize="14" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="Historia" FontSize="9" HorizontalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Click="BtnUsun_Click" ToolTip="Usuń dostawę" Margin="1" Style="{StaticResource DangerButtonStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="🗑" FontSize="14" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="Usuń" FontSize="9" HorizontalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                </UniformGrid>
                             </Grid>
-                        </GroupBox>
-                    </StackPanel>
+                        </StackPanel>
+                    </Border>
                 </Grid>
             </Border>
 
-            <!-- PRZYCISKI AKCJI -->
-            <Border Grid.Row="2" Background="White" CornerRadius="4" Padding="8" Margin="0,0,0,4">
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                    <Button Content="▲ Dzień" Style="{StaticResource ActionButtonStyle}" Click="BtnDateUp_Click" Width="70"/>
-                    <Button Content="▼ Dzień" Style="{StaticResource ActionButtonStyle}" Click="BtnDateDown_Click" Width="70"/>
-                    <Button Content="➕ Nowa" Style="{StaticResource MainButtonStyle}" Click="BtnNowaDostawa_Click" Width="70"/>
-                    <Button Content="📋 Duplikuj" Style="{StaticResource ActionButtonStyle}" Click="BtnDuplikuj_Click" Width="75"/>
-                    <Button Content="🔄" Style="{StaticResource ActionButtonStyle}" Click="BtnRefresh_Click" Width="35" ToolTip="Odśwież"/>
-                    <Button Content="📜" Style="{StaticResource ActionButtonStyle}" Click="BtnHistoriaZmian_Click" Width="35" ToolTip="Historia zmian"/>
-                    <Button Content="🗑" Style="{StaticResource DangerButtonStyle}" Click="BtnUsun_Click" Width="35" ToolTip="Usuń"/>
-                </StackPanel>
-            </Border>
-
             <!-- PANEL SZCZEGÓŁÓW - TABCONTROL -->
-            <Border Grid.Row="3" Background="White" CornerRadius="4" Margin="0,0,0,4">
+            <Border Grid.Row="2" Background="White" CornerRadius="4" Margin="0,0,0,4">
                 <TabControl x:Name="tabSzczegoly" FontSize="10">
                     <!-- TAB: HODOWCA -->
                     <TabItem Header="Hodowca">
@@ -1392,7 +1450,7 @@
             </Border>
 
             <!-- INFO MODYFIKACJI -->
-            <Border Grid.Row="4" Background="White" CornerRadius="4" Padding="8">
+            <Border Grid.Row="3" Background="White" CornerRadius="4" Padding="8">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
