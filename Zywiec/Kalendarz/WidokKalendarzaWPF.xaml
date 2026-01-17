@@ -985,6 +985,7 @@
                     <Button Content="➕ Nowa" Style="{StaticResource MainButtonStyle}" Click="BtnNowaDostawa_Click" Width="70"/>
                     <Button Content="📋 Duplikuj" Style="{StaticResource ActionButtonStyle}" Click="BtnDuplikuj_Click" Width="75"/>
                     <Button Content="🔄" Style="{StaticResource ActionButtonStyle}" Click="BtnRefresh_Click" Width="35" ToolTip="Odśwież"/>
+                    <Button Content="📜" Style="{StaticResource ActionButtonStyle}" Click="BtnHistoriaZmian_Click" Width="35" ToolTip="Historia zmian"/>
                     <Button Content="🗑" Style="{StaticResource DangerButtonStyle}" Click="BtnUsun_Click" Width="35" ToolTip="Usuń"/>
                 </StackPanel>
             </Border>

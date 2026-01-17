@@ -2386,6 +2386,20 @@ namespace Kalendarz1.Zywiec.Kalendarz
             ShowToast("Dane odświeżone", ToastType.Success);
         }
 
+        private void BtnHistoriaZmian_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var historiaWindow = new HistoriaZmianWindow(ConnectionString, UserID);
+                historiaWindow.Owner = this;
+                historiaWindow.Show();
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd: {ex.Message}", ToastType.Error);
+            }
+        }
+
         private async void BtnZapiszDostawe_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrEmpty(_selectedLP))
