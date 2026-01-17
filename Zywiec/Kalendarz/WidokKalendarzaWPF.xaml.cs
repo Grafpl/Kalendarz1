@@ -2330,7 +2330,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 {
                     await _auditService.LogFieldChangeAsync("HarmonogramDostaw", _selectedLP,
                         AuditChangeSource.ContextMenu_PotwierdzWage, "PotwWaga", "0", "1",
-                        dostawa?.Dostawca, dostawa?.DataOdbioru, _cts.Token);
+                        new AuditContextInfo { Dostawca = dostawa?.Dostawca, DataOdbioru = dostawa?.DataOdbioru }, _cts.Token);
                 }
             }
             catch (Exception ex)
@@ -2374,7 +2374,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 {
                     await _auditService.LogFieldChangeAsync("HarmonogramDostaw", _selectedLP,
                         AuditChangeSource.ContextMenu_PotwierdzSztuki, "PotwSztuki", "0", "1",
-                        dostawa?.Dostawca, dostawa?.DataOdbioru, _cts.Token);
+                        new AuditContextInfo { Dostawca = dostawa?.Dostawca, DataOdbioru = dostawa?.DataOdbioru }, _cts.Token);
                 }
             }
             catch (Exception ex)
@@ -2417,7 +2417,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 {
                     await _auditService.LogFieldChangeAsync("HarmonogramDostaw", _selectedLP,
                         AuditChangeSource.ContextMenu_CofnijWage, "PotwWaga", "1", "0",
-                        dostawa?.Dostawca, dostawa?.DataOdbioru, _cts.Token);
+                        new AuditContextInfo { Dostawca = dostawa?.Dostawca, DataOdbioru = dostawa?.DataOdbioru }, _cts.Token);
                 }
             }
             catch (Exception ex)
@@ -2460,7 +2460,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 {
                     await _auditService.LogFieldChangeAsync("HarmonogramDostaw", _selectedLP,
                         AuditChangeSource.ContextMenu_CofnijSztuki, "PotwSztuki", "1", "0",
-                        dostawa?.Dostawca, dostawa?.DataOdbioru, _cts.Token);
+                        new AuditContextInfo { Dostawca = dostawa?.Dostawca, DataOdbioru = dostawa?.DataOdbioru }, _cts.Token);
                 }
             }
             catch (Exception ex)
