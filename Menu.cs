@@ -357,26 +357,13 @@ namespace Kalendarz1
             adminButton.Click += AdminPanelButton_Click;
             footerPanel.Controls.Add(adminButton);
 
-            var versionLabel = new Label
-            {
-                Text = "ZPSP v2.0",
-                Font = new Font("Segoe UI", 8),
-                ForeColor = Color.FromArgb(100, 110, 120),
-                AutoSize = false,
-                Size = new Size(panelWidth - 20, 20),
-                Location = new Point(10, 105),
-                TextAlign = ContentAlignment.MiddleCenter,
-                BackColor = Color.Transparent
-            };
-            footerPanel.Controls.Add(versionLabel);
-
             panel.Controls.Add(footerPanel);
 
-            // Panel z informacjami - używamy Dock.Top z dużą wysokością
+            // Panel z informacjami - kompaktowy layout
             var infoPanel = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 580,
+                Height = 480,
                 BackColor = Color.FromArgb(25, 35, 45)
             };
 
@@ -392,47 +379,34 @@ namespace Kalendarz1
             var tasks = TasksManager.GetTodayTasksSummary(App.UserID);
             var currency = CurrencyManager.GetCurrency();
 
-            int y = 5; // Początkowa pozycja Y
+            int y = 2; // Początkowa pozycja Y - kompaktowa
             int contentWidth = panelWidth - 20;
 
-            // ========== GODZINA ==========
+            // ========== GODZINA + DATA W JEDNEJ LINII ==========
             var timeLabel = new Label
             {
                 Text = now.ToString("HH:mm"),
-                Font = new Font("Segoe UI Light", 26),
+                Font = new Font("Segoe UI Light", 22),
                 ForeColor = Color.White,
-                Size = new Size(contentWidth, 38),
+                Size = new Size(contentWidth, 30),
                 Location = new Point(10, y),
                 TextAlign = ContentAlignment.MiddleCenter
             };
             infoPanel.Controls.Add(timeLabel);
-            y += 40;
+            y += 30;
 
-            // ========== DZIEŃ I DATA ==========
+            // ========== DZIEŃ, DATA I TYDZIEŃ ==========
             var dayLabel = new Label
             {
-                Text = $"{dayOfWeek}, {now.ToString("d MMM", culture)}",
-                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                Text = $"{dayOfWeek}, {now.ToString("d MMM", culture)} | Tydz. {weekNumber}",
+                Font = new Font("Segoe UI", 8),
                 ForeColor = Color.FromArgb(76, 175, 80),
-                Size = new Size(contentWidth, 18),
+                Size = new Size(contentWidth, 14),
                 Location = new Point(10, y),
                 TextAlign = ContentAlignment.MiddleCenter
             };
             infoPanel.Controls.Add(dayLabel);
-            y += 20;
-
-            // ========== TYDZIEŃ ==========
-            var weekLabel = new Label
-            {
-                Text = $"Tydzień {weekNumber}",
-                Font = new Font("Segoe UI", 8),
-                ForeColor = Color.FromArgb(120, 130, 140),
-                Size = new Size(contentWidth, 16),
-                Location = new Point(10, y),
-                TextAlign = ContentAlignment.MiddleCenter
-            };
-            infoPanel.Controls.Add(weekLabel);
-            y += 22;
+            y += 18;
 
             // ========== SEPARATOR ==========
             var sep1 = new Panel
@@ -442,32 +416,20 @@ namespace Kalendarz1
                 BackColor = Color.FromArgb(50, 60, 70)
             };
             infoPanel.Controls.Add(sep1);
-            y += 8;
+            y += 5;
 
             // ========== POGODA ==========
             var weatherMainLabel = new Label
             {
-                Text = $"{weather.Icon} {weather.Temperature}°C",
-                Font = new Font("Segoe UI", 14),
-                ForeColor = Color.FromArgb(255, 220, 100), // Jasny żółty
-                Size = new Size(contentWidth, 28),
+                Text = $"{weather.Icon} {weather.Temperature}°C  {weather.Description}",
+                Font = new Font("Segoe UI", 10),
+                ForeColor = Color.FromArgb(255, 220, 100),
+                Size = new Size(contentWidth, 18),
                 Location = new Point(10, y),
                 TextAlign = ContentAlignment.MiddleCenter
             };
             infoPanel.Controls.Add(weatherMainLabel);
-            y += 26;
-
-            var weatherDescLabel = new Label
-            {
-                Text = weather.Description,
-                Font = new Font("Segoe UI", 8),
-                ForeColor = Color.FromArgb(140, 150, 160),
-                Size = new Size(contentWidth, 16),
-                Location = new Point(10, y),
-                TextAlign = ContentAlignment.MiddleCenter
-            };
-            infoPanel.Controls.Add(weatherDescLabel);
-            y += 22;
+            y += 20;
 
             // ========== SEPARATOR ==========
             var sep2 = new Panel
@@ -477,51 +439,28 @@ namespace Kalendarz1
                 BackColor = Color.FromArgb(50, 60, 70)
             };
             infoPanel.Controls.Add(sep2);
-            y += 6;
+            y += 4;
 
-            // ========== PROGNOZA ==========
-            int forecastDays = Math.Min(5, weather.Forecast.Count);
+            // ========== PROGNOZA - kompaktowa ==========
+            int forecastDays = Math.Min(3, weather.Forecast.Count);
             if (forecastDays > 0)
             {
                 int dayWidth = contentWidth / forecastDays;
                 for (int i = 0; i < forecastDays; i++)
                 {
                     var day = weather.Forecast[i];
-
-                    var dayNameLbl = new Label
+                    var dayLbl = new Label
                     {
-                        Text = day.DayName,
+                        Text = $"{day.DayName}\n{day.Icon} {day.TempMax}°",
                         Font = new Font("Segoe UI", 7),
-                        ForeColor = Color.FromArgb(120, 130, 140),
-                        Size = new Size(dayWidth, 14),
+                        ForeColor = Color.FromArgb(150, 160, 170),
+                        Size = new Size(dayWidth, 28),
                         Location = new Point(10 + i * dayWidth, y),
                         TextAlign = ContentAlignment.MiddleCenter
                     };
-                    infoPanel.Controls.Add(dayNameLbl);
-
-                    var dayIconLbl = new Label
-                    {
-                        Text = day.Icon,
-                        Font = new Font("Segoe UI", 11),
-                        ForeColor = Color.FromArgb(255, 220, 100), // Jasny żółty dla ikon
-                        Size = new Size(dayWidth, 18),
-                        Location = new Point(10 + i * dayWidth, y + 14),
-                        TextAlign = ContentAlignment.MiddleCenter
-                    };
-                    infoPanel.Controls.Add(dayIconLbl);
-
-                    var dayTempLbl = new Label
-                    {
-                        Text = $"{day.TempMax}°",
-                        Font = new Font("Segoe UI", 7),
-                        ForeColor = Color.FromArgb(170, 180, 190),
-                        Size = new Size(dayWidth, 14),
-                        Location = new Point(10 + i * dayWidth, y + 32),
-                        TextAlign = ContentAlignment.MiddleCenter
-                    };
-                    infoPanel.Controls.Add(dayTempLbl);
+                    infoPanel.Controls.Add(dayLbl);
                 }
-                y += 50;
+                y += 30;
             }
 
             // ========== SEPARATOR ==========
@@ -532,72 +471,27 @@ namespace Kalendarz1
                 BackColor = Color.FromArgb(50, 60, 70)
             };
             infoPanel.Controls.Add(sep3);
-            y += 6;
+            y += 4;
 
-            // ========== SPOTKANIA ==========
-            var meetingsHeaderText = meetings.TodayCount > 0
-                ? $"Spotkania ({meetings.TodayCount} dziś)"
-                : "Spotkania";
+            // ========== SPOTKANIA - kompaktowe ==========
+            var meetingsText = meetings.NextMeeting != null
+                ? $"Spotkania: {meetings.NextMeeting.GetTimeUntilText()}"
+                : "Spotkania: brak";
+            var meetingColor = meetings.NextMeeting?.IsNow == true ? Color.FromArgb(76, 175, 80) :
+                               meetings.NextMeeting?.IsSoon == true ? Color.FromArgb(255, 193, 7) :
+                               Color.FromArgb(100, 180, 255);
             var meetingsHeader = new Label
             {
-                Text = meetingsHeaderText,
+                Text = meetingsText,
                 Font = new Font("Segoe UI", 7, FontStyle.Bold),
-                ForeColor = Color.FromArgb(100, 180, 255),
+                ForeColor = meetingColor,
                 Size = new Size(contentWidth, 14),
                 Location = new Point(10, y),
-                TextAlign = ContentAlignment.MiddleCenter
+                TextAlign = ContentAlignment.MiddleCenter,
+                Cursor = Cursors.Hand
             };
             infoPanel.Controls.Add(meetingsHeader);
             y += 16;
-
-            if (meetings.NextMeeting != null)
-            {
-                var nextMtg = meetings.NextMeeting;
-                var meetingColor = nextMtg.IsNow ? Color.FromArgb(76, 175, 80) :
-                                   nextMtg.IsSoon ? Color.FromArgb(255, 193, 7) :
-                                   Color.FromArgb(150, 160, 170);
-
-                var meetingTimeLabel = new Label
-                {
-                    Text = nextMtg.GetTimeUntilText(),
-                    Font = new Font("Segoe UI", 9, FontStyle.Bold),
-                    ForeColor = meetingColor,
-                    Size = new Size(contentWidth, 16),
-                    Location = new Point(10, y),
-                    TextAlign = ContentAlignment.MiddleCenter
-                };
-                infoPanel.Controls.Add(meetingTimeLabel);
-                y += 16;
-
-                var meetingTitle = nextMtg.Tytul ?? "";
-                if (meetingTitle.Length > 22) meetingTitle = meetingTitle.Substring(0, 20) + "..";
-                var meetingTitleLabel = new Label
-                {
-                    Text = meetingTitle,
-                    Font = new Font("Segoe UI", 7),
-                    ForeColor = Color.FromArgb(180, 190, 200),
-                    Size = new Size(contentWidth, 14),
-                    Location = new Point(10, y),
-                    TextAlign = ContentAlignment.MiddleCenter
-                };
-                infoPanel.Controls.Add(meetingTitleLabel);
-                y += 14;
-            }
-            else
-            {
-                var noMeetingsLabel = new Label
-                {
-                    Text = "Brak nadchodzacych",
-                    Font = new Font("Segoe UI", 7),
-                    ForeColor = Color.FromArgb(100, 110, 120),
-                    Size = new Size(contentWidth, 14),
-                    Location = new Point(10, y),
-                    TextAlign = ContentAlignment.MiddleCenter
-                };
-                infoPanel.Controls.Add(noMeetingsLabel);
-                y += 14;
-            }
-            y += 4;
 
             var sepMeetings = new Panel
             {
@@ -606,12 +500,12 @@ namespace Kalendarz1
                 BackColor = Color.FromArgb(50, 60, 70)
             };
             infoPanel.Controls.Add(sepMeetings);
-            y += 6;
+            y += 4;
 
-            // ========== ZADANIA ==========
-            var tasksHeaderText = tasks.Total > 0
-                ? $"Zadania: {tasks.Done}/{tasks.Total}"
-                : "Zadania";
+            // ========== ZADANIA - kompaktowe ==========
+            var tasksText = tasks.Total > 0
+                ? $"Zadania: {tasks.Done}/{tasks.Total}" + (tasks.Zalegle > 0 ? $" (!{tasks.Zalegle})" : "")
+                : "Zadania: brak";
             var tasksColor = tasks.Zalegle > 0 ? Color.FromArgb(244, 67, 54) :
                              tasks.Pilne > 0 ? Color.FromArgb(255, 193, 7) :
                              tasks.Total > 0 ? Color.FromArgb(76, 175, 80) :
@@ -619,7 +513,7 @@ namespace Kalendarz1
 
             var tasksHeader = new Label
             {
-                Text = tasksHeaderText,
+                Text = tasksText,
                 Font = new Font("Segoe UI", 7, FontStyle.Bold),
                 ForeColor = tasksColor,
                 Size = new Size(contentWidth, 14),
@@ -631,56 +525,6 @@ namespace Kalendarz1
             infoPanel.Controls.Add(tasksHeader);
             y += 16;
 
-            if (tasks.Total > 0)
-            {
-                if (tasks.Zalegle > 0)
-                {
-                    var zalegleLabel = new Label
-                    {
-                        Text = $"! Zalegle: {tasks.Zalegle}",
-                        Font = new Font("Segoe UI", 7),
-                        ForeColor = Color.FromArgb(244, 67, 54),
-                        Size = new Size(contentWidth, 14),
-                        Location = new Point(10, y),
-                        TextAlign = ContentAlignment.MiddleCenter
-                    };
-                    infoPanel.Controls.Add(zalegleLabel);
-                    y += 14;
-                }
-
-                if (tasks.Pilne > 0)
-                {
-                    var pilneLabel = new Label
-                    {
-                        Text = $"Pilne: {tasks.Pilne}",
-                        Font = new Font("Segoe UI", 7),
-                        ForeColor = Color.FromArgb(255, 193, 7),
-                        Size = new Size(contentWidth, 14),
-                        Location = new Point(10, y),
-                        TextAlign = ContentAlignment.MiddleCenter
-                    };
-                    infoPanel.Controls.Add(pilneLabel);
-                    y += 14;
-                }
-            }
-            else
-            {
-                var noTasksLabel = new Label
-                {
-                    Text = "Brak zadan na dzis",
-                    Font = new Font("Segoe UI", 7),
-                    ForeColor = Color.FromArgb(100, 110, 120),
-                    Size = new Size(contentWidth, 14),
-                    Location = new Point(10, y),
-                    TextAlign = ContentAlignment.MiddleCenter,
-                    Cursor = Cursors.Hand
-                };
-                noTasksLabel.Click += (s, e) => OpenZadaniaPanel();
-                infoPanel.Controls.Add(noTasksLabel);
-                y += 14;
-            }
-            y += 4;
-
             var sepTasks = new Panel
             {
                 Size = new Size(contentWidth - 20, 1),
@@ -688,64 +532,25 @@ namespace Kalendarz1
                 BackColor = Color.FromArgb(50, 60, 70)
             };
             infoPanel.Controls.Add(sepTasks);
-            y += 6;
+            y += 4;
 
-            // ========== KURS WALUT ==========
-            var currencyHeaderLabel = new Label
+            // ========== KURS WALUT - kompaktowy ==========
+            var eurChangeColor = currency.IsValid && currency.EurChange.StartsWith("+")
+                ? Color.FromArgb(76, 175, 80) : Color.FromArgb(244, 67, 54);
+            var currencyText = currency.IsValid
+                ? $"EUR: {currency.EurRate:F4} PLN ({currency.EurChange})"
+                : "EUR: ladowanie...";
+            var currencyLabel = new Label
             {
-                Text = "Kurs EUR (NBP)",
-                Font = new Font("Segoe UI", 7, FontStyle.Bold),
-                ForeColor = Color.FromArgb(100, 180, 255),
-                Size = new Size(contentWidth, 14),
+                Text = currencyText,
+                Font = new Font("Segoe UI", 8, FontStyle.Bold),
+                ForeColor = currency.IsValid ? Color.White : Color.FromArgb(100, 110, 120),
+                Size = new Size(contentWidth, 16),
                 Location = new Point(10, y),
                 TextAlign = ContentAlignment.MiddleCenter
             };
-            infoPanel.Controls.Add(currencyHeaderLabel);
-            y += 16;
-
-            if (currency.IsValid)
-            {
-                var eurChangeColor = currency.EurChange.StartsWith("+") ? Color.FromArgb(76, 175, 80) : Color.FromArgb(244, 67, 54);
-
-                var currencyLabel = new Label
-                {
-                    Text = $"{currency.EurRate:F4} PLN",
-                    Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                    ForeColor = Color.White,
-                    Size = new Size(contentWidth, 18),
-                    Location = new Point(10, y),
-                    TextAlign = ContentAlignment.MiddleCenter
-                };
-                infoPanel.Controls.Add(currencyLabel);
-                y += 18;
-
-                var currencyChangeLabel = new Label
-                {
-                    Text = $"({currency.EurChange})",
-                    Font = new Font("Segoe UI", 7),
-                    ForeColor = eurChangeColor,
-                    Size = new Size(contentWidth, 14),
-                    Location = new Point(10, y),
-                    TextAlign = ContentAlignment.MiddleCenter
-                };
-                infoPanel.Controls.Add(currencyChangeLabel);
-                y += 14;
-            }
-            else
-            {
-                var currencyLoadingLabel = new Label
-                {
-                    Text = "Ladowanie...",
-                    Font = new Font("Segoe UI", 7),
-                    ForeColor = Color.FromArgb(100, 110, 120),
-                    Size = new Size(contentWidth, 14),
-                    Location = new Point(10, y),
-                    TextAlign = ContentAlignment.MiddleCenter
-                };
-                infoPanel.Controls.Add(currencyLoadingLabel);
-                y += 14;
-            }
-            y += 4;
+            infoPanel.Controls.Add(currencyLabel);
+            y += 18;
 
             var sepCurrency = new Panel
             {
@@ -754,24 +559,24 @@ namespace Kalendarz1
                 BackColor = Color.FromArgb(50, 60, 70)
             };
             infoPanel.Controls.Add(sepCurrency);
-            y += 6;
+            y += 4;
 
-            // ========== OSTATNIE LOGOWANIE ==========
+            // ========== OSTATNIE LOGOWANIE - kompaktowe ==========
             string lastLoginText = lastLogin != null
-                ? $"Ostatnie logowanie: {lastLogin.LoginTime:dd.MM HH:mm}"
+                ? $"Ost. log.: {lastLogin.LoginTime:dd.MM HH:mm}"
                 : "Pierwsze logowanie";
 
             var lastLoginLabel = new Label
             {
                 Text = lastLoginText,
                 Font = new Font("Segoe UI", 7),
-                ForeColor = Color.FromArgb(110, 120, 130),
-                Size = new Size(contentWidth, 16),
+                ForeColor = Color.FromArgb(90, 100, 110),
+                Size = new Size(contentWidth, 14),
                 Location = new Point(10, y),
                 TextAlign = ContentAlignment.MiddleCenter
             };
             infoPanel.Controls.Add(lastLoginLabel);
-            y += 22;
+            y += 16;
 
             // ========== SEPARATOR ==========
             var sep4 = new Panel
@@ -781,48 +586,38 @@ namespace Kalendarz1
                 BackColor = Color.FromArgb(50, 60, 70)
             };
             infoPanel.Controls.Add(sep4);
-            y += 8;
+            y += 4;
 
-            // ========== NOTATNIK ==========
+            // ========== NOTATNIK - kompaktowy ==========
             var notepadButton = new Button
             {
-                Text = "📝 Notatnik",
-                Font = new Font("Segoe UI", 8),
-                Size = new Size(contentWidth - 20, 28),
+                Text = "Notatnik",
+                Font = new Font("Segoe UI", 7),
+                Size = new Size(contentWidth - 20, 22),
                 Location = new Point(20, y),
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(45, 55, 65),
+                BackColor = Color.FromArgb(40, 50, 60),
                 ForeColor = Color.White,
                 Cursor = Cursors.Hand
             };
-            notepadButton.FlatAppearance.BorderColor = Color.FromArgb(60, 70, 80);
-            notepadButton.FlatAppearance.MouseOverBackColor = Color.FromArgb(55, 65, 75);
+            notepadButton.FlatAppearance.BorderColor = Color.FromArgb(55, 65, 75);
+            notepadButton.FlatAppearance.MouseOverBackColor = Color.FromArgb(50, 60, 70);
             notepadButton.Click += (s, e) => ShowNotepadDialog();
             infoPanel.Controls.Add(notepadButton);
-            y += 34;
+            y += 26;
 
-            // ========== SEPARATOR ==========
-            var sep5 = new Panel
-            {
-                Size = new Size(contentWidth - 20, 1),
-                Location = new Point(20, y),
-                BackColor = Color.FromArgb(50, 60, 70)
-            };
-            infoPanel.Controls.Add(sep5);
-            y += 8;
-
-            // ========== CYTAT ==========
+            // ========== CYTAT - kompaktowy ==========
             var quoteText = "\"" + quote.Text + "\"";
             if (!string.IsNullOrEmpty(quote.Author))
             {
-                quoteText += "\n- " + quote.Author;
+                quoteText += " - " + quote.Author;
             }
             var quoteLabel = new Label
             {
                 Text = quoteText,
-                Font = new Font("Segoe UI", 8, FontStyle.Italic),
-                ForeColor = Color.FromArgb(120, 130, 140),
-                Size = new Size(contentWidth, 80),
+                Font = new Font("Segoe UI", 7, FontStyle.Italic),
+                ForeColor = Color.FromArgb(90, 100, 110),
+                Size = new Size(contentWidth, 60),
                 Location = new Point(10, y),
                 TextAlign = ContentAlignment.TopCenter
             };
@@ -846,9 +641,8 @@ namespace Kalendarz1
                 {
                     string newDayOfWeek = culture.DateTimeFormat.GetDayName(currentTime.DayOfWeek);
                     newDayOfWeek = char.ToUpper(newDayOfWeek[0]) + newDayOfWeek.Substring(1);
-                    dayLabel.Text = $"{newDayOfWeek}, {currentTime.ToString("d MMM", culture)}";
                     int newWeekNumber = culture.Calendar.GetWeekOfYear(currentTime, System.Globalization.CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
-                    weekLabel.Text = $"Tydzień {newWeekNumber}";
+                    dayLabel.Text = $"{newDayOfWeek}, {currentTime.ToString("d MMM", culture)} | Tydz. {newWeekNumber}";
                 }
             };
             clockTimer.Start();
