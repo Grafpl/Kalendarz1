@@ -147,6 +147,13 @@ namespace Kalendarz1.WPF
             _selectedDate = initialDate ?? GetDefaultDate();
             _openPanelJolaOnStart = openPanelJola;
 
+            // Jeśli uruchamiamy bezpośrednio Panel Pani Jola - ukryj główne okno
+            if (_openPanelJolaOnStart)
+            {
+                this.WindowState = WindowState.Minimized;
+                this.ShowInTaskbar = false;
+            }
+
             InitializeAsync();
         }
 
@@ -3967,7 +3974,17 @@ namespace Kalendarz1.WPF
             };
 
             // Zatrzymaj timery przy zamknięciu okna
-            dialog.Closed += (s, e) => { autoTimer?.Stop(); clockTimer?.Stop(); };
+            dialog.Closed += (s, e) =>
+            {
+                autoTimer?.Stop();
+                clockTimer?.Stop();
+
+                // Jeśli uruchomiono bezpośrednio z menu - zamknij też DashboardWindow
+                if (_openPanelJolaOnStart)
+                {
+                    this.Close();
+                }
+            };
 
             var mainContainer = new Grid();
             dialog.Content = mainContainer;
