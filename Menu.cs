@@ -445,7 +445,7 @@ namespace Kalendarz1
             {
                 Text = $"{weather.Icon} {weather.Temperature}°C",
                 Font = new Font("Segoe UI", 14),
-                ForeColor = Color.White,
+                ForeColor = Color.FromArgb(255, 220, 100), // Jasny żółty
                 Size = new Size(contentWidth, 28),
                 Location = new Point(10, y),
                 TextAlign = ContentAlignment.MiddleCenter
@@ -499,6 +499,7 @@ namespace Kalendarz1
                     {
                         Text = day.Icon,
                         Font = new Font("Segoe UI", 11),
+                        ForeColor = Color.FromArgb(255, 220, 100), // Jasny żółty dla ikon
                         Size = new Size(dayWidth, 18),
                         Location = new Point(10 + i * dayWidth, y + 14),
                         TextAlign = ContentAlignment.MiddleCenter

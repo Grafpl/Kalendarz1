@@ -150,18 +150,18 @@ namespace Kalendarz1
 
         private static string GetWeatherIcon(int code)
         {
-            // Kody pogody wttr.in -> proste symbole tekstowe
-            if (code == 113) return "☼";   // Sunny
-            if (code == 116) return "☼☁";  // Partly cloudy
-            if (code == 119 || code == 122) return "☁";   // Cloudy
-            if (code >= 176 && code <= 185) return "☂";   // Light rain
-            if (code >= 200 && code <= 232) return "⚡";  // Thunderstorm
-            if (code >= 260 && code <= 284) return "▒";   // Fog
-            if (code >= 293 && code <= 314) return "☂";   // Rain
-            if (code >= 317 && code <= 350) return "☂*";  // Sleet
-            if (code >= 353 && code <= 367) return "☂";   // Rain
-            if (code >= 368 && code <= 395) return "*";   // Snow
-            return "~";
+            // Kody pogody wttr.in -> czytelne tekstowe oznaczenia
+            if (code == 113) return "[S]";   // Sunny - słonecznie
+            if (code == 116) return "[S/C]"; // Partly cloudy
+            if (code == 119 || code == 122) return "[C]";   // Cloudy
+            if (code >= 176 && code <= 185) return "[d]";   // Light rain
+            if (code >= 200 && code <= 232) return "[B]";   // Burza
+            if (code >= 260 && code <= 284) return "[M]";   // Mgła
+            if (code >= 293 && code <= 314) return "[D]";   // Deszcz
+            if (code >= 317 && code <= 350) return "[DS]";  // Deszcz+Śnieg
+            if (code >= 353 && code <= 367) return "[D]";   // Deszcz
+            if (code >= 368 && code <= 395) return "[SN]";  // Śnieg
+            return "[-]";
         }
 
         private static string GetPolishDescription(string englishDesc)
