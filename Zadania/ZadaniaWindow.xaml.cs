@@ -177,17 +177,50 @@ namespace Kalendarz1.Zadania
             mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-            // Checkbox
-            var checkbox = new CheckBox
+            // Checkbox - duży i widoczny
+            var checkboxBorder = new Border
             {
-                IsChecked = task.Wykonane,
+                Width = 28,
+                Height = 28,
+                CornerRadius = new CornerRadius(6),
+                Background = task.Wykonane
+                    ? new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50))
+                    : new SolidColorBrush(Color.FromRgb(0x3a, 0x3a, 0x5c)),
+                BorderBrush = task.Wykonane
+                    ? new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50))
+                    : new SolidColorBrush(Color.FromRgb(0x5a, 0x5a, 0x7c)),
+                BorderThickness = new Thickness(2),
+                Cursor = System.Windows.Input.Cursors.Hand,
                 VerticalAlignment = VerticalAlignment.Center,
                 Tag = task.Id
             };
-            checkbox.Checked += TaskCheckbox_Changed;
-            checkbox.Unchecked += TaskCheckbox_Changed;
-            Grid.SetColumn(checkbox, 0);
-            mainGrid.Children.Add(checkbox);
+
+            var checkMark = new TextBlock
+            {
+                Text = task.Wykonane ? "✓" : "",
+                Foreground = Brushes.White,
+                FontSize = 16,
+                FontWeight = FontWeights.Bold,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            checkboxBorder.Child = checkMark;
+
+            checkboxBorder.MouseLeftButtonUp += (s, ev) =>
+            {
+                var id = (int)((Border)s).Tag;
+                var t = allTasks.FirstOrDefault(x => x.Id == id);
+                if (t != null)
+                {
+                    t.Wykonane = !t.Wykonane;
+                    UpdateTaskInDatabase(id, t.Wykonane);
+                    UpdateStats();
+                    ApplyFilters();
+                }
+            };
+
+            Grid.SetColumn(checkboxBorder, 0);
+            mainGrid.Children.Add(checkboxBorder);
 
             // Zadanie info
             var infoStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
@@ -566,14 +599,8 @@ namespace Kalendarz1.Zadania
             }
         }
 
-        private void TaskCheckbox_Changed(object sender, RoutedEventArgs e)
+        private void UpdateTaskInDatabase(int taskId, bool wykonane)
         {
-            var checkbox = sender as CheckBox;
-            if (checkbox?.Tag == null) return;
-
-            var taskId = (int)checkbox.Tag;
-            var wykonane = checkbox.IsChecked ?? false;
-
             try
             {
                 using (var conn = new SqlConnection(connectionString))
@@ -585,15 +612,32 @@ namespace Kalendarz1.Zadania
                     cmd.Parameters.AddWithValue("@id", taskId);
                     cmd.ExecuteNonQuery();
                 }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas aktualizacji: {ex.Message}", "Błąd",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
 
-                var task = allTasks.FirstOrDefault(t => t.Id == taskId);
-                if (task != null)
-                {
-                    task.Wykonane = wykonane;
-                }
+        private void TaskCheckbox_Changed(object sender, RoutedEventArgs e)
+        {
+            var checkbox = sender as CheckBox;
+            if (checkbox?.Tag == null) return;
 
-                UpdateStats();
-                ApplyFilters();
+            var taskId = (int)checkbox.Tag;
+            var wykonane = checkbox.IsChecked ?? false;
+
+            UpdateTaskInDatabase(taskId, wykonane);
+
+            var task = allTasks.FirstOrDefault(t => t.Id == taskId);
+            if (task != null)
+            {
+                task.Wykonane = wykonane;
+            }
+
+            UpdateStats();
+            ApplyFilters();
             }
             catch (Exception ex)
             {
