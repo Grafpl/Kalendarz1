@@ -506,19 +506,6 @@
                             <Run>Zrobię wszystko, co w mojej mocy, aby był dla Was realnym wsparciem.</Run>
                         </TextBlock>
 
-                        <!-- Cytat dnia -->
-                        <Border x:Name="QuoteBorder" Margin="0,30,0,0" Padding="15" Background="#FFFFFF" Opacity="0.15" CornerRadius="8">
-                            <StackPanel>
-                                <TextBlock Text="Cytat dnia" FontSize="11" Foreground="White"
-                                           FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                                <TextBlock x:Name="QuoteText" TextWrapping="Wrap" TextAlignment="Center"
-                                           Foreground="White" FontSize="13" FontStyle="Italic"
-                                           Text="&quot;Sukces to suma małych wysiłków powtarzanych dzień po dniu.&quot;"/>
-                                <TextBlock x:Name="QuoteAuthor" Text="- Robert Collier" FontSize="11"
-                                           Foreground="#E0F0D6" HorizontalAlignment="Right" Margin="0,5,0,0"/>
-                            </StackPanel>
-                        </Border>
-
                         <Image Source="pack://application:,,,/logo2white.png" Height="50"
                                Margin="0,30,0,15" Opacity="0.7" RenderOptions.BitmapScalingMode="Fant"/>
                         <TextBlock Text="Sergiusz Piórkowski" Foreground="White" FontWeight="Bold"

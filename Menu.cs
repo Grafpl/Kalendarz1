@@ -192,7 +192,7 @@ namespace Kalendarz1
             var headerPanel = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 190,
+                Height = 215,
                 BackColor = Color.FromArgb(25, 35, 45)
             };
 
@@ -375,6 +375,31 @@ namespace Kalendarz1
             footerPanel.Controls.Add(versionLabel);
 
             panel.Controls.Add(footerPanel);
+
+            // Panel z losowym cytatem - wypełnia środkową część
+            var quotePanel = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(25, 35, 45),
+                Padding = new Padding(15, 20, 15, 20)
+            };
+
+            // Losowy cytat
+            var quote = QuotesManager.GetRandomQuote();
+            var quoteLabel = new Label
+            {
+                Text = $"„{quote.Text}"",
+                Font = new Font("Segoe UI", 9, FontStyle.Italic),
+                ForeColor = Color.FromArgb(160, 170, 180),
+                AutoSize = false,
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleCenter,
+                BackColor = Color.Transparent,
+                Padding = new Padding(5)
+            };
+            quotePanel.Controls.Add(quoteLabel);
+
+            panel.Controls.Add(quotePanel);
 
             return panel;
         }
@@ -1375,10 +1400,57 @@ namespace Kalendarz1
             addButton.FlatAppearance.BorderSize = 0;
             addButton.Click += (s, args) =>
             {
-                var addQuoteWindow = new AddQuoteWindow();
-                if (addQuoteWindow.ShowDialog() == true)
+                // Prosty dialog do dodania cytatu
+                var inputForm = new Form
                 {
-                    if (QuotesManager.AddQuote(addQuoteWindow.QuoteText, addQuoteWindow.QuoteAuthor))
+                    Text = "Dodaj cytat",
+                    Size = new Size(450, 200),
+                    StartPosition = FormStartPosition.CenterParent,
+                    FormBorderStyle = FormBorderStyle.FixedDialog,
+                    MaximizeBox = false,
+                    MinimizeBox = false
+                };
+
+                var label = new Label
+                {
+                    Text = "Wpisz treść cytatu:",
+                    Location = new Point(20, 20),
+                    AutoSize = true
+                };
+                inputForm.Controls.Add(label);
+
+                var textBox = new TextBox
+                {
+                    Location = new Point(20, 45),
+                    Size = new Size(390, 60),
+                    Multiline = true
+                };
+                inputForm.Controls.Add(textBox);
+
+                var okButton = new Button
+                {
+                    Text = "Dodaj",
+                    Location = new Point(230, 115),
+                    Size = new Size(80, 30),
+                    DialogResult = DialogResult.OK
+                };
+                inputForm.Controls.Add(okButton);
+
+                var cancelButton = new Button
+                {
+                    Text = "Anuluj",
+                    Location = new Point(320, 115),
+                    Size = new Size(80, 30),
+                    DialogResult = DialogResult.Cancel
+                };
+                inputForm.Controls.Add(cancelButton);
+
+                inputForm.AcceptButton = okButton;
+                inputForm.CancelButton = cancelButton;
+
+                if (inputForm.ShowDialog() == DialogResult.OK && !string.IsNullOrWhiteSpace(textBox.Text))
+                {
+                    if (QuotesManager.AddQuote(textBox.Text.Trim()))
                     {
                         infoLabel.Text = $"Liczba cytatów: {QuotesManager.GetQuotesCount()}";
                         MessageBox.Show("Cytat został dodany!", "Sukces",

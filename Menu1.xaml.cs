@@ -48,7 +48,6 @@ namespace Kalendarz1
             LoadCompanyLogo();
             LoadRecentLogins();
             InitializeClock();
-            InitializeQuoteOfTheDay();
             InitializeServerStatusCheck();
         }
 
@@ -448,21 +447,6 @@ namespace Kalendarz1
             // Aktualizuj imieniny
             NameDaysText.Text = NameDaysManager.GetTodayNameDaysWithHeader();
         }
-
-        #endregion
-
-        #region Cytat dnia
-
-        private void InitializeQuoteOfTheDay()
-        {
-            // Pobierz cytat dnia z QuotesManager
-            var quote = QuotesManager.GetQuoteOfTheDay();
-
-            QuoteText.Text = $"\"{quote.Text}\"";
-            QuoteAuthor.Text = $"- {quote.Author}";
-        }
-
-        // Zarządzanie cytatami przeniesione do Panelu Admin w Menu
 
         #endregion
 
