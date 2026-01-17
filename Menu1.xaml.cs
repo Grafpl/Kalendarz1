@@ -5,11 +5,15 @@ using System.Collections.Generic;
 using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Reflection;
+using System.Text.Json;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Shapes;
 using System.Windows.Threading;
 
 namespace Kalendarz1
@@ -20,6 +24,19 @@ namespace Kalendarz1
         private DispatcherTimer clockTimer;
         private DispatcherTimer serverCheckTimer;
         private bool isServerOnline = false;
+
+        // Ścieżka do pliku historii logowań
+        private static readonly string LoginHistoryPath = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "ZPSP", "LoginHistory", "history.json");
+
+        // Klasa do przechowywania wpisu logowania
+        private class LoginRecord
+        {
+            public string UserId { get; set; }
+            public string UserName { get; set; }
+            public DateTime LoginTime { get; set; }
+        }
 
         // Lista cytatów motywacyjnych
         private readonly List<(string quote, string author)> motivationalQuotes = new List<(string, string)>
@@ -52,6 +69,7 @@ namespace Kalendarz1
             this.Loaded += (s, e) => PasswordBox.Focus();
             SetFooterText();
             LoadCompanyLogo();
+            LoadRecentLogins();
             InitializeClock();
             InitializeQuoteOfTheDay();
             InitializeServerStatusCheck();
@@ -68,17 +86,10 @@ namespace Kalendarz1
                         if (logo != null)
                         {
                             var bitmapImage = ConvertToBitmapImage(logo as System.Drawing.Bitmap);
-                            CompanyLogoImage.Source = bitmapImage;
                             LeftCompanyLogo.Source = bitmapImage;
                             return;
                         }
                     }
-                }
-
-                // Domyślne logo dla prawego panelu (małe)
-                using (var defaultLogo = CompanyLogoManager.GenerateDefaultLogo(200, 60))
-                {
-                    CompanyLogoImage.Source = ConvertToBitmapImage(defaultLogo);
                 }
 
                 // Domyślne logo dla lewego panelu (duże)
@@ -112,6 +123,262 @@ namespace Kalendarz1
                 return bitmapImage;
             }
         }
+
+        #region Historia logowań
+
+        private void LoadRecentLogins()
+        {
+            try
+            {
+                RecentAvatarsPanel.Children.Clear();
+
+                var recentLogins = GetRecentLogins(5); // Ostatnie 5 dni
+
+                if (recentLogins.Count == 0)
+                {
+                    RecentLoginsPanel.Visibility = Visibility.Collapsed;
+                    return;
+                }
+
+                RecentLoginsPanel.Visibility = Visibility.Visible;
+
+                // Wyświetl unikalne avatary użytkowników (max 5)
+                var uniqueUsers = recentLogins
+                    .GroupBy(r => r.UserId)
+                    .Select(g => g.OrderByDescending(r => r.LoginTime).First())
+                    .Take(5)
+                    .ToList();
+
+                foreach (var login in uniqueUsers)
+                {
+                    var avatarButton = CreateRecentLoginAvatar(login);
+                    RecentAvatarsPanel.Children.Add(avatarButton);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"LoadRecentLogins error: {ex.Message}");
+                RecentLoginsPanel.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private Border CreateRecentLoginAvatar(LoginRecord login)
+        {
+            // Kontener z avatarem
+            var container = new Border
+            {
+                Width = 45,
+                Height = 45,
+                Margin = new Thickness(3, 0, 3, 0),
+                CornerRadius = new CornerRadius(22.5),
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E0E0E0")),
+                BorderThickness = new Thickness(2),
+                Background = new SolidColorBrush(Colors.White),
+                Cursor = Cursors.Hand,
+                ToolTip = $"{login.UserName}\nOstatnie logowanie: {login.LoginTime:dd.MM.yyyy HH:mm}"
+            };
+
+            // Elipsa z avatarem
+            var avatarEllipse = new Ellipse
+            {
+                Width = 41,
+                Height = 41,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            // Próbuj załadować avatar użytkownika
+            var avatarBrush = LoadUserAvatar(login.UserId);
+            if (avatarBrush != null)
+            {
+                avatarEllipse.Fill = avatarBrush;
+            }
+            else
+            {
+                // Domyślny avatar z inicjałami
+                avatarEllipse.Fill = CreateInitialsAvatar(login.UserName);
+            }
+
+            container.Child = avatarEllipse;
+
+            // Kliknięcie wypełnia pole logowania
+            container.MouseLeftButtonUp += (s, e) =>
+            {
+                PasswordBox.Password = login.UserId;
+                PasswordBox.Focus();
+            };
+
+            // Efekt hover
+            container.MouseEnter += (s, e) =>
+            {
+                container.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#5C8A3A"));
+                container.RenderTransform = new ScaleTransform(1.1, 1.1);
+                container.RenderTransformOrigin = new Point(0.5, 0.5);
+            };
+
+            container.MouseLeave += (s, e) =>
+            {
+                container.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E0E0E0"));
+                container.RenderTransform = null;
+            };
+
+            return container;
+        }
+
+        private ImageBrush LoadUserAvatar(string userId)
+        {
+            try
+            {
+                // Sprawdź lokalny cache avatarów
+                string avatarDir = System.IO.Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "ZPSP", "Avatars");
+
+                string[] extensions = { ".png", ".jpg", ".jpeg", ".bmp" };
+                foreach (var ext in extensions)
+                {
+                    string avatarPath = System.IO.Path.Combine(avatarDir, $"{userId}{ext}");
+                    if (File.Exists(avatarPath))
+                    {
+                        var bitmap = new BitmapImage();
+                        bitmap.BeginInit();
+                        bitmap.UriSource = new Uri(avatarPath);
+                        bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                        bitmap.EndInit();
+                        bitmap.Freeze();
+
+                        return new ImageBrush(bitmap) { Stretch = Stretch.UniformToFill };
+                    }
+                }
+
+                return null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private Brush CreateInitialsAvatar(string userName)
+        {
+            // Generuj kolor na podstawie nazwy
+            int hash = userName?.GetHashCode() ?? 0;
+            var colors = new[]
+            {
+                "#5C8A3A", "#3498DB", "#9B59B6", "#E74C3C", "#F39C12",
+                "#1ABC9C", "#34495E", "#E67E22", "#2ECC71", "#8E44AD"
+            };
+            string color = colors[Math.Abs(hash) % colors.Length];
+
+            // Utwórz DrawingBrush z inicjałami
+            var drawingGroup = new DrawingGroup();
+
+            // Tło
+            var backgroundGeometry = new EllipseGeometry(new Point(20, 20), 20, 20);
+            var backgroundDrawing = new GeometryDrawing(
+                new SolidColorBrush((Color)ColorConverter.ConvertFromString(color)),
+                null,
+                backgroundGeometry);
+            drawingGroup.Children.Add(backgroundDrawing);
+
+            // Inicjały
+            string initials = GetInitials(userName);
+            var formattedText = new FormattedText(
+                initials,
+                CultureInfo.CurrentCulture,
+                FlowDirection.LeftToRight,
+                new Typeface("Segoe UI"),
+                14,
+                Brushes.White,
+                VisualTreeHelper.GetDpi(this).PixelsPerDip);
+
+            var textGeometry = formattedText.BuildGeometry(
+                new Point(20 - formattedText.Width / 2, 20 - formattedText.Height / 2));
+            var textDrawing = new GeometryDrawing(Brushes.White, null, textGeometry);
+            drawingGroup.Children.Add(textDrawing);
+
+            return new DrawingBrush(drawingGroup);
+        }
+
+        private string GetInitials(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return "?";
+
+            var parts = name.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length >= 2)
+            {
+                return $"{char.ToUpper(parts[0][0])}{char.ToUpper(parts[1][0])}";
+            }
+            else if (parts.Length == 1 && parts[0].Length >= 2)
+            {
+                return $"{char.ToUpper(parts[0][0])}{char.ToUpper(parts[0][1])}";
+            }
+            return parts[0].Substring(0, 1).ToUpper();
+        }
+
+        private List<LoginRecord> GetRecentLogins(int days)
+        {
+            try
+            {
+                if (!File.Exists(LoginHistoryPath))
+                    return new List<LoginRecord>();
+
+                string json = File.ReadAllText(LoginHistoryPath);
+                var allLogins = JsonSerializer.Deserialize<List<LoginRecord>>(json) ?? new List<LoginRecord>();
+
+                // Filtruj tylko logowania z ostatnich N dni
+                var cutoffDate = DateTime.Now.AddDays(-days);
+                return allLogins
+                    .Where(r => r.LoginTime >= cutoffDate)
+                    .OrderByDescending(r => r.LoginTime)
+                    .ToList();
+            }
+            catch
+            {
+                return new List<LoginRecord>();
+            }
+        }
+
+        private void SaveLoginToHistory(string userId, string userName)
+        {
+            try
+            {
+                // Utwórz katalog jeśli nie istnieje
+                string dir = System.IO.Path.GetDirectoryName(LoginHistoryPath);
+                if (!Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+
+                // Pobierz istniejące logowania
+                var logins = new List<LoginRecord>();
+                if (File.Exists(LoginHistoryPath))
+                {
+                    string existingJson = File.ReadAllText(LoginHistoryPath);
+                    logins = JsonSerializer.Deserialize<List<LoginRecord>>(existingJson) ?? new List<LoginRecord>();
+                }
+
+                // Dodaj nowe logowanie
+                logins.Add(new LoginRecord
+                {
+                    UserId = userId,
+                    UserName = userName,
+                    LoginTime = DateTime.Now
+                });
+
+                // Ogranicz do logowań z ostatnich 30 dni (żeby plik nie rósł w nieskończoność)
+                var cutoffDate = DateTime.Now.AddDays(-30);
+                logins = logins.Where(r => r.LoginTime >= cutoffDate).ToList();
+
+                // Zapisz
+                string json = JsonSerializer.Serialize(logins, new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(LoginHistoryPath, json);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"SaveLoginToHistory error: {ex.Message}");
+            }
+        }
+
+        #endregion
 
         private void LogoBorder_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
         {
@@ -395,6 +662,9 @@ namespace Kalendarz1
             {
                 App.UserID = username;
                 App.UserFullName = GetUserFullName(username) ?? username;
+
+                // Zapisz logowanie do historii
+                SaveLoginToHistory(username, App.UserFullName);
 
                 // Uruchom serwis powiadomień o spotkaniach
                 App.StartNotyfikacjeService();

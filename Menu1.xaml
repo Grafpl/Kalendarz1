@@ -537,12 +537,13 @@
 
             <!-- PRAWY PANEL - Formularz logowania -->
             <Grid Grid.Column="1">
-                <!-- Logo firmy na górze -->
-                <Border x:Name="LogoBorder" HorizontalAlignment="Center" VerticalAlignment="Top"
-                        Margin="0,20,0,0" Padding="10" Background="Transparent"
-                        MouseRightButtonUp="LogoBorder_MouseRightButtonUp" Cursor="Arrow">
-                    <Image x:Name="CompanyLogoImage" Height="60" RenderOptions.BitmapScalingMode="Fant"/>
-                </Border>
+                <!-- Ostatnie logowania -->
+                <StackPanel x:Name="RecentLoginsPanel" Orientation="Horizontal" HorizontalAlignment="Center"
+                            VerticalAlignment="Top" Margin="0,25,0,0">
+                    <TextBlock Text="Ostatnie logowania:" FontSize="11" Foreground="#95A5A6"
+                               VerticalAlignment="Center" Margin="0,0,15,0"/>
+                    <StackPanel x:Name="RecentAvatarsPanel" Orientation="Horizontal"/>
+                </StackPanel>
 
                 <!-- Status serwera w prawym górnym rogu -->
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top"
