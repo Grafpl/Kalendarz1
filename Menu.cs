@@ -79,9 +79,10 @@ namespace Kalendarz1
         {
             string odbiorcaId = App.UserID ?? "";
             string userName = App.UserFullName ?? App.UserID ?? "Użytkownik";
+            bool isUserAdmin = (App.UserID == "11111");
             int avatarSize = 90;
             int panelWidth = 170;
-            int logoHeight = 50;
+            int logoHeight = 60;
 
             var panel = new Panel
             {
@@ -90,39 +91,20 @@ namespace Kalendarz1
                 Padding = new Padding(0)
             };
 
-            // Górna sekcja z logo, avatarem i nazwą
-            var headerPanel = new Panel
+            // Sekcja logo na samej górze (nad zieloną kreską)
+            var logoSection = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 250,
-                BackColor = Color.FromArgb(25, 35, 45)
+                Height = logoHeight + 10,
+                BackColor = Color.FromArgb(20, 28, 36)
             };
 
-            // Gradient w tle headera
-            headerPanel.Paint += (s, e) =>
-            {
-                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                using (var brush = new LinearGradientBrush(
-                    new Point(0, 0), new Point(0, headerPanel.Height),
-                    Color.FromArgb(40, 55, 70), Color.FromArgb(25, 35, 45)))
-                {
-                    e.Graphics.FillRectangle(brush, 0, 0, headerPanel.Width, headerPanel.Height);
-                }
-
-                // Zielony pasek akcentowy na górze
-                using (var brush = new SolidBrush(Color.FromArgb(76, 175, 80)))
-                {
-                    e.Graphics.FillRectangle(brush, 0, 0, headerPanel.Width, 4);
-                }
-            };
-
-            // Logo firmy na górze
             var logoPanel = new Panel
             {
                 Size = new Size(panelWidth - 20, logoHeight),
-                Location = new Point(10, 15),
+                Location = new Point(10, 5),
                 BackColor = Color.Transparent,
-                Cursor = isAdmin ? Cursors.Hand : Cursors.Default
+                Cursor = isUserAdmin ? Cursors.Hand : Cursors.Default
             };
 
             logoPanel.Paint += (s, e) =>
@@ -138,7 +120,6 @@ namespace Kalendarz1
                         {
                             if (logo != null)
                             {
-                                // Wycentruj logo
                                 int x = (logoPanel.Width - logo.Width) / 2;
                                 int y = (logoPanel.Height - logo.Height) / 2;
                                 e.Graphics.DrawImage(logo, x, y, logo.Width, logo.Height);
@@ -158,8 +139,8 @@ namespace Kalendarz1
                 }
             };
 
-            // Menu kontekstowe dla admina (prawy przycisk myszy)
-            if (isAdmin)
+            // Menu kontekstowe dla admina (prawy przycisk myszy) - sprawdzamy App.UserID bezpośrednio
+            if (isUserAdmin)
             {
                 var logoContextMenu = new ContextMenuStrip();
 
@@ -204,13 +185,40 @@ namespace Kalendarz1
                 logoPanel.ContextMenuStrip = logoContextMenu;
             }
 
-            headerPanel.Controls.Add(logoPanel);
+            logoSection.Controls.Add(logoPanel);
+            panel.Controls.Add(logoSection);
 
-            // Avatar wycentrowany (poniżej logo)
+            // Sekcja z avatarem i nazwą (pod zieloną kreską)
+            var headerPanel = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 190,
+                BackColor = Color.FromArgb(25, 35, 45)
+            };
+
+            // Gradient w tle headera
+            headerPanel.Paint += (s, e) =>
+            {
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                using (var brush = new LinearGradientBrush(
+                    new Point(0, 0), new Point(0, headerPanel.Height),
+                    Color.FromArgb(40, 55, 70), Color.FromArgb(25, 35, 45)))
+                {
+                    e.Graphics.FillRectangle(brush, 0, 0, headerPanel.Width, headerPanel.Height);
+                }
+
+                // Zielony pasek akcentowy na górze
+                using (var brush = new SolidBrush(Color.FromArgb(76, 175, 80)))
+                {
+                    e.Graphics.FillRectangle(brush, 0, 0, headerPanel.Width, 4);
+                }
+            };
+
+            // Avatar wycentrowany
             var avatarPanel = new Panel
             {
                 Size = new Size(avatarSize, avatarSize),
-                Location = new Point((panelWidth - avatarSize) / 2, logoHeight + 30),
+                Location = new Point((panelWidth - avatarSize) / 2, 20),
                 BackColor = Color.Transparent,
                 Cursor = Cursors.Hand
             };
@@ -260,7 +268,7 @@ namespace Kalendarz1
                 ForeColor = Color.White,
                 AutoSize = false,
                 Size = new Size(panelWidth - 10, 25),
-                Location = new Point(5, logoHeight + avatarSize + 40),
+                Location = new Point(5, 120),
                 TextAlign = ContentAlignment.MiddleCenter,
                 BackColor = Color.Transparent
             };
@@ -274,7 +282,7 @@ namespace Kalendarz1
                 ForeColor = Color.FromArgb(76, 175, 80),
                 AutoSize = false,
                 Size = new Size(panelWidth - 10, 20),
-                Location = new Point(5, logoHeight + avatarSize + 65),
+                Location = new Point(5, 148),
                 TextAlign = ContentAlignment.MiddleCenter,
                 BackColor = Color.Transparent
             };
