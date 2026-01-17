@@ -495,8 +495,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 else
                     _allDostawyNastepny = new List<DostawaModel>(tempList);
 
-                // Grupuj dane według daty i oblicz sumy/średnie
-                var groupedByDate = tempList.GroupBy(d => d.DataOdbioru.Date).OrderBy(g => g.Key);
+                // Grupuj dane według daty
+                var groupedByDate = tempList.GroupBy(d => d.DataOdbioru.Date).ToDictionary(g => g.Key, g => g.ToList());
 
                 // Aktualizuj UI na głównym wątku
                 await Dispatcher.InvokeAsync(() =>
@@ -504,14 +504,21 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     collection.Clear();
                     bool isFirst = true;
 
-                    foreach (var group in groupedByDate)
+                    // Iteruj przez wszystkie dni tygodnia (Pon-Ndz)
+                    for (int i = 0; i < 7; i++)
                     {
+                        DateTime currentDay = startOfWeek.AddDays(i);
+
                         // Dodaj separator między dniami (oprócz pierwszego)
                         if (!isFirst)
                         {
                             collection.Add(new DostawaModel { IsHeaderRow = true, IsSeparator = true });
                         }
                         isFirst = false;
+
+                        // Sprawdź czy są dostawy dla tego dnia
+                        bool hasDeliveries = groupedByDate.ContainsKey(currentDay.Date);
+                        var deliveries = hasDeliveries ? groupedByDate[currentDay.Date] : new List<DostawaModel>();
 
                         // Oblicz sumy i średnie ważone dla tego dnia
                         double sumaAuta = 0;
@@ -523,7 +530,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         int sumaUbytek = 0;
                         int iloscZDoby = 0;
 
-                        foreach (var item in group)
+                        foreach (var item in deliveries)
                         {
                             sumaAuta += item.Auta;
                             sumaSztuki += item.SztukiDek;
@@ -555,8 +562,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         collection.Add(new DostawaModel
                         {
                             IsHeaderRow = true,
-                            DataOdbioru = group.Key,
-                            Dostawca = group.Key.ToString("yyyy-MM-dd dddd", new CultureInfo("pl-PL")),
+                            IsEmptyDay = !hasDeliveries,
+                            DataOdbioru = currentDay,
+                            Dostawca = currentDay.ToString("yyyy-MM-dd dddd", new CultureInfo("pl-PL")),
                             SumaAuta = sumaAuta,
                             SumaSztuki = sumaSztuki,
                             SredniaWaga = sredniaWaga,
@@ -567,7 +575,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         });
 
                         // Dodaj wszystkie dostawy dla tego dnia
-                        foreach (var dostawa in group)
+                        foreach (var dostawa in deliveries)
                         {
                             collection.Add(dostawa);
                         }
@@ -1680,6 +1688,22 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
             if (dostawa.IsHeaderRow)
             {
+                // Pusty dzień - mała czcionka, przekreślony, czarny
+                if (dostawa.IsEmptyDay)
+                {
+                    e.Row.FontWeight = FontWeights.Normal;
+                    e.Row.FontSize = 9;
+                    e.Row.Height = 20;
+                    e.Row.MinHeight = 20;
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(245, 245, 245));
+                    e.Row.Foreground = Brushes.Black;
+                    // Przekreślenie tekstu
+                    var style = new Style(typeof(TextBlock));
+                    style.Setters.Add(new Setter(TextBlock.TextDecorationsProperty, TextDecorations.Strikethrough));
+                    e.Row.Resources[typeof(TextBlock)] = style;
+                    return;
+                }
+
                 // Styl nagłówka dnia - wyróżniony
                 e.Row.FontWeight = FontWeights.Bold;
                 e.Row.FontSize = 13;
@@ -2912,6 +2936,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         public bool IsHeaderRow { get; set; }
         public bool IsSeparator { get; set; }
+        public bool IsEmptyDay { get; set; }
 
         // Pola dla sum i średnich w nagłówku dnia
         public double SumaAuta { get; set; }
