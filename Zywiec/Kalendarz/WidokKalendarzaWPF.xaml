@@ -1005,15 +1005,15 @@
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="55"/>
+                                                <ColumnDefinition Width="45"/>
                                                 <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="55"/>
+                                                <ColumnDefinition Width="32"/>
                                                 <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="70"/>
+                                                <ColumnDefinition Width="60"/>
                                                 <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="40"/>
+                                                <ColumnDefinition Width="28"/>
                                                 <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="55"/>
+                                                <ColumnDefinition Width="45"/>
                                             </Grid.ColumnDefinitions>
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="28"/>
