@@ -152,7 +152,7 @@ namespace Kalendarz1.Zadania
             var button = sender as Button;
             if (button?.Tag == null) return;
 
-            var taskId = (long)button.Tag;
+            var taskId = (int)button.Tag;
             var task = allTasks.FirstOrDefault(t => t.Id == taskId);
             if (task == null) return;
 
@@ -168,7 +168,7 @@ namespace Kalendarz1.Zadania
             var button = sender as Button;
             if (button?.Tag == null) return;
 
-            var taskId = (long)button.Tag;
+            var taskId = (int)button.Tag;
             var task = allTasks.FirstOrDefault(t => t.Id == taskId);
             if (task == null) return;
 
@@ -204,7 +204,7 @@ namespace Kalendarz1.Zadania
             var checkbox = sender as CheckBox;
             if (checkbox?.Tag == null) return;
 
-            var taskId = (long)checkbox.Tag;
+            var taskId = (int)checkbox.Tag;
             var wykonane = checkbox.IsChecked ?? false;
 
             try
