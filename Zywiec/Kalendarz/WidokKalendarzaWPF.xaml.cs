@@ -1844,6 +1844,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         ShowToast("Notatka dodana", ToastType.Success);
                         await LoadNotatkiAsync(lp);
                         await LoadOstatnieNotatkiAsync();
+                        // Odśwież tabele dostaw
+                        await LoadDostawyAsync();
                     }
                     catch (Exception ex)
                     {
@@ -2265,6 +2267,32 @@ namespace Kalendarz1.Zywiec.Kalendarz
             }
         }
 
+        private void MenuItemNowaDostawaZDaty_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Pobierz zaznaczony element z odpowiedniej tabeli
+                var selectedItem = dgDostawy.SelectedItem as DostawaModel ?? dgDostawyNastepny.SelectedItem as DostawaModel;
+
+                DateTime dateToUse = _selectedDate;
+
+                if (selectedItem != null && !selectedItem.IsSeparator && !selectedItem.IsHeaderRow)
+                {
+                    // Użyj daty z zaznaczonego wiersza
+                    dateToUse = selectedItem.DataOdbioru;
+                }
+
+                var dostawa = new Dostawa("", dateToUse);
+                dostawa.UserID = App.UserID;
+                dostawa.FormClosed += (s, args) => LoadDostawy();
+                dostawa.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private async void BtnDuplikuj_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrEmpty(_selectedLP))
@@ -2652,6 +2680,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 ShowToast("Notatka dodana", ToastType.Success);
                 await LoadNotatkiAsync(_selectedLP);
                 await LoadOstatnieNotatkiAsync();
+                // Odśwież tabele dostaw
+                await LoadDostawyAsync();
             }
             catch (Exception ex)
             {

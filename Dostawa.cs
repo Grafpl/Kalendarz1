@@ -515,6 +515,32 @@ namespace Kalendarz1
                     // Wykonaj polecenie
                     insertCmd.ExecuteNonQuery();
 
+                    // AUDIT LOG - logowanie nowej dostawy
+                    try
+                    {
+                        string auditSql = @"
+                            INSERT INTO dbo.AuditLog_Dostawy
+                            (DataZmiany, UserID, UserName, NazwaTabeli, RekordID, TypOperacji, ZrodloZmiany,
+                             NazwaPola, NowaWartosc, OpisZmiany, NazwaKomputera)
+                            VALUES
+                            (GETDATE(), @userId, @userName, 'HarmonogramDostaw', @lp, 'INSERT', 'Form_NowaDostwa',
+                             'ALL', @nowaWartosc, @opis, @computer)";
+
+                        SqlCommand auditCmd = new SqlCommand(auditSql, cnn);
+                        auditCmd.Parameters.AddWithValue("@userId", UserID ?? "0");
+                        auditCmd.Parameters.AddWithValue("@userName", ktoStwo.Text ?? "");
+                        auditCmd.Parameters.AddWithValue("@lp", maxLP.ToString());
+                        auditCmd.Parameters.AddWithValue("@nowaWartosc", $"Data: {Data.Text}, Dostawca: {Dostawca.Text}, Auta: {liczbaAut.Text}, Waga: {srednia.Text}");
+                        auditCmd.Parameters.AddWithValue("@opis", $"Utworzono nową dostawę LP={maxLP}");
+                        auditCmd.Parameters.AddWithValue("@computer", Environment.MachineName);
+                        auditCmd.ExecuteNonQuery();
+                    }
+                    catch (Exception auditEx)
+                    {
+                        // Ignoruj błędy audytu - nie powinny blokować głównej operacji
+                        System.Diagnostics.Debug.WriteLine($"Błąd audytu: {auditEx.Message}");
+                    }
+
                     /* Aktualizacja danych dostawcy
                     string updateSupplierSql = @"
             UPDATE dbo.Dostawcy 

@@ -153,115 +153,36 @@
         <Style x:Key="MainButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="#5C8A3A"/>
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="14,8"/>
             <Setter Property="Margin" Value="2"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
-            <Setter Property="RenderTransform">
-                <Setter.Value>
-                    <ScaleTransform ScaleX="1" ScaleY="1"/>
-                </Setter.Value>
-            </Setter>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#3D5C26"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="4"
-                                Padding="{TemplateBinding Padding}" ClipToBounds="True"
-                                RenderTransformOrigin="0.5,0.5">
-                            <Border.RenderTransform>
-                                <ScaleTransform x:Name="borderScale" ScaleX="1" ScaleY="1"/>
-                            </Border.RenderTransform>
+                                Padding="{TemplateBinding Padding}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
                             <Border.Effect>
-                                <DropShadowEffect x:Name="shadowEffect" ShadowDepth="1" Color="#000000" Opacity="0.15" BlurRadius="4"/>
+                                <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.25" BlurRadius="3"/>
                             </Border.Effect>
-                            <Grid>
-                                <!-- Ripple effect circle -->
-                                <Ellipse x:Name="ripple" Fill="White" Opacity="0"
-                                         Width="0" Height="0" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                    <Ellipse.RenderTransform>
-                                        <ScaleTransform x:Name="rippleScale" ScaleX="1" ScaleY="1"/>
-                                    </Ellipse.RenderTransform>
-                                </Ellipse>
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Grid>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Trigger.EnterActions>
-                                    <BeginStoryboard>
-                                        <Storyboard>
-                                            <ColorAnimation Storyboard.TargetName="border"
-                                                           Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                                           To="#4B732F" Duration="0:0:0.15"/>
-                                            <DoubleAnimation Storyboard.TargetName="shadowEffect"
-                                                            Storyboard.TargetProperty="BlurRadius"
-                                                            To="8" Duration="0:0:0.15"/>
-                                            <DoubleAnimation Storyboard.TargetName="shadowEffect"
-                                                            Storyboard.TargetProperty="ShadowDepth"
-                                                            To="2" Duration="0:0:0.15"/>
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </Trigger.EnterActions>
-                                <Trigger.ExitActions>
-                                    <BeginStoryboard>
-                                        <Storyboard>
-                                            <ColorAnimation Storyboard.TargetName="border"
-                                                           Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                                           To="#5C8A3A" Duration="0:0:0.15"/>
-                                            <DoubleAnimation Storyboard.TargetName="shadowEffect"
-                                                            Storyboard.TargetProperty="BlurRadius"
-                                                            To="4" Duration="0:0:0.15"/>
-                                            <DoubleAnimation Storyboard.TargetName="shadowEffect"
-                                                            Storyboard.TargetProperty="ShadowDepth"
-                                                            To="1" Duration="0:0:0.15"/>
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </Trigger.ExitActions>
+                                <Setter TargetName="border" Property="Background" Value="#4B732F"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#2D4A1A"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Trigger.EnterActions>
-                                    <BeginStoryboard>
-                                        <Storyboard>
-                                            <ColorAnimation Storyboard.TargetName="border"
-                                                           Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                                           To="#3A5C24" Duration="0:0:0.05"/>
-                                            <DoubleAnimation Storyboard.TargetName="borderScale"
-                                                            Storyboard.TargetProperty="ScaleX"
-                                                            To="0.97" Duration="0:0:0.05"/>
-                                            <DoubleAnimation Storyboard.TargetName="borderScale"
-                                                            Storyboard.TargetProperty="ScaleY"
-                                                            To="0.97" Duration="0:0:0.05"/>
-                                            <!-- Ripple animation -->
-                                            <DoubleAnimation Storyboard.TargetName="ripple"
-                                                            Storyboard.TargetProperty="Width"
-                                                            From="0" To="200" Duration="0:0:0.4"/>
-                                            <DoubleAnimation Storyboard.TargetName="ripple"
-                                                            Storyboard.TargetProperty="Height"
-                                                            From="0" To="200" Duration="0:0:0.4"/>
-                                            <DoubleAnimation Storyboard.TargetName="ripple"
-                                                            Storyboard.TargetProperty="Opacity"
-                                                            From="0.4" To="0" Duration="0:0:0.4"/>
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </Trigger.EnterActions>
-                                <Trigger.ExitActions>
-                                    <BeginStoryboard>
-                                        <Storyboard>
-                                            <DoubleAnimation Storyboard.TargetName="borderScale"
-                                                            Storyboard.TargetProperty="ScaleX"
-                                                            To="1" Duration="0:0:0.1"/>
-                                            <DoubleAnimation Storyboard.TargetName="borderScale"
-                                                            Storyboard.TargetProperty="ScaleY"
-                                                            To="1" Duration="0:0:0.1"/>
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </Trigger.ExitActions>
+                                <Setter TargetName="border" Property="Background" Value="#3A5C24"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#1F3A0F"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="border" Property="Background" Value="#CCCCCC"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#AAAAAA"/>
                                 <Setter TargetName="border" Property="Opacity" Value="0.7"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -277,6 +198,7 @@
 
         <Style x:Key="NavButtonStyle" TargetType="Button" BasedOn="{StaticResource MainButtonStyle}">
             <Setter Property="Background" Value="#34495E"/>
+            <Setter Property="BorderBrush" Value="#1A2530"/>
             <Setter Property="Width" Value="35"/>
             <Setter Property="Height" Value="30"/>
             <Setter Property="FontSize" Value="14"/>
@@ -285,14 +207,17 @@
 
         <Style x:Key="ActionButtonStyle" TargetType="Button" BasedOn="{StaticResource MainButtonStyle}">
             <Setter Property="Background" Value="#3498DB"/>
+            <Setter Property="BorderBrush" Value="#1A6CAD"/>
         </Style>
 
         <Style x:Key="DangerButtonStyle" TargetType="Button" BasedOn="{StaticResource MainButtonStyle}">
             <Setter Property="Background" Value="#E74C3C"/>
+            <Setter Property="BorderBrush" Value="#A82315"/>
         </Style>
 
         <Style x:Key="WarningButtonStyle" TargetType="Button" BasedOn="{StaticResource MainButtonStyle}">
             <Setter Property="Background" Value="#F39C12"/>
+            <Setter Property="BorderBrush" Value="#B87A0A"/>
         </Style>
 
         <!-- ==================== STYLE CHECKBOX ==================== -->
@@ -553,6 +478,17 @@
                     <DataGrid x:Name="dgDostawy" Style="{StaticResource MainDataGridStyle}"
                                   RenderTransformOrigin="0.5,0.5"
                                   SelectionChanged="DgDostawy_SelectionChanged" MouseDoubleClick="DgDostawy_MouseDoubleClick" LoadingRow="DgDostawy_LoadingRow">
+                        <DataGrid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="➕ Nowa dostawa na ten dzień" Click="MenuItemNowaDostawaZDaty_Click" FontWeight="SemiBold"/>
+                                <Separator/>
+                                <MenuItem Header="📋 Duplikuj dostawę" Click="BtnDuplikuj_Click"/>
+                                <MenuItem Header="▲ Przesuń o dzień w górę" Click="BtnDateUp_Click"/>
+                                <MenuItem Header="▼ Przesuń o dzień w dół" Click="BtnDateDown_Click"/>
+                                <Separator/>
+                                <MenuItem Header="🗑 Usuń dostawę" Click="BtnUsun_Click" Foreground="#E74C3C"/>
+                            </ContextMenu>
+                        </DataGrid.ContextMenu>
                         <DataGrid.RenderTransform>
                             <TranslateTransform X="0" Y="0"/>
                         </DataGrid.RenderTransform>
@@ -719,6 +655,17 @@
                     <DataGrid x:Name="dgDostawyNastepny" Style="{StaticResource MainDataGridStyle}" LoadingRow="DgDostawy_LoadingRow"
                               RenderTransformOrigin="0.5,0.5"
                               SelectionChanged="DgDostawyNastepny_SelectionChanged" MouseDoubleClick="DgDostawy_MouseDoubleClick">
+                        <DataGrid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="➕ Nowa dostawa na ten dzień" Click="MenuItemNowaDostawaZDaty_Click" FontWeight="SemiBold"/>
+                                <Separator/>
+                                <MenuItem Header="📋 Duplikuj dostawę" Click="BtnDuplikuj_Click"/>
+                                <MenuItem Header="▲ Przesuń o dzień w górę" Click="BtnDateUp_Click"/>
+                                <MenuItem Header="▼ Przesuń o dzień w dół" Click="BtnDateDown_Click"/>
+                                <Separator/>
+                                <MenuItem Header="🗑 Usuń dostawę" Click="BtnUsun_Click" Foreground="#E74C3C"/>
+                            </ContextMenu>
+                        </DataGrid.ContextMenu>
                         <DataGrid.RenderTransform>
                             <TranslateTransform X="0" Y="0"/>
                         </DataGrid.RenderTransform>
