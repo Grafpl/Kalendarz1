@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="Kalendarz Dostaw - Harmonogram Żywca"
-        Height="950" Width="1920"
+        Height="1000" Width="1920"
         WindowStartupLocation="CenterScreen"
         WindowState="Maximized"
         Background="#ECEFF1"
@@ -18,21 +18,18 @@
             <Setter Property="Background" Value="#5C8A3A"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Padding" Value="14,8"/>
-            <Setter Property="Margin" Value="4"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Margin" Value="2"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="border"
-                                Background="{TemplateBinding Background}"
-                                CornerRadius="6"
-                                Padding="{TemplateBinding Padding}">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             <Border.Effect>
-                                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.15" BlurRadius="6"/>
+                                <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.15" BlurRadius="4"/>
                             </Border.Effect>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -51,11 +48,16 @@
             </Setter>
         </Style>
 
+        <Style x:Key="SmallButtonStyle" TargetType="Button" BasedOn="{StaticResource MainButtonStyle}">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Padding" Value="8,4"/>
+        </Style>
+
         <Style x:Key="NavButtonStyle" TargetType="Button" BasedOn="{StaticResource MainButtonStyle}">
             <Setter Property="Background" Value="#34495E"/>
-            <Setter Property="Width" Value="40"/>
-            <Setter Property="Height" Value="40"/>
-            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="Width" Value="35"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="FontSize" Value="14"/>
             <Setter Property="Padding" Value="0"/>
         </Style>
 
@@ -67,12 +69,47 @@
             <Setter Property="Background" Value="#E74C3C"/>
         </Style>
 
+        <Style x:Key="WarningButtonStyle" TargetType="Button" BasedOn="{StaticResource MainButtonStyle}">
+            <Setter Property="Background" Value="#F39C12"/>
+        </Style>
+
         <!-- ==================== STYLE CHECKBOX ==================== -->
         <Style x:Key="FilterCheckBoxStyle" TargetType="CheckBox">
             <Setter Property="Foreground" Value="#2C3E50"/>
             <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Margin" Value="8,0"/>
+            <Setter Property="Margin" Value="6,0"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <!-- ==================== STYLE TEXTBOX ==================== -->
+        <Style x:Key="FormTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="BorderBrush" Value="#BDC3C7"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="2"/>
+        </Style>
+
+        <Style x:Key="ReadOnlyTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource FormTextBoxStyle}">
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="Background" Value="#F5F5F5"/>
+        </Style>
+
+        <!-- ==================== STYLE COMBOBOX ==================== -->
+        <Style x:Key="FormComboBoxStyle" TargetType="ComboBox">
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="BorderBrush" Value="#BDC3C7"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="2"/>
+        </Style>
+
+        <!-- ==================== STYLE LABEL ==================== -->
+        <Style x:Key="FormLabelStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#7F8C8D"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Margin" Value="2,4,2,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
 
         <!-- ==================== STYLE DATAGRID ==================== -->
@@ -80,15 +117,15 @@
             <Setter Property="Background" Value="#34495E"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Padding" Value="8,10"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Padding" Value="6,8"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="BorderBrush" Value="#2C3E50"/>
             <Setter Property="BorderThickness" Value="0,0,1,0"/>
         </Style>
 
         <Style x:Key="DataGridCellStyle" TargetType="DataGridCell">
-            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="Padding" Value="4,2"/>
             <Setter Property="BorderThickness" Value="0,0,1,0"/>
             <Setter Property="BorderBrush" Value="#E0E0E0"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -110,7 +147,7 @@
             <Setter Property="SelectionUnit" Value="FullRow"/>
             <Setter Property="GridLinesVisibility" Value="Horizontal"/>
             <Setter Property="HorizontalGridLinesBrush" Value="#E0E0E0"/>
-            <Setter Property="RowHeight" Value="32"/>
+            <Setter Property="RowHeight" Value="26"/>
             <Setter Property="Background" Value="White"/>
             <Setter Property="BorderBrush" Value="#DDDDDD"/>
             <Setter Property="BorderThickness" Value="1"/>
@@ -118,6 +155,12 @@
             <Setter Property="CellStyle" Value="{StaticResource DataGridCellStyle}"/>
             <Setter Property="AlternatingRowBackground" Value="#FAFAFA"/>
             <Setter Property="RowHeaderWidth" Value="0"/>
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+
+        <Style x:Key="SmallDataGridStyle" TargetType="DataGrid" BasedOn="{StaticResource MainDataGridStyle}">
+            <Setter Property="RowHeight" Value="22"/>
+            <Setter Property="FontSize" Value="10"/>
         </Style>
 
         <!-- ==================== STYLE GRUPBOX ==================== -->
@@ -125,54 +168,37 @@
             <Setter Property="Background" Value="White"/>
             <Setter Property="BorderBrush" Value="#DDDDDD"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Margin" Value="4"/>
-            <Setter Property="Padding" Value="8"/>
-            <Setter Property="HeaderTemplate">
-                <Setter.Value>
-                    <DataTemplate>
-                        <TextBlock Text="{Binding}" FontWeight="SemiBold" FontSize="13" Foreground="#2C3E50"/>
-                    </DataTemplate>
-                </Setter.Value>
-            </Setter>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="Padding" Value="6"/>
         </Style>
 
-        <!-- ==================== STYLE STATUSÓW - KOLORY WIERSZY ==================== -->
-        <!-- Potwierdzony = Zielony -->
+        <!-- ==================== KOLORY STATUSÓW ==================== -->
         <SolidColorBrush x:Key="StatusPotwierdzonyBrush" Color="#C8E6C9"/>
-        <!-- Anulowany = Czerwony -->
         <SolidColorBrush x:Key="StatusAnulowanyBrush" Color="#FFCDD2"/>
-        <!-- Sprzedany = Niebieski -->
         <SolidColorBrush x:Key="StatusSprzedanyBrush" Color="#BBDEFB"/>
-        <!-- B.Kontr. = Fioletowy -->
         <SolidColorBrush x:Key="StatusBKontrBrush" Color="#7E57C2"/>
-        <!-- B.Wolny = Żółty -->
         <SolidColorBrush x:Key="StatusBWolnyBrush" Color="#FFF9C4"/>
-        <!-- Do Wykupienia = Szary -->
         <SolidColorBrush x:Key="StatusDoWykupieniaBrush" Color="#F5F5F5"/>
-        <!-- Nagłówek dnia = Ciemny -->
         <SolidColorBrush x:Key="HeaderDayBrush" Color="#37474F"/>
 
     </Window.Resources>
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" MinWidth="600"/>
-            <ColumnDefinition Width="280"/>
+            <ColumnDefinition Width="*" MinWidth="500"/>
+            <ColumnDefinition Width="580"/>
         </Grid.ColumnDefinitions>
 
-        <!-- ==================== LEWA STRONA - TABELA DOSTAW ==================== -->
+        <!-- ==================== LEWA STRONA - TABELE DOSTAW ==================== -->
         <Grid Grid.Column="0">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <!-- PASEK FILTRÓW -->
-            <Border Grid.Row="0" Background="White" Padding="12,8" Margin="8,8,4,4"
-                    BorderBrush="#DDDDDD" BorderThickness="1" CornerRadius="6">
-                <Border.Effect>
-                    <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.1" BlurRadius="4"/>
-                </Border.Effect>
+            <Border Grid.Row="0" Background="White" Padding="10,6" Margin="6,6,3,3" BorderBrush="#DDDDDD" BorderThickness="1" CornerRadius="4">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
@@ -180,228 +206,629 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- Filtry checkbox -->
                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="Filtry:" FontWeight="SemiBold" Foreground="#2C3E50"
-                                   VerticalAlignment="Center" Margin="0,0,12,0"/>
-                        <CheckBox x:Name="chkAnulowane" Content="Anulowane"
-                                  Style="{StaticResource FilterCheckBoxStyle}"
-                                  Checked="Filter_Changed" Unchecked="Filter_Changed"/>
-                        <CheckBox x:Name="chkSprzedane" Content="Sprzedane"
-                                  Style="{StaticResource FilterCheckBoxStyle}"
-                                  Checked="Filter_Changed" Unchecked="Filter_Changed"/>
-                        <CheckBox x:Name="chkDoWykupienia" Content="Do Wykupienia" IsChecked="True"
-                                  Style="{StaticResource FilterCheckBoxStyle}"
-                                  Checked="Filter_Changed" Unchecked="Filter_Changed"/>
-                        <CheckBox x:Name="chkPokazCeny" Content="Pokaż ceny" IsChecked="True"
-                                  Style="{StaticResource FilterCheckBoxStyle}"
-                                  Checked="Filter_Changed" Unchecked="Filter_Changed"/>
+                        <TextBlock Text="Filtry:" FontWeight="SemiBold" Foreground="#2C3E50" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="11"/>
+                        <CheckBox x:Name="chkAnulowane" Content="Anulowane" Style="{StaticResource FilterCheckBoxStyle}" Checked="Filter_Changed" Unchecked="Filter_Changed"/>
+                        <CheckBox x:Name="chkSprzedane" Content="Sprzedane" Style="{StaticResource FilterCheckBoxStyle}" Checked="Filter_Changed" Unchecked="Filter_Changed"/>
+                        <CheckBox x:Name="chkDoWykupienia" Content="Do Wykupienia" IsChecked="True" Style="{StaticResource FilterCheckBoxStyle}" Checked="Filter_Changed" Unchecked="Filter_Changed"/>
+                        <CheckBox x:Name="chkPokazCeny" Content="Ceny" IsChecked="True" Style="{StaticResource FilterCheckBoxStyle}" Checked="Filter_Changed" Unchecked="Filter_Changed"/>
+                        <Border Width="1" Background="#DDDDDD" Margin="10,2"/>
+                        <CheckBox x:Name="chkNastepnyTydzien" Content="+ Następny tydzień" Style="{StaticResource FilterCheckBoxStyle}" Foreground="#3498DB" FontWeight="SemiBold" Checked="ChkNastepnyTydzien_Changed" Unchecked="ChkNastepnyTydzien_Changed"/>
                     </StackPanel>
 
-                    <!-- Info użytkownik -->
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="Użytkownik:" Foreground="#7F8C8D" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="txtUserName" Text="-" FontWeight="SemiBold" Foreground="#2C3E50" VerticalAlignment="Center"/>
+                        <TextBlock Text="Użytkownik:" Foreground="#7F8C8D" Margin="0,0,4,0" VerticalAlignment="Center" FontSize="10"/>
+                        <TextBlock x:Name="txtUserName" Text="-" FontWeight="SemiBold" Foreground="#2C3E50" VerticalAlignment="Center" FontSize="11"/>
                     </StackPanel>
                 </Grid>
             </Border>
 
-            <!-- TABELA DOSTAW -->
-            <DataGrid x:Name="dgDostawy" Grid.Row="1"
-                      Style="{StaticResource MainDataGridStyle}"
-                      Margin="8,4,4,8"
-                      SelectionChanged="DgDostawy_SelectionChanged"
-                      MouseDoubleClick="DgDostawy_MouseDoubleClick"
-                      LoadingRow="DgDostawy_LoadingRow">
-                <DataGrid.Effect>
-                    <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="8"/>
-                </DataGrid.Effect>
-                <DataGrid.Columns>
-                    <!-- LP - ukryta -->
-                    <DataGridTextColumn Header="LP" Binding="{Binding LP}" Visibility="Collapsed"/>
+            <!-- TABELE DOSTAW -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition x:Name="colNastepnyTydzien" Width="0"/>
+                </Grid.ColumnDefinitions>
 
-                    <!-- Data -->
-                    <DataGridTextColumn Header="Data" Binding="{Binding DataOdbioru, StringFormat=yyyy-MM-dd ddd}"
-                                        Width="100" IsReadOnly="True"/>
+                <!-- TABELA GŁÓWNA (bieżący tydzień) -->
+                <Border Grid.Column="0" Margin="6,3,3,3" Background="White" CornerRadius="4" BorderBrush="#DDDDDD" BorderThickness="1">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Border Grid.Row="0" Background="#34495E" Padding="8,4">
+                            <TextBlock x:Name="txtTydzien1Header" Text="Bieżący tydzień" Foreground="White" FontWeight="SemiBold" FontSize="11"/>
+                        </Border>
+                        <DataGrid x:Name="dgDostawy" Grid.Row="1" Style="{StaticResource MainDataGridStyle}"
+                                  SelectionChanged="DgDostawy_SelectionChanged" MouseDoubleClick="DgDostawy_MouseDoubleClick" LoadingRow="DgDostawy_LoadingRow">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="LP" Binding="{Binding LP}" Visibility="Collapsed"/>
+                                <DataGridTextColumn Header="Data" Binding="{Binding DataOdbioru, StringFormat=MM-dd ddd}" Width="70" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="120" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="A" Binding="{Binding Auta}" Width="28" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDekDisplay}" Width="75" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Waga" Binding="{Binding WagaDekDisplay}" Width="60" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Doby" Binding="{Binding RoznicaDniDisplay}" Width="45" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/></Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Typ" Binding="{Binding TypCeny}" Width="65" IsReadOnly="True"/>
+                                <DataGridTextColumn x:Name="colCena" Header="Cena" Binding="{Binding CenaDisplay}" Width="55" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="KM" Binding="{Binding KmDisplay}" Width="45" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Uwagi" Binding="{Binding Uwagi}" Width="*" MinWidth="100" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock"><Setter Property="TextTrimming" Value="CharacterEllipsis"/><Setter Property="ToolTip" Value="{Binding Uwagi}"/></Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridCheckBoxColumn Header="✓" Binding="{Binding IsConfirmed, UpdateSourceTrigger=PropertyChanged}" Width="28"/>
+                                <DataGridCheckBoxColumn Header="W" Binding="{Binding IsWstawienieConfirmed, UpdateSourceTrigger=PropertyChanged}" Width="28"/>
+                                <DataGridTextColumn Header="Status" Binding="{Binding Bufor}" Visibility="Collapsed"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
 
-                    <!-- Dostawca -->
-                    <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}"
-                                        Width="140" IsReadOnly="True"/>
+                <!-- TABELA NASTĘPNY TYDZIEŃ -->
+                <Border x:Name="borderNastepnyTydzien" Grid.Column="1" Margin="3,3,3,3" Background="White" CornerRadius="4" BorderBrush="#3498DB" BorderThickness="2" Visibility="Collapsed">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Border Grid.Row="0" Background="#3498DB" Padding="8,4">
+                            <TextBlock x:Name="txtTydzien2Header" Text="Następny tydzień" Foreground="White" FontWeight="SemiBold" FontSize="11"/>
+                        </Border>
+                        <DataGrid x:Name="dgDostawyNastepny" Grid.Row="1" Style="{StaticResource MainDataGridStyle}" LoadingRow="DgDostawy_LoadingRow">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="LP" Binding="{Binding LP}" Visibility="Collapsed"/>
+                                <DataGridTextColumn Header="Data" Binding="{Binding DataOdbioru, StringFormat=MM-dd ddd}" Width="70" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="120" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="A" Binding="{Binding Auta}" Width="28" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDekDisplay}" Width="75" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Waga" Binding="{Binding WagaDekDisplay}" Width="60" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Doby" Binding="{Binding RoznicaDniDisplay}" Width="45" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/></Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Typ" Binding="{Binding TypCeny}" Width="65" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="Cena" Binding="{Binding CenaDisplay}" Width="55" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Uwagi" Binding="{Binding Uwagi}" Width="*" MinWidth="80" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock"><Setter Property="TextTrimming" Value="CharacterEllipsis"/><Setter Property="ToolTip" Value="{Binding Uwagi}"/></Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridCheckBoxColumn Header="✓" Binding="{Binding IsConfirmed}" Width="28"/>
+                                <DataGridTextColumn Header="Status" Binding="{Binding Bufor}" Visibility="Collapsed"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+            </Grid>
 
-                    <!-- Auta -->
-                    <DataGridTextColumn Header="A" Binding="{Binding Auta}"
-                                        Width="35" IsReadOnly="True">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                <Setter Property="FontWeight" Value="SemiBold"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
-
-                    <!-- Sztuki -->
-                    <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDekDisplay}"
-                                        Width="85" IsReadOnly="True">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
-
-                    <!-- Waga -->
-                    <DataGridTextColumn Header="Waga" Binding="{Binding WagaDekDisplay}"
-                                        Width="70" IsReadOnly="True">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
-
-                    <!-- Doby -->
-                    <DataGridTextColumn Header="Doby" Binding="{Binding RoznicaDniDisplay}"
-                                        Width="55" IsReadOnly="True">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
-
-                    <!-- Typ Ceny -->
-                    <DataGridTextColumn Header="Typ" Binding="{Binding TypCeny}"
-                                        Width="75" IsReadOnly="True"/>
-
-                    <!-- Cena -->
-                    <DataGridTextColumn x:Name="colCena" Header="Cena" Binding="{Binding CenaDisplay}"
-                                        Width="65" IsReadOnly="True">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
-
-                    <!-- KM -->
-                    <DataGridTextColumn Header="KM" Binding="{Binding KmDisplay}"
-                                        Width="55" IsReadOnly="True">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
-
-                    <!-- Uwagi -->
-                    <DataGridTextColumn Header="Uwagi" Binding="{Binding Uwagi}"
-                                        Width="*" MinWidth="150" IsReadOnly="True">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-                                <Setter Property="ToolTip" Value="{Binding Uwagi}"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
-
-                    <!-- Checkbox potwierdzenia -->
-                    <DataGridCheckBoxColumn Header="✓" Binding="{Binding IsConfirmed, UpdateSourceTrigger=PropertyChanged}"
-                                            Width="35"/>
-
-                    <!-- Checkbox wstawienia -->
-                    <DataGridCheckBoxColumn Header="W" Binding="{Binding IsWstawienieConfirmed, UpdateSourceTrigger=PropertyChanged}"
-                                            Width="35"/>
-
-                    <!-- Status - ukryty -->
-                    <DataGridTextColumn Header="Status" Binding="{Binding Bufor}" Visibility="Collapsed"/>
-                </DataGrid.Columns>
-            </DataGrid>
+            <!-- PANEL PARTII BIEŻĄCYCH -->
+            <Border Grid.Row="2" Background="White" Margin="6,3,3,6" CornerRadius="4" BorderBrush="#DDDDDD" BorderThickness="1" MaxHeight="180">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Border Grid.Row="0" Background="#388E3C" Padding="8,4">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Partie bieżące (dziś)" Foreground="White" FontWeight="SemiBold" FontSize="11"/>
+                            <TextBlock x:Name="txtPartieSuma" Text="" Foreground="#C8E6C9" FontSize="10" Margin="20,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <DataGrid x:Name="dgPartie" Grid.Row="1" Style="{StaticResource SmallDataGridStyle}" CellEditEnding="DgPartie_CellFormatting">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Nr" Binding="{Binding Partia}" Width="35"/>
+                            <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="110"/>
+                            <DataGridTextColumn Header="Średnia" Binding="{Binding SredniaDisplay}" Width="60"/>
+                            <DataGridTextColumn Header="Żywiec" Binding="{Binding ZywiecDisplay}" Width="60"/>
+                            <DataGridTextColumn Header="Różnica" Binding="{Binding RoznicaDisplay}" Width="65"/>
+                            <DataGridTextColumn Header="Skrzydła" Binding="{Binding SkrzydlaDisplay}" Width="55"/>
+                            <DataGridTextColumn Header="Nogi" Binding="{Binding NogiDisplay}" Width="50"/>
+                            <DataGridTextColumn Header="Oparz." Binding="{Binding OparzeniaDisplay}" Width="50"/>
+                            <DataGridTextColumn Header="Klasa B" Binding="{Binding KlasaBDisplay}" Width="55"/>
+                            <DataGridTextColumn Header="Przek." Binding="{Binding PrzekarmienieDisplay}" Width="55"/>
+                            <DataGridHyperlinkColumn Header="Zdjęcia" Binding="{Binding ZdjeciaLink}" Width="70">
+                                <DataGridHyperlinkColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <EventSetter Event="Hyperlink.Click" Handler="Hyperlink_Click"/>
+                                    </Style>
+                                </DataGridHyperlinkColumn.ElementStyle>
+                            </DataGridHyperlinkColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </Border>
         </Grid>
 
-        <!-- ==================== PRAWA STRONA - KALENDARZ I NAWIGACJA ==================== -->
-        <Grid Grid.Column="1" Margin="4,8,8,8">
+        <!-- ==================== PRAWA STRONA - SZCZEGÓŁY ==================== -->
+        <Grid Grid.Column="1" Margin="3,6,6,6">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- NUMER TYGODNIA -->
-            <Border Grid.Row="0" Background="White" CornerRadius="8" Padding="16,12" Margin="0,0,0,8">
-                <Border.Effect>
-                    <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="6"/>
-                </Border.Effect>
-                <StackPanel>
-                    <TextBlock Text="TYDZIEŃ" FontSize="11" Foreground="#7F8C8D"
-                               HorizontalAlignment="Center" FontWeight="SemiBold"/>
-                    <TextBlock x:Name="txtWeekNumber" Text="1" FontSize="36" FontWeight="Bold"
-                               Foreground="#2C3E50" HorizontalAlignment="Center"/>
-                </StackPanel>
-            </Border>
-
-            <!-- NAWIGACJA TYGODNIOWA -->
-            <Border Grid.Row="1" Background="White" CornerRadius="8" Padding="12" Margin="0,0,0,8">
-                <Border.Effect>
-                    <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="6"/>
-                </Border.Effect>
+            <!-- KALENDARZ I NAWIGACJA -->
+            <Border Grid.Row="0" Background="White" CornerRadius="4" Padding="8" Margin="0,0,0,4">
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
-                    <Button Grid.Column="0" Content="◀ Tydzień" Style="{StaticResource NavButtonStyle}"
-                            Width="90" Click="BtnPreviousWeek_Click"/>
-                    <Button Grid.Column="1" Content="Dziś" Style="{StaticResource MainButtonStyle}"
-                            Margin="8,0" Click="BtnToday_Click"/>
-                    <Button Grid.Column="2" Content="Tydzień ▶" Style="{StaticResource NavButtonStyle}"
-                            Width="90" Click="BtnNextWeek_Click"/>
+                    <!-- Kalendarz -->
+                    <StackPanel Grid.Column="0">
+                        <Calendar x:Name="calendarMain" HorizontalAlignment="Left"
+                                  SelectedDatesChanged="CalendarMain_SelectedDatesChanged"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
+                            <Button Content="◀" Style="{StaticResource NavButtonStyle}" Click="BtnPreviousWeek_Click" ToolTip="Poprzedni tydzień"/>
+                            <Button Content="Dziś" Style="{StaticResource MainButtonStyle}" Click="BtnToday_Click" Margin="4,0"/>
+                            <Button Content="▶" Style="{StaticResource NavButtonStyle}" Click="BtnNextWeek_Click" ToolTip="Następny tydzień"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Numer tygodnia i ceny -->
+                    <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                        <!-- Numer tygodnia -->
+                        <Border Background="#ECEFF1" CornerRadius="4" Padding="10,6" Margin="0,0,0,8">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <TextBlock Text="TYDZIEŃ " FontSize="12" Foreground="#7F8C8D" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="txtWeekNumber" Text="1" FontSize="28" FontWeight="Bold" Foreground="#2C3E50"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Panel cen rynkowych -->
+                        <GroupBox Header="Ceny rynkowe" Style="{StaticResource ModernGroupBoxStyle}" Padding="6">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Rolnicza:" Style="{StaticResource FormLabelStyle}"/>
+                                <TextBox x:Name="txtCenaRolnicza" Grid.Row="0" Grid.Column="1" Style="{StaticResource ReadOnlyTextBoxStyle}"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Ministerialna:" Style="{StaticResource FormLabelStyle}"/>
+                                <TextBox x:Name="txtCenaMinister" Grid.Row="1" Grid.Column="1" Style="{StaticResource ReadOnlyTextBoxStyle}"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Łączona:" Style="{StaticResource FormLabelStyle}"/>
+                                <TextBox x:Name="txtCenaLaczona" Grid.Row="2" Grid.Column="1" Style="{StaticResource ReadOnlyTextBoxStyle}"/>
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Tuszka A:" Style="{StaticResource FormLabelStyle}"/>
+                                <TextBox x:Name="txtCenaTuszki" Grid.Row="3" Grid.Column="1" Style="{StaticResource ReadOnlyTextBoxStyle}"/>
+                            </Grid>
+                        </GroupBox>
+                    </StackPanel>
                 </Grid>
             </Border>
 
-            <!-- KALENDARZ -->
-            <Border Grid.Row="2" Background="White" CornerRadius="8" Padding="8" Margin="0,0,0,8">
-                <Border.Effect>
-                    <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="6"/>
-                </Border.Effect>
-                <Calendar x:Name="calendarMain"
-                          HorizontalAlignment="Center"
-                          SelectedDatesChanged="CalendarMain_SelectedDatesChanged"
-                          DisplayDateChanged="CalendarMain_DisplayDateChanged"/>
+            <!-- PRZYCISKI AKCJI -->
+            <Border Grid.Row="1" Background="White" CornerRadius="4" Padding="8" Margin="0,0,0,4">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <Button Content="▲ Dzień" Style="{StaticResource ActionButtonStyle}" Click="BtnDateUp_Click" Width="70"/>
+                    <Button Content="▼ Dzień" Style="{StaticResource ActionButtonStyle}" Click="BtnDateDown_Click" Width="70"/>
+                    <Button Content="➕ Nowa" Style="{StaticResource MainButtonStyle}" Click="BtnNowaDostawa_Click" Width="70"/>
+                    <Button Content="📋 Duplikuj" Style="{StaticResource ActionButtonStyle}" Click="BtnDuplikuj_Click" Width="75"/>
+                    <Button Content="🔄" Style="{StaticResource ActionButtonStyle}" Click="BtnRefresh_Click" Width="35" ToolTip="Odśwież"/>
+                    <Button Content="🗑" Style="{StaticResource DangerButtonStyle}" Click="BtnUsun_Click" Width="35" ToolTip="Usuń"/>
+                </StackPanel>
             </Border>
 
-            <!-- PRZYCISKI AKCJI DLA WYBRANEJ DOSTAWY -->
-            <Border Grid.Row="3" Background="White" CornerRadius="8" Padding="12" VerticalAlignment="Top">
-                <Border.Effect>
-                    <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="6"/>
-                </Border.Effect>
-                <StackPanel>
-                    <TextBlock Text="AKCJE DOSTAWY" FontSize="11" Foreground="#7F8C8D"
-                               FontWeight="SemiBold" Margin="0,0,0,12"/>
+            <!-- PANEL SZCZEGÓŁÓW - TABCONTROL -->
+            <Border Grid.Row="2" Background="White" CornerRadius="4" Margin="0,0,0,4">
+                <TabControl x:Name="tabSzczegoly" FontSize="10">
+                    <!-- TAB: HODOWCA -->
+                    <TabItem Header="Hodowca">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="8">
+                                <GroupBox Header="Dane hodowcy" Style="{StaticResource ModernGroupBoxStyle}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="70"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
 
-                    <!-- Przyciski zmiany daty -->
-                    <Grid Margin="0,0,0,8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <Button Grid.Column="0" Content="▲ Dzień" Style="{StaticResource ActionButtonStyle}"
-                                Click="BtnDateUp_Click" Margin="0,0,4,0"/>
-                        <Button Grid.Column="1" Content="▼ Dzień" Style="{StaticResource ActionButtonStyle}"
-                                Click="BtnDateDown_Click" Margin="4,0,0,0"/>
-                    </Grid>
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Dostawca:" Style="{StaticResource FormLabelStyle}"/>
+                                        <ComboBox x:Name="cmbDostawca" Grid.Row="0" Grid.Column="1" Style="{StaticResource FormComboBoxStyle}" SelectionChanged="CmbDostawca_SelectionChanged"/>
 
-                    <Button Content="➕ Nowa dostawa" Style="{StaticResource MainButtonStyle}"
-                            Click="BtnNowaDostawa_Click" Margin="0,4"/>
-                    <Button Content="📋 Duplikuj" Style="{StaticResource ActionButtonStyle}"
-                            Click="BtnDuplikuj_Click" Margin="0,4"/>
-                    <Button Content="🔄 Odśwież" Style="{StaticResource ActionButtonStyle}"
-                            Click="BtnRefresh_Click" Margin="0,4"/>
-                    <Button x:Name="btnUsun" Content="🗑 Usuń" Style="{StaticResource DangerButtonStyle}"
-                            Click="BtnUsun_Click" Margin="0,4"/>
-                </StackPanel>
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Adres:" Style="{StaticResource FormLabelStyle}"/>
+                                        <TextBox x:Name="txtUlicaH" Grid.Row="1" Grid.Column="1" Style="{StaticResource FormTextBoxStyle}"/>
+
+                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Kod/Miasto:" Style="{StaticResource FormLabelStyle}"/>
+                                        <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal">
+                                            <TextBox x:Name="txtKodPocztowyH" Style="{StaticResource FormTextBoxStyle}" Width="60"/>
+                                            <TextBox x:Name="txtMiejscH" Style="{StaticResource FormTextBoxStyle}" Width="120"/>
+                                        </StackPanel>
+
+                                        <TextBlock Grid.Row="3" Grid.Column="0" Text="KM:" Style="{StaticResource FormLabelStyle}"/>
+                                        <TextBox x:Name="txtKmH" Grid.Row="3" Grid.Column="1" Style="{StaticResource FormTextBoxStyle}" Width="60" HorizontalAlignment="Left"/>
+
+                                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Email:" Style="{StaticResource FormLabelStyle}"/>
+                                        <TextBox x:Name="txtEmail" Grid.Row="4" Grid.Column="1" Style="{StaticResource FormTextBoxStyle}"/>
+                                    </Grid>
+                                </GroupBox>
+
+                                <GroupBox Header="Kontakt" Style="{StaticResource ModernGroupBoxStyle}" Margin="0,4,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <TextBox x:Name="txtTel1" Grid.Row="0" Grid.Column="0" Style="{StaticResource FormTextBoxStyle}" />
+                                        <TextBox x:Name="txtInfo1" Grid.Row="0" Grid.Column="1" Style="{StaticResource ReadOnlyTextBoxStyle}"/>
+
+                                        <TextBox x:Name="txtTel2" Grid.Row="1" Grid.Column="0" Style="{StaticResource FormTextBoxStyle}"/>
+                                        <TextBox x:Name="txtInfo2" Grid.Row="1" Grid.Column="1" Style="{StaticResource ReadOnlyTextBoxStyle}"/>
+
+                                        <TextBox x:Name="txtTel3" Grid.Row="2" Grid.Column="0" Style="{StaticResource FormTextBoxStyle}"/>
+                                        <TextBox x:Name="txtInfo3" Grid.Row="2" Grid.Column="1" Style="{StaticResource ReadOnlyTextBoxStyle}"/>
+                                    </Grid>
+                                </GroupBox>
+
+                                <GroupBox Header="Osobowość" Style="{StaticResource ModernGroupBoxStyle}" Margin="0,4,0,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <ComboBox x:Name="cmbOsobowosc1" Style="{StaticResource FormComboBoxStyle}" Width="100"/>
+                                        <ComboBox x:Name="cmbOsobowosc2" Style="{StaticResource FormComboBoxStyle}" Width="100" Margin="4,0,0,0"/>
+                                    </StackPanel>
+                                </GroupBox>
+
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
+                                    <Button Content="📍 Mapa" Style="{StaticResource ActionButtonStyle}" Click="BtnMapa_Click"/>
+                                    <Button Content="📱 SMS" Style="{StaticResource WarningButtonStyle}" Click="BtnSMS_Click"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <!-- TAB: DOSTAWA -->
+                    <TabItem Header="Dostawa">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="8">
+                                <GroupBox Header="Dane dostawy" Style="{StaticResource ModernGroupBoxStyle}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="75"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="75"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Data:" Style="{StaticResource FormLabelStyle}"/>
+                                        <DatePicker x:Name="dpData" Grid.Row="0" Grid.Column="1" Margin="2" FontSize="11"/>
+
+                                        <TextBlock Grid.Row="0" Grid.Column="2" Text="Status:" Style="{StaticResource FormLabelStyle}"/>
+                                        <ComboBox x:Name="cmbStatus" Grid.Row="0" Grid.Column="3" Style="{StaticResource FormComboBoxStyle}"/>
+
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Auta:" Style="{StaticResource FormLabelStyle}"/>
+                                        <TextBox x:Name="txtAuta" Grid.Row="1" Grid.Column="1" Style="{StaticResource FormTextBoxStyle}"/>
+
+                                        <TextBlock Grid.Row="1" Grid.Column="2" Text="Sztuki:" Style="{StaticResource FormLabelStyle}"/>
+                                        <TextBox x:Name="txtSztuki" Grid.Row="1" Grid.Column="3" Style="{StaticResource FormTextBoxStyle}"/>
+
+                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Waga dek.:" Style="{StaticResource FormLabelStyle}"/>
+                                        <TextBox x:Name="txtWagaDek" Grid.Row="2" Grid.Column="1" Style="{StaticResource FormTextBoxStyle}"/>
+
+                                        <TextBlock Grid.Row="2" Grid.Column="2" Text="Szt/szufl.:" Style="{StaticResource FormLabelStyle}"/>
+                                        <TextBox x:Name="txtSztNaSzuflade" Grid.Row="2" Grid.Column="3" Style="{StaticResource FormTextBoxStyle}"/>
+
+                                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Typ ceny:" Style="{StaticResource FormLabelStyle}"/>
+                                        <ComboBox x:Name="cmbTypCeny" Grid.Row="3" Grid.Column="1" Style="{StaticResource FormComboBoxStyle}"/>
+
+                                        <TextBlock Grid.Row="3" Grid.Column="2" Text="Cena:" Style="{StaticResource FormLabelStyle}"/>
+                                        <TextBox x:Name="txtCena" Grid.Row="3" Grid.Column="3" Style="{StaticResource FormTextBoxStyle}"/>
+
+                                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Typ umowy:" Style="{StaticResource FormLabelStyle}"/>
+                                        <ComboBox x:Name="cmbTypUmowy" Grid.Row="4" Grid.Column="1" Style="{StaticResource FormComboBoxStyle}"/>
+
+                                        <TextBlock Grid.Row="4" Grid.Column="2" Text="Dodatek:" Style="{StaticResource FormLabelStyle}"/>
+                                        <TextBox x:Name="txtDodatek" Grid.Row="4" Grid.Column="3" Style="{StaticResource FormTextBoxStyle}"/>
+                                    </Grid>
+                                </GroupBox>
+
+                                <GroupBox Header="Potwierdzenia" Style="{StaticResource ModernGroupBoxStyle}" Margin="0,4,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <CheckBox x:Name="chkPotwWaga" Content="Potwierdzona waga" Margin="2"/>
+                                            <TextBlock x:Name="txtKtoWaga" Style="{StaticResource FormLabelStyle}" Margin="20,0,0,0"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1">
+                                            <CheckBox x:Name="chkPotwSztuki" Content="Potwierdzone sztuki" Margin="2"/>
+                                            <TextBlock x:Name="txtKtoSztuki" Style="{StaticResource FormLabelStyle}" Margin="20,0,0,0"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </GroupBox>
+
+                                <Button Content="💾 Zapisz zmiany" Style="{StaticResource MainButtonStyle}" Click="BtnZapiszDostawe_Click" Margin="0,8,0,0" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <!-- TAB: WSTAWIENIA -->
+                    <TabItem Header="Wstawienia">
+                        <Grid Margin="8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <GroupBox Grid.Row="0" Header="Dane wstawienia" Style="{StaticResource ModernGroupBoxStyle}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="80"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="80"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Nr wstaw.:" Style="{StaticResource FormLabelStyle}"/>
+                                    <ComboBox x:Name="cmbLpWstawienia" Grid.Row="0" Grid.Column="1" Style="{StaticResource FormComboBoxStyle}" SelectionChanged="CmbLpWstawienia_SelectionChanged"/>
+
+                                    <TextBlock Grid.Row="0" Grid.Column="2" Text="Data wstaw.:" Style="{StaticResource FormLabelStyle}"/>
+                                    <TextBox x:Name="txtDataWstawienia" Grid.Row="0" Grid.Column="3" Style="{StaticResource ReadOnlyTextBoxStyle}"/>
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Ilość wstaw.:" Style="{StaticResource FormLabelStyle}"/>
+                                    <TextBox x:Name="txtSztukiWstawienia" Grid.Row="1" Grid.Column="1" Style="{StaticResource ReadOnlyTextBoxStyle}"/>
+
+                                    <TextBlock Grid.Row="1" Grid.Column="2" Text="Obecna doba:" Style="{StaticResource FormLabelStyle}"/>
+                                    <TextBox x:Name="txtObecnaDoba" Grid.Row="1" Grid.Column="3" Style="{StaticResource ReadOnlyTextBoxStyle}"/>
+                                </Grid>
+                            </GroupBox>
+
+                            <DataGrid x:Name="dgWstawienia" Grid.Row="1" Style="{StaticResource SmallDataGridStyle}" Margin="0,4,0,0">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Data odbioru" Binding="{Binding DataOdbioru, StringFormat=yyyy-MM-dd ddd}" Width="110"/>
+                                    <DataGridTextColumn Header="A" Binding="{Binding Auta}" Width="30"/>
+                                    <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDekDisplay}" Width="70"/>
+                                    <DataGridTextColumn Header="Waga" Binding="{Binding WagaDek}" Width="50"/>
+                                    <DataGridTextColumn Header="Status" Binding="{Binding Bufor}" Width="80"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,4,0,0">
+                                <TextBlock Text="Pozostało: " Style="{StaticResource FormLabelStyle}"/>
+                                <TextBlock x:Name="txtSztukiPozostale" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Grid>
+                    </TabItem>
+
+                    <!-- TAB: TRANSPORT -->
+                    <TabItem Header="Transport">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="8">
+                                <GroupBox Header="Obliczenia transportu" Style="{StaticResource ModernGroupBoxStyle}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="90"/>
+                                            <ColumnDefinition Width="80"/>
+                                            <ColumnDefinition Width="90"/>
+                                            <ColumnDefinition Width="80"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Szt/szuflada:" Style="{StaticResource FormLabelStyle}"/>
+                                        <TextBox x:Name="txtSztNaSzufladeCalc" Grid.Row="0" Grid.Column="1" Style="{StaticResource FormTextBoxStyle}" TextChanged="TxtSztNaSzufladeCalc_TextChanged"/>
+
+                                        <TextBlock Grid.Row="0" Grid.Column="2" Text="Wyliczone:" Style="{StaticResource FormLabelStyle}"/>
+                                        <TextBox x:Name="txtWyliczone" Grid.Row="0" Grid.Column="3" Style="{StaticResource ReadOnlyTextBoxStyle}"/>
+
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Auta:" Style="{StaticResource FormLabelStyle}"/>
+                                        <TextBox x:Name="txtObliczoneAuta" Grid.Row="1" Grid.Column="1" Style="{StaticResource FormTextBoxStyle}" TextChanged="TxtObliczoneAuta_TextChanged"/>
+
+                                        <TextBlock Grid.Row="1" Grid.Column="2" Text="Oblicz. sztuki:" Style="{StaticResource FormLabelStyle}"/>
+                                        <TextBox x:Name="txtObliczoneSztuki" Grid.Row="1" Grid.Column="3" Style="{StaticResource ReadOnlyTextBoxStyle}"/>
+
+                                        <Button Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Content="📋 Wklej do dostawy" Style="{StaticResource ActionButtonStyle}" Click="BtnWklejObliczenia_Click" Margin="0,4,0,0"/>
+                                    </Grid>
+                                </GroupBox>
+
+                                <GroupBox Header="Waga w aucie" Style="{StaticResource ModernGroupBoxStyle}" Margin="0,4,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="100"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="KG/skrzynka:" Style="{StaticResource FormLabelStyle}"/>
+                                        <TextBox x:Name="txtKGwSkrzynce" Grid.Row="0" Grid.Column="1" Style="{StaticResource FormTextBoxStyle}" TextChanged="TxtKGwSkrzynce_TextChanged"/>
+
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="KG skrzynek:" Style="{StaticResource FormLabelStyle}"/>
+                                        <TextBox x:Name="txtKGwSkrzynekWAucie" Grid.Row="1" Grid.Column="1" Style="{StaticResource ReadOnlyTextBoxStyle}"/>
+
+                                        <CheckBox x:Name="chkPaleciak" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Content="+ Paleciak (3150 kg)" Margin="2,4" Checked="ChkPaleciak_Changed" Unchecked="ChkPaleciak_Changed"/>
+
+                                        <TextBlock Grid.Row="3" Grid.Column="0" Text="KG paleciak:" Style="{StaticResource FormLabelStyle}"/>
+                                        <TextBox x:Name="txtKGwPaleciak" Grid.Row="3" Grid.Column="1" Style="{StaticResource FormTextBoxStyle}"/>
+
+                                        <TextBlock Grid.Row="4" Grid.Column="0" Text="SUMA KG:" Style="{StaticResource FormLabelStyle}" FontWeight="SemiBold"/>
+                                        <TextBox x:Name="txtKGSuma" Grid.Row="4" Grid.Column="1" Style="{StaticResource ReadOnlyTextBoxStyle}" FontWeight="SemiBold" Background="#E8F5E9"/>
+                                    </Grid>
+                                </GroupBox>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <!-- TAB: NOTATKI -->
+                    <TabItem Header="Notatki">
+                        <Grid Margin="8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <GroupBox Grid.Row="0" Header="Nowa notatka" Style="{StaticResource ModernGroupBoxStyle}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="txtNowaNotatka" Grid.Column="0" Style="{StaticResource FormTextBoxStyle}" Height="50" TextWrapping="Wrap" AcceptsReturn="True"/>
+                                    <Button Grid.Column="1" Content="➕" Style="{StaticResource MainButtonStyle}" Click="BtnDodajNotatke_Click" Width="40" VerticalAlignment="Stretch" Margin="4,2,2,2"/>
+                                </Grid>
+                            </GroupBox>
+
+                            <DataGrid x:Name="dgNotatki" Grid.Row="1" Style="{StaticResource SmallDataGridStyle}" Margin="0,4,0,0">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Data" Binding="{Binding DataUtworzenia, StringFormat=MM-dd HH:mm}" Width="85"/>
+                                    <DataGridTextColumn Header="Kto" Binding="{Binding KtoDodal}" Width="60"/>
+                                    <DataGridTextColumn Header="Treść" Binding="{Binding Tresc}" Width="*">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="TextWrapping" Value="Wrap"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <GroupBox Grid.Row="2" Header="Ostatnie notatki (wszystkie)" Style="{StaticResource ModernGroupBoxStyle}" Margin="0,4,0,0" MaxHeight="150">
+                                <DataGrid x:Name="dgOstatnieNotatki" Style="{StaticResource SmallDataGridStyle}">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Data" Binding="{Binding DataUtworzenia, StringFormat=MM-dd HH:mm}" Width="75"/>
+                                        <DataGridTextColumn Header="Odbiór" Binding="{Binding DataOdbioru}" Width="70"/>
+                                        <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="90"/>
+                                        <DataGridTextColumn Header="Treść" Binding="{Binding Tresc}" Width="*"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </GroupBox>
+                        </Grid>
+                    </TabItem>
+
+                    <!-- TAB: RANKING -->
+                    <TabItem Header="Ranking">
+                        <Grid Margin="8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <DataGrid x:Name="dgRanking" Grid.Row="0" Style="{StaticResource SmallDataGridStyle}">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="#" Binding="{Binding Pozycja}" Width="30"/>
+                                    <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="120"/>
+                                    <DataGridTextColumn Header="Śr. waga" Binding="{Binding SredniaWaga}" Width="60"/>
+                                    <DataGridTextColumn Header="Dostawy" Binding="{Binding LiczbaD}" Width="55"/>
+                                    <DataGridTextColumn Header="Punkty" Binding="{Binding Punkty}" Width="55"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <Button Grid.Row="1" Content="📊 Pokaż historię" Style="{StaticResource ActionButtonStyle}" Click="BtnPokazHistorie_Click" Margin="0,4,0,0" HorizontalAlignment="Center"/>
+                        </Grid>
+                    </TabItem>
+                </TabControl>
+            </Border>
+
+            <!-- INFO MODYFIKACJI -->
+            <Border Grid.Row="3" Background="White" CornerRadius="4" Padding="8">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Utworzono:" Style="{StaticResource FormLabelStyle}"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="txtDataStwo" FontSize="10"/>
+                            <TextBlock x:Name="txtKtoStwo" FontSize="10" Margin="8,0,0,0" Foreground="#7F8C8D"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="Modyfikowano:" Style="{StaticResource FormLabelStyle}"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="txtDataMod" FontSize="10"/>
+                            <TextBlock x:Name="txtKtoMod" FontSize="10" Margin="8,0,0,0" Foreground="#7F8C8D"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
             </Border>
         </Grid>
     </Grid>
