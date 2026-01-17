@@ -163,9 +163,11 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         private void LoadDostawy()
         {
+            if (!IsLoaded) return; // Nie ładuj przed pełną inicjalizacją
+
             LoadDostawyForWeek(_dostawy, _selectedDate, txtTydzien1Header);
 
-            if (chkNastepnyTydzien.IsChecked == true)
+            if (chkNastepnyTydzien?.IsChecked == true)
             {
                 LoadDostawyForWeek(_dostawyNastepnyTydzien, _selectedDate.AddDays(7), txtTydzien2Header);
             }
@@ -183,9 +185,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
                 DateTime endOfWeek = startOfWeek.AddDays(7);
 
-                // Ustaw nagłówek
+                // Ustaw nagłówek (jeśli jest dostępny)
                 int weekNum = GetIso8601WeekOfYear(baseDate);
-                header.Text = $"Tydzień {weekNum} ({startOfWeek:dd.MM} - {endOfWeek.AddDays(-1):dd.MM})";
+                if (header != null)
+                    header.Text = $"Tydzień {weekNum} ({startOfWeek:dd.MM} - {endOfWeek.AddDays(-1):dd.MM})";
 
                 string sql = BuildDostawyQuery();
 
@@ -274,9 +277,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 LEFT JOIN [LibraNet].[dbo].[Dostawcy] D ON HD.Dostawca = D.Name
                 WHERE HD.DataOdbioru >= @startDate AND HD.DataOdbioru <= @endDate AND (D.Halt = '0' OR D.Halt IS NULL)";
 
-            if (chkAnulowane.IsChecked != true) sql += " AND bufor != 'Anulowany'";
-            if (chkSprzedane.IsChecked != true) sql += " AND bufor != 'Sprzedany'";
-            if (chkDoWykupienia.IsChecked != true) sql += " AND bufor != 'Do Wykupienia'";
+            if (chkAnulowane?.IsChecked != true) sql += " AND bufor != 'Anulowany'";
+            if (chkSprzedane?.IsChecked != true) sql += " AND bufor != 'Sprzedany'";
+            if (chkDoWykupienia?.IsChecked != true) sql += " AND bufor != 'Do Wykupienia'";
 
             sql += " ORDER BY HD.DataOdbioru, buforPriority, HD.WagaDek DESC";
             return sql;
@@ -650,7 +653,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
         private void UpdateWeekNumber()
         {
             int week = GetIso8601WeekOfYear(_selectedDate);
-            txtWeekNumber.Text = week.ToString();
+            if (txtWeekNumber != null)
+                txtWeekNumber.Text = week.ToString();
         }
 
         private int GetIso8601WeekOfYear(DateTime time)
@@ -696,7 +700,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         private void Filter_Changed(object sender, RoutedEventArgs e)
         {
-            if (colCena != null)
+            if (!IsLoaded) return;
+
+            if (colCena != null && chkPokazCeny != null)
                 colCena.Visibility = chkPokazCeny.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
 
             LoadDostawy();
@@ -704,16 +710,18 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         private void ChkNastepnyTydzien_Changed(object sender, RoutedEventArgs e)
         {
-            if (chkNastepnyTydzien.IsChecked == true)
+            if (!IsLoaded) return;
+
+            if (chkNastepnyTydzien?.IsChecked == true)
             {
-                colNastepnyTydzien.Width = new GridLength(1, GridUnitType.Star);
-                borderNastepnyTydzien.Visibility = Visibility.Visible;
+                if (colNastepnyTydzien != null) colNastepnyTydzien.Width = new GridLength(1, GridUnitType.Star);
+                if (borderNastepnyTydzien != null) borderNastepnyTydzien.Visibility = Visibility.Visible;
                 LoadDostawyForWeek(_dostawyNastepnyTydzien, _selectedDate.AddDays(7), txtTydzien2Header);
             }
             else
             {
-                colNastepnyTydzien.Width = new GridLength(0);
-                borderNastepnyTydzien.Visibility = Visibility.Collapsed;
+                if (colNastepnyTydzien != null) colNastepnyTydzien.Width = new GridLength(0);
+                if (borderNastepnyTydzien != null) borderNastepnyTydzien.Visibility = Visibility.Collapsed;
             }
         }
 
