@@ -152,7 +152,7 @@ namespace Kalendarz1.Zadania
                         cmd.Parameters.AddWithValue("@opis", (object)txtOpis.Text ?? DBNull.Value);
                         cmd.Parameters.AddWithValue("@termin", termin);
                         cmd.Parameters.AddWithValue("@priorytet", priorytet);
-                        cmd.Parameters.AddWithValue("@firma", firmaId);
+                        cmd.Parameters.AddWithValue("@firma", firmaId > 0 ? (object)firmaId : DBNull.Value);
                         cmd.Parameters.AddWithValue("@id", existingTask.Id);
                         cmd.ExecuteNonQuery();
                     }
@@ -167,7 +167,7 @@ namespace Kalendarz1.Zadania
                         cmd.Parameters.AddWithValue("@opis", (object)txtOpis.Text ?? DBNull.Value);
                         cmd.Parameters.AddWithValue("@termin", termin);
                         cmd.Parameters.AddWithValue("@priorytet", priorytet);
-                        cmd.Parameters.AddWithValue("@firma", firmaId);
+                        cmd.Parameters.AddWithValue("@firma", firmaId > 0 ? (object)firmaId : DBNull.Value);
                         cmd.ExecuteNonQuery();
                     }
                 }
