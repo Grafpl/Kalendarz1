@@ -146,7 +146,7 @@ namespace Kalendarz1
             {
                 Width = 100,
                 Height = 100,
-                Margin = new Thickness(0, 0, 0, 10),
+                Margin = new Thickness(5, 0, 5, 10),
                 CornerRadius = new CornerRadius(50),
                 BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E0E0E0")),
                 BorderThickness = new Thickness(3),

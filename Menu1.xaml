@@ -653,11 +653,11 @@
 
                         <!-- Ostatnie logowania -->
                         <Border x:Name="RecentLoginsPanel" Margin="20,0,0,0" BorderBrush="#E0E0E0" BorderThickness="1"
-                                CornerRadius="10" Background="#FAFAFA" Padding="15" VerticalAlignment="Top">
+                                CornerRadius="10" Background="#FAFAFA" Padding="15" VerticalAlignment="Top" MaxHeight="500">
                             <StackPanel>
                                 <TextBlock Text="Ostatnie logowania" FontSize="13" FontWeight="SemiBold"
                                            Foreground="#7F8C8D" HorizontalAlignment="Center" Margin="0,0,0,15"/>
-                                <StackPanel x:Name="RecentAvatarsPanel" Orientation="Vertical" HorizontalAlignment="Center"/>
+                                <WrapPanel x:Name="RecentAvatarsPanel" Orientation="Vertical" HorizontalAlignment="Center" MaxHeight="400"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
