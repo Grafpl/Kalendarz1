@@ -3931,6 +3931,11 @@ namespace Kalendarz1.WPF
             int viewIndex = currentIndex;
             bool isAutoPlay = false;
             System.Windows.Threading.DispatcherTimer? autoTimer = null;
+            System.Windows.Threading.DispatcherTimer? clockTimer = null;
+            int autoCountdown = 15; // Countdown sekund do następnego produktu
+            TextBlock? clockText = null; // Referencja do zegara
+            TextBlock? countdownText = null; // Referencja do countdown
+            System.Windows.Controls.ProgressBar? countdownBar = null; // Pasek postępu
 
             var dialog = new Window
             {
@@ -3941,8 +3946,8 @@ namespace Kalendarz1.WPF
                 ResizeMode = ResizeMode.NoResize
             };
 
-            // Zatrzymaj timer przy zamknięciu okna
-            dialog.Closed += (s, e) => { autoTimer?.Stop(); };
+            // Zatrzymaj timery przy zamknięciu okna
+            dialog.Closed += (s, e) => { autoTimer?.Stop(); clockTimer?.Stop(); };
 
             var mainContainer = new Grid();
             dialog.Content = mainContainer;
@@ -3960,6 +3965,49 @@ namespace Kalendarz1.WPF
 
                 // === LEWA KOLUMNA - INFO + NAWIGACJA ===
                 var leftPanel = new StackPanel { Margin = new Thickness(0, 0, 10, 0) };
+
+                // === ZEGAR ===
+                var clockBorder = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(8, 5, 8, 5),
+                    Margin = new Thickness(0, 0, 0, 10),
+                    HorizontalAlignment = HorizontalAlignment.Center
+                };
+                clockText = new TextBlock
+                {
+                    Text = DateTime.Now.ToString("HH:mm:ss"),
+                    FontSize = 28,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = Brushes.White,
+                    HorizontalAlignment = HorizontalAlignment.Center
+                };
+                clockBorder.Child = clockText;
+                leftPanel.Children.Add(clockBorder);
+
+                // Uruchom timer zegara (jeśli jeszcze nie działa)
+                if (clockTimer == null)
+                {
+                    clockTimer = new System.Windows.Threading.DispatcherTimer();
+                    clockTimer.Interval = TimeSpan.FromSeconds(1);
+                    clockTimer.Tick += (ts, te) =>
+                    {
+                        if (clockText != null)
+                            clockText.Text = DateTime.Now.ToString("HH:mm:ss");
+
+                        // Aktualizuj countdown jeśli AUTO jest włączone
+                        if (isAutoPlay && countdownText != null && countdownBar != null)
+                        {
+                            autoCountdown--;
+                            if (autoCountdown <= 0)
+                                autoCountdown = 15;
+                            countdownText.Text = $"{autoCountdown}s";
+                            countdownBar.Value = autoCountdown;
+                        }
+                    };
+                    clockTimer.Start();
+                }
 
                 // Zdjęcie produktu
                 var productImage = GetProductImage(currentData.Id);
@@ -4029,7 +4077,7 @@ namespace Kalendarz1.WPF
                 dateGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
                 var btnDatePrev = new Button { Content = "◀", FontSize = 16, Width = 32, Height = 32, Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = System.Windows.Input.Cursors.Hand };
-                var dateTxt = new TextBlock { Text = _selectedDate.ToString("dd.MM"), FontSize = 20, FontWeight = FontWeights.Bold, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 8, 0) };
+                var dateTxt = new TextBlock { Text = _selectedDate.ToString("dd.MM.yyyy"), FontSize = 18, FontWeight = FontWeights.Bold, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 6, 0) };
                 var btnDateNext = new Button { Content = "▶", FontSize = 16, Width = 32, Height = 32, Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = System.Windows.Input.Cursors.Hand };
 
                 // Zmiana daty - przeładowanie danych
@@ -4095,12 +4143,14 @@ namespace Kalendarz1.WPF
                     isAutoPlay = !isAutoPlay;
                     if (isAutoPlay)
                     {
-                        // Uruchom timer
+                        // Uruchom timer i reset countdown
+                        autoCountdown = 15;
                         autoTimer = new System.Windows.Threading.DispatcherTimer();
                         autoTimer.Interval = TimeSpan.FromSeconds(15);
                         autoTimer.Tick += (ts, te) =>
                         {
                             viewIndex = (viewIndex + 1) % _productDataList.Count;
+                            autoCountdown = 15; // Reset countdown
                             refreshContent();
                         };
                         autoTimer.Start();
@@ -4114,6 +4164,39 @@ namespace Kalendarz1.WPF
                     refreshContent();
                 };
                 navPanel.Children.Add(btnAuto);
+
+                // === COUNTDOWN BAR (widoczny tylko gdy AUTO jest włączone) ===
+                if (isAutoPlay)
+                {
+                    var countdownPanel = new StackPanel { Margin = new Thickness(0, 5, 0, 0), HorizontalAlignment = HorizontalAlignment.Center };
+
+                    // Pasek postępu
+                    countdownBar = new System.Windows.Controls.ProgressBar
+                    {
+                        Width = 80,
+                        Height = 8,
+                        Minimum = 0,
+                        Maximum = 15,
+                        Value = autoCountdown,
+                        Foreground = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
+                        Background = new SolidColorBrush(Color.FromRgb(44, 62, 80))
+                    };
+                    countdownPanel.Children.Add(countdownBar);
+
+                    // Tekst z sekundami
+                    countdownText = new TextBlock
+                    {
+                        Text = $"{autoCountdown}s",
+                        FontSize = 14,
+                        FontWeight = FontWeights.Bold,
+                        Foreground = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        Margin = new Thickness(0, 2, 0, 0)
+                    };
+                    countdownPanel.Children.Add(countdownText);
+
+                    navPanel.Children.Add(countdownPanel);
+                }
 
                 // Przycisk ZAMKNIJ
                 var btnClose = new Button { Content = "✕ ZAMKNIJ", FontSize = 14, FontWeight = FontWeights.Bold, Padding = new Thickness(12, 8, 12, 8), Background = new SolidColorBrush(Color.FromRgb(231, 76, 60)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Margin = new Thickness(0, 12, 0, 0), Cursor = System.Windows.Input.Cursors.Hand };
