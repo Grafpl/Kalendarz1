@@ -2304,6 +2304,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 return;
             }
 
+            var dostawa = _dostawy.FirstOrDefault(d => d.LP == _selectedLP) ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == _selectedLP);
+
             try
             {
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
@@ -2313,18 +2315,23 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@Lp", _selectedLP);
-                        cmd.Parameters.AddWithValue("@User", App.User ?? "System");
+                        cmd.Parameters.AddWithValue("@User", UserName ?? "System");
                         await cmd.ExecuteNonQueryAsync(_cts.Token);
                     }
                 }
 
                 chkPotwWaga.IsChecked = true;
                 borderPotwWaga.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C8E6C9"));
-                txtKtoWaga.Text = $"({App.User})";
+                txtKtoWaga.Text = $"({UserName})";
                 ShowToast("✅ Waga potwierdzona!", ToastType.Success);
 
                 // Audit log
-                await AuditHelper.LogAsync("POTWIERDZENIE_WAGI", "HarmonogramDostaw", _selectedLP, null, $"Potwierdzona waga przez {App.User}");
+                if (_auditService != null)
+                {
+                    await _auditService.LogFieldChangeAsync("HarmonogramDostaw", _selectedLP,
+                        AuditChangeSource.ContextMenu_PotwierdzWage, "PotwWaga", "0", "1",
+                        dostawa?.Dostawca, dostawa?.DataOdbioru, _cts.Token);
+                }
             }
             catch (Exception ex)
             {
@@ -2341,6 +2348,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 return;
             }
 
+            var dostawa = _dostawy.FirstOrDefault(d => d.LP == _selectedLP) ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == _selectedLP);
+
             try
             {
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
@@ -2350,18 +2359,23 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@Lp", _selectedLP);
-                        cmd.Parameters.AddWithValue("@User", App.User ?? "System");
+                        cmd.Parameters.AddWithValue("@User", UserName ?? "System");
                         await cmd.ExecuteNonQueryAsync(_cts.Token);
                     }
                 }
 
                 chkPotwSztuki.IsChecked = true;
                 borderPotwSztuki.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C8E6C9"));
-                txtKtoSztuki.Text = $"({App.User})";
+                txtKtoSztuki.Text = $"({UserName})";
                 ShowToast("✅ Sztuki potwierdzone!", ToastType.Success);
 
                 // Audit log
-                await AuditHelper.LogAsync("POTWIERDZENIE_SZTUK", "HarmonogramDostaw", _selectedLP, null, $"Potwierdzone sztuki przez {App.User}");
+                if (_auditService != null)
+                {
+                    await _auditService.LogFieldChangeAsync("HarmonogramDostaw", _selectedLP,
+                        AuditChangeSource.ContextMenu_PotwierdzSztuki, "PotwSztuki", "0", "1",
+                        dostawa?.Dostawca, dostawa?.DataOdbioru, _cts.Token);
+                }
             }
             catch (Exception ex)
             {
@@ -2377,6 +2391,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 ShowToast("Wybierz dostawę", ToastType.Warning);
                 return;
             }
+
+            var dostawa = _dostawy.FirstOrDefault(d => d.LP == _selectedLP) ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == _selectedLP);
 
             try
             {
@@ -2397,7 +2413,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 ShowToast("↩️ Cofnięto potwierdzenie wagi", ToastType.Info);
 
                 // Audit log
-                await AuditHelper.LogAsync("COFNIECIE_POTW_WAGI", "HarmonogramDostaw", _selectedLP, null, $"Cofnięto potwierdzenie wagi przez {App.User}");
+                if (_auditService != null)
+                {
+                    await _auditService.LogFieldChangeAsync("HarmonogramDostaw", _selectedLP,
+                        AuditChangeSource.ContextMenu_CofnijWage, "PotwWaga", "1", "0",
+                        dostawa?.Dostawca, dostawa?.DataOdbioru, _cts.Token);
+                }
             }
             catch (Exception ex)
             {
@@ -2413,6 +2434,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 ShowToast("Wybierz dostawę", ToastType.Warning);
                 return;
             }
+
+            var dostawa = _dostawy.FirstOrDefault(d => d.LP == _selectedLP) ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == _selectedLP);
 
             try
             {
@@ -2433,7 +2456,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 ShowToast("↩️ Cofnięto potwierdzenie sztuk", ToastType.Info);
 
                 // Audit log
-                await AuditHelper.LogAsync("COFNIECIE_POTW_SZTUK", "HarmonogramDostaw", _selectedLP, null, $"Cofnięto potwierdzenie sztuk przez {App.User}");
+                if (_auditService != null)
+                {
+                    await _auditService.LogFieldChangeAsync("HarmonogramDostaw", _selectedLP,
+                        AuditChangeSource.ContextMenu_CofnijSztuki, "PotwSztuki", "1", "0",
+                        dostawa?.Dostawca, dostawa?.DataOdbioru, _cts.Token);
+                }
             }
             catch (Exception ex)
             {

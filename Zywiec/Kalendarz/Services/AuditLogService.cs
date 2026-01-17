@@ -59,6 +59,10 @@ namespace Kalendarz1.Zywiec.Kalendarz.Services
         ContextMenu_Potwierdz,
         ContextMenu_Anuluj,
         ContextMenu_Usun,
+        ContextMenu_PotwierdzWage,
+        ContextMenu_PotwierdzSztuki,
+        ContextMenu_CofnijWage,
+        ContextMenu_CofnijSztuki,
 
         // Operacje masowe
         BulkConfirm,
