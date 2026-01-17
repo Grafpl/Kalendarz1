@@ -801,29 +801,47 @@ namespace Kalendarz1.Zywiec.Kalendarz
             var dostawa = e.Row.DataContext as DostawaModel;
             if (dostawa == null) return;
 
+            // Reset do domyślnych wartości
             e.Row.Background = Brushes.White;
-            e.Row.Foreground = Brushes.Black;
+            e.Row.Foreground = new SolidColorBrush(Color.FromRgb(33, 33, 33));
             e.Row.FontWeight = FontWeights.Normal;
-            e.Row.Height = 26;
+            e.Row.FontSize = 12;
 
             if (dostawa.IsSeparator)
             {
-                e.Row.Height = 6;
-                e.Row.Background = new SolidColorBrush(Color.FromRgb(236, 239, 241));
+                e.Row.Height = 4;
+                e.Row.MinHeight = 4;
+                e.Row.Background = new SolidColorBrush(Color.FromRgb(224, 224, 224));
+                e.Row.IsEnabled = false;
                 return;
             }
 
             if (dostawa.IsHeaderRow)
             {
-                e.Row.Background = (SolidColorBrush)FindResource("HeaderDayBrush");
-                e.Row.Foreground = Brushes.White;
+                // Styl nagłówka dnia - wyróżniony
                 e.Row.FontWeight = FontWeights.Bold;
-                e.Row.Height = 24;
+                e.Row.FontSize = 13;
+                e.Row.Height = 36;
+                e.Row.MinHeight = 36;
 
                 if (dostawa.DataOdbioru.Date == DateTime.Today)
+                {
+                    // Dzisiejszy dzień - niebieskie wyróżnienie
                     e.Row.Background = new SolidColorBrush(Color.FromRgb(25, 118, 210));
+                    e.Row.Foreground = Brushes.White;
+                }
                 else if (dostawa.DataOdbioru.Date < DateTime.Today)
-                    e.Row.Background = Brushes.Black;
+                {
+                    // Przeszły dzień - szary
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(97, 97, 97));
+                    e.Row.Foreground = Brushes.White;
+                }
+                else
+                {
+                    // Przyszły dzień - ciemnozielony
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(46, 125, 50));
+                    e.Row.Foreground = Brushes.White;
+                }
                 return;
             }
 
@@ -1391,24 +1409,33 @@ namespace Kalendarz1.Zywiec.Kalendarz
         public double SredniaKM { get; set; }
         public int SumaUbytek { get; set; }
 
+        // Główna kolumna - dla nagłówka pokazuje datę, dla danych pokazuje dostawcę
+        public string DostawcaDisplay => IsHeaderRow && !IsSeparator
+            ? $"📅  {DataOdbioru:dd.MM.yyyy} - {DataOdbioru:dddd}"
+            : (IsSeparator ? "" : Dostawca);
+
         public string SztukiDekDisplay => IsHeaderRow
-            ? (SumaSztuki > 0 ? $"{SumaSztuki:#,0} szt" : "")
-            : (SztukiDek > 0 ? $"{SztukiDek:#,0} szt" : "");
+            ? (SumaSztuki > 0 ? $"{SumaSztuki:#,0}" : "")
+            : (SztukiDek > 0 ? $"{SztukiDek:#,0}" : "");
         public string WagaDekDisplay => IsHeaderRow
-            ? (SredniaWaga > 0 ? $"{SredniaWaga:0.00} kg" : "")
-            : (WagaDek > 0 ? $"{WagaDek:0.00} kg" : "");
+            ? (SredniaWaga > 0 ? $"Ø {SredniaWaga:0.00}" : "")
+            : (WagaDek > 0 ? $"{WagaDek:0.00}" : "");
         public string CenaDisplay => IsHeaderRow
-            ? (SredniaCena > 0 ? $"{SredniaCena:0.00} zł" : "")
-            : (Cena > 0 ? $"{Cena:0.00} zł" : "-");
+            ? (SredniaCena > 0 ? $"Ø {SredniaCena:0.00}" : "")
+            : (Cena > 0 ? $"{Cena:0.00}" : "");
         public string KmDisplay => IsHeaderRow
-            ? (SredniaKM > 0 ? $"{SredniaKM:0} km" : "")
-            : (Distance > 0 ? $"{Distance} km" : "-");
+            ? (SredniaKM > 0 ? $"Ø {SredniaKM:0}" : "")
+            : (Distance > 0 ? $"{Distance}" : "");
         public string RoznicaDniDisplay => IsHeaderRow
-            ? (SumaUbytek > 0 ? $"{SumaUbytek} ub" : "")
-            : (RoznicaDni.HasValue ? $"{RoznicaDni} dni" : "-");
+            ? ""
+            : (RoznicaDni.HasValue ? $"{RoznicaDni}" : "");
         public string AutaDisplay => IsHeaderRow
-            ? (SumaAuta > 0 ? $"{SumaAuta:0}" : "")
+            ? (SumaAuta > 0 ? $"Σ {SumaAuta:0}" : "")
             : (Auta > 0 ? Auta.ToString() : "");
+        public string TypCenyDisplay => IsHeaderRow ? "" : TypCeny;
+        public string UwagiDisplay => IsHeaderRow
+            ? (SumaUbytek > 0 ? $"Ub: {SumaUbytek}" : "")
+            : Uwagi;
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

@@ -114,28 +114,92 @@
 
         <!-- ==================== STYLE DATAGRID ==================== -->
         <Style x:Key="DataGridHeaderStyle" TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="#34495E"/>
+            <Setter Property="Background" Value="#2C3E50"/>
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="FontSize" Value="10"/>
-            <Setter Property="Padding" Value="6,8"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="8,10"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
-            <Setter Property="BorderBrush" Value="#2C3E50"/>
+            <Setter Property="BorderBrush" Value="#1A252F"/>
             <Setter Property="BorderThickness" Value="0,0,1,0"/>
+            <Setter Property="Cursor" Value="Arrow"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridColumnHeader">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <Style x:Key="DataGridCellStyle" TargetType="DataGridCell">
-            <Setter Property="Padding" Value="4,2"/>
-            <Setter Property="BorderThickness" Value="0,0,1,0"/>
-            <Setter Property="BorderBrush" Value="#E0E0E0"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="8,0" SnapsToDevicePixels="True">
+                            <ContentPresenter VerticalAlignment="Center" SnapsToDevicePixels="True"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
             <Style.Triggers>
                 <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#B3E5FC"/>
-                    <Setter Property="Foreground" Value="#2C3E50"/>
+                    <Setter Property="Background" Value="#E3F2FD"/>
+                    <Setter Property="Foreground" Value="#1565C0"/>
                 </Trigger>
+                <MultiTrigger>
+                    <MultiTrigger.Conditions>
+                        <Condition Property="IsSelected" Value="False"/>
+                        <Condition Property="IsMouseOver" Value="True"/>
+                    </MultiTrigger.Conditions>
+                    <Setter Property="Background" Value="#F5F5F5"/>
+                </MultiTrigger>
             </Style.Triggers>
+        </Style>
+
+        <!-- Styl dla CheckBox w DataGrid - większy i łatwiejszy do kliknięcia -->
+        <Style x:Key="DataGridCheckBoxStyle" TargetType="CheckBox">
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Grid Background="Transparent" Width="32" Height="28">
+                            <Border x:Name="checkBorder" Width="18" Height="18"
+                                    Background="White" BorderBrush="#90A4AE" BorderThickness="2"
+                                    CornerRadius="3" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Path x:Name="checkMark" Data="M2,6 L6,10 L12,2"
+                                      Stroke="#4CAF50" StrokeThickness="2.5"
+                                      Visibility="Collapsed" Margin="1"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="checkMark" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="checkBorder" Property="BorderBrush" Value="#4CAF50"/>
+                                <Setter TargetName="checkBorder" Property="Background" Value="#E8F5E9"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="checkBorder" Property="BorderBrush" Value="#66BB6A"/>
+                                <Setter TargetName="checkBorder" Property="Background" Value="#F1F8E9"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <Style x:Key="MainDataGridStyle" TargetType="DataGrid">
@@ -143,24 +207,32 @@
             <Setter Property="CanUserAddRows" Value="False"/>
             <Setter Property="CanUserDeleteRows" Value="False"/>
             <Setter Property="CanUserReorderColumns" Value="False"/>
+            <Setter Property="CanUserResizeRows" Value="False"/>
+            <Setter Property="CanUserSortColumns" Value="False"/>
             <Setter Property="SelectionMode" Value="Single"/>
             <Setter Property="SelectionUnit" Value="FullRow"/>
             <Setter Property="GridLinesVisibility" Value="Horizontal"/>
-            <Setter Property="HorizontalGridLinesBrush" Value="#E0E0E0"/>
-            <Setter Property="RowHeight" Value="26"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#ECEFF1"/>
+            <Setter Property="RowHeight" Value="32"/>
             <Setter Property="Background" Value="White"/>
-            <Setter Property="BorderBrush" Value="#DDDDDD"/>
-            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#CFD8DC"/>
+            <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="ColumnHeaderStyle" Value="{StaticResource DataGridHeaderStyle}"/>
             <Setter Property="CellStyle" Value="{StaticResource DataGridCellStyle}"/>
-            <Setter Property="AlternatingRowBackground" Value="#FAFAFA"/>
             <Setter Property="RowHeaderWidth" Value="0"/>
-            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <!-- Wydajność - wirtualizacja -->
+            <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True"/>
+            <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling"/>
+            <Setter Property="EnableRowVirtualization" Value="True"/>
+            <Setter Property="EnableColumnVirtualization" Value="True"/>
+            <Setter Property="ScrollViewer.IsDeferredScrollingEnabled" Value="False"/>
         </Style>
 
         <Style x:Key="SmallDataGridStyle" TargetType="DataGrid" BasedOn="{StaticResource MainDataGridStyle}">
-            <Setter Property="RowHeight" Value="22"/>
-            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="RowHeight" Value="26"/>
+            <Setter Property="FontSize" Value="11"/>
         </Style>
 
         <!-- ==================== STYLE GRUPBOX ==================== -->
@@ -244,19 +316,29 @@
                                   SelectionChanged="DgDostawy_SelectionChanged" MouseDoubleClick="DgDostawy_MouseDoubleClick" LoadingRow="DgDostawy_LoadingRow">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="LP" Binding="{Binding LP}" Visibility="Collapsed"/>
-                                <DataGridTextColumn Header="Data" Binding="{Binding DataOdbioru, StringFormat=MM-dd ddd}" Width="70" IsReadOnly="True"/>
-                                <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="120" IsReadOnly="True"/>
-                                <DataGridTextColumn Header="A" Binding="{Binding AutaDisplay}" Width="28" IsReadOnly="True">
+                                <DataGridTextColumn Header="Dostawca / Data" Binding="{Binding DostawcaDisplay}" Width="220" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                            <Setter Property="ToolTip" Value="{Binding DostawcaDisplay}"/>
+                                        </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDekDisplay}" Width="80" IsReadOnly="True">
+                                <DataGridTextColumn Header="Auta" Binding="{Binding AutaDisplay}" Width="55" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDekDisplay}" Width="70" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Waga" Binding="{Binding WagaDekDisplay}" Width="65" IsReadOnly="True">
+                                <DataGridTextColumn Header="Waga" Binding="{Binding WagaDekDisplay}" Width="70" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                     </DataGridTextColumn.ElementStyle>
@@ -266,8 +348,12 @@
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/></Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Typ" Binding="{Binding TypCeny}" Width="65" IsReadOnly="True"/>
-                                <DataGridTextColumn x:Name="colCena" Header="Cena" Binding="{Binding CenaDisplay}" Width="60" IsReadOnly="True">
+                                <DataGridTextColumn Header="Typ" Binding="{Binding TypCenyDisplay}" Width="75" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/></Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn x:Name="colCena" Header="Cena" Binding="{Binding CenaDisplay}" Width="70" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                     </DataGridTextColumn.ElementStyle>
@@ -277,13 +363,30 @@
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Uwagi" Binding="{Binding Uwagi}" Width="*" MinWidth="100" IsReadOnly="True">
+                                <DataGridTextColumn Header="Uwagi" Binding="{Binding UwagiDisplay}" Width="*" MinWidth="80" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock"><Setter Property="TextTrimming" Value="CharacterEllipsis"/><Setter Property="ToolTip" Value="{Binding Uwagi}"/></Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                            <Setter Property="ToolTip" Value="{Binding Uwagi}"/>
+                                        </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridCheckBoxColumn Header="✓" Binding="{Binding IsConfirmed, UpdateSourceTrigger=PropertyChanged}" Width="28"/>
-                                <DataGridCheckBoxColumn Header="W" Binding="{Binding IsWstawienieConfirmed, UpdateSourceTrigger=PropertyChanged}" Width="28"/>
+                                <DataGridTemplateColumn Header="✓" Width="38">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding IsConfirmed, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                                      Style="{StaticResource DataGridCheckBoxStyle}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="W" Width="38">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding IsWstawienieConfirmed, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                                      Style="{StaticResource DataGridCheckBoxStyle}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                                 <DataGridTextColumn Header="Status" Binding="{Binding Bufor}" Visibility="Collapsed"/>
                             </DataGrid.Columns>
                         </DataGrid>
@@ -303,14 +406,24 @@
                         <DataGrid x:Name="dgDostawyNastepny" Grid.Row="1" Style="{StaticResource MainDataGridStyle}" LoadingRow="DgDostawy_LoadingRow">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="LP" Binding="{Binding LP}" Visibility="Collapsed"/>
-                                <DataGridTextColumn Header="Data" Binding="{Binding DataOdbioru, StringFormat=MM-dd ddd}" Width="70" IsReadOnly="True"/>
-                                <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="120" IsReadOnly="True"/>
-                                <DataGridTextColumn Header="A" Binding="{Binding AutaDisplay}" Width="28" IsReadOnly="True">
+                                <DataGridTextColumn Header="Dostawca / Data" Binding="{Binding DostawcaDisplay}" Width="200" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                            <Setter Property="ToolTip" Value="{Binding DostawcaDisplay}"/>
+                                        </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDekDisplay}" Width="80" IsReadOnly="True">
+                                <DataGridTextColumn Header="Auta" Binding="{Binding AutaDisplay}" Width="50" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDekDisplay}" Width="65" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                     </DataGridTextColumn.ElementStyle>
@@ -320,28 +433,32 @@
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Doby" Binding="{Binding RoznicaDniDisplay}" Width="50" IsReadOnly="True">
+                                <DataGridTextColumn Header="Typ" Binding="{Binding TypCenyDisplay}" Width="70" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/></Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Typ" Binding="{Binding TypCeny}" Width="65" IsReadOnly="True"/>
-                                <DataGridTextColumn Header="Cena" Binding="{Binding CenaDisplay}" Width="60" IsReadOnly="True">
+                                <DataGridTextColumn Header="Cena" Binding="{Binding CenaDisplay}" Width="65" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="KM" Binding="{Binding KmDisplay}" Width="50" IsReadOnly="True">
+                                <DataGridTextColumn Header="Uwagi" Binding="{Binding UwagiDisplay}" Width="*" MinWidth="60" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                            <Setter Property="ToolTip" Value="{Binding Uwagi}"/>
+                                        </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Uwagi" Binding="{Binding Uwagi}" Width="*" MinWidth="80" IsReadOnly="True">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock"><Setter Property="TextTrimming" Value="CharacterEllipsis"/><Setter Property="ToolTip" Value="{Binding Uwagi}"/></Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                                <DataGridCheckBoxColumn Header="✓" Binding="{Binding IsConfirmed}" Width="28"/>
+                                <DataGridTemplateColumn Header="✓" Width="38">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding IsConfirmed, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                                      Style="{StaticResource DataGridCheckBoxStyle}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                                 <DataGridTextColumn Header="Status" Binding="{Binding Bufor}" Visibility="Collapsed"/>
                             </DataGrid.Columns>
                         </DataGrid>
