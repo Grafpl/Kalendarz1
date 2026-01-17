@@ -121,7 +121,10 @@ namespace Kalendarz1.Zadania
 
             // Avatar
             var avatar = CreateAvatar(pracownik.Id, pracownik.Nazwa, 28);
-            avatar.Margin = new Thickness(0, 0, 8, 0);
+            if (avatar is FrameworkElement fe)
+            {
+                fe.Margin = new Thickness(0, 0, 8, 0);
+            }
             stack.Children.Add(avatar);
 
             // Nazwa
