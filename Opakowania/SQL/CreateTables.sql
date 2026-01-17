@@ -59,6 +59,39 @@ END
 GO
 
 -- ============================================================
+-- TABELA: HistoriaPrzypomnienSald
+-- Historia wysłanych przypomnień o potwierdzenie sald
+-- ============================================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'HistoriaPrzypomnienSald')
+BEGIN
+    CREATE TABLE [dbo].[HistoriaPrzypomnienSald] (
+        [Id] INT IDENTITY(1,1) PRIMARY KEY,
+        [KontrahentId] INT NOT NULL,
+        [KontrahentNazwa] NVARCHAR(200) NULL,
+        [Email] NVARCHAR(200) NULL,
+        [DataWyslania] DATETIME NOT NULL DEFAULT GETDATE(),
+        [UzytkownikId] NVARCHAR(20) NULL,
+        [UzytkownikNazwa] NVARCHAR(100) NULL,
+        [Typ] NVARCHAR(50) NOT NULL DEFAULT 'Przypomnienie', -- Przypomnienie, Potwierdzenie, Zestawienie
+        [StatusWyslania] NVARCHAR(20) NULL DEFAULT 'Wyslane', -- Wyslane, Blad
+        [Uwagi] NVARCHAR(500) NULL
+    )
+
+    CREATE NONCLUSTERED INDEX [IX_HistoriaPrzypomnien_Kontrahent]
+        ON [dbo].[HistoriaPrzypomnienSald] ([KontrahentId], [DataWyslania] DESC)
+
+    CREATE NONCLUSTERED INDEX [IX_HistoriaPrzypomnien_Data]
+        ON [dbo].[HistoriaPrzypomnienSald] ([DataWyslania] DESC)
+
+    PRINT 'Tabela HistoriaPrzypomnienSald utworzona pomyślnie.'
+END
+ELSE
+BEGIN
+    PRINT 'Tabela HistoriaPrzypomnienSald już istnieje.'
+END
+GO
+
+-- ============================================================
 -- TABELA: HistoriaSaldOpakowan
 -- ============================================================
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'HistoriaSaldOpakowan')

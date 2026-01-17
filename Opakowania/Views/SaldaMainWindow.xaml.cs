@@ -64,6 +64,16 @@ namespace Kalendarz1.Opakowania.Views
             }
         }
 
+        private void BtnDashboard_Click(object sender, RoutedEventArgs e)
+        {
+            var dashboardWindow = new DashboardPotwierdzeniWindow(_viewModel.UserId);
+            dashboardWindow.Owner = this;
+            dashboardWindow.ShowDialog();
+
+            // Odśwież po zamknięciu dashboardu
+            _viewModel.OdswiezCommand.Execute(null);
+        }
+
         private void RefreshDiagnostics()
         {
             try

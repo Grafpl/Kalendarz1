@@ -142,6 +142,8 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button x:Name="btnDashboard" Content="&#xE9D5; Dashboard potwierdzeń" Style="{StaticResource BtnStyle}"
+                            Click="BtnDashboard_Click" Margin="0,0,8,0" FontFamily="Segoe MDL2 Assets, Segoe UI"/>
                     <Button Content="Odśwież" Command="{Binding OdswiezCommand}" Style="{StaticResource BtnStyle}" Margin="0,0,8,0"/>
                 </StackPanel>
             </Grid>
@@ -217,13 +219,16 @@
                         </DataGridTemplateColumn>
                         <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="120"/>
                         <DataGridTextColumn Header="Ostatni dok." Binding="{Binding OstatniDokumentTekst}" Width="90"/>
-                        <DataGridTemplateColumn Header="" Width="30">
+                        <DataGridTemplateColumn Header="Status potw." Width="100">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="&#xE73E;" FontFamily="Segoe MDL2 Assets"
-                                               Foreground="#2E7D32" FontSize="14"
-                                               Visibility="{Binding E2Potwierdzone, Converter={StaticResource BoolToVisibility}}"
-                                               ToolTip="{Binding E2DataPotwierdzenia, StringFormat='Potwierdzone: {0:dd.MM.yyyy}'}"/>
+                                    <StackPanel Orientation="Horizontal" ToolTip="{Binding E2StatusTooltip}">
+                                        <TextBlock Text="{Binding E2StatusIkona}" FontFamily="Segoe MDL2 Assets"
+                                                   Foreground="{Binding E2StatusKolor}" FontSize="14"
+                                                   VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                        <TextBlock Text="{Binding E2StatusTekst}" Foreground="{Binding E2StatusKolor}"
+                                                   FontSize="11" VerticalAlignment="Center"/>
+                                    </StackPanel>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
@@ -248,12 +253,16 @@
                         </DataGridTemplateColumn>
                         <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="120"/>
                         <DataGridTextColumn Header="Ostatni dok." Binding="{Binding OstatniDokumentTekst}" Width="90"/>
-                        <DataGridTemplateColumn Header="" Width="30">
+                        <DataGridTemplateColumn Header="Status potw." Width="100">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="&#xE73E;" FontFamily="Segoe MDL2 Assets"
-                                               Foreground="#2E7D32" FontSize="14"
-                                               Visibility="{Binding H1Potwierdzone, Converter={StaticResource BoolToVisibility}}"/>
+                                    <StackPanel Orientation="Horizontal" ToolTip="{Binding H1StatusTooltip}">
+                                        <TextBlock Text="{Binding H1StatusIkona}" FontFamily="Segoe MDL2 Assets"
+                                                   Foreground="{Binding H1StatusKolor}" FontSize="14"
+                                                   VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                        <TextBlock Text="{Binding H1StatusTekst}" Foreground="{Binding H1StatusKolor}"
+                                                   FontSize="11" VerticalAlignment="Center"/>
+                                    </StackPanel>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
