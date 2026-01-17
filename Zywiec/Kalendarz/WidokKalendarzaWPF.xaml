@@ -385,7 +385,7 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTemplateColumn Header="Szt" Width="50" IsReadOnly="True">
+                                <DataGridTemplateColumn Header="Szt" Width="55" IsReadOnly="True">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Border Padding="2,0">
@@ -407,7 +407,7 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="Waga" Width="45" IsReadOnly="True">
+                                <DataGridTemplateColumn Header="Waga" Width="55" IsReadOnly="True">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Border Padding="2,0">
@@ -429,12 +429,12 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="Ub" Binding="{Binding RoznicaDniDisplay}" Width="38" IsReadOnly="True">
+                                <DataGridTextColumn Header="Ub" Binding="{Binding RoznicaDniDisplay}" Width="42" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/></Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTemplateColumn Header="Typ" Width="38" IsReadOnly="True">
+                                <DataGridTemplateColumn Header="Typ" Width="45" IsReadOnly="True">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Border Padding="2,0" CornerRadius="2" Margin="1">
@@ -546,7 +546,7 @@
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTemplateColumn Header="Szt" Width="50" IsReadOnly="True">
+                            <DataGridTemplateColumn Header="Szt" Width="55" IsReadOnly="True">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <Border Padding="2,0">
@@ -568,7 +568,7 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTemplateColumn Header="Waga" Width="45" IsReadOnly="True">
+                            <DataGridTemplateColumn Header="Waga" Width="55" IsReadOnly="True">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <Border Padding="2,0">
@@ -590,7 +590,7 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTemplateColumn Header="Typ" Width="38" IsReadOnly="True">
+                            <DataGridTemplateColumn Header="Typ" Width="45" IsReadOnly="True">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <Border Padding="2,0" CornerRadius="2" Margin="1">
