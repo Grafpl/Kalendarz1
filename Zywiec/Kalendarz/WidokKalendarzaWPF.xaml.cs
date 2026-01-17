@@ -2458,8 +2458,6 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         changes["SztukiDek"] = (oldDostawa.SztukiDek, newSztuki);
                     if (oldDostawa.WagaDek != newWaga)
                         changes["WagaDek"] = (oldDostawa.WagaDek, newWaga);
-                    if (oldDostawa.TypUmowy != newTypUmowy)
-                        changes["TypUmowy"] = (oldDostawa.TypUmowy, newTypUmowy);
                     if (oldDostawa.TypCeny != newTypCeny)
                         changes["TypCeny"] = (oldDostawa.TypCeny, newTypCeny);
                     if (oldDostawa.Cena != newCena)
