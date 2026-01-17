@@ -13,7 +13,7 @@ namespace Kalendarz1
 
         public class TaskInfo
         {
-            public long Id { get; set; }
+            public int Id { get; set; }
             public string Firma { get; set; }
             public string TypZadania { get; set; }
             public string Opis { get; set; }
@@ -45,7 +45,7 @@ namespace Kalendarz1
                 {
                     conn.Open();
 
-                    // Policz wszystkie zadania na dziś
+                    // Policz wszystkie aktywne zadania (niewykonane)
                     var countCmd = new SqlCommand(@"
                         SELECT
                             COUNT(*) as Total,
@@ -54,7 +54,7 @@ namespace Kalendarz1
                             SUM(CASE WHEN Wykonane = 0 AND TerminWykonania < GETDATE() THEN 1 ELSE 0 END) as Zalegle
                         FROM Zadania
                         WHERE OperatorID = @id
-                          AND CAST(TerminWykonania AS DATE) = CAST(GETDATE() AS DATE)", conn);
+                          AND Wykonane = 0", conn);
                     countCmd.Parameters.AddWithValue("@id", operatorId);
 
                     using (var reader = countCmd.ExecuteReader())
@@ -72,7 +72,7 @@ namespace Kalendarz1
                     var tasksCmd = new SqlCommand(@"
                         SELECT TOP (@max)
                             Z.ID,
-                            ISNULL(O.Nazwa, 'Brak firmy') AS Firma,
+                            'Zadanie' AS Firma,
                             Z.TypZadania,
                             Z.Opis,
                             Z.TerminWykonania,
@@ -80,10 +80,8 @@ namespace Kalendarz1
                             CASE WHEN Z.TerminWykonania < GETDATE() THEN 1 ELSE 0 END AS IsZalegle,
                             CASE WHEN Z.TerminWykonania < DATEADD(hour, 2, GETDATE()) AND Z.TerminWykonania >= GETDATE() THEN 1 ELSE 0 END AS IsPilne
                         FROM Zadania Z
-                        LEFT JOIN OdbiorcyCRM O ON Z.IDOdbiorcy = O.ID
                         WHERE Z.OperatorID = @id
                           AND Z.Wykonane = 0
-                          AND CAST(Z.TerminWykonania AS DATE) <= CAST(GETDATE() AS DATE)
                         ORDER BY
                             CASE WHEN Z.TerminWykonania < GETDATE() THEN 0 ELSE 1 END,
                             Z.Priorytet DESC,
@@ -97,7 +95,7 @@ namespace Kalendarz1
                         {
                             summary.TopTasks.Add(new TaskInfo
                             {
-                                Id = reader.GetInt64(0),
+                                Id = reader.GetInt32(0),
                                 Firma = reader.GetString(1),
                                 TypZadania = reader.IsDBNull(2) ? "" : reader.GetString(2),
                                 Opis = reader.IsDBNull(3) ? "" : reader.GetString(3),
