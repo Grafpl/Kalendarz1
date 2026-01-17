@@ -272,7 +272,7 @@ namespace Kalendarz1
                     new MenuItemConfig("TerminyDostawyZywca", "Kalendarz Dostaw Żywca",
                         "Interaktywny kalendarz planowania terminów dostaw żywca od hodowców do ubojni",
                         Color.FromArgb(102, 187, 106), // #66BB6A
-                        () => new WidokKalendarza { UserID = App.UserID, WindowState = FormWindowState.Maximized }, "📅", "Dostawy Żywca"),
+                        () => new Zywiec.Kalendarz.WidokKalendarzaWPF { UserID = App.UserID }, "📅", "Dostawy Żywca"),
 
                     new MenuItemConfig("PlachtyAviloga", "Matryca Transportu",
                         "Zaawansowane planowanie tras transportu żywca z optymalizacją załadunku i wysyłką SMS",
