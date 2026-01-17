@@ -123,6 +123,53 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Styl dla przycisków toolbara z animacją hover (jak w Specyfikacjach) -->
+        <Style x:Key="ToolbarButton" TargetType="Button">
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="Margin" Value="2,0"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Trigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                                 To="1.05" Duration="0:0:0.1"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                 To="1.05" Duration="0:0:0.1"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.EnterActions>
+                    <Trigger.ExitActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                                 To="1" Duration="0:0:0.1"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                 To="1" Duration="0:0:0.1"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.ExitActions>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="RenderTransform">
+                        <Setter.Value>
+                            <ScaleTransform ScaleX="0.95" ScaleY="0.95"/>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
 
     <Grid>
@@ -156,56 +203,35 @@
             </Grid>
         </Border>
 
-        <!-- Panel podsumowania -->
-        <Border Grid.Row="1" Background="White" Padding="10,8" BorderBrush="Black" BorderThickness="0,0,0,2" Margin="10,5,10,0">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+        <!-- Toolbar z przyciskami akcji -->
+        <Border Grid.Row="1" Background="#ECEFF1" Padding="8,6" BorderBrush="#CFD8DC" BorderThickness="0,0,0,1" Margin="10,5,10,0">
+            <StackPanel Orientation="Horizontal">
+                <!-- Przyciski akcji po lewej stronie (styl jak w Specyfikacjach) -->
+                <Button Content="Zapisz dane IRZ" Click="BtnSaveIRZFields_Click"
+                        Style="{StaticResource ToolbarButton}" Background="#1976D2"
+                        ToolTip="Zapisz nr.dok.Arimr, przybycie i padniecia do bazy"/>
+                <Button Content="Zapisz lokalna kopie" Click="BtnSaveLocal_Click"
+                        Style="{StaticResource ToolbarButton}" Background="#F57C00"/>
+                <Button x:Name="btnExportDialog" Content="Eksport (XML/CSV)" Click="BtnExportDialog_Click"
+                        Style="{StaticResource ToolbarButton}" Background="#FF5722"
+                        ToolTip="Eksportuj dane do pliku XML lub CSV"/>
+                <Button x:Name="btnSend" Content="Wyslij do IRZplus" Click="BtnSend_Click"
+                        Style="{StaticResource ToolbarButton}" Background="#388E3C"/>
 
-                <StackPanel Grid.Column="0" Orientation="Horizontal">
-                    <StackPanel Margin="0,0,20,0">
-                        <TextBlock Text="Data uboju:" FontSize="10" Foreground="#757575"/>
-                        <TextBlock x:Name="txtDataUboju" Text="-" FontSize="14" FontWeight="Bold" Foreground="#1976D2"/>
-                    </StackPanel>
-                    <StackPanel Margin="0,0,20,0">
-                        <TextBlock Text="Dostawcy:" FontSize="10" Foreground="#757575"/>
-                        <TextBlock x:Name="txtLiczbaDostawcow" Text="0" FontSize="14" FontWeight="Bold" Foreground="#424242"/>
-                    </StackPanel>
-                    <StackPanel Margin="0,0,20,0">
-                        <TextBlock Text="Suma szt:" FontSize="10" Foreground="#757575"/>
-                        <TextBlock x:Name="txtSumaSztuk" Text="0" FontSize="14" FontWeight="Bold" Foreground="#424242"/>
-                    </StackPanel>
-                    <StackPanel Margin="0,0,20,0">
-                        <TextBlock Text="Waga netto:" FontSize="10" Foreground="#757575"/>
-                        <TextBlock x:Name="txtSumaWagi" Text="0 kg" FontSize="14" FontWeight="Bold" Foreground="#424242"/>
-                    </StackPanel>
-                    <StackPanel Margin="0,0,20,0">
-                        <TextBlock Text="Padle:" FontSize="10" Foreground="#757575"/>
-                        <TextBlock x:Name="txtSumaPadlych" Text="0" FontSize="14" FontWeight="Bold" Foreground="#D32F2F"/>
-                    </StackPanel>
-                    <StackPanel Margin="0,0,20,0">
-                        <TextBlock Text="KG zapl:" FontSize="10" Foreground="#757575"/>
-                        <TextBlock x:Name="txtSumaKgDoZapl" Text="0" FontSize="14" FontWeight="Bold" Foreground="#1976D2"/>
-                    </StackPanel>
-                    <StackPanel Margin="0,0,20,0">
-                        <TextBlock Text="Konfi szt:" FontSize="10" Foreground="#757575"/>
-                        <TextBlock x:Name="txtSumaKgKonfiskat" Text="0" FontSize="14" FontWeight="Bold" Foreground="#FF9800"/>
-                    </StackPanel>
-                    <StackPanel>
-                        <TextBlock Text="Padle szt:" FontSize="10" Foreground="#757575"/>
-                        <TextBlock x:Name="txtSumaKgPadlych" Text="0" FontSize="14" FontWeight="Bold" Foreground="#D32F2F"/>
-                    </StackPanel>
-                </StackPanel>
+                <Border Width="1" Background="#B0BEC5" Margin="8,2"/>
 
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button Content="Zaznacz wszystkie" Click="BtnSelectAll_Click" Style="{StaticResource SecondaryButtonStyle}"/>
-                    <Button Content="Odznacz wszystkie" Click="BtnDeselectAll_Click" Style="{StaticResource SecondaryButtonStyle}"/>
-                    <Button Content="Odswiez" Click="BtnRefresh_Click" Style="{StaticResource PrimaryButtonStyle}"/>
-                </StackPanel>
-            </Grid>
+                <Button Content="Zaznacz wszystkie" Click="BtnSelectAll_Click"
+                        Style="{StaticResource ToolbarButton}" Background="#607D8B"/>
+                <Button Content="Odznacz wszystkie" Click="BtnDeselectAll_Click"
+                        Style="{StaticResource ToolbarButton}" Background="#607D8B"/>
+                <Button Content="Odswiez" Click="BtnRefresh_Click"
+                        Style="{StaticResource ToolbarButton}" Background="#2196F3"/>
+
+                <Border Width="1" Background="#B0BEC5" Margin="8,2"/>
+
+                <Button Content="Anuluj" Click="BtnCancel_Click"
+                        Style="{StaticResource ToolbarButton}" Background="#757575"/>
+            </StackPanel>
         </Border>
 
         <!-- DataGrid ze specyfikacjami -->
@@ -422,25 +448,48 @@
             </StackPanel>
         </Border>
 
-        <!-- Panel akcji -->
-        <Border Grid.Row="4" Background="#ECEFF1" Padding="10,8" BorderBrush="Black" BorderThickness="0,2,0,0">
+        <!-- Panel statusu i podsumowania (sumy na dole) -->
+        <Border Grid.Row="4" Background="#ECEFF1" Padding="8,5" BorderBrush="#B0BEC5" BorderThickness="0,1,0,0">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock x:Name="txtStatus" Text="Gotowe do wyslania" VerticalAlignment="Center" FontSize="14" Foreground="#616161"/>
-                    <ProgressBar x:Name="progressBar" Width="200" Height="20" Margin="20,0,0,0" Visibility="Collapsed"/>
+                <!-- Status i progress bar -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock x:Name="txtStatus" Text="Gotowe do wyslania" VerticalAlignment="Center" FontSize="12" Foreground="#616161"/>
+                    <ProgressBar x:Name="progressBar" Width="150" Height="16" Margin="15,0,0,0" Visibility="Collapsed"/>
                 </StackPanel>
 
-                <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <Button Content="Zapisz dane IRZ" Click="BtnSaveIRZFields_Click" Style="{StaticResource PrimaryButtonStyle}" ToolTip="Zapisz nr.dok.Arimr, przybycie i padniecia do bazy"/>
-                    <Button Content="Zapisz lokalna kopie" Click="BtnSaveLocal_Click" Style="{StaticResource WarningButtonStyle}"/>
-                    <Button x:Name="btnExportDialog" Content="Eksport do pliku (XML/CSV)" Click="BtnExportDialog_Click" Style="{StaticResource WarningButtonStyle}" ToolTip="Eksportuj dane do pliku XML lub CSV - do recznego importu w portalu IRZplus gdy API nie dziala"/>
-                    <Button x:Name="btnSend" Content="Wyslij do IRZplus" Click="BtnSend_Click" Style="{StaticResource SendButtonStyle}"/>
-                    <Button Content="Anuluj" Click="BtnCancel_Click" Style="{StaticResource SecondaryButtonStyle}"/>
+                <Border Grid.Column="1" Width="1" Background="#B0BEC5" Margin="15,2"/>
+
+                <!-- Podsumowania (sumy) w kompaktowej formie -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Data:" FontSize="10" Foreground="#757575" VerticalAlignment="Center" Margin="0,0,3,0"/>
+                    <TextBlock x:Name="txtDataUboju" Text="-" FontSize="12" FontWeight="Bold" Foreground="#1976D2" VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                    <TextBlock Text="Dostawcy:" FontSize="10" Foreground="#757575" VerticalAlignment="Center" Margin="0,0,3,0"/>
+                    <TextBlock x:Name="txtLiczbaDostawcow" Text="0" FontSize="12" FontWeight="Bold" Foreground="#424242" VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                    <TextBlock Text="Szt:" FontSize="10" Foreground="#757575" VerticalAlignment="Center" Margin="0,0,3,0"/>
+                    <TextBlock x:Name="txtSumaSztuk" Text="0" FontSize="12" FontWeight="Bold" Foreground="#424242" VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                    <TextBlock Text="Waga:" FontSize="10" Foreground="#757575" VerticalAlignment="Center" Margin="0,0,3,0"/>
+                    <TextBlock x:Name="txtSumaWagi" Text="0 kg" FontSize="12" FontWeight="Bold" Foreground="#424242" VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                    <TextBlock Text="Padle:" FontSize="10" Foreground="#757575" VerticalAlignment="Center" Margin="0,0,3,0"/>
+                    <TextBlock x:Name="txtSumaPadlych" Text="0" FontSize="12" FontWeight="Bold" Foreground="#D32F2F" VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                    <TextBlock Text="KG zapl:" FontSize="10" Foreground="#757575" VerticalAlignment="Center" Margin="0,0,3,0"/>
+                    <TextBlock x:Name="txtSumaKgDoZapl" Text="0" FontSize="12" FontWeight="Bold" Foreground="#1976D2" VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                    <TextBlock Text="Konfi:" FontSize="10" Foreground="#757575" VerticalAlignment="Center" Margin="0,0,3,0"/>
+                    <TextBlock x:Name="txtSumaKgKonfiskat" Text="0" FontSize="12" FontWeight="Bold" Foreground="#FF9800" VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                    <TextBlock Text="Padle szt:" FontSize="10" Foreground="#757575" VerticalAlignment="Center" Margin="0,0,3,0"/>
+                    <TextBlock x:Name="txtSumaKgPadlych" Text="0" FontSize="12" FontWeight="Bold" Foreground="#D32F2F" VerticalAlignment="Center"/>
                 </StackPanel>
             </Grid>
         </Border>
