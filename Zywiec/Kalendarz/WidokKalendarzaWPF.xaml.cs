@@ -301,11 +301,17 @@ namespace Kalendarz1.Zywiec.Kalendarz
             dgDostawy.PreviewMouseLeftButtonDown += DgDostawy_PreviewMouseLeftButtonDown;
             dgDostawy.PreviewMouseMove += DgDostawy_PreviewMouseMove;
             dgDostawy.Drop += DgDostawy_Drop;
+            dgDostawy.DragEnter += DgDostawy_DragEnter;
+            dgDostawy.DragLeave += DgDostawy_DragLeave;
+            dgDostawy.DragOver += DgDostawy_DragOver;
             dgDostawy.AllowDrop = true;
 
             dgDostawyNastepny.PreviewMouseLeftButtonDown += DgDostawy_PreviewMouseLeftButtonDown;
             dgDostawyNastepny.PreviewMouseMove += DgDostawy_PreviewMouseMove;
             dgDostawyNastepny.Drop += DgDostawy_Drop;
+            dgDostawyNastepny.DragEnter += DgDostawy_DragEnter;
+            dgDostawyNastepny.DragLeave += DgDostawy_DragLeave;
+            dgDostawyNastepny.DragOver += DgDostawy_DragOver;
             dgDostawyNastepny.AllowDrop = true;
         }
 
@@ -1172,7 +1178,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
             calendarMain.SelectedDate = _selectedDate;
             calendarMain.DisplayDate = _selectedDate;
             UpdateWeekNumber();
-            await LoadDostawyAsync();
+
+            // Animacja slide w lewo (poprzedni tydzień)
+            await AnimateDataGridTransition(dgDostawy, async () => await LoadDostawyAsync(), slideDirection: false);
         }
 
         private async void BtnNextWeek_Click(object sender, RoutedEventArgs e)
@@ -1181,7 +1189,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
             calendarMain.SelectedDate = _selectedDate;
             calendarMain.DisplayDate = _selectedDate;
             UpdateWeekNumber();
-            await LoadDostawyAsync();
+
+            // Animacja slide w prawo (następny tydzień)
+            await AnimateDataGridTransition(dgDostawy, async () => await LoadDostawyAsync(), slideDirection: true);
         }
 
         private async void BtnToday_Click(object sender, RoutedEventArgs e)
@@ -1190,6 +1200,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
             calendarMain.SelectedDate = _selectedDate;
             calendarMain.DisplayDate = _selectedDate;
             UpdateWeekNumber();
+
+            // Fade in bez slide
+            var fadeAnimation = new DoubleAnimation(0.5, 1, TimeSpan.FromMilliseconds(300));
+            dgDostawy.BeginAnimation(OpacityProperty, fadeAnimation);
             await LoadDostawyAsync();
         }
 
@@ -1213,14 +1227,28 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
             if (chkNastepnyTydzien?.IsChecked == true)
             {
+                // Animacja expand z prawej strony
                 if (colNastepnyTydzien != null) colNastepnyTydzien.Width = new GridLength(1, GridUnitType.Star);
-                if (borderNastepnyTydzien != null) borderNastepnyTydzien.Visibility = Visibility.Visible;
+                if (borderNastepnyTydzien != null)
+                {
+                    AnimateExpandCollapse(borderNastepnyTydzien, expand: true);
+                }
                 await LoadDostawyForWeekAsync(_dostawyNastepnyTydzien, _selectedDate.AddDays(7));
             }
             else
             {
-                if (colNastepnyTydzien != null) colNastepnyTydzien.Width = new GridLength(0);
-                if (borderNastepnyTydzien != null) borderNastepnyTydzien.Visibility = Visibility.Collapsed;
+                // Animacja collapse w prawo
+                if (borderNastepnyTydzien != null)
+                {
+                    AnimateExpandCollapse(borderNastepnyTydzien, expand: false, onComplete: () =>
+                    {
+                        if (colNastepnyTydzien != null) colNastepnyTydzien.Width = new GridLength(0);
+                    });
+                }
+                else if (colNastepnyTydzien != null)
+                {
+                    colNastepnyTydzien.Width = new GridLength(0);
+                }
             }
         }
 
@@ -1732,6 +1760,36 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     e.Row.MinHeight = 30;
                     e.Row.BorderBrush = new SolidColorBrush(Color.FromRgb(230, 81, 0)); // Dark Orange border
                     e.Row.BorderThickness = new Thickness(0, 2, 0, 2);
+
+                    // Pulsujące podświetlenie (glow) dla dzisiejszego dnia
+                    var glowEffect = new DropShadowEffect
+                    {
+                        Color = Color.FromRgb(255, 152, 0),
+                        BlurRadius = 10,
+                        ShadowDepth = 0,
+                        Opacity = 0.5
+                    };
+                    e.Row.Effect = glowEffect;
+
+                    // Animacja pulsowania
+                    var pulseAnimation = new DoubleAnimation
+                    {
+                        From = 0.3,
+                        To = 0.8,
+                        Duration = TimeSpan.FromMilliseconds(1000),
+                        AutoReverse = true,
+                        RepeatBehavior = RepeatBehavior.Forever
+                    };
+                    var blurAnimation = new DoubleAnimation
+                    {
+                        From = 8,
+                        To = 18,
+                        Duration = TimeSpan.FromMilliseconds(1000),
+                        AutoReverse = true,
+                        RepeatBehavior = RepeatBehavior.Forever
+                    };
+                    glowEffect.BeginAnimation(DropShadowEffect.OpacityProperty, pulseAnimation);
+                    glowEffect.BeginAnimation(DropShadowEffect.BlurRadiusProperty, blurAnimation);
                 }
                 else if (dostawa.DataOdbioru.Date < DateTime.Today)
                 {
@@ -2394,8 +2452,90 @@ namespace Kalendarz1.Zywiec.Kalendarz
             }
         }
 
+        private DataGridRow _highlightedDropTarget = null;
+
+        private void DgDostawy_DragEnter(object sender, DragEventArgs e)
+        {
+            if (!e.Data.GetDataPresent("DostawaModel"))
+            {
+                e.Effects = DragDropEffects.None;
+                return;
+            }
+            e.Effects = DragDropEffects.Move;
+        }
+
+        private void DgDostawy_DragLeave(object sender, DragEventArgs e)
+        {
+            // Usuń podświetlenie
+            ClearDropTargetHighlight();
+        }
+
+        private void DgDostawy_DragOver(object sender, DragEventArgs e)
+        {
+            if (!e.Data.GetDataPresent("DostawaModel"))
+            {
+                e.Effects = DragDropEffects.None;
+                return;
+            }
+
+            var targetDg = sender as DataGrid;
+            if (targetDg == null) return;
+
+            Point dropPos = e.GetPosition(targetDg);
+            var hit = VisualTreeHelper.HitTest(targetDg, dropPos);
+            if (hit == null) return;
+
+            // Znajdź wiersz pod kursorem
+            DataGridRow row = FindVisualParent<DataGridRow>(hit.VisualHit);
+
+            // Usuń stare podświetlenie
+            if (_highlightedDropTarget != null && _highlightedDropTarget != row)
+            {
+                ClearDropTargetHighlight();
+            }
+
+            // Podświetl nowy cel
+            if (row != null && row != _highlightedDropTarget)
+            {
+                var targetItem = row.DataContext as DostawaModel;
+                if (targetItem != null && targetItem.IsHeaderRow && !targetItem.IsSeparator)
+                {
+                    // Podświetl nagłówek dnia - można tu upuścić
+                    row.BorderBrush = new SolidColorBrush(Color.FromRgb(33, 150, 243)); // Blue
+                    row.BorderThickness = new Thickness(2);
+
+                    // Dodaj efekt glow
+                    row.Effect = new DropShadowEffect
+                    {
+                        Color = Color.FromRgb(33, 150, 243),
+                        BlurRadius = 15,
+                        ShadowDepth = 0,
+                        Opacity = 0.6
+                    };
+
+                    _highlightedDropTarget = row;
+                }
+            }
+
+            e.Effects = DragDropEffects.Move;
+            e.Handled = true;
+        }
+
+        private void ClearDropTargetHighlight()
+        {
+            if (_highlightedDropTarget != null)
+            {
+                _highlightedDropTarget.BorderThickness = new Thickness(0);
+                _highlightedDropTarget.Effect = null;
+                _highlightedDropTarget = null;
+            }
+        }
+
         private void DgDostawy_Drop(object sender, DragEventArgs e)
         {
+            // Usuń podświetlenie
+            ClearDropTargetHighlight();
+
             if (!e.Data.GetDataPresent("DostawaModel")) return;
 
             var droppedItem = e.Data.GetData("DostawaModel") as DostawaModel;
@@ -2605,56 +2745,233 @@ namespace Kalendarz1.Zywiec.Kalendarz
             {
                 if (toastBorder == null) return;
 
-                // Ustaw kolor w zależności od typu
+                // Ikona i kolor w zależności od typu
+                string icon = "";
                 switch (toast.Type)
                 {
                     case ToastType.Success:
                         toastBorder.Background = new SolidColorBrush(Color.FromRgb(76, 175, 80));
+                        icon = "✓ ";
                         break;
                     case ToastType.Error:
                         toastBorder.Background = new SolidColorBrush(Color.FromRgb(244, 67, 54));
+                        icon = "✗ ";
                         break;
                     case ToastType.Warning:
                         toastBorder.Background = new SolidColorBrush(Color.FromRgb(255, 152, 0));
+                        icon = "⚠ ";
                         break;
                     default:
                         toastBorder.Background = new SolidColorBrush(Color.FromRgb(33, 150, 243));
+                        icon = "ℹ ";
                         break;
                 }
 
-                txtToastMessage.Text = toast.Message;
+                txtToastMessage.Text = icon + toast.Message;
                 toastBorder.Visibility = Visibility.Visible;
 
-                // Animacja wejścia
-                var animation = new DoubleAnimation
+                // Animacja wejścia - slide z góry + fade
+                var translateTransform = new TranslateTransform(0, -30);
+                toastBorder.RenderTransform = translateTransform;
+
+                var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(250));
+                var slideIn = new DoubleAnimation(-30, 0, TimeSpan.FromMilliseconds(250));
+                slideIn.EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut };
+
+                // Dla sukcesu - dodatkowy efekt pulse
+                if (toast.Type == ToastType.Success)
                 {
-                    From = 0,
-                    To = 1,
-                    Duration = TimeSpan.FromMilliseconds(200)
-                };
-                toastBorder.BeginAnimation(OpacityProperty, animation);
+                    var scaleTransform = new ScaleTransform(1, 1);
+                    var transformGroup = new TransformGroup();
+                    transformGroup.Children.Add(translateTransform);
+                    transformGroup.Children.Add(scaleTransform);
+                    toastBorder.RenderTransform = transformGroup;
+                    toastBorder.RenderTransformOrigin = new Point(0.5, 0.5);
+
+                    var pulseX = new DoubleAnimation(1, 1.05, TimeSpan.FromMilliseconds(100));
+                    pulseX.AutoReverse = true;
+                    pulseX.BeginTime = TimeSpan.FromMilliseconds(250);
+                    var pulseY = new DoubleAnimation(1, 1.05, TimeSpan.FromMilliseconds(100));
+                    pulseY.AutoReverse = true;
+                    pulseY.BeginTime = TimeSpan.FromMilliseconds(250);
+
+                    scaleTransform.BeginAnimation(ScaleTransform.ScaleXProperty, pulseX);
+                    scaleTransform.BeginAnimation(ScaleTransform.ScaleYProperty, pulseY);
+                }
+
+                toastBorder.BeginAnimation(OpacityProperty, fadeIn);
+                translateTransform.BeginAnimation(TranslateTransform.YProperty, slideIn);
             });
 
-            // Pokaż przez 3 sekundy
-            await Task.Delay(3000);
+            // Pokaż przez 2.5 sekundy
+            await Task.Delay(2500);
 
             await Dispatcher.InvokeAsync(() =>
             {
-                // Animacja wyjścia
-                var animation = new DoubleAnimation
+                // Animacja wyjścia - slide do góry + fade
+                var translateTransform = toastBorder.RenderTransform as TranslateTransform;
+                if (translateTransform == null)
                 {
-                    From = 1,
-                    To = 0,
-                    Duration = TimeSpan.FromMilliseconds(200)
-                };
-                animation.Completed += (s, e) =>
+                    var group = toastBorder.RenderTransform as TransformGroup;
+                    translateTransform = group?.Children.OfType<TranslateTransform>().FirstOrDefault();
+                }
+                if (translateTransform == null)
+                {
+                    translateTransform = new TranslateTransform(0, 0);
+                    toastBorder.RenderTransform = translateTransform;
+                }
+
+                var fadeOut = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(200));
+                var slideOut = new DoubleAnimation(0, -20, TimeSpan.FromMilliseconds(200));
+                slideOut.EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn };
+
+                fadeOut.Completed += (s, e) =>
                 {
                     toastBorder.Visibility = Visibility.Collapsed;
                 };
-                toastBorder.BeginAnimation(OpacityProperty, animation);
+
+                toastBorder.BeginAnimation(OpacityProperty, fadeOut);
+                translateTransform.BeginAnimation(TranslateTransform.YProperty, slideOut);
             });
 
             await Task.Delay(250);
+        }
+
+        #endregion
+
+        #region Animacje
+
+        /// <summary>
+        /// Animacja fade out/in dla DataGrid
+        /// </summary>
+        private async Task AnimateDataGridTransition(DataGrid dg, Func<Task> loadAction, bool slideDirection = true)
+        {
+            if (dg == null) return;
+
+            // Fade out z przesunięciem
+            var translateTransform = new TranslateTransform(0, 0);
+            dg.RenderTransform = translateTransform;
+
+            var fadeOut = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(150));
+            var slideOut = new DoubleAnimation(0, slideDirection ? -30 : 30, TimeSpan.FromMilliseconds(150));
+            slideOut.EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn };
+
+            dg.BeginAnimation(OpacityProperty, fadeOut);
+            translateTransform.BeginAnimation(TranslateTransform.XProperty, slideOut);
+
+            await Task.Delay(150);
+
+            // Załaduj dane
+            await loadAction();
+
+            // Fade in z przesunięciem
+            translateTransform.X = slideDirection ? 30 : -30;
+            var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(200));
+            var slideIn = new DoubleAnimation(slideDirection ? 30 : -30, 0, TimeSpan.FromMilliseconds(200));
+            slideIn.EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut };
+
+            dg.BeginAnimation(OpacityProperty, fadeIn);
+            translateTransform.BeginAnimation(TranslateTransform.XProperty, slideIn);
+        }
+
+        /// <summary>
+        /// Animacja expand/collapse dla panelu
+        /// </summary>
+        private void AnimateExpandCollapse(FrameworkElement element, bool expand, Action onComplete = null)
+        {
+            if (element == null) return;
+
+            var translateTransform = new TranslateTransform(expand ? 50 : 0, 0);
+            element.RenderTransform = translateTransform;
+
+            if (expand)
+            {
+                element.Visibility = Visibility.Visible;
+                var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(300));
+                var slideIn = new DoubleAnimation(50, 0, TimeSpan.FromMilliseconds(300));
+                slideIn.EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut };
+
+                element.BeginAnimation(OpacityProperty, fadeIn);
+                translateTransform.BeginAnimation(TranslateTransform.XProperty, slideIn);
+            }
+            else
+            {
+                var fadeOut = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(200));
+                var slideOut = new DoubleAnimation(0, 50, TimeSpan.FromMilliseconds(200));
+                slideOut.EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn };
+
+                fadeOut.Completed += (s, e) =>
+                {
+                    element.Visibility = Visibility.Collapsed;
+                    onComplete?.Invoke();
+                };
+
+                element.BeginAnimation(OpacityProperty, fadeOut);
+                translateTransform.BeginAnimation(TranslateTransform.XProperty, slideOut);
+            }
+        }
+
+        /// <summary>
+        /// Flash zielony na wierszu przy zapisie
+        /// </summary>
+        private void AnimateRowSuccessFlash(DataGridRow row)
+        {
+            if (row == null) return;
+
+            var originalBackground = row.Background;
+
+            var flashAnimation = new ColorAnimation
+            {
+                To = Color.FromRgb(76, 175, 80), // Green
+                Duration = TimeSpan.FromMilliseconds(150),
+                AutoReverse = true
+            };
+
+            var brush = new SolidColorBrush(Colors.Transparent);
+            row.Background = brush;
+            brush.BeginAnimation(SolidColorBrush.ColorProperty, flashAnimation);
+
+            // Po animacji przywróć oryginalny kolor
+            flashAnimation.Completed += (s, e) =>
+            {
+                row.Background = originalBackground;
+            };
+        }
+
+        /// <summary>
+        /// Pokaż animowany checkmark przy sukcesie
+        /// </summary>
+        private void ShowSuccessCheckmark(FrameworkElement targetElement)
+        {
+            // Utwórz checkmark overlay
+            var checkmark = new TextBlock
+            {
+                Text = "✓",
+                FontSize = 32,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(76, 175, 80)),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Opacity = 0,
+                RenderTransformOrigin = new Point(0.5, 0.5),
+                RenderTransform = new ScaleTransform(0, 0)
+            };
+
+            // Animacja pojawiania się
+            var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(200));
+            var scaleXIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(300));
+            var scaleYIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(300));
+            scaleXIn.EasingFunction = new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.3 };
+            scaleYIn.EasingFunction = new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.3 };
+
+            // Animacja znikania
+            var fadeOut = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(200));
+            fadeOut.BeginTime = TimeSpan.FromSeconds(1);
+
+            checkmark.BeginAnimation(OpacityProperty, fadeIn);
+            ((ScaleTransform)checkmark.RenderTransform).BeginAnimation(ScaleTransform.ScaleXProperty, scaleXIn);
+            ((ScaleTransform)checkmark.RenderTransform).BeginAnimation(ScaleTransform.ScaleYProperty, scaleYIn);
+            checkmark.BeginAnimation(OpacityProperty, fadeOut);
         }
 
         #endregion
