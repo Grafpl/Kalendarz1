@@ -9,10 +9,14 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
+using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 
 namespace Kalendarz1.Zywiec.Kalendarz
@@ -24,8 +28,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
     {
         #region Pola prywatne
 
+        // Connection string z optymalizacją puli połączeń
         private static readonly string ConnectionString =
-            "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+            "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True;" +
+            "Min Pool Size=5;Max Pool Size=100;Connection Timeout=30;Command Timeout=30";
 
         private ObservableCollection<DostawaModel> _dostawy = new ObservableCollection<DostawaModel>();
         private ObservableCollection<DostawaModel> _dostawyNastepnyTydzien = new ObservableCollection<DostawaModel>();
@@ -40,11 +46,41 @@ namespace Kalendarz1.Zywiec.Kalendarz
         private DispatcherTimer _refreshTimer;
         private DispatcherTimer _priceTimer;
         private DispatcherTimer _surveyTimer;
+        private DispatcherTimer _countdownTimer;
+
+        // Cache dla hodowców - optymalizacja wydajności
+        private static List<string> _hodowcyCache = null;
+        private static DateTime _hodowcyCacheExpiry = DateTime.MinValue;
+        private static readonly TimeSpan CACHE_DURATION = TimeSpan.FromMinutes(30);
+
+        // Wyszukiwanie
+        private string _searchText = "";
+        private List<DostawaModel> _allDostawy = new List<DostawaModel>();
+        private List<DostawaModel> _allDostawyNastepny = new List<DostawaModel>();
+
+        // Auto-refresh countdown
+        private int _refreshCountdown = 600; // 10 minut w sekundach
+        private const int REFRESH_INTERVAL_SECONDS = 600;
+
+        // Drag & Drop
+        private Point _dragStartPoint;
+        private DostawaModel _draggedItem;
+        private bool _isDragging = false;
+
+        // Multi-select
+        private HashSet<string> _selectedLPs = new HashSet<string>();
+
+        // Toast notifications
+        private Queue<ToastMessage> _toastQueue = new Queue<ToastMessage>();
+        private bool _isShowingToast = false;
 
         // Ankieta
         private bool _surveyShownThisSession = false;
         private static readonly TimeSpan SURVEY_START = new TimeSpan(14, 30, 0);
         private static readonly TimeSpan SURVEY_END = new TimeSpan(15, 0, 0);
+
+        // Cancellation token dla async operacji
+        private CancellationTokenSource _cts = new CancellationTokenSource();
 
         #endregion
 
@@ -71,30 +107,36 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
             SetupComboBoxes();
             SetupTimers();
+            SetupKeyboardShortcuts();
+            SetupDragDrop();
+            SetupContextMenu();
         }
 
         #endregion
 
         #region Inicjalizacja
 
-        private void Window_Loaded(object sender, RoutedEventArgs e)
+        private async void Window_Loaded(object sender, RoutedEventArgs e)
         {
             // Ustaw użytkownika
             if (!string.IsNullOrEmpty(UserName))
                 txtUserName.Text = UserName;
             else if (!string.IsNullOrEmpty(UserID))
-                txtUserName.Text = GetUserNameById(UserID);
+                txtUserName.Text = await GetUserNameByIdAsync(UserID);
 
             // Ustaw kalendarz na dziś
             calendarMain.SelectedDate = DateTime.Today;
             _selectedDate = DateTime.Today;
             UpdateWeekNumber();
 
-            // Załaduj dane
-            LoadAllData();
+            // Załaduj dane asynchronicznie
+            await LoadAllDataAsync();
 
             // Sprawdź ankietę
             TryShowSurveyIfInWindow();
+
+            // Pokaż powitanie
+            ShowToast("Kalendarz załadowany", ToastType.Success);
         }
 
         private void SetupComboBoxes()
@@ -134,61 +176,242 @@ namespace Kalendarz1.Zywiec.Kalendarz
         {
             // Timer odświeżania danych co 10 minut
             _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(10) };
-            _refreshTimer.Tick += (s, e) => LoadDostawy();
+            _refreshTimer.Tick += async (s, e) => await LoadDostawyAsync();
             _refreshTimer.Start();
 
             // Timer odświeżania cen co 30 minut
             _priceTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(30) };
-            _priceTimer.Tick += (s, e) => { LoadCeny(); LoadPartie(); };
+            _priceTimer.Tick += async (s, e) => { await LoadCenyAsync(); await LoadPartieAsync(); };
             _priceTimer.Start();
 
             // Timer ankiety
             _surveyTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
             _surveyTimer.Tick += (s, e) => TryShowSurveyIfInWindow();
             _surveyTimer.Start();
+
+            // Timer odliczania do odświeżenia (co 1 sekundę)
+            _countdownTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            _countdownTimer.Tick += (s, e) => UpdateRefreshCountdown();
+            _countdownTimer.Start();
+            _refreshCountdown = REFRESH_INTERVAL_SECONDS;
         }
 
+        private void UpdateRefreshCountdown()
+        {
+            _refreshCountdown--;
+            if (_refreshCountdown <= 0)
+            {
+                _refreshCountdown = REFRESH_INTERVAL_SECONDS;
+            }
+
+            // Aktualizuj wskaźnik odświeżania
+            if (txtRefreshCountdown != null)
+            {
+                int minutes = _refreshCountdown / 60;
+                int seconds = _refreshCountdown % 60;
+                txtRefreshCountdown.Text = $"Odświeżenie za: {minutes}:{seconds:D2}";
+            }
+        }
+
+        private void SetupKeyboardShortcuts()
+        {
+            // Rejestruj skróty klawiszowe
+            this.KeyDown += Window_KeyDown;
+
+            // Dodatkowe InputBindings dla popularnych skrótów
+            this.InputBindings.Add(new KeyBinding(
+                new RelayCommand(o => DuplicateSelectedDelivery()),
+                new KeyGesture(Key.D, ModifierKeys.Control)));
+
+            this.InputBindings.Add(new KeyBinding(
+                new RelayCommand(o => CreateNewDelivery()),
+                new KeyGesture(Key.N, ModifierKeys.Control)));
+
+            this.InputBindings.Add(new KeyBinding(
+                new RelayCommand(o => DeleteSelectedDelivery()),
+                new KeyGesture(Key.Delete)));
+
+            this.InputBindings.Add(new KeyBinding(
+                new RelayCommand(o => ChangeSelectedDeliveryDate(1)),
+                new KeyGesture(Key.Add)));
+
+            this.InputBindings.Add(new KeyBinding(
+                new RelayCommand(o => ChangeSelectedDeliveryDate(-1)),
+                new KeyGesture(Key.Subtract)));
+
+            this.InputBindings.Add(new KeyBinding(
+                new RelayCommand(o => ChangeSelectedDeliveryDate(1)),
+                new KeyGesture(Key.OemPlus)));
+
+            this.InputBindings.Add(new KeyBinding(
+                new RelayCommand(o => ChangeSelectedDeliveryDate(-1)),
+                new KeyGesture(Key.OemMinus)));
+        }
+
+        private void Window_KeyDown(object sender, KeyEventArgs e)
+        {
+            // Obsługa Ctrl+S - zapisz
+            if (e.Key == Key.S && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                BtnZapiszDostawe_Click(sender, new RoutedEventArgs());
+                e.Handled = true;
+            }
+            // Obsługa Ctrl+R - odśwież
+            else if (e.Key == Key.R && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                _ = LoadAllDataAsync();
+                e.Handled = true;
+            }
+            // Obsługa F5 - odśwież
+            else if (e.Key == Key.F5)
+            {
+                _ = LoadAllDataAsync();
+                e.Handled = true;
+            }
+            // Obsługa Escape - anuluj zaznaczenie
+            else if (e.Key == Key.Escape)
+            {
+                dgDostawy.SelectedItem = null;
+                _selectedLP = null;
+                _selectedLPs.Clear();
+                e.Handled = true;
+            }
+            // Obsługa Ctrl+A - zaznacz wszystko
+            else if (e.Key == Key.A && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                SelectAllDeliveries();
+                e.Handled = true;
+            }
+        }
+
+        private void SetupDragDrop()
+        {
+            // Drag & Drop dla DataGrid
+            dgDostawy.PreviewMouseLeftButtonDown += DgDostawy_PreviewMouseLeftButtonDown;
+            dgDostawy.PreviewMouseMove += DgDostawy_PreviewMouseMove;
+            dgDostawy.Drop += DgDostawy_Drop;
+            dgDostawy.AllowDrop = true;
+
+            dgDostawyNastepny.PreviewMouseLeftButtonDown += DgDostawy_PreviewMouseLeftButtonDown;
+            dgDostawyNastepny.PreviewMouseMove += DgDostawy_PreviewMouseMove;
+            dgDostawyNastepny.Drop += DgDostawy_Drop;
+            dgDostawyNastepny.AllowDrop = true;
+        }
+
+        private void SetupContextMenu()
+        {
+            // Context menu dla głównej tabeli dostaw
+            var contextMenu = new ContextMenu();
+
+            var menuDuplikuj = new MenuItem { Header = "Zduplikuj (Ctrl+D)", Icon = new TextBlock { Text = "📋" } };
+            menuDuplikuj.Click += (s, e) => DuplicateSelectedDelivery();
+
+            var menuNowa = new MenuItem { Header = "Nowa dostawa (Ctrl+N)", Icon = new TextBlock { Text = "➕" } };
+            menuNowa.Click += (s, e) => CreateNewDelivery();
+
+            var menuUsun = new MenuItem { Header = "Usuń (Delete)", Icon = new TextBlock { Text = "🗑" } };
+            menuUsun.Click += (s, e) => DeleteSelectedDelivery();
+
+            contextMenu.Items.Add(menuDuplikuj);
+            contextMenu.Items.Add(menuNowa);
+            contextMenu.Items.Add(new Separator());
+
+            var menuDateUp = new MenuItem { Header = "Przesuń +1 dzień (+)", Icon = new TextBlock { Text = "▲" } };
+            menuDateUp.Click += (s, e) => ChangeSelectedDeliveryDate(1);
+
+            var menuDateDown = new MenuItem { Header = "Przesuń -1 dzień (-)", Icon = new TextBlock { Text = "▼" } };
+            menuDateDown.Click += (s, e) => ChangeSelectedDeliveryDate(-1);
+
+            contextMenu.Items.Add(menuDateUp);
+            contextMenu.Items.Add(menuDateDown);
+            contextMenu.Items.Add(new Separator());
+
+            var menuPotwierdz = new MenuItem { Header = "Potwierdź zaznaczone", Icon = new TextBlock { Text = "✓" } };
+            menuPotwierdz.Click += async (s, e) => await BulkConfirmAsync(true);
+
+            var menuAnuluj = new MenuItem { Header = "Anuluj zaznaczone", Icon = new TextBlock { Text = "✗" } };
+            menuAnuluj.Click += async (s, e) => await BulkCancelAsync();
+
+            contextMenu.Items.Add(menuPotwierdz);
+            contextMenu.Items.Add(menuAnuluj);
+            contextMenu.Items.Add(new Separator());
+            contextMenu.Items.Add(menuUsun);
+
+            dgDostawy.ContextMenu = contextMenu;
+            dgDostawyNastepny.ContextMenu = contextMenu;
+        }
+
+        private async Task LoadAllDataAsync()
+        {
+            try
+            {
+                // Równoległe ładowanie niezależnych danych
+                var tasks = new List<Task>
+                {
+                    LoadDostawyAsync(),
+                    LoadCenyAsync(),
+                    LoadPartieAsync(),
+                    LoadOstatnieNotatkiAsync(),
+                    LoadRankingAsync()
+                };
+
+                await Task.WhenAll(tasks);
+                _refreshCountdown = REFRESH_INTERVAL_SECONDS;
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd ładowania: {ex.Message}", ToastType.Error);
+            }
+        }
+
+        // Stara synchroniczna wersja dla kompatybilności
         private void LoadAllData()
         {
-            LoadDostawy();
-            LoadCeny();
-            LoadPartie();
-            LoadOstatnieNotatki();
-            LoadRanking();
+            _ = LoadAllDataAsync();
         }
 
         #endregion
 
         #region Ładowanie danych - Dostawy
 
-        private void LoadDostawy()
+        private async Task LoadDostawyAsync()
         {
             if (!IsLoaded) return; // Nie ładuj przed pełną inicjalizacją
 
-            LoadDostawyForWeek(_dostawy, _selectedDate, txtTydzien1Header);
+            await LoadDostawyForWeekAsync(_dostawy, _selectedDate, txtTydzien1Header);
 
             if (chkNastepnyTydzien?.IsChecked == true)
             {
-                LoadDostawyForWeek(_dostawyNastepnyTydzien, _selectedDate.AddDays(7), txtTydzien2Header);
+                await LoadDostawyForWeekAsync(_dostawyNastepnyTydzien, _selectedDate.AddDays(7), txtTydzien2Header);
             }
+
+            // Aktualizuj status bar
+            UpdateStatusBar();
         }
 
-        private void LoadDostawyForWeek(ObservableCollection<DostawaModel> collection, DateTime baseDate, TextBlock header)
+        // Stara synchroniczna wersja dla kompatybilności
+        private void LoadDostawy()
+        {
+            _ = LoadDostawyAsync();
+        }
+
+        private async Task LoadDostawyForWeekAsync(ObservableCollection<DostawaModel> collection, DateTime baseDate, TextBlock header)
         {
             try
             {
-                collection.Clear();
-
                 DateTime startOfWeek = baseDate.AddDays(-(int)baseDate.DayOfWeek);
                 if (baseDate.DayOfWeek == DayOfWeek.Sunday) startOfWeek = baseDate.AddDays(-6);
                 else startOfWeek = baseDate.AddDays(-(int)baseDate.DayOfWeek + 1);
 
                 DateTime endOfWeek = startOfWeek.AddDays(7);
 
-                // Ustaw nagłówek (jeśli jest dostępny)
+                // Ustaw nagłówek (jeśli jest dostępny) - na głównym wątku
                 int weekNum = GetIso8601WeekOfYear(baseDate);
-                if (header != null)
-                    header.Text = $"Tydzień {weekNum} ({startOfWeek:dd.MM} - {endOfWeek.AddDays(-1):dd.MM})";
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    if (header != null)
+                        header.Text = $"Tydzień {weekNum} ({startOfWeek:dd.MM} - {endOfWeek.AddDays(-1):dd.MM})";
+                });
 
                 string sql = BuildDostawyQuery();
 
@@ -197,15 +420,15 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
-                    conn.Open();
+                    await conn.OpenAsync(_cts.Token);
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@startDate", startOfWeek);
                         cmd.Parameters.AddWithValue("@endDate", endOfWeek);
 
-                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        using (SqlDataReader reader = await cmd.ExecuteReaderAsync(_cts.Token))
                         {
-                            while (reader.Read())
+                            while (await reader.ReadAsync(_cts.Token))
                             {
                                 DateTime dataOdbioru = reader.GetDateTime(reader.GetOrdinal("DataOdbioru"));
 
@@ -239,72 +462,104 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     }
                 }
 
+                // Filtruj według wyszukiwania
+                if (!string.IsNullOrWhiteSpace(_searchText))
+                {
+                    tempList = tempList.Where(d =>
+                        d.Dostawca?.IndexOf(_searchText, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        d.Uwagi?.IndexOf(_searchText, StringComparison.OrdinalIgnoreCase) >= 0
+                    ).ToList();
+                }
+
+                // Zachowaj pełną listę do wyszukiwania
+                if (collection == _dostawy)
+                    _allDostawy = new List<DostawaModel>(tempList);
+                else
+                    _allDostawyNastepny = new List<DostawaModel>(tempList);
+
                 // Grupuj dane według daty i oblicz sumy/średnie
                 var groupedByDate = tempList.GroupBy(d => d.DataOdbioru.Date).OrderBy(g => g.Key);
-                bool isFirst = true;
 
-                foreach (var group in groupedByDate)
+                // Aktualizuj UI na głównym wątku
+                await Dispatcher.InvokeAsync(() =>
                 {
-                    // Dodaj separator między dniami (oprócz pierwszego)
-                    if (!isFirst)
+                    collection.Clear();
+                    bool isFirst = true;
+
+                    foreach (var group in groupedByDate)
                     {
-                        collection.Add(new DostawaModel { IsHeaderRow = true, IsSeparator = true });
-                    }
-                    isFirst = false;
-
-                    // Oblicz sumy i średnie ważone dla tego dnia
-                    double sumaAuta = 0;
-                    double sumaSztuki = 0;
-                    double sumaWagaPomnozona = 0;
-                    double sumaCenaPomnozona = 0;
-                    double sumaKMPomnozona = 0;
-                    int sumaUbytek = 0;
-
-                    foreach (var item in group)
-                    {
-                        sumaAuta += item.Auta;
-                        sumaSztuki += item.SztukiDek;
-                        sumaWagaPomnozona += (double)item.WagaDek * item.Auta;
-                        sumaCenaPomnozona += (double)item.Cena * item.Auta;
-                        sumaKMPomnozona += item.Distance * item.Auta;
-
-                        // Licz ubytki (lekkie kurczaki 0.5-2.4 kg)
-                        if (item.WagaDek >= 0.5m && item.WagaDek <= 2.4m)
+                        // Dodaj separator między dniami (oprócz pierwszego)
+                        if (!isFirst)
                         {
-                            sumaUbytek += item.Auta;
+                            collection.Add(new DostawaModel { IsHeaderRow = true, IsSeparator = true });
+                        }
+                        isFirst = false;
+
+                        // Oblicz sumy i średnie ważone dla tego dnia
+                        double sumaAuta = 0;
+                        double sumaSztuki = 0;
+                        double sumaWagaPomnozona = 0;
+                        double sumaCenaPomnozona = 0;
+                        double sumaKMPomnozona = 0;
+                        int sumaUbytek = 0;
+
+                        foreach (var item in group)
+                        {
+                            sumaAuta += item.Auta;
+                            sumaSztuki += item.SztukiDek;
+                            sumaWagaPomnozona += (double)item.WagaDek * item.Auta;
+                            sumaCenaPomnozona += (double)item.Cena * item.Auta;
+                            sumaKMPomnozona += item.Distance * item.Auta;
+
+                            // Licz ubytki (lekkie kurczaki 0.5-2.4 kg)
+                            if (item.WagaDek >= 0.5m && item.WagaDek <= 2.4m)
+                            {
+                                sumaUbytek += item.Auta;
+                            }
+                        }
+
+                        // Oblicz średnie ważone
+                        double sredniaWaga = sumaAuta > 0 ? sumaWagaPomnozona / sumaAuta : 0;
+                        double sredniaCena = sumaAuta > 0 ? sumaCenaPomnozona / sumaAuta : 0;
+                        double sredniaKM = sumaAuta > 0 ? sumaKMPomnozona / sumaAuta : 0;
+
+                        // Dodaj wiersz nagłówka dnia z sumami
+                        collection.Add(new DostawaModel
+                        {
+                            IsHeaderRow = true,
+                            DataOdbioru = group.Key,
+                            Dostawca = group.Key.ToString("yyyy-MM-dd dddd", new CultureInfo("pl-PL")),
+                            SumaAuta = sumaAuta,
+                            SumaSztuki = sumaSztuki,
+                            SredniaWaga = sredniaWaga,
+                            SredniaCena = sredniaCena,
+                            SredniaKM = sredniaKM,
+                            SumaUbytek = sumaUbytek
+                        });
+
+                        // Dodaj wszystkie dostawy dla tego dnia
+                        foreach (var dostawa in group)
+                        {
+                            collection.Add(dostawa);
                         }
                     }
-
-                    // Oblicz średnie ważone
-                    double sredniaWaga = sumaAuta > 0 ? sumaWagaPomnozona / sumaAuta : 0;
-                    double sredniaCena = sumaAuta > 0 ? sumaCenaPomnozona / sumaAuta : 0;
-                    double sredniaKM = sumaAuta > 0 ? sumaKMPomnozona / sumaAuta : 0;
-
-                    // Dodaj wiersz nagłówka dnia z sumami
-                    collection.Add(new DostawaModel
-                    {
-                        IsHeaderRow = true,
-                        DataOdbioru = group.Key,
-                        Dostawca = group.Key.ToString("yyyy-MM-dd dddd", new CultureInfo("pl-PL")),
-                        SumaAuta = sumaAuta,
-                        SumaSztuki = sumaSztuki,
-                        SredniaWaga = sredniaWaga,
-                        SredniaCena = sredniaCena,
-                        SredniaKM = sredniaKM,
-                        SumaUbytek = sumaUbytek
-                    });
-
-                    // Dodaj wszystkie dostawy dla tego dnia
-                    foreach (var dostawa in group)
-                    {
-                        collection.Add(dostawa);
-                    }
-                }
+                });
+            }
+            catch (OperationCanceledException)
+            {
+                // Operacja anulowana - ignoruj
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd podczas ładowania danych: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                await Dispatcher.InvokeAsync(() =>
+                    ShowToast($"Błąd ładowania dostaw: {ex.Message}", ToastType.Error));
             }
+        }
+
+        // Stara synchroniczna wersja dla kompatybilności
+        private void LoadDostawyForWeek(ObservableCollection<DostawaModel> collection, DateTime baseDate, TextBlock header)
+        {
+            _ = LoadDostawyForWeekAsync(collection, baseDate, header);
         }
 
         private string BuildDostawyQuery()
@@ -334,32 +589,51 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         #region Ładowanie danych - Ceny
 
-        private void LoadCeny()
+        private async Task LoadCenyAsync()
         {
             try
             {
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
-                    conn.Open();
+                    await conn.OpenAsync(_cts.Token);
 
                     // Cena rolnicza
-                    double cenaRolnicza = GetLatestPrice(conn, "CenaRolnicza", "cena");
-                    txtCenaRolnicza.Text = cenaRolnicza > 0 ? $"{cenaRolnicza:F2} zł" : "-";
-
-                    // Cena ministerialna
-                    double cenaMinister = GetLatestPrice(conn, "CenaMinister", "cena");
-                    txtCenaMinister.Text = cenaMinister > 0 ? $"{cenaMinister:F2} zł" : "-";
-
-                    // Łączona
+                    double cenaRolnicza = await GetLatestPriceAsync(conn, "CenaRolnicza", "cena");
+                    double cenaMinister = await GetLatestPriceAsync(conn, "CenaMinister", "cena");
                     double cenaLaczona = (cenaRolnicza + cenaMinister) / 2;
-                    txtCenaLaczona.Text = cenaLaczona > 0 ? $"{cenaLaczona:F2} zł" : "-";
+                    double cenaTuszki = await GetLatestPriceAsync(conn, "CenaTuszki", "cena");
 
-                    // Tuszka
-                    double cenaTuszki = GetLatestPrice(conn, "CenaTuszki", "cena");
-                    txtCenaTuszki.Text = cenaTuszki > 0 ? $"{cenaTuszki:F2} zł" : "-";
+                    // Aktualizuj UI na głównym wątku
+                    await Dispatcher.InvokeAsync(() =>
+                    {
+                        txtCenaRolnicza.Text = cenaRolnicza > 0 ? $"{cenaRolnicza:F2} zł" : "-";
+                        txtCenaMinister.Text = cenaMinister > 0 ? $"{cenaMinister:F2} zł" : "-";
+                        txtCenaLaczona.Text = cenaLaczona > 0 ? $"{cenaLaczona:F2} zł" : "-";
+                        txtCenaTuszki.Text = cenaTuszki > 0 ? $"{cenaTuszki:F2} zł" : "-";
+                    });
                 }
             }
             catch { }
+        }
+
+        // Stara synchroniczna wersja dla kompatybilności
+        private void LoadCeny()
+        {
+            _ = LoadCenyAsync();
+        }
+
+        private async Task<double> GetLatestPriceAsync(SqlConnection conn, string table, string column)
+        {
+            try
+            {
+                string sql = $"SELECT TOP 1 {column} FROM [LibraNet].[dbo].[{table}] ORDER BY data DESC";
+                using (SqlCommand cmd = new SqlCommand(sql, conn))
+                {
+                    var result = await cmd.ExecuteScalarAsync(_cts.Token);
+                    return result != DBNull.Value && result != null ? Convert.ToDouble(result) : 0;
+                }
+            }
+            catch { return 0; }
         }
 
         private double GetLatestPrice(SqlConnection conn, string table, string column)
@@ -380,15 +654,15 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         #region Ładowanie danych - Partie
 
-        private void LoadPartie()
+        private async Task LoadPartieAsync()
         {
             try
             {
-                _partie.Clear();
+                var tempList = new List<PartiaModel>();
 
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
-                    conn.Open();
+                    await conn.OpenAsync(_cts.Token);
 
                     string sql = @"
                         WITH Partie AS (
@@ -414,11 +688,11 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         ORDER BY p.PartiaFull DESC";
 
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
-                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    using (SqlDataReader reader = await cmd.ExecuteReaderAsync(_cts.Token))
                     {
-                        while (reader.Read())
+                        while (await reader.ReadAsync(_cts.Token))
                         {
-                            _partie.Add(new PartiaModel
+                            tempList.Add(new PartiaModel
                             {
                                 Partia = reader["PartiaShort"]?.ToString(),
                                 PartiaFull = reader["PartiaFull"]?.ToString(),
@@ -438,26 +712,39 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     }
                 }
 
-                txtPartieSuma.Text = _partie.Count > 0 ? $"| {_partie.Count} partii" : "";
+                // Aktualizuj UI na głównym wątku
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    _partie.Clear();
+                    foreach (var p in tempList)
+                        _partie.Add(p);
+                    txtPartieSuma.Text = _partie.Count > 0 ? $"| {_partie.Count} partii" : "";
+                });
             }
             catch { }
+        }
+
+        // Stara synchroniczna wersja dla kompatybilności
+        private void LoadPartie()
+        {
+            _ = LoadPartieAsync();
         }
 
         #endregion
 
         #region Ładowanie danych - Notatki
 
-        private void LoadNotatki(string lpDostawa)
+        private async Task LoadNotatkiAsync(string lpDostawa)
         {
             try
             {
-                _notatki.Clear();
-
                 if (string.IsNullOrEmpty(lpDostawa)) return;
+
+                var tempList = new List<NotatkaModel>();
 
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
-                    conn.Open();
+                    await conn.OpenAsync(_cts.Token);
                     string sql = @"SELECT N.DataUtworzenia, O.Name AS KtoDodal, N.Tresc
                                    FROM [LibraNet].[dbo].[Notatki] N
                                    LEFT JOIN [LibraNet].[dbo].[operators] O ON N.KtoStworzyl = O.ID
@@ -466,11 +753,11 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@Lp", lpDostawa);
-                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        using (SqlDataReader reader = await cmd.ExecuteReaderAsync(_cts.Token))
                         {
-                            while (reader.Read())
+                            while (await reader.ReadAsync(_cts.Token))
                             {
-                                _notatki.Add(new NotatkaModel
+                                tempList.Add(new NotatkaModel
                                 {
                                     DataUtworzenia = Convert.ToDateTime(reader["DataUtworzenia"]),
                                     KtoDodal = reader["KtoDodal"]?.ToString(),
@@ -480,19 +767,32 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         }
                     }
                 }
+
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    _notatki.Clear();
+                    foreach (var n in tempList)
+                        _notatki.Add(n);
+                });
             }
             catch { }
         }
 
-        private void LoadOstatnieNotatki()
+        // Stara synchroniczna wersja dla kompatybilności
+        private void LoadNotatki(string lpDostawa)
+        {
+            _ = LoadNotatkiAsync(lpDostawa);
+        }
+
+        private async Task LoadOstatnieNotatkiAsync()
         {
             try
             {
-                _ostatnieNotatki.Clear();
+                var tempList = new List<NotatkaModel>();
 
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
-                    conn.Open();
+                    await conn.OpenAsync(_cts.Token);
                     string sql = @"SELECT TOP 20 N.DataUtworzenia, FORMAT(H.DataOdbioru, 'MM-dd ddd') AS DataOdbioru,
                                    H.Dostawca, N.Tresc, O.Name AS KtoDodal
                                    FROM [LibraNet].[dbo].[Notatki] N
@@ -501,11 +801,11 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                    WHERE N.TypID = 1 ORDER BY N.DataUtworzenia DESC";
 
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
-                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    using (SqlDataReader reader = await cmd.ExecuteReaderAsync(_cts.Token))
                     {
-                        while (reader.Read())
+                        while (await reader.ReadAsync(_cts.Token))
                         {
-                            _ostatnieNotatki.Add(new NotatkaModel
+                            tempList.Add(new NotatkaModel
                             {
                                 DataUtworzenia = Convert.ToDateTime(reader["DataUtworzenia"]),
                                 DataOdbioru = reader["DataOdbioru"]?.ToString(),
@@ -516,23 +816,36 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         }
                     }
                 }
+
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    _ostatnieNotatki.Clear();
+                    foreach (var n in tempList)
+                        _ostatnieNotatki.Add(n);
+                });
             }
             catch { }
+        }
+
+        // Stara synchroniczna wersja dla kompatybilności
+        private void LoadOstatnieNotatki()
+        {
+            _ = LoadOstatnieNotatkiAsync();
         }
 
         #endregion
 
         #region Ładowanie danych - Ranking
 
-        private void LoadRanking()
+        private async Task LoadRankingAsync()
         {
             try
             {
-                _ranking.Clear();
+                var tempList = new List<RankingModel>();
 
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
-                    conn.Open();
+                    await conn.OpenAsync(_cts.Token);
                     string sql = @"SELECT TOP 20 Dostawca, AVG(WagaDek) as SredniaWaga, COUNT(*) as LiczbaD,
                                    SUM(CASE WHEN bufor = 'Potwierdzony' THEN 10 ELSE 5 END) as Punkty
                                    FROM HarmonogramDostaw
@@ -540,12 +853,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                    GROUP BY Dostawca ORDER BY Punkty DESC, SredniaWaga DESC";
 
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
-                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    using (SqlDataReader reader = await cmd.ExecuteReaderAsync(_cts.Token))
                     {
                         int pos = 1;
-                        while (reader.Read())
+                        while (await reader.ReadAsync(_cts.Token))
                         {
-                            _ranking.Add(new RankingModel
+                            tempList.Add(new RankingModel
                             {
                                 Pozycja = pos++,
                                 Dostawca = reader["Dostawca"]?.ToString(),
@@ -556,8 +869,21 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         }
                     }
                 }
+
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    _ranking.Clear();
+                    foreach (var r in tempList)
+                        _ranking.Add(r);
+                });
             }
             catch { }
+        }
+
+        // Stara synchroniczna wersja dla kompatybilności
+        private void LoadRanking()
+        {
+            _ = LoadRankingAsync();
         }
 
         #endregion
@@ -632,66 +958,153 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         #endregion
 
-        #region Ładowanie danych - Hodowcy
+        #region Ładowanie danych - Hodowcy (z cache)
 
+        private async Task LoadHodowcyToComboBoxAsync()
+        {
+            try
+            {
+                // Sprawdź czy cache jest aktualny
+                if (_hodowcyCache != null && DateTime.Now < _hodowcyCacheExpiry)
+                {
+                    await Dispatcher.InvokeAsync(() =>
+                    {
+                        cmbDostawca.Items.Clear();
+                        foreach (var h in _hodowcyCache)
+                            cmbDostawca.Items.Add(h);
+                    });
+                    return;
+                }
+
+                var tempList = new List<string>();
+
+                using (SqlConnection conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync(_cts.Token);
+                    string sql = "SELECT Name FROM [LibraNet].[dbo].[Dostawcy] WHERE Halt = '0' ORDER BY Name";
+                    using (SqlCommand cmd = new SqlCommand(sql, conn))
+                    using (SqlDataReader reader = await cmd.ExecuteReaderAsync(_cts.Token))
+                    {
+                        while (await reader.ReadAsync(_cts.Token))
+                        {
+                            tempList.Add(reader["Name"]?.ToString());
+                        }
+                    }
+                }
+
+                // Zapisz do cache
+                _hodowcyCache = tempList;
+                _hodowcyCacheExpiry = DateTime.Now.Add(CACHE_DURATION);
+
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    cmbDostawca.Items.Clear();
+                    foreach (var h in tempList)
+                        cmbDostawca.Items.Add(h);
+                });
+            }
+            catch { }
+        }
+
+        // Stara synchroniczna wersja dla kompatybilności
         private void LoadHodowcyToComboBox()
         {
+            // Użyj cache jeśli dostępny
+            if (_hodowcyCache != null && DateTime.Now < _hodowcyCacheExpiry)
+            {
+                cmbDostawca.Items.Clear();
+                foreach (var h in _hodowcyCache)
+                    cmbDostawca.Items.Add(h);
+                return;
+            }
+
             try
             {
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
                     conn.Open();
                     string sql = "SELECT Name FROM [LibraNet].[dbo].[Dostawcy] WHERE Halt = '0' ORDER BY Name";
+                    var tempList = new List<string>();
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     using (SqlDataReader reader = cmd.ExecuteReader())
                     {
                         while (reader.Read())
                         {
-                            cmbDostawca.Items.Add(reader["Name"]?.ToString());
+                            tempList.Add(reader["Name"]?.ToString());
                         }
                     }
+
+                    // Zapisz do cache
+                    _hodowcyCache = tempList;
+                    _hodowcyCacheExpiry = DateTime.Now.Add(CACHE_DURATION);
+
+                    foreach (var h in tempList)
+                        cmbDostawca.Items.Add(h);
                 }
             }
             catch { }
         }
 
-        private void LoadLpWstawieniaForHodowca(string hodowca)
+        private async Task LoadLpWstawieniaForHodowcaAsync(string hodowca)
         {
             try
             {
-                cmbLpWstawienia.Items.Clear();
+                var tempList = new List<string>();
 
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
-                    conn.Open();
+                    await conn.OpenAsync(_cts.Token);
                     string sql = "SELECT Lp FROM WstawieniaKurczakow WHERE Hodowca = @h ORDER BY DataWstawienia DESC";
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@h", hodowca);
-                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        using (SqlDataReader reader = await cmd.ExecuteReaderAsync(_cts.Token))
                         {
-                            while (reader.Read())
+                            while (await reader.ReadAsync(_cts.Token))
                             {
-                                cmbLpWstawienia.Items.Add(reader["Lp"]?.ToString());
+                                tempList.Add(reader["Lp"]?.ToString());
                             }
                         }
                     }
                 }
+
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    cmbLpWstawienia.Items.Clear();
+                    foreach (var lp in tempList)
+                        cmbLpWstawienia.Items.Add(lp);
+                });
             }
             catch { }
+        }
+
+        // Stara synchroniczna wersja dla kompatybilności
+        private void LoadLpWstawieniaForHodowca(string hodowca)
+        {
+            _ = LoadLpWstawieniaForHodowcaAsync(hodowca);
+        }
+
+        // Wyszukiwanie hodowcy w cache
+        public IEnumerable<string> SearchHodowcy(string searchText)
+        {
+            if (_hodowcyCache == null) return Enumerable.Empty<string>();
+
+            return _hodowcyCache.Where(h =>
+                h.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0
+            );
         }
 
         #endregion
 
         #region Obsługa kalendarza
 
-        private void CalendarMain_SelectedDatesChanged(object sender, SelectionChangedEventArgs e)
+        private async void CalendarMain_SelectedDatesChanged(object sender, SelectionChangedEventArgs e)
         {
             if (calendarMain.SelectedDate.HasValue)
             {
                 _selectedDate = calendarMain.SelectedDate.Value;
                 UpdateWeekNumber();
-                LoadDostawy();
+                await LoadDostawyAsync();
             }
         }
 
@@ -712,48 +1125,48 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         #region Nawigacja
 
-        private void BtnPreviousWeek_Click(object sender, RoutedEventArgs e)
+        private async void BtnPreviousWeek_Click(object sender, RoutedEventArgs e)
         {
             _selectedDate = _selectedDate.AddDays(-7);
             calendarMain.SelectedDate = _selectedDate;
             calendarMain.DisplayDate = _selectedDate;
             UpdateWeekNumber();
-            LoadDostawy();
+            await LoadDostawyAsync();
         }
 
-        private void BtnNextWeek_Click(object sender, RoutedEventArgs e)
+        private async void BtnNextWeek_Click(object sender, RoutedEventArgs e)
         {
             _selectedDate = _selectedDate.AddDays(7);
             calendarMain.SelectedDate = _selectedDate;
             calendarMain.DisplayDate = _selectedDate;
             UpdateWeekNumber();
-            LoadDostawy();
+            await LoadDostawyAsync();
         }
 
-        private void BtnToday_Click(object sender, RoutedEventArgs e)
+        private async void BtnToday_Click(object sender, RoutedEventArgs e)
         {
             _selectedDate = DateTime.Today;
             calendarMain.SelectedDate = _selectedDate;
             calendarMain.DisplayDate = _selectedDate;
             UpdateWeekNumber();
-            LoadDostawy();
+            await LoadDostawyAsync();
         }
 
         #endregion
 
         #region Obsługa filtrów
 
-        private void Filter_Changed(object sender, RoutedEventArgs e)
+        private async void Filter_Changed(object sender, RoutedEventArgs e)
         {
             if (!IsLoaded) return;
 
             if (colCena != null && chkPokazCeny != null)
                 colCena.Visibility = chkPokazCeny.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
 
-            LoadDostawy();
+            await LoadDostawyAsync();
         }
 
-        private void ChkNastepnyTydzien_Changed(object sender, RoutedEventArgs e)
+        private async void ChkNastepnyTydzien_Changed(object sender, RoutedEventArgs e)
         {
             if (!IsLoaded) return;
 
@@ -761,7 +1174,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
             {
                 if (colNastepnyTydzien != null) colNastepnyTydzien.Width = new GridLength(1, GridUnitType.Star);
                 if (borderNastepnyTydzien != null) borderNastepnyTydzien.Visibility = Visibility.Visible;
-                LoadDostawyForWeek(_dostawyNastepnyTydzien, _selectedDate.AddDays(7), txtTydzien2Header);
+                await LoadDostawyForWeekAsync(_dostawyNastepnyTydzien, _selectedDate.AddDays(7), txtTydzien2Header);
             }
             else
             {
@@ -776,19 +1189,197 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         private void DgDostawy_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            // Obsługa multi-select
+            _selectedLPs.Clear();
+            foreach (var item in dgDostawy.SelectedItems)
+            {
+                var dostawa = item as DostawaModel;
+                if (dostawa != null && !dostawa.IsHeaderRow && !dostawa.IsSeparator && !string.IsNullOrEmpty(dostawa.LP))
+                {
+                    _selectedLPs.Add(dostawa.LP);
+                }
+            }
+
             var selected = dgDostawy.SelectedItem as DostawaModel;
             if (selected != null && !selected.IsHeaderRow)
             {
                 _selectedLP = selected.LP;
-                LoadDeliveryDetails(selected.LP);
-                LoadNotatki(selected.LP);
+                _ = LoadDeliveryDetailsAsync(selected.LP);
+                _ = LoadNotatkiAsync(selected.LP);
 
                 if (!string.IsNullOrEmpty(selected.LpW))
                 {
                     cmbLpWstawienia.SelectedItem = selected.LpW;
-                    LoadWstawienia(selected.LpW);
+                    _ = LoadWstawieniaAsync(selected.LpW);
                 }
             }
+
+            // Aktualizuj status bar z informacją o zaznaczeniu
+            if (_selectedLPs.Count > 1)
+            {
+                int totalAuta = dgDostawy.SelectedItems.Cast<DostawaModel>()
+                    .Where(d => !d.IsHeaderRow && !d.IsSeparator)
+                    .Sum(d => d.Auta);
+                txtStatusBar.Text = $"Zaznaczono: {_selectedLPs.Count} dostaw | Auta: {totalAuta}";
+            }
+            else
+            {
+                UpdateStatusBar();
+            }
+        }
+
+        private async Task LoadDeliveryDetailsAsync(string lp)
+        {
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync(_cts.Token);
+                    string sql = @"SELECT HD.*, D.Address, D.PostalCode, D.City, D.Distance, D.Phone1, D.Phone2, D.Phone3,
+                                   D.Info1, D.Info2, D.Info3, D.Email, D.TypOsobowosci, D.TypOsobowosci2,
+                                   O1.Name as KtoStwoName, O2.Name as KtoModName, O3.Name as KtoWagaName, O4.Name as KtoSztukiName
+                                   FROM HarmonogramDostaw HD
+                                   LEFT JOIN Dostawcy D ON HD.Dostawca = D.Name
+                                   LEFT JOIN operators O1 ON HD.ktoStwo = O1.ID
+                                   LEFT JOIN operators O2 ON HD.ktoMod = O2.ID
+                                   LEFT JOIN operators O3 ON HD.KtoWaga = O3.ID
+                                   LEFT JOIN operators O4 ON HD.KtoSztuki = O4.ID
+                                   WHERE HD.LP = @lp";
+
+                    using (SqlCommand cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@lp", lp);
+                        using (SqlDataReader r = await cmd.ExecuteReaderAsync(_cts.Token))
+                        {
+                            if (await r.ReadAsync(_cts.Token))
+                            {
+                                await Dispatcher.InvokeAsync(() =>
+                                {
+                                    // Hodowca
+                                    cmbDostawca.SelectedItem = r["Dostawca"]?.ToString();
+                                    txtUlicaH.Text = r["Address"]?.ToString();
+                                    txtKodPocztowyH.Text = r["PostalCode"]?.ToString();
+                                    txtMiejscH.Text = r["City"]?.ToString();
+                                    txtKmH.Text = r["Distance"]?.ToString();
+                                    txtEmail.Text = r["Email"]?.ToString();
+                                    txtTel1.Text = r["Phone1"]?.ToString();
+                                    txtTel2.Text = r["Phone2"]?.ToString();
+                                    txtTel3.Text = r["Phone3"]?.ToString();
+                                    txtInfo1.Text = r["Info1"]?.ToString();
+                                    txtInfo2.Text = r["Info2"]?.ToString();
+                                    txtInfo3.Text = r["Info3"]?.ToString();
+                                    cmbOsobowosc1.SelectedItem = r["TypOsobowosci"]?.ToString();
+                                    cmbOsobowosc2.SelectedItem = r["TypOsobowosci2"]?.ToString();
+
+                                    // Dostawa
+                                    dpData.SelectedDate = r["DataOdbioru"] != DBNull.Value ? Convert.ToDateTime(r["DataOdbioru"]) : (DateTime?)null;
+                                    cmbStatus.SelectedItem = r["bufor"]?.ToString();
+                                    txtAuta.Text = r["Auta"]?.ToString();
+                                    txtSztuki.Text = r["SztukiDek"]?.ToString();
+                                    txtWagaDek.Text = r["WagaDek"]?.ToString();
+                                    txtSztNaSzuflade.Text = r["SztSzuflada"]?.ToString();
+                                    cmbTypCeny.SelectedItem = r["TypCeny"]?.ToString();
+                                    txtCena.Text = r["Cena"]?.ToString();
+                                    cmbTypUmowy.SelectedItem = r["TypUmowy"]?.ToString();
+                                    txtDodatek.Text = r["Dodatek"]?.ToString();
+
+                                    chkPotwWaga.IsChecked = r["PotwWaga"] != DBNull.Value && Convert.ToBoolean(r["PotwWaga"]);
+                                    chkPotwSztuki.IsChecked = r["PotwSztuki"] != DBNull.Value && Convert.ToBoolean(r["PotwSztuki"]);
+                                    txtKtoWaga.Text = r["KtoWagaName"]?.ToString();
+                                    txtKtoSztuki.Text = r["KtoSztukiName"]?.ToString();
+
+                                    // Info
+                                    txtDataStwo.Text = r["DataUtw"] != DBNull.Value ? Convert.ToDateTime(r["DataUtw"]).ToString("yyyy-MM-dd HH:mm") : "";
+                                    txtKtoStwo.Text = r["KtoStwoName"]?.ToString();
+                                    txtDataMod.Text = r["DataMod"] != DBNull.Value ? Convert.ToDateTime(r["DataMod"]).ToString("yyyy-MM-dd HH:mm") : "";
+                                    txtKtoMod.Text = r["KtoModName"]?.ToString();
+
+                                    // Transport
+                                    txtSztNaSzufladeCalc.Text = r["SztSzuflada"]?.ToString();
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private async Task LoadWstawieniaAsync(string lpWstawienia)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(lpWstawienia)) return;
+
+                double sumaSztuk = 0;
+                var tempList = new List<DostawaModel>();
+
+                using (SqlConnection conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync(_cts.Token);
+
+                    // Dane wstawienia
+                    string sql = "SELECT * FROM dbo.WstawieniaKurczakow WHERE Lp = @lp";
+                    using (SqlCommand cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@lp", lpWstawienia);
+                        using (SqlDataReader reader = await cmd.ExecuteReaderAsync(_cts.Token))
+                        {
+                            if (await reader.ReadAsync(_cts.Token))
+                            {
+                                DateTime dataWstaw = Convert.ToDateTime(reader["DataWstawienia"]);
+                                string iloscWst = reader["IloscWstawienia"]?.ToString();
+
+                                await Dispatcher.InvokeAsync(() =>
+                                {
+                                    txtDataWstawienia.Text = dataWstaw.ToString("yyyy-MM-dd");
+                                    txtSztukiWstawienia.Text = iloscWst;
+                                    txtObecnaDoba.Text = (DateTime.Now - dataWstaw).Days.ToString();
+                                });
+                            }
+                        }
+                    }
+
+                    // Powiązane dostawy
+                    sql = "SELECT LP, DataOdbioru, Auta, SztukiDek, WagaDek, bufor FROM HarmonogramDostaw WHERE LpW = @lp ORDER BY DataOdbioru";
+                    using (SqlCommand cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@lp", lpWstawienia);
+                        using (SqlDataReader reader = await cmd.ExecuteReaderAsync(_cts.Token))
+                        {
+                            while (await reader.ReadAsync(_cts.Token))
+                            {
+                                double sztuki = reader["SztukiDek"] != DBNull.Value ? Convert.ToDouble(reader["SztukiDek"]) : 0;
+                                sumaSztuk += sztuki;
+
+                                tempList.Add(new DostawaModel
+                                {
+                                    DataOdbioru = Convert.ToDateTime(reader["DataOdbioru"]),
+                                    Auta = reader["Auta"] != DBNull.Value ? Convert.ToInt32(reader["Auta"]) : 0,
+                                    SztukiDek = sztuki,
+                                    WagaDek = reader["WagaDek"] != DBNull.Value ? Convert.ToDecimal(reader["WagaDek"]) : 0,
+                                    Bufor = reader["bufor"]?.ToString()
+                                });
+                            }
+                        }
+                    }
+                }
+
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    _wstawienia.Clear();
+                    foreach (var w in tempList)
+                        _wstawienia.Add(w);
+
+                    // Oblicz pozostałe
+                    if (double.TryParse(txtSztukiWstawienia.Text, out double wstawione))
+                    {
+                        double pozostale = (wstawione * 0.97) - sumaSztuk;
+                        txtSztukiPozostale.Text = $"{pozostale:#,0} szt";
+                    }
+                });
+            }
+            catch { }
         }
 
         private void DgDostawy_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
@@ -947,42 +1538,131 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         #endregion
 
+        #region Obsługa Checkboxów
+
+        private async void ChkConfirm_Click(object sender, RoutedEventArgs e)
+        {
+            var checkbox = sender as CheckBox;
+            if (checkbox == null) return;
+
+            string lp = checkbox.Tag?.ToString();
+            if (string.IsNullOrEmpty(lp)) return;
+
+            bool isChecked = checkbox.IsChecked == true;
+            string status = isChecked ? "Potwierdzony" : "Niepotwierdzony";
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync(_cts.Token);
+                    using (SqlCommand cmd = new SqlCommand("UPDATE HarmonogramDostaw SET bufor = @status WHERE LP = @lp", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@status", status);
+                        cmd.Parameters.AddWithValue("@lp", lp);
+                        await cmd.ExecuteNonQueryAsync(_cts.Token);
+                    }
+                }
+
+                ShowToast(isChecked ? "Dostawa potwierdzona" : "Potwierdzenie usunięte", ToastType.Success);
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd: {ex.Message}", ToastType.Error);
+                // Przywróć poprzedni stan
+                checkbox.IsChecked = !isChecked;
+            }
+        }
+
+        private async void ChkWstawienie_Click(object sender, RoutedEventArgs e)
+        {
+            var checkbox = sender as CheckBox;
+            if (checkbox == null) return;
+
+            string lpW = checkbox.Tag?.ToString();
+            if (string.IsNullOrEmpty(lpW)) return;
+
+            bool isChecked = checkbox.IsChecked == true;
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync(_cts.Token);
+                    using (SqlCommand cmd = new SqlCommand(
+                        "UPDATE WstawieniaKurczakow SET isConf = @isConf, KtoConf = @kto, DataConf = @data WHERE Lp = @lp", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@isConf", isChecked ? 1 : 0);
+                        cmd.Parameters.AddWithValue("@kto", UserID ?? "0");
+                        cmd.Parameters.AddWithValue("@data", DateTime.Now);
+                        cmd.Parameters.AddWithValue("@lp", lpW);
+                        await cmd.ExecuteNonQueryAsync(_cts.Token);
+                    }
+                }
+
+                ShowToast(isChecked ? "Wstawienie potwierdzone" : "Potwierdzenie wstawienia usunięte", ToastType.Success);
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd: {ex.Message}", ToastType.Error);
+                // Przywróć poprzedni stan
+                checkbox.IsChecked = !isChecked;
+            }
+        }
+
+        #endregion
+
         #region Akcje na dostawach
 
-        private void BtnDateUp_Click(object sender, RoutedEventArgs e)
+        private async void BtnDateUp_Click(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(_selectedLP)) { ShowSelectDeliveryMessage(); return; }
-            ChangeDeliveryDate(_selectedLP, 1);
-            LoadDostawy();
+            if (string.IsNullOrEmpty(_selectedLP))
+            {
+                ShowToast("Wybierz dostawę", ToastType.Warning);
+                return;
+            }
+            await ChangeDeliveryDateAsync(_selectedLP, 1);
+            await LoadDostawyAsync();
         }
 
-        private void BtnDateDown_Click(object sender, RoutedEventArgs e)
+        private async void BtnDateDown_Click(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(_selectedLP)) { ShowSelectDeliveryMessage(); return; }
-            ChangeDeliveryDate(_selectedLP, -1);
-            LoadDostawy();
+            if (string.IsNullOrEmpty(_selectedLP))
+            {
+                ShowToast("Wybierz dostawę", ToastType.Warning);
+                return;
+            }
+            await ChangeDeliveryDateAsync(_selectedLP, -1);
+            await LoadDostawyAsync();
         }
 
-        private void ChangeDeliveryDate(string lp, int days)
+        private async Task ChangeDeliveryDateAsync(string lp, int days)
         {
             try
             {
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
-                    conn.Open();
+                    await conn.OpenAsync(_cts.Token);
                     string sql = "UPDATE HarmonogramDostaw SET DataOdbioru = DATEADD(day, @dni, DataOdbioru) WHERE LP = @lp";
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@dni", days);
                         cmd.Parameters.AddWithValue("@lp", lp);
-                        cmd.ExecuteNonQuery();
+                        await cmd.ExecuteNonQueryAsync(_cts.Token);
                     }
                 }
+                ShowToast($"Data przesunięta o {days} dni", ToastType.Success);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                ShowToast($"Błąd: {ex.Message}", ToastType.Error);
             }
+        }
+
+        // Stara synchroniczna wersja dla kompatybilności
+        private void ChangeDeliveryDate(string lp, int days)
+        {
+            _ = ChangeDeliveryDateAsync(lp, days);
         }
 
         private void BtnNowaDostawa_Click(object sender, RoutedEventArgs e)
@@ -1000,30 +1680,35 @@ namespace Kalendarz1.Zywiec.Kalendarz
             }
         }
 
-        private void BtnDuplikuj_Click(object sender, RoutedEventArgs e)
+        private async void BtnDuplikuj_Click(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(_selectedLP)) { ShowSelectDeliveryMessage(); return; }
+            if (string.IsNullOrEmpty(_selectedLP))
+            {
+                ShowToast("Wybierz dostawę", ToastType.Warning);
+                return;
+            }
 
             if (MessageBox.Show("Czy na pewno chcesz zduplikować tę dostawę?", "Potwierdzenie",
                 MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
             {
-                DuplicateDelivery(_selectedLP);
-                LoadDostawy();
+                await DuplicateDeliveryAsync(_selectedLP);
+                await LoadDostawyAsync();
             }
         }
 
-        private void DuplicateDelivery(string lp)
+        private async Task DuplicateDeliveryAsync(string lp)
         {
             try
             {
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
-                    conn.Open();
+                    await conn.OpenAsync(_cts.Token);
                     string getMaxLp = "SELECT MAX(Lp) FROM HarmonogramDostaw";
                     int newLp;
                     using (SqlCommand cmd = new SqlCommand(getMaxLp, conn))
                     {
-                        newLp = Convert.ToInt32(cmd.ExecuteScalar()) + 1;
+                        var result = await cmd.ExecuteScalarAsync(_cts.Token);
+                        newLp = Convert.ToInt32(result) + 1;
                     }
 
                     string sql = @"INSERT INTO HarmonogramDostaw (Lp, DataOdbioru, Dostawca, KmH, Kurnik, KmK, Auta, SztukiDek, WagaDek,
@@ -1037,20 +1722,30 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         cmd.Parameters.AddWithValue("@newLp", newLp);
                         cmd.Parameters.AddWithValue("@lp", lp);
                         cmd.Parameters.AddWithValue("@userId", UserID ?? "0");
-                        cmd.ExecuteNonQuery();
+                        await cmd.ExecuteNonQueryAsync(_cts.Token);
                     }
-                    MessageBox.Show("Dostawa zduplikowana.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                    ShowToast("Dostawa zduplikowana", ToastType.Success);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                ShowToast($"Błąd: {ex.Message}", ToastType.Error);
             }
         }
 
-        private void BtnUsun_Click(object sender, RoutedEventArgs e)
+        // Stara synchroniczna wersja dla kompatybilności
+        private void DuplicateDelivery(string lp)
         {
-            if (string.IsNullOrEmpty(_selectedLP)) { ShowSelectDeliveryMessage(); return; }
+            _ = DuplicateDeliveryAsync(lp);
+        }
+
+        private async void BtnUsun_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_selectedLP))
+            {
+                ShowToast("Wybierz dostawę", ToastType.Warning);
+                return;
+            }
 
             if (MessageBox.Show("Czy na pewno chcesz usunąć tę dostawę? Nie lepiej anulować?", "Potwierdzenie",
                 MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
@@ -1059,38 +1754,43 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 {
                     using (SqlConnection conn = new SqlConnection(ConnectionString))
                     {
-                        conn.Open();
+                        await conn.OpenAsync(_cts.Token);
                         using (SqlCommand cmd = new SqlCommand("DELETE FROM HarmonogramDostaw WHERE Lp = @lp", conn))
                         {
                             cmd.Parameters.AddWithValue("@lp", _selectedLP);
-                            cmd.ExecuteNonQuery();
+                            await cmd.ExecuteNonQueryAsync(_cts.Token);
                         }
                     }
-                    MessageBox.Show("Dostawa usunięta.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                    ShowToast("Dostawa usunięta", ToastType.Success);
                     _selectedLP = null;
-                    LoadDostawy();
+                    await LoadDostawyAsync();
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                    ShowToast($"Błąd: {ex.Message}", ToastType.Error);
                 }
             }
         }
 
-        private void BtnRefresh_Click(object sender, RoutedEventArgs e)
+        private async void BtnRefresh_Click(object sender, RoutedEventArgs e)
         {
-            LoadAllData();
+            await LoadAllDataAsync();
+            ShowToast("Dane odświeżone", ToastType.Success);
         }
 
-        private void BtnZapiszDostawe_Click(object sender, RoutedEventArgs e)
+        private async void BtnZapiszDostawe_Click(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(_selectedLP)) { ShowSelectDeliveryMessage(); return; }
+            if (string.IsNullOrEmpty(_selectedLP))
+            {
+                ShowToast("Wybierz dostawę", ToastType.Warning);
+                return;
+            }
 
             try
             {
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
-                    conn.Open();
+                    await conn.OpenAsync(_cts.Token);
                     string sql = @"UPDATE HarmonogramDostaw SET
                                    DataOdbioru = @DataOdbioru, Dostawca = @Dostawca, Auta = @Auta,
                                    SztukiDek = @SztukiDek, WagaDek = @WagaDek, SztSzuflada = @SztSzuflada,
@@ -1115,21 +1815,16 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         cmd.Parameters.AddWithValue("@KtoMod", UserID ?? (object)DBNull.Value);
                         cmd.Parameters.AddWithValue("@Lp", _selectedLP);
 
-                        cmd.ExecuteNonQuery();
+                        await cmd.ExecuteNonQueryAsync(_cts.Token);
                     }
                 }
-                MessageBox.Show("Zapisano.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
-                LoadDostawy();
+                ShowToast("Zmiany zapisane", ToastType.Success);
+                await LoadDostawyAsync();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                ShowToast($"Błąd zapisu: {ex.Message}", ToastType.Error);
             }
-        }
-
-        private void ShowSelectDeliveryMessage()
-        {
-            MessageBox.Show("Wybierz dostawę.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         #endregion
@@ -1245,38 +1940,43 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         #region Obsługa notatek
 
-        private void BtnDodajNotatke_Click(object sender, RoutedEventArgs e)
+        private async void BtnDodajNotatke_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrEmpty(_selectedLP))
             {
-                MessageBox.Show("Wybierz dostawę.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                ShowToast("Wybierz dostawę", ToastType.Warning);
                 return;
             }
 
             string tresc = txtNowaNotatka.Text?.Trim();
-            if (string.IsNullOrEmpty(tresc)) return;
+            if (string.IsNullOrEmpty(tresc))
+            {
+                ShowToast("Wpisz treść notatki", ToastType.Warning);
+                return;
+            }
 
             try
             {
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
-                    conn.Open();
+                    await conn.OpenAsync(_cts.Token);
                     string sql = "INSERT INTO Notatki (IndeksID, TypID, Tresc, KtoStworzyl, DataUtworzenia) VALUES (@lp, 1, @tresc, @kto, GETDATE())";
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@lp", _selectedLP);
                         cmd.Parameters.AddWithValue("@tresc", tresc);
                         cmd.Parameters.AddWithValue("@kto", UserID ?? "0");
-                        cmd.ExecuteNonQuery();
+                        await cmd.ExecuteNonQueryAsync(_cts.Token);
                     }
                 }
                 txtNowaNotatka.Text = "";
-                LoadNotatki(_selectedLP);
-                LoadOstatnieNotatki();
+                ShowToast("Notatka dodana", ToastType.Success);
+                await LoadNotatkiAsync(_selectedLP);
+                await LoadOstatnieNotatkiAsync();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                ShowToast($"Błąd: {ex.Message}", ToastType.Error);
             }
         }
 
@@ -1340,7 +2040,498 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         #endregion
 
+        #region Drag & Drop
+
+        private void DgDostawy_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            _dragStartPoint = e.GetPosition(null);
+        }
+
+        private void DgDostawy_PreviewMouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.LeftButton != MouseButtonState.Pressed)
+            {
+                _isDragging = false;
+                return;
+            }
+
+            var dg = sender as DataGrid;
+            if (dg == null) return;
+
+            Point mousePos = e.GetPosition(null);
+            Vector diff = _dragStartPoint - mousePos;
+
+            // Sprawdź czy ruch jest wystarczająco duży
+            if (Math.Abs(diff.X) > SystemParameters.MinimumHorizontalDragDistance ||
+                Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance)
+            {
+                var selectedItem = dg.SelectedItem as DostawaModel;
+                if (selectedItem != null && !selectedItem.IsHeaderRow && !selectedItem.IsSeparator)
+                {
+                    _draggedItem = selectedItem;
+                    _isDragging = true;
+
+                    // Rozpocznij operację Drag & Drop
+                    DataObject dragData = new DataObject("DostawaModel", selectedItem);
+                    DragDrop.DoDragDrop(dg, dragData, DragDropEffects.Move);
+                }
+            }
+        }
+
+        private void DgDostawy_Drop(object sender, DragEventArgs e)
+        {
+            if (!e.Data.GetDataPresent("DostawaModel")) return;
+
+            var droppedItem = e.Data.GetData("DostawaModel") as DostawaModel;
+            if (droppedItem == null || droppedItem.IsHeaderRow) return;
+
+            // Pobierz docelowy element
+            var targetDg = sender as DataGrid;
+            if (targetDg == null) return;
+
+            Point dropPos = e.GetPosition(targetDg);
+            var hit = VisualTreeHelper.HitTest(targetDg, dropPos);
+            if (hit == null) return;
+
+            // Znajdź wiersz docelowy
+            DataGridRow row = FindVisualParent<DataGridRow>(hit.VisualHit);
+            if (row == null) return;
+
+            var targetItem = row.DataContext as DostawaModel;
+            if (targetItem == null) return;
+
+            // Jeśli upuszczono na nagłówek dnia - przenieś do tego dnia
+            DateTime newDate;
+            if (targetItem.IsHeaderRow && !targetItem.IsSeparator)
+            {
+                newDate = targetItem.DataOdbioru.Date;
+            }
+            else
+            {
+                newDate = targetItem.DataOdbioru.Date;
+            }
+
+            // Nie przenoś jeśli data się nie zmieniła
+            if (droppedItem.DataOdbioru.Date == newDate)
+            {
+                _isDragging = false;
+                return;
+            }
+
+            // Przenieś dostawę do nowej daty
+            _ = MoveDeliveryToDateAsync(droppedItem.LP, newDate);
+            _isDragging = false;
+        }
+
+        private async Task MoveDeliveryToDateAsync(string lp, DateTime newDate)
+        {
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync(_cts.Token);
+                    using (SqlCommand cmd = new SqlCommand("UPDATE HarmonogramDostaw SET DataOdbioru = @data WHERE LP = @lp", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@data", newDate);
+                        cmd.Parameters.AddWithValue("@lp", lp);
+                        await cmd.ExecuteNonQueryAsync(_cts.Token);
+                    }
+                }
+
+                ShowToast($"Przeniesiono dostawę na {newDate:dd.MM.yyyy}", ToastType.Success);
+                await LoadDostawyAsync();
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd przenoszenia: {ex.Message}", ToastType.Error);
+            }
+        }
+
+        private static T FindVisualParent<T>(DependencyObject obj) where T : DependencyObject
+        {
+            while (obj != null)
+            {
+                if (obj is T t) return t;
+                obj = VisualTreeHelper.GetParent(obj);
+            }
+            return null;
+        }
+
+        #endregion
+
+        #region Multi-select i Bulk Actions
+
+        private void SelectAllDeliveries()
+        {
+            _selectedLPs.Clear();
+            foreach (var d in _dostawy.Where(d => !d.IsHeaderRow && !d.IsSeparator))
+            {
+                _selectedLPs.Add(d.LP);
+            }
+            dgDostawy.SelectAll();
+        }
+
+        private async Task BulkConfirmAsync(bool confirm)
+        {
+            if (_selectedLPs.Count == 0 && !string.IsNullOrEmpty(_selectedLP))
+            {
+                _selectedLPs.Add(_selectedLP);
+            }
+
+            if (_selectedLPs.Count == 0)
+            {
+                ShowToast("Brak zaznaczonych dostaw", ToastType.Warning);
+                return;
+            }
+
+            string status = confirm ? "Potwierdzony" : "Niepotwierdzony";
+            int count = 0;
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync(_cts.Token);
+                    foreach (var lp in _selectedLPs)
+                    {
+                        using (SqlCommand cmd = new SqlCommand("UPDATE HarmonogramDostaw SET bufor = @status WHERE LP = @lp", conn))
+                        {
+                            cmd.Parameters.AddWithValue("@status", status);
+                            cmd.Parameters.AddWithValue("@lp", lp);
+                            count += await cmd.ExecuteNonQueryAsync(_cts.Token);
+                        }
+                    }
+                }
+
+                ShowToast($"Potwierdzono {count} dostaw", ToastType.Success);
+                _selectedLPs.Clear();
+                await LoadDostawyAsync();
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd: {ex.Message}", ToastType.Error);
+            }
+        }
+
+        private async Task BulkCancelAsync()
+        {
+            if (_selectedLPs.Count == 0 && !string.IsNullOrEmpty(_selectedLP))
+            {
+                _selectedLPs.Add(_selectedLP);
+            }
+
+            if (_selectedLPs.Count == 0)
+            {
+                ShowToast("Brak zaznaczonych dostaw", ToastType.Warning);
+                return;
+            }
+
+            if (MessageBox.Show($"Czy na pewno chcesz anulować {_selectedLPs.Count} dostaw?", "Potwierdzenie",
+                MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+                return;
+
+            int count = 0;
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync(_cts.Token);
+                    foreach (var lp in _selectedLPs)
+                    {
+                        using (SqlCommand cmd = new SqlCommand("UPDATE HarmonogramDostaw SET bufor = 'Anulowany' WHERE LP = @lp", conn))
+                        {
+                            cmd.Parameters.AddWithValue("@lp", lp);
+                            count += await cmd.ExecuteNonQueryAsync(_cts.Token);
+                        }
+                    }
+                }
+
+                ShowToast($"Anulowano {count} dostaw", ToastType.Success);
+                _selectedLPs.Clear();
+                await LoadDostawyAsync();
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd: {ex.Message}", ToastType.Error);
+            }
+        }
+
+        #endregion
+
+        #region Toast Notifications
+
+        private void ShowToast(string message, ToastType type = ToastType.Info)
+        {
+            _toastQueue.Enqueue(new ToastMessage { Message = message, Type = type });
+            if (!_isShowingToast)
+            {
+                _ = ProcessToastQueueAsync();
+            }
+        }
+
+        private async Task ProcessToastQueueAsync()
+        {
+            _isShowingToast = true;
+
+            while (_toastQueue.Count > 0)
+            {
+                var toast = _toastQueue.Dequeue();
+                await ShowToastAsync(toast);
+            }
+
+            _isShowingToast = false;
+        }
+
+        private async Task ShowToastAsync(ToastMessage toast)
+        {
+            await Dispatcher.InvokeAsync(() =>
+            {
+                if (toastBorder == null) return;
+
+                // Ustaw kolor w zależności od typu
+                switch (toast.Type)
+                {
+                    case ToastType.Success:
+                        toastBorder.Background = new SolidColorBrush(Color.FromRgb(76, 175, 80));
+                        break;
+                    case ToastType.Error:
+                        toastBorder.Background = new SolidColorBrush(Color.FromRgb(244, 67, 54));
+                        break;
+                    case ToastType.Warning:
+                        toastBorder.Background = new SolidColorBrush(Color.FromRgb(255, 152, 0));
+                        break;
+                    default:
+                        toastBorder.Background = new SolidColorBrush(Color.FromRgb(33, 150, 243));
+                        break;
+                }
+
+                txtToastMessage.Text = toast.Message;
+                toastBorder.Visibility = Visibility.Visible;
+
+                // Animacja wejścia
+                var animation = new DoubleAnimation
+                {
+                    From = 0,
+                    To = 1,
+                    Duration = TimeSpan.FromMilliseconds(200)
+                };
+                toastBorder.BeginAnimation(OpacityProperty, animation);
+            });
+
+            // Pokaż przez 3 sekundy
+            await Task.Delay(3000);
+
+            await Dispatcher.InvokeAsync(() =>
+            {
+                // Animacja wyjścia
+                var animation = new DoubleAnimation
+                {
+                    From = 1,
+                    To = 0,
+                    Duration = TimeSpan.FromMilliseconds(200)
+                };
+                animation.Completed += (s, e) =>
+                {
+                    toastBorder.Visibility = Visibility.Collapsed;
+                };
+                toastBorder.BeginAnimation(OpacityProperty, animation);
+            });
+
+            await Task.Delay(250);
+        }
+
+        #endregion
+
+        #region Status Bar
+
+        private void UpdateStatusBar()
+        {
+            if (txtStatusBar == null) return;
+
+            int totalRows = _dostawy.Count(d => !d.IsHeaderRow && !d.IsSeparator);
+            int totalAuta = _dostawy.Where(d => !d.IsHeaderRow && !d.IsSeparator).Sum(d => d.Auta);
+            double totalSztuki = _dostawy.Where(d => !d.IsHeaderRow && !d.IsSeparator).Sum(d => d.SztukiDek);
+            int potwierdzone = _dostawy.Count(d => !d.IsHeaderRow && !d.IsSeparator && d.Bufor == "Potwierdzony");
+
+            Dispatcher.InvokeAsync(() =>
+            {
+                txtStatusBar.Text = $"Dostaw: {totalRows} | Auta: {totalAuta} | Sztuki: {totalSztuki:#,0} | Potwierdzone: {potwierdzone}";
+            });
+        }
+
+        #endregion
+
+        #region Search
+
+        private void TxtSearch_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            _searchText = textBox?.Text ?? "";
+
+            // Debounce - poczekaj 300ms przed wyszukiwaniem
+            _ = PerformSearchAsync();
+        }
+
+        private async Task PerformSearchAsync()
+        {
+            await Task.Delay(300);
+            await LoadDostawyAsync();
+        }
+
+        #endregion
+
+        #region Quick Notes
+
+        private async void BtnQuickNote_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_selectedLP))
+            {
+                ShowToast("Wybierz dostawę", ToastType.Warning);
+                return;
+            }
+
+            string note = txtQuickNote?.Text?.Trim();
+            if (string.IsNullOrEmpty(note))
+            {
+                ShowToast("Wpisz notatkę", ToastType.Warning);
+                return;
+            }
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync(_cts.Token);
+                    string sql = "INSERT INTO Notatki (IndeksID, TypID, Tresc, KtoStworzyl, DataUtworzenia) VALUES (@lp, 1, @tresc, @kto, GETDATE())";
+                    using (SqlCommand cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@lp", _selectedLP);
+                        cmd.Parameters.AddWithValue("@tresc", note);
+                        cmd.Parameters.AddWithValue("@kto", UserID ?? "0");
+                        await cmd.ExecuteNonQueryAsync(_cts.Token);
+                    }
+                }
+
+                await Dispatcher.InvokeAsync(() => txtQuickNote.Text = "");
+                ShowToast("Notatka dodana", ToastType.Success);
+                await LoadNotatkiAsync(_selectedLP);
+                await LoadOstatnieNotatkiAsync();
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd: {ex.Message}", ToastType.Error);
+            }
+        }
+
+        #endregion
+
+        #region Statistics Panel
+
+        private async Task LoadStatisticsAsync()
+        {
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync(_cts.Token);
+
+                    // Statystyki tygodniowe
+                    string sql = @"
+                        SELECT
+                            COUNT(*) as TotalDeliveries,
+                            SUM(Auta) as TotalAuta,
+                            SUM(SztukiDek) as TotalSztuki,
+                            AVG(WagaDek) as AvgWaga,
+                            SUM(CASE WHEN bufor = 'Potwierdzony' THEN 1 ELSE 0 END) as Potwierdzone,
+                            SUM(CASE WHEN bufor = 'Anulowany' THEN 1 ELSE 0 END) as Anulowane
+                        FROM HarmonogramDostaw
+                        WHERE DataOdbioru >= DATEADD(day, -7, GETDATE())";
+
+                    using (SqlCommand cmd = new SqlCommand(sql, conn))
+                    using (SqlDataReader reader = await cmd.ExecuteReaderAsync(_cts.Token))
+                    {
+                        if (await reader.ReadAsync(_cts.Token))
+                        {
+                            await Dispatcher.InvokeAsync(() =>
+                            {
+                                if (txtStatTotal != null)
+                                    txtStatTotal.Text = reader["TotalDeliveries"]?.ToString() ?? "0";
+                                if (txtStatAuta != null)
+                                    txtStatAuta.Text = reader["TotalAuta"]?.ToString() ?? "0";
+                                if (txtStatSztuki != null)
+                                    txtStatSztuki.Text = $"{Convert.ToDouble(reader["TotalSztuki"] ?? 0):#,0}";
+                                if (txtStatAvgWaga != null)
+                                    txtStatAvgWaga.Text = $"{Convert.ToDecimal(reader["AvgWaga"] ?? 0):F2} kg";
+                                if (txtStatPotwierdzone != null)
+                                    txtStatPotwierdzone.Text = reader["Potwierdzone"]?.ToString() ?? "0";
+                                if (txtStatAnulowane != null)
+                                    txtStatAnulowane.Text = reader["Anulowane"]?.ToString() ?? "0";
+                            });
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
+        #endregion
+
         #region Pomocnicze
+
+        private void DuplicateSelectedDelivery()
+        {
+            if (string.IsNullOrEmpty(_selectedLP))
+            {
+                ShowToast("Wybierz dostawę", ToastType.Warning);
+                return;
+            }
+            BtnDuplikuj_Click(null, null);
+        }
+
+        private void CreateNewDelivery()
+        {
+            BtnNowaDostawa_Click(null, null);
+        }
+
+        private void DeleteSelectedDelivery()
+        {
+            if (string.IsNullOrEmpty(_selectedLP))
+            {
+                ShowToast("Wybierz dostawę", ToastType.Warning);
+                return;
+            }
+            BtnUsun_Click(null, null);
+        }
+
+        private void ChangeSelectedDeliveryDate(int days)
+        {
+            if (string.IsNullOrEmpty(_selectedLP))
+            {
+                ShowToast("Wybierz dostawę", ToastType.Warning);
+                return;
+            }
+            ChangeDeliveryDate(_selectedLP, days);
+            _ = LoadDostawyAsync();
+        }
+
+        private async Task<string> GetUserNameByIdAsync(string userId)
+        {
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync(_cts.Token);
+                    using (SqlCommand cmd = new SqlCommand("SELECT Name FROM operators WHERE ID = @id", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@id", userId);
+                        var result = await cmd.ExecuteScalarAsync(_cts.Token);
+                        return result?.ToString() ?? "-";
+                    }
+                }
+            }
+            catch { return "-"; }
+        }
 
         private string GetUserNameById(string userId)
         {
@@ -1365,14 +2556,61 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         protected override void OnClosed(EventArgs e)
         {
+            // Anuluj wszystkie async operacje
+            _cts?.Cancel();
+            _cts?.Dispose();
+
+            // Zatrzymaj timery
             _refreshTimer?.Stop();
             _priceTimer?.Stop();
             _surveyTimer?.Stop();
+            _countdownTimer?.Stop();
+
             base.OnClosed(e);
         }
 
         #endregion
     }
+
+    #region Helper Classes
+
+    public enum ToastType
+    {
+        Info,
+        Success,
+        Warning,
+        Error
+    }
+
+    public class ToastMessage
+    {
+        public string Message { get; set; }
+        public ToastType Type { get; set; }
+    }
+
+    public class RelayCommand : ICommand
+    {
+        private readonly Action<object> _execute;
+        private readonly Func<object, bool> _canExecute;
+
+        public RelayCommand(Action<object> execute, Func<object, bool> canExecute = null)
+        {
+            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
+            _canExecute = canExecute;
+        }
+
+        public event EventHandler CanExecuteChanged
+        {
+            add { CommandManager.RequerySuggested += value; }
+            remove { CommandManager.RequerySuggested -= value; }
+        }
+
+        public bool CanExecute(object parameter) => _canExecute == null || _canExecute(parameter);
+
+        public void Execute(object parameter) => _execute(parameter);
+    }
+
+    #endregion
 
     #region Modele danych
 
