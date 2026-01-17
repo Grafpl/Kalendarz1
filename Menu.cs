@@ -454,8 +454,202 @@ namespace Kalendarz1
             };
             dateTimePanel.Controls.Add(weekLabel);
 
-            // Separator
-            var infoSeparator = new Panel
+            // Separator 1
+            var separator1 = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 1,
+                BackColor = Color.FromArgb(50, 60, 70)
+            };
+
+            // Sekcja pogody
+            var weatherPanel = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 60,
+                BackColor = Color.Transparent
+            };
+
+            var weather = WeatherManager.GetWeather();
+
+            // Ikona i temperatura
+            var weatherMainLabel = new Label
+            {
+                Text = $"{weather.Icon} {weather.Temperature}°C",
+                Font = new Font("Segoe UI", 18),
+                ForeColor = Color.White,
+                AutoSize = false,
+                Size = new Size(panelWidth - 20, 35),
+                Location = new Point(0, 5),
+                TextAlign = ContentAlignment.MiddleCenter,
+                BackColor = Color.Transparent
+            };
+            weatherPanel.Controls.Add(weatherMainLabel);
+
+            // Opis pogody
+            var weatherDescLabel = new Label
+            {
+                Text = weather.Description,
+                Font = new Font("Segoe UI", 9),
+                ForeColor = Color.FromArgb(160, 170, 180),
+                AutoSize = false,
+                Size = new Size(panelWidth - 20, 20),
+                Location = new Point(0, 38),
+                TextAlign = ContentAlignment.MiddleCenter,
+                BackColor = Color.Transparent
+            };
+            weatherPanel.Controls.Add(weatherDescLabel);
+
+            // Separator 2
+            var separator2 = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 1,
+                BackColor = Color.FromArgb(50, 60, 70)
+            };
+
+            // Prognoza tygodniowa
+            var forecastPanel = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 75,
+                BackColor = Color.Transparent
+            };
+
+            // Nagłówek prognozy
+            var forecastHeader = new Label
+            {
+                Text = "Prognoza:",
+                Font = new Font("Segoe UI", 8),
+                ForeColor = Color.FromArgb(120, 130, 140),
+                AutoSize = false,
+                Size = new Size(panelWidth - 20, 15),
+                Location = new Point(0, 2),
+                TextAlign = ContentAlignment.MiddleCenter,
+                BackColor = Color.Transparent
+            };
+            forecastPanel.Controls.Add(forecastHeader);
+
+            // Dni prognozy (max 5 dni)
+            int forecastDays = Math.Min(5, weather.Forecast.Count);
+            int dayWidth = (panelWidth - 20) / Math.Max(forecastDays, 1);
+            for (int i = 0; i < forecastDays; i++)
+            {
+                var day = weather.Forecast[i];
+                var dayPanel = new Panel
+                {
+                    Size = new Size(dayWidth, 55),
+                    Location = new Point(i * dayWidth, 18),
+                    BackColor = Color.Transparent
+                };
+
+                var dayNameLbl = new Label
+                {
+                    Text = day.DayName,
+                    Font = new Font("Segoe UI", 7),
+                    ForeColor = Color.FromArgb(140, 150, 160),
+                    AutoSize = false,
+                    Size = new Size(dayWidth, 12),
+                    Location = new Point(0, 0),
+                    TextAlign = ContentAlignment.MiddleCenter
+                };
+                dayPanel.Controls.Add(dayNameLbl);
+
+                var dayIconLbl = new Label
+                {
+                    Text = day.Icon,
+                    Font = new Font("Segoe UI", 14),
+                    AutoSize = false,
+                    Size = new Size(dayWidth, 22),
+                    Location = new Point(0, 12),
+                    TextAlign = ContentAlignment.MiddleCenter
+                };
+                dayPanel.Controls.Add(dayIconLbl);
+
+                var dayTempLbl = new Label
+                {
+                    Text = $"{day.TempMax}°",
+                    Font = new Font("Segoe UI", 8),
+                    ForeColor = Color.FromArgb(200, 200, 200),
+                    AutoSize = false,
+                    Size = new Size(dayWidth, 14),
+                    Location = new Point(0, 36),
+                    TextAlign = ContentAlignment.MiddleCenter
+                };
+                dayPanel.Controls.Add(dayTempLbl);
+
+                forecastPanel.Controls.Add(dayPanel);
+            }
+
+            // Separator 3
+            var separator3 = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 1,
+                BackColor = Color.FromArgb(50, 60, 70)
+            };
+
+            // Ostatnie logowanie
+            var lastLoginPanel = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 35,
+                BackColor = Color.Transparent
+            };
+
+            var lastLogin = LoginHistoryManager.GetLastLogin(App.UserID);
+            string lastLoginText = lastLogin != null
+                ? $"Ostatnie logowanie: {lastLogin.LoginTime:dd.MM HH:mm}"
+                : "Pierwsze logowanie";
+
+            var lastLoginLabel = new Label
+            {
+                Text = lastLoginText,
+                Font = new Font("Segoe UI", 8),
+                ForeColor = Color.FromArgb(130, 140, 150),
+                AutoSize = false,
+                Size = new Size(panelWidth - 20, 20),
+                Location = new Point(0, 8),
+                TextAlign = ContentAlignment.MiddleCenter,
+                BackColor = Color.Transparent
+            };
+            lastLoginPanel.Controls.Add(lastLoginLabel);
+
+            // Separator 4
+            var separator4 = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 1,
+                BackColor = Color.FromArgb(50, 60, 70)
+            };
+
+            // Przycisk notatnika
+            var notepadButton = new Button
+            {
+                Text = "📝 Mój notatnik",
+                Font = new Font("Segoe UI", 9),
+                Size = new Size(panelWidth - 40, 32),
+                Location = new Point(10, 5),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(45, 55, 65),
+                ForeColor = Color.White,
+                Cursor = Cursors.Hand,
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            notepadButton.FlatAppearance.BorderColor = Color.FromArgb(60, 70, 80);
+            notepadButton.FlatAppearance.MouseOverBackColor = Color.FromArgb(55, 65, 75);
+            notepadButton.Click += (s, e) => ShowNotepadDialog();
+
+            var notepadPanel = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 42,
+                BackColor = Color.Transparent
+            };
+            notepadPanel.Controls.Add(notepadButton);
+
+            // Separator 5
+            var separator5 = new Panel
             {
                 Dock = DockStyle.Top,
                 Height = 1,
@@ -467,24 +661,32 @@ namespace Kalendarz1
             var quoteText = "\"" + quote.Text + "\"";
             if (!string.IsNullOrEmpty(quote.Author))
             {
-                quoteText += "\n\n- " + quote.Author;
+                quoteText += "\n- " + quote.Author;
             }
             var quoteLabel = new Label
             {
                 Text = quoteText,
-                Font = new Font("Segoe UI", 9, FontStyle.Italic),
-                ForeColor = Color.FromArgb(160, 170, 180),
+                Font = new Font("Segoe UI", 8, FontStyle.Italic),
+                ForeColor = Color.FromArgb(140, 150, 160),
                 AutoSize = false,
                 Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleCenter,
                 BackColor = Color.Transparent,
-                Padding = new Padding(5, 15, 5, 5)
+                Padding = new Padding(5, 10, 5, 5)
             };
 
             // Dodaj w odwrotnej kolejności (WinForms Dock - ostatni dodany Top jest na górze)
-            infoPanel.Controls.Add(quoteLabel);      // Fill - wypełnia resztę
-            infoPanel.Controls.Add(infoSeparator);   // Top - separator
-            infoPanel.Controls.Add(dateTimePanel);   // Top - na samej górze
+            infoPanel.Controls.Add(quoteLabel);       // Fill - wypełnia resztę
+            infoPanel.Controls.Add(separator5);       // Top
+            infoPanel.Controls.Add(notepadPanel);     // Top
+            infoPanel.Controls.Add(separator4);       // Top
+            infoPanel.Controls.Add(lastLoginPanel);   // Top
+            infoPanel.Controls.Add(separator3);       // Top
+            infoPanel.Controls.Add(forecastPanel);    // Top
+            infoPanel.Controls.Add(separator2);       // Top
+            infoPanel.Controls.Add(weatherPanel);     // Top
+            infoPanel.Controls.Add(separator1);       // Top
+            infoPanel.Controls.Add(dateTimePanel);    // Top - na samej górze
 
             panel.Controls.Add(infoPanel);
 
@@ -507,6 +709,16 @@ namespace Kalendarz1
                 }
             };
             clockTimer.Start();
+
+            // Timer do aktualizacji pogody (co 30 minut)
+            var weatherTimer = new Timer { Interval = 30 * 60 * 1000 };
+            weatherTimer.Tick += async (s, e) =>
+            {
+                var newWeather = await WeatherManager.GetWeatherAsync();
+                weatherMainLabel.Text = $"{newWeather.Icon} {newWeather.Temperature}°C";
+                weatherDescLabel.Text = newWeather.Description;
+            };
+            weatherTimer.Start();
 
             return panel;
         }
@@ -1400,6 +1612,98 @@ namespace Kalendarz1
             {
                 return null;
             }
+        }
+
+        private void ShowNotepadDialog()
+        {
+            var form = new Form
+            {
+                Text = "Mój notatnik",
+                Size = new Size(450, 400),
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false,
+                BackColor = Color.FromArgb(30, 40, 50)
+            };
+
+            var headerLabel = new Label
+            {
+                Text = "📝 Osobisty notatnik",
+                Font = new Font("Segoe UI", 12, FontStyle.Bold),
+                ForeColor = Color.White,
+                Location = new Point(20, 15),
+                AutoSize = true
+            };
+            form.Controls.Add(headerLabel);
+
+            var infoLabel = new Label
+            {
+                Text = "Twoje notatki są zapisywane automatycznie",
+                Font = new Font("Segoe UI", 8),
+                ForeColor = Color.FromArgb(150, 160, 170),
+                Location = new Point(20, 40),
+                AutoSize = true
+            };
+            form.Controls.Add(infoLabel);
+
+            var textBox = new TextBox
+            {
+                Location = new Point(20, 65),
+                Size = new Size(395, 240),
+                Multiline = true,
+                ScrollBars = ScrollBars.Vertical,
+                Font = new Font("Segoe UI", 10),
+                BackColor = Color.FromArgb(40, 50, 60),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                Text = NotesManager.GetNotes(App.UserID)
+            };
+            form.Controls.Add(textBox);
+
+            var saveButton = new Button
+            {
+                Text = "Zapisz",
+                Location = new Point(230, 315),
+                Size = new Size(90, 35),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(76, 175, 80),
+                ForeColor = Color.White,
+                Cursor = Cursors.Hand
+            };
+            saveButton.FlatAppearance.BorderSize = 0;
+            saveButton.Click += (s, args) =>
+            {
+                if (NotesManager.SaveNotes(App.UserID, textBox.Text))
+                {
+                    MessageBox.Show("Notatki zostały zapisane!", "Sukces",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            };
+            form.Controls.Add(saveButton);
+
+            var closeButton = new Button
+            {
+                Text = "Zamknij",
+                Location = new Point(330, 315),
+                Size = new Size(90, 35),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(55, 65, 75),
+                ForeColor = Color.White,
+                Cursor = Cursors.Hand,
+                DialogResult = DialogResult.Cancel
+            };
+            closeButton.FlatAppearance.BorderSize = 0;
+            form.Controls.Add(closeButton);
+
+            // Auto-zapis przy zamknięciu
+            form.FormClosing += (s, args) =>
+            {
+                NotesManager.SaveNotes(App.UserID, textBox.Text);
+            };
+
+            form.CancelButton = closeButton;
+            form.ShowDialog();
         }
 
         private void ShowQuotesManagementDialog()
