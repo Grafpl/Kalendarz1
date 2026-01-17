@@ -2769,6 +2769,18 @@ namespace Kalendarz1.Zywiec.Kalendarz
             }
         }
 
+        // Synchronizacja Szt/szuflade z DANE DOSTAWY do ZAŁADUNEK AVILOG
+        private void TxtSztNaSzuflade_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            // Kopiuj wartość do pól w sekcji Załadunek
+            txtSztNaSzufladeWaga.Text = txtSztNaSzuflade.Text;
+            txtSztNaSzufladeWaga2.Text = txtSztNaSzuflade.Text;
+
+            // Przelicz wartości
+            CalculateZaladunekRow1();
+            CalculateZaladunekRow2();
+        }
+
         // Obliczenie dla wiersza 1: KG skrzyn = WagaDek × KG/skrzyn, Waga264 = KG skrzyn × 264
         private void TxtKGwSkrzynce_TextChanged(object sender, TextChangedEventArgs e)
         {
@@ -2802,6 +2814,11 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         // Obliczenie dla wiersza 2
         private void TxtKGwSkrzynce2_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            CalculateZaladunekRow2();
+        }
+
+        private void CalculateZaladunekRow2()
         {
             // Pobierz wagę dek z pola txtWagaDek
             if (!double.TryParse(txtWagaDek.Text?.Replace(",", "."), out double wagaDek))
