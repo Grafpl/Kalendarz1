@@ -10,7 +10,7 @@ namespace Kalendarz1.Zadania
 {
     public partial class ZadaniaWindow : Window
     {
-        private readonly string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova";
+        private readonly string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private readonly string operatorId;
         private List<ZadanieViewModel> allTasks = new List<ZadanieViewModel>();
 

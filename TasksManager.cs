@@ -9,7 +9,7 @@ namespace Kalendarz1
     /// </summary>
     public static class TasksManager
     {
-        private static readonly string ConnectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova";
+        private static readonly string ConnectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
 
         public class TaskInfo
         {
