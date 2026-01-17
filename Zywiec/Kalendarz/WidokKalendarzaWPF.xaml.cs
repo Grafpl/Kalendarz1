@@ -1684,6 +1684,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
             e.Row.Foreground = new SolidColorBrush(Color.FromRgb(33, 33, 33));
             e.Row.FontWeight = FontWeights.Normal;
             e.Row.FontSize = 12;
+            e.Row.Height = Double.NaN; // Auto
+            e.Row.MinHeight = 0;
+            e.Row.BorderThickness = new Thickness(0);
+            e.Row.Resources.Clear(); // Usuń style przekreślenia
 
             if (dostawa.IsSeparator)
             {
@@ -1743,6 +1747,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 }
                 return;
             }
+
+            // Zwykły wiersz danych - ustaw standardową wysokość
+            e.Row.Height = 22;
+            e.Row.MinHeight = 22;
 
             switch (dostawa.Bufor)
             {
