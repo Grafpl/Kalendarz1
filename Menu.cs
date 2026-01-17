@@ -388,7 +388,7 @@ namespace Kalendarz1
             var quote = QuotesManager.GetRandomQuote();
             var quoteLabel = new Label
             {
-                Text = $"„{quote.Text}"",
+                Text = "\"" + quote.Text + "\"",
                 Font = new Font("Segoe UI", 9, FontStyle.Italic),
                 ForeColor = Color.FromArgb(160, 170, 180),
                 AutoSize = false,
