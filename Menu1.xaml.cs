@@ -164,25 +164,24 @@ namespace Kalendarz1
 
         private Border CreateRecentLoginAvatar(LoginRecord login)
         {
-            // Kontener z avatarem
+            // Kontener z avatarem - większy rozmiar, pionowy układ
             var container = new Border
             {
-                Width = 45,
-                Height = 45,
-                Margin = new Thickness(3, 0, 3, 0),
-                CornerRadius = new CornerRadius(22.5),
+                Width = 65,
+                Height = 65,
+                Margin = new Thickness(0, 0, 0, 10),
+                CornerRadius = new CornerRadius(32.5),
                 BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E0E0E0")),
-                BorderThickness = new Thickness(2),
+                BorderThickness = new Thickness(3),
                 Background = new SolidColorBrush(Colors.White),
-                Cursor = Cursors.Hand,
                 ToolTip = $"{login.UserName}\nOstatnie logowanie: {login.LoginTime:dd.MM.yyyy HH:mm}"
             };
 
             // Elipsa z avatarem
             var avatarEllipse = new Ellipse
             {
-                Width = 41,
-                Height = 41,
+                Width = 59,
+                Height = 59,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -201,18 +200,11 @@ namespace Kalendarz1
 
             container.Child = avatarEllipse;
 
-            // Kliknięcie wypełnia pole logowania
-            container.MouseLeftButtonUp += (s, e) =>
-            {
-                PasswordBox.Password = login.UserId;
-                PasswordBox.Focus();
-            };
-
-            // Efekt hover
+            // Efekt hover (bez wypełniania ID po kliknięciu)
             container.MouseEnter += (s, e) =>
             {
                 container.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#5C8A3A"));
-                container.RenderTransform = new ScaleTransform(1.1, 1.1);
+                container.RenderTransform = new ScaleTransform(1.05, 1.05);
                 container.RenderTransformOrigin = new Point(0.5, 0.5);
             };
 
@@ -270,30 +262,30 @@ namespace Kalendarz1
             };
             string color = colors[Math.Abs(hash) % colors.Length];
 
-            // Utwórz DrawingBrush z inicjałami
+            // Utwórz DrawingBrush z inicjałami - większy rozmiar
             var drawingGroup = new DrawingGroup();
 
-            // Tło
-            var backgroundGeometry = new EllipseGeometry(new Point(20, 20), 20, 20);
+            // Tło - większe koło
+            var backgroundGeometry = new EllipseGeometry(new Point(30, 30), 30, 30);
             var backgroundDrawing = new GeometryDrawing(
                 new SolidColorBrush((Color)ColorConverter.ConvertFromString(color)),
                 null,
                 backgroundGeometry);
             drawingGroup.Children.Add(backgroundDrawing);
 
-            // Inicjały
+            // Inicjały - większa czcionka
             string initials = GetInitials(userName);
             var formattedText = new FormattedText(
                 initials,
                 CultureInfo.CurrentCulture,
                 FlowDirection.LeftToRight,
-                new Typeface("Segoe UI"),
-                14,
+                new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal),
+                20,
                 Brushes.White,
                 VisualTreeHelper.GetDpi(this).PixelsPerDip);
 
             var textGeometry = formattedText.BuildGeometry(
-                new Point(20 - formattedText.Width / 2, 20 - formattedText.Height / 2));
+                new Point(30 - formattedText.Width / 2, 30 - formattedText.Height / 2));
             var textDrawing = new GeometryDrawing(Brushes.White, null, textGeometry);
             drawingGroup.Children.Add(textDrawing);
 

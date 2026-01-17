@@ -537,14 +537,6 @@
 
             <!-- PRAWY PANEL - Formularz logowania -->
             <Grid Grid.Column="1">
-                <!-- Ostatnie logowania -->
-                <StackPanel x:Name="RecentLoginsPanel" Orientation="Horizontal" HorizontalAlignment="Center"
-                            VerticalAlignment="Top" Margin="0,25,0,0">
-                    <TextBlock Text="Ostatnie logowania:" FontSize="11" Foreground="#95A5A6"
-                               VerticalAlignment="Center" Margin="0,0,15,0"/>
-                    <StackPanel x:Name="RecentAvatarsPanel" Orientation="Horizontal"/>
-                </StackPanel>
-
                 <!-- Status serwera w prawym górnym rogu -->
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top"
                             Margin="0,25,60,0">
@@ -613,47 +605,60 @@
                         </Button.Style>
                     </Button>
 
-                    <!-- Klawiatura dotykowa -->
-                    <Border Margin="0,30,0,0" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="10" Background="#FAFAFA" Padding="15">
-                        <StackPanel>
-                            <TextBlock Text="Klawiatura dotykowa" FontSize="13" FontWeight="SemiBold"
-                                       Foreground="#7F8C8D" HorizontalAlignment="Center" Margin="0,0,0,12"/>
+                    <!-- Klawiatura i ostatnie logowania -->
+                    <StackPanel Orientation="Horizontal" Margin="0,30,0,0" HorizontalAlignment="Left">
+                        <!-- Klawiatura dotykowa -->
+                        <Border BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="10" Background="#FAFAFA" Padding="15">
+                            <StackPanel>
+                                <TextBlock Text="Klawiatura dotykowa" FontSize="13" FontWeight="SemiBold"
+                                           Foreground="#7F8C8D" HorizontalAlignment="Center" Margin="0,0,0,12"/>
 
-                            <!-- Rząd 1: 1 2 3 -->
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                <Button Content="1" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
-                                <Button Content="2" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
-                                <Button Content="3" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
-                            </StackPanel>
+                                <!-- Rząd 1: 1 2 3 -->
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <Button Content="1" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
+                                    <Button Content="2" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
+                                    <Button Content="3" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
+                                </StackPanel>
 
-                            <!-- Rząd 2: 4 5 6 -->
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                <Button Content="4" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
-                                <Button Content="5" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
-                                <Button Content="6" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
-                            </StackPanel>
+                                <!-- Rząd 2: 4 5 6 -->
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <Button Content="4" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
+                                    <Button Content="5" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
+                                    <Button Content="6" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
+                                </StackPanel>
 
-                            <!-- Rząd 3: 7 8 9 -->
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                <Button Content="7" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
-                                <Button Content="8" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
-                                <Button Content="9" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
-                            </StackPanel>
+                                <!-- Rząd 3: 7 8 9 -->
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <Button Content="7" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
+                                    <Button Content="8" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
+                                    <Button Content="9" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
+                                </StackPanel>
 
-                            <!-- Rząd 4: Backspace 0 -->
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                <Button Content="←" Style="{StaticResource TouchKeyBackspaceStyle}" Click="TouchKey_Backspace" ToolTip="Usun ostatni znak"/>
-                                <Button Content="0" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
-                                <Button Content="←" Style="{StaticResource TouchKeyBackspaceStyle}" Click="TouchKey_Backspace" ToolTip="Usun ostatni znak" Visibility="Hidden"/>
-                            </StackPanel>
+                                <!-- Rząd 4: Backspace 0 -->
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <Button Content="←" Style="{StaticResource TouchKeyBackspaceStyle}" Click="TouchKey_Backspace" ToolTip="Usun ostatni znak"/>
+                                    <Button Content="0" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
+                                    <Button Content="←" Style="{StaticResource TouchKeyBackspaceStyle}" Click="TouchKey_Backspace" ToolTip="Usun ostatni znak" Visibility="Hidden"/>
+                                </StackPanel>
 
-                            <!-- Rząd 5: WYCZYSC OK -->
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
-                                <Button Content="WYCZYSC" Style="{StaticResource TouchKeyClearStyle}" Click="TouchKey_Clear" ToolTip="Wyczysc cale pole"/>
-                                <Button Content="OK" Style="{StaticResource TouchKeyEnterStyle}" Click="TouchKey_Enter" ToolTip="Zaloguj"/>
+                                <!-- Rząd 5: WYCZYSC OK -->
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
+                                    <Button Content="WYCZYSC" Style="{StaticResource TouchKeyClearStyle}" Click="TouchKey_Clear" ToolTip="Wyczysc cale pole"/>
+                                    <Button Content="OK" Style="{StaticResource TouchKeyEnterStyle}" Click="TouchKey_Enter" ToolTip="Zaloguj"/>
+                                </StackPanel>
                             </StackPanel>
-                        </StackPanel>
-                    </Border>
+                        </Border>
+
+                        <!-- Ostatnie logowania -->
+                        <Border x:Name="RecentLoginsPanel" Margin="20,0,0,0" BorderBrush="#E0E0E0" BorderThickness="1"
+                                CornerRadius="10" Background="#FAFAFA" Padding="15" VerticalAlignment="Top">
+                            <StackPanel>
+                                <TextBlock Text="Ostatnie logowania" FontSize="13" FontWeight="SemiBold"
+                                           Foreground="#7F8C8D" HorizontalAlignment="Center" Margin="0,0,0,15"/>
+                                <StackPanel x:Name="RecentAvatarsPanel" Orientation="Vertical" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
                 </StackPanel>
                 <TextBlock x:Name="FooterText" Text="© 2025 Piórkowscy - Sergiusz Piórkowski"
                            HorizontalAlignment="Center" VerticalAlignment="Bottom"
