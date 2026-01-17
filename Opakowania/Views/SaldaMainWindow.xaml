@@ -115,7 +115,7 @@
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="340"/>
+            <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
 
         <!-- LEWA STRONA - główna zawartość -->
@@ -308,8 +308,9 @@
         </Border>
         </Grid>
 
-        <!-- PRAWA STRONA - panel diagnostyki (ciemny motyw zachowany) -->
-        <Border Grid.Column="1" Background="#1E1E1E" BorderBrush="#2E7D32" BorderThickness="2,0,0,0">
+        <!-- PRAWA STRONA - panel diagnostyki (UKRYTY) -->
+        <Border Grid.Column="1" Background="#1E1E1E" BorderBrush="#2E7D32" BorderThickness="2,0,0,0"
+                Visibility="Collapsed">
             <Grid Margin="15">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>

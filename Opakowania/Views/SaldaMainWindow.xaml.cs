@@ -30,16 +30,16 @@ namespace Kalendarz1.Opakowania.Views
             _viewModel = new SaldaMainViewModel(userId);
             DataContext = _viewModel;
 
-            // Timer do odświeżania diagnostyki co 2 sekundy
+            // Timer do odświeżania diagnostyki - WYŁĄCZONY (panel ukryty)
             _diagTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromSeconds(2)
             };
             _diagTimer.Tick += (s, e) => RefreshDiagnostics();
-            _diagTimer.Start();
+            // _diagTimer.Start(); // Wyłączone - panel diagnostyki jest ukryty
 
-            // Pierwsze odświeżenie
-            Loaded += (s, e) => RefreshDiagnostics();
+            // Pierwsze odświeżenie - wyłączone
+            // Loaded += (s, e) => RefreshDiagnostics();
 
             AddLog("Okno uruchomione");
             AddLog($"User: {userId}");
