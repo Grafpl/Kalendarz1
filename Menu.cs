@@ -454,17 +454,13 @@ namespace Kalendarz1
             };
             dateTimePanel.Controls.Add(weekLabel);
 
-            infoPanel.Controls.Add(dateTimePanel);
-
             // Separator
             var infoSeparator = new Panel
             {
                 Dock = DockStyle.Top,
                 Height = 1,
-                BackColor = Color.FromArgb(50, 60, 70),
-                Margin = new Padding(20, 10, 20, 10)
+                BackColor = Color.FromArgb(50, 60, 70)
             };
-            infoPanel.Controls.Add(infoSeparator);
 
             // Losowy cytat
             var quote = QuotesManager.GetRandomQuote();
@@ -484,7 +480,11 @@ namespace Kalendarz1
                 BackColor = Color.Transparent,
                 Padding = new Padding(5, 15, 5, 5)
             };
-            infoPanel.Controls.Add(quoteLabel);
+
+            // Dodaj w odwrotnej kolejności (WinForms Dock - ostatni dodany Top jest na górze)
+            infoPanel.Controls.Add(quoteLabel);      // Fill - wypełnia resztę
+            infoPanel.Controls.Add(infoSeparator);   // Top - separator
+            infoPanel.Controls.Add(dateTimePanel);   // Top - na samej górze
 
             panel.Controls.Add(infoPanel);
 
