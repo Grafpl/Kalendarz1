@@ -137,12 +137,15 @@ namespace Kalendarz1.WPF
             Color.FromRgb(52, 73, 94),    // Granatowy
         };
 
-        public DashboardWindow(string connLibra, string connHandel, DateTime? initialDate = null)
+        private bool _openPanelJolaOnStart = false;
+
+        public DashboardWindow(string connLibra, string connHandel, DateTime? initialDate = null, bool openPanelJola = false)
         {
             InitializeComponent();
             _connLibra = connLibra;
             _connHandel = connHandel;
             _selectedDate = initialDate ?? GetDefaultDate();
+            _openPanelJolaOnStart = openPanelJola;
 
             InitializeAsync();
         }
@@ -175,6 +178,12 @@ namespace Kalendarz1.WPF
             await LoadProductsFromTWAsync();
             await LoadSavedViewsAsync();
             await LoadDataAsync();
+
+            // Jeśli uruchomiono w trybie Panel Pani Jola - otwórz go automatycznie
+            if (_openPanelJolaOnStart && _productDataList.Any())
+            {
+                ShowSimplifiedPanelJola(_productDataList.First(), 0);
+            }
         }
 
         private async System.Threading.Tasks.Task LoadProductsFromTWAsync()
