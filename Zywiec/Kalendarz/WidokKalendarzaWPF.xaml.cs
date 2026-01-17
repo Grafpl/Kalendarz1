@@ -414,7 +414,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
                 // Ustaw nagłówek kolumny z numerem tygodnia - na głównym wątku
                 int weekNum = GetIso8601WeekOfYear(baseDate);
-                string headerText = $"Tydz. {weekNum} ({startOfWeek:dd.MM}-{endOfWeek.AddDays(-1):dd.MM})";
+                string headerText = $"tyg.{weekNum} ({startOfWeek:dd.MM}-{endOfWeek.AddDays(-1):dd.MM})";
                 await Dispatcher.InvokeAsync(() =>
                 {
                     // Aktualizuj nagłówek kolumny DataGrida
@@ -1489,10 +1489,13 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
             string columnHeader = column.Header?.ToString() ?? "";
 
+            // Określ z której tabeli pochodzi element
+            bool isFromSecondTable = (dg == dgDostawyNastepny);
+
             // Obsługa edycji dla konkretnych kolumn
-            if (columnHeader == "Auta" || columnHeader == "Sztuki" || columnHeader == "Waga")
+            if (columnHeader == "A" || columnHeader == "Szt" || columnHeader == "Waga")
             {
-                await EditCellValueAsync(selectedItem.LP, columnHeader);
+                await EditCellValueAsync(selectedItem.LP, columnHeader, isFromSecondTable);
             }
             else if (columnHeader == "Uwagi")
             {
@@ -1500,10 +1503,11 @@ namespace Kalendarz1.Zywiec.Kalendarz
             }
         }
 
-        private async Task EditCellValueAsync(string lp, string columnName)
+        private async Task EditCellValueAsync(string lp, string columnName, bool isFromSecondTable = false)
         {
-            // Pobierz aktualną wartość
-            var item = _dostawy.FirstOrDefault(d => d.LP == lp);
+            // Pobierz aktualną wartość z odpowiedniej kolekcji
+            var collection = isFromSecondTable ? _dostawyNastepnyTydzien : _dostawy;
+            var item = collection.FirstOrDefault(d => d.LP == lp);
             if (item == null) return;
 
             string currentValue = "";
@@ -1511,11 +1515,11 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
             switch (columnName)
             {
-                case "Auta":
+                case "A":
                     currentValue = item.Auta.ToString();
                     fieldName = "Auta";
                     break;
-                case "Sztuki":
+                case "Szt":
                     currentValue = item.SztukiDek.ToString("0");
                     fieldName = "SztukiDek";
                     break;
@@ -1712,9 +1716,14 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
                 if (dostawa.DataOdbioru.Date == DateTime.Today)
                 {
-                    // Dzisiejszy dzień - niebieskie wyróżnienie
-                    e.Row.Background = new SolidColorBrush(Color.FromRgb(25, 118, 210));
+                    // Dzisiejszy dzień - pomarańczowe wyróżnienie, większa czcionka
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 152, 0)); // Orange
                     e.Row.Foreground = Brushes.White;
+                    e.Row.FontSize = 14;
+                    e.Row.Height = 40;
+                    e.Row.MinHeight = 40;
+                    e.Row.BorderBrush = new SolidColorBrush(Color.FromRgb(230, 81, 0)); // Dark Orange border
+                    e.Row.BorderThickness = new Thickness(0, 2, 0, 2);
                 }
                 else if (dostawa.DataOdbioru.Date < DateTime.Today)
                 {
