@@ -622,22 +622,24 @@ namespace Kalendarz1.Zadania
 
         private void TaskCheckbox_Changed(object sender, RoutedEventArgs e)
         {
-            var checkbox = sender as CheckBox;
-            if (checkbox?.Tag == null) return;
-
-            var taskId = (int)checkbox.Tag;
-            var wykonane = checkbox.IsChecked ?? false;
-
-            UpdateTaskInDatabase(taskId, wykonane);
-
-            var task = allTasks.FirstOrDefault(t => t.Id == taskId);
-            if (task != null)
+            try
             {
-                task.Wykonane = wykonane;
-            }
+                var checkbox = sender as CheckBox;
+                if (checkbox?.Tag == null) return;
 
-            UpdateStats();
-            ApplyFilters();
+                var taskId = (int)checkbox.Tag;
+                var wykonane = checkbox.IsChecked ?? false;
+
+                UpdateTaskInDatabase(taskId, wykonane);
+
+                var task = allTasks.FirstOrDefault(t => t.Id == taskId);
+                if (task != null)
+                {
+                    task.Wykonane = wykonane;
+                }
+
+                UpdateStats();
+                ApplyFilters();
             }
             catch (Exception ex)
             {
