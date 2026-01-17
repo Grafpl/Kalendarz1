@@ -641,9 +641,9 @@
 
                             <!-- Rząd 4: Backspace 0 -->
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                <Button Content="<" Style="{StaticResource TouchKeyBackspaceStyle}" Click="TouchKey_Backspace" ToolTip="Usun ostatni znak"/>
+                                <Button Content="←" Style="{StaticResource TouchKeyBackspaceStyle}" Click="TouchKey_Backspace" ToolTip="Usun ostatni znak"/>
                                 <Button Content="0" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
-                                <Button Content="<" Style="{StaticResource TouchKeyBackspaceStyle}" Click="TouchKey_Backspace" ToolTip="Usun ostatni znak" Visibility="Hidden"/>
+                                <Button Content="←" Style="{StaticResource TouchKeyBackspaceStyle}" Click="TouchKey_Backspace" ToolTip="Usun ostatni znak" Visibility="Hidden"/>
                             </StackPanel>
 
                             <!-- Rząd 5: WYCZYSC OK -->
