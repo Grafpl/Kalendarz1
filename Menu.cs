@@ -186,7 +186,7 @@ namespace Kalendarz1
             }
 
             logoSection.Controls.Add(logoPanel);
-            panel.Controls.Add(logoSection);
+            // logoSection będzie dodany później (po headerPanel) aby być na górze
 
             // Sekcja z avatarem i nazwą (pod zieloną kreską)
             var headerPanel = new Panel
@@ -288,16 +288,18 @@ namespace Kalendarz1
             };
             headerPanel.Controls.Add(statusLabel);
 
-            panel.Controls.Add(headerPanel);
-
-            // Separator
+            // Separator między headerPanel a resztą
             var separator = new Panel
             {
                 Dock = DockStyle.Top,
                 Height = 1,
                 BackColor = Color.FromArgb(50, 60, 70)
             };
+
+            // Dodajemy w odwrotnej kolejności (WinForms Dock.Top - ostatni dodany jest na górze)
             panel.Controls.Add(separator);
+            panel.Controls.Add(headerPanel);
+            panel.Controls.Add(logoSection);
 
             // Dolna sekcja - wyloguj, admin i wersja
             var footerPanel = new Panel
