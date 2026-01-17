@@ -164,13 +164,13 @@ namespace Kalendarz1
 
         private Border CreateRecentLoginAvatar(LoginRecord login)
         {
-            // Kontener z avatarem - większy rozmiar, pionowy układ
+            // Kontener z avatarem - duży rozmiar 100x100
             var container = new Border
             {
-                Width = 65,
-                Height = 65,
-                Margin = new Thickness(0, 0, 0, 10),
-                CornerRadius = new CornerRadius(32.5),
+                Width = 100,
+                Height = 100,
+                Margin = new Thickness(0, 0, 0, 12),
+                CornerRadius = new CornerRadius(50),
                 BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E0E0E0")),
                 BorderThickness = new Thickness(3),
                 Background = new SolidColorBrush(Colors.White),
@@ -180,8 +180,8 @@ namespace Kalendarz1
             // Elipsa z avatarem
             var avatarEllipse = new Ellipse
             {
-                Width = 59,
-                Height = 59,
+                Width = 94,
+                Height = 94,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -262,30 +262,30 @@ namespace Kalendarz1
             };
             string color = colors[Math.Abs(hash) % colors.Length];
 
-            // Utwórz DrawingBrush z inicjałami - większy rozmiar
+            // Utwórz DrawingBrush z inicjałami - duży rozmiar dla 100x100
             var drawingGroup = new DrawingGroup();
 
-            // Tło - większe koło
-            var backgroundGeometry = new EllipseGeometry(new Point(30, 30), 30, 30);
+            // Tło - duże koło (50px radius)
+            var backgroundGeometry = new EllipseGeometry(new Point(50, 50), 50, 50);
             var backgroundDrawing = new GeometryDrawing(
                 new SolidColorBrush((Color)ColorConverter.ConvertFromString(color)),
                 null,
                 backgroundGeometry);
             drawingGroup.Children.Add(backgroundDrawing);
 
-            // Inicjały - większa czcionka
+            // Inicjały - duża czcionka (36px)
             string initials = GetInitials(userName);
             var formattedText = new FormattedText(
                 initials,
                 CultureInfo.CurrentCulture,
                 FlowDirection.LeftToRight,
                 new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal),
-                20,
+                36,
                 Brushes.White,
                 VisualTreeHelper.GetDpi(this).PixelsPerDip);
 
             var textGeometry = formattedText.BuildGeometry(
-                new Point(30 - formattedText.Width / 2, 30 - formattedText.Height / 2));
+                new Point(50 - formattedText.Width / 2, 50 - formattedText.Height / 2));
             var textDrawing = new GeometryDrawing(Brushes.White, null, textGeometry);
             drawingGroup.Children.Add(textDrawing);
 
