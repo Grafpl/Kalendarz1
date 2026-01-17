@@ -1,7 +1,5 @@
 using System;
-using System.Collections.Generic;
 using System.Windows;
-using System.Windows.Controls;
 using Microsoft.Data.SqlClient;
 
 namespace Kalendarz1.Zadania
@@ -12,7 +10,6 @@ namespace Kalendarz1.Zadania
         private readonly string operatorId;
         private readonly ZadanieViewModel existingTask;
         private readonly bool isEditMode;
-        private List<FirmaItem> firmy = new List<FirmaItem>();
 
         public ZadanieDialog(string connString, string opId, ZadanieViewModel task = null)
         {
@@ -28,45 +25,7 @@ namespace Kalendarz1.Zadania
                 btnZapisz.Content = "Aktualizuj";
             }
 
-            LoadFirmy();
             InitializeForm();
-        }
-
-        private void LoadFirmy()
-        {
-            firmy.Clear();
-            firmy.Add(new FirmaItem { Id = 0, Nazwa = "(Brak firmy)" });
-
-            try
-            {
-                using (var conn = new SqlConnection(connectionString))
-                {
-                    conn.Open();
-                    var cmd = new SqlCommand(
-                        "SELECT ID, Nazwa FROM OdbiorcyCRM WHERE Nazwa IS NOT NULL ORDER BY Nazwa", conn);
-
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            firmy.Add(new FirmaItem
-                            {
-                                Id = reader.GetInt32(0),
-                                Nazwa = reader.GetString(1)
-                            });
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                // Ignore errors loading companies
-            }
-
-            cmbFirma.ItemsSource = firmy;
-            cmbFirma.DisplayMemberPath = "Nazwa";
-            cmbFirma.SelectedValuePath = "Id";
-            cmbFirma.SelectedIndex = 0;
         }
 
         private void InitializeForm()
@@ -84,12 +43,6 @@ namespace Kalendarz1.Zadania
                 rbNiski.IsChecked = existingTask.Priorytet == 1;
                 rbSredni.IsChecked = existingTask.Priorytet == 2;
                 rbWysoki.IsChecked = existingTask.Priorytet == 3;
-
-                // Set company
-                if (existingTask.IDOdbiorcy > 0)
-                {
-                    cmbFirma.SelectedValue = existingTask.IDOdbiorcy;
-                }
             }
         }
 
@@ -124,13 +77,6 @@ namespace Kalendarz1.Zadania
             int priorytet = rbWysoki.IsChecked == true ? 3 :
                            rbSredni.IsChecked == true ? 2 : 1;
 
-            // Get company ID (0 jeśli nie wybrano)
-            int firmaId = 0;
-            if (cmbFirma.SelectedValue is int selectedIntId && selectedIntId > 0)
-            {
-                firmaId = selectedIntId;
-            }
-
             try
             {
                 using (var conn = new SqlConnection(connectionString))
@@ -144,30 +90,27 @@ namespace Kalendarz1.Zadania
                                 TypZadania = @typ,
                                 Opis = @opis,
                                 TerminWykonania = @termin,
-                                Priorytet = @priorytet,
-                                IDOdbiorcy = @firma
+                                Priorytet = @priorytet
                             WHERE ID = @id", conn);
 
                         cmd.Parameters.AddWithValue("@typ", txtTypZadania.Text);
                         cmd.Parameters.AddWithValue("@opis", (object)txtOpis.Text ?? DBNull.Value);
                         cmd.Parameters.AddWithValue("@termin", termin);
                         cmd.Parameters.AddWithValue("@priorytet", priorytet);
-                        cmd.Parameters.AddWithValue("@firma", firmaId > 0 ? (object)firmaId : DBNull.Value);
                         cmd.Parameters.AddWithValue("@id", existingTask.Id);
                         cmd.ExecuteNonQuery();
                     }
                     else
                     {
                         var cmd = new SqlCommand(@"
-                            INSERT INTO Zadania (OperatorID, TypZadania, Opis, TerminWykonania, Priorytet, IDOdbiorcy, Wykonane)
-                            VALUES (@operator, @typ, @opis, @termin, @priorytet, @firma, 0)", conn);
+                            INSERT INTO Zadania (OperatorID, TypZadania, Opis, TerminWykonania, Priorytet, Wykonane)
+                            VALUES (@operator, @typ, @opis, @termin, @priorytet, 0)", conn);
 
                         cmd.Parameters.AddWithValue("@operator", operatorId);
                         cmd.Parameters.AddWithValue("@typ", txtTypZadania.Text);
                         cmd.Parameters.AddWithValue("@opis", (object)txtOpis.Text ?? DBNull.Value);
                         cmd.Parameters.AddWithValue("@termin", termin);
                         cmd.Parameters.AddWithValue("@priorytet", priorytet);
-                        cmd.Parameters.AddWithValue("@firma", firmaId > 0 ? (object)firmaId : DBNull.Value);
                         cmd.ExecuteNonQuery();
                     }
                 }
@@ -187,11 +130,5 @@ namespace Kalendarz1.Zadania
             DialogResult = false;
             Close();
         }
-    }
-
-    public class FirmaItem
-    {
-        public int Id { get; set; }
-        public string Nazwa { get; set; }
     }
 }
