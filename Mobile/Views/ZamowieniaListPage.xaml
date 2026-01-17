@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:KalendarzMobile.ViewModels"
+             xmlns:models="clr-namespace:KalendarzMobile.Models"
+             x:Class="KalendarzMobile.Views.ZamowieniaListPage"
+             x:DataType="vm:ZamowieniaListViewModel"
+             Title="{Binding Title}"
+             BackgroundColor="{StaticResource Background}">
+
+    <Shell.TitleView>
+        <Grid ColumnDefinitions="Auto,*,Auto" Padding="0,0,10,0">
+            <Label Grid.Column="1"
+                   Text="Zamówienia"
+                   FontSize="20"
+                   FontAttributes="Bold"
+                   TextColor="White"
+                   VerticalOptions="Center"
+                   HorizontalOptions="Center" />
+        </Grid>
+    </Shell.TitleView>
+
+    <Grid RowDefinitions="Auto,Auto,Auto,*">
+
+        <!-- Nawigacja po datach -->
+        <Frame Grid.Row="0"
+               BackgroundColor="{StaticResource Surface}"
+               Padding="12"
+               CornerRadius="0"
+               HasShadow="True">
+            <Grid ColumnDefinitions="50,*,50">
+                <Button Grid.Column="0"
+                        Text="◀"
+                        FontSize="20"
+                        BackgroundColor="Transparent"
+                        TextColor="{StaticResource Primary}"
+                        Command="{Binding GoToPreviousDayCommand}" />
+
+                <VerticalStackLayout Grid.Column="1"
+                                     HorizontalOptions="Center"
+                                     VerticalOptions="Center">
+                    <Label Text="{Binding SelectedDate, StringFormat='{0:dddd}'}"
+                           FontSize="14"
+                           TextColor="{StaticResource TextSecondary}"
+                           HorizontalOptions="Center" />
+                    <Label Text="{Binding SelectedDate, StringFormat='{0:dd MMMM yyyy}'}"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           TextColor="{StaticResource TextPrimary}"
+                           HorizontalOptions="Center">
+                        <Label.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding GoToTodayCommand}" />
+                        </Label.GestureRecognizers>
+                    </Label>
+                </VerticalStackLayout>
+
+                <Button Grid.Column="2"
+                        Text="▶"
+                        FontSize="20"
+                        BackgroundColor="Transparent"
+                        TextColor="{StaticResource Primary}"
+                        Command="{Binding GoToNextDayCommand}" />
+            </Grid>
+        </Frame>
+
+        <!-- Statystyki dnia -->
+        <Frame Grid.Row="1"
+               BackgroundColor="{StaticResource Primary}"
+               Padding="16"
+               CornerRadius="0"
+               HasShadow="False">
+            <Grid ColumnDefinitions="*,*,*,*" RowDefinitions="Auto,Auto">
+                <!-- Zamówienia -->
+                <VerticalStackLayout Grid.Column="0" HorizontalOptions="Center">
+                    <Label Text="{Binding Statystyki.LiczbaZamowien}"
+                           FontSize="24"
+                           FontAttributes="Bold"
+                           TextColor="White"
+                           HorizontalOptions="Center" />
+                    <Label Text="Zamówień"
+                           FontSize="11"
+                           TextColor="White"
+                           Opacity="0.8"
+                           HorizontalOptions="Center" />
+                </VerticalStackLayout>
+
+                <!-- Kg -->
+                <VerticalStackLayout Grid.Column="1" HorizontalOptions="Center">
+                    <Label Text="{Binding Statystyki.SumaKg, StringFormat='{0:N0}'}"
+                           FontSize="24"
+                           FontAttributes="Bold"
+                           TextColor="White"
+                           HorizontalOptions="Center" />
+                    <Label Text="kg"
+                           FontSize="11"
+                           TextColor="White"
+                           Opacity="0.8"
+                           HorizontalOptions="Center" />
+                </VerticalStackLayout>
+
+                <!-- Pojemniki -->
+                <VerticalStackLayout Grid.Column="2" HorizontalOptions="Center">
+                    <Label Text="{Binding Statystyki.SumaPojemnikow}"
+                           FontSize="24"
+                           FontAttributes="Bold"
+                           TextColor="White"
+                           HorizontalOptions="Center" />
+                    <Label Text="Pojemników"
+                           FontSize="11"
+                           TextColor="White"
+                           Opacity="0.8"
+                           HorizontalOptions="Center" />
+                </VerticalStackLayout>
+
+                <!-- Palety -->
+                <VerticalStackLayout Grid.Column="3" HorizontalOptions="Center">
+                    <Label Text="{Binding Statystyki.SumaPalet, StringFormat='{0:N1}'}"
+                           FontSize="24"
+                           FontAttributes="Bold"
+                           TextColor="White"
+                           HorizontalOptions="Center" />
+                    <Label Text="Palet"
+                           FontSize="11"
+                           TextColor="White"
+                           Opacity="0.8"
+                           HorizontalOptions="Center" />
+                </VerticalStackLayout>
+            </Grid>
+        </Frame>
+
+        <!-- Wyszukiwarka i filtry -->
+        <Frame Grid.Row="2"
+               BackgroundColor="{StaticResource Surface}"
+               Padding="12"
+               CornerRadius="0"
+               HasShadow="True">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                <SearchBar Grid.Column="0"
+                           Placeholder="Szukaj klienta..."
+                           Text="{Binding SearchText}"
+                           SearchCommand="{Binding SearchCommand}"
+                           BackgroundColor="Transparent" />
+
+                <Picker Grid.Column="1"
+                        Title="Status"
+                        ItemsSource="{Binding StatusyDoWyboru}"
+                        SelectedItem="{Binding SelectedStatus}"
+                        WidthRequest="120">
+                    <Picker.Behaviors>
+                        <EventToCommandBehavior EventName="SelectedIndexChanged"
+                                                Command="{Binding SearchCommand}" />
+                    </Picker.Behaviors>
+                </Picker>
+            </Grid>
+        </Frame>
+
+        <!-- Lista zamówień -->
+        <RefreshView Grid.Row="3"
+                     IsRefreshing="{Binding IsRefreshing}"
+                     Command="{Binding RefreshCommand}">
+
+            <CollectionView ItemsSource="{Binding Zamowienia}"
+                            SelectionMode="None"
+                            RemainingItemsThreshold="5"
+                            RemainingItemsThresholdReachedCommand="{Binding LoadMoreCommand}">
+
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout VerticalOptions="Center"
+                                         HorizontalOptions="Center"
+                                         Padding="20">
+                        <Label Text="📋"
+                               FontSize="60"
+                               HorizontalOptions="Center" />
+                        <Label Text="Brak zamówień na ten dzień"
+                               FontSize="18"
+                               TextColor="{StaticResource TextSecondary}"
+                               HorizontalOptions="Center"
+                               Margin="0,10,0,0" />
+                        <Button Text="Odśwież"
+                                Command="{Binding RefreshCommand}"
+                                Style="{StaticResource PrimaryButton}"
+                                Margin="0,20,0,0" />
+                    </VerticalStackLayout>
+                </CollectionView.EmptyView>
+
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="models:Zamowienie">
+                        <Frame Style="{StaticResource OrderCard}">
+                            <Frame.GestureRecognizers>
+                                <TapGestureRecognizer
+                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:ZamowieniaListViewModel}}, Path=GoToDetailCommand}"
+                                    CommandParameter="{Binding .}" />
+                            </Frame.GestureRecognizers>
+
+                            <Grid RowDefinitions="Auto,Auto,Auto,Auto"
+                                  ColumnDefinitions="*,Auto"
+                                  RowSpacing="8">
+
+                                <!-- Nagłówek: Klient i Status -->
+                                <Label Grid.Row="0" Grid.Column="0"
+                                       Text="{Binding KlientNazwa}"
+                                       FontSize="16"
+                                       FontAttributes="Bold"
+                                       TextColor="{StaticResource TextPrimary}"
+                                       LineBreakMode="TailTruncation" />
+
+                                <Frame Grid.Row="0" Grid.Column="1"
+                                       BackgroundColor="{Binding StatusColor}"
+                                       Padding="8,4"
+                                       CornerRadius="12"
+                                       HasShadow="False">
+                                    <Label Text="{Binding Status}"
+                                           FontSize="12"
+                                           TextColor="White" />
+                                </Frame>
+
+                                <!-- Miasto i handlowiec -->
+                                <HorizontalStackLayout Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Spacing="10">
+                                    <Label Text="{Binding KlientMiasto, StringFormat='📍 {0}'}"
+                                           FontSize="13"
+                                           TextColor="{StaticResource TextSecondary}" />
+                                    <Label Text="{Binding Handlowiec, StringFormat='👤 {0}'}"
+                                           FontSize="13"
+                                           TextColor="{StaticResource TextSecondary}" />
+                                </HorizontalStackLayout>
+
+                                <!-- Data przyjazdu i transport -->
+                                <HorizontalStackLayout Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Spacing="10">
+                                    <Label Text="{Binding DataPrzyjazduFormatted, StringFormat='🕐 {0}'}"
+                                           FontSize="13"
+                                           TextColor="{StaticResource TextPrimary}" />
+                                    <Label Text="{Binding TransportIcon}"
+                                           FontSize="13" />
+                                    <Label Text="{Binding TransportStatus}"
+                                           FontSize="13"
+                                           TextColor="{StaticResource TextSecondary}" />
+                                </HorizontalStackLayout>
+
+                                <!-- Podsumowanie -->
+                                <Frame Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
+                                       BackgroundColor="{StaticResource Background}"
+                                       Padding="10,6"
+                                       CornerRadius="8"
+                                       HasShadow="False">
+                                    <HorizontalStackLayout Spacing="15">
+                                        <Label Text="{Binding LiczbaPojemnikow, StringFormat='📦 {0} poj.'}"
+                                               FontSize="13"
+                                               TextColor="{StaticResource TextPrimary}" />
+                                        <Label Text="{Binding LiczbaPalet, StringFormat='🎨 {0:N1} pal.'}"
+                                               FontSize="13"
+                                               TextColor="{StaticResource TextPrimary}" />
+                                        <Label Text="{Binding SumaKg, StringFormat='⚖️ {0:N0} kg'}"
+                                               FontSize="13"
+                                               TextColor="{StaticResource TextPrimary}" />
+                                        <Label Text="{Binding Waluta}"
+                                               FontSize="13"
+                                               FontAttributes="Bold"
+                                               TextColor="{StaticResource Primary}" />
+                                    </HorizontalStackLayout>
+                                </Frame>
+
+                            </Grid>
+                        </Frame>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+
+            </CollectionView>
+        </RefreshView>
+
+        <!-- Loading indicator -->
+        <ActivityIndicator Grid.Row="3"
+                           IsRunning="{Binding IsBusy}"
+                           IsVisible="{Binding IsBusy}"
+                           Color="{StaticResource Primary}"
+                           VerticalOptions="Center"
+                           HorizontalOptions="Center" />
+
+    </Grid>
+
+</ContentPage>

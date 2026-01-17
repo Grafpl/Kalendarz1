@@ -1,0 +1,314 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:KalendarzMobile.ViewModels"
+             xmlns:models="clr-namespace:KalendarzMobile.Models"
+             x:Class="KalendarzMobile.Views.ZamowienieDetailPage"
+             x:DataType="vm:ZamowienieDetailViewModel"
+             Title="{Binding Title}"
+             BackgroundColor="{StaticResource Background}">
+
+    <Shell.TitleView>
+        <Grid ColumnDefinitions="Auto,*,Auto,Auto" Padding="0,0,10,0">
+            <Button Grid.Column="0"
+                    Text="←"
+                    FontSize="22"
+                    BackgroundColor="Transparent"
+                    TextColor="White"
+                    Command="{Binding GoBackCommand}" />
+            <Label Grid.Column="1"
+                   Text="{Binding Title}"
+                   FontSize="18"
+                   FontAttributes="Bold"
+                   TextColor="White"
+                   VerticalOptions="Center" />
+            <Button Grid.Column="2"
+                    Text="📞"
+                    FontSize="18"
+                    BackgroundColor="Transparent"
+                    Command="{Binding CallClientCommand}" />
+            <Button Grid.Column="3"
+                    Text="📤"
+                    FontSize="18"
+                    BackgroundColor="Transparent"
+                    Command="{Binding ShareCommand}" />
+        </Grid>
+    </Shell.TitleView>
+
+    <ScrollView>
+        <VerticalStackLayout Spacing="0">
+
+            <!-- Nagłówek z klientem -->
+            <Frame BackgroundColor="{StaticResource Primary}"
+                   Padding="20"
+                   CornerRadius="0"
+                   HasShadow="False">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="{Binding Zamowienie.KlientNazwa}"
+                           FontSize="22"
+                           FontAttributes="Bold"
+                           TextColor="White" />
+                    <HorizontalStackLayout Spacing="15">
+                        <Label Text="{Binding Zamowienie.KlientMiasto, StringFormat='📍 {0}'}"
+                               FontSize="14"
+                               TextColor="White"
+                               Opacity="0.9" />
+                        <Label Text="{Binding Zamowienie.Handlowiec, StringFormat='👤 {0}'}"
+                               FontSize="14"
+                               TextColor="White"
+                               Opacity="0.9" />
+                    </HorizontalStackLayout>
+
+                    <!-- Status -->
+                    <Frame BackgroundColor="{Binding Zamowienie.StatusColor}"
+                           Padding="12,6"
+                           CornerRadius="16"
+                           HasShadow="False"
+                           HorizontalOptions="Start"
+                           Margin="0,5,0,0">
+                        <Label Text="{Binding Zamowienie.Status}"
+                               FontSize="14"
+                               FontAttributes="Bold"
+                               TextColor="White" />
+                    </Frame>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Informacje o zamówieniu -->
+            <Frame Style="{StaticResource OrderCard}"
+                   Margin="8,8,8,0">
+                <Grid RowDefinitions="Auto,Auto,Auto,Auto"
+                      ColumnDefinitions="*,*"
+                      RowSpacing="16"
+                      ColumnSpacing="10">
+
+                    <VerticalStackLayout Grid.Row="0" Grid.Column="0">
+                        <Label Text="Data zamówienia"
+                               FontSize="12"
+                               TextColor="{StaticResource TextSecondary}" />
+                        <Label Text="{Binding Zamowienie.DataZamowieniaFormatted}"
+                               FontSize="16"
+                               FontAttributes="Bold"
+                               TextColor="{StaticResource TextPrimary}" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Grid.Row="0" Grid.Column="1">
+                        <Label Text="Data przyjazdu"
+                               FontSize="12"
+                               TextColor="{StaticResource TextSecondary}" />
+                        <Label Text="{Binding Zamowienie.DataPrzyjazduFormatted}"
+                               FontSize="16"
+                               FontAttributes="Bold"
+                               TextColor="{StaticResource TextPrimary}" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Grid.Row="1" Grid.Column="0">
+                        <Label Text="Transport"
+                               FontSize="12"
+                               TextColor="{StaticResource TextSecondary}" />
+                        <HorizontalStackLayout Spacing="5">
+                            <Label Text="{Binding Zamowienie.TransportIcon}"
+                                   FontSize="16" />
+                            <Label Text="{Binding Zamowienie.TransportStatus}"
+                                   FontSize="16"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource TextPrimary}" />
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Grid.Row="1" Grid.Column="1">
+                        <Label Text="Waluta"
+                               FontSize="12"
+                               TextColor="{StaticResource TextSecondary}" />
+                        <Label Text="{Binding Zamowienie.Waluta}"
+                               FontSize="16"
+                               FontAttributes="Bold"
+                               TextColor="{StaticResource Primary}" />
+                    </VerticalStackLayout>
+
+                    <!-- Uwagi -->
+                    <VerticalStackLayout Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                                         IsVisible="{Binding Zamowienie.Uwagi, Converter={StaticResource StringNotEmptyConverter}}">
+                        <Label Text="Uwagi"
+                               FontSize="12"
+                               TextColor="{StaticResource TextSecondary}" />
+                        <Label Text="{Binding Zamowienie.Uwagi}"
+                               FontSize="14"
+                               TextColor="{StaticResource TextPrimary}"
+                               LineBreakMode="WordWrap" />
+                    </VerticalStackLayout>
+
+                </Grid>
+            </Frame>
+
+            <!-- Podsumowanie ilościowe -->
+            <Frame Style="{StaticResource OrderCard}"
+                   Margin="8,8,8,0">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Podsumowanie"
+                           FontSize="16"
+                           FontAttributes="Bold"
+                           TextColor="{StaticResource TextPrimary}" />
+
+                    <Grid ColumnDefinitions="*,*,*,*" RowSpacing="8">
+                        <VerticalStackLayout Grid.Column="0" HorizontalOptions="Center">
+                            <Label Text="{Binding SumaPojemnikow}"
+                                   FontSize="24"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource Primary}"
+                                   HorizontalOptions="Center" />
+                            <Label Text="Pojemników"
+                                   FontSize="11"
+                                   TextColor="{StaticResource TextSecondary}"
+                                   HorizontalOptions="Center" />
+                        </VerticalStackLayout>
+
+                        <VerticalStackLayout Grid.Column="1" HorizontalOptions="Center">
+                            <Label Text="{Binding SumaPalet, StringFormat='{0:N1}'}"
+                                   FontSize="24"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource Primary}"
+                                   HorizontalOptions="Center" />
+                            <Label Text="Palet"
+                                   FontSize="11"
+                                   TextColor="{StaticResource TextSecondary}"
+                                   HorizontalOptions="Center" />
+                        </VerticalStackLayout>
+
+                        <VerticalStackLayout Grid.Column="2" HorizontalOptions="Center">
+                            <Label Text="{Binding SumaKg, StringFormat='{0:N0}'}"
+                                   FontSize="24"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource Primary}"
+                                   HorizontalOptions="Center" />
+                            <Label Text="kg"
+                                   FontSize="11"
+                                   TextColor="{StaticResource TextSecondary}"
+                                   HorizontalOptions="Center" />
+                        </VerticalStackLayout>
+
+                        <VerticalStackLayout Grid.Column="3" HorizontalOptions="Center">
+                            <Label Text="{Binding SumaWartosci, StringFormat='{0:N2}'}"
+                                   FontSize="20"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource Success}"
+                                   HorizontalOptions="Center" />
+                            <Label Text="{Binding Zamowienie.Waluta}"
+                                   FontSize="11"
+                                   TextColor="{StaticResource TextSecondary}"
+                                   HorizontalOptions="Center" />
+                        </VerticalStackLayout>
+                    </Grid>
+
+                    <!-- Pasek realizacji -->
+                    <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto"
+                          IsVisible="{Binding Zamowienie.ProcentRealizacji, Converter={StaticResource GreaterThanZeroConverter}}">
+                        <ProgressBar Grid.Row="0" Grid.Column="0"
+                                     Progress="{Binding Zamowienie.ProcentRealizacji, Converter={StaticResource PercentToDecimalConverter}}"
+                                     ProgressColor="{StaticResource Success}"
+                                     HeightRequest="8" />
+                        <Label Grid.Row="0" Grid.Column="1"
+                               Text="{Binding Zamowienie.ProcentRealizacji, StringFormat='{0:N0}%'}"
+                               FontSize="14"
+                               FontAttributes="Bold"
+                               TextColor="{StaticResource Success}"
+                               Margin="10,0,0,0" />
+                        <Label Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                               Text="Realizacja zamówienia"
+                               FontSize="11"
+                               TextColor="{StaticResource TextSecondary}" />
+                    </Grid>
+
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Lista towarów -->
+            <Frame Style="{StaticResource OrderCard}"
+                   Margin="8,8,8,16">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Towary"
+                           FontSize="16"
+                           FontAttributes="Bold"
+                           TextColor="{StaticResource TextPrimary}" />
+
+                    <CollectionView ItemsSource="{Binding Towary}"
+                                    SelectionMode="None">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="models:ZamowienieTowa">
+                                <Frame BackgroundColor="{StaticResource Background}"
+                                       Padding="12"
+                                       CornerRadius="8"
+                                       HasShadow="False"
+                                       Margin="0,4">
+                                    <Grid RowDefinitions="Auto,Auto,Auto"
+                                          ColumnDefinitions="*,Auto"
+                                          RowSpacing="6">
+
+                                        <!-- Nazwa towaru -->
+                                        <Label Grid.Row="0" Grid.Column="0"
+                                               Text="{Binding NazwaTowaru}"
+                                               FontSize="15"
+                                               FontAttributes="Bold"
+                                               TextColor="{StaticResource TextPrimary}"
+                                               LineBreakMode="TailTruncation" />
+
+                                        <!-- Wartość -->
+                                        <Label Grid.Row="0" Grid.Column="1"
+                                               Text="{Binding WartoscFormatted}"
+                                               FontSize="15"
+                                               FontAttributes="Bold"
+                                               TextColor="{StaticResource Success}" />
+
+                                        <!-- Ilość i cena -->
+                                        <HorizontalStackLayout Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                                               Spacing="15">
+                                            <Label Text="{Binding IloscFormatted}"
+                                                   FontSize="13"
+                                                   TextColor="{StaticResource TextSecondary}" />
+                                            <Label Text="{Binding CenaFormatted, StringFormat='× {0}/kg'}"
+                                                   FontSize="13"
+                                                   TextColor="{StaticResource TextSecondary}" />
+                                            <Label Text="{Binding Pojemniki, StringFormat='{0} poj.'}"
+                                                   FontSize="13"
+                                                   TextColor="{StaticResource TextSecondary}" />
+                                        </HorizontalStackLayout>
+
+                                        <!-- Flagi -->
+                                        <HorizontalStackLayout Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                                                               Spacing="8">
+                                            <Frame BackgroundColor="{StaticResource Primary}"
+                                                   Padding="6,2"
+                                                   CornerRadius="4"
+                                                   HasShadow="False"
+                                                   IsVisible="{Binding E2}">
+                                                <Label Text="E2" FontSize="10" TextColor="White" />
+                                            </Frame>
+                                            <Frame BackgroundColor="{StaticResource Accent}"
+                                                   Padding="6,2"
+                                                   CornerRadius="4"
+                                                   HasShadow="False"
+                                                   IsVisible="{Binding Folia}">
+                                                <Label Text="Folia" FontSize="10" TextColor="White" />
+                                            </Frame>
+                                            <Frame BackgroundColor="{StaticResource Success}"
+                                                   Padding="6,2"
+                                                   CornerRadius="4"
+                                                   HasShadow="False"
+                                                   IsVisible="{Binding Hallal}">
+                                                <Label Text="Hallal" FontSize="10" TextColor="White" />
+                                            </Frame>
+                                        </HorizontalStackLayout>
+
+                                    </Grid>
+                                </Frame>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+
+                </VerticalStackLayout>
+            </Frame>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

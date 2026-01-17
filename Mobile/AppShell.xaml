@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell
+    x:Class="KalendarzMobile.AppShell"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:views="clr-namespace:KalendarzMobile.Views"
+    Shell.FlyoutBehavior="Flyout"
+    Title="Kalendarz Zamówień">
+
+    <Shell.FlyoutHeader>
+        <Grid HeightRequest="150" BackgroundColor="{StaticResource Primary}">
+            <VerticalStackLayout VerticalOptions="Center" Padding="20">
+                <Label Text="🗓️ Kalendarz"
+                       FontSize="28"
+                       FontAttributes="Bold"
+                       TextColor="White" />
+                <Label Text="Zamówienia Klientów"
+                       FontSize="16"
+                       TextColor="White"
+                       Opacity="0.9" />
+            </VerticalStackLayout>
+        </Grid>
+    </Shell.FlyoutHeader>
+
+    <FlyoutItem Title="Zamówienia" Icon="orders_icon.png">
+        <ShellContent
+            Title="Lista Zamówień"
+            ContentTemplate="{DataTemplate views:ZamowieniaListPage}"
+            Route="ZamowieniaList" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Ustawienia" Icon="settings_icon.png">
+        <ShellContent
+            Title="Ustawienia"
+            ContentTemplate="{DataTemplate views:SettingsPage}"
+            Route="Settings" />
+    </FlyoutItem>
+
+</Shell>

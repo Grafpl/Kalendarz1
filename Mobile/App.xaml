@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Application xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:converters="clr-namespace:KalendarzMobile.Converters"
+             x:Class="KalendarzMobile.App">
+    <Application.Resources>
+        <ResourceDictionary>
+            <!-- Konwertery -->
+            <converters:StringNotEmptyConverter x:Key="StringNotEmptyConverter" />
+            <converters:GreaterThanZeroConverter x:Key="GreaterThanZeroConverter" />
+            <converters:PercentToDecimalConverter x:Key="PercentToDecimalConverter" />
+            <converters:BoolToColorConverter x:Key="BoolToColorConverter" />
+            <converters:BoolToStatusConverter x:Key="BoolToStatusConverter" />
+            <converters:BoolToLoginStatusConverter x:Key="BoolToLoginStatusConverter" />
+            <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+
+            <!-- Kolory firmowe -->
+            <Color x:Key="Primary">#2196F3</Color>
+            <Color x:Key="PrimaryDark">#1976D2</Color>
+            <Color x:Key="Accent">#FF5722</Color>
+            <Color x:Key="Background">#F5F5F5</Color>
+            <Color x:Key="Surface">#FFFFFF</Color>
+            <Color x:Key="TextPrimary">#212121</Color>
+            <Color x:Key="TextSecondary">#757575</Color>
+            <Color x:Key="Success">#4CAF50</Color>
+            <Color x:Key="Warning">#FFC107</Color>
+            <Color x:Key="Error">#F44336</Color>
+
+            <!-- Style przycisków -->
+            <Style x:Key="PrimaryButton" TargetType="Button">
+                <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
+                <Setter Property="TextColor" Value="White" />
+                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="Padding" Value="16,12" />
+                <Setter Property="FontAttributes" Value="Bold" />
+            </Style>
+
+            <!-- Style kart zamówień -->
+            <Style x:Key="OrderCard" TargetType="Frame">
+                <Setter Property="BackgroundColor" Value="{StaticResource Surface}" />
+                <Setter Property="CornerRadius" Value="12" />
+                <Setter Property="Padding" Value="16" />
+                <Setter Property="HasShadow" Value="True" />
+                <Setter Property="Margin" Value="8,4" />
+            </Style>
+
+            <!-- Style etykiet -->
+            <Style x:Key="HeaderLabel" TargetType="Label">
+                <Setter Property="FontSize" Value="20" />
+                <Setter Property="FontAttributes" Value="Bold" />
+                <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+            </Style>
+
+            <Style x:Key="SubheaderLabel" TargetType="Label">
+                <Setter Property="FontSize" Value="16" />
+                <Setter Property="TextColor" Value="{StaticResource TextSecondary}" />
+            </Style>
+
+            <!-- Status zamówienia - kolory -->
+            <Color x:Key="StatusNowe">#2196F3</Color>
+            <Color x:Key="StatusOczekuje">#FFC107</Color>
+            <Color x:Key="StatusWRealizacji">#FF9800</Color>
+            <Color x:Key="StatusZrealizowane">#4CAF50</Color>
+            <Color x:Key="StatusAnulowane">#F44336</Color>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
