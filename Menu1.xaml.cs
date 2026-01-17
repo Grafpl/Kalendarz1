@@ -141,15 +141,15 @@ namespace Kalendarz1
 
         private Border CreateRecentLoginAvatar(LoginRecord login)
         {
-            // Kontener z avatarem - rozmiar 75x75
+            // Kontener z avatarem - rozmiar 100x100
             var container = new Border
             {
-                Width = 75,
-                Height = 75,
-                Margin = new Thickness(0, 0, 0, 8),
-                CornerRadius = new CornerRadius(37.5),
+                Width = 100,
+                Height = 100,
+                Margin = new Thickness(0, 0, 0, 10),
+                CornerRadius = new CornerRadius(50),
                 BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E0E0E0")),
-                BorderThickness = new Thickness(2),
+                BorderThickness = new Thickness(3),
                 Background = new SolidColorBrush(Colors.White),
                 ToolTip = $"{login.UserName}\nOstatnie logowanie: {login.LoginTime:dd.MM.yyyy HH:mm}"
             };
@@ -157,8 +157,8 @@ namespace Kalendarz1
             // Elipsa z avatarem
             var avatarEllipse = new Ellipse
             {
-                Width = 71,
-                Height = 71,
+                Width = 94,
+                Height = 94,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -239,30 +239,30 @@ namespace Kalendarz1
             };
             string color = colors[Math.Abs(hash) % colors.Length];
 
-            // Utwórz DrawingBrush z inicjałami - rozmiar dla 75x75
+            // Utwórz DrawingBrush z inicjałami - rozmiar dla 100x100
             var drawingGroup = new DrawingGroup();
 
-            // Tło - koło (37.5px radius)
-            var backgroundGeometry = new EllipseGeometry(new Point(37.5, 37.5), 37.5, 37.5);
+            // Tło - koło (50px radius)
+            var backgroundGeometry = new EllipseGeometry(new Point(50, 50), 50, 50);
             var backgroundDrawing = new GeometryDrawing(
                 new SolidColorBrush((Color)ColorConverter.ConvertFromString(color)),
                 null,
                 backgroundGeometry);
             drawingGroup.Children.Add(backgroundDrawing);
 
-            // Inicjały - czcionka 24px
+            // Inicjały - czcionka 32px
             string initials = GetInitials(userName);
             var formattedText = new FormattedText(
                 initials,
                 CultureInfo.CurrentCulture,
                 FlowDirection.LeftToRight,
                 new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal),
-                24,
+                32,
                 Brushes.White,
                 VisualTreeHelper.GetDpi(this).PixelsPerDip);
 
             var textGeometry = formattedText.BuildGeometry(
-                new Point(37.5 - formattedText.Width / 2, 37.5 - formattedText.Height / 2));
+                new Point(50 - formattedText.Width / 2, 50 - formattedText.Height / 2));
             var textDrawing = new GeometryDrawing(Brushes.White, null, textGeometry);
             drawingGroup.Children.Add(textDrawing);
 
