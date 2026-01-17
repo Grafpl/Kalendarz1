@@ -1211,21 +1211,26 @@ namespace Kalendarz1.Zywiec.Kalendarz
         }
 
         /// <summary>
-        /// Animacja przejścia między tygodniami - uproszczona i płynna
+        /// Animacja przejścia między tygodniami - płynna karuzelowa
         /// </summary>
         private async Task AnimateWeekTransition(bool isNextWeek)
         {
             bool showSecondTable = chkNastepnyTydzien?.IsChecked == true;
-            double slideDistance = 40;
-            var duration = TimeSpan.FromMilliseconds(120);
 
-            // Przygotuj transformacje (reużywaj istniejące)
+            // Szerokość przesunięcia - pełna szerokość tabeli dla efektu nachodzenia
+            double tableWidth = dgDostawy.ActualWidth > 0 ? dgDostawy.ActualWidth * 0.3 : 200;
+            var slideDuration = TimeSpan.FromMilliseconds(350);
+            var easing = new CubicEase { EasingMode = EasingMode.EaseInOut };
+
+            // Przygotuj transformacje
             var transform1 = dgDostawy.RenderTransform as TranslateTransform;
             if (transform1 == null)
             {
                 transform1 = new TranslateTransform(0, 0);
                 dgDostawy.RenderTransform = transform1;
             }
+            transform1.X = 0;
+
             TranslateTransform transform2 = null;
             if (showSecondTable)
             {
@@ -1235,33 +1240,102 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     transform2 = new TranslateTransform(0, 0);
                     dgDostawyNastepny.RenderTransform = transform2;
                 }
+                transform2.X = 0;
             }
 
+            // Kierunek: następny tydzień = w lewo (-), poprzedni = w prawo (+)
             double direction = isNextWeek ? -1 : 1;
 
-            // Natychmiastowe ustawienie stanu wyjściowego
-            dgDostawy.Opacity = 0.5;
-            transform1.X = direction * slideDistance;
+            // === FAZA 1: Animacja wyjścia (slide out) ===
+            var slideOut1 = new DoubleAnimation
+            {
+                From = 0,
+                To = direction * tableWidth,
+                Duration = slideDuration,
+                EasingFunction = easing
+            };
+            var fadeOut1 = new DoubleAnimation
+            {
+                From = 1,
+                To = 0.2,
+                Duration = slideDuration,
+                EasingFunction = easing
+            };
+
+            // Uruchom animację wyjścia
+            transform1.BeginAnimation(TranslateTransform.XProperty, slideOut1);
+            dgDostawy.BeginAnimation(OpacityProperty, fadeOut1);
+
             if (showSecondTable && transform2 != null)
             {
-                dgDostawyNastepny.Opacity = 0.5;
-                transform2.X = direction * slideDistance;
+                var slideOut2 = new DoubleAnimation
+                {
+                    From = 0,
+                    To = direction * tableWidth,
+                    Duration = slideDuration,
+                    EasingFunction = easing
+                };
+                var fadeOut2 = new DoubleAnimation
+                {
+                    From = 1,
+                    To = 0.2,
+                    Duration = slideDuration,
+                    EasingFunction = easing
+                };
+                transform2.BeginAnimation(TranslateTransform.XProperty, slideOut2);
+                dgDostawyNastepny.BeginAnimation(OpacityProperty, fadeOut2);
             }
 
-            // Załaduj dane
+            // Poczekaj na zakończenie animacji wyjścia
+            await Task.Delay((int)(slideDuration.TotalMilliseconds * 0.7));
+
+            // === Załaduj nowe dane ===
             await LoadDostawyAsync();
 
-            // Płynna animacja wejścia
-            var slideIn = new DoubleAnimation(direction * slideDistance, 0, duration);
-            var fadeIn = new DoubleAnimation(0.5, 1, duration);
+            // === FAZA 2: Animacja wejścia (slide in z przeciwnej strony) ===
+            // Ustaw pozycję startową - z przeciwnej strony
+            transform1.X = -direction * tableWidth;
+            dgDostawy.Opacity = 0.2;
 
-            transform1.BeginAnimation(TranslateTransform.XProperty, slideIn);
-            dgDostawy.BeginAnimation(OpacityProperty, fadeIn);
+            var slideIn1 = new DoubleAnimation
+            {
+                From = -direction * tableWidth,
+                To = 0,
+                Duration = slideDuration,
+                EasingFunction = easing
+            };
+            var fadeIn1 = new DoubleAnimation
+            {
+                From = 0.2,
+                To = 1,
+                Duration = slideDuration,
+                EasingFunction = easing
+            };
+
+            transform1.BeginAnimation(TranslateTransform.XProperty, slideIn1);
+            dgDostawy.BeginAnimation(OpacityProperty, fadeIn1);
 
             if (showSecondTable && transform2 != null)
             {
-                transform2.BeginAnimation(TranslateTransform.XProperty, slideIn);
-                dgDostawyNastepny.BeginAnimation(OpacityProperty, fadeIn);
+                transform2.X = -direction * tableWidth;
+                dgDostawyNastepny.Opacity = 0.2;
+
+                var slideIn2 = new DoubleAnimation
+                {
+                    From = -direction * tableWidth,
+                    To = 0,
+                    Duration = slideDuration,
+                    EasingFunction = easing
+                };
+                var fadeIn2 = new DoubleAnimation
+                {
+                    From = 0.2,
+                    To = 1,
+                    Duration = slideDuration,
+                    EasingFunction = easing
+                };
+                transform2.BeginAnimation(TranslateTransform.XProperty, slideIn2);
+                dgDostawyNastepny.BeginAnimation(OpacityProperty, fadeIn2);
             }
         }
 
