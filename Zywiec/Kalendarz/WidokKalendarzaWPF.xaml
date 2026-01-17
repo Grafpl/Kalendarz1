@@ -1021,7 +1021,7 @@
                         </ScrollViewer>
                     </TabItem>
 
-                    <!-- TAB: KARTA (Dostawa + Transport + Wstawienia) -->
+                    <!-- TAB: KARTA (Dostawa + Transport + Wstawienia + Notatki) -->
                     <TabItem Header="Karta">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <StackPanel Margin="4">
@@ -1031,55 +1031,79 @@
                                         <TextBlock Text="📦 DOSTAWA" FontWeight="Bold" FontSize="10" Foreground="#1565C0" Margin="0,0,0,4"/>
                                         <Grid>
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="55"/>
+                                                <ColumnDefinition Width="45"/>
                                                 <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="55"/>
+                                                <ColumnDefinition Width="45"/>
                                                 <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="55"/>
+                                                <ColumnDefinition Width="45"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="45"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="24"/>
                                                 <RowDefinition Height="24"/>
-                                                <RowDefinition Height="24"/>
                                             </Grid.RowDefinitions>
 
-                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Data:" VerticalAlignment="Center" FontSize="9"/>
-                                            <DatePicker x:Name="dpData" Grid.Row="0" Grid.Column="1" Margin="1" FontSize="9" Padding="2"/>
+                                            <!-- Wiersz 1: Waga, Sztuki, Auta, Cena -->
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Waga:" VerticalAlignment="Center" FontSize="9" FontWeight="SemiBold"/>
+                                            <TextBox x:Name="txtWagaDek" Grid.Row="0" Grid.Column="1" Margin="1" FontSize="9" Padding="2" Background="#BBDEFB"/>
 
-                                            <TextBlock Grid.Row="0" Grid.Column="2" Text="Status:" VerticalAlignment="Center" FontSize="9"/>
-                                            <ComboBox x:Name="cmbStatus" Grid.Row="0" Grid.Column="3" Margin="1" FontSize="9"/>
+                                            <TextBlock Grid.Row="0" Grid.Column="2" Text="Sztuki:" VerticalAlignment="Center" FontSize="9" FontWeight="SemiBold"/>
+                                            <TextBox x:Name="txtSztuki" Grid.Row="0" Grid.Column="3" Margin="1" FontSize="9" Padding="2" Background="#BBDEFB"/>
 
-                                            <TextBlock Grid.Row="0" Grid.Column="4" Text="Auta:" VerticalAlignment="Center" FontSize="9"/>
-                                            <TextBox x:Name="txtAuta" Grid.Row="0" Grid.Column="5" Margin="1" FontSize="9" Padding="2"/>
+                                            <TextBlock Grid.Row="0" Grid.Column="4" Text="Auta:" VerticalAlignment="Center" FontSize="9" FontWeight="SemiBold"/>
+                                            <TextBox x:Name="txtAuta" Grid.Row="0" Grid.Column="5" Margin="1" FontSize="9" Padding="2" Background="#BBDEFB"/>
 
-                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Sztuki:" VerticalAlignment="Center" FontSize="9"/>
-                                            <TextBox x:Name="txtSztuki" Grid.Row="1" Grid.Column="1" Margin="1" FontSize="9" Padding="2"/>
+                                            <TextBlock Grid.Row="0" Grid.Column="6" Text="Cena:" VerticalAlignment="Center" FontSize="9" FontWeight="SemiBold"/>
+                                            <TextBox x:Name="txtCena" Grid.Row="0" Grid.Column="7" Margin="1" FontSize="9" Padding="2" Background="#BBDEFB"/>
 
-                                            <TextBlock Grid.Row="1" Grid.Column="2" Text="Waga:" VerticalAlignment="Center" FontSize="9"/>
-                                            <TextBox x:Name="txtWagaDek" Grid.Row="1" Grid.Column="3" Margin="1" FontSize="9" Padding="2"/>
+                                            <!-- Wiersz 2: Data, Status, Typ ceny, Szt/szuf -->
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Data:" VerticalAlignment="Center" FontSize="9"/>
+                                            <DatePicker x:Name="dpData" Grid.Row="1" Grid.Column="1" Margin="1" FontSize="9" Padding="2"/>
 
-                                            <TextBlock Grid.Row="1" Grid.Column="4" Text="Szt/szuf:" VerticalAlignment="Center" FontSize="9"/>
-                                            <TextBox x:Name="txtSztNaSzuflade" Grid.Row="1" Grid.Column="5" Margin="1" FontSize="9" Padding="2"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="2" Text="Status:" VerticalAlignment="Center" FontSize="9"/>
+                                            <ComboBox x:Name="cmbStatus" Grid.Row="1" Grid.Column="3" Margin="1" FontSize="9"/>
 
-                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Typ ceny:" VerticalAlignment="Center" FontSize="9"/>
-                                            <ComboBox x:Name="cmbTypCeny" Grid.Row="2" Grid.Column="1" Margin="1" FontSize="9"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="4" Text="Typ ceny:" VerticalAlignment="Center" FontSize="9"/>
+                                            <ComboBox x:Name="cmbTypCeny" Grid.Row="1" Grid.Column="5" Margin="1" FontSize="9"/>
 
-                                            <TextBlock Grid.Row="2" Grid.Column="2" Text="Cena:" VerticalAlignment="Center" FontSize="9"/>
-                                            <TextBox x:Name="txtCena" Grid.Row="2" Grid.Column="3" Margin="1" FontSize="9" Padding="2"/>
-
-                                            <TextBlock Grid.Row="2" Grid.Column="4" Text="Dodatek:" VerticalAlignment="Center" FontSize="9"/>
-                                            <TextBox x:Name="txtDodatek" Grid.Row="2" Grid.Column="5" Margin="1" FontSize="9" Padding="2"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="6" Text="Szt/szuf:" VerticalAlignment="Center" FontSize="9"/>
+                                            <TextBox x:Name="txtSztNaSzuflade" Grid.Row="1" Grid.Column="7" Margin="1" FontSize="9" Padding="2"/>
                                         </Grid>
                                         <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                                             <TextBlock Text="Typ umowy:" VerticalAlignment="Center" FontSize="9" Margin="0,0,4,0"/>
-                                            <ComboBox x:Name="cmbTypUmowy" Width="100" FontSize="9" Margin="0,0,8,0"/>
-                                            <CheckBox x:Name="chkPotwWaga" Content="✓Waga" FontSize="9" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                            <TextBlock x:Name="txtKtoWaga" FontSize="8" Foreground="#757575" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                            <CheckBox x:Name="chkPotwSztuki" Content="✓Sztuki" FontSize="9" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                            <ComboBox x:Name="cmbTypUmowy" Width="80" FontSize="9" Margin="0,0,6,0"/>
+                                            <TextBlock Text="Dodatek:" VerticalAlignment="Center" FontSize="9" Margin="0,0,4,0"/>
+                                            <TextBox x:Name="txtDodatek" Width="50" FontSize="9" Padding="2" Margin="0,0,6,0"/>
+                                            <CheckBox x:Name="chkPotwWaga" Content="✓Waga" FontSize="9" VerticalAlignment="Center" Margin="0,0,2,0"/>
+                                            <TextBlock x:Name="txtKtoWaga" FontSize="8" Foreground="#757575" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                            <CheckBox x:Name="chkPotwSztuki" Content="✓Sztuki" FontSize="9" VerticalAlignment="Center" Margin="0,0,2,0"/>
                                             <TextBlock x:Name="txtKtoSztuki" FontSize="8" Foreground="#757575" VerticalAlignment="Center"/>
-                                            <Button Content="💾 Zapisz" Style="{StaticResource MainButtonStyle}" Click="BtnZapiszDostawe_Click" Padding="8,2" Margin="10,0,0,0" FontSize="9"/>
+                                            <Button Content="💾 Zapisz" Style="{StaticResource MainButtonStyle}" Click="BtnZapiszDostawe_Click" Padding="8,2" Margin="8,0,0,0" FontSize="9"/>
                                         </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- SEKCJA: NOTATKI -->
+                                <Border Background="#E8F5E9" CornerRadius="4" Padding="4" Margin="0,0,0,4">
+                                    <StackPanel>
+                                        <TextBlock Text="📝 NOTATKI" FontWeight="Bold" FontSize="10" Foreground="#2E7D32" Margin="0,0,0,4"/>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox x:Name="txtNowaNotatkKarta" Grid.Column="0" FontSize="9" Padding="4" Height="28" VerticalContentAlignment="Center" ToolTip="Wpisz nową notatkę"/>
+                                            <Button Grid.Column="1" Content="➕" Style="{StaticResource MainButtonStyle}" Click="BtnDodajNotatkeKarta_Click" Width="30" Margin="4,0,0,0" Padding="2" FontSize="12"/>
+                                        </Grid>
+                                        <DataGrid x:Name="dgNotatkiKarta" Style="{StaticResource SmallDataGridStyle}" Margin="0,4,0,0" MaxHeight="80" FontSize="9">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="Data" Binding="{Binding DataUtworzenia, StringFormat=MM-dd HH:mm}" Width="75"/>
+                                                <DataGridTextColumn Header="Kto" Binding="{Binding KtoDodal}" Width="50"/>
+                                                <DataGridTextColumn Header="Treść" Binding="{Binding Tresc}" Width="*"/>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
                                     </StackPanel>
                                 </Border>
 

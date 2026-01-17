@@ -828,6 +828,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     _notatki.Clear();
                     foreach (var n in tempList)
                         _notatki.Add(n);
+                    // Aktualizuj też DataGrid w zakładce Karta
+                    dgNotatkiKarta.ItemsSource = _notatki;
                 });
             }
             catch { }
@@ -2681,6 +2683,57 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 await LoadNotatkiAsync(_selectedLP);
                 await LoadOstatnieNotatkiAsync();
                 // Odśwież tabele dostaw
+                await LoadDostawyAsync();
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd: {ex.Message}", ToastType.Error);
+            }
+        }
+
+        private async void BtnDodajNotatkeKarta_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_selectedLP))
+            {
+                ShowToast("Wybierz dostawę", ToastType.Warning);
+                return;
+            }
+
+            string tresc = txtNowaNotatkKarta.Text?.Trim();
+            if (string.IsNullOrEmpty(tresc))
+            {
+                ShowToast("Wpisz treść notatki", ToastType.Warning);
+                return;
+            }
+
+            var dostawa = _dostawy.FirstOrDefault(d => d.LP == _selectedLP) ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == _selectedLP);
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync(_cts.Token);
+                    string sql = "INSERT INTO Notatki (IndeksID, TypID, Tresc, KtoStworzyl, DataUtworzenia) VALUES (@lp, 1, @tresc, @kto, GETDATE())";
+                    using (SqlCommand cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@lp", _selectedLP);
+                        cmd.Parameters.AddWithValue("@tresc", tresc);
+                        cmd.Parameters.AddWithValue("@kto", UserID ?? "0");
+                        await cmd.ExecuteNonQueryAsync(_cts.Token);
+                    }
+                }
+
+                // AUDIT LOG
+                if (_auditService != null)
+                {
+                    await _auditService.LogNoteAddedAsync(_selectedLP, tresc, AuditChangeSource.Form_DodajNotatke,
+                        dostawa?.Dostawca, dostawa?.DataOdbioru, _cts.Token);
+                }
+
+                txtNowaNotatkKarta.Text = "";
+                ShowToast("Notatka dodana", ToastType.Success);
+                await LoadNotatkiAsync(_selectedLP);
+                await LoadOstatnieNotatkiAsync();
                 await LoadDostawyAsync();
             }
             catch (Exception ex)
