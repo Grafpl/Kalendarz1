@@ -39,7 +39,6 @@ namespace Kalendarz1.Zadania
                             Z.TerminWykonania,
                             Z.Priorytet,
                             Z.Wykonane,
-                            Z.DataUtworzenia,
                             Z.IDOdbiorcy
                         FROM Zadania Z
                         LEFT JOIN OdbiorcyCRM O ON Z.IDOdbiorcy = O.ID
@@ -61,8 +60,7 @@ namespace Kalendarz1.Zadania
                                 TerminWykonania = reader.GetDateTime(4),
                                 Priorytet = reader.GetInt32(5),
                                 Wykonane = reader.GetBoolean(6),
-                                DataUtworzenia = reader.IsDBNull(7) ? DateTime.Now : reader.GetDateTime(7),
-                                IDOdbiorcy = reader.IsDBNull(8) ? 0 : reader.GetInt64(8)
+                                IDOdbiorcy = reader.IsDBNull(7) ? 0 : reader.GetInt64(7)
                             };
                             allTasks.Add(task);
                         }
@@ -249,7 +247,6 @@ namespace Kalendarz1.Zadania
         public DateTime TerminWykonania { get; set; }
         public int Priorytet { get; set; }
         public bool Wykonane { get; set; }
-        public DateTime DataUtworzenia { get; set; }
         public long IDOdbiorcy { get; set; }
 
         public string PriorityText => Priorytet == 3 ? "Wysoki" : Priorytet == 2 ? "Średni" : "Niski";

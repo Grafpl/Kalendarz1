@@ -159,8 +159,8 @@ namespace Kalendarz1.Zadania
                     else
                     {
                         var cmd = new SqlCommand(@"
-                            INSERT INTO Zadania (OperatorID, TypZadania, Opis, TerminWykonania, Priorytet, IDOdbiorcy, Wykonane, DataUtworzenia)
-                            VALUES (@operator, @typ, @opis, @termin, @priorytet, @firma, 0, GETDATE())", conn);
+                            INSERT INTO Zadania (OperatorID, TypZadania, Opis, TerminWykonania, Priorytet, IDOdbiorcy, Wykonane)
+                            VALUES (@operator, @typ, @opis, @termin, @priorytet, @firma, 0)", conn);
 
                         cmd.Parameters.AddWithValue("@operator", operatorId);
                         cmd.Parameters.AddWithValue("@typ", txtTypZadania.Text);
