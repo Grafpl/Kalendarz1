@@ -113,6 +113,10 @@
 
                     <!-- Przyciski akcji przeniesione z paska filtrów -->
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,15,0">
+                        <Button x:Name="btnPanelJola" Content="👩‍🦳 Panel Jola" Style="{StaticResource ModernButtonStyle}"
+                                Background="#E91E63" Margin="0,0,6,0" Padding="8,5"
+                                ToolTip="Panel Pani Joli - uproszczony widok"
+                                Click="BtnPanelJola_Click"/>
                         <Button x:Name="btnOrder" Content="↕ Kolejność" Style="{StaticResource ModernButtonStyle}"
                                 Background="#F39C12" Margin="0,0,6,0" Padding="8,5"
                                 ToolTip="Ustaw kolejność wyświetlania produktów"

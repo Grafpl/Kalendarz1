@@ -1842,6 +1842,17 @@ namespace Kalendarz1.WPF
             Close();
         }
 
+        // Panel Pani Joli - uproszczony widok
+        private void BtnPanelJola_Click(object sender, RoutedEventArgs e)
+        {
+            if (!_productDataList.Any())
+            {
+                MessageBox.Show("Brak produktów do wyświetlenia. Najpierw wybierz produkty.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            ShowSimplifiedPanelJola(_productDataList.First(), 0);
+        }
+
         // Odświeżenie danych
         private void BtnRefresh_Click(object sender, RoutedEventArgs e)
         {
