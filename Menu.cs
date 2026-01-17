@@ -81,6 +81,7 @@ namespace Kalendarz1
             string userName = App.UserFullName ?? App.UserID ?? "Użytkownik";
             int avatarSize = 90;
             int panelWidth = 170;
+            int logoHeight = 50;
 
             var panel = new Panel
             {
@@ -89,11 +90,11 @@ namespace Kalendarz1
                 Padding = new Padding(0)
             };
 
-            // Górna sekcja z avatarem i nazwą
+            // Górna sekcja z logo, avatarem i nazwą
             var headerPanel = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 185,
+                Height = 250,
                 BackColor = Color.FromArgb(25, 35, 45)
             };
 
@@ -115,11 +116,101 @@ namespace Kalendarz1
                 }
             };
 
-            // Avatar wycentrowany
+            // Logo firmy na górze
+            var logoPanel = new Panel
+            {
+                Size = new Size(panelWidth - 20, logoHeight),
+                Location = new Point(10, 15),
+                BackColor = Color.Transparent,
+                Cursor = isAdmin ? Cursors.Hand : Cursors.Default
+            };
+
+            logoPanel.Paint += (s, e) =>
+            {
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+
+                try
+                {
+                    if (CompanyLogoManager.HasLogo())
+                    {
+                        using (var logo = CompanyLogoManager.GetLogoScaled(panelWidth - 20, logoHeight))
+                        {
+                            if (logo != null)
+                            {
+                                // Wycentruj logo
+                                int x = (logoPanel.Width - logo.Width) / 2;
+                                int y = (logoPanel.Height - logo.Height) / 2;
+                                e.Graphics.DrawImage(logo, x, y, logo.Width, logo.Height);
+                                return;
+                            }
+                        }
+                    }
+                }
+                catch { }
+
+                // Domyślne logo
+                using (var defaultLogo = CompanyLogoManager.GenerateDefaultLogo(panelWidth - 40, logoHeight - 10))
+                {
+                    int x = (logoPanel.Width - defaultLogo.Width) / 2;
+                    int y = (logoPanel.Height - defaultLogo.Height) / 2;
+                    e.Graphics.DrawImage(defaultLogo, x, y, defaultLogo.Width, defaultLogo.Height);
+                }
+            };
+
+            // Menu kontekstowe dla admina (prawy przycisk myszy)
+            if (isAdmin)
+            {
+                var logoContextMenu = new ContextMenuStrip();
+
+                var importLogoItem = new ToolStripMenuItem("Importuj logo firmy", null, (s, e) =>
+                {
+                    using (var openFileDialog = new OpenFileDialog())
+                    {
+                        openFileDialog.Title = "Wybierz logo firmy";
+                        openFileDialog.Filter = "Pliki graficzne|*.png;*.jpg;*.jpeg;*.bmp;*.gif|Wszystkie pliki|*.*";
+
+                        if (openFileDialog.ShowDialog() == DialogResult.OK)
+                        {
+                            if (CompanyLogoManager.SaveLogo(openFileDialog.FileName))
+                            {
+                                logoPanel.Invalidate();
+                                MessageBox.Show("Logo firmy zostało zaktualizowane!", "Sukces",
+                                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            }
+                            else
+                            {
+                                MessageBox.Show("Nie udało się zapisać logo.", "Błąd",
+                                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            }
+                        }
+                    }
+                });
+
+                var deleteLogoItem = new ToolStripMenuItem("Usuń logo", null, (s, e) =>
+                {
+                    if (MessageBox.Show("Czy na pewno chcesz usunąć logo firmy?", "Potwierdzenie",
+                        MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                    {
+                        CompanyLogoManager.DeleteLogo();
+                        logoPanel.Invalidate();
+                    }
+                });
+
+                logoContextMenu.Items.Add(importLogoItem);
+                logoContextMenu.Items.Add(new ToolStripSeparator());
+                logoContextMenu.Items.Add(deleteLogoItem);
+
+                logoPanel.ContextMenuStrip = logoContextMenu;
+            }
+
+            headerPanel.Controls.Add(logoPanel);
+
+            // Avatar wycentrowany (poniżej logo)
             var avatarPanel = new Panel
             {
                 Size = new Size(avatarSize, avatarSize),
-                Location = new Point((panelWidth - avatarSize) / 2, 20),
+                Location = new Point((panelWidth - avatarSize) / 2, logoHeight + 30),
                 BackColor = Color.Transparent,
                 Cursor = Cursors.Hand
             };
@@ -169,7 +260,7 @@ namespace Kalendarz1
                 ForeColor = Color.White,
                 AutoSize = false,
                 Size = new Size(panelWidth - 10, 25),
-                Location = new Point(5, 120),
+                Location = new Point(5, logoHeight + avatarSize + 40),
                 TextAlign = ContentAlignment.MiddleCenter,
                 BackColor = Color.Transparent
             };
@@ -183,7 +274,7 @@ namespace Kalendarz1
                 ForeColor = Color.FromArgb(76, 175, 80),
                 AutoSize = false,
                 Size = new Size(panelWidth - 10, 20),
-                Location = new Point(5, 148),
+                Location = new Point(5, logoHeight + avatarSize + 65),
                 TextAlign = ContentAlignment.MiddleCenter,
                 BackColor = Color.Transparent
             };
