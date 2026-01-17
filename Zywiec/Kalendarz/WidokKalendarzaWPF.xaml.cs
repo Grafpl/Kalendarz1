@@ -74,6 +74,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
         private Queue<ToastMessage> _toastQueue = new Queue<ToastMessage>();
         private bool _isShowingToast = false;
 
+        // Dummy fields for removed status bar controls (null check handles them)
+        private TextBlock txtStatusBar = null;
+        private TextBox txtQuickNote = null;
+
         // Ankieta
         private bool _surveyShownThisSession = false;
         private static readonly TimeSpan SURVEY_START = new TimeSpan(14, 30, 0);
@@ -1697,8 +1701,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 {
                     e.Row.FontWeight = FontWeights.Normal;
                     e.Row.FontSize = 9;
-                    e.Row.Height = 20;
-                    e.Row.MinHeight = 20;
+                    e.Row.Height = 16;
+                    e.Row.MinHeight = 16;
                     e.Row.Background = new SolidColorBrush(Color.FromRgb(245, 245, 245));
                     e.Row.Foreground = Brushes.Black;
                     // Przekreślenie tekstu
@@ -1710,18 +1714,18 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
                 // Styl nagłówka dnia - wyróżniony
                 e.Row.FontWeight = FontWeights.Bold;
-                e.Row.FontSize = 13;
-                e.Row.Height = 36;
-                e.Row.MinHeight = 36;
+                e.Row.FontSize = 12;
+                e.Row.Height = 26;
+                e.Row.MinHeight = 26;
 
                 if (dostawa.DataOdbioru.Date == DateTime.Today)
                 {
                     // Dzisiejszy dzień - pomarańczowe wyróżnienie, większa czcionka
                     e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 152, 0)); // Orange
                     e.Row.Foreground = Brushes.White;
-                    e.Row.FontSize = 14;
-                    e.Row.Height = 40;
-                    e.Row.MinHeight = 40;
+                    e.Row.FontSize = 13;
+                    e.Row.Height = 30;
+                    e.Row.MinHeight = 30;
                     e.Row.BorderBrush = new SolidColorBrush(Color.FromRgb(230, 81, 0)); // Dark Orange border
                     e.Row.BorderThickness = new Thickness(0, 2, 0, 2);
                 }

@@ -312,50 +312,7 @@
 
         <!-- ==================== LEWA STRONA - TABELE DOSTAW ==================== -->
         <Grid Grid.Column="0">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-
-            <!-- PASEK FILTRÓW Z WYSZUKIWARKĄ -->
-            <Border Grid.Row="0" Background="White" Padding="10,6" Margin="6,6,3,3" BorderBrush="#DDDDDD" BorderThickness="1" CornerRadius="4">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="Filtry:" FontWeight="SemiBold" Foreground="#2C3E50" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="11"/>
-                        <CheckBox x:Name="chkAnulowane" Content="Anulowane" Style="{StaticResource FilterCheckBoxStyle}" Checked="Filter_Changed" Unchecked="Filter_Changed"/>
-                        <CheckBox x:Name="chkSprzedane" Content="Sprzedane" Style="{StaticResource FilterCheckBoxStyle}" Checked="Filter_Changed" Unchecked="Filter_Changed"/>
-                        <CheckBox x:Name="chkDoWykupienia" Content="Do Wykupienia" IsChecked="True" Style="{StaticResource FilterCheckBoxStyle}" Checked="Filter_Changed" Unchecked="Filter_Changed"/>
-                        <CheckBox x:Name="chkPokazCeny" Content="Ceny" IsChecked="True" Style="{StaticResource FilterCheckBoxStyle}" Checked="Filter_Changed" Unchecked="Filter_Changed"/>
-                        <CheckBox x:Name="chkPokazCheckboxy" Content="✓/W" Style="{StaticResource FilterCheckBoxStyle}" Checked="ChkPokazCheckboxy_Changed" Unchecked="ChkPokazCheckboxy_Changed"/>
-                        <Border Width="1" Background="#DDDDDD" Margin="10,2"/>
-                        <CheckBox x:Name="chkNastepnyTydzien" Content="+ Następny tydzień" IsChecked="True" Style="{StaticResource FilterCheckBoxStyle}" Foreground="#3498DB" FontWeight="SemiBold" Checked="ChkNastepnyTydzien_Changed" Unchecked="ChkNastepnyTydzien_Changed"/>
-                    </StackPanel>
-
-                    <!-- Wyszukiwarka -->
-                    <Border Grid.Column="1" Margin="15,0,0,0">
-                        <TextBox x:Name="txtSearch" Style="{StaticResource SearchBoxStyle}" Width="180"
-                                 ToolTip="Szukaj hodowcy (Ctrl+F)" TextChanged="TxtSearch_TextChanged"/>
-                    </Border>
-
-                    <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
-                        <!-- Wskaźnik odświeżania -->
-                        <TextBlock x:Name="txtRefreshCountdown" Text="Odświeżenie za: 10:00" Foreground="#7F8C8D" FontSize="10" Margin="0,0,15,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="Użytkownik:" Foreground="#7F8C8D" Margin="0,0,4,0" VerticalAlignment="Center" FontSize="10"/>
-                        <TextBlock x:Name="txtUserName" Text="-" FontWeight="SemiBold" Foreground="#2C3E50" VerticalAlignment="Center" FontSize="11"/>
-                    </StackPanel>
-                </Grid>
-            </Border>
-
             <!-- TABELE DOSTAW -->
-            <Grid Grid.Row="1">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition x:Name="colNastepnyTydzien" Width="0"/>
@@ -641,6 +598,11 @@
                                     <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
+                            <DataGridTextColumn Header="KM" Binding="{Binding KmDisplay}" Width="35" IsReadOnly="True">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
                             <DataGridTextColumn Header="Uwagi" Binding="{Binding UwagiDisplay}" Width="*" MinWidth="50" IsReadOnly="True">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
@@ -662,27 +624,6 @@
                         </DataGrid.Columns>
                     </DataGrid>
                 </Border>
-            </Grid>
-
-            <!-- STATUS BAR -->
-            <Border Grid.Row="2" Background="#2C3E50" Padding="10,6" Margin="6,3,3,6" CornerRadius="4">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-
-                    <TextBlock x:Name="txtStatusBar" Grid.Column="0" Text="Dostaw: 0 | Auta: 0 | Sztuki: 0 | Potwierdzone: 0"
-                               Foreground="White" FontSize="11" VerticalAlignment="Center"/>
-
-                    <!-- Quick Note Input -->
-                    <StackPanel Grid.Column="1" Orientation="Horizontal">
-                        <TextBox x:Name="txtQuickNote" Width="200" Style="{StaticResource FormTextBoxStyle}"
-                                 ToolTip="Szybka notatka (Enter aby dodać)" Margin="10,0,4,0"/>
-                        <Button Content="📝" Style="{StaticResource SmallButtonStyle}" Width="30" Click="BtnQuickNote_Click" ToolTip="Dodaj notatkę"/>
-                    </StackPanel>
-                </Grid>
-            </Border>
         </Grid>
 
         <!-- ==================== PRAWA STRONA - SZCZEGÓŁY ==================== -->
@@ -690,12 +631,41 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- KALENDARZ I NAWIGACJA -->
+            <!-- FILTRY I WYSZUKIWARKA -->
             <Border Grid.Row="0" Background="White" CornerRadius="4" Padding="8" Margin="0,0,0,4">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                        <TextBlock Text="Filtry:" FontWeight="SemiBold" Foreground="#2C3E50" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="10"/>
+                        <CheckBox x:Name="chkAnulowane" Content="Anul." Style="{StaticResource FilterCheckBoxStyle}" Checked="Filter_Changed" Unchecked="Filter_Changed"/>
+                        <CheckBox x:Name="chkSprzedane" Content="Sprz." Style="{StaticResource FilterCheckBoxStyle}" Checked="Filter_Changed" Unchecked="Filter_Changed"/>
+                        <CheckBox x:Name="chkDoWykupienia" Content="DoWyk." IsChecked="True" Style="{StaticResource FilterCheckBoxStyle}" Checked="Filter_Changed" Unchecked="Filter_Changed"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                        <CheckBox x:Name="chkPokazCeny" Content="Ceny" IsChecked="True" Style="{StaticResource FilterCheckBoxStyle}" Checked="Filter_Changed" Unchecked="Filter_Changed"/>
+                        <CheckBox x:Name="chkPokazCheckboxy" Content="✓/W" Style="{StaticResource FilterCheckBoxStyle}" Checked="ChkPokazCheckboxy_Changed" Unchecked="ChkPokazCheckboxy_Changed"/>
+                        <CheckBox x:Name="chkNastepnyTydzien" Content="+Nast.tyg" IsChecked="True" Style="{StaticResource FilterCheckBoxStyle}" Foreground="#3498DB" FontWeight="SemiBold" Checked="ChkNastepnyTydzien_Changed" Unchecked="ChkNastepnyTydzien_Changed"/>
+                    </StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="txtSearch" Grid.Column="0" Style="{StaticResource SearchBoxStyle}" ToolTip="Szukaj hodowcy (Ctrl+F)" TextChanged="TxtSearch_TextChanged"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="8,0,0,0">
+                            <TextBlock x:Name="txtRefreshCountdown" Text="10:00" Foreground="#7F8C8D" FontSize="9" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="txtUserName" Text="-" FontWeight="SemiBold" Foreground="#2C3E50" VerticalAlignment="Center" FontSize="9" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- KALENDARZ I NAWIGACJA -->
+            <Border Grid.Row="1" Background="White" CornerRadius="4" Padding="8" Margin="0,0,0,4">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
@@ -755,7 +725,7 @@
             </Border>
 
             <!-- PRZYCISKI AKCJI -->
-            <Border Grid.Row="1" Background="White" CornerRadius="4" Padding="8" Margin="0,0,0,4">
+            <Border Grid.Row="2" Background="White" CornerRadius="4" Padding="8" Margin="0,0,0,4">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <Button Content="▲ Dzień" Style="{StaticResource ActionButtonStyle}" Click="BtnDateUp_Click" Width="70"/>
                     <Button Content="▼ Dzień" Style="{StaticResource ActionButtonStyle}" Click="BtnDateDown_Click" Width="70"/>
@@ -767,7 +737,7 @@
             </Border>
 
             <!-- PANEL SZCZEGÓŁÓW - TABCONTROL -->
-            <Border Grid.Row="2" Background="White" CornerRadius="4" Margin="0,0,0,4">
+            <Border Grid.Row="3" Background="White" CornerRadius="4" Margin="0,0,0,4">
                 <TabControl x:Name="tabSzczegoly" FontSize="10">
                     <!-- TAB: HODOWCA -->
                     <TabItem Header="Hodowca">
@@ -1221,7 +1191,7 @@
             </Border>
 
             <!-- INFO MODYFIKACJI -->
-            <Border Grid.Row="3" Background="White" CornerRadius="4" Padding="8">
+            <Border Grid.Row="4" Background="White" CornerRadius="4" Padding="8">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
