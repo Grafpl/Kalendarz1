@@ -1211,124 +1211,57 @@ namespace Kalendarz1.Zywiec.Kalendarz
         }
 
         /// <summary>
-        /// Animacja przejścia między tygodniami - obie tabele przesuwają się razem
+        /// Animacja przejścia między tygodniami - uproszczona i płynna
         /// </summary>
         private async Task AnimateWeekTransition(bool isNextWeek)
         {
             bool showSecondTable = chkNastepnyTydzien?.IsChecked == true;
-            double slideDistance = 100; // Dystans przesunięcia w pikselach
-            var duration = TimeSpan.FromMilliseconds(250);
-            var easeOut = new QuadraticEase { EasingMode = EasingMode.EaseOut };
-            var easeIn = new QuadraticEase { EasingMode = EasingMode.EaseIn };
+            double slideDistance = 40;
+            var duration = TimeSpan.FromMilliseconds(120);
 
-            // Przygotuj transformacje
-            var transform1 = new TranslateTransform(0, 0);
-            var transform2 = new TranslateTransform(0, 0);
-            dgDostawy.RenderTransform = transform1;
-            if (showSecondTable)
-                dgDostawyNastepny.RenderTransform = transform2;
-
-            if (isNextWeek)
+            // Przygotuj transformacje (reużywaj istniejące)
+            var transform1 = dgDostawy.RenderTransform as TranslateTransform;
+            if (transform1 == null)
             {
-                // NASTĘPNY TYDZIEŃ: wszystko jedzie w lewo
-                // Lewa tabela znika w lewo
-                var slideOut1 = new DoubleAnimation(0, -slideDistance, duration);
-                slideOut1.EasingFunction = easeIn;
-                var fadeOut1 = new DoubleAnimation(1, 0, duration);
-
-                // Prawa tabela jedzie w lewo (na miejsce lewej)
-                DoubleAnimation slideOut2 = null;
-                DoubleAnimation fadeOut2 = null;
-                if (showSecondTable)
-                {
-                    slideOut2 = new DoubleAnimation(0, -slideDistance, duration);
-                    slideOut2.EasingFunction = easeIn;
-                    fadeOut2 = new DoubleAnimation(1, 0.3, duration);
-                }
-
-                // Uruchom animacje wyjścia
-                transform1.BeginAnimation(TranslateTransform.XProperty, slideOut1);
-                dgDostawy.BeginAnimation(OpacityProperty, fadeOut1);
-                if (showSecondTable)
-                {
-                    transform2.BeginAnimation(TranslateTransform.XProperty, slideOut2);
-                    dgDostawyNastepny.BeginAnimation(OpacityProperty, fadeOut2);
-                }
-
-                await Task.Delay((int)duration.TotalMilliseconds);
-
-                // Załaduj nowe dane
-                await LoadDostawyAsync();
-
-                // Animacja wejścia - z prawej strony
-                transform1.X = slideDistance;
-                var slideIn1 = new DoubleAnimation(slideDistance, 0, duration);
-                slideIn1.EasingFunction = easeOut;
-                var fadeIn1 = new DoubleAnimation(0, 1, duration);
-
-                if (showSecondTable)
-                {
-                    transform2.X = slideDistance;
-                    var slideIn2 = new DoubleAnimation(slideDistance, 0, duration);
-                    slideIn2.EasingFunction = easeOut;
-                    var fadeIn2 = new DoubleAnimation(0.3, 1, duration);
-                    transform2.BeginAnimation(TranslateTransform.XProperty, slideIn2);
-                    dgDostawyNastepny.BeginAnimation(OpacityProperty, fadeIn2);
-                }
-
-                transform1.BeginAnimation(TranslateTransform.XProperty, slideIn1);
-                dgDostawy.BeginAnimation(OpacityProperty, fadeIn1);
+                transform1 = new TranslateTransform(0, 0);
+                dgDostawy.RenderTransform = transform1;
             }
-            else
+            TranslateTransform transform2 = null;
+            if (showSecondTable)
             {
-                // POPRZEDNI TYDZIEŃ: wszystko jedzie w prawo
-                // Prawa tabela znika w prawo
-                DoubleAnimation slideOut2 = null;
-                DoubleAnimation fadeOut2 = null;
-                if (showSecondTable)
+                transform2 = dgDostawyNastepny.RenderTransform as TranslateTransform;
+                if (transform2 == null)
                 {
-                    slideOut2 = new DoubleAnimation(0, slideDistance, duration);
-                    slideOut2.EasingFunction = easeIn;
-                    fadeOut2 = new DoubleAnimation(1, 0, duration);
+                    transform2 = new TranslateTransform(0, 0);
+                    dgDostawyNastepny.RenderTransform = transform2;
                 }
+            }
 
-                // Lewa tabela jedzie w prawo
-                var slideOut1 = new DoubleAnimation(0, slideDistance, duration);
-                slideOut1.EasingFunction = easeIn;
-                var fadeOut1 = new DoubleAnimation(1, 0.3, duration);
+            double direction = isNextWeek ? -1 : 1;
 
-                // Uruchom animacje wyjścia
-                transform1.BeginAnimation(TranslateTransform.XProperty, slideOut1);
-                dgDostawy.BeginAnimation(OpacityProperty, fadeOut1);
-                if (showSecondTable)
-                {
-                    transform2.BeginAnimation(TranslateTransform.XProperty, slideOut2);
-                    dgDostawyNastepny.BeginAnimation(OpacityProperty, fadeOut2);
-                }
+            // Natychmiastowe ustawienie stanu wyjściowego
+            dgDostawy.Opacity = 0.5;
+            transform1.X = direction * slideDistance;
+            if (showSecondTable && transform2 != null)
+            {
+                dgDostawyNastepny.Opacity = 0.5;
+                transform2.X = direction * slideDistance;
+            }
 
-                await Task.Delay((int)duration.TotalMilliseconds);
+            // Załaduj dane
+            await LoadDostawyAsync();
 
-                // Załaduj nowe dane
-                await LoadDostawyAsync();
+            // Płynna animacja wejścia
+            var slideIn = new DoubleAnimation(direction * slideDistance, 0, duration);
+            var fadeIn = new DoubleAnimation(0.5, 1, duration);
 
-                // Animacja wejścia - z lewej strony
-                transform1.X = -slideDistance;
-                var slideIn1 = new DoubleAnimation(-slideDistance, 0, duration);
-                slideIn1.EasingFunction = easeOut;
-                var fadeIn1 = new DoubleAnimation(0.3, 1, duration);
+            transform1.BeginAnimation(TranslateTransform.XProperty, slideIn);
+            dgDostawy.BeginAnimation(OpacityProperty, fadeIn);
 
-                if (showSecondTable)
-                {
-                    transform2.X = -slideDistance;
-                    var slideIn2 = new DoubleAnimation(-slideDistance, 0, duration);
-                    slideIn2.EasingFunction = easeOut;
-                    var fadeIn2 = new DoubleAnimation(0, 1, duration);
-                    transform2.BeginAnimation(TranslateTransform.XProperty, slideIn2);
-                    dgDostawyNastepny.BeginAnimation(OpacityProperty, fadeIn2);
-                }
-
-                transform1.BeginAnimation(TranslateTransform.XProperty, slideIn1);
-                dgDostawy.BeginAnimation(OpacityProperty, fadeIn1);
+            if (showSecondTable && transform2 != null)
+            {
+                transform2.BeginAnimation(TranslateTransform.XProperty, slideIn);
+                dgDostawyNastepny.BeginAnimation(OpacityProperty, fadeIn);
             }
         }
 
@@ -1397,6 +1330,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         private bool _isUpdatingSelection = false;
 
+        private DataGridRow _highlightedDayHeader = null;
+
         private void DgDostawy_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             // Wyczyść zaznaczenie w drugiej tabeli
@@ -1430,6 +1365,13 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     cmbLpWstawienia.SelectedItem = selected.LpW;
                     _ = LoadWstawieniaAsync(selected.LpW);
                 }
+
+                // Podświetl nagłówek dnia
+                HighlightDayHeader(dgDostawy, selected.DataOdbioru.Date);
+            }
+            else
+            {
+                ClearDayHeaderHighlight();
             }
 
             // Aktualizuj status bar z informacją o zaznaczeniu
@@ -1443,6 +1385,47 @@ namespace Kalendarz1.Zywiec.Kalendarz
             else
             {
                 UpdateStatusBar();
+            }
+        }
+
+        private void HighlightDayHeader(DataGrid dg, DateTime date)
+        {
+            ClearDayHeaderHighlight();
+
+            // Znajdź nagłówek dnia dla podanej daty
+            foreach (var item in dg.Items)
+            {
+                var dostawa = item as DostawaModel;
+                if (dostawa != null && dostawa.IsHeaderRow && !dostawa.IsSeparator && dostawa.DataOdbioru.Date == date)
+                {
+                    var row = dg.ItemContainerGenerator.ContainerFromItem(item) as DataGridRow;
+                    if (row != null)
+                    {
+                        row.BorderBrush = new SolidColorBrush(Color.FromRgb(33, 150, 243)); // Blue
+                        row.BorderThickness = new Thickness(2, 0, 2, 0);
+                        _highlightedDayHeader = row;
+                    }
+                    break;
+                }
+            }
+        }
+
+        private void ClearDayHeaderHighlight()
+        {
+            if (_highlightedDayHeader != null)
+            {
+                // Przywróć domyślne wartości
+                var dostawa = _highlightedDayHeader.DataContext as DostawaModel;
+                if (dostawa != null && dostawa.DataOdbioru.Date == DateTime.Today)
+                {
+                    _highlightedDayHeader.BorderBrush = new SolidColorBrush(Color.FromRgb(230, 81, 0));
+                    _highlightedDayHeader.BorderThickness = new Thickness(0, 2, 0, 2);
+                }
+                else
+                {
+                    _highlightedDayHeader.BorderThickness = new Thickness(0);
+                }
+                _highlightedDayHeader = null;
             }
         }
 
@@ -1468,6 +1451,13 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     cmbLpWstawienia.SelectedItem = selected.LpW;
                     _ = LoadWstawieniaAsync(selected.LpW);
                 }
+
+                // Podświetl nagłówek dnia
+                HighlightDayHeader(dgDostawyNastepny, selected.DataOdbioru.Date);
+            }
+            else
+            {
+                ClearDayHeaderHighlight();
             }
         }
 
