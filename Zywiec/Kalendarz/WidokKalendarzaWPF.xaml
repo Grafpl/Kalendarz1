@@ -945,82 +945,6 @@
             <!-- PANEL SZCZEGÓŁÓW - TABCONTROL -->
             <Border Grid.Row="3" Background="White" CornerRadius="4" Margin="0,0,0,3">
                 <TabControl x:Name="tabSzczegoly" FontSize="10">
-                    <!-- TAB: HODOWCA -->
-                    <TabItem Header="Hodowca">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <StackPanel Margin="8">
-                                <GroupBox Header="Dane hodowcy" Style="{StaticResource ModernGroupBoxStyle}">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="70"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                        </Grid.RowDefinitions>
-
-                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Dostawca:" Style="{StaticResource FormLabelStyle}"/>
-                                        <ComboBox x:Name="cmbDostawca" Grid.Row="0" Grid.Column="1" Style="{StaticResource FormComboBoxStyle}" SelectionChanged="CmbDostawca_SelectionChanged"/>
-
-                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Adres:" Style="{StaticResource FormLabelStyle}"/>
-                                        <TextBox x:Name="txtUlicaH" Grid.Row="1" Grid.Column="1" Style="{StaticResource FormTextBoxStyle}"/>
-
-                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Kod/Miasto:" Style="{StaticResource FormLabelStyle}"/>
-                                        <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal">
-                                            <TextBox x:Name="txtKodPocztowyH" Style="{StaticResource FormTextBoxStyle}" Width="60"/>
-                                            <TextBox x:Name="txtMiejscH" Style="{StaticResource FormTextBoxStyle}" Width="120"/>
-                                        </StackPanel>
-
-                                        <TextBlock Grid.Row="3" Grid.Column="0" Text="KM:" Style="{StaticResource FormLabelStyle}"/>
-                                        <TextBox x:Name="txtKmH" Grid.Row="3" Grid.Column="1" Style="{StaticResource FormTextBoxStyle}" Width="60" HorizontalAlignment="Left"/>
-
-                                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Email:" Style="{StaticResource FormLabelStyle}"/>
-                                        <TextBox x:Name="txtEmail" Grid.Row="4" Grid.Column="1" Style="{StaticResource FormTextBoxStyle}"/>
-                                    </Grid>
-                                </GroupBox>
-
-                                <GroupBox Header="Kontakt" Style="{StaticResource ModernGroupBoxStyle}" Margin="0,4,0,0">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                        </Grid.RowDefinitions>
-
-                                        <TextBox x:Name="txtTel1" Grid.Row="0" Grid.Column="0" Style="{StaticResource FormTextBoxStyle}" />
-                                        <TextBox x:Name="txtInfo1" Grid.Row="0" Grid.Column="1" Style="{StaticResource ReadOnlyTextBoxStyle}"/>
-
-                                        <TextBox x:Name="txtTel2" Grid.Row="1" Grid.Column="0" Style="{StaticResource FormTextBoxStyle}"/>
-                                        <TextBox x:Name="txtInfo2" Grid.Row="1" Grid.Column="1" Style="{StaticResource ReadOnlyTextBoxStyle}"/>
-
-                                        <TextBox x:Name="txtTel3" Grid.Row="2" Grid.Column="0" Style="{StaticResource FormTextBoxStyle}"/>
-                                        <TextBox x:Name="txtInfo3" Grid.Row="2" Grid.Column="1" Style="{StaticResource ReadOnlyTextBoxStyle}"/>
-                                    </Grid>
-                                </GroupBox>
-
-                                <GroupBox Header="Osobowość" Style="{StaticResource ModernGroupBoxStyle}" Margin="0,4,0,0">
-                                    <StackPanel Orientation="Horizontal">
-                                        <ComboBox x:Name="cmbOsobowosc1" Style="{StaticResource FormComboBoxStyle}" Width="100"/>
-                                        <ComboBox x:Name="cmbOsobowosc2" Style="{StaticResource FormComboBoxStyle}" Width="100" Margin="4,0,0,0"/>
-                                    </StackPanel>
-                                </GroupBox>
-
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
-                                    <Button Content="📍 Mapa" Style="{StaticResource ActionButtonStyle}" Click="BtnMapa_Click"/>
-                                    <Button Content="📱 SMS" Style="{StaticResource WarningButtonStyle}" Click="BtnSMS_Click"/>
-                                </StackPanel>
-                            </StackPanel>
-                        </ScrollViewer>
-                    </TabItem>
-
                     <!-- TAB: KARTA (Dostawa + Transport + Wstawienia + Notatki) -->
                     <TabItem Header="Karta">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -1097,7 +1021,7 @@
                                             <TextBox x:Name="txtNowaNotatkKarta" Grid.Column="0" FontSize="9" Padding="4" Height="28" VerticalContentAlignment="Center" ToolTip="Wpisz nową notatkę"/>
                                             <Button Grid.Column="1" Content="➕" Style="{StaticResource MainButtonStyle}" Click="BtnDodajNotatkeKarta_Click" Width="30" Margin="4,0,0,0" Padding="2" FontSize="12"/>
                                         </Grid>
-                                        <DataGrid x:Name="dgNotatkiKarta" Style="{StaticResource SmallDataGridStyle}" Margin="0,4,0,0" MaxHeight="80" FontSize="9">
+                                        <DataGrid x:Name="dgNotatkiKarta" Style="{StaticResource SmallDataGridStyle}" Margin="0,4,0,0" MaxHeight="130" FontSize="9">
                                             <DataGrid.Columns>
                                                 <DataGridTextColumn Header="Data" Binding="{Binding DataUtworzenia, StringFormat=MM-dd HH:mm}" Width="75"/>
                                                 <DataGridTextColumn Header="Kto" Binding="{Binding KtoDodal}" Width="50"/>
@@ -1108,46 +1032,75 @@
                                 </Border>
 
                                 <!-- SEKCJA: TRANSPORT -->
-                                <Border Background="#FFF3E0" CornerRadius="4" Padding="4" Margin="0,0,0,4">
+                                <Border Background="#FFF3E0" CornerRadius="4" Padding="6" Margin="0,0,0,4">
                                     <StackPanel>
-                                        <TextBlock Text="🚛 TRANSPORT" FontWeight="Bold" FontSize="10" Foreground="#E65100" Margin="0,0,0,4"/>
                                         <Grid>
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="70"/>
-                                                <ColumnDefinition Width="60"/>
-                                                <ColumnDefinition Width="70"/>
-                                                <ColumnDefinition Width="60"/>
                                                 <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="24"/>
-                                                <RowDefinition Height="24"/>
-                                            </Grid.RowDefinitions>
-
-                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Szt/szuflada:" VerticalAlignment="Center" FontSize="9"/>
-                                            <TextBox x:Name="txtSztNaSzufladeCalc" Grid.Row="0" Grid.Column="1" Margin="1" FontSize="9" Padding="2" TextChanged="TxtSztNaSzufladeCalc_TextChanged"/>
-
-                                            <TextBlock Grid.Row="0" Grid.Column="2" Text="Wyliczone:" VerticalAlignment="Center" FontSize="9"/>
-                                            <TextBox x:Name="txtWyliczone" Grid.Row="0" Grid.Column="3" Margin="1" FontSize="9" Padding="2" IsReadOnly="True" Background="#F5F5F5"/>
-
-                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Auta:" VerticalAlignment="Center" FontSize="9"/>
-                                            <TextBox x:Name="txtObliczoneAuta" Grid.Row="1" Grid.Column="1" Margin="1" FontSize="9" Padding="2" TextChanged="TxtObliczoneAuta_TextChanged"/>
-
-                                            <TextBlock Grid.Row="1" Grid.Column="2" Text="Obl. sztuki:" VerticalAlignment="Center" FontSize="9"/>
-                                            <TextBox x:Name="txtObliczoneSztuki" Grid.Row="1" Grid.Column="3" Margin="1" FontSize="9" Padding="2" IsReadOnly="True" Background="#F5F5F5"/>
-
-                                            <Button Grid.Row="0" Grid.Column="4" Grid.RowSpan="2" Content="📋 Wklej" Style="{StaticResource ActionButtonStyle}" Click="BtnWklejObliczenia_Click" Margin="4,2" FontSize="9" Padding="6,2"/>
+                                            <TextBlock Text="🚛 TRANSPORT" FontWeight="Bold" FontSize="10" Foreground="#E65100"/>
+                                            <Button Grid.Column="1" Content="📋 Wklej" Style="{StaticResource ActionButtonStyle}" Click="BtnWklejObliczenia_Click" FontSize="9" Padding="8,2" Height="22"/>
                                         </Grid>
-                                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                            <TextBlock Text="KG/skrzynka:" VerticalAlignment="Center" FontSize="9" Margin="0,0,2,0"/>
-                                            <TextBox x:Name="txtKGwSkrzynce" Width="50" Margin="0,0,6,0" FontSize="9" Padding="2" TextChanged="TxtKGwSkrzynce_TextChanged"/>
-                                            <TextBlock Text="KG skrz.:" VerticalAlignment="Center" FontSize="9" Margin="0,0,2,0"/>
-                                            <TextBox x:Name="txtKGwSkrzynekWAucie" Width="50" Margin="0,0,6,0" FontSize="9" Padding="2" IsReadOnly="True" Background="#F5F5F5"/>
-                                            <CheckBox x:Name="chkPaleciak" Content="+Paleciak" FontSize="9" VerticalAlignment="Center" Margin="0,0,4,0" Checked="ChkPaleciak_Changed" Unchecked="ChkPaleciak_Changed"/>
-                                            <TextBox x:Name="txtKGwPaleciak" Width="50" Margin="0,0,6,0" FontSize="9" Padding="2"/>
-                                            <TextBlock Text="SUMA:" VerticalAlignment="Center" FontSize="9" FontWeight="Bold" Margin="0,0,2,0"/>
-                                            <TextBox x:Name="txtKGSuma" Width="60" FontSize="9" Padding="2" IsReadOnly="True" Background="#E8F5E9" FontWeight="Bold"/>
-                                        </StackPanel>
+
+                                        <!-- Obliczenia transportu -->
+                                        <Border Background="#FFECB3" CornerRadius="3" Padding="6" Margin="0,6,0,0">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+
+                                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Szt/szuflada" FontSize="8" Foreground="#5D4037" HorizontalAlignment="Center"/>
+                                                <TextBox x:Name="txtSztNaSzufladeCalc" Grid.Row="1" Grid.Column="0" Margin="2" FontSize="10" Padding="4,2" TextAlignment="Center" TextChanged="TxtSztNaSzufladeCalc_TextChanged" Background="White"/>
+
+                                                <TextBlock Grid.Row="0" Grid.Column="1" Text="Wyliczone" FontSize="8" Foreground="#5D4037" HorizontalAlignment="Center"/>
+                                                <TextBox x:Name="txtWyliczone" Grid.Row="1" Grid.Column="1" Margin="2" FontSize="10" Padding="4,2" TextAlignment="Center" IsReadOnly="True" Background="#FFF8E1" FontWeight="SemiBold"/>
+
+                                                <TextBlock Grid.Row="0" Grid.Column="2" Text="Auta" FontSize="8" Foreground="#5D4037" HorizontalAlignment="Center"/>
+                                                <TextBox x:Name="txtObliczoneAuta" Grid.Row="1" Grid.Column="2" Margin="2" FontSize="10" Padding="4,2" TextAlignment="Center" TextChanged="TxtObliczoneAuta_TextChanged" Background="White"/>
+
+                                                <TextBlock Grid.Row="0" Grid.Column="3" Text="Obl. sztuki" FontSize="8" Foreground="#5D4037" HorizontalAlignment="Center"/>
+                                                <TextBox x:Name="txtObliczoneSztuki" Grid.Row="1" Grid.Column="3" Margin="2" FontSize="10" Padding="4,2" TextAlignment="Center" IsReadOnly="True" Background="#FFF8E1" FontWeight="SemiBold"/>
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- Waga transportu -->
+                                        <Border Background="#FFE0B2" CornerRadius="3" Padding="6" Margin="0,4,0,0">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="1.2*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+
+                                                <TextBlock Grid.Row="0" Grid.Column="0" Text="KG/skrzynka" FontSize="8" Foreground="#5D4037" HorizontalAlignment="Center"/>
+                                                <TextBox x:Name="txtKGwSkrzynce" Grid.Row="1" Grid.Column="0" Margin="2" FontSize="10" Padding="4,2" TextAlignment="Center" TextChanged="TxtKGwSkrzynce_TextChanged" Background="White"/>
+
+                                                <TextBlock Grid.Row="0" Grid.Column="1" Text="KG skrz." FontSize="8" Foreground="#5D4037" HorizontalAlignment="Center"/>
+                                                <TextBox x:Name="txtKGwSkrzynekWAucie" Grid.Row="1" Grid.Column="1" Margin="2" FontSize="10" Padding="4,2" TextAlignment="Center" IsReadOnly="True" Background="#FFF8E1"/>
+
+                                                <CheckBox x:Name="chkPaleciak" Grid.Row="0" Grid.RowSpan="2" Grid.Column="2" Content="Paleciak" FontSize="9" VerticalAlignment="Center" Margin="6,0" Checked="ChkPaleciak_Changed" Unchecked="ChkPaleciak_Changed"/>
+
+                                                <TextBlock Grid.Row="0" Grid.Column="3" Text="KG palec." FontSize="8" Foreground="#5D4037" HorizontalAlignment="Center"/>
+                                                <TextBox x:Name="txtKGwPaleciak" Grid.Row="1" Grid.Column="3" Margin="2" FontSize="10" Padding="4,2" TextAlignment="Center" Background="White"/>
+
+                                                <TextBlock Grid.Row="0" Grid.Column="4" Text="SUMA KG" FontSize="8" Foreground="#BF360C" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                                <TextBox x:Name="txtKGSuma" Grid.Row="1" Grid.Column="4" Margin="2" FontSize="11" Padding="4,2" TextAlignment="Center" IsReadOnly="True" Background="#C8E6C9" FontWeight="Bold" Foreground="#1B5E20"/>
+                                            </Grid>
+                                        </Border>
                                     </StackPanel>
                                 </Border>
 
@@ -1191,6 +1144,82 @@
                                         </DataGrid>
                                     </StackPanel>
                                 </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <!-- TAB: HODOWCA -->
+                    <TabItem Header="Hodowca">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="8">
+                                <GroupBox Header="Dane hodowcy" Style="{StaticResource ModernGroupBoxStyle}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="70"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Dostawca:" Style="{StaticResource FormLabelStyle}"/>
+                                        <ComboBox x:Name="cmbDostawca" Grid.Row="0" Grid.Column="1" Style="{StaticResource FormComboBoxStyle}" SelectionChanged="CmbDostawca_SelectionChanged"/>
+
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Adres:" Style="{StaticResource FormLabelStyle}"/>
+                                        <TextBox x:Name="txtUlicaH" Grid.Row="1" Grid.Column="1" Style="{StaticResource FormTextBoxStyle}"/>
+
+                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Kod/Miasto:" Style="{StaticResource FormLabelStyle}"/>
+                                        <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal">
+                                            <TextBox x:Name="txtKodPocztowyH" Style="{StaticResource FormTextBoxStyle}" Width="60"/>
+                                            <TextBox x:Name="txtMiejscH" Style="{StaticResource FormTextBoxStyle}" Width="120"/>
+                                        </StackPanel>
+
+                                        <TextBlock Grid.Row="3" Grid.Column="0" Text="KM:" Style="{StaticResource FormLabelStyle}"/>
+                                        <TextBox x:Name="txtKmH" Grid.Row="3" Grid.Column="1" Style="{StaticResource FormTextBoxStyle}" Width="60" HorizontalAlignment="Left"/>
+
+                                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Email:" Style="{StaticResource FormLabelStyle}"/>
+                                        <TextBox x:Name="txtEmail" Grid.Row="4" Grid.Column="1" Style="{StaticResource FormTextBoxStyle}"/>
+                                    </Grid>
+                                </GroupBox>
+
+                                <GroupBox Header="Kontakt" Style="{StaticResource ModernGroupBoxStyle}" Margin="0,4,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <TextBox x:Name="txtTel1" Grid.Row="0" Grid.Column="0" Style="{StaticResource FormTextBoxStyle}" />
+                                        <TextBox x:Name="txtInfo1" Grid.Row="0" Grid.Column="1" Style="{StaticResource ReadOnlyTextBoxStyle}"/>
+
+                                        <TextBox x:Name="txtTel2" Grid.Row="1" Grid.Column="0" Style="{StaticResource FormTextBoxStyle}"/>
+                                        <TextBox x:Name="txtInfo2" Grid.Row="1" Grid.Column="1" Style="{StaticResource ReadOnlyTextBoxStyle}"/>
+
+                                        <TextBox x:Name="txtTel3" Grid.Row="2" Grid.Column="0" Style="{StaticResource FormTextBoxStyle}"/>
+                                        <TextBox x:Name="txtInfo3" Grid.Row="2" Grid.Column="1" Style="{StaticResource ReadOnlyTextBoxStyle}"/>
+                                    </Grid>
+                                </GroupBox>
+
+                                <GroupBox Header="Osobowość" Style="{StaticResource ModernGroupBoxStyle}" Margin="0,4,0,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <ComboBox x:Name="cmbOsobowosc1" Style="{StaticResource FormComboBoxStyle}" Width="100"/>
+                                        <ComboBox x:Name="cmbOsobowosc2" Style="{StaticResource FormComboBoxStyle}" Width="100" Margin="4,0,0,0"/>
+                                    </StackPanel>
+                                </GroupBox>
+
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
+                                    <Button Content="📍 Mapa" Style="{StaticResource ActionButtonStyle}" Click="BtnMapa_Click"/>
+                                    <Button Content="📱 SMS" Style="{StaticResource WarningButtonStyle}" Click="BtnSMS_Click"/>
+                                </StackPanel>
                             </StackPanel>
                         </ScrollViewer>
                     </TabItem>
