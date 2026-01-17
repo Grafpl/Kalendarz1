@@ -931,13 +931,13 @@
             </Border>
 
             <!-- KALENDARZ -->
-            <Border Grid.Row="2" Background="White" CornerRadius="4" Padding="6" Margin="0,0,0,3">
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                    <Calendar x:Name="calendarMain" HorizontalAlignment="Left" SelectedDatesChanged="CalendarMain_SelectedDatesChanged"/>
-                    <StackPanel VerticalAlignment="Center" Margin="10,0,0,0">
-                        <Button Content="◀ Poprzedni tydzień" Style="{StaticResource NavButtonStyle}" Click="BtnPreviousWeek_Click" Margin="0,2" HorizontalAlignment="Stretch" Width="120"/>
-                        <Button Content="📅 Dziś" Style="{StaticResource MainButtonStyle}" Click="BtnToday_Click" Margin="0,2" HorizontalAlignment="Stretch" Width="120"/>
-                        <Button Content="Następny tydzień ▶" Style="{StaticResource NavButtonStyle}" Click="BtnNextWeek_Click" Margin="0,2" HorizontalAlignment="Stretch" Width="120"/>
+            <Border Grid.Row="2" Background="White" CornerRadius="4" Padding="4" Margin="0,0,0,3">
+                <StackPanel>
+                    <Calendar x:Name="calendarMain" HorizontalAlignment="Center" SelectedDatesChanged="CalendarMain_SelectedDatesChanged"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
+                        <Button Content="◀" Style="{StaticResource NavButtonStyle}" Click="BtnPreviousWeek_Click" Width="40" Margin="2,0" ToolTip="Poprzedni tydzień"/>
+                        <Button Content="Dziś" Style="{StaticResource MainButtonStyle}" Click="BtnToday_Click" Width="60" Margin="2,0"/>
+                        <Button Content="▶" Style="{StaticResource NavButtonStyle}" Click="BtnNextWeek_Click" Width="40" Margin="2,0" ToolTip="Następny tydzień"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
