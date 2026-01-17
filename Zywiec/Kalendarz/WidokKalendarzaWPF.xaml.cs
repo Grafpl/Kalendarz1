@@ -192,6 +192,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
                 string sql = BuildDostawyQuery();
 
+                // Tymczasowa lista na dane z bazy
+                var tempList = new List<DostawaModel>();
+
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
                     conn.Open();
@@ -202,29 +205,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
                         using (SqlDataReader reader = cmd.ExecuteReader())
                         {
-                            DateTime? currentDate = null;
-
                             while (reader.Read())
                             {
                                 DateTime dataOdbioru = reader.GetDateTime(reader.GetOrdinal("DataOdbioru"));
-
-                                // Dodaj wiersz nagłówka dnia jeśli zmienia się data
-                                if (currentDate == null || currentDate.Value.Date != dataOdbioru.Date)
-                                {
-                                    if (currentDate != null)
-                                    {
-                                        collection.Add(new DostawaModel { IsHeaderRow = true, IsSeparator = true });
-                                    }
-
-                                    collection.Add(new DostawaModel
-                                    {
-                                        IsHeaderRow = true,
-                                        DataOdbioru = dataOdbioru,
-                                        Dostawca = dataOdbioru.ToString("yyyy-MM-dd dddd", new CultureInfo("pl-PL"))
-                                    });
-
-                                    currentDate = dataOdbioru;
-                                }
 
                                 var dostawa = new DostawaModel
                                 {
@@ -250,9 +233,71 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                     dostawa.RoznicaDni = (dataOdbioru - dataWstawienia).Days;
                                 }
 
-                                collection.Add(dostawa);
+                                tempList.Add(dostawa);
                             }
                         }
+                    }
+                }
+
+                // Grupuj dane według daty i oblicz sumy/średnie
+                var groupedByDate = tempList.GroupBy(d => d.DataOdbioru.Date).OrderBy(g => g.Key);
+                bool isFirst = true;
+
+                foreach (var group in groupedByDate)
+                {
+                    // Dodaj separator między dniami (oprócz pierwszego)
+                    if (!isFirst)
+                    {
+                        collection.Add(new DostawaModel { IsHeaderRow = true, IsSeparator = true });
+                    }
+                    isFirst = false;
+
+                    // Oblicz sumy i średnie ważone dla tego dnia
+                    double sumaAuta = 0;
+                    double sumaSztuki = 0;
+                    double sumaWagaPomnozona = 0;
+                    double sumaCenaPomnozona = 0;
+                    double sumaKMPomnozona = 0;
+                    int sumaUbytek = 0;
+
+                    foreach (var item in group)
+                    {
+                        sumaAuta += item.Auta;
+                        sumaSztuki += item.SztukiDek;
+                        sumaWagaPomnozona += (double)item.WagaDek * item.Auta;
+                        sumaCenaPomnozona += (double)item.Cena * item.Auta;
+                        sumaKMPomnozona += item.Distance * item.Auta;
+
+                        // Licz ubytki (lekkie kurczaki 0.5-2.4 kg)
+                        if (item.WagaDek >= 0.5m && item.WagaDek <= 2.4m)
+                        {
+                            sumaUbytek += item.Auta;
+                        }
+                    }
+
+                    // Oblicz średnie ważone
+                    double sredniaWaga = sumaAuta > 0 ? sumaWagaPomnozona / sumaAuta : 0;
+                    double sredniaCena = sumaAuta > 0 ? sumaCenaPomnozona / sumaAuta : 0;
+                    double sredniaKM = sumaAuta > 0 ? sumaKMPomnozona / sumaAuta : 0;
+
+                    // Dodaj wiersz nagłówka dnia z sumami
+                    collection.Add(new DostawaModel
+                    {
+                        IsHeaderRow = true,
+                        DataOdbioru = group.Key,
+                        Dostawca = group.Key.ToString("yyyy-MM-dd dddd", new CultureInfo("pl-PL")),
+                        SumaAuta = sumaAuta,
+                        SumaSztuki = sumaSztuki,
+                        SredniaWaga = sredniaWaga,
+                        SredniaCena = sredniaCena,
+                        SredniaKM = sredniaKM,
+                        SumaUbytek = sumaUbytek
+                    });
+
+                    // Dodaj wszystkie dostawy dla tego dnia
+                    foreach (var dostawa in group)
+                    {
+                        collection.Add(dostawa);
                     }
                 }
             }
@@ -1338,11 +1383,32 @@ namespace Kalendarz1.Zywiec.Kalendarz
         public bool IsHeaderRow { get; set; }
         public bool IsSeparator { get; set; }
 
-        public string SztukiDekDisplay => IsHeaderRow ? "" : (SztukiDek > 0 ? $"{SztukiDek:#,0} szt" : "");
-        public string WagaDekDisplay => IsHeaderRow ? "" : (WagaDek > 0 ? $"{WagaDek:0.00} kg" : "");
-        public string CenaDisplay => IsHeaderRow ? "" : (Cena > 0 ? $"{Cena:0.00} zł" : "-");
-        public string KmDisplay => IsHeaderRow ? "" : (Distance > 0 ? $"{Distance} km" : "-");
-        public string RoznicaDniDisplay => IsHeaderRow ? "" : (RoznicaDni.HasValue ? $"{RoznicaDni} dni" : "-");
+        // Pola dla sum i średnich w nagłówku dnia
+        public double SumaAuta { get; set; }
+        public double SumaSztuki { get; set; }
+        public double SredniaWaga { get; set; }
+        public double SredniaCena { get; set; }
+        public double SredniaKM { get; set; }
+        public int SumaUbytek { get; set; }
+
+        public string SztukiDekDisplay => IsHeaderRow
+            ? (SumaSztuki > 0 ? $"{SumaSztuki:#,0} szt" : "")
+            : (SztukiDek > 0 ? $"{SztukiDek:#,0} szt" : "");
+        public string WagaDekDisplay => IsHeaderRow
+            ? (SredniaWaga > 0 ? $"{SredniaWaga:0.00} kg" : "")
+            : (WagaDek > 0 ? $"{WagaDek:0.00} kg" : "");
+        public string CenaDisplay => IsHeaderRow
+            ? (SredniaCena > 0 ? $"{SredniaCena:0.00} zł" : "")
+            : (Cena > 0 ? $"{Cena:0.00} zł" : "-");
+        public string KmDisplay => IsHeaderRow
+            ? (SredniaKM > 0 ? $"{SredniaKM:0} km" : "")
+            : (Distance > 0 ? $"{Distance} km" : "-");
+        public string RoznicaDniDisplay => IsHeaderRow
+            ? (SumaUbytek > 0 ? $"{SumaUbytek} ub" : "")
+            : (RoznicaDni.HasValue ? $"{RoznicaDni} dni" : "-");
+        public string AutaDisplay => IsHeaderRow
+            ? (SumaAuta > 0 ? $"{SumaAuta:0}" : "")
+            : (Auta > 0 ? Auta.ToString() : "");
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

@@ -246,33 +246,33 @@
                                 <DataGridTextColumn Header="LP" Binding="{Binding LP}" Visibility="Collapsed"/>
                                 <DataGridTextColumn Header="Data" Binding="{Binding DataOdbioru, StringFormat=MM-dd ddd}" Width="70" IsReadOnly="True"/>
                                 <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="120" IsReadOnly="True"/>
-                                <DataGridTextColumn Header="A" Binding="{Binding Auta}" Width="28" IsReadOnly="True">
+                                <DataGridTextColumn Header="A" Binding="{Binding AutaDisplay}" Width="28" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDekDisplay}" Width="75" IsReadOnly="True">
+                                <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDekDisplay}" Width="80" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Waga" Binding="{Binding WagaDekDisplay}" Width="60" IsReadOnly="True">
+                                <DataGridTextColumn Header="Waga" Binding="{Binding WagaDekDisplay}" Width="65" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Doby" Binding="{Binding RoznicaDniDisplay}" Width="45" IsReadOnly="True">
+                                <DataGridTextColumn Header="Doby" Binding="{Binding RoznicaDniDisplay}" Width="50" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/></Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
                                 <DataGridTextColumn Header="Typ" Binding="{Binding TypCeny}" Width="65" IsReadOnly="True"/>
-                                <DataGridTextColumn x:Name="colCena" Header="Cena" Binding="{Binding CenaDisplay}" Width="55" IsReadOnly="True">
+                                <DataGridTextColumn x:Name="colCena" Header="Cena" Binding="{Binding CenaDisplay}" Width="60" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="KM" Binding="{Binding KmDisplay}" Width="45" IsReadOnly="True">
+                                <DataGridTextColumn Header="KM" Binding="{Binding KmDisplay}" Width="50" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                     </DataGridTextColumn.ElementStyle>
@@ -305,28 +305,33 @@
                                 <DataGridTextColumn Header="LP" Binding="{Binding LP}" Visibility="Collapsed"/>
                                 <DataGridTextColumn Header="Data" Binding="{Binding DataOdbioru, StringFormat=MM-dd ddd}" Width="70" IsReadOnly="True"/>
                                 <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="120" IsReadOnly="True"/>
-                                <DataGridTextColumn Header="A" Binding="{Binding Auta}" Width="28" IsReadOnly="True">
+                                <DataGridTextColumn Header="A" Binding="{Binding AutaDisplay}" Width="28" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDekDisplay}" Width="75" IsReadOnly="True">
+                                <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDekDisplay}" Width="80" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Waga" Binding="{Binding WagaDekDisplay}" Width="60" IsReadOnly="True">
+                                <DataGridTextColumn Header="Waga" Binding="{Binding WagaDekDisplay}" Width="65" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Doby" Binding="{Binding RoznicaDniDisplay}" Width="45" IsReadOnly="True">
+                                <DataGridTextColumn Header="Doby" Binding="{Binding RoznicaDniDisplay}" Width="50" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/></Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
                                 <DataGridTextColumn Header="Typ" Binding="{Binding TypCeny}" Width="65" IsReadOnly="True"/>
-                                <DataGridTextColumn Header="Cena" Binding="{Binding CenaDisplay}" Width="55" IsReadOnly="True">
+                                <DataGridTextColumn Header="Cena" Binding="{Binding CenaDisplay}" Width="60" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="KM" Binding="{Binding KmDisplay}" Width="50" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                     </DataGridTextColumn.ElementStyle>
