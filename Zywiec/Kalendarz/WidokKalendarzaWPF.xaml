@@ -298,15 +298,17 @@
     </Window.Resources>
 
     <Grid>
-        <!-- Toast Notification Overlay -->
-        <Border x:Name="toastBorder" Style="{StaticResource ToastBorderStyle}"
-                Background="#4CAF50" Visibility="Collapsed" Panel.ZIndex="1000">
-            <TextBlock x:Name="txtToastMessage" Text="" Foreground="White" FontSize="13" FontWeight="SemiBold"/>
-        </Border>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" MinWidth="500"/>
             <ColumnDefinition Width="580"/>
         </Grid.ColumnDefinitions>
+
+        <!-- Toast Notification Overlay -->
+        <Border x:Name="toastBorder" Style="{StaticResource ToastBorderStyle}"
+                Background="#4CAF50" Visibility="Collapsed" Panel.ZIndex="1000"
+                Grid.ColumnSpan="2">
+            <TextBlock x:Name="txtToastMessage" Text="" Foreground="White" FontSize="13" FontWeight="SemiBold"/>
+        </Border>
 
         <!-- ==================== LEWA STRONA - TABELE DOSTAW ==================== -->
         <Grid Grid.Column="0">
