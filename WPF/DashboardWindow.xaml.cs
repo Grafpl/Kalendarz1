@@ -4093,7 +4093,7 @@ namespace Kalendarz1.WPF
                 tabliceGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Tablica 3
 
                 var odbiorcy = currentData.Odbiorcy.OrderByDescending(o => o.Zamowione).ToList();
-                int maxRowsPerTable = 15; // Max wierszy na tablicę
+                int maxRowsPerTable = 12; // Max wierszy na tablicę - mniej żeby nie ucinało
 
                 // Podziel odbiorców na 2 tablice (bo pierwsza kolumna to produkty)
                 var tablica1 = odbiorcy.Take(maxRowsPerTable).ToList();
