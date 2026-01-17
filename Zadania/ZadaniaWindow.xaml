@@ -182,31 +182,17 @@
         </Border>
 
         <!-- Tasks List -->
-        <Border Grid.Row="2" Background="#252542" CornerRadius="8">
+        <Border Grid.Row="2" Background="#252542" CornerRadius="8" Padding="10">
             <Grid>
-                <!-- Header -->
-                <Border Background="#1e1e36" CornerRadius="8,8,0,0" Height="45" VerticalAlignment="Top">
-                    <Grid Margin="15,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="30"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="120"/>
-                            <ColumnDefinition Width="100"/>
-                            <ColumnDefinition Width="80"/>
-                            <ColumnDefinition Width="90"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="" Foreground="#888" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="1" Text="Zadanie" Foreground="#888" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="2" Text="Przypisani" Foreground="#888" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="3" Text="Termin" Foreground="#888" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="4" Text="Status" Foreground="#888" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="5" Text="Akcje" Foreground="#888" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                    </Grid>
-                </Border>
-
-                <!-- List -->
-                <ScrollViewer Margin="0,45,0,0" VerticalScrollBarVisibility="Auto">
-                    <ItemsControl x:Name="tasksList" Padding="10"/>
+                <!-- List with two columns -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsControl x:Name="tasksList">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="2"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
                 </ScrollViewer>
 
                 <!-- Empty state -->

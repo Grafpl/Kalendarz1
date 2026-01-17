@@ -161,23 +161,24 @@ namespace Kalendarz1.Zadania
         {
             var border = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(0x25, 0x25, 0x42)),
+                Background = new SolidColorBrush(Color.FromRgb(0x1e, 0x1e, 0x36)),
                 BorderBrush = task.BorderColor,
                 BorderThickness = new Thickness(0, 0, 0, 3),
-                CornerRadius = new CornerRadius(6),
-                Margin = new Thickness(0, 0, 0, 8),
-                Padding = new Thickness(15, 12, 15, 12)
+                CornerRadius = new CornerRadius(8),
+                Margin = new Thickness(5),
+                Padding = new Thickness(15),
+                MinHeight = 140
             };
 
-            var mainGrid = new Grid();
-            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });
-            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var mainStack = new StackPanel();
 
-            // Checkbox - duży i widoczny
+            // Header row: Checkbox + Title + Status
+            var headerGrid = new Grid();
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            // Checkbox
             var checkboxBorder = new Border
             {
                 Width = 28,
@@ -220,12 +221,43 @@ namespace Kalendarz1.Zadania
             };
 
             Grid.SetColumn(checkboxBorder, 0);
-            mainGrid.Children.Add(checkboxBorder);
+            headerGrid.Children.Add(checkboxBorder);
 
-            // Zadanie info
-            var infoStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            // Title
+            var titleText = new TextBlock
+            {
+                Text = task.TypZadania,
+                Foreground = Brushes.White,
+                FontSize = 15,
+                FontWeight = FontWeights.SemiBold,
+                TextDecorations = task.TextDecoration,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            };
+            Grid.SetColumn(titleText, 1);
+            headerGrid.Children.Add(titleText);
 
-            var headerStack = new StackPanel { Orientation = Orientation.Horizontal };
+            // Status badge
+            var statusBadge = new Border
+            {
+                Background = task.StatusColor,
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(8, 3, 8, 3),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            statusBadge.Child = new TextBlock
+            {
+                Text = task.StatusText,
+                Foreground = Brushes.White,
+                FontSize = 10
+            };
+            Grid.SetColumn(statusBadge, 2);
+            headerGrid.Children.Add(statusBadge);
+
+            mainStack.Children.Add(headerGrid);
+
+            // Badges row (Priority + Team)
+            var badgesStack = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 0) };
 
             var priorityBadge = new Border
             {
@@ -241,7 +273,7 @@ namespace Kalendarz1.Zadania
                 FontSize = 10,
                 FontWeight = FontWeights.SemiBold
             };
-            headerStack.Children.Add(priorityBadge);
+            badgesStack.Children.Add(priorityBadge);
 
             if (task.Zespolowe)
             {
@@ -249,61 +281,54 @@ namespace Kalendarz1.Zadania
                 {
                     Background = new SolidColorBrush(Color.FromRgb(0x21, 0x96, 0xF3)),
                     CornerRadius = new CornerRadius(3),
-                    Padding = new Thickness(6, 2, 6, 2),
-                    Margin = new Thickness(0, 0, 8, 0)
+                    Padding = new Thickness(6, 2, 6, 2)
                 };
                 teamBadge.Child = new TextBlock
                 {
-                    Text = "👥 Zespołowe",
+                    Text = "Zespołowe",
                     Foreground = Brushes.White,
                     FontSize = 10
                 };
-                headerStack.Children.Add(teamBadge);
+                badgesStack.Children.Add(teamBadge);
             }
 
-            var titleText = new TextBlock
-            {
-                Text = task.TypZadania,
-                Foreground = Brushes.White,
-                FontSize = 14,
-                FontWeight = FontWeights.SemiBold,
-                TextDecorations = task.TextDecoration,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            headerStack.Children.Add(titleText);
-            infoStack.Children.Add(headerStack);
+            mainStack.Children.Add(badgesStack);
 
+            // Description
             if (!string.IsNullOrWhiteSpace(task.Opis))
             {
                 var opisText = new TextBlock
                 {
-                    Text = task.Opis.Length > 80 ? task.Opis.Substring(0, 80) + "..." : task.Opis,
+                    Text = task.Opis.Length > 100 ? task.Opis.Substring(0, 100) + "..." : task.Opis,
                     Foreground = new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99)),
                     FontSize = 12,
-                    Margin = new Thickness(0, 4, 0, 0),
-                    TextTrimming = TextTrimming.CharacterEllipsis
+                    Margin = new Thickness(0, 8, 0, 0),
+                    TextWrapping = TextWrapping.Wrap,
+                    MaxHeight = 36
                 };
-                infoStack.Children.Add(opisText);
+                mainStack.Children.Add(opisText);
             }
 
-            Grid.SetColumn(infoStack, 1);
-            mainGrid.Children.Add(infoStack);
+            // Bottom row: Avatars + Termin + Actions
+            var bottomGrid = new Grid { Margin = new Thickness(0, 12, 0, 0) };
+            bottomGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            bottomGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            bottomGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-            // Przypisani (avatary)
+            // Avatars
             var avatarsPanel = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(15, 0, 15, 0)
+                VerticalAlignment = VerticalAlignment.Center
             };
 
-            var maxAvatars = 4;
+            var maxAvatars = 3;
             foreach (var pracownik in task.Przypisani.Take(maxAvatars))
             {
-                var avatar = CreateAvatar(pracownik.Id, pracownik.Nazwa, 36);
+                var avatar = CreateAvatar(pracownik.Id, pracownik.Nazwa, 32);
                 if (avatar is FrameworkElement fe)
                 {
-                    fe.Margin = new Thickness(0, 0, -8, 0);
+                    fe.Margin = new Thickness(0, 0, -6, 0);
                     fe.ToolTip = pracownik.Nazwa;
                 }
                 avatarsPanel.Children.Add(avatar);
@@ -313,9 +338,9 @@ namespace Kalendarz1.Zadania
             {
                 var more = new Border
                 {
-                    Width = 36,
-                    Height = 36,
-                    CornerRadius = new CornerRadius(18),
+                    Width = 32,
+                    Height = 32,
+                    CornerRadius = new CornerRadius(16),
                     Background = new SolidColorBrush(Color.FromRgb(0x3a, 0x3a, 0x5c)),
                     Margin = new Thickness(2, 0, 0, 0)
                 };
@@ -323,29 +348,28 @@ namespace Kalendarz1.Zadania
                 {
                     Text = $"+{task.Przypisani.Count - maxAvatars}",
                     Foreground = Brushes.White,
-                    FontSize = 12,
+                    FontSize = 11,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center
                 };
                 avatarsPanel.Children.Add(more);
             }
 
-            Grid.SetColumn(avatarsPanel, 2);
-            mainGrid.Children.Add(avatarsPanel);
+            Grid.SetColumn(avatarsPanel, 0);
+            bottomGrid.Children.Add(avatarsPanel);
 
             // Termin
             var terminStack = new StackPanel
             {
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 15, 0),
-                Width = 100
+                Margin = new Thickness(10, 0, 10, 0)
             };
 
             var terminText = new TextBlock
             {
                 Text = task.TerminText,
                 Foreground = task.TerminColor,
-                FontSize = 12,
+                FontSize = 11,
                 HorizontalAlignment = HorizontalAlignment.Right
             };
             terminStack.Children.Add(terminText);
@@ -359,26 +383,8 @@ namespace Kalendarz1.Zadania
             };
             terminStack.Children.Add(relativeText);
 
-            Grid.SetColumn(terminStack, 3);
-            mainGrid.Children.Add(terminStack);
-
-            // Status badge
-            var statusBadge = new Border
-            {
-                Background = task.StatusColor,
-                CornerRadius = new CornerRadius(4),
-                Padding = new Thickness(10, 4, 10, 4),
-                Margin = new Thickness(0, 0, 10, 0),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            statusBadge.Child = new TextBlock
-            {
-                Text = task.StatusText,
-                Foreground = Brushes.White,
-                FontSize = 11
-            };
-            Grid.SetColumn(statusBadge, 4);
-            mainGrid.Children.Add(statusBadge);
+            Grid.SetColumn(terminStack, 1);
+            bottomGrid.Children.Add(terminStack);
 
             // Action buttons
             var actionsPanel = new StackPanel
@@ -414,10 +420,12 @@ namespace Kalendarz1.Zadania
             deleteBtn.Click += BtnUsun_Click;
             actionsPanel.Children.Add(deleteBtn);
 
-            Grid.SetColumn(actionsPanel, 5);
-            mainGrid.Children.Add(actionsPanel);
+            Grid.SetColumn(actionsPanel, 2);
+            bottomGrid.Children.Add(actionsPanel);
 
-            border.Child = mainGrid;
+            mainStack.Children.Add(bottomGrid);
+
+            border.Child = mainStack;
             return border;
         }
 
