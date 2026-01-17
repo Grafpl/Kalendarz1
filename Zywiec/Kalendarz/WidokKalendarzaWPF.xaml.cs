@@ -2295,6 +2295,152 @@ namespace Kalendarz1.Zywiec.Kalendarz
             }
         }
 
+        // Menu kontekstowe - Potwierdzenie WAGI
+        private async void MenuPotwierdzWage_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_selectedLP))
+            {
+                ShowToast("Wybierz dostawę", ToastType.Warning);
+                return;
+            }
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync(_cts.Token);
+                    string sql = "UPDATE HarmonogramDostaw SET PotwWaga = 1, WagaKto = @User WHERE Lp = @Lp";
+                    using (SqlCommand cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Lp", _selectedLP);
+                        cmd.Parameters.AddWithValue("@User", App.User ?? "System");
+                        await cmd.ExecuteNonQueryAsync(_cts.Token);
+                    }
+                }
+
+                chkPotwWaga.IsChecked = true;
+                borderPotwWaga.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C8E6C9"));
+                txtKtoWaga.Text = $"({App.User})";
+                ShowToast("✅ Waga potwierdzona!", ToastType.Success);
+
+                // Audit log
+                await AuditHelper.LogAsync("POTWIERDZENIE_WAGI", "HarmonogramDostaw", _selectedLP, null, $"Potwierdzona waga przez {App.User}");
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd: {ex.Message}", ToastType.Error);
+            }
+        }
+
+        // Menu kontekstowe - Potwierdzenie SZTUK
+        private async void MenuPotwierdzSztuki_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_selectedLP))
+            {
+                ShowToast("Wybierz dostawę", ToastType.Warning);
+                return;
+            }
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync(_cts.Token);
+                    string sql = "UPDATE HarmonogramDostaw SET PotwSztuki = 1, SztukiKto = @User WHERE Lp = @Lp";
+                    using (SqlCommand cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Lp", _selectedLP);
+                        cmd.Parameters.AddWithValue("@User", App.User ?? "System");
+                        await cmd.ExecuteNonQueryAsync(_cts.Token);
+                    }
+                }
+
+                chkPotwSztuki.IsChecked = true;
+                borderPotwSztuki.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C8E6C9"));
+                txtKtoSztuki.Text = $"({App.User})";
+                ShowToast("✅ Sztuki potwierdzone!", ToastType.Success);
+
+                // Audit log
+                await AuditHelper.LogAsync("POTWIERDZENIE_SZTUK", "HarmonogramDostaw", _selectedLP, null, $"Potwierdzone sztuki przez {App.User}");
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd: {ex.Message}", ToastType.Error);
+            }
+        }
+
+        // Menu kontekstowe - Cofnij potwierdzenie WAGI
+        private async void MenuCofnijWage_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_selectedLP))
+            {
+                ShowToast("Wybierz dostawę", ToastType.Warning);
+                return;
+            }
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync(_cts.Token);
+                    string sql = "UPDATE HarmonogramDostaw SET PotwWaga = 0, WagaKto = NULL WHERE Lp = @Lp";
+                    using (SqlCommand cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Lp", _selectedLP);
+                        await cmd.ExecuteNonQueryAsync(_cts.Token);
+                    }
+                }
+
+                chkPotwWaga.IsChecked = false;
+                borderPotwWaga.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCDD2"));
+                txtKtoWaga.Text = "";
+                ShowToast("↩️ Cofnięto potwierdzenie wagi", ToastType.Info);
+
+                // Audit log
+                await AuditHelper.LogAsync("COFNIECIE_POTW_WAGI", "HarmonogramDostaw", _selectedLP, null, $"Cofnięto potwierdzenie wagi przez {App.User}");
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd: {ex.Message}", ToastType.Error);
+            }
+        }
+
+        // Menu kontekstowe - Cofnij potwierdzenie SZTUK
+        private async void MenuCofnijSztuki_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_selectedLP))
+            {
+                ShowToast("Wybierz dostawę", ToastType.Warning);
+                return;
+            }
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync(_cts.Token);
+                    string sql = "UPDATE HarmonogramDostaw SET PotwSztuki = 0, SztukiKto = NULL WHERE Lp = @Lp";
+                    using (SqlCommand cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Lp", _selectedLP);
+                        await cmd.ExecuteNonQueryAsync(_cts.Token);
+                    }
+                }
+
+                chkPotwSztuki.IsChecked = false;
+                borderPotwSztuki.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCDD2"));
+                txtKtoSztuki.Text = "";
+                ShowToast("↩️ Cofnięto potwierdzenie sztuk", ToastType.Info);
+
+                // Audit log
+                await AuditHelper.LogAsync("COFNIECIE_POTW_SZTUK", "HarmonogramDostaw", _selectedLP, null, $"Cofnięto potwierdzenie sztuk przez {App.User}");
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd: {ex.Message}", ToastType.Error);
+            }
+        }
+
         private async void BtnDuplikuj_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrEmpty(_selectedLP))
@@ -2691,56 +2837,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
             }
         }
 
-        private async void BtnDodajNotatkeKarta_Click(object sender, RoutedEventArgs e)
-        {
-            if (string.IsNullOrEmpty(_selectedLP))
-            {
-                ShowToast("Wybierz dostawę", ToastType.Warning);
-                return;
-            }
-
-            string tresc = txtNowaNotatkKarta.Text?.Trim();
-            if (string.IsNullOrEmpty(tresc))
-            {
-                ShowToast("Wpisz treść notatki", ToastType.Warning);
-                return;
-            }
-
-            var dostawa = _dostawy.FirstOrDefault(d => d.LP == _selectedLP) ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == _selectedLP);
-
-            try
-            {
-                using (SqlConnection conn = new SqlConnection(ConnectionString))
-                {
-                    await conn.OpenAsync(_cts.Token);
-                    string sql = "INSERT INTO Notatki (IndeksID, TypID, Tresc, KtoStworzyl, DataUtworzenia) VALUES (@lp, 1, @tresc, @kto, GETDATE())";
-                    using (SqlCommand cmd = new SqlCommand(sql, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@lp", _selectedLP);
-                        cmd.Parameters.AddWithValue("@tresc", tresc);
-                        cmd.Parameters.AddWithValue("@kto", UserID ?? "0");
-                        await cmd.ExecuteNonQueryAsync(_cts.Token);
-                    }
-                }
-
-                // AUDIT LOG
-                if (_auditService != null)
-                {
-                    await _auditService.LogNoteAddedAsync(_selectedLP, tresc, AuditChangeSource.Form_DodajNotatke,
-                        dostawa?.Dostawca, dostawa?.DataOdbioru, _cts.Token);
-                }
-
-                txtNowaNotatkKarta.Text = "";
-                ShowToast("Notatka dodana", ToastType.Success);
-                await LoadNotatkiAsync(_selectedLP);
-                await LoadOstatnieNotatkiAsync();
-                await LoadDostawyAsync();
-            }
-            catch (Exception ex)
-            {
-                ShowToast($"Błąd: {ex.Message}", ToastType.Error);
-            }
-        }
+        // UWAGA: Notatki w zakładce Karta są tylko do odczytu
+        // Dodawanie notatek odbywa się przez zakładkę Notatki
 
         #endregion
 
