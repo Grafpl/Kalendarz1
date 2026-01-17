@@ -19,6 +19,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using System.Windows.Threading;
+using Kalendarz1.Zywiec.Kalendarz.Services;
 
 namespace Kalendarz1.Zywiec.Kalendarz
 {
@@ -87,6 +88,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
         // Cancellation token dla async operacji
         private CancellationTokenSource _cts = new CancellationTokenSource();
 
+        // Serwis audytu zmian
+        private AuditLogService _auditService;
+
         #endregion
 
         #region Właściwości publiczne
@@ -128,6 +132,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 txtUserName.Text = UserName;
             else if (!string.IsNullOrEmpty(UserID))
                 txtUserName.Text = await GetUserNameByIdAsync(UserID);
+
+            // Inicjalizuj serwis audytu
+            _auditService = new AuditLogService(ConnectionString, UserID, UserName ?? txtUserName.Text);
 
             // Ustaw kalendarz na dziś
             calendarMain.SelectedDate = DateTime.Today;
@@ -1732,6 +1739,24 @@ namespace Kalendarz1.Zywiec.Kalendarz
                             await cmd.ExecuteNonQueryAsync();
                         }
                     }
+
+                    // AUDIT LOG - logowanie zmiany
+                    if (_auditService != null)
+                    {
+                        var source = columnName switch
+                        {
+                            "A" => AuditChangeSource.DoubleClick_Auta,
+                            "Szt" => AuditChangeSource.DoubleClick_Sztuki,
+                            "Waga" => AuditChangeSource.DoubleClick_Waga,
+                            _ => AuditChangeSource.DoubleClick_Auta
+                        };
+                        await _auditService.LogFieldChangeAsync(
+                            "HarmonogramDostaw", lp, source, fieldName,
+                            currentValue, newValue,
+                            new AuditContextInfo { Dostawca = item.Dostawca, DataOdbioru = item.DataOdbioru },
+                            _cts.Token);
+                    }
+
                     dialog.Close();
                     ShowToast($"{columnName} zaktualizowane", ToastType.Success);
                     await LoadDostawyAsync();
@@ -1807,6 +1832,14 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                 await cmd.ExecuteNonQueryAsync();
                             }
                         }
+
+                        // AUDIT LOG - logowanie dodania notatki
+                        if (_auditService != null)
+                        {
+                            await _auditService.LogNoteAddedAsync(lp, noteText, AuditChangeSource.DoubleClick_Uwagi,
+                                cancellationToken: _cts.Token);
+                        }
+
                         dialog.Close();
                         ShowToast("Notatka dodana", ToastType.Success);
                         await LoadNotatkiAsync(lp);
@@ -1858,40 +1891,31 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
             if (dostawa.IsHeaderRow)
             {
-                // Pusty dzień - mała czcionka, przekreślony, czarny
-                if (dostawa.IsEmptyDay)
-                {
-                    e.Row.FontWeight = FontWeights.Normal;
-                    e.Row.FontSize = 9;
-                    e.Row.Height = 16;
-                    e.Row.MinHeight = 16;
-                    e.Row.Background = new SolidColorBrush(Color.FromRgb(245, 245, 245));
-                    e.Row.Foreground = Brushes.Black;
-                    // Przekreślenie tekstu
-                    var style = new Style(typeof(TextBlock));
-                    style.Setters.Add(new Setter(TextBlock.TextDecorationsProperty, TextDecorations.Strikethrough));
-                    e.Row.Resources[typeof(TextBlock)] = style;
-                    return;
-                }
+                bool isToday = dostawa.DataOdbioru.Date == DateTime.Today;
+                bool isPast = dostawa.DataOdbioru.Date < DateTime.Today;
 
-                // Styl nagłówka dnia - wyróżniony
-                e.Row.FontWeight = FontWeights.Bold;
-                e.Row.FontSize = 12;
-                e.Row.Height = 26;
-                e.Row.MinHeight = 26;
-
-                if (dostawa.DataOdbioru.Date == DateTime.Today)
+                // DZISIEJSZY DZIEŃ - ZAWSZE PULSUJE (nawet bez dostaw)
+                if (isToday)
                 {
-                    // Dzisiejszy dzień - pomarańczowe wyróżnienie, większa czcionka
-                    e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 152, 0)); // Orange
-                    e.Row.Foreground = Brushes.White;
+                    e.Row.FontWeight = FontWeights.Bold;
                     e.Row.FontSize = 13;
                     e.Row.Height = 30;
                     e.Row.MinHeight = 30;
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 152, 0)); // Orange
+                    e.Row.Foreground = Brushes.White;
                     e.Row.BorderBrush = new SolidColorBrush(Color.FromRgb(230, 81, 0)); // Dark Orange border
                     e.Row.BorderThickness = new Thickness(0, 2, 0, 2);
 
-                    // Pulsujące podświetlenie (glow) dla dzisiejszego dnia
+                    // Jeśli pusty dzień - dodaj przekreślenie ale ZACHOWAJ pomarańczowy styl
+                    if (dostawa.IsEmptyDay)
+                    {
+                        var style = new Style(typeof(TextBlock));
+                        style.Setters.Add(new Setter(TextBlock.TextDecorationsProperty, TextDecorations.Strikethrough));
+                        style.Setters.Add(new Setter(TextBlock.ForegroundProperty, Brushes.White));
+                        e.Row.Resources[typeof(TextBlock)] = style;
+                    }
+
+                    // Pulsujące podświetlenie (glow) dla dzisiejszego dnia - ZAWSZE
                     var glowEffect = new DropShadowEffect
                     {
                         Color = Color.FromRgb(255, 152, 0),
@@ -1920,8 +1944,31 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     };
                     glowEffect.BeginAnimation(DropShadowEffect.OpacityProperty, pulseAnimation);
                     glowEffect.BeginAnimation(DropShadowEffect.BlurRadiusProperty, blurAnimation);
+                    return;
                 }
-                else if (dostawa.DataOdbioru.Date < DateTime.Today)
+
+                // PUSTY DZIEŃ (nie dzisiaj) - mała czcionka, przekreślony
+                if (dostawa.IsEmptyDay)
+                {
+                    e.Row.FontWeight = FontWeights.Normal;
+                    e.Row.FontSize = 9;
+                    e.Row.Height = 16;
+                    e.Row.MinHeight = 16;
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(245, 245, 245));
+                    e.Row.Foreground = Brushes.Black;
+                    var style = new Style(typeof(TextBlock));
+                    style.Setters.Add(new Setter(TextBlock.TextDecorationsProperty, TextDecorations.Strikethrough));
+                    e.Row.Resources[typeof(TextBlock)] = style;
+                    return;
+                }
+
+                // DZIEŃ Z DOSTAWAMI (nie dzisiaj)
+                e.Row.FontWeight = FontWeights.Bold;
+                e.Row.FontSize = 12;
+                e.Row.Height = 26;
+                e.Row.MinHeight = 26;
+
+                if (isPast)
                 {
                     // Przeszły dzień - szary
                     e.Row.Background = new SolidColorBrush(Color.FromRgb(97, 97, 97));
@@ -2054,6 +2101,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
             bool isChecked = checkbox.IsChecked == true;
             string status = isChecked ? "Potwierdzony" : "Niepotwierdzony";
+            string oldStatus = isChecked ? "Niepotwierdzony" : "Potwierdzony";
+
+            // Pobierz info o dostawie dla audytu
+            var dostawa = _dostawy.FirstOrDefault(d => d.LP == lp) ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == lp);
 
             try
             {
@@ -2066,6 +2117,14 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         cmd.Parameters.AddWithValue("@lp", lp);
                         await cmd.ExecuteNonQueryAsync(_cts.Token);
                     }
+                }
+
+                // AUDIT LOG - logowanie zmiany statusu
+                if (_auditService != null)
+                {
+                    await _auditService.LogStatusChangeAsync(lp, oldStatus, status,
+                        AuditChangeSource.Checkbox_Potwierdzenie,
+                        dostawa?.Dostawca, dostawa?.DataOdbioru, _cts.Token);
                 }
 
                 ShowToast(isChecked ? "Dostawa potwierdzona" : "Potwierdzenie usunięte", ToastType.Success);
@@ -2103,6 +2162,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         cmd.Parameters.AddWithValue("@lp", lpW);
                         await cmd.ExecuteNonQueryAsync(_cts.Token);
                     }
+                }
+
+                // AUDIT LOG - logowanie zmiany potwierdzenia wstawienia
+                if (_auditService != null)
+                {
+                    await _auditService.LogWstawienieConfirmationAsync(lpW, isChecked, _cts.Token);
                 }
 
                 ShowToast(isChecked ? "Wstawienie potwierdzone" : "Potwierdzenie wstawienia usunięte", ToastType.Success);
@@ -2144,6 +2209,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         private async Task ChangeDeliveryDateAsync(string lp, int days)
         {
+            // Pobierz info o dostawie dla audytu
+            var dostawa = _dostawy.FirstOrDefault(d => d.LP == lp) ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == lp);
+            DateTime? oldDate = dostawa?.DataOdbioru;
+
             try
             {
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
@@ -2157,6 +2226,16 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         await cmd.ExecuteNonQueryAsync(_cts.Token);
                     }
                 }
+
+                // AUDIT LOG - logowanie zmiany daty
+                if (_auditService != null && oldDate.HasValue)
+                {
+                    DateTime newDate = oldDate.Value.AddDays(days);
+                    var source = days > 0 ? AuditChangeSource.Button_DataUp : AuditChangeSource.Button_DataDown;
+                    await _auditService.LogDateChangeAsync(lp, oldDate, newDate, source,
+                        dostawa?.Dostawca, _cts.Token);
+                }
+
                 ShowToast($"Data przesunięta o {days} dni", ToastType.Success);
             }
             catch (Exception ex)
@@ -2204,13 +2283,16 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         private async Task DuplicateDeliveryAsync(string lp)
         {
+            // Pobierz info o dostawie dla audytu
+            var dostawa = _dostawy.FirstOrDefault(d => d.LP == lp) ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == lp);
+
             try
             {
+                int newLp;
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
                     await conn.OpenAsync(_cts.Token);
                     string getMaxLp = "SELECT MAX(Lp) FROM HarmonogramDostaw";
-                    int newLp;
                     using (SqlCommand cmd = new SqlCommand(getMaxLp, conn))
                     {
                         var result = await cmd.ExecuteScalarAsync(_cts.Token);
@@ -2230,6 +2312,14 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         cmd.Parameters.AddWithValue("@userId", UserID ?? "0");
                         await cmd.ExecuteNonQueryAsync(_cts.Token);
                     }
+
+                    // AUDIT LOG - logowanie duplikacji
+                    if (_auditService != null)
+                    {
+                        await _auditService.LogDuplicateAsync(lp, newLp.ToString(),
+                            dostawa?.Dostawca, dostawa?.DataOdbioru, _cts.Token);
+                    }
+
                     ShowToast("Dostawa zduplikowana", ToastType.Success);
                 }
             }
@@ -2253,11 +2343,15 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 return;
             }
 
+            // Pobierz info o dostawie PRZED usunięciem dla audytu
+            var dostawa = _dostawy.FirstOrDefault(d => d.LP == _selectedLP) ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == _selectedLP);
+
             if (MessageBox.Show("Czy na pewno chcesz usunąć tę dostawę? Nie lepiej anulować?", "Potwierdzenie",
                 MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
             {
                 try
                 {
+                    string deletedLP = _selectedLP;
                     using (SqlConnection conn = new SqlConnection(ConnectionString))
                     {
                         await conn.OpenAsync(_cts.Token);
@@ -2267,6 +2361,14 @@ namespace Kalendarz1.Zywiec.Kalendarz
                             await cmd.ExecuteNonQueryAsync(_cts.Token);
                         }
                     }
+
+                    // AUDIT LOG - logowanie usunięcia dostawy
+                    if (_auditService != null)
+                    {
+                        await _auditService.LogDeliveryDeleteAsync(deletedLP, dostawa?.Dostawca,
+                            dostawa?.DataOdbioru, dostawa?.Auta, dostawa?.SztukiDek, _cts.Token);
+                    }
+
                     ShowToast("Dostawa usunięta", ToastType.Success);
                     _selectedLP = null;
                     await LoadDostawyAsync();
@@ -2291,6 +2393,22 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 ShowToast("Wybierz dostawę", ToastType.Warning);
                 return;
             }
+
+            // Pobierz stare wartości dla audytu
+            var oldDostawa = _dostawy.FirstOrDefault(d => d.LP == _selectedLP) ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == _selectedLP);
+
+            // Nowe wartości z formularza
+            DateTime? newDataOdbioru = dpData.SelectedDate;
+            string newDostawca = cmbDostawca.SelectedItem?.ToString();
+            int.TryParse(txtAuta.Text, out int newAuta);
+            int.TryParse(txtSztuki.Text, out int newSztuki);
+            decimal.TryParse(txtWagaDek.Text.Replace(",", "."), System.Globalization.NumberStyles.Any, CultureInfo.InvariantCulture, out decimal newWaga);
+            int.TryParse(txtSztNaSzuflade.Text, out int newSztSzuflada);
+            string newTypUmowy = cmbTypUmowy.SelectedItem?.ToString();
+            string newTypCeny = cmbTypCeny.SelectedItem?.ToString();
+            decimal.TryParse(txtCena.Text.Replace(",", "."), System.Globalization.NumberStyles.Any, CultureInfo.InvariantCulture, out decimal newCena);
+            decimal.TryParse(txtDodatek.Text.Replace(",", "."), System.Globalization.NumberStyles.Any, CultureInfo.InvariantCulture, out decimal newDodatek);
+            string newStatus = cmbStatus.SelectedItem?.ToString();
 
             try
             {
@@ -2324,6 +2442,38 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         await cmd.ExecuteNonQueryAsync(_cts.Token);
                     }
                 }
+
+                // AUDIT LOG - logowanie zmian (tylko tych, które się zmieniły)
+                if (_auditService != null && oldDostawa != null)
+                {
+                    var changes = new Dictionary<string, (object OldValue, object NewValue)>();
+
+                    if (oldDostawa.DataOdbioru.Date != newDataOdbioru?.Date)
+                        changes["DataOdbioru"] = (oldDostawa.DataOdbioru.ToString("yyyy-MM-dd"), newDataOdbioru?.ToString("yyyy-MM-dd"));
+                    if (oldDostawa.Dostawca != newDostawca)
+                        changes["Dostawca"] = (oldDostawa.Dostawca, newDostawca);
+                    if (oldDostawa.Auta != newAuta)
+                        changes["Auta"] = (oldDostawa.Auta, newAuta);
+                    if ((int)oldDostawa.SztukiDek != newSztuki)
+                        changes["SztukiDek"] = (oldDostawa.SztukiDek, newSztuki);
+                    if (oldDostawa.WagaDek != newWaga)
+                        changes["WagaDek"] = (oldDostawa.WagaDek, newWaga);
+                    if (oldDostawa.TypUmowy != newTypUmowy)
+                        changes["TypUmowy"] = (oldDostawa.TypUmowy, newTypUmowy);
+                    if (oldDostawa.TypCeny != newTypCeny)
+                        changes["TypCeny"] = (oldDostawa.TypCeny, newTypCeny);
+                    if (oldDostawa.Cena != newCena)
+                        changes["Cena"] = (oldDostawa.Cena, newCena);
+                    if (oldDostawa.Bufor != newStatus)
+                        changes["Bufor"] = (oldDostawa.Bufor, newStatus);
+
+                    if (changes.Count > 0)
+                    {
+                        await _auditService.LogFullDeliverySaveAsync(_selectedLP, changes,
+                            newDostawca, newDataOdbioru, _cts.Token);
+                    }
+                }
+
                 ShowToast("Zmiany zapisane", ToastType.Success);
                 await LoadDostawyAsync();
             }
@@ -2461,6 +2611,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 return;
             }
 
+            // Pobierz info dla audytu
+            var dostawa = _dostawy.FirstOrDefault(d => d.LP == _selectedLP) ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == _selectedLP);
+
             try
             {
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
@@ -2475,6 +2628,14 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         await cmd.ExecuteNonQueryAsync(_cts.Token);
                     }
                 }
+
+                // AUDIT LOG - logowanie dodania notatki
+                if (_auditService != null)
+                {
+                    await _auditService.LogNoteAddedAsync(_selectedLP, tresc, AuditChangeSource.Form_DodajNotatke,
+                        dostawa?.Dostawca, dostawa?.DataOdbioru, _cts.Token);
+                }
+
                 txtNowaNotatka.Text = "";
                 ShowToast("Notatka dodana", ToastType.Success);
                 await LoadNotatkiAsync(_selectedLP);
@@ -2706,12 +2867,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 return;
             }
 
-            // Przenieś dostawę do nowej daty
-            _ = MoveDeliveryToDateAsync(droppedItem.LP, newDate);
+            // Przenieś dostawę do nowej daty (z audytem)
+            _ = MoveDeliveryToDateAsync(droppedItem.LP, droppedItem.DataOdbioru.Date, newDate, droppedItem.Dostawca);
             _isDragging = false;
         }
 
-        private async Task MoveDeliveryToDateAsync(string lp, DateTime newDate)
+        private async Task MoveDeliveryToDateAsync(string lp, DateTime oldDate, DateTime newDate, string dostawca)
         {
             try
             {
@@ -2724,6 +2885,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         cmd.Parameters.AddWithValue("@lp", lp);
                         await cmd.ExecuteNonQueryAsync(_cts.Token);
                     }
+                }
+
+                // AUDIT LOG - logowanie drag & drop
+                if (_auditService != null)
+                {
+                    await _auditService.LogDragDropAsync(lp, oldDate, newDate, dostawca, _cts.Token);
                 }
 
                 ShowToast($"Przeniesiono dostawę na {newDate:dd.MM.yyyy}", ToastType.Success);
@@ -2774,13 +2941,14 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
             string status = confirm ? "Potwierdzony" : "Niepotwierdzony";
             int count = 0;
+            var lpsToProcess = _selectedLPs.ToList(); // Kopia dla audytu
 
             try
             {
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
                     await conn.OpenAsync(_cts.Token);
-                    foreach (var lp in _selectedLPs)
+                    foreach (var lp in lpsToProcess)
                     {
                         using (SqlCommand cmd = new SqlCommand("UPDATE HarmonogramDostaw SET bufor = @status WHERE LP = @lp", conn))
                         {
@@ -2789,6 +2957,13 @@ namespace Kalendarz1.Zywiec.Kalendarz
                             count += await cmd.ExecuteNonQueryAsync(_cts.Token);
                         }
                     }
+                }
+
+                // AUDIT LOG - logowanie operacji masowej
+                if (_auditService != null)
+                {
+                    await _auditService.LogBulkOperationAsync("HarmonogramDostaw", lpsToProcess,
+                        AuditChangeSource.BulkConfirm, "Bufor", status, null, _cts.Token);
                 }
 
                 ShowToast($"Potwierdzono {count} dostaw", ToastType.Success);
@@ -2819,13 +2994,14 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 return;
 
             int count = 0;
+            var lpsToProcess = _selectedLPs.ToList(); // Kopia dla audytu
 
             try
             {
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
                     await conn.OpenAsync(_cts.Token);
-                    foreach (var lp in _selectedLPs)
+                    foreach (var lp in lpsToProcess)
                     {
                         using (SqlCommand cmd = new SqlCommand("UPDATE HarmonogramDostaw SET bufor = 'Anulowany' WHERE LP = @lp", conn))
                         {
@@ -2833,6 +3009,13 @@ namespace Kalendarz1.Zywiec.Kalendarz
                             count += await cmd.ExecuteNonQueryAsync(_cts.Token);
                         }
                     }
+                }
+
+                // AUDIT LOG - logowanie masowego anulowania
+                if (_auditService != null)
+                {
+                    await _auditService.LogBulkOperationAsync("HarmonogramDostaw", lpsToProcess,
+                        AuditChangeSource.BulkCancel, "Bufor", "Anulowany", null, _cts.Token);
                 }
 
                 ShowToast($"Anulowano {count} dostaw", ToastType.Success);
