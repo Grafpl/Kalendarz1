@@ -376,13 +376,95 @@ namespace Kalendarz1
 
             panel.Controls.Add(footerPanel);
 
-            // Panel z losowym cytatem - wypełnia środkową część
-            var quotePanel = new Panel
+            // Panel z informacjami i cytatem - wypełnia środkową część
+            var infoPanel = new Panel
             {
                 Dock = DockStyle.Fill,
                 BackColor = Color.FromArgb(25, 35, 45),
-                Padding = new Padding(15, 20, 15, 20)
+                Padding = new Padding(10, 15, 10, 15)
             };
+
+            // Sekcja z datą i godziną
+            var dateTimePanel = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 120,
+                BackColor = Color.Transparent
+            };
+
+            var culture = new System.Globalization.CultureInfo("pl-PL");
+            var now = DateTime.Now;
+            string dayOfWeek = culture.DateTimeFormat.GetDayName(now.DayOfWeek);
+            dayOfWeek = char.ToUpper(dayOfWeek[0]) + dayOfWeek.Substring(1);
+
+            // Godzina - duża
+            var timeLabel = new Label
+            {
+                Text = now.ToString("HH:mm"),
+                Font = new Font("Segoe UI Light", 32),
+                ForeColor = Color.White,
+                AutoSize = false,
+                Size = new Size(panelWidth - 20, 50),
+                Location = new Point(0, 5),
+                TextAlign = ContentAlignment.MiddleCenter,
+                BackColor = Color.Transparent
+            };
+            dateTimePanel.Controls.Add(timeLabel);
+
+            // Dzień tygodnia
+            var dayLabel = new Label
+            {
+                Text = dayOfWeek,
+                Font = new Font("Segoe UI", 12, FontStyle.Bold),
+                ForeColor = Color.FromArgb(76, 175, 80),
+                AutoSize = false,
+                Size = new Size(panelWidth - 20, 25),
+                Location = new Point(0, 55),
+                TextAlign = ContentAlignment.MiddleCenter,
+                BackColor = Color.Transparent
+            };
+            dateTimePanel.Controls.Add(dayLabel);
+
+            // Pełna data
+            var dateLabel = new Label
+            {
+                Text = now.ToString("d MMMM yyyy", culture),
+                Font = new Font("Segoe UI", 10),
+                ForeColor = Color.FromArgb(180, 180, 180),
+                AutoSize = false,
+                Size = new Size(panelWidth - 20, 20),
+                Location = new Point(0, 80),
+                TextAlign = ContentAlignment.MiddleCenter,
+                BackColor = Color.Transparent
+            };
+            dateTimePanel.Controls.Add(dateLabel);
+
+            // Numer tygodnia
+            int weekNumber = culture.Calendar.GetWeekOfYear(now, System.Globalization.CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
+            var weekLabel = new Label
+            {
+                Text = $"Tydzień {weekNumber}",
+                Font = new Font("Segoe UI", 9),
+                ForeColor = Color.FromArgb(140, 140, 140),
+                AutoSize = false,
+                Size = new Size(panelWidth - 20, 18),
+                Location = new Point(0, 100),
+                TextAlign = ContentAlignment.MiddleCenter,
+                BackColor = Color.Transparent
+            };
+            dateTimePanel.Controls.Add(weekLabel);
+
+            infoPanel.Controls.Add(dateTimePanel);
+
+            // Separator
+            var infoSeparator = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 1,
+                BackColor = Color.FromArgb(50, 60, 70),
+                Margin = new Padding(20, 10, 20, 10)
+            };
+            infoPanel.Controls.Add(infoSeparator);
 
             // Losowy cytat
             var quote = QuotesManager.GetRandomQuote();
@@ -400,11 +482,31 @@ namespace Kalendarz1
                 Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleCenter,
                 BackColor = Color.Transparent,
-                Padding = new Padding(5)
+                Padding = new Padding(5, 15, 5, 5)
             };
-            quotePanel.Controls.Add(quoteLabel);
+            infoPanel.Controls.Add(quoteLabel);
 
-            panel.Controls.Add(quotePanel);
+            panel.Controls.Add(infoPanel);
+
+            // Timer do aktualizacji czasu
+            var clockTimer = new Timer { Interval = 1000 };
+            clockTimer.Tick += (s, e) =>
+            {
+                var currentTime = DateTime.Now;
+                timeLabel.Text = currentTime.ToString("HH:mm");
+
+                // Aktualizuj datę o północy
+                if (currentTime.Hour == 0 && currentTime.Minute == 0 && currentTime.Second == 0)
+                {
+                    string newDayOfWeek = culture.DateTimeFormat.GetDayName(currentTime.DayOfWeek);
+                    newDayOfWeek = char.ToUpper(newDayOfWeek[0]) + newDayOfWeek.Substring(1);
+                    dayLabel.Text = newDayOfWeek;
+                    dateLabel.Text = currentTime.ToString("d MMMM yyyy", culture);
+                    int newWeekNumber = culture.Calendar.GetWeekOfYear(currentTime, System.Globalization.CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
+                    weekLabel.Text = $"Tydzień {newWeekNumber}";
+                }
+            };
+            clockTimer.Start();
 
             return panel;
         }
