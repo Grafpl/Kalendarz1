@@ -576,9 +576,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
         }
 
         // Stara synchroniczna wersja dla kompatybilności
-        private void LoadDostawyForWeek(ObservableCollection<DostawaModel> collection, DateTime baseDate, TextBlock header)
+        private void LoadDostawyForWeek(ObservableCollection<DostawaModel> collection, DateTime baseDate)
         {
-            _ = LoadDostawyForWeekAsync(collection, baseDate, header);
+            _ = LoadDostawyForWeekAsync(collection, baseDate);
         }
 
         private string BuildDostawyQuery()
