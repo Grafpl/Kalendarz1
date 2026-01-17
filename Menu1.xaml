@@ -327,6 +327,13 @@
             </Border>
 
             <Grid Grid.Column="1">
+                <!-- Logo firmy na górze -->
+                <Border x:Name="LogoBorder" HorizontalAlignment="Center" VerticalAlignment="Top"
+                        Margin="0,20,0,0" Padding="10" Background="Transparent"
+                        MouseRightButtonUp="LogoBorder_MouseRightButtonUp" Cursor="Arrow">
+                    <Image x:Name="CompanyLogoImage" Height="60" RenderOptions.BitmapScalingMode="Fant"/>
+                </Border>
+
                 <Button x:Name="CloseButton" Content="✕" Click="CloseButton_Click" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,15,20,0" Width="35" Height="35" Background="Transparent" Foreground="#A0A0A0" BorderThickness="0" FontSize="16" Cursor="Hand" ToolTip="Zamknij aplikację"/>
                 <StackPanel VerticalAlignment="Center" Margin="100,0">
                     <TextBlock Text="Witaj w Systemie" HorizontalAlignment="Left" FontSize="42" FontWeight="Light" Foreground="#2C3E50" Margin="0,0,0,15"/>

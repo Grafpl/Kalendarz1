@@ -1,8 +1,12 @@
 ﻿using Microsoft.Data.SqlClient;
+using Microsoft.Win32;
 using System;
+using System.Drawing.Imaging;
+using System.IO;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media.Imaging;
 
 namespace Kalendarz1
 {
@@ -15,6 +19,109 @@ namespace Kalendarz1
             InitializeComponent();
             this.Loaded += (s, e) => PasswordBox.Focus();
             SetFooterText();
+            LoadCompanyLogo();
+        }
+
+        private void LoadCompanyLogo()
+        {
+            try
+            {
+                if (CompanyLogoManager.HasLogo())
+                {
+                    using (var logo = CompanyLogoManager.GetLogo())
+                    {
+                        if (logo != null)
+                        {
+                            CompanyLogoImage.Source = ConvertToBitmapImage(logo as System.Drawing.Bitmap);
+                            return;
+                        }
+                    }
+                }
+
+                // Domyślne logo
+                using (var defaultLogo = CompanyLogoManager.GenerateDefaultLogo(200, 60))
+                {
+                    CompanyLogoImage.Source = ConvertToBitmapImage(defaultLogo);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"LoadCompanyLogo error: {ex.Message}");
+            }
+        }
+
+        private BitmapImage ConvertToBitmapImage(System.Drawing.Bitmap bitmap)
+        {
+            if (bitmap == null) return null;
+
+            using (var memory = new MemoryStream())
+            {
+                bitmap.Save(memory, ImageFormat.Png);
+                memory.Position = 0;
+
+                var bitmapImage = new BitmapImage();
+                bitmapImage.BeginInit();
+                bitmapImage.StreamSource = memory;
+                bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
+                bitmapImage.EndInit();
+                bitmapImage.Freeze();
+
+                return bitmapImage;
+            }
+        }
+
+        private void LogoBorder_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            // Sprawdź czy wpisany identyfikator to admin
+            string currentInput = PasswordBox.Password;
+            if (currentInput != "11111")
+            {
+                return; // Tylko admin może importować logo
+            }
+
+            var contextMenu = new System.Windows.Controls.ContextMenu();
+
+            var importItem = new System.Windows.Controls.MenuItem { Header = "Importuj logo firmy" };
+            importItem.Click += (s, args) =>
+            {
+                var openFileDialog = new OpenFileDialog
+                {
+                    Title = "Wybierz logo firmy",
+                    Filter = "Pliki graficzne|*.png;*.jpg;*.jpeg;*.bmp;*.gif|Wszystkie pliki|*.*"
+                };
+
+                if (openFileDialog.ShowDialog() == true)
+                {
+                    if (CompanyLogoManager.SaveLogo(openFileDialog.FileName))
+                    {
+                        LoadCompanyLogo();
+                        MessageBox.Show("Logo firmy zostało zaktualizowane!", "Sukces",
+                            MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        MessageBox.Show("Nie udało się zapisać logo.", "Błąd",
+                            MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+            };
+
+            var deleteItem = new System.Windows.Controls.MenuItem { Header = "Usuń logo" };
+            deleteItem.Click += (s, args) =>
+            {
+                if (MessageBox.Show("Czy na pewno chcesz usunąć logo firmy?", "Potwierdzenie",
+                    MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                {
+                    CompanyLogoManager.DeleteLogo();
+                    LoadCompanyLogo();
+                }
+            };
+
+            contextMenu.Items.Add(importItem);
+            contextMenu.Items.Add(new System.Windows.Controls.Separator());
+            contextMenu.Items.Add(deleteItem);
+
+            contextMenu.IsOpen = true;
         }
 
         private void SetFooterText()
