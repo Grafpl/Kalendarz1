@@ -310,11 +310,6 @@ namespace Kalendarz1
                 BackColor = Color.FromArgb(50, 60, 70)
             };
 
-            // Dodajemy w odwrotnej kolejności (WinForms Dock.Top - ostatni dodany jest na górze)
-            panel.Controls.Add(separator);
-            panel.Controls.Add(headerPanel);
-            panel.Controls.Add(logoSection);
-
             // Dolna sekcja - wyloguj, admin i wersja
             var footerPanel = new Panel
             {
@@ -376,12 +371,12 @@ namespace Kalendarz1
 
             panel.Controls.Add(footerPanel);
 
-            // Panel z informacjami - wypełnia środkową część (używamy AutoScroll dla pewności)
+            // Panel z informacjami - używamy Dock.Top z dużą wysokością
             var infoPanel = new Panel
             {
-                Dock = DockStyle.Fill,
-                BackColor = Color.FromArgb(25, 35, 45),
-                AutoScroll = false
+                Dock = DockStyle.Top,
+                Height = 350,
+                BackColor = Color.FromArgb(25, 35, 45)
             };
 
             var culture = new System.Globalization.CultureInfo("pl-PL");
@@ -606,7 +601,12 @@ namespace Kalendarz1
             };
             infoPanel.Controls.Add(quoteLabel);
 
+            // Dodajemy panele w odwrotnej kolejności (WinForms Dock.Top - ostatni dodany jest na górze)
+            // Kolejność od dołu do góry: infoPanel, separator, headerPanel, logoSection
             panel.Controls.Add(infoPanel);
+            panel.Controls.Add(separator);
+            panel.Controls.Add(headerPanel);
+            panel.Controls.Add(logoSection);
 
             // Timer do aktualizacji czasu
             var clockTimer = new Timer { Interval = 1000 };
