@@ -53,14 +53,14 @@ namespace Kalendarz1.Zadania
                         {
                             var task = new ZadanieViewModel
                             {
-                                Id = reader.GetInt64(0),
+                                Id = reader.GetInt32(0),
                                 Firma = reader.GetString(1),
                                 TypZadania = reader.IsDBNull(2) ? "" : reader.GetString(2),
                                 Opis = reader.IsDBNull(3) ? "" : reader.GetString(3),
                                 TerminWykonania = reader.GetDateTime(4),
                                 Priorytet = reader.GetInt32(5),
                                 Wykonane = reader.GetBoolean(6),
-                                IDOdbiorcy = reader.IsDBNull(7) ? 0 : reader.GetInt64(7)
+                                IDOdbiorcy = reader.IsDBNull(7) ? 0 : reader.GetInt32(7)
                             };
                             allTasks.Add(task);
                         }
@@ -240,14 +240,14 @@ namespace Kalendarz1.Zadania
 
     public class ZadanieViewModel
     {
-        public long Id { get; set; }
+        public int Id { get; set; }
         public string Firma { get; set; }
         public string TypZadania { get; set; }
         public string Opis { get; set; }
         public DateTime TerminWykonania { get; set; }
         public int Priorytet { get; set; }
         public bool Wykonane { get; set; }
-        public long IDOdbiorcy { get; set; }
+        public int IDOdbiorcy { get; set; }
 
         public string PriorityText => Priorytet == 3 ? "Wysoki" : Priorytet == 2 ? "Średni" : "Niski";
 

@@ -51,7 +51,7 @@ namespace Kalendarz1.Zadania
                         {
                             firmy.Add(new FirmaItem
                             {
-                                Id = reader.GetInt64(0),
+                                Id = reader.GetInt32(0),
                                 Nazwa = reader.GetString(1)
                             });
                         }
@@ -124,11 +124,11 @@ namespace Kalendarz1.Zadania
             int priorytet = rbWysoki.IsChecked == true ? 3 :
                            rbSredni.IsChecked == true ? 2 : 1;
 
-            // Get company ID
-            long? firmaId = null;
-            if (cmbFirma.SelectedValue is long id && id > 0)
+            // Get company ID (0 jeśli nie wybrano)
+            int firmaId = 0;
+            if (cmbFirma.SelectedValue is int selectedIntId && selectedIntId > 0)
             {
-                firmaId = id;
+                firmaId = selectedIntId;
             }
 
             try
@@ -152,7 +152,7 @@ namespace Kalendarz1.Zadania
                         cmd.Parameters.AddWithValue("@opis", (object)txtOpis.Text ?? DBNull.Value);
                         cmd.Parameters.AddWithValue("@termin", termin);
                         cmd.Parameters.AddWithValue("@priorytet", priorytet);
-                        cmd.Parameters.AddWithValue("@firma", (object)firmaId ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@firma", firmaId);
                         cmd.Parameters.AddWithValue("@id", existingTask.Id);
                         cmd.ExecuteNonQuery();
                     }
@@ -167,7 +167,7 @@ namespace Kalendarz1.Zadania
                         cmd.Parameters.AddWithValue("@opis", (object)txtOpis.Text ?? DBNull.Value);
                         cmd.Parameters.AddWithValue("@termin", termin);
                         cmd.Parameters.AddWithValue("@priorytet", priorytet);
-                        cmd.Parameters.AddWithValue("@firma", (object)firmaId ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@firma", firmaId);
                         cmd.ExecuteNonQuery();
                     }
                 }
@@ -191,7 +191,7 @@ namespace Kalendarz1.Zadania
 
     public class FirmaItem
     {
-        public long Id { get; set; }
+        public int Id { get; set; }
         public string Nazwa { get; set; }
     }
 }
