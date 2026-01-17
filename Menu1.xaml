@@ -506,9 +506,8 @@
                             <Run>Zrobię wszystko, co w mojej mocy, aby był dla Was realnym wsparciem.</Run>
                         </TextBlock>
 
-                        <!-- Cytat dnia (prawy klik dla admina = zarządzanie cytatami) -->
-                        <Border x:Name="QuoteBorder" Margin="0,30,0,0" Padding="15" Background="#FFFFFF" Opacity="0.15" CornerRadius="8"
-                                MouseRightButtonUp="QuoteBorder_MouseRightButtonUp" Cursor="Arrow">
+                        <!-- Cytat dnia -->
+                        <Border x:Name="QuoteBorder" Margin="0,30,0,0" Padding="15" Background="#FFFFFF" Opacity="0.15" CornerRadius="8">
                             <StackPanel>
                                 <TextBlock Text="Cytat dnia" FontSize="11" Foreground="White"
                                            FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
@@ -526,12 +525,14 @@
                                    TextAlignment="Center" FontSize="15" Margin="0,0,0,0" Opacity="0.8"/>
                     </StackPanel>
 
-                    <!-- Data i godzina w lewym dolnym rogu -->
+                    <!-- Data, godzina i imieniny w lewym dolnym rogu -->
                     <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="20,0,0,20">
                         <TextBlock x:Name="CurrentTimeText" Text="12:00" FontSize="36" FontWeight="Light"
                                    Foreground="White" Opacity="0.9"/>
                         <TextBlock x:Name="CurrentDateText" Text="Piątek, 17 stycznia 2025" FontSize="14"
                                    Foreground="White" Opacity="0.7" Margin="0,-5,0,0"/>
+                        <TextBlock x:Name="NameDaysText" Text="Imieniny: Antoni, Jan" FontSize="12"
+                                   Foreground="White" Opacity="0.6" Margin="0,5,0,0"/>
                     </StackPanel>
                 </Grid>
             </Border>

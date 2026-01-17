@@ -444,6 +444,9 @@ namespace Kalendarz1
             dayOfWeek = char.ToUpper(dayOfWeek[0]) + dayOfWeek.Substring(1);
 
             CurrentDateText.Text = $"{dayOfWeek}, {now.ToString("d MMMM yyyy", culture)}";
+
+            // Aktualizuj imieniny
+            NameDaysText.Text = NameDaysManager.GetTodayNameDaysWithHeader();
         }
 
         #endregion
@@ -459,134 +462,7 @@ namespace Kalendarz1
             QuoteAuthor.Text = $"- {quote.Author}";
         }
 
-        private void QuoteBorder_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
-        {
-            // Sprawdź czy wpisany identyfikator to admin
-            string currentInput = PasswordBox.Password;
-            if (currentInput != "11111")
-            {
-                return; // Tylko admin może zarządzać cytatami
-            }
-
-            var contextMenu = new System.Windows.Controls.ContextMenu();
-
-            // Import cytatów z pliku
-            var importItem = new System.Windows.Controls.MenuItem
-            {
-                Header = $"Importuj cytaty z pliku JSON ({QuotesManager.GetQuotesCount()} cytatów)"
-            };
-            importItem.Click += (s, args) =>
-            {
-                var openFileDialog = new OpenFileDialog
-                {
-                    Title = "Wybierz plik z cytatami",
-                    Filter = "Pliki JSON|*.json|Wszystkie pliki|*.*"
-                };
-
-                if (openFileDialog.ShowDialog() == true)
-                {
-                    var (success, count, error) = QuotesManager.ImportFromFile(openFileDialog.FileName);
-                    if (success)
-                    {
-                        InitializeQuoteOfTheDay();
-                        MessageBox.Show($"Zaimportowano {count} nowych cytatów!\nŁącznie: {QuotesManager.GetQuotesCount()} cytatów",
-                            "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-                    else
-                    {
-                        MessageBox.Show($"Nie udało się zaimportować cytatów.\n{error}",
-                            "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
-                }
-            };
-
-            // Eksport cytatów
-            var exportItem = new System.Windows.Controls.MenuItem { Header = "Eksportuj cytaty do pliku" };
-            exportItem.Click += (s, args) =>
-            {
-                var saveFileDialog = new SaveFileDialog
-                {
-                    Title = "Zapisz cytaty",
-                    Filter = "Pliki JSON|*.json",
-                    FileName = "cytaty.json"
-                };
-
-                if (saveFileDialog.ShowDialog() == true)
-                {
-                    if (QuotesManager.ExportToFile(saveFileDialog.FileName))
-                    {
-                        MessageBox.Show($"Wyeksportowano {QuotesManager.GetQuotesCount()} cytatów!",
-                            "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-                    else
-                    {
-                        MessageBox.Show("Nie udało się wyeksportować cytatów.",
-                            "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
-                }
-            };
-
-            // Dodaj nowy cytat
-            var addItem = new System.Windows.Controls.MenuItem { Header = "Dodaj nowy cytat..." };
-            addItem.Click += (s, args) =>
-            {
-                var addQuoteWindow = new AddQuoteWindow();
-                if (addQuoteWindow.ShowDialog() == true)
-                {
-                    if (QuotesManager.AddQuote(addQuoteWindow.QuoteText, addQuoteWindow.QuoteAuthor))
-                    {
-                        InitializeQuoteOfTheDay();
-                        MessageBox.Show("Cytat został dodany!", "Sukces",
-                            MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-                }
-            };
-
-            // Pokaż losowy cytat
-            var randomItem = new System.Windows.Controls.MenuItem { Header = "Pokaż losowy cytat" };
-            randomItem.Click += (s, args) =>
-            {
-                var quote = QuotesManager.GetRandomQuote();
-                QuoteText.Text = $"\"{quote.Text}\"";
-                QuoteAuthor.Text = $"- {quote.Author}";
-            };
-
-            // Reset do domyślnych
-            var resetItem = new System.Windows.Controls.MenuItem { Header = "Przywróć domyślne cytaty" };
-            resetItem.Click += (s, args) =>
-            {
-                if (MessageBox.Show("Czy na pewno chcesz przywrócić domyślne cytaty?\nWszystkie własne cytaty zostaną usunięte.",
-                    "Potwierdzenie", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
-                {
-                    QuotesManager.ResetToDefaults();
-                    InitializeQuoteOfTheDay();
-                    MessageBox.Show("Przywrócono domyślne cytaty.", "Sukces",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-            };
-
-            // Otwórz folder z cytatami
-            var openFolderItem = new System.Windows.Controls.MenuItem { Header = "Otwórz folder z cytatami" };
-            openFolderItem.Click += (s, args) =>
-            {
-                string path = QuotesManager.GetQuotesFilePath();
-                string dir = System.IO.Path.GetDirectoryName(path);
-                if (!Directory.Exists(dir))
-                    Directory.CreateDirectory(dir);
-                System.Diagnostics.Process.Start("explorer.exe", dir);
-            };
-
-            contextMenu.Items.Add(importItem);
-            contextMenu.Items.Add(exportItem);
-            contextMenu.Items.Add(new System.Windows.Controls.Separator());
-            contextMenu.Items.Add(addItem);
-            contextMenu.Items.Add(randomItem);
-            contextMenu.Items.Add(new System.Windows.Controls.Separator());
-            contextMenu.Items.Add(resetItem);
-            contextMenu.Items.Add(openFolderItem);
-
-            contextMenu.IsOpen = true;
-        }
+        // Zarządzanie cytatami przeniesione do Panelu Admin w Menu
 
         #endregion
 

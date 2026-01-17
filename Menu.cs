@@ -288,6 +288,20 @@ namespace Kalendarz1
             };
             headerPanel.Controls.Add(statusLabel);
 
+            // Imieniny - wycentrowane
+            var nameDaysLabel = new Label
+            {
+                Text = NameDaysManager.GetTodayNameDaysWithHeader(),
+                Font = new Font("Segoe UI", 8),
+                ForeColor = Color.FromArgb(180, 180, 180),
+                AutoSize = false,
+                Size = new Size(panelWidth - 10, 35),
+                Location = new Point(5, 170),
+                TextAlign = ContentAlignment.TopCenter,
+                BackColor = Color.Transparent
+            };
+            headerPanel.Controls.Add(nameDaysLabel);
+
             // Separator między headerPanel a resztą
             var separator = new Panel
             {
@@ -1192,16 +1206,257 @@ namespace Kalendarz1
 
         private void AdminPanelButton_Click(object sender, EventArgs e)
         {
-            var adminForm = new AdminPermissionsForm();
-            // Ustaw ikonę dla panelu administracyjnego
-            var adminIcon = CreateEmojiIcon("🔐", Color.FromArgb(183, 28, 28));
-            if (adminIcon != null)
+            var button = sender as Button;
+            var contextMenu = new ContextMenuStrip();
+            contextMenu.Font = new Font("Segoe UI", 10);
+            contextMenu.BackColor = Color.White;
+
+            // 1. Użytkownicy (uprawnienia)
+            var usersItem = new ToolStripMenuItem("Użytkownicy (Uprawnienia)");
+            usersItem.Image = CreateMenuItemImage("🔐");
+            usersItem.Click += (s, args) =>
             {
-                adminForm.Icon = adminIcon;
+                var adminForm = new AdminPermissionsForm();
+                var adminIcon = CreateEmojiIcon("🔐", Color.FromArgb(183, 28, 28));
+                if (adminIcon != null)
+                {
+                    adminForm.Icon = adminIcon;
+                }
+                adminForm.ShowDialog();
+                LoadUserPermissions();
+                SetupMenuItems();
+            };
+            contextMenu.Items.Add(usersItem);
+
+            // 2. Cytaty
+            var quotesItem = new ToolStripMenuItem("Cytaty motywacyjne");
+            quotesItem.Image = CreateMenuItemImage("💬");
+            quotesItem.Click += (s, args) =>
+            {
+                ShowQuotesManagementDialog();
+            };
+            contextMenu.Items.Add(quotesItem);
+
+            // Pokaż menu pod przyciskiem
+            if (button != null)
+            {
+                contextMenu.Show(button, new Point(0, button.Height));
             }
-            adminForm.ShowDialog();
-            LoadUserPermissions();
-            SetupMenuItems();
+            else
+            {
+                contextMenu.Show(Cursor.Position);
+            }
+        }
+
+        private System.Drawing.Image CreateMenuItemImage(string emoji)
+        {
+            try
+            {
+                var bmp = new Bitmap(20, 20);
+                using (var g = Graphics.FromImage(bmp))
+                {
+                    g.Clear(Color.Transparent);
+                    g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
+                    using (var font = new Font("Segoe UI Emoji", 12))
+                    {
+                        g.DrawString(emoji, font, Brushes.Black, -2, -2);
+                    }
+                }
+                return bmp;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private void ShowQuotesManagementDialog()
+        {
+            var form = new Form
+            {
+                Text = "Zarządzanie cytatami",
+                Size = new Size(500, 400),
+                StartPosition = FormStartPosition.CenterParent,
+                Font = new Font("Segoe UI", 10),
+                BackColor = Color.White,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false
+            };
+
+            var infoLabel = new Label
+            {
+                Text = $"Liczba cytatów: {QuotesManager.GetQuotesCount()}",
+                Location = new Point(20, 20),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 11, FontStyle.Bold)
+            };
+            form.Controls.Add(infoLabel);
+
+            // Przycisk Import
+            var importButton = new Button
+            {
+                Text = "Importuj z pliku JSON",
+                Location = new Point(20, 60),
+                Size = new Size(200, 40),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(92, 138, 58),
+                ForeColor = Color.White,
+                Cursor = Cursors.Hand
+            };
+            importButton.FlatAppearance.BorderSize = 0;
+            importButton.Click += (s, args) =>
+            {
+                using (var ofd = new OpenFileDialog())
+                {
+                    ofd.Title = "Wybierz plik z cytatami";
+                    ofd.Filter = "Pliki JSON|*.json|Wszystkie pliki|*.*";
+                    if (ofd.ShowDialog() == DialogResult.OK)
+                    {
+                        var (success, count, error) = QuotesManager.ImportFromFile(ofd.FileName);
+                        if (success)
+                        {
+                            infoLabel.Text = $"Liczba cytatów: {QuotesManager.GetQuotesCount()}";
+                            MessageBox.Show($"Zaimportowano {count} nowych cytatów!", "Sukces",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                        else
+                        {
+                            MessageBox.Show($"Błąd importu:\n{error}", "Błąd",
+                                MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                    }
+                }
+            };
+            form.Controls.Add(importButton);
+
+            // Przycisk Eksport
+            var exportButton = new Button
+            {
+                Text = "Eksportuj do pliku",
+                Location = new Point(240, 60),
+                Size = new Size(200, 40),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(52, 73, 94),
+                ForeColor = Color.White,
+                Cursor = Cursors.Hand
+            };
+            exportButton.FlatAppearance.BorderSize = 0;
+            exportButton.Click += (s, args) =>
+            {
+                using (var sfd = new SaveFileDialog())
+                {
+                    sfd.Title = "Zapisz cytaty";
+                    sfd.Filter = "Pliki JSON|*.json";
+                    sfd.FileName = "cytaty.json";
+                    if (sfd.ShowDialog() == DialogResult.OK)
+                    {
+                        if (QuotesManager.ExportToFile(sfd.FileName))
+                        {
+                            MessageBox.Show("Cytaty zostały wyeksportowane!", "Sukces",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                    }
+                }
+            };
+            form.Controls.Add(exportButton);
+
+            // Przycisk Dodaj cytat
+            var addButton = new Button
+            {
+                Text = "Dodaj nowy cytat",
+                Location = new Point(20, 120),
+                Size = new Size(200, 40),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(41, 128, 185),
+                ForeColor = Color.White,
+                Cursor = Cursors.Hand
+            };
+            addButton.FlatAppearance.BorderSize = 0;
+            addButton.Click += (s, args) =>
+            {
+                var addQuoteWindow = new AddQuoteWindow();
+                if (addQuoteWindow.ShowDialog() == true)
+                {
+                    if (QuotesManager.AddQuote(addQuoteWindow.QuoteText, addQuoteWindow.QuoteAuthor))
+                    {
+                        infoLabel.Text = $"Liczba cytatów: {QuotesManager.GetQuotesCount()}";
+                        MessageBox.Show("Cytat został dodany!", "Sukces",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+            };
+            form.Controls.Add(addButton);
+
+            // Przycisk Reset
+            var resetButton = new Button
+            {
+                Text = "Przywróć domyślne",
+                Location = new Point(240, 120),
+                Size = new Size(200, 40),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(231, 76, 60),
+                ForeColor = Color.White,
+                Cursor = Cursors.Hand
+            };
+            resetButton.FlatAppearance.BorderSize = 0;
+            resetButton.Click += (s, args) =>
+            {
+                if (MessageBox.Show("Czy na pewno chcesz przywrócić domyślne cytaty?\nWszystkie własne cytaty zostaną usunięte.",
+                    "Potwierdzenie", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
+                {
+                    QuotesManager.ResetToDefaults();
+                    infoLabel.Text = $"Liczba cytatów: {QuotesManager.GetQuotesCount()}";
+                    MessageBox.Show("Przywrócono domyślne cytaty.", "Sukces",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            };
+            form.Controls.Add(resetButton);
+
+            // Przycisk otwórz folder
+            var folderButton = new Button
+            {
+                Text = "Otwórz folder z cytatami",
+                Location = new Point(20, 180),
+                Size = new Size(420, 35),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(149, 165, 166),
+                ForeColor = Color.White,
+                Cursor = Cursors.Hand
+            };
+            folderButton.FlatAppearance.BorderSize = 0;
+            folderButton.Click += (s, args) =>
+            {
+                string path = QuotesManager.GetQuotesFilePath();
+                string dir = System.IO.Path.GetDirectoryName(path);
+                if (!System.IO.Directory.Exists(dir))
+                    System.IO.Directory.CreateDirectory(dir);
+                System.Diagnostics.Process.Start("explorer.exe", dir);
+            };
+            form.Controls.Add(folderButton);
+
+            // Info o formacie
+            var formatLabel = new Label
+            {
+                Text = "Format pliku JSON do importu:\n[{\"Text\": \"Treść cytatu\", \"Author\": \"Autor\"}, ...]",
+                Location = new Point(20, 240),
+                Size = new Size(440, 60),
+                ForeColor = Color.Gray
+            };
+            form.Controls.Add(formatLabel);
+
+            // Przycisk Zamknij
+            var closeButton = new Button
+            {
+                Text = "Zamknij",
+                Location = new Point(340, 310),
+                Size = new Size(100, 35),
+                FlatStyle = FlatStyle.Flat,
+                DialogResult = DialogResult.OK
+            };
+            form.Controls.Add(closeButton);
+
+            form.ShowDialog();
         }
 
         private void LogoutButton_Click(object sender, EventArgs e)
