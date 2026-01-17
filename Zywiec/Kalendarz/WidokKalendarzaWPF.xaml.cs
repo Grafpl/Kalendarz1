@@ -1180,8 +1180,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
             calendarMain.DisplayDate = _selectedDate;
             UpdateWeekNumber();
 
-            // Animacja slide w lewo (poprzedni tydzień)
-            await AnimateDataGridTransition(dgDostawy, async () => await LoadDostawyAsync(), slideDirection: false);
+            // Animacja: prawy idzie w prawo (znika), lewy idzie w prawo, nowy lewy wchodzi z lewej
+            await AnimateWeekTransition(isNextWeek: false);
         }
 
         private async void BtnNextWeek_Click(object sender, RoutedEventArgs e)
@@ -1191,8 +1191,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
             calendarMain.DisplayDate = _selectedDate;
             UpdateWeekNumber();
 
-            // Animacja slide w prawo (następny tydzień)
-            await AnimateDataGridTransition(dgDostawy, async () => await LoadDostawyAsync(), slideDirection: true);
+            // Animacja: lewy idzie w lewo (znika), prawy idzie w lewo na jego miejsce, nowy prawy wchodzi z prawej
+            await AnimateWeekTransition(isNextWeek: true);
         }
 
         private async void BtnToday_Click(object sender, RoutedEventArgs e)
@@ -1205,7 +1205,131 @@ namespace Kalendarz1.Zywiec.Kalendarz
             // Fade in bez slide
             var fadeAnimation = new DoubleAnimation(0.5, 1, TimeSpan.FromMilliseconds(300));
             dgDostawy.BeginAnimation(OpacityProperty, fadeAnimation);
+            if (chkNastepnyTydzien?.IsChecked == true)
+                dgDostawyNastepny.BeginAnimation(OpacityProperty, fadeAnimation);
             await LoadDostawyAsync();
+        }
+
+        /// <summary>
+        /// Animacja przejścia między tygodniami - obie tabele przesuwają się razem
+        /// </summary>
+        private async Task AnimateWeekTransition(bool isNextWeek)
+        {
+            bool showSecondTable = chkNastepnyTydzien?.IsChecked == true;
+            double slideDistance = 100; // Dystans przesunięcia w pikselach
+            var duration = TimeSpan.FromMilliseconds(250);
+            var easeOut = new QuadraticEase { EasingMode = EasingMode.EaseOut };
+            var easeIn = new QuadraticEase { EasingMode = EasingMode.EaseIn };
+
+            // Przygotuj transformacje
+            var transform1 = new TranslateTransform(0, 0);
+            var transform2 = new TranslateTransform(0, 0);
+            dgDostawy.RenderTransform = transform1;
+            if (showSecondTable)
+                dgDostawyNastepny.RenderTransform = transform2;
+
+            if (isNextWeek)
+            {
+                // NASTĘPNY TYDZIEŃ: wszystko jedzie w lewo
+                // Lewa tabela znika w lewo
+                var slideOut1 = new DoubleAnimation(0, -slideDistance, duration);
+                slideOut1.EasingFunction = easeIn;
+                var fadeOut1 = new DoubleAnimation(1, 0, duration);
+
+                // Prawa tabela jedzie w lewo (na miejsce lewej)
+                DoubleAnimation slideOut2 = null;
+                DoubleAnimation fadeOut2 = null;
+                if (showSecondTable)
+                {
+                    slideOut2 = new DoubleAnimation(0, -slideDistance, duration);
+                    slideOut2.EasingFunction = easeIn;
+                    fadeOut2 = new DoubleAnimation(1, 0.3, duration);
+                }
+
+                // Uruchom animacje wyjścia
+                transform1.BeginAnimation(TranslateTransform.XProperty, slideOut1);
+                dgDostawy.BeginAnimation(OpacityProperty, fadeOut1);
+                if (showSecondTable)
+                {
+                    transform2.BeginAnimation(TranslateTransform.XProperty, slideOut2);
+                    dgDostawyNastepny.BeginAnimation(OpacityProperty, fadeOut2);
+                }
+
+                await Task.Delay((int)duration.TotalMilliseconds);
+
+                // Załaduj nowe dane
+                await LoadDostawyAsync();
+
+                // Animacja wejścia - z prawej strony
+                transform1.X = slideDistance;
+                var slideIn1 = new DoubleAnimation(slideDistance, 0, duration);
+                slideIn1.EasingFunction = easeOut;
+                var fadeIn1 = new DoubleAnimation(0, 1, duration);
+
+                if (showSecondTable)
+                {
+                    transform2.X = slideDistance;
+                    var slideIn2 = new DoubleAnimation(slideDistance, 0, duration);
+                    slideIn2.EasingFunction = easeOut;
+                    var fadeIn2 = new DoubleAnimation(0.3, 1, duration);
+                    transform2.BeginAnimation(TranslateTransform.XProperty, slideIn2);
+                    dgDostawyNastepny.BeginAnimation(OpacityProperty, fadeIn2);
+                }
+
+                transform1.BeginAnimation(TranslateTransform.XProperty, slideIn1);
+                dgDostawy.BeginAnimation(OpacityProperty, fadeIn1);
+            }
+            else
+            {
+                // POPRZEDNI TYDZIEŃ: wszystko jedzie w prawo
+                // Prawa tabela znika w prawo
+                DoubleAnimation slideOut2 = null;
+                DoubleAnimation fadeOut2 = null;
+                if (showSecondTable)
+                {
+                    slideOut2 = new DoubleAnimation(0, slideDistance, duration);
+                    slideOut2.EasingFunction = easeIn;
+                    fadeOut2 = new DoubleAnimation(1, 0, duration);
+                }
+
+                // Lewa tabela jedzie w prawo
+                var slideOut1 = new DoubleAnimation(0, slideDistance, duration);
+                slideOut1.EasingFunction = easeIn;
+                var fadeOut1 = new DoubleAnimation(1, 0.3, duration);
+
+                // Uruchom animacje wyjścia
+                transform1.BeginAnimation(TranslateTransform.XProperty, slideOut1);
+                dgDostawy.BeginAnimation(OpacityProperty, fadeOut1);
+                if (showSecondTable)
+                {
+                    transform2.BeginAnimation(TranslateTransform.XProperty, slideOut2);
+                    dgDostawyNastepny.BeginAnimation(OpacityProperty, fadeOut2);
+                }
+
+                await Task.Delay((int)duration.TotalMilliseconds);
+
+                // Załaduj nowe dane
+                await LoadDostawyAsync();
+
+                // Animacja wejścia - z lewej strony
+                transform1.X = -slideDistance;
+                var slideIn1 = new DoubleAnimation(-slideDistance, 0, duration);
+                slideIn1.EasingFunction = easeOut;
+                var fadeIn1 = new DoubleAnimation(0.3, 1, duration);
+
+                if (showSecondTable)
+                {
+                    transform2.X = -slideDistance;
+                    var slideIn2 = new DoubleAnimation(-slideDistance, 0, duration);
+                    slideIn2.EasingFunction = easeOut;
+                    var fadeIn2 = new DoubleAnimation(0, 1, duration);
+                    transform2.BeginAnimation(TranslateTransform.XProperty, slideIn2);
+                    dgDostawyNastepny.BeginAnimation(OpacityProperty, fadeIn2);
+                }
+
+                transform1.BeginAnimation(TranslateTransform.XProperty, slideIn1);
+                dgDostawy.BeginAnimation(OpacityProperty, fadeIn1);
+            }
         }
 
         #endregion
