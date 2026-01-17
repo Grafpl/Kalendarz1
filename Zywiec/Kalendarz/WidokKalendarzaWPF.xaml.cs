@@ -378,11 +378,11 @@ namespace Kalendarz1.Zywiec.Kalendarz
         {
             if (!IsLoaded) return; // Nie ładuj przed pełną inicjalizacją
 
-            await LoadDostawyForWeekAsync(_dostawy, _selectedDate, txtTydzien1Header);
+            await LoadDostawyForWeekAsync(_dostawy, _selectedDate);
 
             if (chkNastepnyTydzien?.IsChecked == true)
             {
-                await LoadDostawyForWeekAsync(_dostawyNastepnyTydzien, _selectedDate.AddDays(7), txtTydzien2Header);
+                await LoadDostawyForWeekAsync(_dostawyNastepnyTydzien, _selectedDate.AddDays(7));
             }
 
             // Aktualizuj status bar
@@ -395,7 +395,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
             _ = LoadDostawyAsync();
         }
 
-        private async Task LoadDostawyForWeekAsync(ObservableCollection<DostawaModel> collection, DateTime baseDate, TextBlock header)
+        private async Task LoadDostawyForWeekAsync(ObservableCollection<DostawaModel> collection, DateTime baseDate)
         {
             try
             {
@@ -1193,7 +1193,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
             {
                 if (colNastepnyTydzien != null) colNastepnyTydzien.Width = new GridLength(1, GridUnitType.Star);
                 if (borderNastepnyTydzien != null) borderNastepnyTydzien.Visibility = Visibility.Visible;
-                await LoadDostawyForWeekAsync(_dostawyNastepnyTydzien, _selectedDate.AddDays(7), txtTydzien2Header);
+                await LoadDostawyForWeekAsync(_dostawyNastepnyTydzien, _selectedDate.AddDays(7));
             }
             else
             {
