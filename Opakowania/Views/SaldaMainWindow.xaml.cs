@@ -74,6 +74,32 @@ namespace Kalendarz1.Opakowania.Views
             _viewModel.OdswiezCommand.Execute(null);
         }
 
+        private void BtnDashboardZarzadczy_Click(object sender, RoutedEventArgs e)
+        {
+            var window = new DashboardZarzadczyWindow(_viewModel.UserId);
+            window.Owner = this;
+            window.ShowDialog();
+        }
+
+        private void BtnZestawienie_Click(object sender, RoutedEventArgs e)
+        {
+            var window = new ZestawieniePorownanczeWindow(_viewModel.UserId);
+            window.Owner = this;
+            window.ShowDialog();
+        }
+
+        private void BtnRaport_Click(object sender, RoutedEventArgs e)
+        {
+            var window = new RaportZarzaduWindow(_viewModel.UserId);
+            window.Owner = this;
+            window.ShowDialog();
+        }
+
+        private void BtnExcel_Click(object sender, RoutedEventArgs e)
+        {
+            _viewModel.EksportujDoExcel();
+        }
+
         private void RefreshDiagnostics()
         {
             try

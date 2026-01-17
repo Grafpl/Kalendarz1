@@ -1,0 +1,207 @@
+<Window x:Class="Kalendarz1.Opakowania.Views.ZestawieniePorownanczeWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Zestawienie Porównawcze"
+        Width="1200" Height="800"
+        WindowStartupLocation="CenterScreen"
+        Background="#F5F5F5">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+
+        <Style x:Key="BtnStyle" TargetType="Button">
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Background" Value="#1976D2"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#1565C0"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Nagłówek -->
+        <Border Grid.Row="0" Background="White" Padding="24,20" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel>
+                    <TextBlock Text="Zestawienie Porównawcze" FontSize="28" FontWeight="Bold" Foreground="#1976D2"/>
+                    <TextBlock Text="Porównaj salda z dwóch różnych dat" FontSize="14" Foreground="#666" Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <Button Grid.Column="1" Content="Zamknij" Click="BtnZamknij_Click" Style="{StaticResource BtnStyle}"/>
+            </Grid>
+        </Border>
+
+        <!-- Wybór dat -->
+        <Border Grid.Row="1" Background="White" Padding="24,16" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="Okres 1:" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold" Foreground="#1976D2"/>
+                    <DatePicker SelectedDate="{Binding Data1}" Width="130"/>
+                </StackPanel>
+
+                <TextBlock Grid.Column="1" Text="vs" VerticalAlignment="Center" Margin="24,0" FontSize="18" Foreground="#999"/>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <TextBlock Text="Okres 2:" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold" Foreground="#F97316"/>
+                    <DatePicker SelectedDate="{Binding Data2}" Width="130"/>
+                </StackPanel>
+
+                <Border Grid.Column="3" Width="1" Background="#E0E0E0" Margin="24,0"/>
+
+                <StackPanel Grid.Column="4" Orientation="Horizontal">
+                    <TextBlock Text="Typ:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <ComboBox SelectedIndex="{Binding WybranyTyp}" Width="140">
+                        <ComboBoxItem Content="Wszystkie"/>
+                        <ComboBoxItem Content="E2"/>
+                        <ComboBoxItem Content="H1"/>
+                    </ComboBox>
+                </StackPanel>
+
+                <Button Grid.Column="6" Content="Porównaj" Command="{Binding PorownajCommand}" Style="{StaticResource BtnStyle}"/>
+            </Grid>
+        </Border>
+
+        <!-- Wyniki -->
+        <Grid Grid.Row="2" Margin="24">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Podsumowanie -->
+            <Border Grid.Row="0" Background="White" CornerRadius="8" Padding="20" Margin="0,0,0,16">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                        <TextBlock Text="Okres 1" FontSize="12" Foreground="#666"/>
+                        <TextBlock Text="{Binding Data1, StringFormat='{}{0:dd.MM.yyyy}'}" FontSize="16" FontWeight="Bold" Foreground="#1976D2"/>
+                        <TextBlock Text="{Binding SumaOkres1, StringFormat='Suma: {0}'}" FontSize="14" Foreground="#333" Margin="0,4,0,0"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                        <TextBlock Text="Okres 2" FontSize="12" Foreground="#666"/>
+                        <TextBlock Text="{Binding Data2, StringFormat='{}{0:dd.MM.yyyy}'}" FontSize="16" FontWeight="Bold" Foreground="#F97316"/>
+                        <TextBlock Text="{Binding SumaOkres2, StringFormat='Suma: {0}'}" FontSize="14" Foreground="#333" Margin="0,4,0,0"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                        <TextBlock Text="Różnica" FontSize="12" Foreground="#666"/>
+                        <TextBlock Text="{Binding Roznica}" FontSize="24" FontWeight="Bold" Foreground="{Binding RoznicaKolor}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="3" HorizontalAlignment="Center">
+                        <TextBlock Text="Zmiana %" FontSize="12" Foreground="#666"/>
+                        <TextBlock Text="{Binding ZmianaProcent, StringFormat='{}{0:+0.0;-0.0;0}%'}" FontSize="24" FontWeight="Bold" Foreground="{Binding RoznicaKolor}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Tabela -->
+            <Border Grid.Row="1" Background="White" CornerRadius="8" Padding="0">
+                <DataGrid ItemsSource="{Binding Wyniki}" AutoGenerateColumns="False"
+                          IsReadOnly="True" BorderThickness="0" GridLinesVisibility="Horizontal"
+                          HorizontalGridLinesBrush="#EEE" RowHeaderWidth="0">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Kontrahent" Binding="{Binding Kontrahent}" Width="120"/>
+                        <DataGridTextColumn Header="Nazwa" Binding="{Binding Nazwa}" Width="*"/>
+                        <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="100"/>
+
+                        <DataGridTemplateColumn Header="Okres 1" Width="90">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding SaldoOkres1}" HorizontalAlignment="Right"
+                                               FontWeight="Bold" Foreground="#1976D2"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="Okres 2" Width="90">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding SaldoOkres2}" HorizontalAlignment="Right"
+                                               FontWeight="Bold" Foreground="#F97316"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="Różnica" Width="90">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Roznica, StringFormat='{}{0:+#;-#;0}'}"
+                                               HorizontalAlignment="Right" FontWeight="Bold"
+                                               Foreground="{Binding RoznicaKolor}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="Zmiana %" Width="80">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding ZmianaProcent, StringFormat='{}{0:+0;-0;0}%'}"
+                                               HorizontalAlignment="Right" FontWeight="Bold"
+                                               Foreground="{Binding RoznicaKolor}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Border>
+        </Grid>
+
+        <!-- Stopka -->
+        <Border Grid.Row="3" Background="White" Padding="24,12" BorderBrush="#E0E0E0" BorderThickness="0,1,0,0">
+            <TextBlock Text="{Binding StatusText}" Foreground="#666"/>
+        </Border>
+
+        <!-- Loading -->
+        <Border Grid.RowSpan="4" Background="#80FFFFFF" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <ProgressBar IsIndeterminate="True" Width="200" Height="4" Foreground="#1976D2"/>
+                <TextBlock Text="Ładowanie..." Margin="0,12,0,0" Foreground="#333"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

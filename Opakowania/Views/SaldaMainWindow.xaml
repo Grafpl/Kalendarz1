@@ -56,6 +56,58 @@
             </Style.Triggers>
         </Style>
 
+        <!-- Style przycisków - mniejsze -->
+        <Style x:Key="BtnSmall" TargetType="Button">
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Background" Value="#43A047"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#2E7D32"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="BtnBlue" TargetType="Button" BasedOn="{StaticResource BtnSmall}">
+            <Setter Property="Background" Value="#1976D2"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#1565C0"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="BtnOrange" TargetType="Button" BasedOn="{StaticResource BtnSmall}">
+            <Setter Property="Background" Value="#FB8C00"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#EF6C00"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="BtnPurple" TargetType="Button" BasedOn="{StaticResource BtnSmall}">
+            <Setter Property="Background" Value="#7B1FA2"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#6A1B9A"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
         <!-- Style DataGrid -->
         <Style TargetType="DataGrid">
             <Setter Property="Background" Value="White"/>
@@ -142,9 +194,27 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <Button x:Name="btnDashboard" Content="&#xE9D5; Dashboard potwierdzeń" Style="{StaticResource BtnStyle}"
-                            Click="BtnDashboard_Click" Margin="0,0,8,0" FontFamily="Segoe MDL2 Assets, Segoe UI"/>
+                    <!-- Główne przyciski -->
                     <Button Content="Odśwież" Command="{Binding OdswiezCommand}" Style="{StaticResource BtnStyle}" Margin="0,0,8,0"/>
+
+                    <!-- Separator -->
+                    <Border Width="1" Background="#C8E6C9" Margin="8,0"/>
+
+                    <!-- Nowe funkcjonalności -->
+                    <Button x:Name="btnDashboardZarzadczy" Content="&#xE9F9; Statystyki" Style="{StaticResource BtnSmall}"
+                            Click="BtnDashboardZarzadczy_Click" Margin="8,0,4,0" ToolTip="Dashboard zarządczy ze statystykami"/>
+
+                    <Button x:Name="btnDashboard" Content="&#xE8CB; Potwierdzenia" Style="{StaticResource BtnSmall}"
+                            Click="BtnDashboard_Click" Margin="0,0,4,0" ToolTip="Status potwierdzeń sald"/>
+
+                    <Button x:Name="btnZestawienie" Content="&#xE9D9; Porównanie" Style="{StaticResource BtnBlue}"
+                            Click="BtnZestawienie_Click" Margin="0,0,4,0" ToolTip="Zestawienie porównawcze dwóch okresów"/>
+
+                    <Button x:Name="btnRaport" Content="&#xE9F9; Raport" Style="{StaticResource BtnOrange}"
+                            Click="BtnRaport_Click" Margin="0,0,4,0" ToolTip="Raport dla zarządu"/>
+
+                    <Button x:Name="btnExcel" Content="&#xE8A5; Excel" Style="{StaticResource BtnPurple}"
+                            Click="BtnExcel_Click" Margin="0,0,0,0" ToolTip="Eksport do Excel"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -270,9 +340,68 @@
                 </DataGrid>
             </TabItem>
 
-            <!-- EURO - UKRYTE -->
-            <!-- PCV - UKRYTE -->
-            <!-- DREW - UKRYTE -->
+            <!-- EURO -->
+            <TabItem Header="  EURO  " Style="{StaticResource TabStyle}">
+                <DataGrid ItemsSource="{Binding ListaEURO}" SelectedItem="{Binding WybranyKontrahent}"
+                          MouseDoubleClick="DataGrid_MouseDoubleClick">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Kontrahent" Binding="{Binding Kontrahent}" Width="150"/>
+                        <DataGridTextColumn Header="Nazwa" Binding="{Binding Nazwa}" Width="*"/>
+                        <DataGridTemplateColumn Header="EURO" Width="100">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding EUROTekst}" Foreground="{Binding EUROKolor}"
+                                               FontWeight="Bold" HorizontalAlignment="Right"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="120"/>
+                        <DataGridTextColumn Header="Ostatni dok." Binding="{Binding OstatniDokumentTekst}" Width="90"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+
+            <!-- PCV -->
+            <TabItem Header="  PCV  " Style="{StaticResource TabStyle}">
+                <DataGrid ItemsSource="{Binding ListaPCV}" SelectedItem="{Binding WybranyKontrahent}"
+                          MouseDoubleClick="DataGrid_MouseDoubleClick">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Kontrahent" Binding="{Binding Kontrahent}" Width="150"/>
+                        <DataGridTextColumn Header="Nazwa" Binding="{Binding Nazwa}" Width="*"/>
+                        <DataGridTemplateColumn Header="PCV" Width="100">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding PCVTekst}" Foreground="{Binding PCVKolor}"
+                                               FontWeight="Bold" HorizontalAlignment="Right"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="120"/>
+                        <DataGridTextColumn Header="Ostatni dok." Binding="{Binding OstatniDokumentTekst}" Width="90"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+
+            <!-- DREW -->
+            <TabItem Header="  DREW  " Style="{StaticResource TabStyle}">
+                <DataGrid ItemsSource="{Binding ListaDREW}" SelectedItem="{Binding WybranyKontrahent}"
+                          MouseDoubleClick="DataGrid_MouseDoubleClick">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Kontrahent" Binding="{Binding Kontrahent}" Width="150"/>
+                        <DataGridTextColumn Header="Nazwa" Binding="{Binding Nazwa}" Width="*"/>
+                        <DataGridTemplateColumn Header="DREW" Width="100">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding DREWTekst}" Foreground="{Binding DREWKolor}"
+                                               FontWeight="Bold" HorizontalAlignment="Right"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="120"/>
+                        <DataGridTextColumn Header="Ostatni dok." Binding="{Binding OstatniDokumentTekst}" Width="90"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
 
         </TabControl>
 
