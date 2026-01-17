@@ -188,94 +188,25 @@
                 <Border Background="#1e1e36" CornerRadius="8,8,0,0" Height="45" VerticalAlignment="Top">
                     <Grid Margin="15,0">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="40"/>
-                            <ColumnDefinition Width="60"/>
+                            <ColumnDefinition Width="30"/>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="150"/>
                             <ColumnDefinition Width="120"/>
                             <ColumnDefinition Width="100"/>
-                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="80"/>
+                            <ColumnDefinition Width="90"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0" Text="" Foreground="#888" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="1" Text="Priorytet" Foreground="#888" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="2" Text="Zadanie" Foreground="#888" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="3" Text="Firma" Foreground="#888" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="4" Text="Termin" Foreground="#888" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="5" Text="Status" Foreground="#888" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="6" Text="Akcje" Foreground="#888" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="Zadanie" Foreground="#888" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="2" Text="Przypisani" Foreground="#888" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="3" Text="Termin" Foreground="#888" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="4" Text="Status" Foreground="#888" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="5" Text="Akcje" Foreground="#888" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                     </Grid>
                 </Border>
 
                 <!-- List -->
                 <ScrollViewer Margin="0,45,0,0" VerticalScrollBarVisibility="Auto">
-                    <ItemsControl x:Name="tasksList">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border Background="#2a2a4a" Margin="5" CornerRadius="6" Padding="15,10"
-                                        BorderBrush="{Binding BorderColor}" BorderThickness="0,0,0,3">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="40"/>
-                                            <ColumnDefinition Width="60"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="150"/>
-                                            <ColumnDefinition Width="120"/>
-                                            <ColumnDefinition Width="100"/>
-                                            <ColumnDefinition Width="120"/>
-                                        </Grid.ColumnDefinitions>
-
-                                        <!-- Checkbox -->
-                                        <CheckBox Grid.Column="0" IsChecked="{Binding Wykonane}"
-                                                  Checked="TaskCheckbox_Changed" Unchecked="TaskCheckbox_Changed"
-                                                  Tag="{Binding Id}" VerticalAlignment="Center"/>
-
-                                        <!-- Priority -->
-                                        <Border Grid.Column="1" Background="{Binding PriorityColor}"
-                                                CornerRadius="4" Padding="6,2" HorizontalAlignment="Left"
-                                                VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding PriorityText}" Foreground="White" FontSize="11"/>
-                                        </Border>
-
-                                        <!-- Task info -->
-                                        <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding TypZadania}" Foreground="White" FontWeight="SemiBold"
-                                                       TextDecorations="{Binding TextDecoration}"/>
-                                            <TextBlock Text="{Binding Opis}" Foreground="#888" FontSize="12"
-                                                       TextTrimming="CharacterEllipsis" MaxWidth="300"/>
-                                        </StackPanel>
-
-                                        <!-- Company -->
-                                        <TextBlock Grid.Column="3" Text="{Binding Firma}" Foreground="#aaa"
-                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-
-                                        <!-- Due date -->
-                                        <StackPanel Grid.Column="4" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding TerminText}" Foreground="{Binding TerminColor}"/>
-                                            <TextBlock Text="{Binding TerminRelative}" Foreground="#666" FontSize="11"/>
-                                        </StackPanel>
-
-                                        <!-- Status -->
-                                        <Border Grid.Column="5" Background="{Binding StatusColor}"
-                                                CornerRadius="4" Padding="8,4" HorizontalAlignment="Left"
-                                                VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding StatusText}" Foreground="White" FontSize="11"/>
-                                        </Border>
-
-                                        <!-- Actions -->
-                                        <StackPanel Grid.Column="6" Orientation="Horizontal"
-                                                    HorizontalAlignment="Center" VerticalAlignment="Center">
-                                            <Button Content="✏️" Style="{StaticResource SecondaryButton}"
-                                                    Tag="{Binding Id}" Click="BtnEdytuj_Click"
-                                                    ToolTip="Edytuj" Padding="8,4"/>
-                                            <Button Content="🗑️" Style="{StaticResource DangerButton}"
-                                                    Tag="{Binding Id}" Click="BtnUsun_Click"
-                                                    ToolTip="Usuń" Padding="8,4" Margin="5,0,0,0"/>
-                                        </StackPanel>
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                    <ItemsControl x:Name="tasksList" Padding="10"/>
                 </ScrollViewer>
 
                 <!-- Empty state -->

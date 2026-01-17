@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Shapes;
 using Microsoft.Data.SqlClient;
 
 namespace Kalendarz1.Zadania
@@ -30,23 +33,28 @@ namespace Kalendarz1.Zadania
                 using (var conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
+
+                    // Pobierz zadania gdzie użytkownik jest twórcą LUB jest przypisany
                     var cmd = new SqlCommand(@"
-                        SELECT
+                        SELECT DISTINCT
                             Z.ID,
-                            ISNULL(O.Nazwa, 'Brak firmy') AS Firma,
                             Z.TypZadania,
                             Z.Opis,
                             Z.TerminWykonania,
                             Z.Priorytet,
                             Z.Wykonane,
-                            Z.IDOdbiorcy
+                            ISNULL(Z.Zespolowe, 0) as Zespolowe,
+                            Z.OperatorID as TworcaID,
+                            o.Name as TworcaNazwa
                         FROM Zadania Z
-                        LEFT JOIN OdbiorcyCRM O ON Z.IDOdbiorcy = O.ID
-                        WHERE Z.OperatorID = @id
+                        LEFT JOIN operators o ON Z.OperatorID = o.ID
+                        LEFT JOIN ZadaniaPrzypisani zp ON Z.ID = zp.ZadanieID
+                        WHERE Z.OperatorID = @id OR zp.OperatorID = @id
                         ORDER BY Z.Wykonane ASC, Z.Priorytet DESC, Z.TerminWykonania ASC", conn);
 
                     cmd.Parameters.AddWithValue("@id", operatorId);
 
+                    var taskIds = new List<int>();
                     using (var reader = cmd.ExecuteReader())
                     {
                         while (reader.Read())
@@ -54,15 +62,44 @@ namespace Kalendarz1.Zadania
                             var task = new ZadanieViewModel
                             {
                                 Id = reader.GetInt32(0),
-                                Firma = reader.GetString(1),
-                                TypZadania = reader.IsDBNull(2) ? "" : reader.GetString(2),
-                                Opis = reader.IsDBNull(3) ? "" : reader.GetString(3),
-                                TerminWykonania = reader.GetDateTime(4),
-                                Priorytet = reader.GetInt32(5),
-                                Wykonane = reader.GetBoolean(6),
-                                IDOdbiorcy = reader.IsDBNull(7) ? 0 : reader.GetInt32(7)
+                                TypZadania = reader.IsDBNull(1) ? "" : reader.GetString(1),
+                                Opis = reader.IsDBNull(2) ? "" : reader.GetString(2),
+                                TerminWykonania = reader.GetDateTime(3),
+                                Priorytet = reader.GetInt32(4),
+                                Wykonane = reader.GetBoolean(5),
+                                Zespolowe = reader.GetBoolean(6),
+                                TworcaID = reader.IsDBNull(7) ? "" : reader.GetString(7),
+                                TworcaNazwa = reader.IsDBNull(8) ? "" : reader.GetString(8)
                             };
                             allTasks.Add(task);
+                            taskIds.Add(task.Id);
+                        }
+                    }
+
+                    // Pobierz przypisanych pracowników dla każdego zadania
+                    if (taskIds.Count > 0)
+                    {
+                        var idsParam = string.Join(",", taskIds);
+                        var assignCmd = new SqlCommand($@"
+                            SELECT ZadanieID, OperatorID, OperatorNazwa
+                            FROM ZadaniaPrzypisani
+                            WHERE ZadanieID IN ({idsParam})", conn);
+
+                        using (var reader = assignCmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                var zadanieId = reader.GetInt32(0);
+                                var task = allTasks.FirstOrDefault(t => t.Id == zadanieId);
+                                if (task != null)
+                                {
+                                    task.Przypisani.Add(new PracownikInfo
+                                    {
+                                        Id = reader.GetString(1),
+                                        Nazwa = reader.IsDBNull(2) ? reader.GetString(1) : reader.GetString(2)
+                                    });
+                                }
+                            }
                         }
                     }
                 }
@@ -105,13 +142,337 @@ namespace Kalendarz1.Zadania
                 filtered = filtered.Where(t =>
                     (t.TypZadania?.ToLower().Contains(search) ?? false) ||
                     (t.Opis?.ToLower().Contains(search) ?? false) ||
-                    (t.Firma?.ToLower().Contains(search) ?? false));
+                    t.Przypisani.Any(p => p.Nazwa.ToLower().Contains(search)));
             }
 
             var result = filtered.ToList();
-            tasksList.ItemsSource = result;
+
+            // Buduj listę zadań z avatarami
+            tasksList.Items.Clear();
+            foreach (var task in result)
+            {
+                tasksList.Items.Add(CreateTaskItem(task));
+            }
 
             emptyState.Visibility = result.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private Border CreateTaskItem(ZadanieViewModel task)
+        {
+            var border = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(0x25, 0x25, 0x42)),
+                BorderBrush = task.BorderColor,
+                BorderThickness = new Thickness(0, 0, 0, 3),
+                CornerRadius = new CornerRadius(6),
+                Margin = new Thickness(0, 0, 0, 8),
+                Padding = new Thickness(15, 12, 15, 12)
+            };
+
+            var mainGrid = new Grid();
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            // Checkbox
+            var checkbox = new CheckBox
+            {
+                IsChecked = task.Wykonane,
+                VerticalAlignment = VerticalAlignment.Center,
+                Tag = task.Id
+            };
+            checkbox.Checked += TaskCheckbox_Changed;
+            checkbox.Unchecked += TaskCheckbox_Changed;
+            Grid.SetColumn(checkbox, 0);
+            mainGrid.Children.Add(checkbox);
+
+            // Zadanie info
+            var infoStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+
+            var headerStack = new StackPanel { Orientation = Orientation.Horizontal };
+
+            var priorityBadge = new Border
+            {
+                Background = task.PriorityColor,
+                CornerRadius = new CornerRadius(3),
+                Padding = new Thickness(6, 2, 6, 2),
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+            priorityBadge.Child = new TextBlock
+            {
+                Text = task.PriorityText,
+                Foreground = Brushes.White,
+                FontSize = 10,
+                FontWeight = FontWeights.SemiBold
+            };
+            headerStack.Children.Add(priorityBadge);
+
+            if (task.Zespolowe)
+            {
+                var teamBadge = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(0x21, 0x96, 0xF3)),
+                    CornerRadius = new CornerRadius(3),
+                    Padding = new Thickness(6, 2, 6, 2),
+                    Margin = new Thickness(0, 0, 8, 0)
+                };
+                teamBadge.Child = new TextBlock
+                {
+                    Text = "👥 Zespołowe",
+                    Foreground = Brushes.White,
+                    FontSize = 10
+                };
+                headerStack.Children.Add(teamBadge);
+            }
+
+            var titleText = new TextBlock
+            {
+                Text = task.TypZadania,
+                Foreground = Brushes.White,
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                TextDecorations = task.TextDecoration,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            headerStack.Children.Add(titleText);
+            infoStack.Children.Add(headerStack);
+
+            if (!string.IsNullOrWhiteSpace(task.Opis))
+            {
+                var opisText = new TextBlock
+                {
+                    Text = task.Opis.Length > 80 ? task.Opis.Substring(0, 80) + "..." : task.Opis,
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99)),
+                    FontSize = 12,
+                    Margin = new Thickness(0, 4, 0, 0),
+                    TextTrimming = TextTrimming.CharacterEllipsis
+                };
+                infoStack.Children.Add(opisText);
+            }
+
+            Grid.SetColumn(infoStack, 1);
+            mainGrid.Children.Add(infoStack);
+
+            // Przypisani (avatary)
+            var avatarsPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(15, 0, 15, 0)
+            };
+
+            var maxAvatars = 4;
+            foreach (var pracownik in task.Przypisani.Take(maxAvatars))
+            {
+                var avatar = CreateAvatar(pracownik.Id, pracownik.Nazwa, 28);
+                if (avatar is FrameworkElement fe)
+                {
+                    fe.Margin = new Thickness(0, 0, -6, 0);
+                    fe.ToolTip = pracownik.Nazwa;
+                }
+                avatarsPanel.Children.Add(avatar);
+            }
+
+            if (task.Przypisani.Count > maxAvatars)
+            {
+                var more = new Border
+                {
+                    Width = 28,
+                    Height = 28,
+                    CornerRadius = new CornerRadius(14),
+                    Background = new SolidColorBrush(Color.FromRgb(0x3a, 0x3a, 0x5c)),
+                    Margin = new Thickness(2, 0, 0, 0)
+                };
+                more.Child = new TextBlock
+                {
+                    Text = $"+{task.Przypisani.Count - maxAvatars}",
+                    Foreground = Brushes.White,
+                    FontSize = 10,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                avatarsPanel.Children.Add(more);
+            }
+
+            Grid.SetColumn(avatarsPanel, 2);
+            mainGrid.Children.Add(avatarsPanel);
+
+            // Termin
+            var terminStack = new StackPanel
+            {
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 15, 0),
+                Width = 100
+            };
+
+            var terminText = new TextBlock
+            {
+                Text = task.TerminText,
+                Foreground = task.TerminColor,
+                FontSize = 12,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+            terminStack.Children.Add(terminText);
+
+            var relativeText = new TextBlock
+            {
+                Text = task.TerminRelative,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x66, 0x66, 0x66)),
+                FontSize = 10,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+            terminStack.Children.Add(relativeText);
+
+            Grid.SetColumn(terminStack, 3);
+            mainGrid.Children.Add(terminStack);
+
+            // Status badge
+            var statusBadge = new Border
+            {
+                Background = task.StatusColor,
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(10, 4, 10, 4),
+                Margin = new Thickness(0, 0, 10, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            statusBadge.Child = new TextBlock
+            {
+                Text = task.StatusText,
+                Foreground = Brushes.White,
+                FontSize = 11
+            };
+            Grid.SetColumn(statusBadge, 4);
+            mainGrid.Children.Add(statusBadge);
+
+            // Action buttons
+            var actionsPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            var editBtn = new Button
+            {
+                Content = "✏️",
+                Background = new SolidColorBrush(Color.FromRgb(0x3a, 0x3a, 0x5c)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(8, 4, 8, 4),
+                Margin = new Thickness(0, 0, 5, 0),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Tag = task.Id
+            };
+            editBtn.Click += BtnEdytuj_Click;
+            actionsPanel.Children.Add(editBtn);
+
+            var deleteBtn = new Button
+            {
+                Content = "🗑️",
+                Background = new SolidColorBrush(Color.FromRgb(0x5c, 0x3a, 0x3a)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(8, 4, 8, 4),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Tag = task.Id
+            };
+            deleteBtn.Click += BtnUsun_Click;
+            actionsPanel.Children.Add(deleteBtn);
+
+            Grid.SetColumn(actionsPanel, 5);
+            mainGrid.Children.Add(actionsPanel);
+
+            border.Child = mainGrid;
+            return border;
+        }
+
+        private UIElement CreateAvatar(string id, string name, int size)
+        {
+            var avatarPath = GetAvatarPath(id);
+
+            if (File.Exists(avatarPath))
+            {
+                try
+                {
+                    var bitmap = new BitmapImage();
+                    bitmap.BeginInit();
+                    bitmap.UriSource = new Uri(avatarPath, UriKind.Absolute);
+                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                    bitmap.EndInit();
+
+                    var brush = new ImageBrush(bitmap) { Stretch = Stretch.UniformToFill };
+                    var ellipse = new Ellipse
+                    {
+                        Width = size,
+                        Height = size,
+                        Fill = brush,
+                        Stroke = new SolidColorBrush(Color.FromRgb(0x25, 0x25, 0x42)),
+                        StrokeThickness = 2
+                    };
+                    return ellipse;
+                }
+                catch { }
+            }
+
+            // Domyślny avatar
+            var grid = new Grid { Width = size, Height = size };
+
+            var bgColor = GetColorFromId(id);
+            var circle = new Ellipse
+            {
+                Fill = new SolidColorBrush(bgColor),
+                Stroke = new SolidColorBrush(Color.FromRgb(0x25, 0x25, 0x42)),
+                StrokeThickness = 2
+            };
+            grid.Children.Add(circle);
+
+            var initials = GetInitials(name);
+            var text = new TextBlock
+            {
+                Text = initials,
+                Foreground = Brushes.White,
+                FontSize = size / 2.8,
+                FontWeight = FontWeights.SemiBold,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            grid.Children.Add(text);
+
+            return grid;
+        }
+
+        private string GetAvatarPath(string userId)
+        {
+            return System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "ZPSP", "Avatars", $"{userId}.png");
+        }
+
+        private string GetInitials(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return "?";
+            var parts = name.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length >= 2)
+                return (parts[0][0].ToString() + parts[1][0].ToString()).ToUpper();
+            return name.Length >= 2 ? name.Substring(0, 2).ToUpper() : name.ToUpper();
+        }
+
+        private Color GetColorFromId(string id)
+        {
+            int hash = id?.GetHashCode() ?? 0;
+            Color[] colors = {
+                Color.FromRgb(46, 125, 50),
+                Color.FromRgb(25, 118, 210),
+                Color.FromRgb(156, 39, 176),
+                Color.FromRgb(230, 81, 0),
+                Color.FromRgb(0, 137, 123),
+                Color.FromRgb(194, 24, 91),
+                Color.FromRgb(69, 90, 100),
+                Color.FromRgb(121, 85, 72)
+            };
+            return colors[Math.Abs(hash) % colors.Length];
         }
 
         private void UpdateStats()
@@ -185,6 +546,12 @@ namespace Kalendarz1.Zadania
                     using (var conn = new SqlConnection(connectionString))
                     {
                         conn.Open();
+                        // Usuń przypisania
+                        var delAssign = new SqlCommand("DELETE FROM ZadaniaPrzypisani WHERE ZadanieID = @id", conn);
+                        delAssign.Parameters.AddWithValue("@id", taskId);
+                        delAssign.ExecuteNonQuery();
+
+                        // Usuń zadanie
                         var cmd = new SqlCommand("DELETE FROM Zadania WHERE ID = @id", conn);
                         cmd.Parameters.AddWithValue("@id", taskId);
                         cmd.ExecuteNonQuery();
@@ -219,7 +586,6 @@ namespace Kalendarz1.Zadania
                     cmd.ExecuteNonQuery();
                 }
 
-                // Update local data
                 var task = allTasks.FirstOrDefault(t => t.Id == taskId);
                 if (task != null)
                 {
@@ -238,6 +604,12 @@ namespace Kalendarz1.Zadania
         }
     }
 
+    public class PracownikInfo
+    {
+        public string Id { get; set; }
+        public string Nazwa { get; set; }
+    }
+
     public class ZadanieViewModel
     {
         public int Id { get; set; }
@@ -248,6 +620,10 @@ namespace Kalendarz1.Zadania
         public int Priorytet { get; set; }
         public bool Wykonane { get; set; }
         public int IDOdbiorcy { get; set; }
+        public bool Zespolowe { get; set; }
+        public string TworcaID { get; set; }
+        public string TworcaNazwa { get; set; }
+        public List<PracownikInfo> Przypisani { get; set; } = new List<PracownikInfo>();
 
         public string PriorityText => Priorytet == 3 ? "Wysoki" : Priorytet == 2 ? "Średni" : "Niski";
 
@@ -257,11 +633,11 @@ namespace Kalendarz1.Zadania
 
         public string StatusText => Wykonane ? "Wykonane" :
                                     TerminWykonania < DateTime.Today ? "Zaległe" :
-                                    TerminWykonania == DateTime.Today ? "Na dziś" : "Aktywne";
+                                    TerminWykonania.Date == DateTime.Today ? "Na dziś" : "Aktywne";
 
         public Brush StatusColor => Wykonane ? new SolidColorBrush(Color.FromRgb(158, 158, 158)) :
                                     TerminWykonania < DateTime.Today ? new SolidColorBrush(Color.FromRgb(244, 67, 54)) :
-                                    TerminWykonania == DateTime.Today ? new SolidColorBrush(Color.FromRgb(255, 152, 0)) :
+                                    TerminWykonania.Date == DateTime.Today ? new SolidColorBrush(Color.FromRgb(255, 152, 0)) :
                                     new SolidColorBrush(Color.FromRgb(33, 150, 243));
 
         public string TerminText => TerminWykonania.ToString("dd.MM.yyyy HH:mm");
