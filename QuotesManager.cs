@@ -21,26 +21,26 @@ namespace Kalendarz1
         // Domyślne cytaty (używane gdy brak własnych)
         private static readonly List<Quote> DefaultQuotes = new List<Quote>
         {
-            new Quote { Text = "Sukces to suma małych wysiłków powtarzanych dzień po dniu." },
-            new Quote { Text = "Jedynym sposobem na świetną pracę jest kochać to, co robisz." },
-            new Quote { Text = "Przyszłość należy do tych, którzy wierzą w piękno swoich marzeń." },
+            new Quote { Text = "Sukces to suma małych wysiłków powtarzanych dzień po dniu.", Author = "Robert Collier" },
+            new Quote { Text = "Jedynym sposobem na świetną pracę jest kochać to, co robisz.", Author = "Steve Jobs" },
+            new Quote { Text = "Przyszłość należy do tych, którzy wierzą w piękno swoich marzeń.", Author = "Eleanor Roosevelt" },
             new Quote { Text = "Nie czekaj na idealny moment. Weź moment i uczyń go idealnym." },
-            new Quote { Text = "Sukces nie jest kluczem do szczęścia. Szczęście jest kluczem do sukcesu." },
-            new Quote { Text = "Droga do sukcesu jest zawsze w budowie." },
+            new Quote { Text = "Sukces nie jest kluczem do szczęścia. Szczęście jest kluczem do sukcesu.", Author = "Albert Schweitzer" },
+            new Quote { Text = "Droga do sukcesu jest zawsze w budowie.", Author = "Lily Tomlin" },
             new Quote { Text = "Każdy dzień to nowa szansa, by zmienić swoje życie." },
             new Quote { Text = "Wielkie rzeczy nigdy nie przychodzą ze strefy komfortu." },
-            new Quote { Text = "Postęp jest niemożliwy bez zmiany." },
-            new Quote { Text = "Zacznij tam, gdzie jesteś. Użyj tego, co masz. Zrób to, co możesz." },
-            new Quote { Text = "Odwaga nie jest brakiem strachu, ale działaniem mimo niego." },
+            new Quote { Text = "Postęp jest niemożliwy bez zmiany.", Author = "George Bernard Shaw" },
+            new Quote { Text = "Zacznij tam, gdzie jesteś. Użyj tego, co masz. Zrób to, co możesz.", Author = "Arthur Ashe" },
+            new Quote { Text = "Odwaga nie jest brakiem strachu, ale działaniem mimo niego.", Author = "Mark Twain" },
             new Quote { Text = "Najlepszy czas na posadzenie drzewa był 20 lat temu. Drugi najlepszy czas jest teraz." },
-            new Quote { Text = "Twój czas jest ograniczony. Nie marnuj go żyjąc cudzym życiem." },
-            new Quote { Text = "Nie licz dni, spraw, by dni się liczyły." },
-            new Quote { Text = "Jakość nie jest dziełem przypadku. Jest wynikiem inteligentnego wysiłku." },
-            new Quote { Text = "Nie ma windy do sukcesu. Musisz iść po schodach." },
-            new Quote { Text = "Rób to, czego się boisz, a strach na pewno zniknie." },
+            new Quote { Text = "Twój czas jest ograniczony. Nie marnuj go żyjąc cudzym życiem.", Author = "Steve Jobs" },
+            new Quote { Text = "Nie licz dni, spraw, by dni się liczyły.", Author = "Muhammad Ali" },
+            new Quote { Text = "Jakość nie jest dziełem przypadku. Jest wynikiem inteligentnego wysiłku.", Author = "John Ruskin" },
+            new Quote { Text = "Nie ma windy do sukcesu. Musisz iść po schodach.", Author = "Zig Ziglar" },
+            new Quote { Text = "Rób to, czego się boisz, a strach na pewno zniknie.", Author = "Ralph Waldo Emerson" },
             new Quote { Text = "Praca zespołowa sprawia, że marzenia się spełniają." },
-            new Quote { Text = "Bądź zmianą, którą chcesz widzieć w świecie." },
-            new Quote { Text = "Jedyną granicą naszych jutrzejszych osiągnięć są nasze dzisiejsze wątpliwości." }
+            new Quote { Text = "Bądź zmianą, którą chcesz widzieć w świecie.", Author = "Mahatma Gandhi" },
+            new Quote { Text = "Jedyną granicą naszych jutrzejszych osiągnięć są nasze dzisiejsze wątpliwości.", Author = "Franklin D. Roosevelt" }
         };
 
         /// <summary>
@@ -49,6 +49,7 @@ namespace Kalendarz1
         public class Quote
         {
             public string Text { get; set; }
+            public string Author { get; set; }
         }
 
         /// <summary>
@@ -132,12 +133,12 @@ namespace Kalendarz1
         /// <summary>
         /// Dodaje nowy cytat
         /// </summary>
-        public static bool AddQuote(string text)
+        public static bool AddQuote(string text, string author = null)
         {
             try
             {
                 var quotes = GetAllQuotes().ToList();
-                quotes.Add(new Quote { Text = text });
+                quotes.Add(new Quote { Text = text, Author = author });
                 return SaveQuotes(quotes);
             }
             catch
@@ -209,7 +210,8 @@ namespace Kalendarz1
                     .Where(q => !string.IsNullOrWhiteSpace(q.Text))
                     .Select(q => new Quote
                     {
-                        Text = q.Text.Trim()
+                        Text = q.Text.Trim(),
+                        Author = string.IsNullOrWhiteSpace(q.Author) ? null : q.Author.Trim()
                     })
                     .ToList();
 

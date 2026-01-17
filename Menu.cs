@@ -386,9 +386,14 @@ namespace Kalendarz1
 
             // Losowy cytat
             var quote = QuotesManager.GetRandomQuote();
+            var quoteText = "\"" + quote.Text + "\"";
+            if (!string.IsNullOrEmpty(quote.Author))
+            {
+                quoteText += "\n\n- " + quote.Author;
+            }
             var quoteLabel = new Label
             {
-                Text = "\"" + quote.Text + "\"",
+                Text = quoteText,
                 Font = new Font("Segoe UI", 9, FontStyle.Italic),
                 ForeColor = Color.FromArgb(160, 170, 180),
                 AutoSize = false,
@@ -1400,11 +1405,11 @@ namespace Kalendarz1
             addButton.FlatAppearance.BorderSize = 0;
             addButton.Click += (s, args) =>
             {
-                // Prosty dialog do dodania cytatu
+                // Dialog do dodania cytatu z opcjonalnym autorem
                 var inputForm = new Form
                 {
                     Text = "Dodaj cytat",
-                    Size = new Size(450, 200),
+                    Size = new Size(450, 250),
                     StartPosition = FormStartPosition.CenterParent,
                     FormBorderStyle = FormBorderStyle.FixedDialog,
                     MaximizeBox = false,
@@ -1427,10 +1432,25 @@ namespace Kalendarz1
                 };
                 inputForm.Controls.Add(textBox);
 
+                var authorLabel = new Label
+                {
+                    Text = "Autor (opcjonalnie):",
+                    Location = new Point(20, 115),
+                    AutoSize = true
+                };
+                inputForm.Controls.Add(authorLabel);
+
+                var authorTextBox = new TextBox
+                {
+                    Location = new Point(20, 140),
+                    Size = new Size(390, 25)
+                };
+                inputForm.Controls.Add(authorTextBox);
+
                 var okButton = new Button
                 {
                     Text = "Dodaj",
-                    Location = new Point(230, 115),
+                    Location = new Point(230, 175),
                     Size = new Size(80, 30),
                     DialogResult = DialogResult.OK
                 };
@@ -1439,7 +1459,7 @@ namespace Kalendarz1
                 var cancelButton = new Button
                 {
                     Text = "Anuluj",
-                    Location = new Point(320, 115),
+                    Location = new Point(320, 175),
                     Size = new Size(80, 30),
                     DialogResult = DialogResult.Cancel
                 };
@@ -1450,7 +1470,8 @@ namespace Kalendarz1
 
                 if (inputForm.ShowDialog() == DialogResult.OK && !string.IsNullOrWhiteSpace(textBox.Text))
                 {
-                    if (QuotesManager.AddQuote(textBox.Text.Trim()))
+                    var author = string.IsNullOrWhiteSpace(authorTextBox.Text) ? null : authorTextBox.Text.Trim();
+                    if (QuotesManager.AddQuote(textBox.Text.Trim(), author))
                     {
                         infoLabel.Text = $"Liczba cytatów: {QuotesManager.GetQuotesCount()}";
                         MessageBox.Show("Cytat został dodany!", "Sukces",
