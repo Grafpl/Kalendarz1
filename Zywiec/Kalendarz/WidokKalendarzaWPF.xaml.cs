@@ -129,6 +129,13 @@ namespace Kalendarz1.Zywiec.Kalendarz
             _selectedDate = DateTime.Today;
             UpdateWeekNumber();
 
+            // Ustaw widoczność następnego tygodnia (checkbox jest domyślnie zaznaczony)
+            if (chkNastepnyTydzien?.IsChecked == true)
+            {
+                if (colNastepnyTydzien != null) colNastepnyTydzien.Width = new GridLength(1, GridUnitType.Star);
+                if (borderNastepnyTydzien != null) borderNastepnyTydzien.Visibility = Visibility.Visible;
+            }
+
             // Załaduj dane asynchronicznie
             await LoadAllDataAsync();
 
@@ -1203,6 +1210,20 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 if (colNastepnyTydzien != null) colNastepnyTydzien.Width = new GridLength(0);
                 if (borderNastepnyTydzien != null) borderNastepnyTydzien.Visibility = Visibility.Collapsed;
             }
+        }
+
+        private void ChkPokazCheckboxy_Changed(object sender, RoutedEventArgs e)
+        {
+            if (!IsLoaded) return;
+
+            var visibility = chkPokazCheckboxy?.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+
+            // Tabela główna
+            if (colCheckConfirm != null) colCheckConfirm.Visibility = visibility;
+            if (colCheckWstawienie != null) colCheckWstawienie.Visibility = visibility;
+
+            // Tabela następny tydzień
+            if (colCheckConfirm2 != null) colCheckConfirm2.Visibility = visibility;
         }
 
         #endregion

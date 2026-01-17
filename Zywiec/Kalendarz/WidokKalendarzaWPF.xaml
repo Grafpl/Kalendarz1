@@ -118,7 +118,7 @@
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Padding" Value="8,10"/>
+            <Setter Property="Padding" Value="4,6"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="BorderBrush" Value="#1A252F"/>
             <Setter Property="BorderThickness" Value="0,0,1,0"/>
@@ -316,7 +316,6 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <!-- PASEK FILTRÓW Z WYSZUKIWARKĄ -->
@@ -335,8 +334,9 @@
                         <CheckBox x:Name="chkSprzedane" Content="Sprzedane" Style="{StaticResource FilterCheckBoxStyle}" Checked="Filter_Changed" Unchecked="Filter_Changed"/>
                         <CheckBox x:Name="chkDoWykupienia" Content="Do Wykupienia" IsChecked="True" Style="{StaticResource FilterCheckBoxStyle}" Checked="Filter_Changed" Unchecked="Filter_Changed"/>
                         <CheckBox x:Name="chkPokazCeny" Content="Ceny" IsChecked="True" Style="{StaticResource FilterCheckBoxStyle}" Checked="Filter_Changed" Unchecked="Filter_Changed"/>
+                        <CheckBox x:Name="chkPokazCheckboxy" Content="✓/W" Style="{StaticResource FilterCheckBoxStyle}" Checked="ChkPokazCheckboxy_Changed" Unchecked="ChkPokazCheckboxy_Changed"/>
                         <Border Width="1" Background="#DDDDDD" Margin="10,2"/>
-                        <CheckBox x:Name="chkNastepnyTydzien" Content="+ Następny tydzień" Style="{StaticResource FilterCheckBoxStyle}" Foreground="#3498DB" FontWeight="SemiBold" Checked="ChkNastepnyTydzien_Changed" Unchecked="ChkNastepnyTydzien_Changed"/>
+                        <CheckBox x:Name="chkNastepnyTydzien" Content="+ Następny tydzień" IsChecked="True" Style="{StaticResource FilterCheckBoxStyle}" Foreground="#3498DB" FontWeight="SemiBold" Checked="ChkNastepnyTydzien_Changed" Unchecked="ChkNastepnyTydzien_Changed"/>
                     </StackPanel>
 
                     <!-- Wyszukiwarka -->
@@ -500,7 +500,7 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTemplateColumn Header="✓" Width="38">
+                                <DataGridTemplateColumn x:Name="colCheckConfirm" Header="✓" Width="38" Visibility="Collapsed">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <CheckBox IsChecked="{Binding IsConfirmed, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
@@ -509,7 +509,7 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="W" Width="38">
+                                <DataGridTemplateColumn x:Name="colCheckWstawienie" Header="W" Width="38" Visibility="Collapsed">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <CheckBox IsChecked="{Binding IsWstawienieConfirmed, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
@@ -648,7 +648,7 @@
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTemplateColumn Header="✓" Width="32">
+                            <DataGridTemplateColumn x:Name="colCheckConfirm2" Header="✓" Width="32" Visibility="Collapsed">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <CheckBox IsChecked="{Binding IsConfirmed, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
@@ -663,45 +663,8 @@
                 </Border>
             </Grid>
 
-            <!-- PANEL PARTII BIEŻĄCYCH -->
-            <Border Grid.Row="2" Background="White" Margin="6,3,3,6" CornerRadius="4" BorderBrush="#DDDDDD" BorderThickness="1" MaxHeight="180">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <Border Grid.Row="0" Background="#388E3C" Padding="8,4">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Partie bieżące (dziś)" Foreground="White" FontWeight="SemiBold" FontSize="11"/>
-                            <TextBlock x:Name="txtPartieSuma" Text="" Foreground="#C8E6C9" FontSize="10" Margin="20,0,0,0" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Border>
-                    <DataGrid x:Name="dgPartie" Grid.Row="1" Style="{StaticResource SmallDataGridStyle}" CellEditEnding="DgPartie_CellFormatting">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Nr" Binding="{Binding Partia}" Width="35"/>
-                            <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="110"/>
-                            <DataGridTextColumn Header="Średnia" Binding="{Binding SredniaDisplay}" Width="60"/>
-                            <DataGridTextColumn Header="Żywiec" Binding="{Binding ZywiecDisplay}" Width="60"/>
-                            <DataGridTextColumn Header="Różnica" Binding="{Binding RoznicaDisplay}" Width="65"/>
-                            <DataGridTextColumn Header="Skrzydła" Binding="{Binding SkrzydlaDisplay}" Width="55"/>
-                            <DataGridTextColumn Header="Nogi" Binding="{Binding NogiDisplay}" Width="50"/>
-                            <DataGridTextColumn Header="Oparz." Binding="{Binding OparzeniaDisplay}" Width="50"/>
-                            <DataGridTextColumn Header="Klasa B" Binding="{Binding KlasaBDisplay}" Width="55"/>
-                            <DataGridTextColumn Header="Przek." Binding="{Binding PrzekarmienieDisplay}" Width="55"/>
-                            <DataGridHyperlinkColumn Header="Zdjęcia" Binding="{Binding ZdjeciaLink}" Width="70">
-                                <DataGridHyperlinkColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <EventSetter Event="Hyperlink.Click" Handler="Hyperlink_Click"/>
-                                    </Style>
-                                </DataGridHyperlinkColumn.ElementStyle>
-                            </DataGridHyperlinkColumn>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </Grid>
-            </Border>
-
             <!-- STATUS BAR -->
-            <Border Grid.Row="3" Background="#2C3E50" Padding="10,6" Margin="6,0,3,6" CornerRadius="4">
+            <Border Grid.Row="2" Background="#2C3E50" Padding="10,6" Margin="6,3,3,6" CornerRadius="4">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -1215,6 +1178,43 @@
                                 </GroupBox>
                             </StackPanel>
                         </ScrollViewer>
+                    </TabItem>
+
+                    <!-- TAB: PARTIE BIEŻĄCE -->
+                    <TabItem Header="Partie">
+                        <Grid Margin="4">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Border Grid.Row="0" Background="#388E3C" Padding="8,4" CornerRadius="4,4,0,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Partie bieżące (dziś)" Foreground="White" FontWeight="SemiBold" FontSize="11"/>
+                                    <TextBlock x:Name="txtPartieSuma" Text="" Foreground="#C8E6C9" FontSize="10" Margin="20,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                            <DataGrid x:Name="dgPartie" Grid.Row="1" Style="{StaticResource SmallDataGridStyle}" CellEditEnding="DgPartie_CellFormatting">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Nr" Binding="{Binding Partia}" Width="35"/>
+                                    <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="100"/>
+                                    <DataGridTextColumn Header="Śr." Binding="{Binding SredniaDisplay}" Width="55"/>
+                                    <DataGridTextColumn Header="Żywiec" Binding="{Binding ZywiecDisplay}" Width="55"/>
+                                    <DataGridTextColumn Header="Różn." Binding="{Binding RoznicaDisplay}" Width="55"/>
+                                    <DataGridTextColumn Header="Skrz." Binding="{Binding SkrzydlaDisplay}" Width="45"/>
+                                    <DataGridTextColumn Header="Nogi" Binding="{Binding NogiDisplay}" Width="45"/>
+                                    <DataGridTextColumn Header="Oparz." Binding="{Binding OparzeniaDisplay}" Width="45"/>
+                                    <DataGridTextColumn Header="Kl.B" Binding="{Binding KlasaBDisplay}" Width="45"/>
+                                    <DataGridTextColumn Header="Przek." Binding="{Binding PrzekarmienieDisplay}" Width="50"/>
+                                    <DataGridHyperlinkColumn Header="Zdjęcia" Binding="{Binding ZdjeciaLink}" Width="60">
+                                        <DataGridHyperlinkColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <EventSetter Event="Hyperlink.Click" Handler="Hyperlink_Click"/>
+                                            </Style>
+                                        </DataGridHyperlinkColumn.ElementStyle>
+                                    </DataGridHyperlinkColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
                     </TabItem>
                 </TabControl>
             </Border>
