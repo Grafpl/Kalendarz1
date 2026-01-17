@@ -83,6 +83,72 @@
             </DoubleAnimation>
         </Storyboard>
 
+        <!-- ==================== ANIMACJE PRZEJŚCIA TYGODNI ==================== -->
+
+        <!-- Storyboard: Wyjście w lewo (następny tydzień) -->
+        <Storyboard x:Key="WeekSlideOutLeftAnimation">
+            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
+                             To="-120" Duration="0:0:0.35">
+                <DoubleAnimation.EasingFunction>
+                    <CubicEase EasingMode="EaseIn"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                             To="0.3" Duration="0:0:0.35">
+                <DoubleAnimation.EasingFunction>
+                    <CubicEase EasingMode="EaseIn"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+
+        <!-- Storyboard: Wejście z prawej (następny tydzień) -->
+        <Storyboard x:Key="WeekSlideInFromRightAnimation">
+            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
+                             From="120" To="0" Duration="0:0:0.4">
+                <DoubleAnimation.EasingFunction>
+                    <CubicEase EasingMode="EaseOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                             From="0.3" To="1" Duration="0:0:0.4">
+                <DoubleAnimation.EasingFunction>
+                    <CubicEase EasingMode="EaseOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+
+        <!-- Storyboard: Wyjście w prawo (poprzedni tydzień) -->
+        <Storyboard x:Key="WeekSlideOutRightAnimation">
+            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
+                             To="120" Duration="0:0:0.35">
+                <DoubleAnimation.EasingFunction>
+                    <CubicEase EasingMode="EaseIn"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                             To="0.3" Duration="0:0:0.35">
+                <DoubleAnimation.EasingFunction>
+                    <CubicEase EasingMode="EaseIn"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+
+        <!-- Storyboard: Wejście z lewej (poprzedni tydzień) -->
+        <Storyboard x:Key="WeekSlideInFromLeftAnimation">
+            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
+                             From="-120" To="0" Duration="0:0:0.4">
+                <DoubleAnimation.EasingFunction>
+                    <CubicEase EasingMode="EaseOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                             From="0.3" To="1" Duration="0:0:0.4">
+                <DoubleAnimation.EasingFunction>
+                    <CubicEase EasingMode="EaseOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+
         <!-- ==================== STYLE PRZYCISKÓW ==================== -->
         <Style x:Key="MainButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="#5C8A3A"/>
@@ -483,9 +549,13 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- TABELA GŁÓWNA (bieżący tydzień) -->
-                <Border Grid.Column="0" Margin="6,3,3,3" Background="White" CornerRadius="4" BorderBrush="#DDDDDD" BorderThickness="1">
+                <Border Grid.Column="0" Margin="6,3,3,3" Background="White" CornerRadius="4" BorderBrush="#DDDDDD" BorderThickness="1" ClipToBounds="True">
                     <DataGrid x:Name="dgDostawy" Style="{StaticResource MainDataGridStyle}"
+                                  RenderTransformOrigin="0.5,0.5"
                                   SelectionChanged="DgDostawy_SelectionChanged" MouseDoubleClick="DgDostawy_MouseDoubleClick" LoadingRow="DgDostawy_LoadingRow">
+                        <DataGrid.RenderTransform>
+                            <TranslateTransform X="0" Y="0"/>
+                        </DataGrid.RenderTransform>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="LP" Binding="{Binding LP}" Visibility="Collapsed"/>
                                 <DataGridTextColumn x:Name="colDostawcaHeader" Header="Tydzień" Binding="{Binding DostawcaDisplay}" Width="100" IsReadOnly="True">
@@ -645,9 +715,13 @@
                 </Border>
 
                 <!-- TABELA NASTĘPNY TYDZIEŃ -->
-                <Border x:Name="borderNastepnyTydzien" Grid.Column="1" Margin="3,3,3,3" Background="White" CornerRadius="4" BorderBrush="#3498DB" BorderThickness="2" Visibility="Collapsed">
+                <Border x:Name="borderNastepnyTydzien" Grid.Column="1" Margin="3,3,3,3" Background="White" CornerRadius="4" BorderBrush="#3498DB" BorderThickness="2" Visibility="Collapsed" ClipToBounds="True">
                     <DataGrid x:Name="dgDostawyNastepny" Style="{StaticResource MainDataGridStyle}" LoadingRow="DgDostawy_LoadingRow"
+                              RenderTransformOrigin="0.5,0.5"
                               SelectionChanged="DgDostawyNastepny_SelectionChanged" MouseDoubleClick="DgDostawy_MouseDoubleClick">
+                        <DataGrid.RenderTransform>
+                            <TranslateTransform X="0" Y="0"/>
+                        </DataGrid.RenderTransform>
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="LP" Binding="{Binding LP}" Visibility="Collapsed"/>
                             <DataGridTextColumn x:Name="colDostawcaHeader2" Header="Tydzień" Binding="{Binding DostawcaDisplay}" Width="100" IsReadOnly="True">

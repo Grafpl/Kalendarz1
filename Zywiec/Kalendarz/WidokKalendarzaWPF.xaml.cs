@@ -1210,65 +1210,73 @@ namespace Kalendarz1.Zywiec.Kalendarz
             await LoadDostawyAsync();
         }
 
-        // Statyczne transformacje - unikamy tworzenia nowych obiektów
-        private TranslateTransform _transform1;
-        private TranslateTransform _transform2;
-
         /// <summary>
-        /// Animacja przejścia między tygodniami - płynna karuzelowa
+        /// Animacja przejścia między tygodniami - dwufazowa karuzela
+        /// Faza 1: Wyjście starego widoku (slide out)
+        /// Faza 2: Załadowanie danych + wejście nowego widoku (slide in)
         /// </summary>
         private async Task AnimateWeekTransition(bool isNextWeek)
         {
             bool showSecondTable = chkNastepnyTydzien?.IsChecked == true;
-            double slideDistance = 80;
-            double direction = isNextWeek ? -1 : 1;
 
-            // Użyj istniejących transformacji
-            if (_transform1 == null)
+            // Upewnij się, że transformacje są ustawione
+            EnsureTransformsInitialized();
+
+            // FAZA 1: Animacja wyjścia
+            var slideOutKey = isNextWeek ? "WeekSlideOutLeftAnimation" : "WeekSlideOutRightAnimation";
+            var slideOutStoryboard = (Storyboard)FindResource(slideOutKey);
+
+            // Klonuj storyboard dla każdej tabeli
+            var slideOut1 = slideOutStoryboard.Clone();
+            Storyboard.SetTarget(slideOut1, dgDostawy);
+
+            // Rozpocznij animację wyjścia
+            var tcs = new System.Threading.Tasks.TaskCompletionSource<bool>();
+            slideOut1.Completed += (s, e) => tcs.TrySetResult(true);
+            slideOut1.Begin();
+
+            if (showSecondTable)
             {
-                _transform1 = new TranslateTransform(0, 0);
-                dgDostawy.RenderTransform = _transform1;
-            }
-            if (showSecondTable && _transform2 == null)
-            {
-                _transform2 = new TranslateTransform(0, 0);
-                dgDostawyNastepny.RenderTransform = _transform2;
+                var slideOut2 = slideOutStoryboard.Clone();
+                Storyboard.SetTarget(slideOut2, dgDostawyNastepny);
+                slideOut2.Begin();
             }
 
-            // Natychmiast ustaw stan "w ruchu"
-            _transform1.X = direction * slideDistance;
-            dgDostawy.Opacity = 0.4;
-            if (showSecondTable && _transform2 != null)
-            {
-                _transform2.X = direction * slideDistance;
-                dgDostawyNastepny.Opacity = 0.4;
-            }
+            // Czekaj na zakończenie animacji wyjścia (350ms)
+            await tcs.Task;
 
-            // Załaduj dane
+            // FAZA 2: Załaduj dane (podczas gdy elementy są niewidoczne)
             await LoadDostawyAsync();
 
-            // Animacja powrotu - prosta i płynna
-            var duration = TimeSpan.FromMilliseconds(280);
-            var slide = new DoubleAnimation
-            {
-                To = 0,
-                Duration = duration,
-                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
-            };
-            var fade = new DoubleAnimation
-            {
-                To = 1,
-                Duration = duration,
-                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
-            };
+            // FAZA 3: Animacja wejścia z nowych danych
+            var slideInKey = isNextWeek ? "WeekSlideInFromRightAnimation" : "WeekSlideInFromLeftAnimation";
+            var slideInStoryboard = (Storyboard)FindResource(slideInKey);
 
-            _transform1.BeginAnimation(TranslateTransform.XProperty, slide);
-            dgDostawy.BeginAnimation(OpacityProperty, fade);
+            // Klonuj storyboard dla każdej tabeli
+            var slideIn1 = slideInStoryboard.Clone();
+            Storyboard.SetTarget(slideIn1, dgDostawy);
+            slideIn1.Begin();
 
-            if (showSecondTable && _transform2 != null)
+            if (showSecondTable)
             {
-                _transform2.BeginAnimation(TranslateTransform.XProperty, slide);
-                dgDostawyNastepny.BeginAnimation(OpacityProperty, fade);
+                var slideIn2 = slideInStoryboard.Clone();
+                Storyboard.SetTarget(slideIn2, dgDostawyNastepny);
+                slideIn2.Begin();
+            }
+        }
+
+        /// <summary>
+        /// Inicjalizuje TranslateTransform dla obu DataGridów
+        /// </summary>
+        private void EnsureTransformsInitialized()
+        {
+            if (!(dgDostawy.RenderTransform is TranslateTransform))
+            {
+                dgDostawy.RenderTransform = new TranslateTransform(0, 0);
+            }
+            if (!(dgDostawyNastepny.RenderTransform is TranslateTransform))
+            {
+                dgDostawyNastepny.RenderTransform = new TranslateTransform(0, 0);
             }
         }
 
