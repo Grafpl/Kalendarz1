@@ -652,8 +652,7 @@ namespace Kalendarz1
             weatherTimer.Tick += async (s, e) =>
             {
                 var newWeather = await WeatherManager.GetWeatherAsync();
-                weatherMainLabel.Text = $"{newWeather.Icon} {newWeather.Temperature}°C";
-                weatherDescLabel.Text = newWeather.Description;
+                weatherMainLabel.Text = $"{newWeather.Icon} {newWeather.Temperature}°C  {newWeather.Description}";
             };
             weatherTimer.Start();
 
