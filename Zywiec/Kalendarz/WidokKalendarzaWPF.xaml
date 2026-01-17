@@ -712,6 +712,11 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Ub" Binding="{Binding RoznicaDniDisplay}" Width="42" IsReadOnly="True">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/></Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
                             <DataGridTemplateColumn Header="Typ" Width="45" IsReadOnly="True">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
@@ -767,20 +772,30 @@
                                     <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Uwagi" Binding="{Binding UwagiDisplay}" Width="*" MinWidth="50" IsReadOnly="True">
+                            <DataGridTextColumn Header="Uwagi" Binding="{Binding UwagiDisplay}" Width="*" MinWidth="60" IsReadOnly="True">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
                                         <Setter Property="ToolTip" Value="{Binding Uwagi}"/>
+                                        <Setter Property="FontSize" Value="10"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTemplateColumn x:Name="colCheckConfirm2" Header="✓" Width="32" Visibility="Collapsed">
+                            <DataGridTemplateColumn x:Name="colCheckConfirm2" Header="✓" Width="38" Visibility="Collapsed">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <CheckBox IsChecked="{Binding IsConfirmed, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
                                                   Style="{StaticResource DataGridCheckBoxStyle}"
                                                   Click="ChkConfirm_Click" Tag="{Binding LP}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn x:Name="colCheckWstawienie2" Header="W" Width="38" Visibility="Collapsed">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <CheckBox IsChecked="{Binding IsWstawienieConfirmed, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                                  Style="{StaticResource DataGridCheckBoxStyle}"
+                                                  Click="ChkWstawienie_Click" Tag="{Binding LpW}"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>

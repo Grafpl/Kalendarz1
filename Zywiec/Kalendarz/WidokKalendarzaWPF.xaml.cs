@@ -1210,132 +1210,65 @@ namespace Kalendarz1.Zywiec.Kalendarz
             await LoadDostawyAsync();
         }
 
+        // Statyczne transformacje - unikamy tworzenia nowych obiektów
+        private TranslateTransform _transform1;
+        private TranslateTransform _transform2;
+
         /// <summary>
         /// Animacja przejścia między tygodniami - płynna karuzelowa
         /// </summary>
         private async Task AnimateWeekTransition(bool isNextWeek)
         {
             bool showSecondTable = chkNastepnyTydzien?.IsChecked == true;
-
-            // Szerokość przesunięcia - pełna szerokość tabeli dla efektu nachodzenia
-            double tableWidth = dgDostawy.ActualWidth > 0 ? dgDostawy.ActualWidth * 0.3 : 200;
-            var slideDuration = TimeSpan.FromMilliseconds(350);
-            var easing = new CubicEase { EasingMode = EasingMode.EaseInOut };
-
-            // Przygotuj transformacje
-            var transform1 = dgDostawy.RenderTransform as TranslateTransform;
-            if (transform1 == null)
-            {
-                transform1 = new TranslateTransform(0, 0);
-                dgDostawy.RenderTransform = transform1;
-            }
-            transform1.X = 0;
-
-            TranslateTransform transform2 = null;
-            if (showSecondTable)
-            {
-                transform2 = dgDostawyNastepny.RenderTransform as TranslateTransform;
-                if (transform2 == null)
-                {
-                    transform2 = new TranslateTransform(0, 0);
-                    dgDostawyNastepny.RenderTransform = transform2;
-                }
-                transform2.X = 0;
-            }
-
-            // Kierunek: następny tydzień = w lewo (-), poprzedni = w prawo (+)
+            double slideDistance = 80;
             double direction = isNextWeek ? -1 : 1;
 
-            // === FAZA 1: Animacja wyjścia (slide out) ===
-            var slideOut1 = new DoubleAnimation
+            // Użyj istniejących transformacji
+            if (_transform1 == null)
             {
-                From = 0,
-                To = direction * tableWidth,
-                Duration = slideDuration,
-                EasingFunction = easing
-            };
-            var fadeOut1 = new DoubleAnimation
+                _transform1 = new TranslateTransform(0, 0);
+                dgDostawy.RenderTransform = _transform1;
+            }
+            if (showSecondTable && _transform2 == null)
             {
-                From = 1,
-                To = 0.2,
-                Duration = slideDuration,
-                EasingFunction = easing
-            };
-
-            // Uruchom animację wyjścia
-            transform1.BeginAnimation(TranslateTransform.XProperty, slideOut1);
-            dgDostawy.BeginAnimation(OpacityProperty, fadeOut1);
-
-            if (showSecondTable && transform2 != null)
-            {
-                var slideOut2 = new DoubleAnimation
-                {
-                    From = 0,
-                    To = direction * tableWidth,
-                    Duration = slideDuration,
-                    EasingFunction = easing
-                };
-                var fadeOut2 = new DoubleAnimation
-                {
-                    From = 1,
-                    To = 0.2,
-                    Duration = slideDuration,
-                    EasingFunction = easing
-                };
-                transform2.BeginAnimation(TranslateTransform.XProperty, slideOut2);
-                dgDostawyNastepny.BeginAnimation(OpacityProperty, fadeOut2);
+                _transform2 = new TranslateTransform(0, 0);
+                dgDostawyNastepny.RenderTransform = _transform2;
             }
 
-            // Poczekaj na zakończenie animacji wyjścia
-            await Task.Delay((int)(slideDuration.TotalMilliseconds * 0.7));
+            // Natychmiast ustaw stan "w ruchu"
+            _transform1.X = direction * slideDistance;
+            dgDostawy.Opacity = 0.4;
+            if (showSecondTable && _transform2 != null)
+            {
+                _transform2.X = direction * slideDistance;
+                dgDostawyNastepny.Opacity = 0.4;
+            }
 
-            // === Załaduj nowe dane ===
+            // Załaduj dane
             await LoadDostawyAsync();
 
-            // === FAZA 2: Animacja wejścia (slide in z przeciwnej strony) ===
-            // Ustaw pozycję startową - z przeciwnej strony
-            transform1.X = -direction * tableWidth;
-            dgDostawy.Opacity = 0.2;
-
-            var slideIn1 = new DoubleAnimation
+            // Animacja powrotu - prosta i płynna
+            var duration = TimeSpan.FromMilliseconds(280);
+            var slide = new DoubleAnimation
             {
-                From = -direction * tableWidth,
                 To = 0,
-                Duration = slideDuration,
-                EasingFunction = easing
+                Duration = duration,
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
             };
-            var fadeIn1 = new DoubleAnimation
+            var fade = new DoubleAnimation
             {
-                From = 0.2,
                 To = 1,
-                Duration = slideDuration,
-                EasingFunction = easing
+                Duration = duration,
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
             };
 
-            transform1.BeginAnimation(TranslateTransform.XProperty, slideIn1);
-            dgDostawy.BeginAnimation(OpacityProperty, fadeIn1);
+            _transform1.BeginAnimation(TranslateTransform.XProperty, slide);
+            dgDostawy.BeginAnimation(OpacityProperty, fade);
 
-            if (showSecondTable && transform2 != null)
+            if (showSecondTable && _transform2 != null)
             {
-                transform2.X = -direction * tableWidth;
-                dgDostawyNastepny.Opacity = 0.2;
-
-                var slideIn2 = new DoubleAnimation
-                {
-                    From = -direction * tableWidth,
-                    To = 0,
-                    Duration = slideDuration,
-                    EasingFunction = easing
-                };
-                var fadeIn2 = new DoubleAnimation
-                {
-                    From = 0.2,
-                    To = 1,
-                    Duration = slideDuration,
-                    EasingFunction = easing
-                };
-                transform2.BeginAnimation(TranslateTransform.XProperty, slideIn2);
-                dgDostawyNastepny.BeginAnimation(OpacityProperty, fadeIn2);
+                _transform2.BeginAnimation(TranslateTransform.XProperty, slide);
+                dgDostawyNastepny.BeginAnimation(OpacityProperty, fade);
             }
         }
 
@@ -2128,6 +2061,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 }
 
                 ShowToast(isChecked ? "Dostawa potwierdzona" : "Potwierdzenie usunięte", ToastType.Success);
+                await LoadDostawyAsync();
             }
             catch (Exception ex)
             {
@@ -2164,6 +2098,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 }
 
                 ShowToast(isChecked ? "Wstawienie potwierdzone" : "Potwierdzenie wstawienia usunięte", ToastType.Success);
+                await LoadDostawyAsync();
             }
             catch (Exception ex)
             {
