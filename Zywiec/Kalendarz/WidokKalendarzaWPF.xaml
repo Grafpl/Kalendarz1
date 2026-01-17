@@ -1166,19 +1166,18 @@
                                     </StackPanel>
                                 </Border>
 
-                                <!-- SEKCJA: ZAŁADUNEK - wagi jak w starym programie -->
+                                <!-- SEKCJA: ZAŁADUNEK AVILOG -->
                                 <Border Background="#FFF8E1" CornerRadius="4" Padding="6" Margin="0,0,0,4">
                                     <StackPanel>
                                         <TextBlock Text="🏋️ ZAŁADUNEK AVILOG" FontWeight="Bold" FontSize="10" Foreground="#F57F17" Margin="0,0,0,6"/>
 
-                                        <!-- Tabela wag - styl jak stary program -->
+                                        <!-- Tabela wag -->
                                         <Border Background="White" CornerRadius="3" BorderBrush="#FFD54F" BorderThickness="1">
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="*"/>
@@ -1193,65 +1192,71 @@
                                                 <Border Grid.Row="0" Grid.Column="0" Background="#FFF59D" Padding="3" BorderBrush="#FFD54F" BorderThickness="0,0,1,1">
                                                     <TextBlock Text="Sztuki na&#x0a;szufladę" FontSize="8" Foreground="#F57F17" HorizontalAlignment="Center" TextAlignment="Center" FontWeight="SemiBold"/>
                                                 </Border>
-                                                <Border Grid.Row="0" Grid.Column="1" Background="#FFF59D" Padding="3" BorderBrush="#FFD54F" BorderThickness="0,0,1,1">
-                                                    <TextBlock Text="Waga&#x0a;skrzynki&#x0a;NETTO" FontSize="8" Foreground="#F57F17" HorizontalAlignment="Center" TextAlignment="Center" FontWeight="SemiBold"/>
+                                                <Border Grid.Row="0" Grid.Column="1" Background="#E1F5FE" Padding="3" BorderBrush="#FFD54F" BorderThickness="0,0,1,1">
+                                                    <TextBlock Text="KG/skrzyn" FontSize="8" Foreground="#0277BD" HorizontalAlignment="Center" TextAlignment="Center" FontWeight="SemiBold"/>
                                                 </Border>
                                                 <Border Grid.Row="0" Grid.Column="2" Background="#FFF59D" Padding="3" BorderBrush="#FFD54F" BorderThickness="0,0,1,1">
-                                                    <TextBlock Text="Waga 264&#x0a;skrzynek&#x0a;NETTO" FontSize="8" Foreground="#F57F17" HorizontalAlignment="Center" TextAlignment="Center" FontWeight="SemiBold"/>
+                                                    <TextBlock Text="KG skrzyn&#x0a;(Waga×KG)" FontSize="8" Foreground="#F57F17" HorizontalAlignment="Center" TextAlignment="Center" FontWeight="SemiBold"/>
                                                 </Border>
-                                                <Border Grid.Row="0" Grid.Column="3" Grid.ColumnSpan="2" Background="#E1F5FE" Padding="3" BorderBrush="#FFD54F" BorderThickness="0,0,1,1">
-                                                    <StackPanel>
-                                                        <CheckBox x:Name="chkPaleciak" Content="Wózek" FontSize="9" HorizontalAlignment="Center" Checked="ChkPaleciak_Changed" Unchecked="ChkPaleciak_Changed"/>
-                                                        <TextBlock Text="Waga&#x0a;Paleciaka" FontSize="8" Foreground="#0277BD" HorizontalAlignment="Center" TextAlignment="Center" FontWeight="SemiBold"/>
-                                                    </StackPanel>
+                                                <Border Grid.Row="0" Grid.Column="3" Background="#FFF59D" Padding="3" BorderBrush="#FFD54F" BorderThickness="0,0,1,1">
+                                                    <TextBlock Text="Waga 264&#x0a;skrzynek" FontSize="8" Foreground="#F57F17" HorizontalAlignment="Center" TextAlignment="Center" FontWeight="SemiBold"/>
                                                 </Border>
-                                                <Border Grid.Row="0" Grid.Column="5" Background="#FFF59D" Padding="3" BorderBrush="#FFD54F" BorderThickness="0,0,1,1">
-                                                    <TextBlock Text="Waga&#x0a;Samochodu" FontSize="8" Foreground="#F57F17" HorizontalAlignment="Center" TextAlignment="Center" FontWeight="SemiBold"/>
+                                                <Border Grid.Row="0" Grid.Column="4" Background="#E1F5FE" Padding="3" BorderBrush="#FFD54F" BorderThickness="0,0,1,1">
+                                                    <TextBlock Text="Waga&#x0a;Paleciaka" FontSize="8" Foreground="#0277BD" HorizontalAlignment="Center" TextAlignment="Center" FontWeight="SemiBold"/>
                                                 </Border>
-                                                <Border Grid.Row="0" Grid.Column="6" Background="#C8E6C9" Padding="3" BorderBrush="#FFD54F" BorderThickness="0,0,0,1">
-                                                    <TextBlock Text="Suma KG&#x0a;u" FontSize="8" Foreground="#2E7D32" HorizontalAlignment="Center" TextAlignment="Center" FontWeight="Bold"/>
+                                                <Border Grid.Row="0" Grid.Column="5" Background="#C8E6C9" Padding="3" BorderBrush="#FFD54F" BorderThickness="0,0,0,1">
+                                                    <TextBlock Text="Suma KG" FontSize="8" Foreground="#2E7D32" HorizontalAlignment="Center" TextAlignment="Center" FontWeight="Bold"/>
                                                 </Border>
 
                                                 <!-- Wiersz 1 danych -->
                                                 <Border Grid.Row="1" Grid.Column="0" BorderBrush="#FFD54F" BorderThickness="0,0,1,1" Padding="2">
                                                     <TextBox x:Name="txtSztNaSzufladeWaga" FontSize="11" Padding="4,3" TextAlignment="Center" Background="White" FontWeight="Bold"/>
                                                 </Border>
-                                                <Border Grid.Row="1" Grid.Column="1" BorderBrush="#FFD54F" BorderThickness="0,0,1,1" Padding="2">
+                                                <Border Grid.Row="1" Grid.Column="1" BorderBrush="#FFD54F" BorderThickness="0,0,1,1" Padding="2" Background="#E1F5FE">
                                                     <TextBox x:Name="txtKGwSkrzynce" FontSize="11" Padding="4,3" TextAlignment="Center" TextChanged="TxtKGwSkrzynce_TextChanged" Background="White" FontWeight="Bold"/>
                                                 </Border>
                                                 <Border Grid.Row="1" Grid.Column="2" BorderBrush="#FFD54F" BorderThickness="0,0,1,1" Padding="2">
-                                                    <TextBox x:Name="txtKGwSkrzynekWAucie" FontSize="11" Padding="4,3" TextAlignment="Center" IsReadOnly="True" Background="#FFF8E1" FontWeight="Bold"/>
+                                                    <TextBox x:Name="txtKGSkrzynWyliczone" FontSize="11" Padding="4,3" TextAlignment="Center" IsReadOnly="True" Background="#FFF8E1" FontWeight="Bold"/>
                                                 </Border>
-                                                <Border Grid.Row="1" Grid.Column="3" Grid.ColumnSpan="2" BorderBrush="#FFD54F" BorderThickness="0,0,1,1" Padding="2" Background="#E1F5FE">
-                                                    <TextBox x:Name="txtKGwPaleciak" FontSize="11" Padding="4,3" TextAlignment="Center" Background="White" FontWeight="Bold"/>
+                                                <Border Grid.Row="1" Grid.Column="3" BorderBrush="#FFD54F" BorderThickness="0,0,1,1" Padding="2">
+                                                    <TextBox x:Name="txtWaga264" FontSize="11" Padding="4,3" TextAlignment="Center" IsReadOnly="True" Background="#FFF8E1" FontWeight="Bold"/>
                                                 </Border>
-                                                <Border Grid.Row="1" Grid.Column="5" BorderBrush="#FFD54F" BorderThickness="0,0,1,1" Padding="2">
-                                                    <TextBox x:Name="txtWagaSamochodu" FontSize="11" Padding="4,3" TextAlignment="Center" Background="White" FontWeight="Bold"/>
+                                                <Border Grid.Row="1" Grid.Column="4" BorderBrush="#FFD54F" BorderThickness="0,0,1,1" Padding="2" Background="#E1F5FE">
+                                                    <TextBox x:Name="txtKGwPaleciak" FontSize="11" Padding="4,3" TextAlignment="Center" Background="White" FontWeight="Bold" TextChanged="TxtZaladunekField_TextChanged"/>
                                                 </Border>
-                                                <Border Grid.Row="1" Grid.Column="6" BorderBrush="#FFD54F" BorderThickness="0,0,0,1" Padding="2" Background="#E8F5E9">
+                                                <Border Grid.Row="1" Grid.Column="5" BorderBrush="#FFD54F" BorderThickness="0,0,0,1" Padding="2" Background="#E8F5E9">
                                                     <TextBox x:Name="txtKGSuma" FontSize="12" Padding="4,3" TextAlignment="Center" IsReadOnly="True" Background="#C8E6C9" FontWeight="Bold" Foreground="#1B5E20"/>
                                                 </Border>
 
-                                                <!-- Wiersz 2 danych (opcjonalny) -->
+                                                <!-- Wiersz 2 danych (z dodatkowym KG/skrzyn) -->
                                                 <Border Grid.Row="2" Grid.Column="0" BorderBrush="#FFD54F" BorderThickness="0,0,1,0" Padding="2">
                                                     <TextBox x:Name="txtSztNaSzufladeWaga2" FontSize="11" Padding="4,3" TextAlignment="Center" Background="White"/>
                                                 </Border>
-                                                <Border Grid.Row="2" Grid.Column="1" BorderBrush="#FFD54F" BorderThickness="0,0,1,0" Padding="2">
-                                                    <TextBox x:Name="txtKGwSkrzynce2" FontSize="11" Padding="4,3" TextAlignment="Center" Background="White"/>
+                                                <Border Grid.Row="2" Grid.Column="1" BorderBrush="#FFD54F" BorderThickness="0,0,1,0" Padding="2" Background="#E1F5FE">
+                                                    <TextBox x:Name="txtKGwSkrzynce2" FontSize="11" Padding="4,3" TextAlignment="Center" Background="White" TextChanged="TxtKGwSkrzynce2_TextChanged"/>
                                                 </Border>
                                                 <Border Grid.Row="2" Grid.Column="2" BorderBrush="#FFD54F" BorderThickness="0,0,1,0" Padding="2">
-                                                    <TextBox x:Name="txtKGwSkrzynekWAucie2" FontSize="11" Padding="4,3" TextAlignment="Center" IsReadOnly="True" Background="#FFF8E1"/>
+                                                    <TextBox x:Name="txtKGSkrzynWyliczone2" FontSize="11" Padding="4,3" TextAlignment="Center" IsReadOnly="True" Background="#FFF8E1"/>
                                                 </Border>
-                                                <Border Grid.Row="2" Grid.Column="3" Grid.ColumnSpan="2" BorderBrush="#FFD54F" BorderThickness="0,0,1,0" Padding="2">
-                                                    <TextBox x:Name="txtKGwPaleciak2" FontSize="11" Padding="4,3" TextAlignment="Center" Background="White"/>
+                                                <Border Grid.Row="2" Grid.Column="3" BorderBrush="#FFD54F" BorderThickness="0,0,1,0" Padding="2">
+                                                    <TextBox x:Name="txtWaga264_2" FontSize="11" Padding="4,3" TextAlignment="Center" IsReadOnly="True" Background="#FFF8E1"/>
                                                 </Border>
-                                                <Border Grid.Row="2" Grid.Column="5" BorderBrush="#FFD54F" BorderThickness="0,0,1,0" Padding="2">
-                                                    <TextBox x:Name="txtWagaSamochodu2" FontSize="11" Padding="4,3" TextAlignment="Center" Background="White"/>
+                                                <Border Grid.Row="2" Grid.Column="4" BorderBrush="#FFD54F" BorderThickness="0,0,1,0" Padding="2" Background="#E1F5FE">
+                                                    <TextBox x:Name="txtKGwPaleciak2" FontSize="11" Padding="4,3" TextAlignment="Center" Background="White" TextChanged="TxtZaladunekField_TextChanged"/>
                                                 </Border>
-                                                <Border Grid.Row="2" Grid.Column="6" Padding="2" Background="#E8F5E9">
+                                                <Border Grid.Row="2" Grid.Column="5" Padding="2" Background="#E8F5E9">
                                                     <TextBox x:Name="txtKGSuma2" FontSize="12" Padding="4,3" TextAlignment="Center" IsReadOnly="True" Background="#C8E6C9" FontWeight="Bold" Foreground="#1B5E20"/>
                                                 </Border>
                                             </Grid>
+                                        </Border>
+
+                                        <!-- Waga samochodu na dole -->
+                                        <Border Background="#ECEFF1" CornerRadius="3" Padding="6" Margin="0,6,0,0">
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                <TextBlock Text="🚛 Waga samochodu:" VerticalAlignment="Center" FontSize="10" FontWeight="SemiBold" Margin="0,0,8,0"/>
+                                                <TextBox x:Name="txtWagaSamochodu" Width="80" FontSize="12" Padding="6,3" TextAlignment="Center" Background="White" FontWeight="Bold" Text="24000" TextChanged="TxtZaladunekField_TextChanged"/>
+                                                <TextBlock Text="kg" VerticalAlignment="Center" FontSize="10" Margin="4,0,0,0"/>
+                                            </StackPanel>
                                         </Border>
                                     </StackPanel>
                                 </Border>

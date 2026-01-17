@@ -2741,36 +2741,114 @@ namespace Kalendarz1.Zywiec.Kalendarz
             }
         }
 
+        // Obliczenie dla wiersza 1: KG skrzyn = WagaDek × KG/skrzyn, Waga264 = KG skrzyn × 264
         private void TxtKGwSkrzynce_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (double.TryParse(txtKGwSkrzynce.Text.Replace(",", "."), out double kgSkrzynka))
-            {
-                double kgSkrzynek = kgSkrzynka * 264;
-                txtKGwSkrzynekWAucie.Text = kgSkrzynek.ToString("N0");
-                CalculateKGSum();
-            }
+            CalculateZaladunekRow1();
         }
 
-        private void ChkPaleciak_Changed(object sender, RoutedEventArgs e)
+        private void CalculateZaladunekRow1()
         {
-            if (chkPaleciak.IsChecked == true)
+            // Pobierz wagę dek z pola txtWagaDek
+            if (!double.TryParse(txtWagaDek.Text?.Replace(",", "."), out double wagaDek))
+                wagaDek = 0;
+
+            if (double.TryParse(txtKGwSkrzynce.Text?.Replace(",", "."), out double kgSkrzyn))
             {
-                txtKGwPaleciak.Text = "3150";
+                // KG skrzyn = Waga dek × KG/skrzyn
+                double kgSkrzynWyliczone = wagaDek * kgSkrzyn;
+                txtKGSkrzynWyliczone.Text = kgSkrzynWyliczone.ToString("N2");
+
+                // Waga 264 = KG skrzyn × 264
+                double waga264 = kgSkrzynWyliczone * 264;
+                txtWaga264.Text = waga264.ToString("N0");
             }
             else
             {
-                txtKGwPaleciak.Text = "";
+                txtKGSkrzynWyliczone.Text = "";
+                txtWaga264.Text = "";
             }
+
             CalculateKGSum();
         }
 
+        // Obliczenie dla wiersza 2
+        private void TxtKGwSkrzynce2_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            // Pobierz wagę dek z pola txtWagaDek
+            if (!double.TryParse(txtWagaDek.Text?.Replace(",", "."), out double wagaDek))
+                wagaDek = 0;
+
+            if (double.TryParse(txtKGwSkrzynce2.Text?.Replace(",", "."), out double kgSkrzyn2))
+            {
+                // KG skrzyn = Waga dek × KG/skrzyn
+                double kgSkrzynWyliczone2 = wagaDek * kgSkrzyn2;
+                txtKGSkrzynWyliczone2.Text = kgSkrzynWyliczone2.ToString("N2");
+
+                // Waga 264 = KG skrzyn × 264
+                double waga264_2 = kgSkrzynWyliczone2 * 264;
+                txtWaga264_2.Text = waga264_2.ToString("N0");
+            }
+            else
+            {
+                txtKGSkrzynWyliczone2.Text = "";
+                txtWaga264_2.Text = "";
+            }
+
+            CalculateKGSum2();
+        }
+
+        // Zdarzenie zmiany wartości w polach Załadunku
+        private void TxtZaladunekField_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            CalculateKGSum();
+            CalculateKGSum2();
+        }
+
+        // Dla kompatybilności wstecznej (jeśli checkbox jest używany)
+        private void ChkPaleciak_Changed(object sender, RoutedEventArgs e)
+        {
+            // Checkbox usunięty - paleciak zawsze dostępny
+        }
+
+        // Obliczenie Suma KG dla wiersza 1: Waga264 + WagaSamochodu + Paleciak
         private void CalculateKGSum()
         {
             double sum = 0;
-            if (double.TryParse(txtKGwSkrzynekWAucie.Text.Replace(",", "").Replace(" ", ""), out double v1)) sum += v1;
-            if (double.TryParse(txtKGwPaleciak.Text.Replace(",", "").Replace(" ", ""), out double v2)) sum += v2;
-            sum += 24000; // zestaw
+
+            // Waga 264 skrzynek
+            if (double.TryParse(txtWaga264.Text?.Replace(",", "").Replace(" ", ""), out double waga264))
+                sum += waga264;
+
+            // Waga samochodu
+            if (double.TryParse(txtWagaSamochodu.Text?.Replace(",", "").Replace(" ", ""), out double wagaSam))
+                sum += wagaSam;
+
+            // Waga paleciaka
+            if (double.TryParse(txtKGwPaleciak.Text?.Replace(",", "").Replace(" ", ""), out double paleciak))
+                sum += paleciak;
+
             txtKGSuma.Text = sum.ToString("N0");
+        }
+
+        // Obliczenie Suma KG dla wiersza 2
+        private void CalculateKGSum2()
+        {
+            double sum = 0;
+
+            // Waga 264 skrzynek (wiersz 2)
+            if (double.TryParse(txtWaga264_2.Text?.Replace(",", "").Replace(" ", ""), out double waga264_2))
+                sum += waga264_2;
+
+            // Waga samochodu (ta sama)
+            if (double.TryParse(txtWagaSamochodu.Text?.Replace(",", "").Replace(" ", ""), out double wagaSam))
+                sum += wagaSam;
+
+            // Waga paleciaka (wiersz 2)
+            if (double.TryParse(txtKGwPaleciak2.Text?.Replace(",", "").Replace(" ", ""), out double paleciak2))
+                sum += paleciak2;
+
+            txtKGSuma2.Text = sum.ToString("N0");
         }
 
         private void BtnWklejObliczenia_Click(object sender, RoutedEventArgs e)
