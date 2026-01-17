@@ -375,7 +375,7 @@ namespace Kalendarz1
             var infoPanel = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 350,
+                Height = 580,
                 BackColor = Color.FromArgb(25, 35, 45)
             };
 
@@ -387,6 +387,9 @@ namespace Kalendarz1
             var weather = WeatherManager.GetWeather();
             var lastLogin = LoginHistoryManager.GetLastLogin(App.UserID);
             var quote = QuotesManager.GetRandomQuote();
+            var meetings = MeetingsManager.GetMeetingsSummary(App.UserID);
+            var tasks = TasksManager.GetTodayTasksSummary(App.UserID);
+            var currency = CurrencyManager.GetCurrency();
 
             int y = 5; // Początkowa pozycja Y
             int contentWidth = panelWidth - 20;
@@ -529,6 +532,184 @@ namespace Kalendarz1
             };
             infoPanel.Controls.Add(sep3);
             y += 6;
+
+            // ========== SPOTKANIA ==========
+            if (meetings.TodayCount > 0 || meetings.NextMeeting != null)
+            {
+                var meetingsHeader = new Label
+                {
+                    Text = $"Spotkania ({meetings.TodayCount} dziś)",
+                    Font = new Font("Segoe UI", 7, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(100, 180, 255),
+                    Size = new Size(contentWidth, 14),
+                    Location = new Point(10, y),
+                    TextAlign = ContentAlignment.MiddleCenter
+                };
+                infoPanel.Controls.Add(meetingsHeader);
+                y += 16;
+
+                if (meetings.NextMeeting != null)
+                {
+                    var nextMtg = meetings.NextMeeting;
+                    var meetingColor = nextMtg.IsNow ? Color.FromArgb(76, 175, 80) :
+                                       nextMtg.IsSoon ? Color.FromArgb(255, 193, 7) :
+                                       Color.FromArgb(150, 160, 170);
+
+                    var meetingTimeLabel = new Label
+                    {
+                        Text = nextMtg.GetTimeUntilText(),
+                        Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                        ForeColor = meetingColor,
+                        Size = new Size(contentWidth, 16),
+                        Location = new Point(10, y),
+                        TextAlign = ContentAlignment.MiddleCenter
+                    };
+                    infoPanel.Controls.Add(meetingTimeLabel);
+                    y += 16;
+
+                    var meetingTitle = nextMtg.Tytul;
+                    if (meetingTitle.Length > 22) meetingTitle = meetingTitle.Substring(0, 20) + "..";
+                    var meetingTitleLabel = new Label
+                    {
+                        Text = meetingTitle,
+                        Font = new Font("Segoe UI", 7),
+                        ForeColor = Color.FromArgb(180, 190, 200),
+                        Size = new Size(contentWidth, 14),
+                        Location = new Point(10, y),
+                        TextAlign = ContentAlignment.MiddleCenter
+                    };
+                    infoPanel.Controls.Add(meetingTitleLabel);
+                    y += 14;
+
+                    if (!string.IsNullOrEmpty(nextMtg.KontrahentNazwa))
+                    {
+                        var kontrahent = nextMtg.KontrahentNazwa;
+                        if (kontrahent.Length > 22) kontrahent = kontrahent.Substring(0, 20) + "..";
+                        var meetingKontrahentLabel = new Label
+                        {
+                            Text = kontrahent,
+                            Font = new Font("Segoe UI", 7),
+                            ForeColor = Color.FromArgb(120, 130, 140),
+                            Size = new Size(contentWidth, 14),
+                            Location = new Point(10, y),
+                            TextAlign = ContentAlignment.MiddleCenter
+                        };
+                        infoPanel.Controls.Add(meetingKontrahentLabel);
+                        y += 14;
+                    }
+                }
+                y += 4;
+
+                var sepMeetings = new Panel
+                {
+                    Size = new Size(contentWidth - 20, 1),
+                    Location = new Point(20, y),
+                    BackColor = Color.FromArgb(50, 60, 70)
+                };
+                infoPanel.Controls.Add(sepMeetings);
+                y += 6;
+            }
+
+            // ========== ZADANIA ==========
+            if (tasks.Total > 0)
+            {
+                var remaining = tasks.Total - tasks.Done;
+                var tasksColor = tasks.Zalegle > 0 ? Color.FromArgb(244, 67, 54) :
+                                 tasks.Pilne > 0 ? Color.FromArgb(255, 193, 7) :
+                                 Color.FromArgb(76, 175, 80);
+
+                var tasksHeader = new Label
+                {
+                    Text = $"Zadania: {tasks.Done}/{tasks.Total}",
+                    Font = new Font("Segoe UI", 7, FontStyle.Bold),
+                    ForeColor = tasksColor,
+                    Size = new Size(contentWidth, 14),
+                    Location = new Point(10, y),
+                    TextAlign = ContentAlignment.MiddleCenter
+                };
+                infoPanel.Controls.Add(tasksHeader);
+                y += 16;
+
+                if (tasks.Zalegle > 0)
+                {
+                    var zalegleLabel = new Label
+                    {
+                        Text = $"! Zalegle: {tasks.Zalegle}",
+                        Font = new Font("Segoe UI", 7),
+                        ForeColor = Color.FromArgb(244, 67, 54),
+                        Size = new Size(contentWidth, 14),
+                        Location = new Point(10, y),
+                        TextAlign = ContentAlignment.MiddleCenter
+                    };
+                    infoPanel.Controls.Add(zalegleLabel);
+                    y += 14;
+                }
+
+                if (tasks.Pilne > 0)
+                {
+                    var pilneLabel = new Label
+                    {
+                        Text = $"Pilne: {tasks.Pilne}",
+                        Font = new Font("Segoe UI", 7),
+                        ForeColor = Color.FromArgb(255, 193, 7),
+                        Size = new Size(contentWidth, 14),
+                        Location = new Point(10, y),
+                        TextAlign = ContentAlignment.MiddleCenter
+                    };
+                    infoPanel.Controls.Add(pilneLabel);
+                    y += 14;
+                }
+
+                y += 4;
+
+                var sepTasks = new Panel
+                {
+                    Size = new Size(contentWidth - 20, 1),
+                    Location = new Point(20, y),
+                    BackColor = Color.FromArgb(50, 60, 70)
+                };
+                infoPanel.Controls.Add(sepTasks);
+                y += 6;
+            }
+
+            // ========== KURS WALUT ==========
+            if (currency.IsValid)
+            {
+                var eurChangeColor = currency.EurChange.StartsWith("+") ? Color.FromArgb(76, 175, 80) : Color.FromArgb(244, 67, 54);
+
+                var currencyLabel = new Label
+                {
+                    Text = $"EUR: {currency.EurRate:F4} PLN",
+                    Font = new Font("Segoe UI", 8, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(100, 180, 255),
+                    Size = new Size(contentWidth, 16),
+                    Location = new Point(10, y),
+                    TextAlign = ContentAlignment.MiddleCenter
+                };
+                infoPanel.Controls.Add(currencyLabel);
+                y += 16;
+
+                var currencyChangeLabel = new Label
+                {
+                    Text = $"({currency.EurChange})",
+                    Font = new Font("Segoe UI", 7),
+                    ForeColor = eurChangeColor,
+                    Size = new Size(contentWidth, 14),
+                    Location = new Point(10, y),
+                    TextAlign = ContentAlignment.MiddleCenter
+                };
+                infoPanel.Controls.Add(currencyChangeLabel);
+                y += 18;
+
+                var sepCurrency = new Panel
+                {
+                    Size = new Size(contentWidth - 20, 1),
+                    Location = new Point(20, y),
+                    BackColor = Color.FromArgb(50, 60, 70)
+                };
+                infoPanel.Controls.Add(sepCurrency);
+                y += 6;
+            }
 
             // ========== OSTATNIE LOGOWANIE ==========
             string lastLoginText = lastLogin != null
