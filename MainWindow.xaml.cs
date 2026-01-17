@@ -178,7 +178,7 @@ namespace Kalendarz1
                 "CRM", "ZamowieniaOdbiorcow", "KalkulacjaKrojenia", "PrzychodMrozni",
                 "DokumentySprzedazy", "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "DaneFinansowe",
                 "UstalanieTranportu", "ZmianyUHodowcow", "ProdukcjaPodglad", "OfertaCenowa",
-                "PrognozyUboju", "AnalizaTygodniowa"
+                "PrognozyUboju", "AnalizaTygodniowa", "PanelPaniJola"
             };
         }
 
