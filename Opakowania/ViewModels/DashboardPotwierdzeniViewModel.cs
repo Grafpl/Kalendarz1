@@ -10,6 +10,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using Kalendarz1.Opakowania.Models;
 using Kalendarz1.Opakowania.Services;
+using Kalendarz1.Opakowania.Views;
 
 namespace Kalendarz1.Opakowania.ViewModels
 {
