@@ -38,30 +38,7 @@ namespace Kalendarz1
             public DateTime LoginTime { get; set; }
         }
 
-        // Lista cytatów motywacyjnych
-        private readonly List<(string quote, string author)> motivationalQuotes = new List<(string, string)>
-        {
-            ("Sukces to suma małych wysiłków powtarzanych dzień po dniu.", "Robert Collier"),
-            ("Jedynym sposobem na świetną pracę jest kochać to, co robisz.", "Steve Jobs"),
-            ("Przyszłość należy do tych, którzy wierzą w piękno swoich marzeń.", "Eleanor Roosevelt"),
-            ("Nie czekaj na idealny moment. Weź moment i uczyń go idealnym.", "Zoey Sayward"),
-            ("Sukces nie jest kluczem do szczęścia. Szczęście jest kluczem do sukcesu.", "Albert Schweitzer"),
-            ("Droga do sukcesu jest zawsze w budowie.", "Lily Tomlin"),
-            ("Każdy dzień to nowa szansa, by zmienić swoje życie.", "Nieznany"),
-            ("Wielkie rzeczy nigdy nie przychodzą ze strefy komfortu.", "Nieznany"),
-            ("Postęp jest niemożliwy bez zmiany.", "George Bernard Shaw"),
-            ("Zacznij tam, gdzie jesteś. Użyj tego, co masz. Zrób to, co możesz.", "Arthur Ashe"),
-            ("Odwaga nie jest brakiem strachu, ale działaniem mimo niego.", "Mark Twain"),
-            ("Najlepszy czas na posadzenie drzewa był 20 lat temu. Drugi najlepszy czas jest teraz.", "Chińskie przysłowie"),
-            ("Twój czas jest ograniczony. Nie marnuj go żyjąc cudzym życiem.", "Steve Jobs"),
-            ("Nie licz dni, spraw, by dni się liczyły.", "Muhammad Ali"),
-            ("Jakość nie jest dziełem przypadku. Jest wynikiem inteligentnego wysiłku.", "John Ruskin"),
-            ("Nie ma windy do sukcesu. Musisz iść po schodach.", "Zig Ziglar"),
-            ("Rób to, czego się boisz, a strach na pewno zniknie.", "Ralph Waldo Emerson"),
-            ("Praca zespołowa sprawia, że marzenia się spełniają.", "Nieznany"),
-            ("Bądź zmianą, którą chcesz widzieć w świecie.", "Mahatma Gandhi"),
-            ("Jedyną granicą naszych jutrzejszych osiągnięć są nasze dzisiejsze wątpliwości.", "Franklin D. Roosevelt")
-        };
+        // Cytaty są teraz zarządzane przez QuotesManager
 
         public Menu1()
         {
@@ -164,15 +141,15 @@ namespace Kalendarz1
 
         private Border CreateRecentLoginAvatar(LoginRecord login)
         {
-            // Kontener z avatarem - duży rozmiar 100x100
+            // Kontener z avatarem - bardzo duży rozmiar 150x150
             var container = new Border
             {
-                Width = 100,
-                Height = 100,
-                Margin = new Thickness(0, 0, 0, 12),
-                CornerRadius = new CornerRadius(50),
+                Width = 150,
+                Height = 150,
+                Margin = new Thickness(0, 0, 0, 15),
+                CornerRadius = new CornerRadius(75),
                 BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E0E0E0")),
-                BorderThickness = new Thickness(3),
+                BorderThickness = new Thickness(4),
                 Background = new SolidColorBrush(Colors.White),
                 ToolTip = $"{login.UserName}\nOstatnie logowanie: {login.LoginTime:dd.MM.yyyy HH:mm}"
             };
@@ -180,8 +157,8 @@ namespace Kalendarz1
             // Elipsa z avatarem
             var avatarEllipse = new Ellipse
             {
-                Width = 94,
-                Height = 94,
+                Width = 142,
+                Height = 142,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -262,30 +239,30 @@ namespace Kalendarz1
             };
             string color = colors[Math.Abs(hash) % colors.Length];
 
-            // Utwórz DrawingBrush z inicjałami - duży rozmiar dla 100x100
+            // Utwórz DrawingBrush z inicjałami - bardzo duży rozmiar dla 150x150
             var drawingGroup = new DrawingGroup();
 
-            // Tło - duże koło (50px radius)
-            var backgroundGeometry = new EllipseGeometry(new Point(50, 50), 50, 50);
+            // Tło - bardzo duże koło (75px radius)
+            var backgroundGeometry = new EllipseGeometry(new Point(75, 75), 75, 75);
             var backgroundDrawing = new GeometryDrawing(
                 new SolidColorBrush((Color)ColorConverter.ConvertFromString(color)),
                 null,
                 backgroundGeometry);
             drawingGroup.Children.Add(backgroundDrawing);
 
-            // Inicjały - duża czcionka (36px)
+            // Inicjały - bardzo duża czcionka (54px)
             string initials = GetInitials(userName);
             var formattedText = new FormattedText(
                 initials,
                 CultureInfo.CurrentCulture,
                 FlowDirection.LeftToRight,
                 new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal),
-                36,
+                54,
                 Brushes.White,
                 VisualTreeHelper.GetDpi(this).PixelsPerDip);
 
             var textGeometry = formattedText.BuildGeometry(
-                new Point(50 - formattedText.Width / 2, 50 - formattedText.Height / 2));
+                new Point(75 - formattedText.Width / 2, 75 - formattedText.Height / 2));
             var textDrawing = new GeometryDrawing(Brushes.White, null, textGeometry);
             drawingGroup.Children.Add(textDrawing);
 
@@ -475,14 +452,140 @@ namespace Kalendarz1
 
         private void InitializeQuoteOfTheDay()
         {
-            // Wybierz cytat na podstawie dnia roku (zawsze ten sam cytat danego dnia)
-            int dayOfYear = DateTime.Now.DayOfYear;
-            int quoteIndex = dayOfYear % motivationalQuotes.Count;
+            // Pobierz cytat dnia z QuotesManager
+            var quote = QuotesManager.GetQuoteOfTheDay();
 
-            var (quote, author) = motivationalQuotes[quoteIndex];
+            QuoteText.Text = $"\"{quote.Text}\"";
+            QuoteAuthor.Text = $"- {quote.Author}";
+        }
 
-            QuoteText.Text = $"\"{quote}\"";
-            QuoteAuthor.Text = $"- {author}";
+        private void QuoteBorder_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            // Sprawdź czy wpisany identyfikator to admin
+            string currentInput = PasswordBox.Password;
+            if (currentInput != "11111")
+            {
+                return; // Tylko admin może zarządzać cytatami
+            }
+
+            var contextMenu = new System.Windows.Controls.ContextMenu();
+
+            // Import cytatów z pliku
+            var importItem = new System.Windows.Controls.MenuItem
+            {
+                Header = $"Importuj cytaty z pliku JSON ({QuotesManager.GetQuotesCount()} cytatów)"
+            };
+            importItem.Click += (s, args) =>
+            {
+                var openFileDialog = new OpenFileDialog
+                {
+                    Title = "Wybierz plik z cytatami",
+                    Filter = "Pliki JSON|*.json|Wszystkie pliki|*.*"
+                };
+
+                if (openFileDialog.ShowDialog() == true)
+                {
+                    var (success, count, error) = QuotesManager.ImportFromFile(openFileDialog.FileName);
+                    if (success)
+                    {
+                        InitializeQuoteOfTheDay();
+                        MessageBox.Show($"Zaimportowano {count} nowych cytatów!\nŁącznie: {QuotesManager.GetQuotesCount()} cytatów",
+                            "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        MessageBox.Show($"Nie udało się zaimportować cytatów.\n{error}",
+                            "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+            };
+
+            // Eksport cytatów
+            var exportItem = new System.Windows.Controls.MenuItem { Header = "Eksportuj cytaty do pliku" };
+            exportItem.Click += (s, args) =>
+            {
+                var saveFileDialog = new SaveFileDialog
+                {
+                    Title = "Zapisz cytaty",
+                    Filter = "Pliki JSON|*.json",
+                    FileName = "cytaty.json"
+                };
+
+                if (saveFileDialog.ShowDialog() == true)
+                {
+                    if (QuotesManager.ExportToFile(saveFileDialog.FileName))
+                    {
+                        MessageBox.Show($"Wyeksportowano {QuotesManager.GetQuotesCount()} cytatów!",
+                            "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        MessageBox.Show("Nie udało się wyeksportować cytatów.",
+                            "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+            };
+
+            // Dodaj nowy cytat
+            var addItem = new System.Windows.Controls.MenuItem { Header = "Dodaj nowy cytat..." };
+            addItem.Click += (s, args) =>
+            {
+                var addQuoteWindow = new AddQuoteWindow();
+                if (addQuoteWindow.ShowDialog() == true)
+                {
+                    if (QuotesManager.AddQuote(addQuoteWindow.QuoteText, addQuoteWindow.QuoteAuthor))
+                    {
+                        InitializeQuoteOfTheDay();
+                        MessageBox.Show("Cytat został dodany!", "Sukces",
+                            MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                }
+            };
+
+            // Pokaż losowy cytat
+            var randomItem = new System.Windows.Controls.MenuItem { Header = "Pokaż losowy cytat" };
+            randomItem.Click += (s, args) =>
+            {
+                var quote = QuotesManager.GetRandomQuote();
+                QuoteText.Text = $"\"{quote.Text}\"";
+                QuoteAuthor.Text = $"- {quote.Author}";
+            };
+
+            // Reset do domyślnych
+            var resetItem = new System.Windows.Controls.MenuItem { Header = "Przywróć domyślne cytaty" };
+            resetItem.Click += (s, args) =>
+            {
+                if (MessageBox.Show("Czy na pewno chcesz przywrócić domyślne cytaty?\nWszystkie własne cytaty zostaną usunięte.",
+                    "Potwierdzenie", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                {
+                    QuotesManager.ResetToDefaults();
+                    InitializeQuoteOfTheDay();
+                    MessageBox.Show("Przywrócono domyślne cytaty.", "Sukces",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            };
+
+            // Otwórz folder z cytatami
+            var openFolderItem = new System.Windows.Controls.MenuItem { Header = "Otwórz folder z cytatami" };
+            openFolderItem.Click += (s, args) =>
+            {
+                string path = QuotesManager.GetQuotesFilePath();
+                string dir = System.IO.Path.GetDirectoryName(path);
+                if (!Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+                System.Diagnostics.Process.Start("explorer.exe", dir);
+            };
+
+            contextMenu.Items.Add(importItem);
+            contextMenu.Items.Add(exportItem);
+            contextMenu.Items.Add(new System.Windows.Controls.Separator());
+            contextMenu.Items.Add(addItem);
+            contextMenu.Items.Add(randomItem);
+            contextMenu.Items.Add(new System.Windows.Controls.Separator());
+            contextMenu.Items.Add(resetItem);
+            contextMenu.Items.Add(openFolderItem);
+
+            contextMenu.IsOpen = true;
         }
 
         #endregion
