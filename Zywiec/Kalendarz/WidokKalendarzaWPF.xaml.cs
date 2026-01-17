@@ -604,7 +604,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 FROM HarmonogramDostaw HD
                 LEFT JOIN WstawieniaKurczakow WK ON HD.LpW = WK.Lp
                 LEFT JOIN [LibraNet].[dbo].[Dostawcy] D ON HD.Dostawca = D.Name
-                WHERE HD.DataOdbioru >= @startDate AND HD.DataOdbioru <= @endDate AND (D.Halt = '0' OR D.Halt IS NULL)";
+                WHERE HD.DataOdbioru >= @startDate AND HD.DataOdbioru < @endDate AND (D.Halt = '0' OR D.Halt IS NULL)";
 
             if (chkAnulowane?.IsChecked != true) sql += " AND bufor != 'Anulowany'";
             if (chkSprzedane?.IsChecked != true) sql += " AND bufor != 'Sprzedany'";
@@ -1230,8 +1230,18 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         #region Obsługa DataGrid - Dostawy
 
+        private bool _isUpdatingSelection = false;
+
         private void DgDostawy_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            // Wyczyść zaznaczenie w drugiej tabeli
+            if (!_isUpdatingSelection && dgDostawyNastepny.SelectedItems.Count > 0)
+            {
+                _isUpdatingSelection = true;
+                dgDostawyNastepny.SelectedItem = null;
+                _isUpdatingSelection = false;
+            }
+
             // Obsługa multi-select
             _selectedLPs.Clear();
             foreach (var item in dgDostawy.SelectedItems)
@@ -1268,6 +1278,31 @@ namespace Kalendarz1.Zywiec.Kalendarz
             else
             {
                 UpdateStatusBar();
+            }
+        }
+
+        private void DgDostawyNastepny_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // Wyczyść zaznaczenie w pierwszej tabeli
+            if (!_isUpdatingSelection && dgDostawy.SelectedItems.Count > 0)
+            {
+                _isUpdatingSelection = true;
+                dgDostawy.SelectedItem = null;
+                _isUpdatingSelection = false;
+            }
+
+            var selected = dgDostawyNastepny.SelectedItem as DostawaModel;
+            if (selected != null && !selected.IsHeaderRow)
+            {
+                _selectedLP = selected.LP;
+                _ = LoadDeliveryDetailsAsync(selected.LP);
+                _ = LoadNotatkiAsync(selected.LP);
+
+                if (!string.IsNullOrEmpty(selected.LpW))
+                {
+                    cmbLpWstawienia.SelectedItem = selected.LpW;
+                    _ = LoadWstawieniaAsync(selected.LpW);
+                }
             }
         }
 

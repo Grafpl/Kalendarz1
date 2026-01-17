@@ -385,7 +385,7 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTemplateColumn Header="Szt" Width="55" IsReadOnly="True">
+                                <DataGridTemplateColumn Header="Szt" Width="65" IsReadOnly="True">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Border Padding="2,0">
@@ -484,11 +484,10 @@
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="KM" Binding="{Binding KmDisplay}" Width="32" IsReadOnly="True">
+                                <DataGridTextColumn Header="KM" Binding="{Binding KmDisplay}" Width="35" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="HorizontalAlignment" Value="Right"/>
-                                            <Setter Property="FontSize" Value="9"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
@@ -497,6 +496,7 @@
                                         <Style TargetType="TextBlock">
                                             <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
                                             <Setter Property="ToolTip" Value="{Binding Uwagi}"/>
+                                            <Setter Property="FontSize" Value="10"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
@@ -525,7 +525,8 @@
 
                 <!-- TABELA NASTĘPNY TYDZIEŃ -->
                 <Border x:Name="borderNastepnyTydzien" Grid.Column="1" Margin="3,3,3,3" Background="White" CornerRadius="4" BorderBrush="#3498DB" BorderThickness="2" Visibility="Collapsed">
-                    <DataGrid x:Name="dgDostawyNastepny" Style="{StaticResource MainDataGridStyle}" LoadingRow="DgDostawy_LoadingRow">
+                    <DataGrid x:Name="dgDostawyNastepny" Style="{StaticResource MainDataGridStyle}" LoadingRow="DgDostawy_LoadingRow"
+                              SelectionChanged="DgDostawyNastepny_SelectionChanged" MouseDoubleClick="DgDostawy_MouseDoubleClick">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="LP" Binding="{Binding LP}" Visibility="Collapsed"/>
                             <DataGridTextColumn x:Name="colDostawcaHeader2" Header="Tydzień" Binding="{Binding DostawcaDisplay}" Width="100" IsReadOnly="True">
@@ -546,7 +547,7 @@
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTemplateColumn Header="Szt" Width="55" IsReadOnly="True">
+                            <DataGridTemplateColumn Header="Szt" Width="65" IsReadOnly="True">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <Border Padding="2,0">
