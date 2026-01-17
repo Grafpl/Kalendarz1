@@ -19,8 +19,8 @@ namespace Kalendarz1
         private static readonly string CacheFile = Path.Combine(CacheDirectory, "weather_cache.json");
         private static readonly HttpClient httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
 
-        // Domyślna lokalizacja (Polska)
-        private static string _location = "Warsaw";
+        // Domyślna lokalizacja (kod pocztowy w Polsce)
+        private static string _location = "95-061,Poland";
 
         public class WeatherData
         {
@@ -150,18 +150,18 @@ namespace Kalendarz1
 
         private static string GetWeatherIcon(int code)
         {
-            // Kody pogody wttr.in -> emoji
-            if (code == 113) return "☀️";  // Sunny
-            if (code == 116) return "⛅";  // Partly cloudy
-            if (code == 119 || code == 122) return "☁️";  // Cloudy
-            if (code >= 176 && code <= 185) return "🌧️";  // Light rain
-            if (code >= 200 && code <= 232) return "⛈️";  // Thunderstorm
-            if (code >= 260 && code <= 284) return "🌫️";  // Fog
-            if (code >= 293 && code <= 314) return "🌧️";  // Rain
-            if (code >= 317 && code <= 350) return "🌨️";  // Sleet
-            if (code >= 353 && code <= 395) return "🌧️";  // Rain/Snow
-            if (code >= 368 && code <= 395) return "❄️";  // Snow
-            return "🌡️";
+            // Kody pogody wttr.in -> proste symbole tekstowe
+            if (code == 113) return "☼";   // Sunny
+            if (code == 116) return "☼☁";  // Partly cloudy
+            if (code == 119 || code == 122) return "☁";   // Cloudy
+            if (code >= 176 && code <= 185) return "☂";   // Light rain
+            if (code >= 200 && code <= 232) return "⚡";  // Thunderstorm
+            if (code >= 260 && code <= 284) return "▒";   // Fog
+            if (code >= 293 && code <= 314) return "☂";   // Rain
+            if (code >= 317 && code <= 350) return "☂*";  // Sleet
+            if (code >= 353 && code <= 367) return "☂";   // Rain
+            if (code >= 368 && code <= 395) return "*";   // Snow
+            return "~";
         }
 
         private static string GetPolishDescription(string englishDesc)
