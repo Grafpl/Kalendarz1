@@ -162,7 +162,8 @@ namespace Kalendarz1
                 [39] = "PanelPortiera",
                 [40] = "PanelLekarza",
                 [41] = "KontrolaGodzin",
-                [42] = "CentrumSpotkan"  // <-- CENTRUM SPOTKAŃ
+                [42] = "CentrumSpotkan",
+                [43] = "PanelPaniJola"
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
@@ -208,7 +209,7 @@ namespace Kalendarz1
                 "ListaOfert", "DashboardOfert",
                 "PanelReklamacji", "ReklamacjeJakosc", "RaportyHodowcow",
                 "AdminPermissions", "AnalizaPrzychodu", "PanelPortiera", "PanelLekarza",
-                "KontrolaGodzin", "CentrumSpotkan"  // <-- CENTRUM SPOTKAŃ
+                "KontrolaGodzin", "CentrumSpotkan", "PanelPaniJola"
             };
         }
 
@@ -397,6 +398,15 @@ namespace Kalendarz1
                         "Kompleksowa analiza sprzedaży - wykresy, trendy, porównanie miesięczne, top odbiorcy",
                         Color.FromArgb(56, 142, 60), // #388E3C
                         () => new HandlowiecDashboardWindow(), "📊"),
+
+                    new MenuItemConfig("PanelPaniJola", "Panel Pani Jola",
+                        "Uproszczony widok zamówień i produktów - duże kafelki, łatwa nawigacja",
+                        Color.FromArgb(233, 30, 99), // Różowy #E91E63
+                        () => {
+                            var connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+                            var connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+                            return new WPF.DashboardWindow(connLibra, connHandel, null, true);
+                        }, "👩‍🦳"),
 
                     new MenuItemConfig("DokumentySprzedazy", "Faktury Sprzedaży",
                         "Przeglądanie i drukowanie faktur sprzedaży wraz z dokumentami WZ",
