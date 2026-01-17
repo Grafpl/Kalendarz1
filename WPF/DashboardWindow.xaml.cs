@@ -3929,6 +3929,8 @@ namespace Kalendarz1.WPF
             }
 
             int viewIndex = currentIndex;
+            bool isAutoPlay = false;
+            System.Windows.Threading.DispatcherTimer? autoTimer = null;
 
             var dialog = new Window
             {
@@ -3938,6 +3940,9 @@ namespace Kalendarz1.WPF
                 Background = new SolidColorBrush(Color.FromRgb(25, 30, 35)),
                 ResizeMode = ResizeMode.NoResize
             };
+
+            // Zatrzymaj timer przy zamknięciu okna
+            dialog.Closed += (s, e) => { autoTimer?.Stop(); };
 
             var mainContainer = new Grid();
             dialog.Content = mainContainer;
@@ -4070,6 +4075,45 @@ namespace Kalendarz1.WPF
                 var btnNext = new Button { Content = "▼", FontSize = 36, Width = 80, Height = 65, Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Margin = new Thickness(0, 5, 0, 0), Cursor = System.Windows.Input.Cursors.Hand };
                 btnNext.Click += (s, e) => { viewIndex = (viewIndex + 1) % _productDataList.Count; refreshContent(); };
                 navPanel.Children.Add(btnNext);
+
+                // Przycisk AUTO (cykliczne przesuwanie co 15 sekund)
+                var btnAuto = new Button
+                {
+                    Content = isAutoPlay ? "⏹ STOP" : "▶ AUTO",
+                    FontSize = 14,
+                    FontWeight = FontWeights.Bold,
+                    Width = 80,
+                    Padding = new Thickness(8, 10, 8, 10),
+                    Background = new SolidColorBrush(isAutoPlay ? Color.FromRgb(231, 76, 60) : Color.FromRgb(39, 174, 96)),
+                    Foreground = Brushes.White,
+                    BorderThickness = new Thickness(0),
+                    Margin = new Thickness(0, 8, 0, 0),
+                    Cursor = System.Windows.Input.Cursors.Hand
+                };
+                btnAuto.Click += (s, e) =>
+                {
+                    isAutoPlay = !isAutoPlay;
+                    if (isAutoPlay)
+                    {
+                        // Uruchom timer
+                        autoTimer = new System.Windows.Threading.DispatcherTimer();
+                        autoTimer.Interval = TimeSpan.FromSeconds(15);
+                        autoTimer.Tick += (ts, te) =>
+                        {
+                            viewIndex = (viewIndex + 1) % _productDataList.Count;
+                            refreshContent();
+                        };
+                        autoTimer.Start();
+                    }
+                    else
+                    {
+                        // Zatrzymaj timer
+                        autoTimer?.Stop();
+                        autoTimer = null;
+                    }
+                    refreshContent();
+                };
+                navPanel.Children.Add(btnAuto);
 
                 // Przycisk ZAMKNIJ
                 var btnClose = new Button { Content = "✕ ZAMKNIJ", FontSize = 14, FontWeight = FontWeights.Bold, Padding = new Thickness(12, 8, 12, 8), Background = new SolidColorBrush(Color.FromRgb(231, 76, 60)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Margin = new Thickness(0, 12, 0, 0), Cursor = System.Windows.Input.Cursors.Hand };
