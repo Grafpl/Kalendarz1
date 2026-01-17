@@ -213,7 +213,7 @@
             <Setter Property="SelectionUnit" Value="FullRow"/>
             <Setter Property="GridLinesVisibility" Value="Horizontal"/>
             <Setter Property="HorizontalGridLinesBrush" Value="#ECEFF1"/>
-            <Setter Property="RowHeight" Value="32"/>
+            <Setter Property="RowHeight" Value="26"/>
             <Setter Property="Background" Value="White"/>
             <Setter Property="BorderBrush" Value="#CFD8DC"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -363,28 +363,21 @@
 
                 <!-- TABELA GŁÓWNA (bieżący tydzień) -->
                 <Border Grid.Column="0" Margin="6,3,3,3" Background="White" CornerRadius="4" BorderBrush="#DDDDDD" BorderThickness="1">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-                        <Border Grid.Row="0" Background="#34495E" Padding="8,4">
-                            <TextBlock x:Name="txtTydzien1Header" Text="Bieżący tydzień" Foreground="White" FontWeight="SemiBold" FontSize="11"/>
-                        </Border>
-                        <DataGrid x:Name="dgDostawy" Grid.Row="1" Style="{StaticResource MainDataGridStyle}"
+                    <DataGrid x:Name="dgDostawy" Style="{StaticResource MainDataGridStyle}"
                                   SelectionChanged="DgDostawy_SelectionChanged" MouseDoubleClick="DgDostawy_MouseDoubleClick" LoadingRow="DgDostawy_LoadingRow">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="LP" Binding="{Binding LP}" Visibility="Collapsed"/>
-                                <DataGridTextColumn Header="Dostawca / Data" Binding="{Binding DostawcaDisplay}" Width="220" IsReadOnly="True">
+                                <DataGridTextColumn x:Name="colDostawcaHeader" Header="Tydzień" Binding="{Binding DostawcaDisplay}" Width="160" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="VerticalAlignment" Value="Center"/>
                                             <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
                                             <Setter Property="ToolTip" Value="{Binding DostawcaDisplay}"/>
+                                            <Setter Property="FontSize" Value="11"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Auta" Binding="{Binding AutaDisplay}" Width="55" IsReadOnly="True">
+                                <DataGridTextColumn Header="Auta" Binding="{Binding AutaDisplay}" Width="45" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="HorizontalAlignment" Value="Center"/>
@@ -392,37 +385,40 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDekDisplay}" Width="70" IsReadOnly="True">
+                                <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDekDisplay}" Width="65" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Waga" Binding="{Binding WagaDekDisplay}" Width="70" IsReadOnly="True">
+                                <DataGridTextColumn Header="Waga" Binding="{Binding WagaDekDisplay}" Width="60" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Doby" Binding="{Binding RoznicaDniDisplay}" Width="50" IsReadOnly="True">
+                                <DataGridTextColumn Header="Doby" Binding="{Binding RoznicaDniDisplay}" Width="45" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/></Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Typ" Binding="{Binding TypCenyDisplay}" Width="75" IsReadOnly="True">
+                                <DataGridTextColumn Header="Typ" Binding="{Binding TypCenyDisplay}" Width="85" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/></Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn x:Name="colCena" Header="Cena" Binding="{Binding CenaDisplay}" Width="70" IsReadOnly="True">
+                                <DataGridTextColumn x:Name="colCena" Header="Cena" Binding="{Binding CenaDisplay}" Width="60" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="KM" Binding="{Binding KmDisplay}" Width="50" IsReadOnly="True">
+                                <DataGridTextColumn Header="KM" Binding="{Binding KmDisplay}" Width="45" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="FontSize" Value="10"/>
+                                        </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Uwagi" Binding="{Binding UwagiDisplay}" Width="*" MinWidth="80" IsReadOnly="True">
+                                <DataGridTextColumn Header="Uwagi" Binding="{Binding UwagiDisplay}" Width="*" MinWidth="60" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
@@ -451,80 +447,71 @@
                                 <DataGridTextColumn Header="Status" Binding="{Binding Bufor}" Visibility="Collapsed"/>
                             </DataGrid.Columns>
                         </DataGrid>
-                    </Grid>
                 </Border>
 
                 <!-- TABELA NASTĘPNY TYDZIEŃ -->
                 <Border x:Name="borderNastepnyTydzien" Grid.Column="1" Margin="3,3,3,3" Background="White" CornerRadius="4" BorderBrush="#3498DB" BorderThickness="2" Visibility="Collapsed">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-                        <Border Grid.Row="0" Background="#3498DB" Padding="8,4">
-                            <TextBlock x:Name="txtTydzien2Header" Text="Następny tydzień" Foreground="White" FontWeight="SemiBold" FontSize="11"/>
-                        </Border>
-                        <DataGrid x:Name="dgDostawyNastepny" Grid.Row="1" Style="{StaticResource MainDataGridStyle}" LoadingRow="DgDostawy_LoadingRow">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="LP" Binding="{Binding LP}" Visibility="Collapsed"/>
-                                <DataGridTextColumn Header="Dostawca / Data" Binding="{Binding DostawcaDisplay}" Width="200" IsReadOnly="True">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="VerticalAlignment" Value="Center"/>
-                                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-                                            <Setter Property="ToolTip" Value="{Binding DostawcaDisplay}"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                                <DataGridTextColumn Header="Auta" Binding="{Binding AutaDisplay}" Width="50" IsReadOnly="True">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="HorizontalAlignment" Value="Center"/>
-                                            <Setter Property="FontWeight" Value="SemiBold"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                                <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDekDisplay}" Width="65" IsReadOnly="True">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                                <DataGridTextColumn Header="Waga" Binding="{Binding WagaDekDisplay}" Width="65" IsReadOnly="True">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                                <DataGridTextColumn Header="Typ" Binding="{Binding TypCenyDisplay}" Width="70" IsReadOnly="True">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/></Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                                <DataGridTextColumn Header="Cena" Binding="{Binding CenaDisplay}" Width="65" IsReadOnly="True">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                                <DataGridTextColumn Header="Uwagi" Binding="{Binding UwagiDisplay}" Width="*" MinWidth="60" IsReadOnly="True">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-                                            <Setter Property="ToolTip" Value="{Binding Uwagi}"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                                <DataGridTemplateColumn Header="✓" Width="38">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <CheckBox IsChecked="{Binding IsConfirmed, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
-                                                      Style="{StaticResource DataGridCheckBoxStyle}"
-                                                      Click="ChkConfirm_Click" Tag="{Binding LP}"/>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="Status" Binding="{Binding Bufor}" Visibility="Collapsed"/>
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </Grid>
+                    <DataGrid x:Name="dgDostawyNastepny" Style="{StaticResource MainDataGridStyle}" LoadingRow="DgDostawy_LoadingRow">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="LP" Binding="{Binding LP}" Visibility="Collapsed"/>
+                            <DataGridTextColumn x:Name="colDostawcaHeader2" Header="Tydzień" Binding="{Binding DostawcaDisplay}" Width="150" IsReadOnly="True">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                        <Setter Property="ToolTip" Value="{Binding DostawcaDisplay}"/>
+                                        <Setter Property="FontSize" Value="11"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Auta" Binding="{Binding AutaDisplay}" Width="40" IsReadOnly="True">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDekDisplay}" Width="60" IsReadOnly="True">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Waga" Binding="{Binding WagaDekDisplay}" Width="55" IsReadOnly="True">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Typ" Binding="{Binding TypCenyDisplay}" Width="75" IsReadOnly="True">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/></Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Cena" Binding="{Binding CenaDisplay}" Width="55" IsReadOnly="True">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Uwagi" Binding="{Binding UwagiDisplay}" Width="*" MinWidth="50" IsReadOnly="True">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                        <Setter Property="ToolTip" Value="{Binding Uwagi}"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTemplateColumn Header="✓" Width="32">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <CheckBox IsChecked="{Binding IsConfirmed, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                                  Style="{StaticResource DataGridCheckBoxStyle}"
+                                                  Click="ChkConfirm_Click" Tag="{Binding LP}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Status" Binding="{Binding Bufor}" Visibility="Collapsed"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
                 </Border>
             </Grid>
 

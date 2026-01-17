@@ -405,12 +405,20 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
                 DateTime endOfWeek = startOfWeek.AddDays(7);
 
-                // Ustaw nagłówek (jeśli jest dostępny) - na głównym wątku
+                // Ustaw nagłówek kolumny z numerem tygodnia - na głównym wątku
                 int weekNum = GetIso8601WeekOfYear(baseDate);
+                string headerText = $"Tydz. {weekNum} ({startOfWeek:dd.MM}-{endOfWeek.AddDays(-1):dd.MM})";
                 await Dispatcher.InvokeAsync(() =>
                 {
-                    if (header != null)
-                        header.Text = $"Tydzień {weekNum} ({startOfWeek:dd.MM} - {endOfWeek.AddDays(-1):dd.MM})";
+                    // Aktualizuj nagłówek kolumny DataGrida
+                    if (collection == _dostawy && colDostawcaHeader != null)
+                    {
+                        colDostawcaHeader.Header = headerText;
+                    }
+                    else if (collection == _dostawyNastepnyTydzien && colDostawcaHeader2 != null)
+                    {
+                        colDostawcaHeader2.Header = headerText;
+                    }
                 });
 
                 string sql = BuildDostawyQuery();
@@ -501,7 +509,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         double sumaWagaPomnozona = 0;
                         double sumaCenaPomnozona = 0;
                         double sumaKMPomnozona = 0;
+                        double sumaDobyPomnozona = 0;
                         int sumaUbytek = 0;
+                        int iloscZDoby = 0;
 
                         foreach (var item in group)
                         {
@@ -510,6 +520,13 @@ namespace Kalendarz1.Zywiec.Kalendarz
                             sumaWagaPomnozona += (double)item.WagaDek * item.Auta;
                             sumaCenaPomnozona += (double)item.Cena * item.Auta;
                             sumaKMPomnozona += item.Distance * item.Auta;
+
+                            // Średnia Doby
+                            if (item.RoznicaDni.HasValue && item.RoznicaDni.Value > 0)
+                            {
+                                sumaDobyPomnozona += item.RoznicaDni.Value * item.Auta;
+                                iloscZDoby += item.Auta;
+                            }
 
                             // Licz ubytki (lekkie kurczaki 0.5-2.4 kg)
                             if (item.WagaDek >= 0.5m && item.WagaDek <= 2.4m)
@@ -522,6 +539,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         double sredniaWaga = sumaAuta > 0 ? sumaWagaPomnozona / sumaAuta : 0;
                         double sredniaCena = sumaAuta > 0 ? sumaCenaPomnozona / sumaAuta : 0;
                         double sredniaKM = sumaAuta > 0 ? sumaKMPomnozona / sumaAuta : 0;
+                        double sredniaDoby = iloscZDoby > 0 ? sumaDobyPomnozona / iloscZDoby : 0;
 
                         // Dodaj wiersz nagłówka dnia z sumami
                         collection.Add(new DostawaModel
@@ -534,6 +552,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                             SredniaWaga = sredniaWaga,
                             SredniaCena = sredniaCena,
                             SredniaKM = sredniaKM,
+                            SredniaDoby = sredniaDoby,
                             SumaUbytek = sumaUbytek
                         });
 
@@ -1382,9 +1401,202 @@ namespace Kalendarz1.Zywiec.Kalendarz
             catch { }
         }
 
-        private void DgDostawy_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        private async void DgDostawy_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
-            // Można otworzyć szczegółowy widok
+            var dg = sender as DataGrid;
+            if (dg == null) return;
+
+            var selectedItem = dg.SelectedItem as DostawaModel;
+            if (selectedItem == null || selectedItem.IsHeaderRow || selectedItem.IsSeparator) return;
+
+            // Sprawdź którą kolumnę kliknięto
+            var point = e.GetPosition(dg);
+            var hitResult = VisualTreeHelper.HitTest(dg, point);
+            if (hitResult == null) return;
+
+            var cell = FindVisualParent<DataGridCell>(hitResult.VisualHit);
+            if (cell == null) return;
+
+            var column = cell.Column;
+            if (column == null) return;
+
+            string columnHeader = column.Header?.ToString() ?? "";
+
+            // Obsługa edycji dla konkretnych kolumn
+            if (columnHeader == "Auta" || columnHeader == "Sztuki" || columnHeader == "Waga")
+            {
+                await EditCellValueAsync(selectedItem.LP, columnHeader);
+            }
+            else if (columnHeader == "Uwagi")
+            {
+                await EditNoteAsync(selectedItem.LP);
+            }
+        }
+
+        private async Task EditCellValueAsync(string lp, string columnName)
+        {
+            // Pobierz aktualną wartość
+            var item = _dostawy.FirstOrDefault(d => d.LP == lp);
+            if (item == null) return;
+
+            string currentValue = "";
+            string fieldName = "";
+
+            switch (columnName)
+            {
+                case "Auta":
+                    currentValue = item.Auta.ToString();
+                    fieldName = "Auta";
+                    break;
+                case "Sztuki":
+                    currentValue = item.SztukiDek.ToString("0");
+                    fieldName = "SztukiDek";
+                    break;
+                case "Waga":
+                    currentValue = item.WagaDek.ToString("0.00").Replace(",", ".");
+                    fieldName = "WagaDek";
+                    break;
+            }
+
+            // Pokaż dialog edycji
+            var dialog = new Window
+            {
+                Title = $"Edycja {columnName}",
+                Width = 250,
+                Height = 120,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                ResizeMode = ResizeMode.NoResize
+            };
+
+            var stack = new StackPanel { Margin = new Thickness(10) };
+            var textBox = new TextBox { Text = currentValue, FontSize = 14, Margin = new Thickness(0, 0, 0, 10) };
+            textBox.SelectAll();
+
+            var buttonPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+            var btnOk = new Button { Content = "OK", Width = 60, Margin = new Thickness(0, 0, 5, 0) };
+            var btnCancel = new Button { Content = "Anuluj", Width = 60 };
+
+            btnOk.Click += async (s, e) =>
+            {
+                string newValue = textBox.Text.Trim().Replace(",", ".");
+                try
+                {
+                    using (SqlConnection conn = new SqlConnection(ConnectionString))
+                    {
+                        await conn.OpenAsync();
+                        string sql = $"UPDATE HarmonogramDostaw SET {fieldName} = @val, DataMod = GETDATE(), KtoMod = @kto WHERE LP = @lp";
+                        using (SqlCommand cmd = new SqlCommand(sql, conn))
+                        {
+                            if (fieldName == "Auta")
+                                cmd.Parameters.AddWithValue("@val", int.Parse(newValue));
+                            else if (fieldName == "SztukiDek")
+                                cmd.Parameters.AddWithValue("@val", double.Parse(newValue, CultureInfo.InvariantCulture));
+                            else
+                                cmd.Parameters.AddWithValue("@val", decimal.Parse(newValue, CultureInfo.InvariantCulture));
+                            cmd.Parameters.AddWithValue("@kto", UserID ?? "0");
+                            cmd.Parameters.AddWithValue("@lp", lp);
+                            await cmd.ExecuteNonQueryAsync();
+                        }
+                    }
+                    dialog.Close();
+                    ShowToast($"{columnName} zaktualizowane", ToastType.Success);
+                    await LoadDostawyAsync();
+                }
+                catch (Exception ex)
+                {
+                    ShowToast($"Błąd: {ex.Message}", ToastType.Error);
+                }
+            };
+
+            btnCancel.Click += (s, e) => dialog.Close();
+
+            textBox.KeyDown += (s, e) =>
+            {
+                if (e.Key == Key.Enter) btnOk.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                if (e.Key == Key.Escape) dialog.Close();
+            };
+
+            buttonPanel.Children.Add(btnOk);
+            buttonPanel.Children.Add(btnCancel);
+            stack.Children.Add(new TextBlock { Text = $"Podaj nową wartość dla {columnName}:", Margin = new Thickness(0, 0, 0, 5) });
+            stack.Children.Add(textBox);
+            stack.Children.Add(buttonPanel);
+            dialog.Content = stack;
+
+            textBox.Focus();
+            dialog.ShowDialog();
+        }
+
+        private async Task EditNoteAsync(string lp)
+        {
+            // Pokaż dialog edycji notatki
+            var dialog = new Window
+            {
+                Title = "Nowa notatka",
+                Width = 350,
+                Height = 180,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                ResizeMode = ResizeMode.NoResize
+            };
+
+            var stack = new StackPanel { Margin = new Thickness(10) };
+            var textBox = new TextBox { Height = 60, TextWrapping = TextWrapping.Wrap, AcceptsReturn = true, FontSize = 12, Margin = new Thickness(0, 0, 0, 10) };
+
+            var buttonPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+            var btnOk = new Button { Content = "Dodaj", Width = 60, Margin = new Thickness(0, 0, 5, 0) };
+            var btnCancel = new Button { Content = "Anuluj", Width = 60 };
+
+            btnOk.Click += async (s, e) =>
+            {
+                string noteText = textBox.Text.Trim();
+                if (string.IsNullOrEmpty(noteText))
+                {
+                    ShowToast("Wpisz treść notatki", ToastType.Warning);
+                    return;
+                }
+
+                if (MessageBox.Show("Czy na pewno chcesz dodać tę notatkę?", "Potwierdzenie",
+                    MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                {
+                    try
+                    {
+                        using (SqlConnection conn = new SqlConnection(ConnectionString))
+                        {
+                            await conn.OpenAsync();
+                            string sql = "INSERT INTO Notatki (IndeksID, TypID, Tresc, KtoStworzyl, DataUtworzenia) VALUES (@lp, 1, @tresc, @kto, GETDATE())";
+                            using (SqlCommand cmd = new SqlCommand(sql, conn))
+                            {
+                                cmd.Parameters.AddWithValue("@lp", lp);
+                                cmd.Parameters.AddWithValue("@tresc", noteText);
+                                cmd.Parameters.AddWithValue("@kto", UserID ?? "0");
+                                await cmd.ExecuteNonQueryAsync();
+                            }
+                        }
+                        dialog.Close();
+                        ShowToast("Notatka dodana", ToastType.Success);
+                        await LoadNotatkiAsync(lp);
+                        await LoadOstatnieNotatkiAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        ShowToast($"Błąd: {ex.Message}", ToastType.Error);
+                    }
+                }
+            };
+
+            btnCancel.Click += (s, e) => dialog.Close();
+
+            buttonPanel.Children.Add(btnOk);
+            buttonPanel.Children.Add(btnCancel);
+            stack.Children.Add(new TextBlock { Text = "Wpisz treść notatki:", Margin = new Thickness(0, 0, 0, 5) });
+            stack.Children.Add(textBox);
+            stack.Children.Add(buttonPanel);
+            dialog.Content = stack;
+
+            textBox.Focus();
+            dialog.ShowDialog();
         }
 
         private void DgDostawy_LoadingRow(object sender, DataGridRowEventArgs e)
@@ -2645,6 +2857,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
         public double SredniaWaga { get; set; }
         public double SredniaCena { get; set; }
         public double SredniaKM { get; set; }
+        public double SredniaDoby { get; set; }
         public int SumaUbytek { get; set; }
 
         // Główna kolumna - dla nagłówka pokazuje datę, dla danych pokazuje dostawcę
@@ -2653,20 +2866,20 @@ namespace Kalendarz1.Zywiec.Kalendarz
             : (IsSeparator ? "" : Dostawca);
 
         public string SztukiDekDisplay => IsHeaderRow
-            ? (SumaSztuki > 0 ? $"{SumaSztuki:#,0} szt" : "")
-            : (SztukiDek > 0 ? $"{SztukiDek:#,0} szt" : "");
+            ? (SumaSztuki > 0 ? $"{SumaSztuki:#,0}" : "")
+            : (SztukiDek > 0 ? $"{SztukiDek:#,0}" : "");
         public string WagaDekDisplay => IsHeaderRow
-            ? (SredniaWaga > 0 ? $"{SredniaWaga:0.00} kg" : "")
-            : (WagaDek > 0 ? $"{WagaDek:0.00} kg" : "");
+            ? (SredniaWaga > 0 ? $"{SredniaWaga:0.00}" : "")
+            : (WagaDek > 0 ? $"{WagaDek:0.00}" : "");
         public string CenaDisplay => IsHeaderRow
-            ? (SredniaCena > 0 ? $"{SredniaCena:0.00} zł" : "")
-            : (Cena > 0 ? $"{Cena:0.00} zł" : "");
+            ? (SredniaCena > 0 ? $"{SredniaCena:0.00}" : "")
+            : (Cena > 0 ? $"{Cena:0.00}" : "");
         public string KmDisplay => IsHeaderRow
-            ? (SredniaKM > 0 ? $"{SredniaKM:0} km" : "")
-            : (Distance > 0 ? $"{Distance} km" : "");
+            ? (SredniaKM > 0 ? $"{SredniaKM:0}" : "")
+            : (Distance > 0 ? $"{Distance}" : "");
         public string RoznicaDniDisplay => IsHeaderRow
-            ? ""
-            : (RoznicaDni.HasValue ? $"{RoznicaDni} dni" : "");
+            ? (SredniaDoby > 0 ? $"{SredniaDoby:0.0}" : "")
+            : (RoznicaDni.HasValue ? $"{RoznicaDni}" : "");
         public string AutaDisplay => IsHeaderRow
             ? (SumaAuta > 0 ? $"{SumaAuta:0}" : "")
             : (Auta > 0 ? Auta.ToString() : "");
