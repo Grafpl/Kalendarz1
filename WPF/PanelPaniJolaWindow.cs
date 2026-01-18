@@ -76,8 +76,8 @@ namespace Kalendarz1.WPF
 
         // LibVLC do streamingu RTSP
         private LibVLC? _libVLC;
-        private MediaPlayer? _mediaPlayer1;
-        private MediaPlayer? _mediaPlayer2;
+        private LibVLCSharp.Shared.MediaPlayer? _mediaPlayer1;
+        private LibVLCSharp.Shared.MediaPlayer? _mediaPlayer2;
         private VideoView? _videoView1;
         private VideoView? _videoView2;
         private TextBlock? _camera1Status;
@@ -997,7 +997,7 @@ namespace Kalendarz1.WPF
             {
                 try
                 {
-                    _mediaPlayer1 = new MediaPlayer(_libVLC);
+                    _mediaPlayer1 = new LibVLCSharp.Shared.MediaPlayer(_libVLC);
                     _videoView1.MediaPlayer = _mediaPlayer1;
 
                     _mediaPlayer1.Playing += (s, e) => Dispatcher.Invoke(() =>
@@ -1035,7 +1035,7 @@ namespace Kalendarz1.WPF
             {
                 try
                 {
-                    _mediaPlayer2 = new MediaPlayer(_libVLC);
+                    _mediaPlayer2 = new LibVLCSharp.Shared.MediaPlayer(_libVLC);
                     _videoView2.MediaPlayer = _mediaPlayer2;
 
                     _mediaPlayer2.Playing += (s, e) => Dispatcher.Invoke(() =>
@@ -1096,7 +1096,7 @@ namespace Kalendarz1.WPF
 
             // MediaPlayer dla fullscreen (używaj strumienia głównego s0 dla lepszej jakości)
             var fullscreenUrl = camera.RtspUrl.Replace("/s1/", "/s0/"); // HD stream
-            var fullscreenPlayer = new MediaPlayer(_libVLC);
+            var fullscreenPlayer = new LibVLCSharp.Shared.MediaPlayer(_libVLC);
             fullscreenVideoView.MediaPlayer = fullscreenPlayer;
 
             var fullscreenMedia = new Media(_libVLC, new Uri(fullscreenUrl));
