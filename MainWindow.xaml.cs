@@ -231,7 +231,7 @@ namespace Kalendarz1
                     new ModuleConfig("DaneHodowcy", "Dane Hodowcy", "Zarządzaj bazą hodowców", "#27AE60", () => new WidokKontrahenci(), "📋"),
                     new ModuleConfig("ZakupPaszyPisklak", "Zakup Paszy", "Rejestruj zakupy paszy i piskląt", "#5C8A3A", null, "🌾"),
                     new ModuleConfig("WstawieniaHodowcy", "Wstawienia", "Zarządzaj cyklami wstawień", "#5C8A3A", () => new WidokWstawienia(), "🐣"),
-                    new ModuleConfig("TerminyDostawyZywca", "Kalendarz Dostaw", "Planuj terminy dostaw żywca", "#27AE60", () => new WidokKalendarza { UserID = App.UserID, WindowState = System.Windows.Forms.FormWindowState.Maximized }, "📅"),
+                    new ModuleConfig("TerminyDostawyZywca", "Kalendarz Dostaw", "Planuj terminy dostaw żywca", "#27AE60", () => new Zywiec.Kalendarz.WidokKalendarzaWPF { UserID = App.UserID }, "📅"),
                     new ModuleConfig("DokumentyZakupu", "Dokumenty Zakupu", "Archiwizuj dokumenty i umowy", "#5C8A3A", () => new SprawdzalkaUmow { UserID = App.UserID }, "📄"),
                     new ModuleConfig("PlatnosciHodowcy", "Płatności", "Monitoruj płatności dla hodowców", "#F39C12", () => new Platnosci(), "💰"),
                     new ModuleConfig("ZmianyUHodowcow", "Wnioski o Zmianę", "Zatwierdzaj zmiany w danych", "#3498DB", () => new AdminChangeRequestsForm(connectionString, App.UserID), "✏️"),
