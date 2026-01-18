@@ -17,7 +17,6 @@ namespace Kalendarz1.Zadania
         private readonly string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private readonly string operatorId;
         private List<TaskNotification> tasks = new List<TaskNotification>();
-        private List<MeetingNotification> meetings = new List<MeetingNotification>();
         private DispatcherTimer pulseTimer;
 
         // Colors
@@ -39,7 +38,6 @@ namespace Kalendarz1.Zadania
         };
 
         public event EventHandler OpenPanelRequested;
-        public event EventHandler OpenMeetingsRequested;
         public event EventHandler<TimeSpan> SnoozeRequested;
 
         public NotificationWindow(string userId)
@@ -54,17 +52,15 @@ namespace Kalendarz1.Zadania
         {
             PositionWindow();
             LoadTasks();
-            LoadMeetings();
 
-            // Jeśli nie ma spotkań ani zadań - zamknij okno
-            if (tasks.Count == 0 && meetings.Count == 0)
+            // Jeśli nie ma zadań - zamknij okno
+            if (tasks.Count == 0)
             {
                 Close();
                 return;
             }
 
             UpdateStatistics();
-            BuildMeetingsColumn();
             BuildTasksColumn();
         }
 
@@ -93,10 +89,6 @@ namespace Kalendarz1.Zadania
             txtTasksCount.Text = tasks.Count == 0 ? "Brak zadań" :
                                  tasks.Count == 1 ? "1 zadanie" :
                                  $"{tasks.Count} zadań";
-
-            txtMeetingsCount.Text = meetings.Count == 0 ? "Brak spotkań" :
-                                    meetings.Count == 1 ? "1 spotkanie" :
-                                    $"{meetings.Count} spotkań";
         }
 
         #endregion
@@ -194,135 +186,9 @@ namespace Kalendarz1.Zadania
             }
         }
 
-        private void LoadMeetings()
-        {
-            meetings.Clear();
-
-            try
-            {
-                using (var conn = new SqlConnection(connectionString))
-                {
-                    conn.Open();
-
-                    var cmd = new SqlCommand(@"
-                        SELECT DISTINCT
-                            s.SpotkaniID,
-                            s.Tytul,
-                            s.DataSpotkania,
-                            s.CzasTrwaniaMin,
-                            s.Lokalizacja,
-                            s.Status,
-                            s.OrganizatorID,
-                            s.OrganizatorNazwa,
-                            s.LinkSpotkania,
-                            s.Opis,
-                            s.Priorytet
-                        FROM Spotkania s
-                        LEFT JOIN SpotkaniaUczestnicy su ON s.SpotkaniID = su.SpotkaniID
-                        WHERE (s.OrganizatorID = @id OR su.OperatorID = @id)
-                          AND s.Status = 'Zaplanowane'
-                        ORDER BY s.DataSpotkania ASC", conn);
-
-                    cmd.Parameters.AddWithValue("@id", operatorId);
-
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            var meetingDate = reader.GetDateTime(2);
-                            var durationMin = reader.IsDBNull(3) ? 60 : reader.GetInt32(3);
-                            var now = DateTime.Now;
-                            var endTime = meetingDate.AddMinutes(durationMin);
-                            var minutesToMeeting = (int)(meetingDate - now).TotalMinutes;
-                            var isLive = now >= meetingDate && now <= endTime;
-
-                            meetings.Add(new MeetingNotification
-                            {
-                                Id = reader.GetInt64(0),
-                                Title = reader.IsDBNull(1) ? "" : reader.GetString(1),
-                                MeetingDate = meetingDate,
-                                DurationMin = durationMin,
-                                Location = reader.IsDBNull(4) ? null : reader.GetString(4),
-                                Status = reader.IsDBNull(5) ? "Zaplanowane" : reader.GetString(5),
-                                OrganizerId = reader.IsDBNull(6) ? "" : reader.GetString(6),
-                                OrganizerName = reader.IsDBNull(7) ? "" : reader.GetString(7),
-                                MeetingLink = reader.IsDBNull(8) ? null : reader.GetString(8),
-                                Description = reader.IsDBNull(9) ? "" : reader.GetString(9),
-                                Priority = reader.IsDBNull(10) ? "Normalny" : reader.GetString(10),
-                                MinutesToMeeting = minutesToMeeting,
-                                IsLive = isLive,
-                                EndTime = endTime
-                            });
-                        }
-                    }
-
-                    foreach (var meeting in meetings)
-                    {
-                        LoadMeetingAttendees(conn, meeting);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error loading meetings: {ex.Message}");
-            }
-        }
-
-        private void LoadMeetingAttendees(SqlConnection conn, MeetingNotification meeting)
-        {
-            try
-            {
-                var cmd = new SqlCommand(@"
-                    SELECT
-                        OperatorID,
-                        OperatorNazwa,
-                        StatusZaproszenia,
-                        CzyObowiazkowy
-                    FROM SpotkaniaUczestnicy
-                    WHERE SpotkaniID = @meetingId", conn);
-
-                cmd.Parameters.AddWithValue("@meetingId", meeting.Id);
-
-                using (var reader = cmd.ExecuteReader())
-                {
-                    while (reader.Read())
-                    {
-                        meeting.Attendees.Add(new MeetingAttendee
-                        {
-                            OperatorId = reader.IsDBNull(0) ? "" : reader.GetString(0),
-                            Name = reader.IsDBNull(1) ? reader.GetString(0) : reader.GetString(1),
-                            Status = reader.IsDBNull(2) ? "Oczekuje" : reader.GetString(2),
-                            IsRequired = !reader.IsDBNull(3) && reader.GetBoolean(3),
-                            Email = ""
-                        });
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error loading attendees: {ex.Message}");
-            }
-        }
-
         #endregion
 
         #region Build Columns
-
-        private void BuildMeetingsColumn()
-        {
-            meetingsPanel.Children.Clear();
-
-            if (meetings.Count == 0)
-            {
-                meetingsPanel.Children.Add(CreateEmptyState("Brak spotkań", "📅", Purple));
-                return;
-            }
-
-            foreach (var meeting in meetings.Take(10))
-            {
-                meetingsPanel.Children.Add(CreateMeetingCard(meeting));
-            }
-        }
 
         private void BuildTasksColumn()
         {
@@ -346,291 +212,6 @@ namespace Kalendarz1.Zadania
             foreach (var task in upcomingTasks.Take(5))
             {
                 tasksPanel.Children.Add(CreateTaskCard(task, false));
-            }
-        }
-
-        private Border CreateMeetingCard(MeetingNotification meeting)
-        {
-            var isLive = meeting.IsLive;
-            var borderColor = isLive ? AlertRed : Color.FromArgb(0, 0, 0, 0);
-
-            var card = new Border
-            {
-                Background = new SolidColorBrush(CardBg),
-                CornerRadius = new CornerRadius(10),
-                Padding = new Thickness(12),
-                Margin = new Thickness(0, 0, 0, 8),
-                BorderBrush = isLive ? new SolidColorBrush(AlertRed) : null,
-                BorderThickness = isLive ? new Thickness(1) : new Thickness(0),
-                Cursor = System.Windows.Input.Cursors.Hand
-            };
-
-            if (isLive)
-            {
-                card.Effect = new DropShadowEffect
-                {
-                    BlurRadius = 10,
-                    ShadowDepth = 0,
-                    Opacity = 0.3,
-                    Color = AlertRed
-                };
-            }
-
-            card.MouseEnter += (s, e) => card.Background = new SolidColorBrush(CardBgHover);
-            card.MouseLeave += (s, e) => card.Background = new SolidColorBrush(CardBg);
-
-            var mainStack = new StackPanel();
-
-            // Title row
-            var titleRow = new Grid();
-            titleRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            titleRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-            var title = new TextBlock
-            {
-                Text = meeting.Title,
-                FontSize = 12,
-                FontWeight = FontWeights.Medium,
-                Foreground = Brushes.White,
-                TextTrimming = TextTrimming.CharacterEllipsis
-            };
-            Grid.SetColumn(title, 0);
-            titleRow.Children.Add(title);
-
-            // Time badge
-            var timeText = isLive ? "LIVE" : GetRelativeTime(meeting.MeetingDate);
-            var badgeColor = isLive ? AlertRed : Purple;
-            var timeBadge = new Border
-            {
-                Background = new SolidColorBrush(Color.FromArgb(isLive ? (byte)255 : (byte)50, badgeColor.R, badgeColor.G, badgeColor.B)),
-                CornerRadius = new CornerRadius(4),
-                Padding = new Thickness(6, 2, 6, 2)
-            };
-            timeBadge.Child = new TextBlock
-            {
-                Text = timeText,
-                FontSize = 9,
-                FontWeight = FontWeights.Bold,
-                Foreground = isLive ? Brushes.White : new SolidColorBrush(badgeColor)
-            };
-            Grid.SetColumn(timeBadge, 1);
-            titleRow.Children.Add(timeBadge);
-
-            mainStack.Children.Add(titleRow);
-
-            // Time info row
-            var timeInfoRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
-
-            // Time badge
-            var timeInfoBadge = new Border
-            {
-                Background = new SolidColorBrush(Color.FromArgb(40, InfoBlue.R, InfoBlue.G, InfoBlue.B)),
-                CornerRadius = new CornerRadius(4),
-                Padding = new Thickness(6, 3, 6, 3),
-                Margin = new Thickness(0, 0, 8, 0)
-            };
-            timeInfoBadge.Child = new TextBlock
-            {
-                Text = $"{meeting.MeetingDate:HH:mm} • {meeting.DurationMin} min",
-                FontSize = 10,
-                Foreground = new SolidColorBrush(InfoBlue)
-            };
-            timeInfoRow.Children.Add(timeInfoBadge);
-
-            // Location badge (prominent)
-            if (!string.IsNullOrEmpty(meeting.Location))
-            {
-                var locationBadge = new Border
-                {
-                    Background = new SolidColorBrush(Color.FromArgb(40, WarningOrange.R, WarningOrange.G, WarningOrange.B)),
-                    CornerRadius = new CornerRadius(4),
-                    Padding = new Thickness(6, 3, 6, 3)
-                };
-                locationBadge.Child = new StackPanel
-                {
-                    Orientation = Orientation.Horizontal,
-                    Children =
-                    {
-                        new TextBlock { Text = "📍", FontSize = 10, Margin = new Thickness(0, 0, 4, 0) },
-                        new TextBlock { Text = meeting.Location, FontSize = 10, Foreground = new SolidColorBrush(WarningOrange), FontWeight = FontWeights.Medium }
-                    }
-                };
-                timeInfoRow.Children.Add(locationBadge);
-            }
-
-            mainStack.Children.Add(timeInfoRow);
-
-            // Avatars - LARGE 42px
-            if (meeting.Attendees.Count > 0)
-            {
-                var avatarRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 0) };
-
-                for (int i = 0; i < Math.Min(meeting.Attendees.Count, 5); i++)
-                {
-                    avatarRow.Children.Add(CreateAvatar(meeting.Attendees[i], i, 42));
-                }
-
-                if (meeting.Attendees.Count > 5)
-                {
-                    var moreCount = new Border
-                    {
-                        Width = 42,
-                        Height = 42,
-                        CornerRadius = new CornerRadius(21),
-                        Background = new SolidColorBrush(Color.FromArgb(80, 255, 255, 255)),
-                        Margin = new Thickness(-10, 0, 0, 0)
-                    };
-                    moreCount.Child = new TextBlock
-                    {
-                        Text = $"+{meeting.Attendees.Count - 5}",
-                        FontSize = 12,
-                        FontWeight = FontWeights.Bold,
-                        Foreground = Brushes.White,
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        VerticalAlignment = VerticalAlignment.Center
-                    };
-                    avatarRow.Children.Add(moreCount);
-                }
-
-                mainStack.Children.Add(avatarRow);
-            }
-
-            // Attendance buttons - Będę / Nie będę
-            var currentUserAttendee = meeting.Attendees.FirstOrDefault(a => a.OperatorId == operatorId);
-            var isOrganizer = meeting.OrganizerId == operatorId;
-
-            // Only show buttons if user is an attendee (not organizer) and hasn't responded yet
-            if (currentUserAttendee != null && !isOrganizer)
-            {
-                var currentStatus = currentUserAttendee.Status;
-                var buttonRow = new StackPanel
-                {
-                    Orientation = Orientation.Horizontal,
-                    Margin = new Thickness(0, 10, 0, 0),
-                    HorizontalAlignment = HorizontalAlignment.Left
-                };
-
-                // Będę button
-                var acceptBtn = new Border
-                {
-                    Background = currentStatus == "Zaakceptowane"
-                        ? new SolidColorBrush(PrimaryGreen)
-                        : new SolidColorBrush(Color.FromArgb(50, PrimaryGreen.R, PrimaryGreen.G, PrimaryGreen.B)),
-                    CornerRadius = new CornerRadius(6),
-                    Padding = new Thickness(12, 6, 12, 6),
-                    Margin = new Thickness(0, 0, 8, 0),
-                    Cursor = System.Windows.Input.Cursors.Hand
-                };
-                acceptBtn.Child = new StackPanel
-                {
-                    Orientation = Orientation.Horizontal,
-                    Children =
-                    {
-                        new TextBlock { Text = "✓", FontSize = 11, Foreground = currentStatus == "Zaakceptowane" ? Brushes.White : new SolidColorBrush(PrimaryGreen), Margin = new Thickness(0, 0, 4, 0) },
-                        new TextBlock { Text = "Będę", FontSize = 11, FontWeight = FontWeights.Medium, Foreground = currentStatus == "Zaakceptowane" ? Brushes.White : new SolidColorBrush(PrimaryGreen) }
-                    }
-                };
-                acceptBtn.MouseLeftButtonUp += (s, e) =>
-                {
-                    e.Handled = true;
-                    UpdateAttendanceStatus(meeting.Id, "Zaakceptowane");
-                };
-                acceptBtn.MouseEnter += (s, e) =>
-                {
-                    if (currentStatus != "Zaakceptowane")
-                        acceptBtn.Background = new SolidColorBrush(Color.FromArgb(100, PrimaryGreen.R, PrimaryGreen.G, PrimaryGreen.B));
-                };
-                acceptBtn.MouseLeave += (s, e) =>
-                {
-                    if (currentStatus != "Zaakceptowane")
-                        acceptBtn.Background = new SolidColorBrush(Color.FromArgb(50, PrimaryGreen.R, PrimaryGreen.G, PrimaryGreen.B));
-                };
-
-                // Nie będę button
-                var declineBtn = new Border
-                {
-                    Background = currentStatus == "Odrzucone"
-                        ? new SolidColorBrush(AlertRed)
-                        : new SolidColorBrush(Color.FromArgb(50, AlertRed.R, AlertRed.G, AlertRed.B)),
-                    CornerRadius = new CornerRadius(6),
-                    Padding = new Thickness(12, 6, 12, 6),
-                    Cursor = System.Windows.Input.Cursors.Hand
-                };
-                declineBtn.Child = new StackPanel
-                {
-                    Orientation = Orientation.Horizontal,
-                    Children =
-                    {
-                        new TextBlock { Text = "✗", FontSize = 11, Foreground = currentStatus == "Odrzucone" ? Brushes.White : new SolidColorBrush(AlertRed), Margin = new Thickness(0, 0, 4, 0) },
-                        new TextBlock { Text = "Nie będę", FontSize = 11, FontWeight = FontWeights.Medium, Foreground = currentStatus == "Odrzucone" ? Brushes.White : new SolidColorBrush(AlertRed) }
-                    }
-                };
-                declineBtn.MouseLeftButtonUp += (s, e) =>
-                {
-                    e.Handled = true;
-                    UpdateAttendanceStatus(meeting.Id, "Odrzucone");
-                };
-                declineBtn.MouseEnter += (s, e) =>
-                {
-                    if (currentStatus != "Odrzucone")
-                        declineBtn.Background = new SolidColorBrush(Color.FromArgb(100, AlertRed.R, AlertRed.G, AlertRed.B));
-                };
-                declineBtn.MouseLeave += (s, e) =>
-                {
-                    if (currentStatus != "Odrzucone")
-                        declineBtn.Background = new SolidColorBrush(Color.FromArgb(50, AlertRed.R, AlertRed.G, AlertRed.B));
-                };
-
-                buttonRow.Children.Add(acceptBtn);
-                buttonRow.Children.Add(declineBtn);
-
-                // Show current status indicator
-                if (currentStatus == "Zaakceptowane" || currentStatus == "Odrzucone")
-                {
-                    var statusIndicator = new TextBlock
-                    {
-                        Text = currentStatus == "Zaakceptowane" ? "(Potwierdzono)" : "(Odrzucono)",
-                        FontSize = 10,
-                        Foreground = new SolidColorBrush(TextGray),
-                        VerticalAlignment = VerticalAlignment.Center,
-                        Margin = new Thickness(8, 0, 0, 0)
-                    };
-                    buttonRow.Children.Add(statusIndicator);
-                }
-
-                mainStack.Children.Add(buttonRow);
-            }
-
-            card.Child = mainStack;
-            return card;
-        }
-
-        private void UpdateAttendanceStatus(long meetingId, string newStatus)
-        {
-            try
-            {
-                using (var conn = new SqlConnection(connectionString))
-                {
-                    conn.Open();
-                    var cmd = new SqlCommand(@"
-                        UPDATE SpotkaniaUczestnicy
-                        SET StatusZaproszenia = @status
-                        WHERE SpotkaniID = @meetingId AND OperatorID = @operatorId", conn);
-
-                    cmd.Parameters.AddWithValue("@status", newStatus);
-                    cmd.Parameters.AddWithValue("@meetingId", meetingId);
-                    cmd.Parameters.AddWithValue("@operatorId", operatorId);
-                    cmd.ExecuteNonQuery();
-                }
-
-                // Refresh meetings display
-                LoadMeetings();
-                BuildMeetingsColumn();
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error updating attendance: {ex.Message}");
-                MessageBox.Show($"Błąd podczas aktualizacji statusu: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -1023,17 +604,10 @@ namespace Kalendarz1.Zadania
             Close();
         }
 
-        private void BtnOpenMeetingsPanel_Click(object sender, RoutedEventArgs e)
-        {
-            OpenMeetingsRequested?.Invoke(this, EventArgs.Empty);
-            Close();
-        }
-
         #endregion
 
-        public bool HasNotifications => tasks.Count > 0 || meetings.Count > 0;
+        public bool HasNotifications => tasks.Count > 0;
         public int TaskCount => tasks.Count;
-        public int MeetingCount => meetings.Count;
     }
 
     #region Models
