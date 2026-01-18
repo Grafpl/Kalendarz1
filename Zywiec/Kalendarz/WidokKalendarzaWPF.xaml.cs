@@ -2125,20 +2125,20 @@ namespace Kalendarz1.Zywiec.Kalendarz
             var dialog = new Window
             {
                 Title = $"Edycja {columnName}",
-                Width = 250,
-                Height = 120,
+                Width = 400,
+                Height = 200,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 Owner = this,
                 ResizeMode = ResizeMode.NoResize
             };
 
-            var stack = new StackPanel { Margin = new Thickness(10) };
-            var textBox = new TextBox { Text = currentValue, FontSize = 14, Margin = new Thickness(0, 0, 0, 10) };
+            var stack = new StackPanel { Margin = new Thickness(20) };
+            var textBox = new TextBox { Text = currentValue, FontSize = 24, Padding = new Thickness(10), Margin = new Thickness(0, 0, 0, 15) };
             textBox.SelectAll();
 
             var buttonPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-            var btnOk = new Button { Content = "OK", Width = 60, Margin = new Thickness(0, 0, 5, 0) };
-            var btnCancel = new Button { Content = "Anuluj", Width = 60 };
+            var btnOk = new Button { Content = "OK", Width = 100, Height = 40, FontSize = 16, Margin = new Thickness(0, 0, 10, 0) };
+            var btnCancel = new Button { Content = "Anuluj", Width = 100, Height = 40, FontSize = 16 };
 
             btnOk.Click += async (s, e) =>
             {
@@ -2200,7 +2200,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
             buttonPanel.Children.Add(btnOk);
             buttonPanel.Children.Add(btnCancel);
-            stack.Children.Add(new TextBlock { Text = $"Podaj nową wartość dla {columnName}:", Margin = new Thickness(0, 0, 0, 5) });
+            stack.Children.Add(new TextBlock { Text = $"Podaj nową wartość dla {columnName}:", FontSize = 16, Margin = new Thickness(0, 0, 0, 10) });
             stack.Children.Add(textBox);
             stack.Children.Add(buttonPanel);
             dialog.Content = stack;
@@ -2215,19 +2215,19 @@ namespace Kalendarz1.Zywiec.Kalendarz
             var dialog = new Window
             {
                 Title = "Nowa notatka",
-                Width = 350,
-                Height = 180,
+                Width = 500,
+                Height = 300,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 Owner = this,
                 ResizeMode = ResizeMode.NoResize
             };
 
-            var stack = new StackPanel { Margin = new Thickness(10) };
-            var textBox = new TextBox { Height = 60, TextWrapping = TextWrapping.Wrap, AcceptsReturn = true, FontSize = 12, Margin = new Thickness(0, 0, 0, 10) };
+            var stack = new StackPanel { Margin = new Thickness(20) };
+            var textBox = new TextBox { Height = 120, TextWrapping = TextWrapping.Wrap, AcceptsReturn = true, FontSize = 16, Padding = new Thickness(10), Margin = new Thickness(0, 0, 0, 15) };
 
             var buttonPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-            var btnOk = new Button { Content = "Dodaj", Width = 60, Margin = new Thickness(0, 0, 5, 0) };
-            var btnCancel = new Button { Content = "Anuluj", Width = 60 };
+            var btnOk = new Button { Content = "Dodaj", Width = 100, Height = 40, FontSize = 16, Margin = new Thickness(0, 0, 10, 0) };
+            var btnCancel = new Button { Content = "Anuluj", Width = 100, Height = 40, FontSize = 16 };
 
             btnOk.Click += async (s, e) =>
             {
@@ -2281,7 +2281,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
             buttonPanel.Children.Add(btnOk);
             buttonPanel.Children.Add(btnCancel);
-            stack.Children.Add(new TextBlock { Text = "Wpisz treść notatki:", Margin = new Thickness(0, 0, 0, 5) });
+            stack.Children.Add(new TextBlock { Text = "Wpisz treść notatki:", FontSize = 16, Margin = new Thickness(0, 0, 0, 10) });
             stack.Children.Add(textBox);
             stack.Children.Add(buttonPanel);
             dialog.Content = stack;
@@ -2301,23 +2301,23 @@ namespace Kalendarz1.Zywiec.Kalendarz
             var dialog = new Window
             {
                 Title = "Zmień typ ceny",
-                Width = 320,
-                Height = 200,
+                Width = 450,
+                Height = 300,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 Owner = this,
                 ResizeMode = ResizeMode.NoResize,
                 Background = new SolidColorBrush(Color.FromRgb(250, 250, 250))
             };
 
-            var mainStack = new StackPanel { Margin = new Thickness(15) };
+            var mainStack = new StackPanel { Margin = new Thickness(25) };
 
             // Nagłówek
             mainStack.Children.Add(new TextBlock
             {
                 Text = $"Dostawa: {selectedItem.Dostawca}",
                 FontWeight = FontWeights.SemiBold,
-                FontSize = 12,
-                Margin = new Thickness(0, 0, 0, 10)
+                FontSize = 16,
+                Margin = new Thickness(0, 0, 0, 15)
             });
 
             // ComboBox z typami cen
@@ -2325,19 +2325,19 @@ namespace Kalendarz1.Zywiec.Kalendarz
             {
                 ItemsSource = typyCeny,
                 SelectedItem = selectedItem.TypCeny,
-                FontSize = 13,
-                Padding = new Thickness(8, 6, 8, 6),
-                Margin = new Thickness(0, 0, 0, 15)
+                FontSize = 18,
+                Padding = new Thickness(12, 10, 12, 10),
+                Margin = new Thickness(0, 0, 0, 20)
             };
-            mainStack.Children.Add(new TextBlock { Text = "Wybierz typ ceny:", Margin = new Thickness(0, 0, 0, 5), FontSize = 11 });
+            mainStack.Children.Add(new TextBlock { Text = "Wybierz typ ceny:", Margin = new Thickness(0, 0, 0, 8), FontSize = 16 });
             mainStack.Children.Add(comboBox);
 
             // Checkbox - zmień wszystkie powiązane dostawy
             var checkBoxAll = new CheckBox
             {
                 Content = "Zmień wszystkie dostawy z tego wstawienia",
-                FontSize = 11,
-                Margin = new Thickness(0, 0, 0, 15),
+                FontSize = 14,
+                Margin = new Thickness(0, 0, 0, 20),
                 IsEnabled = !string.IsNullOrEmpty(selectedItem.LpW)
             };
             if (string.IsNullOrEmpty(selectedItem.LpW))
@@ -2351,9 +2351,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
             var btnOk = new Button
             {
                 Content = "Zapisz",
-                Width = 70,
-                Margin = new Thickness(0, 0, 8, 0),
-                Padding = new Thickness(0, 5, 0, 5),
+                Width = 100,
+                Height = 40,
+                FontSize = 16,
+                Margin = new Thickness(0, 0, 10, 0),
                 Background = new SolidColorBrush(Color.FromRgb(37, 99, 235)),
                 Foreground = Brushes.White,
                 BorderThickness = new Thickness(0)
@@ -2361,8 +2362,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
             var btnCancel = new Button
             {
                 Content = "Anuluj",
-                Width = 70,
-                Padding = new Thickness(0, 5, 0, 5)
+                Width = 100,
+                Height = 40,
+                FontSize = 16
             };
 
             btnOk.Click += async (s, e) =>
@@ -2450,20 +2452,20 @@ namespace Kalendarz1.Zywiec.Kalendarz
             var dialog = new Window
             {
                 Title = "Edycja ceny",
-                Width = 250,
-                Height = 120,
+                Width = 400,
+                Height = 200,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 Owner = this,
                 ResizeMode = ResizeMode.NoResize
             };
 
-            var stack = new StackPanel { Margin = new Thickness(10) };
-            var textBox = new TextBox { Text = currentValue, FontSize = 14, Margin = new Thickness(0, 0, 0, 10) };
+            var stack = new StackPanel { Margin = new Thickness(20) };
+            var textBox = new TextBox { Text = currentValue, FontSize = 24, Padding = new Thickness(10), Margin = new Thickness(0, 0, 0, 15) };
             textBox.SelectAll();
 
             var buttonPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-            var btnOk = new Button { Content = "OK", Width = 60, Margin = new Thickness(0, 0, 5, 0) };
-            var btnCancel = new Button { Content = "Anuluj", Width = 60 };
+            var btnOk = new Button { Content = "OK", Width = 100, Height = 40, FontSize = 16, Margin = new Thickness(0, 0, 10, 0) };
+            var btnCancel = new Button { Content = "Anuluj", Width = 100, Height = 40, FontSize = 16 };
 
             btnOk.Click += async (s, e) =>
             {
@@ -2513,7 +2515,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
             buttonPanel.Children.Add(btnOk);
             buttonPanel.Children.Add(btnCancel);
-            stack.Children.Add(new TextBlock { Text = "Podaj nową wartość dla Cena:", Margin = new Thickness(0, 0, 0, 5) });
+            stack.Children.Add(new TextBlock { Text = "Podaj nową wartość dla Cena:", FontSize = 16, Margin = new Thickness(0, 0, 0, 10) });
             stack.Children.Add(textBox);
             stack.Children.Add(buttonPanel);
             dialog.Content = stack;
