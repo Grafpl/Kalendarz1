@@ -631,38 +631,87 @@
                                 <DataGridTemplateColumn x:Name="colUwagi" Header="Uwagi" Width="*" MinWidth="60" IsReadOnly="True">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding UwagiDisplay}" TextTrimming="CharacterEllipsis"
-                                                       ToolTip="{Binding Uwagi}" FontSize="10" VerticalAlignment="Center">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="Foreground" Value="#374151"/>
-                                                        <Style.Triggers>
-                                                            <!-- Notatka z 2-3 dni - żółta czcionka bez pulsowania -->
-                                                            <DataTrigger Binding="{Binding IsRecentNote}" Value="True">
-                                                                <Setter Property="Foreground" Value="#EAB308"/>
-                                                                <Setter Property="FontWeight" Value="SemiBold"/>
-                                                            </DataTrigger>
-                                                            <!-- Notatka z 1 dnia - czerwona pulsująca -->
-                                                            <DataTrigger Binding="{Binding IsVeryRecentNote}" Value="True">
-                                                                <Setter Property="Foreground" Value="#DC2626"/>
-                                                                <Setter Property="FontWeight" Value="Bold"/>
-                                                                <DataTrigger.EnterActions>
-                                                                    <BeginStoryboard>
-                                                                        <Storyboard RepeatBehavior="Forever">
-                                                                            <DoubleAnimation Storyboard.TargetProperty="Opacity"
-                                                                                             From="1" To="0.4" Duration="0:0:0.8" AutoReverse="True">
-                                                                                <DoubleAnimation.EasingFunction>
-                                                                                    <SineEase EasingMode="EaseInOut"/>
-                                                                                </DoubleAnimation.EasingFunction>
-                                                                            </DoubleAnimation>
-                                                                        </Storyboard>
-                                                                    </BeginStoryboard>
-                                                                </DataTrigger.EnterActions>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <!-- Dla nagłówka - pokaż S: z kolorem niebieskim -->
+                                                <TextBlock Text="{Binding LiczbaSprzedanych, StringFormat=S:{0}}" FontSize="10" FontWeight="Bold"
+                                                           Foreground="#2563EB" Margin="0,0,6,0">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <MultiDataTrigger>
+                                                                    <MultiDataTrigger.Conditions>
+                                                                        <Condition Binding="{Binding IsHeaderRow}" Value="True"/>
+                                                                        <Condition Binding="{Binding IsSeparator}" Value="False"/>
+                                                                    </MultiDataTrigger.Conditions>
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </MultiDataTrigger>
+                                                                <DataTrigger Binding="{Binding LiczbaSprzedanych}" Value="0">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <!-- Dla nagłówka - pokaż A: z kolorem czerwonym -->
+                                                <TextBlock Text="{Binding LiczbaAnulowanych, StringFormat=A:{0}}" FontSize="10" FontWeight="Bold"
+                                                           Foreground="#DC2626">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <MultiDataTrigger>
+                                                                    <MultiDataTrigger.Conditions>
+                                                                        <Condition Binding="{Binding IsHeaderRow}" Value="True"/>
+                                                                        <Condition Binding="{Binding IsSeparator}" Value="False"/>
+                                                                    </MultiDataTrigger.Conditions>
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </MultiDataTrigger>
+                                                                <DataTrigger Binding="{Binding LiczbaAnulowanych}" Value="0">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <!-- Dla normalnych wierszy - pokaż uwagi -->
+                                                <TextBlock Text="{Binding Uwagi}" TextTrimming="CharacterEllipsis"
+                                                           ToolTip="{Binding Uwagi}" FontSize="10">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="#374151"/>
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                                <!-- Notatka z 2-3 dni - żółta czcionka bez pulsowania -->
+                                                                <DataTrigger Binding="{Binding IsRecentNote}" Value="True">
+                                                                    <Setter Property="Foreground" Value="#EAB308"/>
+                                                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                                                </DataTrigger>
+                                                                <!-- Notatka z 1 dnia - czerwona pulsująca -->
+                                                                <DataTrigger Binding="{Binding IsVeryRecentNote}" Value="True">
+                                                                    <Setter Property="Foreground" Value="#DC2626"/>
+                                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                                    <DataTrigger.EnterActions>
+                                                                        <BeginStoryboard>
+                                                                            <Storyboard RepeatBehavior="Forever">
+                                                                                <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                                                                 From="1" To="0.4" Duration="0:0:0.8" AutoReverse="True">
+                                                                                    <DoubleAnimation.EasingFunction>
+                                                                                        <SineEase EasingMode="EaseInOut"/>
+                                                                                    </DoubleAnimation.EasingFunction>
+                                                                                </DoubleAnimation>
+                                                                            </Storyboard>
+                                                                        </BeginStoryboard>
+                                                                    </DataTrigger.EnterActions>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </StackPanel>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -835,38 +884,87 @@
                             <DataGridTemplateColumn x:Name="colUwagi2" Header="Uwagi" Width="*" MinWidth="60" IsReadOnly="True">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock Text="{Binding UwagiDisplay}" TextTrimming="CharacterEllipsis"
-                                                   ToolTip="{Binding Uwagi}" FontSize="10" VerticalAlignment="Center">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="#374151"/>
-                                                    <Style.Triggers>
-                                                        <!-- Notatka z 2-3 dni - żółta czcionka bez pulsowania -->
-                                                        <DataTrigger Binding="{Binding IsRecentNote}" Value="True">
-                                                            <Setter Property="Foreground" Value="#EAB308"/>
-                                                            <Setter Property="FontWeight" Value="SemiBold"/>
-                                                        </DataTrigger>
-                                                        <!-- Notatka z 1 dnia - czerwona pulsująca -->
-                                                        <DataTrigger Binding="{Binding IsVeryRecentNote}" Value="True">
-                                                            <Setter Property="Foreground" Value="#DC2626"/>
-                                                            <Setter Property="FontWeight" Value="Bold"/>
-                                                            <DataTrigger.EnterActions>
-                                                                <BeginStoryboard>
-                                                                    <Storyboard RepeatBehavior="Forever">
-                                                                        <DoubleAnimation Storyboard.TargetProperty="Opacity"
-                                                                                         From="1" To="0.4" Duration="0:0:0.8" AutoReverse="True">
-                                                                            <DoubleAnimation.EasingFunction>
-                                                                                <SineEase EasingMode="EaseInOut"/>
-                                                                            </DoubleAnimation.EasingFunction>
-                                                                        </DoubleAnimation>
-                                                                    </Storyboard>
-                                                                </BeginStoryboard>
-                                                            </DataTrigger.EnterActions>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <!-- Dla nagłówka - pokaż S: z kolorem niebieskim -->
+                                            <TextBlock Text="{Binding LiczbaSprzedanych, StringFormat=S:{0}}" FontSize="10" FontWeight="Bold"
+                                                       Foreground="#2563EB" Margin="0,0,6,0">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding IsHeaderRow}" Value="True"/>
+                                                                    <Condition Binding="{Binding IsSeparator}" Value="False"/>
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </MultiDataTrigger>
+                                                            <DataTrigger Binding="{Binding LiczbaSprzedanych}" Value="0">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                            <!-- Dla nagłówka - pokaż A: z kolorem czerwonym -->
+                                            <TextBlock Text="{Binding LiczbaAnulowanych, StringFormat=A:{0}}" FontSize="10" FontWeight="Bold"
+                                                       Foreground="#DC2626">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding IsHeaderRow}" Value="True"/>
+                                                                    <Condition Binding="{Binding IsSeparator}" Value="False"/>
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </MultiDataTrigger>
+                                                            <DataTrigger Binding="{Binding LiczbaAnulowanych}" Value="0">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                            <!-- Dla normalnych wierszy - pokaż uwagi -->
+                                            <TextBlock Text="{Binding Uwagi}" TextTrimming="CharacterEllipsis"
+                                                       ToolTip="{Binding Uwagi}" FontSize="10">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="#374151"/>
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                            <!-- Notatka z 2-3 dni - żółta czcionka bez pulsowania -->
+                                                            <DataTrigger Binding="{Binding IsRecentNote}" Value="True">
+                                                                <Setter Property="Foreground" Value="#EAB308"/>
+                                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                            </DataTrigger>
+                                                            <!-- Notatka z 1 dnia - czerwona pulsująca -->
+                                                            <DataTrigger Binding="{Binding IsVeryRecentNote}" Value="True">
+                                                                <Setter Property="Foreground" Value="#DC2626"/>
+                                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                                <DataTrigger.EnterActions>
+                                                                    <BeginStoryboard>
+                                                                        <Storyboard RepeatBehavior="Forever">
+                                                                            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                                                             From="1" To="0.4" Duration="0:0:0.8" AutoReverse="True">
+                                                                                <DoubleAnimation.EasingFunction>
+                                                                                    <SineEase EasingMode="EaseInOut"/>
+                                                                                </DoubleAnimation.EasingFunction>
+                                                                            </DoubleAnimation>
+                                                                        </Storyboard>
+                                                                    </BeginStoryboard>
+                                                                </DataTrigger.EnterActions>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
