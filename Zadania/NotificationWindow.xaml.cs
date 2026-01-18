@@ -55,6 +55,14 @@ namespace Kalendarz1.Zadania
             PositionWindow();
             LoadTasks();
             LoadMeetings();
+
+            // Jeśli nie ma spotkań ani zadań - zamknij okno
+            if (tasks.Count == 0 && meetings.Count == 0)
+            {
+                Close();
+                return;
+            }
+
             UpdateStatistics();
             BuildMeetingsColumn();
             BuildTasksColumn();

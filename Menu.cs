@@ -46,7 +46,7 @@ namespace Kalendarz1
         private void StartTaskNotifications()
         {
             taskNotificationTimer = new System.Windows.Forms.Timer();
-            taskNotificationTimer.Interval = 5000; // 5 sekund na start
+            taskNotificationTimer.Interval = 100; // Od razu po uruchomieniu
             taskNotificationTimer.Tick += TaskNotificationTimer_Tick;
             taskNotificationTimer.Start();
 
