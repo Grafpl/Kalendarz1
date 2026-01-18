@@ -320,8 +320,7 @@ namespace Kalendarz1.Zadania
             Close();
         }
 
-        public bool HasNotifications => notifications.Any(t =>
-            t.DueDate.Date <= DateTime.Today.AddDays(1) || t.DueDate < DateTime.Today);
+        public bool HasNotifications => notifications.Count > 0;
     }
 
     public class TaskNotification
