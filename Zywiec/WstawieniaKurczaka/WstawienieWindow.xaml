@@ -314,7 +314,19 @@
         </ScrollViewer>
 
         <!-- PRAWA STRONA - WSKAZÓWKI -->
-        <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Checkbox Pomoc -->
+            <CheckBox x:Name="chkPomoc" Grid.Row="0" Content="❓ Pomoc"
+                      FontSize="12" FontWeight="SemiBold" Margin="5,0,0,8"
+                      Checked="ChkPomoc_Changed" Unchecked="ChkPomoc_Changed"/>
+
+            <!-- Instrukcje - domyślnie ukryte -->
+            <ScrollViewer x:Name="scrollInstrukcje" Grid.Row="1" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
             <StackPanel>
 
                 <!-- WSKAZÓWKI - FORMUŁY -->
@@ -453,6 +465,7 @@
 
             </StackPanel>
         </ScrollViewer>
+        </Grid>
 
     </Grid>
 </Window>

@@ -1160,6 +1160,16 @@ namespace Kalendarz1
             }
         }
 
+        private void ChkPomoc_Changed(object sender, RoutedEventArgs e)
+        {
+            if (scrollInstrukcje != null)
+            {
+                scrollInstrukcje.Visibility = chkPomoc.IsChecked == true
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+            }
+        }
+
         private void AktualizujWstawienie(SqlConnection conn, SqlTransaction trans, long lpW, string typUmowy, string typCeny, int ilosc)
         {
             const string sql = @"UPDATE dbo.WstawieniaKurczakow SET Dostawca = @D, DataWstawienia = @DW, IloscWstawienia = @Il, Uwagi = @Uw, TypUmowy = @TU, TypCeny = @TC, DataMod = SYSDATETIME(), KtoMod = @Kto WHERE Lp = @Lp";
