@@ -2249,23 +2249,14 @@ namespace Kalendarz1.Zywiec.Kalendarz
             }
             else
             {
-                // Jeśli nie znaleziono - może jest w innym tygodniu, trzeba zmienić tydzień
-                var targetDate = selectedItem.DataOdbioru.Date;
-                var currentWeekStart = _currentWeekStart;
-                var currentWeekEnd = currentWeekStart.AddDays(7);
+                // Jeśli nie znaleziono - zmień tydzień na ten, w którym jest dostawa
+                _selectedDate = selectedItem.DataOdbioru.Date;
+                calendarMain.SelectedDate = _selectedDate;
+                calendarMain.DisplayDate = _selectedDate;
+                UpdateWeekNumber();
+                _ = LoadDostawyAsync();
 
-                if (targetDate < currentWeekStart || targetDate >= currentWeekEnd)
-                {
-                    // Zmień tydzień na ten, w którym jest dostawa
-                    _currentWeekStart = targetDate.AddDays(-(int)targetDate.DayOfWeek + (int)DayOfWeek.Monday);
-                    if (targetDate.DayOfWeek == DayOfWeek.Sunday)
-                        _currentWeekStart = _currentWeekStart.AddDays(-7);
-
-                    UpdateCalendarHeader();
-                    _ = LoadDostawyAsync();
-
-                    ShowToast($"Zmiana tygodnia na {_currentWeekStart:dd.MM}", ToastType.Info);
-                }
+                ShowToast($"Zmiana tygodnia na {_selectedDate:dd.MM}", ToastType.Info);
             }
         }
 
@@ -4463,7 +4454,11 @@ namespace Kalendarz1.Zywiec.Kalendarz
         public string UwagiDisplay => Uwagi;
 
         // Właściwość sprawdzająca czy notatka została dodana w ciągu ostatnich 3 dni
-        public bool IsRecentNote => DataNotatki.HasValue && (DateTime.Now - DataNotatki.Value).TotalDays <= 3;
+        // Notatka z ostatniego 1 dnia - pulsująca czerwona
+        public bool IsVeryRecentNote => DataNotatki.HasValue && (DateTime.Now - DataNotatki.Value).TotalDays <= 1;
+
+        // Notatka z 2-3 dni - żółta bez pulsowania
+        public bool IsRecentNote => DataNotatki.HasValue && (DateTime.Now - DataNotatki.Value).TotalDays > 1 && (DateTime.Now - DataNotatki.Value).TotalDays <= 3;
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

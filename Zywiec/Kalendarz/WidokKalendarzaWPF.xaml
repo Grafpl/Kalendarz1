@@ -637,9 +637,16 @@
                                                     <Style TargetType="TextBlock">
                                                         <Setter Property="Foreground" Value="#374151"/>
                                                         <Style.Triggers>
+                                                            <!-- Notatka z 2-3 dni - żółta bez pulsowania -->
                                                             <DataTrigger Binding="{Binding IsRecentNote}" Value="True">
-                                                                <Setter Property="Foreground" Value="#DC2626"/>
+                                                                <Setter Property="Foreground" Value="#B45309"/>
                                                                 <Setter Property="FontWeight" Value="SemiBold"/>
+                                                                <Setter Property="Background" Value="#FEF3C7"/>
+                                                            </DataTrigger>
+                                                            <!-- Notatka z 1 dnia - czerwona pulsująca -->
+                                                            <DataTrigger Binding="{Binding IsVeryRecentNote}" Value="True">
+                                                                <Setter Property="Foreground" Value="#DC2626"/>
+                                                                <Setter Property="FontWeight" Value="Bold"/>
                                                                 <DataTrigger.EnterActions>
                                                                     <BeginStoryboard>
                                                                         <Storyboard RepeatBehavior="Forever">
@@ -835,9 +842,16 @@
                                                 <Style TargetType="TextBlock">
                                                     <Setter Property="Foreground" Value="#374151"/>
                                                     <Style.Triggers>
+                                                        <!-- Notatka z 2-3 dni - żółta bez pulsowania -->
                                                         <DataTrigger Binding="{Binding IsRecentNote}" Value="True">
-                                                            <Setter Property="Foreground" Value="#DC2626"/>
+                                                            <Setter Property="Foreground" Value="#B45309"/>
                                                             <Setter Property="FontWeight" Value="SemiBold"/>
+                                                            <Setter Property="Background" Value="#FEF3C7"/>
+                                                        </DataTrigger>
+                                                        <!-- Notatka z 1 dnia - czerwona pulsująca -->
+                                                        <DataTrigger Binding="{Binding IsVeryRecentNote}" Value="True">
+                                                            <Setter Property="Foreground" Value="#DC2626"/>
+                                                            <Setter Property="FontWeight" Value="Bold"/>
                                                             <DataTrigger.EnterActions>
                                                                 <BeginStoryboard>
                                                                     <Storyboard RepeatBehavior="Forever">
