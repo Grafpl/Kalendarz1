@@ -1096,8 +1096,34 @@ namespace Kalendarz1
             // Pobierz czas tworzenia ze stopera
             int czasTworzeniaSek = (int)stopwatch.Elapsed.TotalSeconds;
 
-            const string sql = @"INSERT INTO dbo.WstawieniaKurczakow (Lp, Dostawca, DataWstawienia, IloscWstawienia, DataUtw, KtoStwo, Uwagi, TypUmowy, TypCeny, CzasTworzeniaSek)
-                VALUES (@Lp, @D, @DW, @Il, SYSDATETIME(), @Kto, @Uw, @TU, @TC, @Czas)";
+            // Najpierw spróbuj z kolumną CzasTworzeniaSek
+            try
+            {
+                const string sqlZCzasem = @"INSERT INTO dbo.WstawieniaKurczakow (Lp, Dostawca, DataWstawienia, IloscWstawienia, DataUtw, KtoStwo, Uwagi, TypUmowy, TypCeny, CzasTworzeniaSek)
+                    VALUES (@Lp, @D, @DW, @Il, SYSDATETIME(), @Kto, @Uw, @TU, @TC, @Czas)";
+                using (var cmd = new SqlCommand(sqlZCzasem, conn, trans))
+                {
+                    cmd.Parameters.AddWithValue("@Lp", lpW);
+                    cmd.Parameters.AddWithValue("@D", cmbDostawca.SelectedItem.ToString());
+                    cmd.Parameters.AddWithValue("@DW", data);
+                    cmd.Parameters.AddWithValue("@Il", ilosc);
+                    cmd.Parameters.AddWithValue("@Kto", UserID ?? "");
+                    cmd.Parameters.AddWithValue("@Uw", txtNotatki?.Text ?? "");
+                    cmd.Parameters.AddWithValue("@TU", typUmowy);
+                    cmd.Parameters.AddWithValue("@TC", typCeny);
+                    cmd.Parameters.AddWithValue("@Czas", czasTworzeniaSek);
+                    cmd.ExecuteNonQuery();
+                    return;
+                }
+            }
+            catch (SqlException ex) when (ex.Message.Contains("Invalid column name") || ex.Message.Contains("CzasTworzeniaSek"))
+            {
+                // Kolumna nie istnieje - użyj wersji bez niej
+            }
+
+            // Wersja bez kolumny CzasTworzeniaSek
+            const string sql = @"INSERT INTO dbo.WstawieniaKurczakow (Lp, Dostawca, DataWstawienia, IloscWstawienia, DataUtw, KtoStwo, Uwagi, TypUmowy, TypCeny)
+                VALUES (@Lp, @D, @DW, @Il, SYSDATETIME(), @Kto, @Uw, @TU, @TC)";
             using (var cmd = new SqlCommand(sql, conn, trans))
             {
                 cmd.Parameters.AddWithValue("@Lp", lpW);
@@ -1108,7 +1134,6 @@ namespace Kalendarz1
                 cmd.Parameters.AddWithValue("@Uw", txtNotatki?.Text ?? "");
                 cmd.Parameters.AddWithValue("@TU", typUmowy);
                 cmd.Parameters.AddWithValue("@TC", typCeny);
-                cmd.Parameters.AddWithValue("@Czas", czasTworzeniaSek);
                 cmd.ExecuteNonQuery();
             }
         }
