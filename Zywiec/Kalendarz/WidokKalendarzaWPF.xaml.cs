@@ -2788,6 +2788,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
         // Obliczenie dla wiersza 1: KG/skrzyn = Szt × Waga, KG skrzyn = KG/skrzyn × 264
         private void CalculateZaladunekRow1()
         {
+            // Sprawdź czy kontrolki są zainicjalizowane
+            if (txtWagaDek == null || txtSztNaSzufladeWaga == null || txtKGwSkrzynce == null || txtKGSkrzyn264 == null)
+                return;
+
             // Pobierz wagę dek z pola txtWagaDek
             if (!double.TryParse(txtWagaDek.Text?.Replace(",", "."), out double wagaDek))
                 wagaDek = 0;
@@ -2810,6 +2814,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
         // Obliczenie dla wiersza 2
         private void CalculateZaladunekRow2()
         {
+            // Sprawdź czy kontrolki są zainicjalizowane
+            if (txtWagaDek == null || txtSztNaSzufladeWaga2 == null || txtKGwSkrzynce2 == null || txtKGSkrzyn264_2 == null)
+                return;
+
             // Pobierz wagę dek z pola txtWagaDek
             if (!double.TryParse(txtWagaDek.Text?.Replace(",", "."), out double wagaDek))
                 wagaDek = 0;
@@ -2845,6 +2853,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
         // Obliczenie Suma KG dla wiersza 1: KG skrzyn (×264) + WagaSamochodu + Paleciak
         private void CalculateKGSum()
         {
+            // Sprawdź czy kontrolki są zainicjalizowane
+            if (txtKGSkrzyn264 == null || txtWagaSamochodu == null || txtKGwPaleciak == null || txtKGSuma == null)
+                return;
+
             double sum = 0;
 
             // KG skrzyn (×264)
@@ -2865,6 +2877,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
         // Obliczenie Suma KG dla wiersza 2
         private void CalculateKGSum2()
         {
+            // Sprawdź czy kontrolki są zainicjalizowane
+            if (txtKGSkrzyn264_2 == null || txtWagaSamochodu2 == null || txtKGwPaleciak2 == null || txtKGSuma2 == null)
+                return;
+
             double sum = 0;
 
             // KG skrzyn (×264) wiersz 2
