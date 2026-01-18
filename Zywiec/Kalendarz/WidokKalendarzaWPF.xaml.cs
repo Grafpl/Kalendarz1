@@ -101,6 +101,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
         private List<DostawaModel> _simulationBackup = new List<DostawaModel>();
         private List<DostawaModel> _simulationBackupNastepny = new List<DostawaModel>();
 
+        // ═══════════════════════════════════════════════════════════════
+        // MINI-MAPA TYGODNI - szybka nawigacja
+        // ═══════════════════════════════════════════════════════════════
+        private int _weekMapOffset = 0; // Przesunięcie widoku mini-mapy (w tygodniach)
+        private const int WEEK_MAP_VISIBLE_COUNT = 9; // Liczba widocznych tygodni
+
         #endregion
 
         #region Właściwości publiczne
@@ -163,6 +169,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
             // Sprawdź ankietę
             TryShowSurveyIfInWindow();
+
+            // Wygeneruj mini-mapę tygodni
+            GenerateWeekMap();
 
             // Pokaż powitanie
             ShowToast("Kalendarz załadowany", ToastType.Success);
@@ -1242,6 +1251,17 @@ namespace Kalendarz1.Zywiec.Kalendarz
             {
                 _selectedDate = calendarMain.SelectedDate.Value;
                 UpdateWeekNumber();
+
+                // Aktualizuj mini-mapę tygodni
+                int currentWeek = GetIso8601WeekOfYear(DateTime.Today);
+                int selectedWeek = GetIso8601WeekOfYear(_selectedDate);
+                _weekMapOffset = selectedWeek - currentWeek;
+                if (_selectedDate.Year > DateTime.Today.Year)
+                    _weekMapOffset += GetWeeksInYear(DateTime.Today.Year);
+                else if (_selectedDate.Year < DateTime.Today.Year)
+                    _weekMapOffset -= GetWeeksInYear(_selectedDate.Year);
+                GenerateWeekMap();
+
                 await LoadDostawyAsync();
             }
         }
@@ -1280,6 +1300,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
             calendarMain.SelectedDate = _selectedDate;
             calendarMain.DisplayDate = _selectedDate;
             UpdateWeekNumber();
+            _weekMapOffset--;
+            GenerateWeekMap();
 
             // Animacja: prawy idzie w prawo (znika), lewy idzie w prawo, nowy lewy wchodzi z lewej
             await AnimateWeekTransition(isNextWeek: false);
@@ -1291,6 +1313,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
             calendarMain.SelectedDate = _selectedDate;
             calendarMain.DisplayDate = _selectedDate;
             UpdateWeekNumber();
+            _weekMapOffset++;
+            GenerateWeekMap();
 
             // Animacja: lewy idzie w lewo (znika), prawy idzie w lewo na jego miejsce, nowy prawy wchodzi z prawej
             await AnimateWeekTransition(isNextWeek: true);
@@ -1302,6 +1326,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
             calendarMain.SelectedDate = _selectedDate;
             calendarMain.DisplayDate = _selectedDate;
             UpdateWeekNumber();
+            _weekMapOffset = 0;
+            GenerateWeekMap();
 
             // Fade in bez slide
             var fadeAnimation = new DoubleAnimation(0.5, 1, TimeSpan.FromMilliseconds(300));
@@ -1379,6 +1405,179 @@ namespace Kalendarz1.Zywiec.Kalendarz
             {
                 dgDostawyNastepny.RenderTransform = new TranslateTransform(0, 0);
             }
+        }
+
+        #endregion
+
+        #region Mini-mapa tygodni
+
+        /// <summary>
+        /// Generuje przyciski tygodni w mini-mapie
+        /// </summary>
+        private void GenerateWeekMap()
+        {
+            if (spWeekMap == null) return;
+
+            spWeekMap.Children.Clear();
+
+            int currentWeek = GetIso8601WeekOfYear(DateTime.Today);
+            int selectedWeek = GetIso8601WeekOfYear(_selectedDate);
+            int currentYear = DateTime.Today.Year;
+            int selectedYear = _selectedDate.Year;
+
+            // Generuj przyciski dla tygodni: od (bieżący + offset - 4) do (bieżący + offset + 4)
+            int startWeek = currentWeek + _weekMapOffset - (WEEK_MAP_VISIBLE_COUNT / 2);
+
+            for (int i = 0; i < WEEK_MAP_VISIBLE_COUNT; i++)
+            {
+                int weekNum = startWeek + i;
+                int year = currentYear;
+
+                // Obsługa przejścia między latami
+                if (weekNum < 1)
+                {
+                    year--;
+                    weekNum = GetWeeksInYear(year) + weekNum;
+                }
+                else if (weekNum > GetWeeksInYear(year))
+                {
+                    weekNum = weekNum - GetWeeksInYear(year);
+                    year++;
+                }
+
+                var btn = new Button
+                {
+                    Content = weekNum.ToString(),
+                    Style = (Style)FindResource("WeekMapButtonStyle"),
+                    ToolTip = GetWeekDateRange(weekNum, year)
+                };
+
+                // Ustaw Tag dla stylowania
+                bool isCurrent = (weekNum == currentWeek && year == currentYear);
+                bool isSelected = (weekNum == selectedWeek && year == selectedYear);
+
+                if (isCurrent && isSelected)
+                    btn.Tag = "CurrentSelected";
+                else if (isCurrent)
+                    btn.Tag = "Current";
+                else if (isSelected)
+                    btn.Tag = "Selected";
+
+                // Zapisz dane tygodnia w DataContext
+                btn.DataContext = new WeekMapItem { WeekNumber = weekNum, Year = year };
+                btn.Click += WeekMapButton_Click;
+
+                spWeekMap.Children.Add(btn);
+            }
+        }
+
+        /// <summary>
+        /// Zwraca zakres dat dla danego tygodnia (tooltip)
+        /// </summary>
+        private string GetWeekDateRange(int weekNumber, int year)
+        {
+            DateTime jan1 = new DateTime(year, 1, 1);
+            int daysOffset = DayOfWeek.Monday - jan1.DayOfWeek;
+            if (daysOffset > 0) daysOffset -= 7;
+
+            DateTime firstMonday = jan1.AddDays(daysOffset);
+            DateTime weekStart = firstMonday.AddDays((weekNumber - 1) * 7);
+            DateTime weekEnd = weekStart.AddDays(6);
+
+            return $"Tydzień {weekNumber}/{year}\n{weekStart:dd.MM} - {weekEnd:dd.MM}";
+        }
+
+        /// <summary>
+        /// Zwraca liczbę tygodni w danym roku
+        /// </summary>
+        private int GetWeeksInYear(int year)
+        {
+            DateTime dec31 = new DateTime(year, 12, 31);
+            var cal = CultureInfo.CurrentCulture.Calendar;
+            int lastWeek = cal.GetWeekOfYear(dec31, CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
+
+            // Jeśli 31 grudnia jest w tygodniu 1 następnego roku, weź tydzień z 24 grudnia
+            if (lastWeek == 1)
+            {
+                lastWeek = cal.GetWeekOfYear(dec31.AddDays(-7), CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
+            }
+            return lastWeek;
+        }
+
+        /// <summary>
+        /// Zwraca datę poniedziałku dla danego numeru tygodnia
+        /// </summary>
+        private DateTime GetMondayOfWeek(int weekNumber, int year)
+        {
+            DateTime jan1 = new DateTime(year, 1, 1);
+            int daysOffset = DayOfWeek.Monday - jan1.DayOfWeek;
+            if (daysOffset > 0) daysOffset -= 7;
+
+            DateTime firstMonday = jan1.AddDays(daysOffset);
+            return firstMonday.AddDays((weekNumber - 1) * 7);
+        }
+
+        /// <summary>
+        /// Obsługa kliknięcia przycisku tygodnia
+        /// </summary>
+        private async void WeekMapButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.DataContext is WeekMapItem weekItem)
+            {
+                DateTime targetDate = GetMondayOfWeek(weekItem.WeekNumber, weekItem.Year);
+
+                // Sprawdź czy to zmiana tygodnia
+                int currentSelectedWeek = GetIso8601WeekOfYear(_selectedDate);
+                bool isNextWeek = weekItem.WeekNumber > currentSelectedWeek ||
+                                  (weekItem.Year > _selectedDate.Year);
+
+                _selectedDate = targetDate;
+                calendarMain.SelectedDate = _selectedDate;
+                calendarMain.DisplayDate = _selectedDate;
+                UpdateWeekNumber();
+
+                // Wycentruj mini-mapę na wybranym tygodniu
+                int currentWeek = GetIso8601WeekOfYear(DateTime.Today);
+                _weekMapOffset = weekItem.WeekNumber - currentWeek;
+                if (weekItem.Year > DateTime.Today.Year)
+                    _weekMapOffset += GetWeeksInYear(DateTime.Today.Year);
+                else if (weekItem.Year < DateTime.Today.Year)
+                    _weekMapOffset -= GetWeeksInYear(weekItem.Year);
+
+                GenerateWeekMap();
+
+                // Animacja przejścia
+                await AnimateWeekTransition(isNextWeek);
+
+                ShowToast($"Tydzień {weekItem.WeekNumber}", ToastType.Info);
+            }
+        }
+
+        /// <summary>
+        /// Przesuń mini-mapę w lewo (wcześniejsze tygodnie)
+        /// </summary>
+        private void BtnWeekMapPrev_Click(object sender, RoutedEventArgs e)
+        {
+            _weekMapOffset -= WEEK_MAP_VISIBLE_COUNT;
+            GenerateWeekMap();
+        }
+
+        /// <summary>
+        /// Przesuń mini-mapę w prawo (późniejsze tygodnie)
+        /// </summary>
+        private void BtnWeekMapNext_Click(object sender, RoutedEventArgs e)
+        {
+            _weekMapOffset += WEEK_MAP_VISIBLE_COUNT;
+            GenerateWeekMap();
+        }
+
+        /// <summary>
+        /// Klasa pomocnicza dla elementu mini-mapy
+        /// </summary>
+        private class WeekMapItem
+        {
+            public int WeekNumber { get; set; }
+            public int Year { get; set; }
         }
 
         #endregion

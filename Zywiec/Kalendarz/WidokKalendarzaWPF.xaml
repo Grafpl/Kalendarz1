@@ -464,6 +464,48 @@
             </Setter>
         </Style>
 
+        <!-- ==================== STYL MINI-MAPA TYGODNI ==================== -->
+        <Style x:Key="WeekMapButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="Margin" Value="1,0"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Background" Value="#F1F5F9"/>
+            <Setter Property="Foreground" Value="#64748B"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                CornerRadius="4" Padding="4,2">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#E2E8F0"/>
+                            </Trigger>
+                            <Trigger Property="Tag" Value="Selected">
+                                <Setter TargetName="border" Property="Background" Value="#3B82F6"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="Tag" Value="Current">
+                                <Setter TargetName="border" Property="Background" Value="#10B981"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="Tag" Value="CurrentSelected">
+                                <Setter TargetName="border" Property="Background" Value="#10B981"/>
+                                <Setter Property="Foreground" Value="White"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#3B82F6"/>
+                                <Setter TargetName="border" Property="BorderThickness" Value="2"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
     </Window.Resources>
 
     <Grid>
@@ -1309,6 +1351,7 @@
 
             <!-- KALENDARZ - profesjonalny rozwijany panel -->
             <Border Grid.Row="2" Background="White" CornerRadius="6" Padding="0" Margin="0,0,0,4" BorderBrush="#E2E8F0" BorderThickness="1">
+                <StackPanel>
                 <Expander x:Name="expKalendarz" IsExpanded="False" BorderThickness="0" Padding="0">
                     <Expander.Header>
                         <Border Background="Transparent" Padding="6,6" Width="345">
@@ -1421,6 +1464,75 @@
                         <Calendar x:Name="calendarMain" HorizontalAlignment="Center" SelectedDatesChanged="CalendarMain_SelectedDatesChanged"/>
                     </Border>
                 </Expander>
+
+                <!-- MINI-MAPA TYGODNI - szybka nawigacja -->
+                <Border BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="6,4" Background="#FAFAFA">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Strzałka w lewo - poprzednie tygodnie -->
+                        <Button Grid.Column="0" Click="BtnWeekMapPrev_Click" Width="20" Height="24" ToolTip="Pokaż wcześniejsze tygodnie" Margin="0,0,4,0">
+                            <TextBlock Text="«" FontSize="12" Foreground="#64748B"/>
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="BorderThickness" Value="0"/>
+                                    <Setter Property="Cursor" Value="Hand"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}" CornerRadius="4">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#E2E8F0"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+
+                        <!-- Kontener na przyciski tygodni -->
+                        <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
+                            <StackPanel x:Name="spWeekMap" Orientation="Horizontal" HorizontalAlignment="Center"/>
+                        </ScrollViewer>
+
+                        <!-- Strzałka w prawo - następne tygodnie -->
+                        <Button Grid.Column="2" Click="BtnWeekMapNext_Click" Width="20" Height="24" ToolTip="Pokaż późniejsze tygodnie" Margin="4,0,0,0">
+                            <TextBlock Text="»" FontSize="12" Foreground="#64748B"/>
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="BorderThickness" Value="0"/>
+                                    <Setter Property="Cursor" Value="Hand"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}" CornerRadius="4">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#E2E8F0"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </Grid>
+                </Border>
+                </StackPanel>
             </Border>
 
             <!-- PANEL SZCZEGÓŁÓW - TABCONTROL - profesjonalny -->
