@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Microsoft.Data.SqlClient;
 
@@ -454,8 +456,143 @@ namespace Kalendarz1.Zadania
                 mainStack.Children.Add(avatarRow);
             }
 
+            // Attendance buttons - Będę / Nie będę
+            var currentUserAttendee = meeting.Attendees.FirstOrDefault(a => a.OperatorId == operatorId);
+            var isOrganizer = meeting.OrganizerId == operatorId;
+
+            // Only show buttons if user is an attendee (not organizer) and hasn't responded yet
+            if (currentUserAttendee != null && !isOrganizer)
+            {
+                var currentStatus = currentUserAttendee.Status;
+                var buttonRow = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Margin = new Thickness(0, 10, 0, 0),
+                    HorizontalAlignment = HorizontalAlignment.Left
+                };
+
+                // Będę button
+                var acceptBtn = new Border
+                {
+                    Background = currentStatus == "Zaakceptowane"
+                        ? new SolidColorBrush(PrimaryGreen)
+                        : new SolidColorBrush(Color.FromArgb(50, PrimaryGreen.R, PrimaryGreen.G, PrimaryGreen.B)),
+                    CornerRadius = new CornerRadius(6),
+                    Padding = new Thickness(12, 6, 12, 6),
+                    Margin = new Thickness(0, 0, 8, 0),
+                    Cursor = System.Windows.Input.Cursors.Hand
+                };
+                acceptBtn.Child = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Children =
+                    {
+                        new TextBlock { Text = "✓", FontSize = 11, Foreground = currentStatus == "Zaakceptowane" ? Brushes.White : new SolidColorBrush(PrimaryGreen), Margin = new Thickness(0, 0, 4, 0) },
+                        new TextBlock { Text = "Będę", FontSize = 11, FontWeight = FontWeights.Medium, Foreground = currentStatus == "Zaakceptowane" ? Brushes.White : new SolidColorBrush(PrimaryGreen) }
+                    }
+                };
+                acceptBtn.MouseLeftButtonUp += (s, e) =>
+                {
+                    e.Handled = true;
+                    UpdateAttendanceStatus(meeting.Id, "Zaakceptowane");
+                };
+                acceptBtn.MouseEnter += (s, e) =>
+                {
+                    if (currentStatus != "Zaakceptowane")
+                        acceptBtn.Background = new SolidColorBrush(Color.FromArgb(100, PrimaryGreen.R, PrimaryGreen.G, PrimaryGreen.B));
+                };
+                acceptBtn.MouseLeave += (s, e) =>
+                {
+                    if (currentStatus != "Zaakceptowane")
+                        acceptBtn.Background = new SolidColorBrush(Color.FromArgb(50, PrimaryGreen.R, PrimaryGreen.G, PrimaryGreen.B));
+                };
+
+                // Nie będę button
+                var declineBtn = new Border
+                {
+                    Background = currentStatus == "Odrzucone"
+                        ? new SolidColorBrush(AlertRed)
+                        : new SolidColorBrush(Color.FromArgb(50, AlertRed.R, AlertRed.G, AlertRed.B)),
+                    CornerRadius = new CornerRadius(6),
+                    Padding = new Thickness(12, 6, 12, 6),
+                    Cursor = System.Windows.Input.Cursors.Hand
+                };
+                declineBtn.Child = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Children =
+                    {
+                        new TextBlock { Text = "✗", FontSize = 11, Foreground = currentStatus == "Odrzucone" ? Brushes.White : new SolidColorBrush(AlertRed), Margin = new Thickness(0, 0, 4, 0) },
+                        new TextBlock { Text = "Nie będę", FontSize = 11, FontWeight = FontWeights.Medium, Foreground = currentStatus == "Odrzucone" ? Brushes.White : new SolidColorBrush(AlertRed) }
+                    }
+                };
+                declineBtn.MouseLeftButtonUp += (s, e) =>
+                {
+                    e.Handled = true;
+                    UpdateAttendanceStatus(meeting.Id, "Odrzucone");
+                };
+                declineBtn.MouseEnter += (s, e) =>
+                {
+                    if (currentStatus != "Odrzucone")
+                        declineBtn.Background = new SolidColorBrush(Color.FromArgb(100, AlertRed.R, AlertRed.G, AlertRed.B));
+                };
+                declineBtn.MouseLeave += (s, e) =>
+                {
+                    if (currentStatus != "Odrzucone")
+                        declineBtn.Background = new SolidColorBrush(Color.FromArgb(50, AlertRed.R, AlertRed.G, AlertRed.B));
+                };
+
+                buttonRow.Children.Add(acceptBtn);
+                buttonRow.Children.Add(declineBtn);
+
+                // Show current status indicator
+                if (currentStatus == "Zaakceptowane" || currentStatus == "Odrzucone")
+                {
+                    var statusIndicator = new TextBlock
+                    {
+                        Text = currentStatus == "Zaakceptowane" ? "(Potwierdzono)" : "(Odrzucono)",
+                        FontSize = 10,
+                        Foreground = new SolidColorBrush(TextGray),
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Margin = new Thickness(8, 0, 0, 0)
+                    };
+                    buttonRow.Children.Add(statusIndicator);
+                }
+
+                mainStack.Children.Add(buttonRow);
+            }
+
             card.Child = mainStack;
             return card;
+        }
+
+        private void UpdateAttendanceStatus(long meetingId, string newStatus)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    var cmd = new SqlCommand(@"
+                        UPDATE SpotkaniaUczestnicy
+                        SET StatusZaproszenia = @status
+                        WHERE SpotkaniID = @meetingId AND OperatorID = @operatorId", conn);
+
+                    cmd.Parameters.AddWithValue("@status", newStatus);
+                    cmd.Parameters.AddWithValue("@meetingId", meetingId);
+                    cmd.Parameters.AddWithValue("@operatorId", operatorId);
+                    cmd.ExecuteNonQuery();
+                }
+
+                // Refresh meetings display
+                LoadMeetings();
+                BuildMeetingsColumn();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error updating attendance: {ex.Message}");
+                MessageBox.Show($"Błąd podczas aktualizacji statusu: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private Border CreateTaskCard(TaskNotification task, bool isOverdue)
@@ -573,10 +710,6 @@ namespace Kalendarz1.Zadania
 
         private Border CreateAvatar(MeetingAttendee attendee, int index, int size)
         {
-            var colorHex = AvatarColors[Math.Abs(attendee.Name?.GetHashCode() ?? index) % AvatarColors.Length];
-            var color = (Color)ColorConverter.ConvertFromString(colorHex);
-            var initials = GetInitials(attendee.Name);
-
             // Status-based border color
             var borderColor = attendee.Status == "Zaakceptowane" ? PrimaryGreen :
                             attendee.Status == "Odrzucone" ? AlertRed :
@@ -587,7 +720,6 @@ namespace Kalendarz1.Zadania
                 Width = size,
                 Height = size,
                 CornerRadius = new CornerRadius(size / 2),
-                Background = new SolidColorBrush(color),
                 BorderBrush = new SolidColorBrush(borderColor),
                 BorderThickness = new Thickness(3),
                 Margin = new Thickness(index > 0 ? -10 : 0, 0, 0, 0)
@@ -601,15 +733,41 @@ namespace Kalendarz1.Zadania
                 Color = Colors.Black
             };
 
-            avatar.Child = new TextBlock
+            // Check if user has a real avatar
+            bool hasRealAvatar = !string.IsNullOrEmpty(attendee.OperatorId) && UserAvatarManager.HasAvatar(attendee.OperatorId);
+
+            if (hasRealAvatar)
             {
-                Text = initials,
-                Foreground = Brushes.White,
-                FontSize = size * 0.35,
-                FontWeight = FontWeights.Bold,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            };
+                // Use real avatar image
+                try
+                {
+                    var avatarPath = UserAvatarManager.GetAvatarPath(attendee.OperatorId);
+                    var bitmap = new BitmapImage();
+                    bitmap.BeginInit();
+                    bitmap.UriSource = new Uri(avatarPath, UriKind.Absolute);
+                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                    bitmap.DecodePixelWidth = size;
+                    bitmap.DecodePixelHeight = size;
+                    bitmap.EndInit();
+
+                    var imageBrush = new ImageBrush
+                    {
+                        ImageSource = bitmap,
+                        Stretch = Stretch.UniformToFill
+                    };
+                    avatar.Background = imageBrush;
+                }
+                catch
+                {
+                    // Fallback to initials if image loading fails
+                    SetInitialsBackground(avatar, attendee, index, size);
+                }
+            }
+            else
+            {
+                // Use initials fallback
+                SetInitialsBackground(avatar, attendee, index, size);
+            }
 
             // Tooltip
             var statusText = attendee.Status == "Zaakceptowane" ? "Potwierdzone" :
@@ -619,6 +777,24 @@ namespace Kalendarz1.Zadania
             avatar.ToolTip = $"{attendee.Name}\nStatus: {statusText}";
 
             return avatar;
+        }
+
+        private void SetInitialsBackground(Border avatar, MeetingAttendee attendee, int index, int size)
+        {
+            var colorHex = AvatarColors[Math.Abs(attendee.Name?.GetHashCode() ?? index) % AvatarColors.Length];
+            var color = (Color)ColorConverter.ConvertFromString(colorHex);
+            var initials = GetInitials(attendee.Name);
+
+            avatar.Background = new SolidColorBrush(color);
+            avatar.Child = new TextBlock
+            {
+                Text = initials,
+                Foreground = Brushes.White,
+                FontSize = size * 0.35,
+                FontWeight = FontWeights.Bold,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
         }
 
         private string GetInitials(string name)
@@ -716,7 +892,7 @@ namespace Kalendarz1.Zadania
                 case 1: snoozeTime = TimeSpan.FromMinutes(30); break;
                 case 2: snoozeTime = TimeSpan.FromHours(1); break;
                 case 3: snoozeTime = TimeSpan.FromHours(2); break;
-                default: snoozeTime = TimeSpan.FromMinutes(30); break;
+                default: snoozeTime = TimeSpan.FromHours(2); break; // Default to 2 hours
             }
 
             SnoozeRequested?.Invoke(this, snoozeTime);

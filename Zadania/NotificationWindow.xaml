@@ -85,6 +85,78 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Dark ComboBox Style -->
+        <Style x:Key="DarkComboBox" TargetType="ComboBox">
+            <Setter Property="Background" Value="#1A1F26"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#2C3E50"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <Border x:Name="Border" Background="#1A1F26" BorderBrush="#2C3E50" BorderThickness="1" CornerRadius="8">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ContentPresenter Grid.Column="0" Margin="10,8" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" VerticalAlignment="Center"/>
+                                    <ToggleButton Grid.Column="1" Width="24" Background="Transparent" BorderThickness="0" IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" ClickMode="Press">
+                                        <Path Fill="#7F8C8D" Data="M0,0 L4,4 L8,0" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                    </ToggleButton>
+                                </Grid>
+                            </Border>
+                            <Popup x:Name="PART_Popup" IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                                <Border Background="#1A1F26" BorderBrush="#2C3E50" BorderThickness="1" CornerRadius="8" Margin="0,4,0,0">
+                                    <Border.Effect>
+                                        <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.3" Color="#000"/>
+                                    </Border.Effect>
+                                    <ScrollViewer MaxHeight="200" VerticalScrollBarVisibility="Auto">
+                                        <StackPanel IsItemsHost="True"/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="BorderBrush" Value="#3498DB"/>
+                            </Trigger>
+                            <Trigger Property="IsDropDownOpen" Value="True">
+                                <Setter TargetName="Border" Property="BorderBrush" Value="#3498DB"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Dark ComboBoxItem Style -->
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#2C3E50"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#34495E"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Border Background="#0F1419" CornerRadius="16" BorderBrush="#2C3E50" BorderThickness="1">
@@ -231,11 +303,11 @@
                     <!-- Snooze -->
                     <StackPanel Grid.Column="0" Orientation="Horizontal">
                         <ComboBox x:Name="cmbSnooze" Width="110" VerticalAlignment="Center"
-                                  Background="#1A1F26" Foreground="White" BorderBrush="#2C3E50" Padding="10,8" FontSize="11">
-                            <ComboBoxItem Content="15 min" IsSelected="True"/>
+                                  Style="{StaticResource DarkComboBox}">
+                            <ComboBoxItem Content="15 min"/>
                             <ComboBoxItem Content="30 min"/>
                             <ComboBoxItem Content="1 godz"/>
-                            <ComboBoxItem Content="2 godz"/>
+                            <ComboBoxItem Content="2 godz" IsSelected="True"/>
                         </ComboBox>
                         <Button Content="Odłóż" Style="{StaticResource CompactButton}"
                                 Margin="8,0,0,0" Click="BtnSnooze_Click"/>
