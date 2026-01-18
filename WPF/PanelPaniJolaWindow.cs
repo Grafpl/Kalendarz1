@@ -988,8 +988,16 @@ namespace Kalendarz1.WPF
             var label1 = CreateCameraLabel(_cameras.Count > 0 ? _cameras[0].Name : "KAMERA 1");
             camera1Grid.Children.Add(label1);
 
+            // Transparentny overlay do przechwytywania kliknięć (VideoView blokuje eventy)
+            var clickOverlay1 = new Border
+            {
+                Background = Brushes.Transparent,
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            clickOverlay1.MouseLeftButtonDown += (s, e) => { OpenFullscreenRtsp(0); e.Handled = true; };
+            camera1Grid.Children.Add(clickOverlay1);
+
             camera1Border.Child = camera1Grid;
-            camera1Border.MouseLeftButtonDown += (s, e) => OpenFullscreenRtsp(0);
             Grid.SetColumn(camera1Border, 0);
             _camerasArea.Children.Add(camera1Border);
 
@@ -1024,8 +1032,16 @@ namespace Kalendarz1.WPF
             var label2 = CreateCameraLabel(_cameras.Count > 1 ? _cameras[1].Name : "KAMERA 2");
             camera2Grid.Children.Add(label2);
 
+            // Transparentny overlay do przechwytywania kliknięć (VideoView blokuje eventy)
+            var clickOverlay2 = new Border
+            {
+                Background = Brushes.Transparent,
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            clickOverlay2.MouseLeftButtonDown += (s, e) => { OpenFullscreenRtsp(1); e.Handled = true; };
+            camera2Grid.Children.Add(clickOverlay2);
+
             camera2Border.Child = camera2Grid;
-            camera2Border.MouseLeftButtonDown += (s, e) => OpenFullscreenRtsp(1);
             Grid.SetColumn(camera2Border, 1);
             _camerasArea.Children.Add(camera2Border);
 
