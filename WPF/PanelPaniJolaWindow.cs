@@ -196,9 +196,9 @@ namespace Kalendarz1.WPF
             _mainContainer.Children.Clear();
             _mainContainer.RowDefinitions.Clear();
 
-            // Góra: 60% na produkty/tabele, Dół: 40% na kamery
-            _mainContainer.RowDefinitions.Add(new RowDefinition { Height = new GridLength(6, GridUnitType.Star) });
-            _mainContainer.RowDefinitions.Add(new RowDefinition { Height = new GridLength(4, GridUnitType.Star) });
+            // Góra: 75% na produkty/tabele, Dół: 25% na kamery
+            _mainContainer.RowDefinitions.Add(new RowDefinition { Height = new GridLength(75, GridUnitType.Star) });
+            _mainContainer.RowDefinitions.Add(new RowDefinition { Height = new GridLength(25, GridUnitType.Star) });
 
             // Content area - będzie czyszczone w RefreshContent()
             _contentArea = new Grid { Margin = new Thickness(10, 10, 10, 5) };
