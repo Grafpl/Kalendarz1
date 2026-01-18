@@ -2811,12 +2811,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
             if (txtWagaDek == null || txtSztNaSzufladeWaga == null || txtKGwSkrzynce == null || txtKGSkrzyn264 == null)
                 return;
 
-            // Pobierz wagę dek z pola txtWagaDek
-            if (!double.TryParse(txtWagaDek.Text?.Replace(",", "."), out double wagaDek))
+            // Pobierz wagę dek z pola txtWagaDek (obsłuż oba separatory: , i .)
+            if (!double.TryParse(txtWagaDek.Text?.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double wagaDek))
                 wagaDek = 0;
 
             // Pobierz sztuki na szufladę
-            if (!double.TryParse(txtSztNaSzufladeWaga.Text?.Replace(",", "."), out double sztNaSzuflade))
+            if (!double.TryParse(txtSztNaSzufladeWaga.Text?.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double sztNaSzuflade))
                 sztNaSzuflade = 0;
 
             // KG/skrzyn = Sztuki na szufladę × Waga dek
@@ -2837,12 +2837,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
             if (txtWagaDek == null || txtSztNaSzufladeWaga2 == null || txtKGwSkrzynce2 == null || txtKGSkrzyn264_2 == null)
                 return;
 
-            // Pobierz wagę dek z pola txtWagaDek
-            if (!double.TryParse(txtWagaDek.Text?.Replace(",", "."), out double wagaDek))
+            // Pobierz wagę dek z pola txtWagaDek (obsłuż oba separatory: , i .)
+            if (!double.TryParse(txtWagaDek.Text?.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double wagaDek))
                 wagaDek = 0;
 
             // Pobierz sztuki na szufladę (wiersz 2 - edytowalny)
-            if (!double.TryParse(txtSztNaSzufladeWaga2.Text?.Replace(",", "."), out double sztNaSzuflade2))
+            if (!double.TryParse(txtSztNaSzufladeWaga2.Text?.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double sztNaSzuflade2))
                 sztNaSzuflade2 = 0;
 
             // KG/skrzyn = Sztuki na szufladę × Waga dek
