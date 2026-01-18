@@ -954,14 +954,14 @@ namespace Kalendarz1
             {
                 Header = "LP",
                 Binding = new System.Windows.Data.Binding("LP"),
-                Width = 50
+                Width = 48
             });
 
             dataGridWstawienia.Columns.Add(new DataGridTextColumn
             {
                 Header = "Hodowca",
                 Binding = new System.Windows.Data.Binding("Dostawca"),
-                Width = 95
+                Width = 110
             });
 
             dataGridWstawienia.Columns.Add(new DataGridTextColumn
@@ -974,7 +974,6 @@ namespace Kalendarz1
                 Width = 100
             });
 
-            // Format z separatorem tysięcy
             dataGridWstawienia.Columns.Add(new DataGridTextColumn
             {
                 Header = "Ilość",
@@ -982,21 +981,21 @@ namespace Kalendarz1
                 {
                     StringFormat = "# ##0"
                 },
-                Width = 50
+                Width = 58
             });
 
             dataGridWstawienia.Columns.Add(new DataGridTextColumn
             {
                 Header = "Typ",
                 Binding = new System.Windows.Data.Binding("TypUmowy"),
-                Width = 55
+                Width = 70
             });
 
             // Kolumna Typ Ceny z kolorowaniem
             var typCenyColumn = new DataGridTemplateColumn
             {
                 Header = "Cena",
-                Width = 75
+                Width = 78
             };
 
             var cellTemplate = new DataTemplate();
@@ -1041,11 +1040,11 @@ namespace Kalendarz1
                 Width = new DataGridLength(1, DataGridLengthUnitType.Star)
             });
 
-            // Kolumna Potw.
+            // Kolumna Potw. - znaczek ✓
             var potwColumn = new DataGridTextColumn
             {
-                Header = "Potw.",
-                Width = 45
+                Header = "✓",
+                Width = 30
             };
             potwColumn.Binding = new System.Windows.Data.Binding("isConf")
             {
@@ -1192,7 +1191,7 @@ namespace Kalendarz1
             {
                 Header = "LP",
                 Binding = new System.Windows.Data.Binding("LP"),
-                Width = 32
+                Width = 38
             });
 
             dataGridPrzypomnienia.Columns.Add(new DataGridTextColumn
@@ -1209,7 +1208,7 @@ namespace Kalendarz1
             {
                 Header = "Hodowca",
                 Binding = new System.Windows.Data.Binding("Dostawca"),
-                Width = 70
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star)
             });
 
             dataGridPrzypomnienia.Columns.Add(new DataGridTextColumn
@@ -1219,14 +1218,14 @@ namespace Kalendarz1
                 {
                     StringFormat = "# ##0"
                 },
-                Width = 45
+                Width = 52
             });
 
             dataGridPrzypomnienia.Columns.Add(new DataGridTextColumn
             {
                 Header = "Tel",
                 Binding = new System.Windows.Data.Binding("Telefon"),
-                Width = new DataGridLength(1, DataGridLengthUnitType.Star)
+                Width = 70
             });
         }
 
@@ -1282,7 +1281,7 @@ namespace Kalendarz1
             {
                 Header = "User",
                 Binding = new System.Windows.Data.Binding("UserName"),
-                Width = 55
+                Width = 50
             });
 
             dataGridHistoria.Columns.Add(new DataGridTextColumn
@@ -1292,14 +1291,14 @@ namespace Kalendarz1
                 {
                     StringFormat = "MM-dd"
                 },
-                Width = 45
+                Width = 55
             });
 
             dataGridHistoria.Columns.Add(new DataGridTextColumn
             {
                 Header = "Notatka",
                 Binding = new System.Windows.Data.Binding("Reason"),
-                Width = new DataGridLength(2, DataGridLengthUnitType.Star)
+                Width = new DataGridLength(1.2, DataGridLengthUnitType.Star)
             });
 
             dataGridHistoria.Columns.Add(new DataGridTextColumn
@@ -1324,6 +1323,9 @@ namespace Kalendarz1
             contextMenu.Items.Add(menuItemUsun);
 
             dataGridHistoria.ContextMenu = contextMenu;
+
+            // Podwójne kliknięcie - tworzenie nowego wstawienia
+            dataGridHistoria.MouseDoubleClick += DataGridHistoria_MouseDoubleClick;
         }
         private void MenuDodajTelefonDoPotwierdzenia_Click(object sender, RoutedEventArgs e)
         {
@@ -1433,7 +1435,7 @@ namespace Kalendarz1
             {
                 Header = "LP",
                 Binding = new Binding("LP"),
-                Width = 32
+                Width = 38
             });
 
             dataGridDoPotwierdzenia.Columns.Add(new DataGridTextColumn
@@ -1450,7 +1452,7 @@ namespace Kalendarz1
             {
                 Header = "Hodowca",
                 Binding = new Binding("Dostawca"),
-                Width = 70
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star)
             });
 
             dataGridDoPotwierdzenia.Columns.Add(new DataGridTextColumn
@@ -1460,14 +1462,14 @@ namespace Kalendarz1
                 {
                     StringFormat = "# ##0"
                 },
-                Width = 45
+                Width = 52
             });
 
             dataGridDoPotwierdzenia.Columns.Add(new DataGridTextColumn
             {
                 Header = "Tel",
                 Binding = new Binding("Telefon"),
-                Width = new DataGridLength(1, DataGridLengthUnitType.Star)
+                Width = 70
             });
 
             // Dodaj context menu
@@ -1488,7 +1490,12 @@ namespace Kalendarz1
             contextMenu.Items.Add(menuItemDodajTel);
 
             dataGridDoPotwierdzenia.ContextMenu = contextMenu;
-        }        // ====== OBSŁUGA ZDARZEŃ ======
+
+            // Podwójne kliknięcie - tworzenie nowego wstawienia
+            dataGridDoPotwierdzenia.MouseDoubleClick += DataGridDoPotwierdzenia_MouseDoubleClick;
+        }
+
+        // ====== OBSŁUGA ZDARZEŃ ======
         private void TextBoxFilter_TextChanged(object sender, TextChangedEventArgs e)
         {
             ApplyFilters();
@@ -1683,6 +1690,86 @@ namespace Kalendarz1
                     // Podstawowe dane
                     wstawienie.Dostawca = dostawca;
                     wstawienie.SztWstawienia = ilosc;
+
+                    // Jeśli użytkownik chce skopiować dodatkowe dane
+                    if (dialogKopiowania.KopiujDodatkoweDane)
+                    {
+                        if (daneOstatniego != null)
+                        {
+                            wstawienie.DaneOstatniegoDostarczonego = daneOstatniego;
+                        }
+                    }
+
+                    wstawienie.ShowDialog();
+                    RefreshAll();
+                }
+            }
+        }
+
+        private void DataGridDoPotwierdzenia_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (dataGridDoPotwierdzenia.SelectedItem != null)
+            {
+                var row = (DataRowView)dataGridDoPotwierdzenia.SelectedItem;
+                if (row["LP"] == DBNull.Value) return;
+
+                string dostawca = row["Dostawca"]?.ToString();
+                int ilosc = row["IloscWstawienia"] != DBNull.Value ? Convert.ToInt32(row["IloscWstawienia"]) : 0;
+
+                // Pobierz dane ostatniego dostarczonego
+                var daneOstatniego = PobierzDaneOstatniegoDostarczonego(dostawca);
+
+                // Dialog z pytaniem o kopiowanie danych
+                var dialogKopiowania = new OknoKopiowaniaDanychDialog(dostawca, daneOstatniego);
+                if (dialogKopiowania.ShowDialog() == true)
+                {
+                    var wstawienie = new WstawienieWindow
+                    {
+                        UserID = App.UserID
+                    };
+
+                    // Podstawowe dane
+                    wstawienie.Dostawca = dostawca;
+                    wstawienie.SztWstawienia = ilosc;
+
+                    // Jeśli użytkownik chce skopiować dodatkowe dane
+                    if (dialogKopiowania.KopiujDodatkoweDane)
+                    {
+                        if (daneOstatniego != null)
+                        {
+                            wstawienie.DaneOstatniegoDostarczonego = daneOstatniego;
+                        }
+                    }
+
+                    wstawienie.ShowDialog();
+                    RefreshAll();
+                }
+            }
+        }
+
+        private void DataGridHistoria_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (dataGridHistoria.SelectedItem != null)
+            {
+                var row = (DataRowView)dataGridHistoria.SelectedItem;
+
+                string dostawca = row["Dostawca"]?.ToString();
+                if (string.IsNullOrEmpty(dostawca)) return;
+
+                // Pobierz dane ostatniego dostarczonego
+                var daneOstatniego = PobierzDaneOstatniegoDostarczonego(dostawca);
+
+                // Dialog z pytaniem o kopiowanie danych
+                var dialogKopiowania = new OknoKopiowaniaDanychDialog(dostawca, daneOstatniego);
+                if (dialogKopiowania.ShowDialog() == true)
+                {
+                    var wstawienie = new WstawienieWindow
+                    {
+                        UserID = App.UserID
+                    };
+
+                    // Podstawowe dane
+                    wstawienie.Dostawca = dostawca;
 
                     // Jeśli użytkownik chce skopiować dodatkowe dane
                     if (dialogKopiowania.KopiujDodatkoweDane)
@@ -2735,7 +2822,7 @@ namespace Kalendarz1
                 return "";
 
             bool isConf = System.Convert.ToBoolean(value);
-            return isConf ? "Potwierdzone" : "";
+            return isConf ? "✓" : "";
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

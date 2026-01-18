@@ -578,11 +578,11 @@
                         </Grid>
 
                         <Border Grid.Row="1" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="10" ClipToBounds="True">
-                            <DataGrid x:Name="dataGridWstawienia" 
+                            <DataGrid x:Name="dataGridWstawienia"
                                       Style="{StaticResource ModernDataGrid}"
                                       ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
                                       CellStyle="{StaticResource DataGridCellStyle}"
-                                      RowHeight="26">
+                                      RowHeight="30">
                                 <DataGrid.ContextMenu>
                                     <ContextMenu>
                                         <MenuItem Header="✏️ Edytuj wstawienie" Click="MenuEdytuj_Click" FontWeight="SemiBold"/>
