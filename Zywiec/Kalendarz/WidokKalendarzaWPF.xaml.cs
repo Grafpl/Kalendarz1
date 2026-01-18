@@ -2772,6 +2772,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
         // Synchronizacja Szt/szuflade z DANE DOSTAWY do ZAŁADUNEK AVILOG (tylko wiersz 1)
         private void TxtSztNaSzuflade_TextChanged(object sender, TextChangedEventArgs e)
         {
+            if (txtSztNaSzufladeWaga == null) return;
+
             // Kopiuj wartość tylko do wiersza 1 (wiersz 2 jest edytowalny)
             txtSztNaSzufladeWaga.Text = txtSztNaSzuflade.Text;
 
@@ -2782,6 +2784,13 @@ namespace Kalendarz1.Zywiec.Kalendarz
         // Wiersz 2 - edytowalny Szt/szuflade
         private void TxtSztNaSzufladeWaga2_TextChanged(object sender, TextChangedEventArgs e)
         {
+            CalculateZaladunekRow2();
+        }
+
+        // Gdy zmienia się Waga dek - przelicz oba wiersze
+        private void TxtWagaDek_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            CalculateZaladunekRow1();
             CalculateZaladunekRow2();
         }
 
