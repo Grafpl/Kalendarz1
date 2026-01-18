@@ -1750,7 +1750,11 @@
                                     <!-- ═══════════════════════════════════════════════════════════════ -->
                                     <Border Background="White" CornerRadius="6" Padding="8" Margin="0,0,0,6" BorderBrush="#E2E8F0" BorderThickness="1">
                                         <StackPanel>
-                                            <TextBlock Text="📝 NOTATKI DOSTAWY" FontWeight="Bold" FontSize="11" Foreground="#1E293B" Margin="0,0,0,6"/>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                                <TextBlock Text="📝 NOTATKI DOSTAWY" FontWeight="Bold" FontSize="11" Foreground="#1E293B"/>
+                                                <TextBlock Text=" - " FontSize="11" Foreground="#64748B" Margin="4,0,0,0"/>
+                                                <TextBlock x:Name="txtHodowcaNotatki" FontWeight="Bold" FontSize="11" Foreground="#166534"/>
+                                            </StackPanel>
                                             <DataGrid x:Name="dgNotatkiKarta" MaxHeight="150" FontSize="11" IsReadOnly="True" AutoGenerateColumns="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="1" BorderBrush="#E2E8F0" Background="#FAFAFA" RowHeight="28">
                                                 <DataGrid.Columns>
                                                     <DataGridTextColumn Header="📅 Data" Binding="{Binding DataUtworzenia, StringFormat=dd.MM ddd HH:mm}" Width="110">
@@ -1909,6 +1913,8 @@
                                                         <StackPanel Orientation="Horizontal">
                                                             <TextBlock Text="📊" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                                             <TextBlock Text="WSTAWIENIA" FontWeight="Bold" FontSize="11" Foreground="#166534" VerticalAlignment="Center"/>
+                                                            <TextBlock Text=" - " FontSize="11" Foreground="#64748B" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                                            <TextBlock x:Name="txtHodowcaWstawienia" FontWeight="Bold" FontSize="11" Foreground="#166534" VerticalAlignment="Center"/>
                                                         </StackPanel>
                                                     </Border>
                                                     <!-- Badge'e informacyjne -->

@@ -1752,6 +1752,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 _ = LoadDeliveryDetailsAsync(selected.LP);
                 _ = LoadNotatkiAsync(selected.LP);
 
+                // Aktualizuj nazwę hodowcy w sekcjach Notatki i Wstawienia
+                txtHodowcaNotatki.Text = selected.Dostawca ?? "";
+                txtHodowcaWstawienia.Text = selected.Dostawca ?? "";
+
                 if (!string.IsNullOrEmpty(selected.LpW))
                 {
                     cmbLpWstawienia.SelectedItem = selected.LpW;
@@ -1837,6 +1841,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 _selectedLP = selected.LP;
                 _ = LoadDeliveryDetailsAsync(selected.LP);
                 _ = LoadNotatkiAsync(selected.LP);
+
+                // Aktualizuj nazwę hodowcy w sekcjach Notatki i Wstawienia
+                txtHodowcaNotatki.Text = selected.Dostawca ?? "";
+                txtHodowcaWstawienia.Text = selected.Dostawca ?? "";
 
                 if (!string.IsNullOrEmpty(selected.LpW))
                 {
