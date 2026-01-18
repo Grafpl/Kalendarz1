@@ -571,7 +571,7 @@
                                 <DataGridTemplateColumn Header="🐔 Szt" Width="65" IsReadOnly="True">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <Border Padding="2,0" CornerRadius="2" Margin="1">
+                                            <Border Padding="2,0">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
                                                         <Setter Property="Background" Value="Transparent"/>
@@ -579,25 +579,10 @@
                                                             <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
                                                                 <Setter Property="Background" Value="Transparent"/>
                                                             </DataTrigger>
-                                                            <DataTrigger Binding="{Binding PotwSztuki}" Value="True">
-                                                                <Setter Property="Background" Value="#C8E6C9"/>
-                                                            </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
-                                                <TextBlock Text="{Binding SztukiDekDisplay}" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Foreground" Value="Black"/>
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding PotwSztuki}" Value="True">
-                                                                    <Setter Property="Foreground" Value="#1B5E20"/>
-                                                                    <Setter Property="FontWeight" Value="SemiBold"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
+                                                <TextBlock Text="{Binding SztukiDekDisplay}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                             </Border>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -605,7 +590,7 @@
                                 <DataGridTemplateColumn Header="⚖️ Waga" Width="55" IsReadOnly="True">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <Border Padding="2,0" CornerRadius="2" Margin="1">
+                                            <Border Padding="2,0">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
                                                         <Setter Property="Background" Value="Transparent"/>
@@ -613,25 +598,10 @@
                                                             <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
                                                                 <Setter Property="Background" Value="Transparent"/>
                                                             </DataTrigger>
-                                                            <DataTrigger Binding="{Binding PotwWaga}" Value="True">
-                                                                <Setter Property="Background" Value="#C8E6C9"/>
-                                                            </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
-                                                <TextBlock Text="{Binding WagaDekDisplay}" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Foreground" Value="Black"/>
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding PotwWaga}" Value="True">
-                                                                    <Setter Property="Foreground" Value="#1B5E20"/>
-                                                                    <Setter Property="FontWeight" Value="SemiBold"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
+                                                <TextBlock Text="{Binding WagaDekDisplay}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                             </Border>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -870,7 +840,7 @@
                             <DataGridTemplateColumn Header="🐔 Szt" Width="65" IsReadOnly="True">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Border Padding="2,0" CornerRadius="2" Margin="1">
+                                        <Border Padding="2,0">
                                             <Border.Style>
                                                 <Style TargetType="Border">
                                                     <Setter Property="Background" Value="Transparent"/>
@@ -878,25 +848,10 @@
                                                         <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
                                                             <Setter Property="Background" Value="Transparent"/>
                                                         </DataTrigger>
-                                                        <DataTrigger Binding="{Binding PotwSztuki}" Value="True">
-                                                            <Setter Property="Background" Value="#C8E6C9"/>
-                                                        </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
                                             </Border.Style>
-                                            <TextBlock Text="{Binding SztukiDekDisplay}" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="Foreground" Value="Black"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding PotwSztuki}" Value="True">
-                                                                <Setter Property="Foreground" Value="#1B5E20"/>
-                                                                <Setter Property="FontWeight" Value="SemiBold"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
+                                            <TextBlock Text="{Binding SztukiDekDisplay}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                         </Border>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
@@ -904,7 +859,7 @@
                             <DataGridTemplateColumn Header="⚖️ Waga" Width="55" IsReadOnly="True">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Border Padding="2,0" CornerRadius="2" Margin="1">
+                                        <Border Padding="2,0">
                                             <Border.Style>
                                                 <Style TargetType="Border">
                                                     <Setter Property="Background" Value="Transparent"/>
@@ -912,25 +867,10 @@
                                                         <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
                                                             <Setter Property="Background" Value="Transparent"/>
                                                         </DataTrigger>
-                                                        <DataTrigger Binding="{Binding PotwWaga}" Value="True">
-                                                            <Setter Property="Background" Value="#C8E6C9"/>
-                                                        </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
                                             </Border.Style>
-                                            <TextBlock Text="{Binding WagaDekDisplay}" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="Foreground" Value="Black"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding PotwWaga}" Value="True">
-                                                                <Setter Property="Foreground" Value="#1B5E20"/>
-                                                                <Setter Property="FontWeight" Value="SemiBold"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
+                                            <TextBlock Text="{Binding WagaDekDisplay}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                         </Border>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
