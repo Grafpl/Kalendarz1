@@ -135,8 +135,11 @@
                                       FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,12,0"
                                       Checked="ChkPomoc_Changed" Unchecked="ChkPomoc_Changed"/>
                             <CheckBox x:Name="chkSeria" Content="📋 Seria"
-                                      FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"
+                                      FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,12,0"
                                       Checked="ChkSeria_Checked" Unchecked="ChkSeria_Unchecked"/>
+                            <CheckBox x:Name="chkDostawy" Content="🚚 Dostawy"
+                                      FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"
+                                      Checked="ChkDostawy_Changed" Unchecked="ChkDostawy_Changed"/>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -152,10 +155,12 @@
                     </StackPanel>
                 </Border>
 
-                <!-- JEDNO WSTAWIENIE -->
+                <!-- JEDNO WSTAWIENIE + SUMA/RÓŻNICA -->
                 <Border x:Name="panelJednePodstawy" Style="{StaticResource Card}">
                     <Grid>
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
@@ -171,9 +176,19 @@
                             <TextBox x:Name="txtSztukiWstawienia" Style="{StaticResource HighlightTextBox}" TextChanged="TxtSztukiWstawienia_TextChanged"/>
                         </StackPanel>
 
-                        <StackPanel Grid.Column="2" Margin="6,0,0,0">
+                        <StackPanel Grid.Column="2" Margin="6,0">
                             <TextBlock Text="📊 Po 3% upadku" FontSize="11" Margin="0,0,0,4"/>
                             <TextBox x:Name="txtSztukiUpadki" Style="{StaticResource ReadOnlyTextBox}"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="3" Margin="6,0">
+                            <TextBlock Text="📈 Suma" FontSize="11" Margin="0,0,0,4"/>
+                            <TextBox x:Name="txtSztukiSuma" Style="{StaticResource ReadOnlyTextBox}" Background="#E8F5E9"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="4" Margin="6,0,0,0">
+                            <TextBlock Text="✅ Różnica" FontSize="11" Margin="0,0,0,4"/>
+                            <TextBox x:Name="txtSztukiRoznica" Style="{StaticResource ReadOnlyTextBox}" Background="#FFF3E0"/>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -210,42 +225,17 @@
                     </StackPanel>
                 </Border>
 
-                <!-- SZABLON DOSTAW -->
-                <Border Style="{StaticResource Card}">
+                <!-- SZABLON DOSTAW (ukryty domyślnie) -->
+                <Border x:Name="panelDostawy" Style="{StaticResource Card}" Visibility="Collapsed">
                     <StackPanel>
                         <Grid Margin="0,0,0,8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-
-                            <!-- Lewa strona: Szablon + Wklej różnicę -->
-                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock Text="🚚 Szablon Dostaw" FontSize="13" FontWeight="Bold" Foreground="#2C3E50" VerticalAlignment="Center"/>
                                 <Button Content="📋 Wklej różnicę" Style="{StaticResource SmallButton}"
                                         Margin="15,0,0,0" Click="BtnWklejRozniceDoWszystkich_Click"
                                         ToolTip="Wklej różnicę do wszystkich dostaw"/>
                             </StackPanel>
-
-                            <!-- Środek: Suma i Różnica -->
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <Border Background="#E8F5E9" CornerRadius="4" Padding="8,4" Margin="10,0">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="📈 Suma: " FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                        <TextBox x:Name="txtSztukiSuma" Style="{StaticResource ReadOnlyTextBox}" Width="80" FontSize="11"/>
-                                    </StackPanel>
-                                </Border>
-                                <Border Background="#FFF3E0" CornerRadius="4" Padding="8,4">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="✅ Różnica: " FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                        <TextBox x:Name="txtSztukiRoznica" Style="{StaticResource ReadOnlyTextBox}" Width="80" FontSize="11"/>
-                                    </StackPanel>
-                                </Border>
-                            </StackPanel>
-
-                            <!-- Prawa strona: Dodaj dostawę -->
-                            <Button Grid.Column="2" Content="➕ Dostawa" Style="{StaticResource SmallButton}" HorizontalAlignment="Right" Click="BtnDodajDostawe_Click"/>
+                            <Button Content="➕ Dostawa" Style="{StaticResource SmallButton}" HorizontalAlignment="Right" Click="BtnDodajDostawe_Click"/>
                         </Grid>
 
                         <!-- Nagłówki -->

@@ -91,12 +91,33 @@ namespace Kalendarz1
 
         private void ChkSeria_Checked(object sender, RoutedEventArgs e)
         {
-            trybSerii = true;
-            panelJednePodstawy.Visibility = Visibility.Collapsed;
-            panelSeria.Visibility = Visibility.Visible;
+            // Pytanie czy użytkownik dobrze zrobił pierwsze wstawienie
+            var result = MessageBox.Show(
+                "Aby zrobić serię, najpierw zrób dobrze pierwsze wstawienie, a później naciśnij 'Seria'.\n\nCzy tak zrobiłeś?",
+                "Seria wstawień",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
 
-            if (seriaRows.Count == 0)
-                DodajWpisSerii();
+            if (result == MessageBoxResult.Yes)
+            {
+                MessageBox.Show(
+                    "Ok, to pamiętaj że teraz na górze zaczynasz od wstawienia numer 2, bo numer 1 się schowało.",
+                    "Informacja",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+
+                trybSerii = true;
+                panelJednePodstawy.Visibility = Visibility.Collapsed;
+                panelSeria.Visibility = Visibility.Visible;
+
+                if (seriaRows.Count == 0)
+                    DodajWpisSerii();
+            }
+            else
+            {
+                // Odznacz checkbox jeśli użytkownik nie potwierdził
+                chkSeria.IsChecked = false;
+            }
         }
 
         private void ChkSeria_Unchecked(object sender, RoutedEventArgs e)
@@ -1176,6 +1197,16 @@ namespace Kalendarz1
                     this.Width = 980;
                     kolumnaPomoc.Width = new GridLength(0);
                 }
+            }
+        }
+
+        private void ChkDostawy_Changed(object sender, RoutedEventArgs e)
+        {
+            if (panelDostawy != null)
+            {
+                panelDostawy.Visibility = chkDostawy.IsChecked == true
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
             }
         }
 
