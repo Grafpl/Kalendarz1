@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Microsoft.Data.SqlClient;
+using Kalendarz1.Zadania;
 
 namespace Kalendarz1
 {
@@ -35,6 +36,20 @@ namespace Kalendarz1
             // Ładowanie uprawnień i modułów
             LoadUserPermissions();
             SetupMenuItems();
+
+            // Uruchomienie systemu powiadomień
+            StartNotificationService();
+        }
+
+        private void StartNotificationService()
+        {
+            NotificationService.Initialize(App.UserID);
+            NotificationService.Instance.OpenPanelRequested += (s, e) =>
+            {
+                var zadaniaWindow = new ZadaniaWindow();
+                zadaniaWindow.Show();
+            };
+            NotificationService.Instance.Start();
         }
 
         private void StartClock()
