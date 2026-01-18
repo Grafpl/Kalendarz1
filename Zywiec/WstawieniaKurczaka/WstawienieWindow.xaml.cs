@@ -1162,11 +1162,20 @@ namespace Kalendarz1
 
         private void ChkPomoc_Changed(object sender, RoutedEventArgs e)
         {
-            if (scrollInstrukcje != null)
+            if (kolumnaPomoc != null)
             {
-                scrollInstrukcje.Visibility = chkPomoc.IsChecked == true
-                    ? Visibility.Visible
-                    : Visibility.Collapsed;
+                if (chkPomoc.IsChecked == true)
+                {
+                    // Rozszerz okno i pokaż kolumnę pomocy
+                    this.Width = 1300;
+                    kolumnaPomoc.Width = new GridLength(300);
+                }
+                else
+                {
+                    // Zmniejsz okno i ukryj kolumnę pomocy
+                    this.Width = 980;
+                    kolumnaPomoc.Width = new GridLength(0);
+                }
             }
         }
 
