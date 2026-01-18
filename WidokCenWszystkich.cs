@@ -1064,7 +1064,8 @@ namespace Kalendarz1
                 var min = allValues.Min();
                 var max = allValues.Max();
                 var range = max - min;
-                var margin = range * 0.15; // 15% margines
+                // Minimalny margines 0.1 gdy wszystkie wartości są identyczne
+                var margin = Math.Max(0.1, range * 0.15); // 15% margines
 
                 chart.ChartAreas[0].AxisY.Minimum = Math.Floor((min - margin) * 100) / 100;
                 chart.ChartAreas[0].AxisY.Maximum = Math.Ceiling((max + margin) * 100) / 100;

@@ -89,7 +89,8 @@ namespace Kalendarz1
                     // Ustaw zakres osi Y (z marginesem)
                     var minRate = (double)history.Min(h => h.Rate);
                     var maxRate = (double)history.Max(h => h.Rate);
-                    var margin = (maxRate - minRate) * 0.1;
+                    // Minimalny margines 0.01 PLN gdy wszystkie kursy są identyczne
+                    var margin = Math.Max(0.01, (maxRate - minRate) * 0.1);
                     YAxisMin = minRate - margin;
                     YAxisMax = maxRate + margin;
 
