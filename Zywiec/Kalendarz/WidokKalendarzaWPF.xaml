@@ -97,6 +97,16 @@
             </DoubleAnimation>
         </Storyboard>
 
+        <!-- Storyboard: Pulsowanie na czerwono dla niepotwierdzonych wstawień w kolumnie Ub -->
+        <Storyboard x:Key="UnconfirmedUbPulseAnimation" RepeatBehavior="Forever">
+            <ColorAnimation Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                            From="#FFCDD2" To="#EF5350" Duration="0:0:0.6" AutoReverse="True">
+                <ColorAnimation.EasingFunction>
+                    <SineEase EasingMode="EaseInOut"/>
+                </ColorAnimation.EasingFunction>
+            </ColorAnimation>
+        </Storyboard>
+
         <!-- ==================== ANIMACJE PRZEJŚCIA TYGODNI ==================== -->
 
         <!-- Storyboard: Wyjście w lewo (następny tydzień) -->
@@ -571,7 +581,7 @@
                                 <DataGridTemplateColumn Header="🐔 Szt" Width="65" IsReadOnly="True">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <Border Padding="2,0">
+                                            <Border Padding="2,0" CornerRadius="2" Margin="1">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
                                                         <Setter Property="Background" Value="Transparent"/>
@@ -579,10 +589,25 @@
                                                             <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
                                                                 <Setter Property="Background" Value="Transparent"/>
                                                             </DataTrigger>
+                                                            <DataTrigger Binding="{Binding PotwSztuki}" Value="True">
+                                                                <Setter Property="Background" Value="#C8E6C9"/>
+                                                            </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
-                                                <TextBlock Text="{Binding SztukiDekDisplay}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding SztukiDekDisplay}" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="Black"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding PotwSztuki}" Value="True">
+                                                                    <Setter Property="Foreground" Value="#1B5E20"/>
+                                                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
                                             </Border>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -590,7 +615,7 @@
                                 <DataGridTemplateColumn Header="⚖️ Waga" Width="55" IsReadOnly="True">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <Border Padding="2,0">
+                                            <Border Padding="2,0" CornerRadius="2" Margin="1">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
                                                         <Setter Property="Background" Value="Transparent"/>
@@ -598,19 +623,92 @@
                                                             <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
                                                                 <Setter Property="Background" Value="Transparent"/>
                                                             </DataTrigger>
+                                                            <DataTrigger Binding="{Binding PotwWaga}" Value="True">
+                                                                <Setter Property="Background" Value="#C8E6C9"/>
+                                                            </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
-                                                <TextBlock Text="{Binding WagaDekDisplay}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding WagaDekDisplay}" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="Black"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding PotwWaga}" Value="True">
+                                                                    <Setter Property="Foreground" Value="#1B5E20"/>
+                                                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
                                             </Border>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="📉 Ub" Binding="{Binding RoznicaDniDisplay}" Width="42" IsReadOnly="True">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/></Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                                <DataGridTemplateColumn Header="📉 Ub" Width="42" IsReadOnly="True">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border x:Name="borderUb" Padding="2,0" CornerRadius="2" Margin="1">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="Transparent"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
+                                                                <Setter Property="Background" Value="Transparent"/>
+                                                            </DataTrigger>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding IsWstawienieConfirmed}" Value="False"/>
+                                                                    <Condition Binding="{Binding IsHeaderRow}" Value="False"/>
+                                                                    <Condition Binding="{Binding IsSeparator}" Value="False"/>
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter Property="Background" Value="#FFCDD2"/>
+                                                                <MultiDataTrigger.EnterActions>
+                                                                    <BeginStoryboard>
+                                                                        <Storyboard RepeatBehavior="Forever">
+                                                                            <ColorAnimation Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                                                                                            From="#FFCDD2" To="#EF5350" Duration="0:0:0.6" AutoReverse="True">
+                                                                                <ColorAnimation.EasingFunction>
+                                                                                    <SineEase EasingMode="EaseInOut"/>
+                                                                                </ColorAnimation.EasingFunction>
+                                                                            </ColorAnimation>
+                                                                        </Storyboard>
+                                                                    </BeginStoryboard>
+                                                                </MultiDataTrigger.EnterActions>
+                                                            </MultiDataTrigger>
+                                                            <DataTrigger Binding="{Binding IsWstawienieConfirmed}" Value="True">
+                                                                <Setter Property="Background" Value="#C8E6C9"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock Text="{Binding RoznicaDniDisplay}" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="Black"/>
+                                                            <Style.Triggers>
+                                                                <MultiDataTrigger>
+                                                                    <MultiDataTrigger.Conditions>
+                                                                        <Condition Binding="{Binding IsWstawienieConfirmed}" Value="False"/>
+                                                                        <Condition Binding="{Binding IsHeaderRow}" Value="False"/>
+                                                                        <Condition Binding="{Binding IsSeparator}" Value="False"/>
+                                                                    </MultiDataTrigger.Conditions>
+                                                                    <Setter Property="Foreground" Value="#B71C1C"/>
+                                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                                </MultiDataTrigger>
+                                                                <DataTrigger Binding="{Binding IsWstawienieConfirmed}" Value="True">
+                                                                    <Setter Property="Foreground" Value="#1B5E20"/>
+                                                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                                 <DataGridTemplateColumn Header="📊 Typ" Width="45" IsReadOnly="True">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
@@ -840,7 +938,7 @@
                             <DataGridTemplateColumn Header="🐔 Szt" Width="65" IsReadOnly="True">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Border Padding="2,0">
+                                        <Border Padding="2,0" CornerRadius="2" Margin="1">
                                             <Border.Style>
                                                 <Style TargetType="Border">
                                                     <Setter Property="Background" Value="Transparent"/>
@@ -848,10 +946,25 @@
                                                         <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
                                                             <Setter Property="Background" Value="Transparent"/>
                                                         </DataTrigger>
+                                                        <DataTrigger Binding="{Binding PotwSztuki}" Value="True">
+                                                            <Setter Property="Background" Value="#C8E6C9"/>
+                                                        </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
                                             </Border.Style>
-                                            <TextBlock Text="{Binding SztukiDekDisplay}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding SztukiDekDisplay}" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="Black"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding PotwSztuki}" Value="True">
+                                                                <Setter Property="Foreground" Value="#1B5E20"/>
+                                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
                                         </Border>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
@@ -859,7 +972,7 @@
                             <DataGridTemplateColumn Header="⚖️ Waga" Width="55" IsReadOnly="True">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Border Padding="2,0">
+                                        <Border Padding="2,0" CornerRadius="2" Margin="1">
                                             <Border.Style>
                                                 <Style TargetType="Border">
                                                     <Setter Property="Background" Value="Transparent"/>
@@ -867,19 +980,92 @@
                                                         <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
                                                             <Setter Property="Background" Value="Transparent"/>
                                                         </DataTrigger>
+                                                        <DataTrigger Binding="{Binding PotwWaga}" Value="True">
+                                                            <Setter Property="Background" Value="#C8E6C9"/>
+                                                        </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
                                             </Border.Style>
-                                            <TextBlock Text="{Binding WagaDekDisplay}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding WagaDekDisplay}" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="Black"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding PotwWaga}" Value="True">
+                                                                <Setter Property="Foreground" Value="#1B5E20"/>
+                                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
                                         </Border>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="📉 Ub" Binding="{Binding RoznicaDniDisplay}" Width="42" IsReadOnly="True">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/></Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
+                            <DataGridTemplateColumn Header="📉 Ub" Width="42" IsReadOnly="True">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border x:Name="borderUb2" Padding="2,0" CornerRadius="2" Margin="1">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="Transparent"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
+                                                            <Setter Property="Background" Value="Transparent"/>
+                                                        </DataTrigger>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding IsWstawienieConfirmed}" Value="False"/>
+                                                                <Condition Binding="{Binding IsHeaderRow}" Value="False"/>
+                                                                <Condition Binding="{Binding IsSeparator}" Value="False"/>
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="Background" Value="#FFCDD2"/>
+                                                            <MultiDataTrigger.EnterActions>
+                                                                <BeginStoryboard>
+                                                                    <Storyboard RepeatBehavior="Forever">
+                                                                        <ColorAnimation Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                                                                                        From="#FFCDD2" To="#EF5350" Duration="0:0:0.6" AutoReverse="True">
+                                                                            <ColorAnimation.EasingFunction>
+                                                                                <SineEase EasingMode="EaseInOut"/>
+                                                                            </ColorAnimation.EasingFunction>
+                                                                        </ColorAnimation>
+                                                                    </Storyboard>
+                                                                </BeginStoryboard>
+                                                            </MultiDataTrigger.EnterActions>
+                                                        </MultiDataTrigger>
+                                                        <DataTrigger Binding="{Binding IsWstawienieConfirmed}" Value="True">
+                                                            <Setter Property="Background" Value="#C8E6C9"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock Text="{Binding RoznicaDniDisplay}" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="Black"/>
+                                                        <Style.Triggers>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding IsWstawienieConfirmed}" Value="False"/>
+                                                                    <Condition Binding="{Binding IsHeaderRow}" Value="False"/>
+                                                                    <Condition Binding="{Binding IsSeparator}" Value="False"/>
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter Property="Foreground" Value="#B71C1C"/>
+                                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                            </MultiDataTrigger>
+                                                            <DataTrigger Binding="{Binding IsWstawienieConfirmed}" Value="True">
+                                                                <Setter Property="Foreground" Value="#1B5E20"/>
+                                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                             <DataGridTemplateColumn Header="📊 Typ" Width="45" IsReadOnly="True">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
@@ -1110,20 +1296,8 @@
                                 <TextBox x:Name="txtCenaTuszki" Style="{StaticResource ReadOnlyTextBoxStyle}" FontSize="10" FontWeight="Bold" Foreground="#E65100" Background="Transparent" Padding="3,0" BorderThickness="0" Width="45"/>
                             </StackPanel>
                         </Border>
-
-                        <!-- Tydzień badge -->
-                        <Border CornerRadius="4" Padding="8,3" Margin="0,0,6,0">
-                            <Border.Background>
-                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                    <GradientStop Color="#1565C0" Offset="0"/>
-                                    <GradientStop Color="#1976D2" Offset="1"/>
-                                </LinearGradientBrush>
-                            </Border.Background>
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="TYG." FontSize="9" Foreground="#B3E5FC" VerticalAlignment="Center" FontWeight="SemiBold"/>
-                                <TextBlock x:Name="txtWeekNumber" Text="1" FontSize="16" FontWeight="Bold" Foreground="White" Margin="4,0,0,0"/>
-                            </StackPanel>
-                        </Border>
+                        <!-- Ukryty TextBlock dla kompatybilności z kodem -->
+                        <TextBlock x:Name="txtWeekNumber" Visibility="Collapsed"/>
                     </StackPanel>
 
                     <!-- PRAWA: Przyciski akcji - profesjonalny toolbar -->
@@ -1438,25 +1612,23 @@
                                         </Button>
                                     </StackPanel>
                                 </Border>
-                                <!-- Ikona i tytuł -->
+                                <!-- Ikona, data i tydzień - WIĘKSZE -->
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,0,8,0">
-                                    <Border Background="#EFF6FF" CornerRadius="4" Padding="4,2" Margin="0,0,6,0">
-                                        <TextBlock Text="📅" FontSize="12" VerticalAlignment="Center"/>
+                                    <Border Background="#EFF6FF" CornerRadius="6" Padding="6,4" Margin="0,0,8,0">
+                                        <TextBlock Text="📅" FontSize="16" VerticalAlignment="Center"/>
                                     </Border>
-                                    <TextBlock Text="Kalendarz" FontWeight="SemiBold" FontSize="10" Foreground="#1E293B" VerticalAlignment="Center"/>
-                                </StackPanel>
-                                <!-- Data, czas, tydzień po PRAWEJ -->
-                                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                    <Border Background="#F0FDF4" CornerRadius="4" Padding="6,2" Margin="0,0,4,0">
-                                        <TextBlock x:Name="txtCurrentDateTime" Text="18.01 sob 12:30" FontSize="9" Foreground="#15803D" FontWeight="SemiBold"/>
+                                    <Border Background="#F0FDF4" CornerRadius="6" Padding="10,4" Margin="0,0,6,0">
+                                        <TextBlock x:Name="txtCurrentDateTime" Text="18.01 sob 12:30" FontSize="14" Foreground="#15803D" FontWeight="Bold"/>
                                     </Border>
-                                    <Border Background="#DBEAFE" CornerRadius="4" Padding="6,2">
+                                    <Border Background="#DBEAFE" CornerRadius="6" Padding="10,4">
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="Tyg " FontSize="8" Foreground="#1D4ED8"/>
-                                            <TextBlock x:Name="txtCurrentWeek" Text="3" FontSize="9" Foreground="#1D4ED8" FontWeight="Bold"/>
+                                            <TextBlock Text="Tyg " FontSize="12" Foreground="#1D4ED8" FontWeight="SemiBold"/>
+                                            <TextBlock x:Name="txtCurrentWeek" Text="3" FontSize="14" Foreground="#1D4ED8" FontWeight="Bold"/>
                                         </StackPanel>
                                     </Border>
                                 </StackPanel>
+                                <!-- Filtry po PRAWEJ -->
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                             </Grid>
                         </Border>
                     </Expander.Header>
