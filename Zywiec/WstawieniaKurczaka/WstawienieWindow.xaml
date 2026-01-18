@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="🐔 Wstawienia Kurczaków"
-        Height="850" Width="980"
+        Height="700" Width="980"
         WindowStartupLocation="CenterScreen"
         Background="#F5F7FA"
         FontFamily="Segoe UI"
@@ -101,39 +101,48 @@
         <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Margin="0,0,12,0">
             <StackPanel>
 
-                <!-- NAGŁÓWEK -->
-                <Border Style="{StaticResource Card}" Padding="12">
+                <!-- NAGŁÓWEK + DOSTAWCA W JEDNEJ LINII -->
+                <Border Style="{StaticResource Card}" Padding="10">
                     <Grid>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="🐔" FontSize="26" Margin="0,0,10,0"/>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Lewa: Ikona + Nazwa -->
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,15,0">
+                            <TextBlock Text="🐔" FontSize="22" Margin="0,0,8,0" VerticalAlignment="Center"/>
                             <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="Wstawienia" FontSize="17" FontWeight="Bold" Foreground="#2C3E50"/>
+                                <TextBlock Text="Wstawienia" FontSize="14" FontWeight="Bold" Foreground="#2C3E50"/>
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="Tryb: " FontSize="11" Foreground="#7F8C8D"/>
-                                    <TextBlock x:Name="txtTrybFormularza" Text="Nowe" FontSize="11" FontWeight="SemiBold" Foreground="#5C8A3A"/>
+                                    <TextBlock Text="Tryb: " FontSize="10" Foreground="#7F8C8D"/>
+                                    <TextBlock x:Name="txtTrybFormularza" Text="Nowe" FontSize="10" FontWeight="SemiBold" Foreground="#5C8A3A"/>
                                 </StackPanel>
                             </StackPanel>
                         </StackPanel>
 
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <!-- Środek: Dostawca -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="👨‍🌾" FontSize="14" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <ComboBox x:Name="cmbDostawca" Style="{StaticResource ModernComboBox}" Width="200" SelectionChanged="CmbDostawca_SelectionChanged"/>
+                        </StackPanel>
+
+                        <!-- Prawa: Checkboxy -->
+                        <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
                             <CheckBox x:Name="chkPomoc" Content="❓ Pomoc"
-                                      FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,15,0"
+                                      FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,12,0"
                                       Checked="ChkPomoc_Changed" Unchecked="ChkPomoc_Changed"/>
-                            <CheckBox x:Name="chkSeria" Content="📋 Seria wstawień"
-                                      FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"
+                            <CheckBox x:Name="chkSeria" Content="📋 Seria"
+                                      FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"
                                       Checked="ChkSeria_Checked" Unchecked="ChkSeria_Unchecked"/>
                         </StackPanel>
                     </Grid>
                 </Border>
 
-                <!-- DOSTAWCA + DANE ADRESOWE -->
-                <Border Style="{StaticResource Card}">
-                    <StackPanel>
-                        <TextBlock Text="👨‍🌾 Dostawca" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                        <ComboBox x:Name="cmbDostawca" Style="{StaticResource ModernComboBox}" SelectionChanged="CmbDostawca_SelectionChanged"/>
-
-                        <!-- DANE ADRESOWE DOSTAWCY -->
-                        <Border x:Name="panelDaneDostawcy" Background="#F8F9FA" CornerRadius="6" Padding="10" Margin="0,8,0,0" Visibility="Collapsed">
+                <!-- DANE ADRESOWE DOSTAWCY -->
+                <Border x:Name="panelDaneDostawcy" Style="{StaticResource Card}" Visibility="Collapsed">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
@@ -158,10 +167,7 @@
                                 <TextBlock Grid.Row="1" Grid.Column="2" Text="📧 Email:" FontSize="10" FontWeight="SemiBold" Margin="0,0,5,0"/>
                                 <TextBlock Grid.Row="1" Grid.Column="3" x:Name="txtEmailDostawcy" Text="" FontSize="10"/>
                             </Grid>
-                        </Border>
-
                         <TextBox x:Name="txtKmH" Visibility="Collapsed"/>
-                    </StackPanel>
                 </Border>
 
                 <!-- JEDNO WSTAWIENIE -->
@@ -295,28 +301,37 @@
                     </StackPanel>
                 </Border>
 
-                <!-- NOTATKI - MAŁE POLE PRZY DOSTAWACH -->
-                <Border Style="{StaticResource Card}" Background="#FFF9E6" BorderBrush="#FFD54F" BorderThickness="1.5">
-                    <StackPanel>
-                        <TextBlock Text="📝 Notatki" FontSize="12" FontWeight="SemiBold" Foreground="#F57F17" Margin="0,0,0,5"/>
-                        <TextBox x:Name="txtNotatki" 
-                                 Style="{StaticResource ModernTextBox}" 
-                                 AcceptsReturn="True" 
-                                 TextWrapping="Wrap" 
-                                 Height="70" 
-                                 VerticalScrollBarVisibility="Auto"
-                                 Background="White"
-                                 FontSize="11"/>
-                    </StackPanel>
-                </Border>
-
-                <!-- PRZYCISKI -->
+                <!-- NOTATKI + PRZYCISKI W JEDNEJ LINII -->
                 <Border Style="{StaticResource Card}">
                     <Grid>
-                        <Button Content="❌ Anuluj" Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left" 
-                                Width="110" Click="BtnAnuluj_Click"/>
-                        <Button Content="💾 Zapisz" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Right" 
-                                Width="130" Click="BtnZapisz_Click"/>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Anuluj -->
+                        <Button Grid.Column="0" Content="❌ Anuluj" Style="{StaticResource SecondaryButton}"
+                                Width="100" Click="BtnAnuluj_Click" VerticalAlignment="Center"/>
+
+                        <!-- Notatki -->
+                        <Border Grid.Column="1" Background="#FFF9E6" CornerRadius="4" Padding="8,4" Margin="10,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="📝" FontSize="12" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                <TextBox x:Name="txtNotatki"
+                                         Style="{StaticResource ModernTextBox}"
+                                         Width="350"
+                                         Height="28"
+                                         VerticalContentAlignment="Center"
+                                         Background="White"
+                                         FontSize="10"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Zapisz -->
+                        <Button Grid.Column="3" Content="💾 Zapisz" Style="{StaticResource PrimaryButton}"
+                                Width="120" Click="BtnZapisz_Click" VerticalAlignment="Center"/>
                     </Grid>
                 </Border>
 
