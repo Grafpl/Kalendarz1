@@ -41,6 +41,14 @@ namespace Kalendarz1
             public string Description { get; set; }
         }
 
+        public class HourlyForecast
+        {
+            public DateTime DateTime { get; set; }
+            public int Temperature { get; set; }
+            public string Icon { get; set; }
+            public string Description { get; set; }
+        }
+
         /// <summary>
         /// Ustawia lokalizację dla pogody
         /// </summary>
@@ -235,6 +243,121 @@ namespace Kalendarz1
                 UpdateTime = DateTime.MinValue,
                 Forecast = new List<DayForecast>()
             };
+        }
+
+        /// <summary>
+        /// Pobiera prognozę godzinową na 4 dni co 5 godzin
+        /// </summary>
+        public static async Task<List<HourlyForecast>> GetHourlyForecastAsync()
+        {
+            var result = new List<HourlyForecast>();
+
+            try
+            {
+                var url = $"https://wttr.in/{_location}?format=j1";
+                var response = await httpClient.GetStringAsync(url);
+                var json = JsonDocument.Parse(response);
+
+                var weatherList = json.RootElement.GetProperty("weather");
+                var today = DateTime.Today;
+
+                // wttr.in zwraca dane godzinowe co 3 godziny (8 wpisów na dzień)
+                // indeksy: 0=00:00, 1=03:00, 2=06:00, 3=09:00, 4=12:00, 5=15:00, 6=18:00, 7=21:00
+                int dayIndex = 0;
+                int currentHour = DateTime.Now.Hour;
+
+                foreach (var day in weatherList.EnumerateArray())
+                {
+                    if (dayIndex >= 4) break; // Tylko 4 dni
+
+                    var date = DateTime.Parse(day.GetProperty("date").GetString());
+                    var hourlyArray = day.GetProperty("hourly");
+
+                    // Dla każdego dnia wybierz odpowiednie godziny (co 5 godzin)
+                    // Zaczynamy od godziny startowej i bierzemy co 5 godzin
+                    int[] targetHours;
+
+                    if (dayIndex == 0)
+                    {
+                        // Pierwszy dzień - zacznij od najbliższej pełnej godziny
+                        targetHours = GetTargetHoursFromCurrentHour(currentHour);
+                    }
+                    else
+                    {
+                        // Kolejne dni - standardowe godziny co 5h
+                        targetHours = new[] { 0, 5, 10, 15, 20 };
+                    }
+
+                    foreach (var targetHour in targetHours)
+                    {
+                        // Znajdź najbliższy slot 3-godzinny
+                        int slotIndex = GetClosestSlotIndex(targetHour);
+                        if (slotIndex >= 0 && slotIndex < 8)
+                        {
+                            var hourlyData = hourlyArray[slotIndex];
+                            var actualHour = slotIndex * 3;
+                            var forecastTime = date.AddHours(actualHour);
+
+                            // Pomiń przeszłe godziny z dzisiejszego dnia
+                            if (dayIndex == 0 && forecastTime < DateTime.Now.AddHours(-1))
+                                continue;
+
+                            result.Add(new HourlyForecast
+                            {
+                                DateTime = forecastTime,
+                                Temperature = int.Parse(hourlyData.GetProperty("tempC").GetString()),
+                                Icon = GetWeatherIcon(int.Parse(hourlyData.GetProperty("weatherCode").GetString())),
+                                Description = GetPolishDescription(hourlyData.GetProperty("weatherDesc")[0].GetProperty("value").GetString())
+                            });
+                        }
+                    }
+
+                    dayIndex++;
+                }
+
+                // Ogranicz do sensownej liczby punktów (ok. 19-20 dla 4 dni co 5h)
+                return result.Take(20).ToList();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd pobierania prognozy godzinowej: {ex.Message}");
+                return result;
+            }
+        }
+
+        private static int[] GetTargetHoursFromCurrentHour(int currentHour)
+        {
+            var hours = new List<int>();
+            // Zacznij od najbliższej godziny podzielnej przez 5 lub następnej
+            int startHour = ((currentHour / 5) + 1) * 5;
+            if (startHour > 20) return new int[0]; // Jeśli za późno, pomiń dzień
+
+            for (int h = startHour; h <= 23; h += 5)
+            {
+                hours.Add(h);
+            }
+            return hours.ToArray();
+        }
+
+        private static int GetClosestSlotIndex(int targetHour)
+        {
+            // Sloty: 0, 3, 6, 9, 12, 15, 18, 21
+            // Znajdź najbliższy
+            int[] slots = { 0, 3, 6, 9, 12, 15, 18, 21 };
+            int closestIndex = 0;
+            int minDiff = Math.Abs(slots[0] - targetHour);
+
+            for (int i = 1; i < slots.Length; i++)
+            {
+                int diff = Math.Abs(slots[i] - targetHour);
+                if (diff < minDiff)
+                {
+                    minDiff = diff;
+                    closestIndex = i;
+                }
+            }
+
+            return closestIndex;
         }
     }
 }

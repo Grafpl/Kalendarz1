@@ -12,25 +12,18 @@ namespace Kalendarz1
 {
     public partial class WeatherChartWindow : Window, INotifyPropertyChanged
     {
-        private ChartValues<int> _tempMaxValues;
-        public ChartValues<int> TempMaxValues
+        private ChartValues<int> _tempValues;
+        public ChartValues<int> TempValues
         {
-            get => _tempMaxValues;
-            set { _tempMaxValues = value; OnPropertyChanged(); }
+            get => _tempValues;
+            set { _tempValues = value; OnPropertyChanged(); }
         }
 
-        private ChartValues<int> _tempMinValues;
-        public ChartValues<int> TempMinValues
+        private List<string> _timeLabels;
+        public List<string> TimeLabels
         {
-            get => _tempMinValues;
-            set { _tempMinValues = value; OnPropertyChanged(); }
-        }
-
-        private List<string> _dayLabels;
-        public List<string> DayLabels
-        {
-            get => _dayLabels;
-            set { _dayLabels = value; OnPropertyChanged(); }
+            get => _timeLabels;
+            set { _timeLabels = value; OnPropertyChanged(); }
         }
 
         private double _yAxisMin = double.NaN;
@@ -48,8 +41,7 @@ namespace Kalendarz1
         }
 
         public Func<double, string> YFormatter { get; set; }
-        public Func<ChartPoint, string> LabelFormatterMax { get; set; }
-        public Func<ChartPoint, string> LabelFormatterMin { get; set; }
+        public Func<ChartPoint, string> LabelFormatter { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
@@ -64,12 +56,10 @@ namespace Kalendarz1
             InitializeComponent();
             DataContext = this;
 
-            YFormatter = value => $"{value:0}C";
-            LabelFormatterMax = point => $"{point.Y:0}C";
-            LabelFormatterMin = point => $"{point.Y:0}C";
-            TempMaxValues = new ChartValues<int>();
-            TempMinValues = new ChartValues<int>();
-            DayLabels = new List<string>();
+            YFormatter = value => $"{value:0}°C";
+            LabelFormatter = point => $"{point.Y:0}°C";
+            TempValues = new ChartValues<int>();
+            TimeLabels = new List<string>();
 
             Loaded += Window_Loaded;
         }
@@ -78,66 +68,72 @@ namespace Kalendarz1
         {
             try
             {
+                // Pobierz aktualną pogodę
                 var weather = await WeatherManager.GetWeatherAsync();
 
-                if (weather != null && weather.Forecast.Count > 0)
+                if (weather != null)
                 {
-                    // Aktualna pogoda
                     txtAktualnaTemp.Text = $"{weather.Temperature}";
                     txtAktualnyOpis.Text = weather.Description;
+                }
 
-                    // Wypelnij wykres
-                    TempMaxValues = new ChartValues<int>(weather.Forecast.Select(f => f.TempMax));
-                    TempMinValues = new ChartValues<int>(weather.Forecast.Select(f => f.TempMin));
+                // Pobierz prognozę godzinową (4 dni co 5 godzin)
+                var hourlyForecast = await WeatherManager.GetHourlyForecastAsync();
 
-                    // Etykiety dni - pelna data
-                    var today = DateTime.Today;
-                    DayLabels = weather.Forecast.Select((f, index) =>
+                if (hourlyForecast != null && hourlyForecast.Count > 0)
+                {
+                    // Wypełnij wykres
+                    TempValues = new ChartValues<int>(hourlyForecast.Select(f => f.Temperature));
+
+                    // Etykiety - data i godzina
+                    TimeLabels = hourlyForecast.Select(f =>
                     {
-                        var date = today.AddDays(index);
-                        var dayName = PolishCulture.DateTimeFormat.GetDayName(date.DayOfWeek);
+                        var dayName = PolishCulture.DateTimeFormat.GetAbbreviatedDayName(f.DateTime.DayOfWeek);
                         dayName = char.ToUpper(dayName[0]) + dayName.Substring(1);
-                        return $"{dayName}\n{date:dd.MM}";
+                        return $"{dayName}\n{f.DateTime:dd.MM}\n{f.DateTime:HH:00}";
                     }).ToList();
 
                     // Statystyki
-                    var minTemp = weather.Forecast.Min(f => f.TempMin);
-                    var maxTemp = weather.Forecast.Max(f => f.TempMax);
-                    var avgTemp = weather.Forecast.Average(f => (f.TempMin + f.TempMax) / 2.0);
+                    var minTemp = hourlyForecast.Min(f => f.Temperature);
+                    var maxTemp = hourlyForecast.Max(f => f.Temperature);
+                    var avgTemp = hourlyForecast.Average(f => f.Temperature);
 
-                    var minDay = weather.Forecast.First(f => f.TempMin == minTemp);
-                    var maxDay = weather.Forecast.First(f => f.TempMax == maxTemp);
+                    var minEntry = hourlyForecast.First(f => f.Temperature == minTemp);
+                    var maxEntry = hourlyForecast.First(f => f.Temperature == maxTemp);
 
                     txtMinTemp.Text = $"{minTemp}";
-                    txtMinDzien.Text = minDay.DayName;
+                    txtMinDzien.Text = $"{minEntry.DateTime:ddd dd.MM HH:00}";
 
                     txtMaxTemp.Text = $"{maxTemp}";
-                    txtMaxDzien.Text = maxDay.DayName;
+                    txtMaxDzien.Text = $"{maxEntry.DateTime:ddd dd.MM HH:00}";
 
                     txtSredniaTemp.Text = $"{avgTemp:0}";
                     txtAmplituda.Text = $"{maxTemp - minTemp}";
 
-                    // Ustaw zakres osi Y (z marginesem)
+                    // Zakres osi Y (z marginesem)
                     var margin = Math.Max(3, (maxTemp - minTemp) * 0.2);
                     YAxisMin = minTemp - margin;
                     YAxisMax = maxTemp + margin;
 
-                    // Szczegolowa prognoza w stopce
-                    var forecastItems = weather.Forecast.Select((f, index) =>
+                    // Szczegółowa prognoza w stopce (wybrane godziny - co 2-3 wpisy)
+                    var step = Math.Max(1, hourlyForecast.Count / 8);
+                    var forecastItems = new List<ForecastItem>();
+                    for (int i = 0; i < hourlyForecast.Count; i += step)
                     {
-                        var date = today.AddDays(index);
-                        var dayName = PolishCulture.DateTimeFormat.GetDayName(date.DayOfWeek);
+                        var f = hourlyForecast[i];
+                        var dayName = PolishCulture.DateTimeFormat.GetAbbreviatedDayName(f.DateTime.DayOfWeek);
                         dayName = char.ToUpper(dayName[0]) + dayName.Substring(1);
-                        return new ForecastItem
+                        forecastItems.Add(new ForecastItem
                         {
-                            DayName = $"{dayName} {date:dd.MM}",
+                            DayName = $"{dayName} {f.DateTime:dd.MM}",
+                            Time = f.DateTime.ToString("HH:00"),
                             Icon = f.Icon,
-                            TempRange = $"{f.TempMin}C / {f.TempMax}C",
+                            Temperature = $"{f.Temperature}°C",
                             Description = f.Description
-                        };
-                    }).ToList();
+                        });
+                    }
 
-                    forecastPanel.ItemsSource = forecastItems;
+                    forecastPanel.ItemsSource = forecastItems.Take(8).ToList();
                 }
                 else
                 {
@@ -148,8 +144,8 @@ namespace Kalendarz1
             catch (Exception ex)
             {
                 txtAktualnaTemp.Text = "--";
-                txtAktualnyOpis.Text = "Blad podczas ladowania";
-                MessageBox.Show($"Blad podczas ladowania danych pogodowych: {ex.Message}", "Blad",
+                txtAktualnyOpis.Text = "Błąd podczas ładowania";
+                MessageBox.Show($"Błąd podczas ładowania danych pogodowych: {ex.Message}", "Błąd",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
@@ -167,8 +163,9 @@ namespace Kalendarz1
         public class ForecastItem
         {
             public string DayName { get; set; }
+            public string Time { get; set; }
             public string Icon { get; set; }
-            public string TempRange { get; set; }
+            public string Temperature { get; set; }
             public string Description { get; set; }
         }
     }
