@@ -113,7 +113,6 @@ namespace Kalendarz1.Zadania
                             Z.Priorytet,
                             Z.Wykonane,
                             Z.Opis,
-                            Z.DataUtworzenia,
                             o.Name AS OperatorNazwa
                         FROM Zadania Z
                         LEFT JOIN ZadaniaPrzypisani zp ON Z.ID = zp.ZadanieID
@@ -139,8 +138,8 @@ namespace Kalendarz1.Zadania
                                 Priority = reader.IsDBNull(3) ? 1 : reader.GetInt32(3),
                                 IsCompleted = reader.IsDBNull(4) ? false : reader.GetBoolean(4),
                                 Description = reader.IsDBNull(5) ? "" : reader.GetString(5),
-                                CreatedDate = reader.IsDBNull(6) ? DateTime.Now : reader.GetDateTime(6),
-                                CreatorName = reader.IsDBNull(7) ? "" : reader.GetString(7)
+                                CreatedDate = DateTime.Now,
+                                CreatorName = reader.IsDBNull(6) ? "" : reader.GetString(6)
                             });
                         }
                     }
