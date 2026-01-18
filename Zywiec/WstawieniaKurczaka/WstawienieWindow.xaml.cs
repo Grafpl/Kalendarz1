@@ -26,6 +26,9 @@ namespace Kalendarz1
         private bool trybSerii = false;
         private bool isLoading = false;
 
+        // Stoper do mierzenia czasu tworzenia wstawienia
+        private System.Diagnostics.Stopwatch stopwatch = new System.Diagnostics.Stopwatch();
+
         public WstawienieWindow()
         {
             InitializeComponent();
@@ -48,6 +51,9 @@ namespace Kalendarz1
             {
                 txtTrybFormularza.Text = "Nowe";
                 dpDataWstawienia.SelectedDate = DateTime.Today;
+
+                // Start stopera do mierzenia czasu tworzenia
+                stopwatch.Start();
 
                 // ZMIANA: Sprawdź czy przekazano dane z innego okna
                 if (!string.IsNullOrEmpty(Dostawca))
@@ -917,9 +923,21 @@ namespace Kalendarz1
                                 }
                                 trans.Commit();
 
+                                // Zatrzymaj stoper i oblicz czas
+                                stopwatch.Stop();
+                                var elapsed = stopwatch.Elapsed;
+                                string czasInfo = "";
+                                if (!Modyfikacja && elapsed.TotalSeconds > 0)
+                                {
+                                    if (elapsed.TotalMinutes >= 1)
+                                        czasInfo = $"\n\n⏱️ Czas tworzenia: {elapsed.Minutes}m {elapsed.Seconds}s";
+                                    else
+                                        czasInfo = $"\n\n⏱️ Czas tworzenia: {elapsed.Seconds}s";
+                                }
+
                                 string infoAuta = zapiszAuta ? "\n\n✅ Auta zostały zapisane" : "\n\n⚠️ Auta NIE zostały zapisane (Wolnyrynek)";
                                 string infoNotatki = maNotatki ? $"\n📝 Dodano {iloscNotatek} notatek do dostaw" : "";
-                                MessageBox.Show($"✅ Zapisano{infoAuta}{infoNotatki}", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                                MessageBox.Show($"✅ Zapisano{infoAuta}{infoNotatki}{czasInfo}", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
                             }
 
                             DialogResult = true;
@@ -1037,8 +1055,11 @@ namespace Kalendarz1
 
         private void WstawWstawienieDb(SqlConnection conn, SqlTransaction trans, long lpW, DateTime data, int ilosc, string typUmowy, string typCeny)
         {
-            const string sql = @"INSERT INTO dbo.WstawieniaKurczakow (Lp, Dostawca, DataWstawienia, IloscWstawienia, DataUtw, KtoStwo, Uwagi, TypUmowy, TypCeny)
-                VALUES (@Lp, @D, @DW, @Il, SYSDATETIME(), @Kto, @Uw, @TU, @TC)";
+            // Pobierz czas tworzenia ze stopera
+            int czasTworzeniaSek = (int)stopwatch.Elapsed.TotalSeconds;
+
+            const string sql = @"INSERT INTO dbo.WstawieniaKurczakow (Lp, Dostawca, DataWstawienia, IloscWstawienia, DataUtw, KtoStwo, Uwagi, TypUmowy, TypCeny, CzasTworzeniaSek)
+                VALUES (@Lp, @D, @DW, @Il, SYSDATETIME(), @Kto, @Uw, @TU, @TC, @Czas)";
             using (var cmd = new SqlCommand(sql, conn, trans))
             {
                 cmd.Parameters.AddWithValue("@Lp", lpW);
@@ -1049,6 +1070,7 @@ namespace Kalendarz1
                 cmd.Parameters.AddWithValue("@Uw", txtNotatki?.Text ?? "");
                 cmd.Parameters.AddWithValue("@TU", typUmowy);
                 cmd.Parameters.AddWithValue("@TC", typCeny);
+                cmd.Parameters.AddWithValue("@Czas", czasTworzeniaSek);
                 cmd.ExecuteNonQuery();
             }
         }
