@@ -439,59 +439,6 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
             // Aktualizuj status bar
             UpdateStatusBar();
-
-            // Aktualizuj nagłówki kolumn Uwagi z liczbą sprzedanych/anulowanych
-            UpdateUwagiColumnHeaders();
-        }
-
-        private void UpdateUwagiColumnHeaders()
-        {
-            try
-            {
-                // Policz sprzedane i anulowane dla pierwszego tygodnia
-                int sprzedane1 = _allDostawy?.Count(d => d.Bufor == "Sprzedany") ?? 0;
-                int anulowane1 = _allDostawy?.Count(d => d.Bufor == "Anulowany") ?? 0;
-
-                // Utwórz wizualny nagłówek dla pierwszej tabeli
-                if (colUwagi != null)
-                {
-                    var headerPanel = new StackPanel { Orientation = Orientation.Horizontal };
-                    headerPanel.Children.Add(new TextBlock { Text = "Uwagi ", FontSize = 10, Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81)), VerticalAlignment = VerticalAlignment.Center });
-
-                    if (sprzedane1 > 0)
-                    {
-                        headerPanel.Children.Add(new TextBlock { Text = $"S:{sprzedane1}", FontSize = 9, Foreground = new SolidColorBrush(Color.FromRgb(37, 99, 235)), FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(2, 0, 0, 0) });
-                    }
-                    if (anulowane1 > 0)
-                    {
-                        headerPanel.Children.Add(new TextBlock { Text = $"A:{anulowane1}", FontSize = 9, Foreground = new SolidColorBrush(Color.FromRgb(220, 38, 38)), FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 0) });
-                    }
-
-                    colUwagi.Header = headerPanel;
-                }
-
-                // Policz dla drugiego tygodnia
-                int sprzedane2 = _allDostawyNastepny?.Count(d => d.Bufor == "Sprzedany") ?? 0;
-                int anulowane2 = _allDostawyNastepny?.Count(d => d.Bufor == "Anulowany") ?? 0;
-
-                if (colUwagi2 != null)
-                {
-                    var headerPanel2 = new StackPanel { Orientation = Orientation.Horizontal };
-                    headerPanel2.Children.Add(new TextBlock { Text = "Uwagi ", FontSize = 10, Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81)), VerticalAlignment = VerticalAlignment.Center });
-
-                    if (sprzedane2 > 0)
-                    {
-                        headerPanel2.Children.Add(new TextBlock { Text = $"S:{sprzedane2}", FontSize = 9, Foreground = new SolidColorBrush(Color.FromRgb(37, 99, 235)), FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(2, 0, 0, 0) });
-                    }
-                    if (anulowane2 > 0)
-                    {
-                        headerPanel2.Children.Add(new TextBlock { Text = $"A:{anulowane2}", FontSize = 9, Foreground = new SolidColorBrush(Color.FromRgb(220, 38, 38)), FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 0) });
-                    }
-
-                    colUwagi2.Header = headerPanel2;
-                }
-            }
-            catch { }
         }
 
         // Stara synchroniczna wersja dla kompatybilności
@@ -657,6 +604,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         double sredniaKM = sumaAuta > 0 ? sumaKMPomnozona / sumaAuta : 0;
                         double sredniaDoby = iloscZDoby > 0 ? sumaDobyPomnozona / iloscZDoby : 0;
 
+                        // Policz sprzedane i anulowane dla tego dnia
+                        int liczbaSprzedanych = deliveries.Count(d => d.Bufor == "Sprzedany");
+                        int liczbaAnulowanych = deliveries.Count(d => d.Bufor == "Anulowany");
+
                         // Dodaj wiersz nagłówka dnia z sumami
                         collection.Add(new DostawaModel
                         {
@@ -670,7 +621,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
                             SredniaCena = sredniaCena,
                             SredniaKM = sredniaKM,
                             SredniaDoby = sredniaDoby,
-                            SumaUbytek = sumaUbytek
+                            SumaUbytek = sumaUbytek,
+                            LiczbaSprzedanych = liczbaSprzedanych,
+                            LiczbaAnulowanych = liczbaAnulowanych
                         });
 
                         // Dodaj wszystkie dostawy dla tego dnia
@@ -4415,6 +4368,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
         public double SredniaKM { get; set; }
         public double SredniaDoby { get; set; }
         public int SumaUbytek { get; set; }
+        public int LiczbaSprzedanych { get; set; }
+        public int LiczbaAnulowanych { get; set; }
 
         // Główna kolumna - dla nagłówka pokazuje datę, dla danych pokazuje dostawcę
         private static readonly string[] DniSkrot = { "niedz.", "pon.", "wt.", "śr.", "czw.", "pt.", "sob." };
@@ -4451,7 +4406,17 @@ namespace Kalendarz1.Zywiec.Kalendarz
             if (lower.Contains("łącz") || lower.Contains("laczo")) return "łącz.";
             return typ;
         }
-        public string UwagiDisplay => Uwagi;
+        public string UwagiDisplay => IsHeaderRow && !IsSeparator
+            ? BuildHeaderUwagiDisplay()
+            : Uwagi;
+
+        private string BuildHeaderUwagiDisplay()
+        {
+            var parts = new List<string>();
+            if (LiczbaSprzedanych > 0) parts.Add($"S:{LiczbaSprzedanych}");
+            if (LiczbaAnulowanych > 0) parts.Add($"A:{LiczbaAnulowanych}");
+            return string.Join(" ", parts);
+        }
 
         // Właściwość sprawdzająca czy notatka została dodana w ciągu ostatnich 3 dni
         // Notatka z ostatniego 1 dnia - pulsująca czerwona

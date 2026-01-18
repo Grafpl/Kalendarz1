@@ -628,7 +628,7 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTemplateColumn x:Name="colUwagi" Width="*" MinWidth="60" IsReadOnly="True">
+                                <DataGridTemplateColumn x:Name="colUwagi" Header="Uwagi" Width="*" MinWidth="60" IsReadOnly="True">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBlock Text="{Binding UwagiDisplay}" TextTrimming="CharacterEllipsis"
@@ -832,7 +832,7 @@
                                     <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTemplateColumn x:Name="colUwagi2" Width="*" MinWidth="60" IsReadOnly="True">
+                            <DataGridTemplateColumn x:Name="colUwagi2" Header="Uwagi" Width="*" MinWidth="60" IsReadOnly="True">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding UwagiDisplay}" TextTrimming="CharacterEllipsis"
