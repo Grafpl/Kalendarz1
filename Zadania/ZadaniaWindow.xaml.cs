@@ -165,24 +165,24 @@ namespace Kalendarz1.Zadania
                 BorderBrush = task.BorderColor,
                 BorderThickness = new Thickness(0, 0, 0, 3),
                 CornerRadius = new CornerRadius(8),
-                Margin = new Thickness(5),
-                Padding = new Thickness(15),
-                MinHeight = 140
+                Margin = new Thickness(4),
+                Padding = new Thickness(12, 10, 12, 10),
+                MinHeight = 95
             };
 
             var mainStack = new StackPanel();
 
             // Header row: Checkbox + Title + Status
             var headerGrid = new Grid();
-            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             // Checkbox
             var checkboxBorder = new Border
             {
-                Width = 28,
-                Height = 28,
+                Width = 24,
+                Height = 24,
                 CornerRadius = new CornerRadius(6),
                 Background = task.Wykonane
                     ? new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50))
@@ -200,7 +200,7 @@ namespace Kalendarz1.Zadania
             {
                 Text = task.Wykonane ? "✓" : "",
                 Foreground = Brushes.White,
-                FontSize = 16,
+                FontSize = 14,
                 FontWeight = FontWeights.Bold,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
@@ -228,7 +228,7 @@ namespace Kalendarz1.Zadania
             {
                 Text = task.TypZadania,
                 Foreground = Brushes.White,
-                FontSize = 15,
+                FontSize = 14,
                 FontWeight = FontWeights.SemiBold,
                 TextDecorations = task.TextDecoration,
                 VerticalAlignment = VerticalAlignment.Center,
@@ -257,7 +257,7 @@ namespace Kalendarz1.Zadania
             mainStack.Children.Add(headerGrid);
 
             // Badges row (Priority + Team)
-            var badgesStack = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 0) };
+            var badgesStack = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
 
             var priorityBadge = new Border
             {
@@ -299,18 +299,18 @@ namespace Kalendarz1.Zadania
             {
                 var opisText = new TextBlock
                 {
-                    Text = task.Opis.Length > 100 ? task.Opis.Substring(0, 100) + "..." : task.Opis,
+                    Text = task.Opis.Length > 80 ? task.Opis.Substring(0, 80) + "..." : task.Opis,
                     Foreground = new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99)),
-                    FontSize = 12,
-                    Margin = new Thickness(0, 8, 0, 0),
+                    FontSize = 11,
+                    Margin = new Thickness(0, 5, 0, 0),
                     TextWrapping = TextWrapping.Wrap,
-                    MaxHeight = 36
+                    MaxHeight = 30
                 };
                 mainStack.Children.Add(opisText);
             }
 
             // Bottom row: Avatars + Termin + Actions
-            var bottomGrid = new Grid { Margin = new Thickness(0, 12, 0, 0) };
+            var bottomGrid = new Grid { Margin = new Thickness(0, 8, 0, 0) };
             bottomGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             bottomGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             bottomGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -322,13 +322,13 @@ namespace Kalendarz1.Zadania
                 VerticalAlignment = VerticalAlignment.Center
             };
 
-            var maxAvatars = 3;
+            var maxAvatars = 4;
             foreach (var pracownik in task.Przypisani.Take(maxAvatars))
             {
-                var avatar = CreateAvatar(pracownik.Id, pracownik.Nazwa, 32);
+                var avatar = CreateAvatar(pracownik.Id, pracownik.Nazwa, 38);
                 if (avatar is FrameworkElement fe)
                 {
-                    fe.Margin = new Thickness(0, 0, -6, 0);
+                    fe.Margin = new Thickness(0, 0, -8, 0);
                     fe.ToolTip = pracownik.Nazwa;
                 }
                 avatarsPanel.Children.Add(avatar);
@@ -338,17 +338,17 @@ namespace Kalendarz1.Zadania
             {
                 var more = new Border
                 {
-                    Width = 32,
-                    Height = 32,
-                    CornerRadius = new CornerRadius(16),
+                    Width = 38,
+                    Height = 38,
+                    CornerRadius = new CornerRadius(19),
                     Background = new SolidColorBrush(Color.FromRgb(0x3a, 0x3a, 0x5c)),
-                    Margin = new Thickness(2, 0, 0, 0)
+                    Margin = new Thickness(4, 0, 0, 0)
                 };
                 more.Child = new TextBlock
                 {
                     Text = $"+{task.Przypisani.Count - maxAvatars}",
                     Foreground = Brushes.White,
-                    FontSize = 11,
+                    FontSize = 12,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center
                 };
@@ -474,7 +474,7 @@ namespace Kalendarz1.Zadania
             {
                 Text = initials,
                 Foreground = Brushes.White,
-                FontSize = size / 2.8,
+                FontSize = size / 2.5,
                 FontWeight = FontWeights.SemiBold,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
