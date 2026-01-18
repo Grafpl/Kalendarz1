@@ -535,6 +535,34 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     ).ToList();
                 }
 
+                // Pobierz osobno liczby sprzedanych i anulowanych dla każdego dnia (bez filtrowania)
+                var countsByDay = new Dictionary<DateTime, (int sprzedane, int anulowane)>();
+                using (SqlConnection conn2 = new SqlConnection(ConnectionString))
+                {
+                    await conn2.OpenAsync(_cts.Token);
+                    string countSql = @"SELECT DataOdbioru,
+                        SUM(CASE WHEN bufor = 'Sprzedany' THEN 1 ELSE 0 END) as Sprzedane,
+                        SUM(CASE WHEN bufor = 'Anulowany' THEN 1 ELSE 0 END) as Anulowane
+                        FROM HarmonogramDostaw
+                        WHERE DataOdbioru >= @startDate AND DataOdbioru < @endDate
+                        GROUP BY DataOdbioru";
+                    using (SqlCommand cmd2 = new SqlCommand(countSql, conn2))
+                    {
+                        cmd2.Parameters.AddWithValue("@startDate", startOfWeek);
+                        cmd2.Parameters.AddWithValue("@endDate", endOfWeek);
+                        using (var reader2 = await cmd2.ExecuteReaderAsync(_cts.Token))
+                        {
+                            while (await reader2.ReadAsync(_cts.Token))
+                            {
+                                DateTime date = Convert.ToDateTime(reader2["DataOdbioru"]).Date;
+                                int sprzedane = Convert.ToInt32(reader2["Sprzedane"]);
+                                int anulowane = Convert.ToInt32(reader2["Anulowane"]);
+                                countsByDay[date] = (sprzedane, anulowane);
+                            }
+                        }
+                    }
+                }
+
                 // Zachowaj pełną listę do wyszukiwania
                 if (collection == _dostawy)
                     _allDostawy = new List<DostawaModel>(tempList);
@@ -604,9 +632,14 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         double sredniaKM = sumaAuta > 0 ? sumaKMPomnozona / sumaAuta : 0;
                         double sredniaDoby = iloscZDoby > 0 ? sumaDobyPomnozona / iloscZDoby : 0;
 
-                        // Policz sprzedane i anulowane dla tego dnia
-                        int liczbaSprzedanych = deliveries.Count(d => d.Bufor == "Sprzedany");
-                        int liczbaAnulowanych = deliveries.Count(d => d.Bufor == "Anulowany");
+                        // Pobierz liczby sprzedanych i anulowanych z osobnego zapytania
+                        int liczbaSprzedanych = 0;
+                        int liczbaAnulowanych = 0;
+                        if (countsByDay.TryGetValue(currentDay.Date, out var counts))
+                        {
+                            liczbaSprzedanych = counts.sprzedane;
+                            liczbaAnulowanych = counts.anulowane;
+                        }
 
                         // Dodaj wiersz nagłówka dnia z sumami
                         collection.Add(new DostawaModel
@@ -1643,6 +1676,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                     // Dostawa
                                     dpData.SelectedDate = r["DataOdbioru"] != DBNull.Value ? Convert.ToDateTime(r["DataOdbioru"]) : (DateTime?)null;
                                     cmbStatus.SelectedItem = r["bufor"]?.ToString();
+                                    CmbStatus_SelectionChanged(null, null); // Aktualizuj kolor
                                     txtAuta.Text = r["Auta"]?.ToString();
                                     txtSztuki.Text = r["SztukiDek"]?.ToString();
                                     txtWagaDek.Text = r["WagaDek"]?.ToString();
@@ -2405,6 +2439,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                 // Dostawa
                                 dpData.SelectedDate = r["DataOdbioru"] != DBNull.Value ? Convert.ToDateTime(r["DataOdbioru"]) : (DateTime?)null;
                                 cmbStatus.SelectedItem = r["bufor"]?.ToString();
+                                CmbStatus_SelectionChanged(null, null); // Aktualizuj kolor
                                 txtAuta.Text = r["Auta"]?.ToString();
                                 txtSztuki.Text = r["SztukiDek"]?.ToString();
                                 txtWagaDek.Text = r["WagaDek"]?.ToString();
@@ -3065,6 +3100,40 @@ namespace Kalendarz1.Zywiec.Kalendarz
             if (!string.IsNullOrEmpty(hodowca))
             {
                 LoadLpWstawieniaForHodowca(hodowca);
+            }
+        }
+
+        private void CmbStatus_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (cmbStatus == null) return;
+            string status = cmbStatus.SelectedItem?.ToString();
+
+            switch (status)
+            {
+                case "Potwierdzony":
+                    cmbStatus.Background = new SolidColorBrush(Color.FromRgb(34, 197, 94)); // Green
+                    cmbStatus.Foreground = Brushes.White;
+                    break;
+                case "Anulowany":
+                    cmbStatus.Background = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Red
+                    cmbStatus.Foreground = Brushes.White;
+                    break;
+                case "Sprzedany":
+                    cmbStatus.Background = new SolidColorBrush(Color.FromRgb(59, 130, 246)); // Blue
+                    cmbStatus.Foreground = Brushes.White;
+                    break;
+                case "B.Wolny.":
+                    cmbStatus.Background = new SolidColorBrush(Color.FromRgb(250, 204, 21)); // Yellow
+                    cmbStatus.Foreground = Brushes.Black;
+                    break;
+                case "B.Kontr.":
+                    cmbStatus.Background = new SolidColorBrush(Color.FromRgb(168, 85, 247)); // Purple
+                    cmbStatus.Foreground = Brushes.White;
+                    break;
+                default:
+                    cmbStatus.Background = Brushes.White;
+                    cmbStatus.Foreground = Brushes.Black;
+                    break;
             }
         }
 

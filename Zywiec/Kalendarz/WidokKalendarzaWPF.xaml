@@ -685,15 +685,25 @@
                                                                 <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
                                                                     <Setter Property="Visibility" Value="Collapsed"/>
                                                                 </DataTrigger>
-                                                                <!-- Notatka z 2-3 dni - żółta czcionka bez pulsowania -->
+                                                                <!-- Notatka z 2-3 dni - żółta czcionka z czarnym obramowaniem -->
                                                                 <DataTrigger Binding="{Binding IsRecentNote}" Value="True">
                                                                     <Setter Property="Foreground" Value="#EAB308"/>
                                                                     <Setter Property="FontWeight" Value="SemiBold"/>
+                                                                    <Setter Property="Effect">
+                                                                        <Setter.Value>
+                                                                            <DropShadowEffect ShadowDepth="0" BlurRadius="1" Color="Black" Opacity="0.8"/>
+                                                                        </Setter.Value>
+                                                                    </Setter>
                                                                 </DataTrigger>
-                                                                <!-- Notatka z 1 dnia - czerwona pulsująca -->
+                                                                <!-- Notatka z 1 dnia - czerwona pulsująca z czarnym obramowaniem -->
                                                                 <DataTrigger Binding="{Binding IsVeryRecentNote}" Value="True">
                                                                     <Setter Property="Foreground" Value="#DC2626"/>
                                                                     <Setter Property="FontWeight" Value="Bold"/>
+                                                                    <Setter Property="Effect">
+                                                                        <Setter.Value>
+                                                                            <DropShadowEffect ShadowDepth="0" BlurRadius="1" Color="Black" Opacity="0.8"/>
+                                                                        </Setter.Value>
+                                                                    </Setter>
                                                                     <DataTrigger.EnterActions>
                                                                         <BeginStoryboard>
                                                                             <Storyboard RepeatBehavior="Forever">
@@ -938,15 +948,25 @@
                                                             <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
                                                                 <Setter Property="Visibility" Value="Collapsed"/>
                                                             </DataTrigger>
-                                                            <!-- Notatka z 2-3 dni - żółta czcionka bez pulsowania -->
+                                                            <!-- Notatka z 2-3 dni - żółta czcionka z czarnym obramowaniem -->
                                                             <DataTrigger Binding="{Binding IsRecentNote}" Value="True">
                                                                 <Setter Property="Foreground" Value="#EAB308"/>
                                                                 <Setter Property="FontWeight" Value="SemiBold"/>
+                                                                <Setter Property="Effect">
+                                                                    <Setter.Value>
+                                                                        <DropShadowEffect ShadowDepth="0" BlurRadius="1" Color="Black" Opacity="0.8"/>
+                                                                    </Setter.Value>
+                                                                </Setter>
                                                             </DataTrigger>
-                                                            <!-- Notatka z 1 dnia - czerwona pulsująca -->
+                                                            <!-- Notatka z 1 dnia - czerwona pulsująca z czarnym obramowaniem -->
                                                             <DataTrigger Binding="{Binding IsVeryRecentNote}" Value="True">
                                                                 <Setter Property="Foreground" Value="#DC2626"/>
                                                                 <Setter Property="FontWeight" Value="Bold"/>
+                                                                <Setter Property="Effect">
+                                                                    <Setter.Value>
+                                                                        <DropShadowEffect ShadowDepth="0" BlurRadius="1" Color="Black" Opacity="0.8"/>
+                                                                    </Setter.Value>
+                                                                </Setter>
                                                                 <DataTrigger.EnterActions>
                                                                     <BeginStoryboard>
                                                                         <Storyboard RepeatBehavior="Forever">
@@ -1556,7 +1576,13 @@
                                                     <TextBlock Text="📅" FontSize="10" VerticalAlignment="Center" Margin="0,0,3,0"/>
                                                     <DatePicker x:Name="dpData" FontSize="9" Width="95"/>
                                                 </StackPanel>
-                                                <ComboBox x:Name="cmbStatus" Grid.Column="1" FontSize="9" Margin="2,0"/>
+                                                <ComboBox x:Name="cmbStatus" Grid.Column="1" FontSize="9" Margin="2,0" SelectionChanged="CmbStatus_SelectionChanged">
+                                                    <ComboBox.Style>
+                                                        <Style TargetType="ComboBox">
+                                                            <Setter Property="Padding" Value="4,2"/>
+                                                        </Style>
+                                                    </ComboBox.Style>
+                                                </ComboBox>
                                                 <ComboBox x:Name="cmbTypCeny" Grid.Column="2" FontSize="9" Margin="2,0"/>
                                                 <ComboBox x:Name="cmbTypUmowy" Grid.Column="3" FontSize="9" Margin="2,0,0,0"/>
                                             </Grid>
