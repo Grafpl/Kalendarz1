@@ -181,18 +181,11 @@
             </Grid>
         </Border>
 
-        <!-- Tasks List -->
-        <Border Grid.Row="2" Background="#252542" CornerRadius="8" Padding="10">
+        <!-- Tasks List - Timeline View -->
+        <Border Grid.Row="2" Background="#252542" CornerRadius="8" Padding="15">
             <Grid>
-                <!-- List with two columns -->
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <ItemsControl x:Name="tasksList">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <UniformGrid Columns="2"/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                    </ItemsControl>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel x:Name="timelineContainer"/>
                 </ScrollViewer>
 
                 <!-- Empty state -->

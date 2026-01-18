@@ -146,15 +146,314 @@ namespace Kalendarz1.Zadania
             }
 
             var result = filtered.ToList();
+            BuildTimelineView(result);
+            emptyState.Visibility = result.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
 
-            // Buduj listę zadań z avatarami
-            tasksList.Items.Clear();
-            foreach (var task in result)
+        private void BuildTimelineView(List<ZadanieViewModel> tasks)
+        {
+            timelineContainer.Children.Clear();
+
+            var today = DateTime.Today;
+            var tomorrow = today.AddDays(1);
+            var weekEnd = today.AddDays(7);
+
+            // Grupowanie zadań
+            var overdue = tasks.Where(t => !t.Wykonane && t.TerminWykonania.Date < today).OrderBy(t => t.TerminWykonania).ToList();
+            var todayTasks = tasks.Where(t => !t.Wykonane && t.TerminWykonania.Date == today).OrderBy(t => t.TerminWykonania).ToList();
+            var tomorrowTasks = tasks.Where(t => !t.Wykonane && t.TerminWykonania.Date == tomorrow).OrderBy(t => t.TerminWykonania).ToList();
+            var thisWeek = tasks.Where(t => !t.Wykonane && t.TerminWykonania.Date > tomorrow && t.TerminWykonania.Date <= weekEnd).OrderBy(t => t.TerminWykonania).ToList();
+            var later = tasks.Where(t => !t.Wykonane && t.TerminWykonania.Date > weekEnd).OrderBy(t => t.TerminWykonania).ToList();
+            var completed = tasks.Where(t => t.Wykonane).OrderByDescending(t => t.TerminWykonania).ToList();
+
+            // Buduj sekcje
+            if (overdue.Count > 0)
+                AddTimelineSection("Zaległe", "#f44336", "⚠️", overdue);
+            if (todayTasks.Count > 0)
+                AddTimelineSection("Dziś", "#FF9800", "📅", todayTasks);
+            if (tomorrowTasks.Count > 0)
+                AddTimelineSection("Jutro", "#2196F3", "📆", tomorrowTasks);
+            if (thisWeek.Count > 0)
+                AddTimelineSection("Ten tydzień", "#9C27B0", "🗓️", thisWeek);
+            if (later.Count > 0)
+                AddTimelineSection("Później", "#607D8B", "📋", later);
+            if (completed.Count > 0)
+                AddTimelineSection("Wykonane", "#4CAF50", "✅", completed);
+        }
+
+        private void AddTimelineSection(string title, string colorHex, string icon, List<ZadanieViewModel> tasks)
+        {
+            var color = (Color)ColorConverter.ConvertFromString(colorHex);
+
+            // Sekcja header
+            var header = new Grid { Margin = new Thickness(0, 10, 0, 8) };
+            header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var iconText = new TextBlock
             {
-                tasksList.Items.Add(CreateTaskItem(task));
+                Text = icon,
+                FontSize = 18,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+            Grid.SetColumn(iconText, 0);
+            header.Children.Add(iconText);
+
+            var titleText = new TextBlock
+            {
+                Text = title,
+                FontSize = 16,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(color),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(titleText, 1);
+            header.Children.Add(titleText);
+
+            var line = new Border
+            {
+                Height = 1,
+                Background = new SolidColorBrush(Color.FromRgb(0x3a, 0x3a, 0x5c)),
+                Margin = new Thickness(15, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(line, 2);
+            header.Children.Add(line);
+
+            var countBadge = new Border
+            {
+                Background = new SolidColorBrush(color),
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(8, 2, 8, 2),
+                Margin = new Thickness(10, 0, 0, 0)
+            };
+            countBadge.Child = new TextBlock
+            {
+                Text = tasks.Count.ToString(),
+                Foreground = Brushes.White,
+                FontSize = 12,
+                FontWeight = FontWeights.SemiBold
+            };
+            Grid.SetColumn(countBadge, 3);
+            header.Children.Add(countBadge);
+
+            timelineContainer.Children.Add(header);
+
+            // Zadania w sekcji
+            foreach (var task in tasks)
+            {
+                timelineContainer.Children.Add(CreateTaskRow(task));
+            }
+        }
+
+        private Border CreateTaskRow(ZadanieViewModel task)
+        {
+            var row = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(0x1e, 0x1e, 0x36)),
+                CornerRadius = new CornerRadius(6),
+                Margin = new Thickness(0, 2, 0, 2),
+                Padding = new Thickness(12, 8, 12, 8),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });      // Checkbox
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Title + badges
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });         // Avatars
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });      // Time
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });         // Actions
+
+            // Checkbox
+            var checkboxBorder = new Border
+            {
+                Width = 22,
+                Height = 22,
+                CornerRadius = new CornerRadius(4),
+                Background = task.Wykonane
+                    ? new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50))
+                    : new SolidColorBrush(Color.FromRgb(0x3a, 0x3a, 0x5c)),
+                BorderBrush = task.Wykonane
+                    ? new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50))
+                    : new SolidColorBrush(Color.FromRgb(0x5a, 0x5a, 0x7c)),
+                BorderThickness = new Thickness(2),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                VerticalAlignment = VerticalAlignment.Center,
+                Tag = task.Id
+            };
+            checkboxBorder.Child = new TextBlock
+            {
+                Text = task.Wykonane ? "✓" : "",
+                Foreground = Brushes.White,
+                FontSize = 12,
+                FontWeight = FontWeights.Bold,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            checkboxBorder.MouseLeftButtonUp += (s, ev) =>
+            {
+                var id = (int)((Border)s).Tag;
+                var t = allTasks.FirstOrDefault(x => x.Id == id);
+                if (t != null)
+                {
+                    t.Wykonane = !t.Wykonane;
+                    UpdateTaskInDatabase(id, t.Wykonane);
+                    UpdateStats();
+                    ApplyFilters();
+                }
+            };
+            Grid.SetColumn(checkboxBorder, 0);
+            grid.Children.Add(checkboxBorder);
+
+            // Title + Priority badge
+            var titleStack = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(5, 0, 10, 0)
+            };
+
+            var priorityDot = new Ellipse
+            {
+                Width = 8,
+                Height = 8,
+                Fill = task.PriorityColor,
+                Margin = new Thickness(0, 0, 8, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            titleStack.Children.Add(priorityDot);
+
+            var titleText = new TextBlock
+            {
+                Text = task.TypZadania,
+                Foreground = task.Wykonane ? new SolidColorBrush(Color.FromRgb(0x66, 0x66, 0x66)) : Brushes.White,
+                FontSize = 13,
+                TextDecorations = task.TextDecoration,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            };
+            titleStack.Children.Add(titleText);
+
+            if (task.Zespolowe)
+            {
+                var teamIcon = new TextBlock
+                {
+                    Text = "👥",
+                    FontSize = 12,
+                    Margin = new Thickness(8, 0, 0, 0),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    ToolTip = "Zadanie zespołowe"
+                };
+                titleStack.Children.Add(teamIcon);
             }
 
-            emptyState.Visibility = result.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            Grid.SetColumn(titleStack, 1);
+            grid.Children.Add(titleStack);
+
+            // Avatars
+            var avatarsPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 10, 0)
+            };
+
+            foreach (var pracownik in task.Przypisani.Take(3))
+            {
+                var avatar = CreateAvatar(pracownik.Id, pracownik.Nazwa, 28);
+                if (avatar is FrameworkElement fe)
+                {
+                    fe.Margin = new Thickness(0, 0, -6, 0);
+                    fe.ToolTip = pracownik.Nazwa;
+                }
+                avatarsPanel.Children.Add(avatar);
+            }
+
+            if (task.Przypisani.Count > 3)
+            {
+                var more = new Border
+                {
+                    Width = 28,
+                    Height = 28,
+                    CornerRadius = new CornerRadius(14),
+                    Background = new SolidColorBrush(Color.FromRgb(0x3a, 0x3a, 0x5c)),
+                    Margin = new Thickness(2, 0, 0, 0)
+                };
+                more.Child = new TextBlock
+                {
+                    Text = $"+{task.Przypisani.Count - 3}",
+                    Foreground = Brushes.White,
+                    FontSize = 10,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                avatarsPanel.Children.Add(more);
+            }
+
+            Grid.SetColumn(avatarsPanel, 2);
+            grid.Children.Add(avatarsPanel);
+
+            // Time
+            var timeText = new TextBlock
+            {
+                Text = task.TerminWykonania.ToString("HH:mm"),
+                Foreground = task.TerminColor,
+                FontSize = 12,
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 0, 10, 0)
+            };
+            Grid.SetColumn(timeText, 3);
+            grid.Children.Add(timeText);
+
+            // Action buttons
+            var actionsPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            var editBtn = new Button
+            {
+                Content = "✏️",
+                Background = Brushes.Transparent,
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(6, 2, 6, 2),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Tag = task.Id,
+                FontSize = 12
+            };
+            editBtn.Click += BtnEdytuj_Click;
+            actionsPanel.Children.Add(editBtn);
+
+            var deleteBtn = new Button
+            {
+                Content = "🗑️",
+                Background = Brushes.Transparent,
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(6, 2, 6, 2),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Tag = task.Id,
+                FontSize = 12
+            };
+            deleteBtn.Click += BtnUsun_Click;
+            actionsPanel.Children.Add(deleteBtn);
+
+            Grid.SetColumn(actionsPanel, 4);
+            grid.Children.Add(actionsPanel);
+
+            row.Child = grid;
+
+            // Hover effect
+            row.MouseEnter += (s, e) => row.Background = new SolidColorBrush(Color.FromRgb(0x28, 0x28, 0x45));
+            row.MouseLeave += (s, e) => row.Background = new SolidColorBrush(Color.FromRgb(0x1e, 0x1e, 0x36));
+
+            return row;
         }
 
         private Border CreateTaskItem(ZadanieViewModel task)
