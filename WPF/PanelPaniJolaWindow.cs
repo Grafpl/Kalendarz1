@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -31,11 +34,39 @@ namespace Kalendarz1.WPF
         private bool _isAutoPlay = true; // AUTO włączone domyślnie
         private DispatcherTimer? _autoTimer;
         private DispatcherTimer? _clockTimer;
+        private DispatcherTimer? _cameraTimer;
         private int _autoCountdown = 40; // 40 sekund
         private TextBlock? _clockText;
         private TextBlock? _countdownText;
         private ProgressBar? _countdownBar;
         private Grid _mainContainer;
+
+        // Kamery - konfiguracja
+        private static readonly List<CameraConfig> _cameras = new()
+        {
+            new CameraConfig
+            {
+                Name = "Kamera 1",
+                SnapshotUrl = "http://192.168.0.211/ISAPI/Streaming/channels/101/picture",
+                Username = "admin",
+                Password = "terePacja$12"
+            }
+            // Druga kamera - dodaj gdy będzie dostępna
+            // new CameraConfig { Name = "Kamera 2", SnapshotUrl = "...", Username = "...", Password = "..." }
+        };
+
+        private class CameraConfig
+        {
+            public string Name { get; set; } = "";
+            public string SnapshotUrl { get; set; } = "";
+            public string Username { get; set; } = "";
+            public string Password { get; set; } = "";
+        }
+
+        // Obrazy kamer do aktualizacji
+        private Image? _camera1Image;
+        private Image? _camera2Image;
+        private readonly HttpClient _httpClient;
 
         // Klasy danych
         private class ProductData
@@ -66,6 +97,13 @@ namespace Kalendarz1.WPF
             _connHandel = connHandel;
             _selectedDate = GetDefaultDate();
 
+            // HttpClient dla kamer z Basic Auth
+            var handler = new HttpClientHandler
+            {
+                Credentials = new NetworkCredential(_cameras.FirstOrDefault()?.Username ?? "", _cameras.FirstOrDefault()?.Password ?? "")
+            };
+            _httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(5) };
+
             Title = "Panel Pani Joli";
             WindowState = WindowState.Maximized;
             WindowStyle = WindowStyle.None;
@@ -76,7 +114,7 @@ namespace Kalendarz1.WPF
             Content = _mainContainer;
 
             Loaded += async (s, e) => await InitializeAsync();
-            Closed += (s, e) => { _autoTimer?.Stop(); _clockTimer?.Stop(); };
+            Closed += (s, e) => { _autoTimer?.Stop(); _clockTimer?.Stop(); _cameraTimer?.Stop(); _httpClient?.Dispose(); };
 
             KeyDown += (s, e) =>
             {
@@ -822,8 +860,11 @@ namespace Kalendarz1.WPF
             camerasGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             camerasGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
+            // Funkcja otwierająca kamerę na pełny ekran
             Action<int> openFullscreenCamera = (cameraNum) =>
             {
+                if (cameraNum > _cameras.Count) return;
+
                 var fullscreenWindow = new Window
                 {
                     Title = $"Kamera {cameraNum}",
@@ -833,41 +874,121 @@ namespace Kalendarz1.WPF
                     ResizeMode = ResizeMode.NoResize,
                     Topmost = true
                 };
+
                 var fullscreenGrid = new Grid();
-                var cameraContent = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-                cameraContent.Children.Add(new TextBlock { Text = "📹", FontSize = 200, HorizontalAlignment = HorizontalAlignment.Center });
-                cameraContent.Children.Add(new TextBlock { Text = $"KAMERA {cameraNum}", FontSize = 72, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(52, 152, 219)), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 20, 0, 0) });
-                cameraContent.Children.Add(new TextBlock { Text = "Kliknij aby zamknąć", FontSize = 18, Foreground = new SolidColorBrush(Color.FromRgb(80, 90, 100)), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 40, 0, 0) });
-                fullscreenGrid.Children.Add(cameraContent);
-                var closeBtn = new Border { Background = new SolidColorBrush(Color.FromRgb(231, 76, 60)), CornerRadius = new CornerRadius(10), Padding = new Thickness(25, 15, 25, 15), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 30, 30, 0), Cursor = System.Windows.Input.Cursors.Hand };
+                var fullscreenImage = new Image { Stretch = Stretch.Uniform };
+                fullscreenGrid.Children.Add(fullscreenImage);
+
+                // Timer do odświeżania obrazu w fullscreen
+                var fullscreenTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+                fullscreenTimer.Tick += async (ts, te) =>
+                {
+                    var img = await LoadCameraSnapshotAsync(cameraNum - 1);
+                    if (img != null) fullscreenImage.Source = img;
+                };
+                fullscreenTimer.Start();
+
+                // Załaduj pierwszy obraz od razu
+                _ = Task.Run(async () =>
+                {
+                    var img = await LoadCameraSnapshotAsync(cameraNum - 1);
+                    Dispatcher.Invoke(() => { if (img != null) fullscreenImage.Source = img; });
+                });
+
+                var closeBtn = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(231, 76, 60)),
+                    CornerRadius = new CornerRadius(10),
+                    Padding = new Thickness(25, 15, 25, 15),
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                    VerticalAlignment = VerticalAlignment.Top,
+                    Margin = new Thickness(0, 30, 30, 0),
+                    Cursor = System.Windows.Input.Cursors.Hand
+                };
                 closeBtn.Child = new TextBlock { Text = "✕ ZAMKNIJ", FontSize = 24, FontWeight = FontWeights.Bold, Foreground = Brushes.White };
-                closeBtn.MouseLeftButtonDown += (s, e) => { fullscreenWindow.Close(); e.Handled = true; };
+                closeBtn.MouseLeftButtonDown += (s, e) => { fullscreenTimer.Stop(); fullscreenWindow.Close(); e.Handled = true; };
                 fullscreenGrid.Children.Add(closeBtn);
+
                 fullscreenWindow.Content = fullscreenGrid;
-                fullscreenGrid.MouseLeftButtonDown += (s, e) => fullscreenWindow.Close();
-                fullscreenWindow.KeyDown += (s, e) => { if (e.Key == System.Windows.Input.Key.Escape) fullscreenWindow.Close(); };
+                fullscreenWindow.KeyDown += (s, e) => { if (e.Key == System.Windows.Input.Key.Escape) { fullscreenTimer.Stop(); fullscreenWindow.Close(); } };
+                fullscreenWindow.Closed += (s, e) => fullscreenTimer.Stop();
                 fullscreenWindow.ShowDialog();
             };
 
-            var camera1Border = new Border { Background = new SolidColorBrush(Color.FromRgb(30, 35, 40)), CornerRadius = new CornerRadius(10), BorderBrush = new SolidColorBrush(Color.FromRgb(50, 55, 60)), BorderThickness = new Thickness(1), Margin = new Thickness(0, 0, 3, 0), Cursor = System.Windows.Input.Cursors.Hand };
-            var camera1Content = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-            camera1Content.Children.Add(new TextBlock { Text = "📹", FontSize = 50, HorizontalAlignment = HorizontalAlignment.Center });
-            camera1Content.Children.Add(new TextBlock { Text = "KAMERA 1", FontSize = 18, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(70, 80, 90)), HorizontalAlignment = HorizontalAlignment.Center });
-            camera1Content.Children.Add(new TextBlock { Text = "Kliknij = PEŁNY EKRAN", FontSize = 12, Foreground = new SolidColorBrush(Color.FromRgb(46, 204, 113)), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 5, 0, 0) });
-            camera1Border.Child = camera1Content;
+            // Kamera 1
+            var camera1Border = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(30, 35, 40)),
+                CornerRadius = new CornerRadius(10),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(50, 55, 60)),
+                BorderThickness = new Thickness(1),
+                Margin = new Thickness(0, 0, 3, 0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            var camera1Grid = new Grid();
+            _camera1Image = new Image { Stretch = Stretch.Uniform };
+            camera1Grid.Children.Add(_camera1Image);
+            // Nakładka z nazwą
+            var camera1Label = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)),
+                VerticalAlignment = VerticalAlignment.Bottom,
+                Padding = new Thickness(8, 4, 8, 4)
+            };
+            camera1Label.Child = new TextBlock
+            {
+                Text = _cameras.Count > 0 ? _cameras[0].Name : "KAMERA 1",
+                FontSize = 14,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+            camera1Grid.Children.Add(camera1Label);
+            camera1Border.Child = camera1Grid;
             camera1Border.MouseLeftButtonDown += (s, e) => openFullscreenCamera(1);
             Grid.SetColumn(camera1Border, 0);
             camerasGrid.Children.Add(camera1Border);
 
-            var camera2Border = new Border { Background = new SolidColorBrush(Color.FromRgb(30, 35, 40)), CornerRadius = new CornerRadius(10), BorderBrush = new SolidColorBrush(Color.FromRgb(50, 55, 60)), BorderThickness = new Thickness(1), Margin = new Thickness(3, 0, 0, 0), Cursor = System.Windows.Input.Cursors.Hand };
-            var camera2Content = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-            camera2Content.Children.Add(new TextBlock { Text = "📹", FontSize = 50, HorizontalAlignment = HorizontalAlignment.Center });
-            camera2Content.Children.Add(new TextBlock { Text = "KAMERA 2", FontSize = 18, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(70, 80, 90)), HorizontalAlignment = HorizontalAlignment.Center });
-            camera2Content.Children.Add(new TextBlock { Text = "Kliknij = PEŁNY EKRAN", FontSize = 12, Foreground = new SolidColorBrush(Color.FromRgb(46, 204, 113)), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 5, 0, 0) });
-            camera2Border.Child = camera2Content;
-            camera2Border.MouseLeftButtonDown += (s, e) => openFullscreenCamera(2);
+            // Kamera 2 (placeholder jeśli nie ma drugiej kamery)
+            var camera2Border = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(30, 35, 40)),
+                CornerRadius = new CornerRadius(10),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(50, 55, 60)),
+                BorderThickness = new Thickness(1),
+                Margin = new Thickness(3, 0, 0, 0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            if (_cameras.Count > 1)
+            {
+                var camera2Grid = new Grid();
+                _camera2Image = new Image { Stretch = Stretch.Uniform };
+                camera2Grid.Children.Add(_camera2Image);
+                var camera2Label = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)),
+                    VerticalAlignment = VerticalAlignment.Bottom,
+                    Padding = new Thickness(8, 4, 8, 4)
+                };
+                camera2Label.Child = new TextBlock { Text = _cameras[1].Name, FontSize = 14, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center };
+                camera2Grid.Children.Add(camera2Label);
+                camera2Border.Child = camera2Grid;
+                camera2Border.MouseLeftButtonDown += (s, e) => openFullscreenCamera(2);
+            }
+            else
+            {
+                // Placeholder dla drugiej kamery
+                var camera2Content = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+                camera2Content.Children.Add(new TextBlock { Text = "📹", FontSize = 50, HorizontalAlignment = HorizontalAlignment.Center, Foreground = new SolidColorBrush(Color.FromRgb(60, 70, 80)) });
+                camera2Content.Children.Add(new TextBlock { Text = "KAMERA 2", FontSize = 18, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(70, 80, 90)), HorizontalAlignment = HorizontalAlignment.Center });
+                camera2Content.Children.Add(new TextBlock { Text = "Nie skonfigurowana", FontSize = 12, Foreground = new SolidColorBrush(Color.FromRgb(100, 110, 120)), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 5, 0, 0) });
+                camera2Border.Child = camera2Content;
+            }
             Grid.SetColumn(camera2Border, 1);
             camerasGrid.Children.Add(camera2Border);
+
+            // Uruchom timer kamer (odświeżanie co 1 sekundę)
+            StartCameraTimer();
 
             Grid.SetRow(camerasGrid, 1);
             rightPanel.Children.Add(camerasGrid);
@@ -877,6 +998,74 @@ namespace Kalendarz1.WPF
 
             _mainContainer.Children.Add(mainGrid);
         }
+
+        #region Kamery
+
+        private void StartCameraTimer()
+        {
+            if (_cameraTimer != null) return;
+
+            _cameraTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            _cameraTimer.Tick += async (s, e) =>
+            {
+                // Odśwież kamerę 1
+                if (_camera1Image != null && _cameras.Count > 0)
+                {
+                    var img = await LoadCameraSnapshotAsync(0);
+                    if (img != null) _camera1Image.Source = img;
+                }
+
+                // Odśwież kamerę 2
+                if (_camera2Image != null && _cameras.Count > 1)
+                {
+                    var img = await LoadCameraSnapshotAsync(1);
+                    if (img != null) _camera2Image.Source = img;
+                }
+            };
+            _cameraTimer.Start();
+
+            // Załaduj pierwszy obraz od razu
+            _ = LoadInitialCameraImages();
+        }
+
+        private async Task LoadInitialCameraImages()
+        {
+            if (_cameras.Count > 0 && _camera1Image != null)
+            {
+                var img = await LoadCameraSnapshotAsync(0);
+                Dispatcher.Invoke(() => { if (img != null) _camera1Image.Source = img; });
+            }
+            if (_cameras.Count > 1 && _camera2Image != null)
+            {
+                var img = await LoadCameraSnapshotAsync(1);
+                Dispatcher.Invoke(() => { if (img != null) _camera2Image.Source = img; });
+            }
+        }
+
+        private async Task<BitmapImage?> LoadCameraSnapshotAsync(int cameraIndex)
+        {
+            if (cameraIndex >= _cameras.Count) return null;
+
+            try
+            {
+                var camera = _cameras[cameraIndex];
+                var response = await _httpClient.GetAsync(camera.SnapshotUrl);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var data = await response.Content.ReadAsByteArrayAsync();
+                    return BytesToBitmapImage(data);
+                }
+            }
+            catch
+            {
+                // Ignoruj błędy połączenia - kamera może być niedostępna
+            }
+
+            return null;
+        }
+
+        #endregion
 
         private Border CreateStatBox(string label, string value, Color color)
         {
