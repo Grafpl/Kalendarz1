@@ -423,8 +423,7 @@ namespace Kalendarz1.Zadania
                 FontSize = 11,
                 FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(color),
-                VerticalAlignment = VerticalAlignment.Center,
-                LetterSpacing = 0.5
+                VerticalAlignment = VerticalAlignment.Center
             });
 
             contentPanel.Children.Add(header);
