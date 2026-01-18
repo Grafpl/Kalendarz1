@@ -91,45 +91,23 @@ namespace Kalendarz1
 
         private void ChkSeria_Checked(object sender, RoutedEventArgs e)
         {
-            // Pytanie czy użytkownik dobrze zrobił pierwsze wstawienie
-            var result = MessageBox.Show(
-                "Aby zrobić serię, najpierw zrób dobrze pierwsze wstawienie (Data + Sztuki), a później naciśnij 'Seria'.\n\nCzy wypełniłeś dane pierwszego wstawienia?",
-                "Seria wstawień",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
-
-            if (result == MessageBoxResult.Yes)
+            // Sprawdź czy pierwsze wstawienie jest wypełnione
+            if (dpDataWstawienia.SelectedDate == null || string.IsNullOrWhiteSpace(txtSztukiWstawienia.Text))
             {
-                // Sprawdź czy pierwsze wstawienie jest wypełnione
-                if (dpDataWstawienia.SelectedDate == null || string.IsNullOrWhiteSpace(txtSztukiWstawienia.Text))
-                {
-                    MessageBox.Show(
-                        "Najpierw wypełnij datę i ilość sztuk pierwszego wstawienia!",
-                        "Uwaga",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Warning);
-                    chkSeria.IsChecked = false;
-                    return;
-                }
-
                 MessageBox.Show(
-                    "Super! Wstawienie nr 1 zostanie zapisane automatycznie.\nTeraz dodaj kolejne wstawienia (nr 2, 3, ...).",
-                    "Informacja",
+                    "Najpierw wypełnij datę i ilość sztuk pierwszego wstawienia!",
+                    "Uwaga",
                     MessageBoxButton.OK,
-                    MessageBoxImage.Information);
-
-                trybSerii = true;
-                // NIE ukrywaj panelJednePodstawy - niech użytkownik widzi pierwsze wstawienie
-                panelSeria.Visibility = Visibility.Visible;
-
-                if (seriaRows.Count == 0)
-                    DodajWpisSerii();
-            }
-            else
-            {
-                // Odznacz checkbox jeśli użytkownik nie potwierdził
+                    MessageBoxImage.Warning);
                 chkSeria.IsChecked = false;
+                return;
             }
+
+            trybSerii = true;
+            panelSeria.Visibility = Visibility.Visible;
+
+            if (seriaRows.Count == 0)
+                DodajWpisSerii();
         }
 
         private void ChkSeria_Unchecked(object sender, RoutedEventArgs e)

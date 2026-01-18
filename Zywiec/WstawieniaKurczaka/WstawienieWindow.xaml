@@ -139,6 +139,7 @@
                                       Checked="ChkSeria_Checked" Unchecked="ChkSeria_Unchecked"/>
                             <CheckBox x:Name="chkDostawy" Content="🚚 Dostawy"
                                       FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"
+                                      IsChecked="True"
                                       Checked="ChkDostawy_Changed" Unchecked="ChkDostawy_Changed"/>
                         </StackPanel>
                     </Grid>
@@ -225,8 +226,8 @@
                     </StackPanel>
                 </Border>
 
-                <!-- SZABLON DOSTAW (ukryty domyślnie) -->
-                <Border x:Name="panelDostawy" Style="{StaticResource Card}" Visibility="Collapsed">
+                <!-- SZABLON DOSTAW -->
+                <Border x:Name="panelDostawy" Style="{StaticResource Card}" Visibility="Visible">
                     <StackPanel>
                         <Grid Margin="0,0,0,8">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
