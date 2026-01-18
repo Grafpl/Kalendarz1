@@ -401,12 +401,12 @@ namespace Kalendarz1
 
                     new MenuItemConfig("PanelPaniJola", "Panel Pani Jola",
                         "Uproszczony widok zamówień i produktów - duże kafelki, łatwa nawigacja",
-                        Color.FromArgb(233, 30, 99), // Różowy #E91E63
+                        Color.FromArgb(30, 136, 229), // Niebieski #1E88E5
                         () => {
                             var connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
                             var connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
                             return new WPF.PanelPaniJolaWindow(connLibra, connHandel);
-                        }, "👩‍🦳"),
+                        }, "📞"),
 
                     new MenuItemConfig("DokumentySprzedazy", "Faktury Sprzedaży",
                         "Przeglądanie i drukowanie faktur sprzedaży wraz z dokumentami WZ",
