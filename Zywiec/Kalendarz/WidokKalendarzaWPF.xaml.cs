@@ -1555,7 +1555,13 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                     txtSztNaSzufladeCalc.Text = r["SztSzuflada"]?.ToString();
 
                                     // Załadunek AVILOG - ustaw Szt na szufladę i przelicz
-                                    txtSztNaSzufladeWaga.Text = r["SztSzuflada"]?.ToString();
+                                    string sztSzuflada = r["SztSzuflada"]?.ToString();
+                                    txtSztNaSzufladeWaga.Text = sztSzuflada;
+                                    // Wiersz 2 = wiersz 1 - 1
+                                    if (int.TryParse(sztSzuflada, out int szt) && szt > 1)
+                                        txtSztNaSzufladeWaga2.Text = (szt - 1).ToString();
+                                    else
+                                        txtSztNaSzufladeWaga2.Text = sztSzuflada;
                                     CalculateZaladunekRow1();
                                     CalculateZaladunekRow2();
                                 });
@@ -2090,7 +2096,13 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                 txtSztNaSzufladeCalc.Text = r["SztSzuflada"]?.ToString();
 
                                 // Załadunek AVILOG - ustaw Szt na szufladę i przelicz
-                                txtSztNaSzufladeWaga.Text = r["SztSzuflada"]?.ToString();
+                                string sztSzuflada = r["SztSzuflada"]?.ToString();
+                                txtSztNaSzufladeWaga.Text = sztSzuflada;
+                                // Wiersz 2 = wiersz 1 - 1
+                                if (int.TryParse(sztSzuflada, out int szt) && szt > 1)
+                                    txtSztNaSzufladeWaga2.Text = (szt - 1).ToString();
+                                else
+                                    txtSztNaSzufladeWaga2.Text = sztSzuflada;
                                 CalculateZaladunekRow1();
                                 CalculateZaladunekRow2();
                             }
@@ -2779,16 +2791,23 @@ namespace Kalendarz1.Zywiec.Kalendarz
             }
         }
 
-        // Synchronizacja Szt/szuflade z DANE DOSTAWY do ZAŁADUNEK AVILOG (tylko wiersz 1)
+        // Synchronizacja Szt/szuflade z DANE DOSTAWY do ZAŁADUNEK AVILOG
         private void TxtSztNaSzuflade_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (txtSztNaSzufladeWaga == null) return;
+            if (txtSztNaSzufladeWaga == null || txtSztNaSzufladeWaga2 == null) return;
 
-            // Kopiuj wartość tylko do wiersza 1 (wiersz 2 jest edytowalny)
+            // Kopiuj wartość do wiersza 1
             txtSztNaSzufladeWaga.Text = txtSztNaSzuflade.Text;
+
+            // Wiersz 2 = wiersz 1 - 1
+            if (int.TryParse(txtSztNaSzuflade.Text, out int szt) && szt > 1)
+                txtSztNaSzufladeWaga2.Text = (szt - 1).ToString();
+            else
+                txtSztNaSzufladeWaga2.Text = txtSztNaSzuflade.Text;
 
             // Przelicz wartości
             CalculateZaladunekRow1();
+            CalculateZaladunekRow2();
         }
 
         // Wiersz 2 - edytowalny Szt/szuflade
