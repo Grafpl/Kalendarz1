@@ -200,13 +200,12 @@ namespace Kalendarz1.Zadania
                             Z.Wykonane,
                             Z.Opis,
                             Z.DataUtworzenia,
-                            o.Nazwa AS OperatorNazwa
+                            o.Name AS OperatorNazwa
                         FROM Zadania Z
                         LEFT JOIN ZadaniaPrzypisani zp ON Z.ID = zp.ZadanieID
-                        LEFT JOIN Operatorzy o ON Z.OperatorID = o.ID
+                        LEFT JOIN operators o ON Z.OperatorID = o.ID
                         WHERE (Z.OperatorID = @id OR zp.OperatorID = @id)
                           AND Z.Wykonane = 0
-                          AND Z.TerminWykonania <= DATEADD(DAY, 14, GETDATE())
                         ORDER BY Z.Priorytet DESC, Z.TerminWykonania ASC", conn);
 
                     cmd.Parameters.AddWithValue("@id", operatorId);
@@ -247,10 +246,9 @@ namespace Kalendarz1.Zadania
             try
             {
                 var cmd = new SqlCommand(@"
-                    SELECT o.ID, o.Nazwa
-                    FROM ZadaniaPrzypisani zp
-                    JOIN Operatorzy o ON zp.OperatorID = o.ID
-                    WHERE zp.ZadanieID = @taskId", conn);
+                    SELECT OperatorID, OperatorNazwa
+                    FROM ZadaniaPrzypisani
+                    WHERE ZadanieID = @taskId", conn);
 
                 cmd.Parameters.AddWithValue("@taskId", task.Id);
 
@@ -261,7 +259,7 @@ namespace Kalendarz1.Zadania
                         task.Assignees.Add(new TaskAssignee
                         {
                             OperatorId = reader.IsDBNull(0) ? "" : reader.GetString(0),
-                            Name = reader.IsDBNull(1) ? "" : reader.GetString(1)
+                            Name = reader.IsDBNull(1) ? reader.GetString(0) : reader.GetString(1)
                         });
                     }
                 }
@@ -291,17 +289,14 @@ namespace Kalendarz1.Zadania
                             s.Lokalizacja,
                             s.Status,
                             s.OrganizatorID,
-                            o.Nazwa AS OrganizatorNazwa,
+                            s.OrganizatorNazwa,
                             s.LinkSpotkania,
                             s.Opis,
                             s.Priorytet
                         FROM Spotkania s
-                        LEFT JOIN Operatorzy o ON s.OrganizatorID = o.ID
                         LEFT JOIN SpotkaniaUczestnicy su ON s.SpotkaniID = su.SpotkaniID
                         WHERE (s.OrganizatorID = @id OR su.OperatorID = @id)
-                          AND s.Status IN ('Zaplanowane', 'W trakcie')
-                          AND s.DataSpotkania >= DATEADD(HOUR, -2, GETDATE())
-                          AND s.DataSpotkania <= DATEADD(DAY, 14, GETDATE())
+                          AND s.Status = 'Zaplanowane'
                         ORDER BY s.DataSpotkania ASC", conn);
 
                     cmd.Parameters.AddWithValue("@id", operatorId);
@@ -356,14 +351,12 @@ namespace Kalendarz1.Zadania
             {
                 var cmd = new SqlCommand(@"
                     SELECT
-                        su.OperatorID,
-                        o.Nazwa,
-                        su.StatusZaproszenia,
-                        su.CzyObowiazkowy,
-                        o.Email
-                    FROM SpotkaniaUczestnicy su
-                    LEFT JOIN Operatorzy o ON su.OperatorID = o.ID
-                    WHERE su.SpotkaniID = @meetingId", conn);
+                        OperatorID,
+                        OperatorNazwa,
+                        StatusZaproszenia,
+                        CzyObowiazkowy
+                    FROM SpotkaniaUczestnicy
+                    WHERE SpotkaniID = @meetingId", conn);
 
                 cmd.Parameters.AddWithValue("@meetingId", meeting.Id);
 
@@ -374,10 +367,10 @@ namespace Kalendarz1.Zadania
                         meeting.Attendees.Add(new MeetingAttendee
                         {
                             OperatorId = reader.IsDBNull(0) ? "" : reader.GetString(0),
-                            Name = reader.IsDBNull(1) ? "" : reader.GetString(1),
+                            Name = reader.IsDBNull(1) ? reader.GetString(0) : reader.GetString(1),
                             Status = reader.IsDBNull(2) ? "Oczekuje" : reader.GetString(2),
                             IsRequired = !reader.IsDBNull(3) && reader.GetBoolean(3),
-                            Email = reader.IsDBNull(4) ? "" : reader.GetString(4)
+                            Email = ""
                         });
                     }
                 }
