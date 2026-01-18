@@ -2232,21 +2232,33 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 targetGrid.SelectedItem = targetDostawa;
                 targetGrid.ScrollIntoView(targetDostawa);
 
-                // Dodatkowe podświetlenie (flash)
+                // Dodatkowe podświetlenie (pulsujące czarne)
                 var row = targetGrid.ItemContainerGenerator.ContainerFromItem(targetDostawa) as DataGridRow;
                 if (row != null)
                 {
                     var originalBackground = row.Background;
-                    row.Background = new SolidColorBrush(Color.FromRgb(253, 224, 71)); // Yellow highlight
 
-                    // Przywróć oryginalny kolor po 1.5 sekundy
-                    var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(1.5) };
-                    timer.Tick += (s, args) =>
+                    // Animacja pulsująca czarnego koloru - bardzo powolna
+                    var brush = new SolidColorBrush(Color.FromRgb(40, 40, 40)); // Czarny
+                    row.Background = brush;
+                    row.Foreground = Brushes.White;
+
+                    var pulseAnimation = new ColorAnimation
+                    {
+                        From = Color.FromRgb(40, 40, 40), // Czarny
+                        To = Color.FromRgb(80, 80, 80),   // Ciemnoszary
+                        Duration = TimeSpan.FromSeconds(2), // Bardzo powolna pulsacja
+                        AutoReverse = true,
+                        RepeatBehavior = new RepeatBehavior(3) // 3 pełne cykle pulsacji
+                    };
+
+                    pulseAnimation.Completed += (s, args) =>
                     {
                         row.Background = originalBackground;
-                        timer.Stop();
+                        row.Foreground = new SolidColorBrush(Color.FromRgb(33, 33, 33));
                     };
-                    timer.Start();
+
+                    brush.BeginAnimation(SolidColorBrush.ColorProperty, pulseAnimation);
                 }
 
                 ShowToast($"Przejście do dostawy: {targetDostawa.Dostawca}", ToastType.Info);

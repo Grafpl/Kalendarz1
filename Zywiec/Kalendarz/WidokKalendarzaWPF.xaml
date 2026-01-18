@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
-        Title="Kalendarz Dostaw - Harmonogram Żywca"
+        Title="Dostawy"
         Height="1000" Width="1920"
         WindowStartupLocation="CenterScreen"
         WindowState="Maximized"
@@ -534,9 +534,6 @@
                                                     <Style TargetType="Border">
                                                         <Setter Property="Background" Value="Transparent"/>
                                                         <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding PotwSztuki}" Value="True">
-                                                                <Setter Property="Background" Value="#C8E6C9"/>
-                                                            </DataTrigger>
                                                             <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
                                                                 <Setter Property="Background" Value="Transparent"/>
                                                             </DataTrigger>
@@ -556,9 +553,6 @@
                                                     <Style TargetType="Border">
                                                         <Setter Property="Background" Value="Transparent"/>
                                                         <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding PotwWaga}" Value="True">
-                                                                <Setter Property="Background" Value="#C8E6C9"/>
-                                                            </DataTrigger>
                                                             <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
                                                                 <Setter Property="Background" Value="Transparent"/>
                                                             </DataTrigger>
@@ -802,9 +796,6 @@
                                                 <Style TargetType="Border">
                                                     <Setter Property="Background" Value="Transparent"/>
                                                     <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding PotwSztuki}" Value="True">
-                                                            <Setter Property="Background" Value="#C8E6C9"/>
-                                                        </DataTrigger>
                                                         <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
                                                             <Setter Property="Background" Value="Transparent"/>
                                                         </DataTrigger>
@@ -824,9 +815,6 @@
                                                 <Style TargetType="Border">
                                                     <Setter Property="Background" Value="Transparent"/>
                                                     <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding PotwWaga}" Value="True">
-                                                            <Setter Property="Background" Value="#C8E6C9"/>
-                                                        </DataTrigger>
                                                         <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
                                                             <Setter Property="Background" Value="Transparent"/>
                                                         </DataTrigger>
