@@ -171,6 +171,9 @@
             </LinearGradientBrush>
         </Grid.Background>
 
+        <!-- Canvas dla efektu konfetti -->
+        <Canvas x:Name="confettiCanvas" IsHitTestVisible="False" />
+
         <Grid Margin="12">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>

@@ -2809,7 +2809,11 @@ namespace Kalendarz1
             {
                 UserID = App.UserID
             };
-            wstawienie.ShowDialog();
+
+            if (wstawienie.ShowDialog() == true)
+            {
+                ShowConfetti();
+            }
 
             RefreshAll();
         }
@@ -2843,6 +2847,94 @@ namespace Kalendarz1
             if (!string.IsNullOrEmpty(lpDostawa))
             {
                 LoadDostawy(lpDostawa);
+            }
+        }
+
+        // ====== EFEKT KONFETTI ======
+        private void ShowConfetti()
+        {
+            var random = new Random();
+            var colors = new[]
+            {
+                Color.FromRgb(255, 107, 107),  // czerwony
+                Color.FromRgb(255, 193, 7),    // żółty
+                Color.FromRgb(76, 175, 80),    // zielony
+                Color.FromRgb(33, 150, 243),   // niebieski
+                Color.FromRgb(156, 39, 176),   // fioletowy
+                Color.FromRgb(255, 152, 0),    // pomarańczowy
+                Color.FromRgb(0, 188, 212),    // cyjan
+                Color.FromRgb(233, 30, 99)     // różowy
+            };
+
+            int confettiCount = 80;
+
+            for (int i = 0; i < confettiCount; i++)
+            {
+                var confetti = new System.Windows.Shapes.Rectangle
+                {
+                    Width = random.Next(8, 14),
+                    Height = random.Next(8, 14),
+                    Fill = new SolidColorBrush(colors[random.Next(colors.Length)]),
+                    RenderTransformOrigin = new Point(0.5, 0.5),
+                    RenderTransform = new RotateTransform(random.Next(0, 360))
+                };
+
+                double startX = random.Next(0, (int)ActualWidth);
+                double startY = -20;
+
+                Canvas.SetLeft(confetti, startX);
+                Canvas.SetTop(confetti, startY);
+                confettiCanvas.Children.Add(confetti);
+
+                // Animacja spadania
+                double endY = ActualHeight + 50;
+                double horizontalDrift = random.Next(-150, 150);
+                double duration = random.NextDouble() * 2 + 2; // 2-4 sekundy
+                double delay = random.NextDouble() * 0.5;
+
+                var fallAnimation = new System.Windows.Media.Animation.DoubleAnimation
+                {
+                    From = startY,
+                    To = endY,
+                    Duration = TimeSpan.FromSeconds(duration),
+                    BeginTime = TimeSpan.FromSeconds(delay),
+                    EasingFunction = new System.Windows.Media.Animation.QuadraticEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseIn }
+                };
+
+                var driftAnimation = new System.Windows.Media.Animation.DoubleAnimation
+                {
+                    From = startX,
+                    To = startX + horizontalDrift,
+                    Duration = TimeSpan.FromSeconds(duration),
+                    BeginTime = TimeSpan.FromSeconds(delay)
+                };
+
+                var rotateAnimation = new System.Windows.Media.Animation.DoubleAnimation
+                {
+                    From = 0,
+                    To = random.Next(360, 720) * (random.Next(2) == 0 ? 1 : -1),
+                    Duration = TimeSpan.FromSeconds(duration),
+                    BeginTime = TimeSpan.FromSeconds(delay)
+                };
+
+                var fadeAnimation = new System.Windows.Media.Animation.DoubleAnimation
+                {
+                    From = 1,
+                    To = 0,
+                    Duration = TimeSpan.FromSeconds(0.5),
+                    BeginTime = TimeSpan.FromSeconds(delay + duration - 0.5)
+                };
+
+                var confettiRef = confetti;
+                fadeAnimation.Completed += (s, e) =>
+                {
+                    confettiCanvas.Children.Remove(confettiRef);
+                };
+
+                confetti.BeginAnimation(Canvas.TopProperty, fallAnimation);
+                confetti.BeginAnimation(Canvas.LeftProperty, driftAnimation);
+                ((RotateTransform)confetti.RenderTransform).BeginAnimation(RotateTransform.AngleProperty, rotateAnimation);
+                confetti.BeginAnimation(UIElement.OpacityProperty, fadeAnimation);
             }
         }
     }
