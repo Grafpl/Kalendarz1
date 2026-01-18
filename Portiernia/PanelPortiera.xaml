@@ -270,15 +270,85 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- Obraz z kamery - pełna szerokość, kliknięcie przełącza na AVILOG -->
-            <Border Grid.Row="0" Background="Black" Cursor="Hand" MouseLeftButtonUp="CameraView_Click">
+            <!-- Obraz z kamery - pełna szerokość -->
+            <Border Grid.Row="0" Background="Black">
                 <Grid>
                     <Image x:Name="cameraViewImage" Stretch="Uniform"/>
                     <TextBlock x:Name="cameraViewStatus" Text="Łączenie z kamerą..."
                                FontSize="28" Foreground="Gray"
                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                    <!-- Nazwa aktualnej kamery -->
+                    <Border Background="#80000000" CornerRadius="8" Padding="15,8"
+                            HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,15,0,0">
+                        <TextBlock x:Name="lblCurrentCameraName" Text="WJAZD" FontSize="18"
+                                   Foreground="White" FontWeight="Bold"/>
+                    </Border>
+
+                    <!-- Przycisk X - zamknij (prawy górny róg) -->
+                    <Button x:Name="btnCameraFullscreenClose" Click="BtnCameraFullscreenClose_Click"
+                            Width="60" Height="60" Cursor="Hand"
+                            HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,15,15,0"
+                            ToolTip="Zamknij (wróć do AVILOG)">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="border" Background="#CC333333" CornerRadius="30"
+                                        BorderBrush="#FF5555" BorderThickness="3">
+                                    <TextBlock Text="✕" FontSize="28" Foreground="#FF5555" FontWeight="Bold"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#FF5555"/>
+                                        <Setter TargetName="border" Property="BorderBrush" Value="#FF5555"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+
+                    <!-- Przycisk < - poprzednia kamera (lewa strona) -->
+                    <Button x:Name="btnCameraPrev" Click="BtnCameraPrev_Click"
+                            Width="60" Height="100" Cursor="Hand"
+                            HorizontalAlignment="Left" VerticalAlignment="Center" Margin="15,0,0,0"
+                            ToolTip="Poprzednia kamera">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="border" Background="#80333333" CornerRadius="10">
+                                    <TextBlock Text="❮" FontSize="40" Foreground="White" FontWeight="Bold"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#CC2196F3"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+
+                    <!-- Przycisk > - następna kamera (prawa strona) -->
+                    <Button x:Name="btnCameraNext" Click="BtnCameraNext_Click"
+                            Width="60" Height="100" Cursor="Hand"
+                            HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,15,0"
+                            ToolTip="Następna kamera">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="border" Background="#80333333" CornerRadius="10">
+                                    <TextBlock Text="❯" FontSize="40" Foreground="White" FontWeight="Bold"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#CC2196F3"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+
                     <!-- Podpowiedź na dole -->
-                    <TextBlock Text="Kliknij aby wrócić do AVILOG" FontSize="14" Foreground="#444"
+                    <TextBlock Text="Użyj strzałek ❮ ❯ aby zmienić kamerę lub X aby zamknąć" FontSize="14" Foreground="#666"
                                HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,15"/>
                 </Grid>
             </Border>
