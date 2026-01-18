@@ -1,9 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -72,6 +77,10 @@ namespace Kalendarz1.WPF
         private bool _camera2Connected = false;
         private readonly HttpClient _httpClient;
 
+        // Debug log dla kamer
+        private static readonly List<string> _cameraDebugLog = new();
+        private static int _digestNonceCount = 0;
+
         // Klasy danych
         private class ProductData
         {
@@ -101,20 +110,16 @@ namespace Kalendarz1.WPF
             _connHandel = connHandel;
             _selectedDate = GetDefaultDate();
 
-            // HttpClient dla kamer z Digest Auth (wymagane przez Hikvision)
-            var credentialCache = new CredentialCache();
-            foreach (var camera in _cameras)
-            {
-                var uri = new Uri(camera.SnapshotUrl);
-                var baseUri = new Uri($"{uri.Scheme}://{uri.Host}:{uri.Port}/");
-                credentialCache.Add(baseUri, "Digest", new NetworkCredential(camera.Username, camera.Password));
-            }
+            // HttpClient dla kamer - ręczna obsługa Digest Auth
             var handler = new HttpClientHandler
             {
-                Credentials = credentialCache,
-                PreAuthenticate = false // Digest wymaga challenge-response
+                AllowAutoRedirect = true,
+                UseCookies = true
             };
-            _httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(5) };
+            _httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(10) };
+            _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0");
+
+            LogCamera($"[INIT] HttpClient utworzony, timeout: 10s");
 
             Title = "Panel Pani Joli";
             WindowState = WindowState.Maximized;
@@ -1105,43 +1110,195 @@ namespace Kalendarz1.WPF
             if (cameraIndex >= _cameras.Count) return null;
 
             var camera = _cameras[cameraIndex];
+            var url = camera.SnapshotUrl;
 
-            // Lista możliwych URL-i dla Hikvision (różne modele używają różnych endpointów)
-            var urls = new[]
+            try
             {
-                camera.SnapshotUrl,
-                camera.SnapshotUrl.Replace("/ISAPI/Streaming/channels/101/picture", "/Streaming/channels/101/picture"),
-                camera.SnapshotUrl.Replace("/ISAPI/Streaming/channels/101/picture", "/ISAPI/Streaming/channels/1/picture"),
-                $"http://{new Uri(camera.SnapshotUrl).Host}/cgi-bin/snapshot.cgi"
-            };
+                LogCamera($"[CAM{cameraIndex}] Próba połączenia: {url}");
 
-            foreach (var url in urls)
-            {
-                try
+                // Krok 1: Wykonaj request bez auth aby uzyskać WWW-Authenticate header
+                var request1 = new HttpRequestMessage(HttpMethod.Get, url);
+                var response1 = await _httpClient.SendAsync(request1);
+
+                LogCamera($"[CAM{cameraIndex}] Response1 Status: {(int)response1.StatusCode} {response1.StatusCode}");
+
+                // Jeśli od razu 200 - świetnie, nie potrzeba auth
+                if (response1.IsSuccessStatusCode)
                 {
-                    var response = await _httpClient.GetAsync(url);
+                    var data = await response1.Content.ReadAsByteArrayAsync();
+                    LogCamera($"[CAM{cameraIndex}] Sukces bez auth! Rozmiar: {data.Length} bytes");
+                    if (data.Length > 0) return BytesToBitmapImage(data);
+                }
 
-                    if (response.IsSuccessStatusCode)
+                // Jeśli 401 - potrzebujemy Digest Auth
+                if (response1.StatusCode == HttpStatusCode.Unauthorized)
+                {
+                    var wwwAuth = response1.Headers.WwwAuthenticate.FirstOrDefault();
+                    LogCamera($"[CAM{cameraIndex}] WWW-Authenticate: {wwwAuth}");
+
+                    if (wwwAuth != null && wwwAuth.Scheme.Equals("Digest", StringComparison.OrdinalIgnoreCase))
                     {
-                        var data = await response.Content.ReadAsByteArrayAsync();
-                        if (data.Length > 0)
+                        // Parsuj parametry Digest
+                        var authParams = ParseDigestAuthHeader(wwwAuth.Parameter ?? "");
+                        LogCamera($"[CAM{cameraIndex}] Digest params: realm={authParams.GetValueOrDefault("realm")}, nonce={authParams.GetValueOrDefault("nonce")?.Substring(0, Math.Min(10, authParams.GetValueOrDefault("nonce")?.Length ?? 0))}...");
+
+                        // Oblicz Digest response
+                        var digestHeader = CalculateDigestAuth(
+                            camera.Username,
+                            camera.Password,
+                            authParams,
+                            "GET",
+                            new Uri(url).PathAndQuery
+                        );
+
+                        LogCamera($"[CAM{cameraIndex}] Wysyłam request z Digest Auth...");
+
+                        // Krok 2: Wykonaj request z Digest Auth
+                        var request2 = new HttpRequestMessage(HttpMethod.Get, url);
+                        request2.Headers.Authorization = new AuthenticationHeaderValue("Digest", digestHeader);
+
+                        var response2 = await _httpClient.SendAsync(request2);
+                        LogCamera($"[CAM{cameraIndex}] Response2 Status: {(int)response2.StatusCode} {response2.StatusCode}");
+
+                        if (response2.IsSuccessStatusCode)
                         {
-                            // Jeśli inny URL zadziałał, zaktualizuj konfigurację
-                            if (url != camera.SnapshotUrl)
-                            {
-                                camera.SnapshotUrl = url;
-                            }
-                            return BytesToBitmapImage(data);
+                            var data = await response2.Content.ReadAsByteArrayAsync();
+                            LogCamera($"[CAM{cameraIndex}] Sukces z Digest Auth! Rozmiar: {data.Length} bytes");
+                            if (data.Length > 0) return BytesToBitmapImage(data);
+                        }
+                        else
+                        {
+                            var errorBody = await response2.Content.ReadAsStringAsync();
+                            LogCamera($"[CAM{cameraIndex}] Błąd response2: {errorBody.Substring(0, Math.Min(200, errorBody.Length))}");
+                        }
+                    }
+                    else if (wwwAuth != null && wwwAuth.Scheme.Equals("Basic", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Fallback do Basic Auth
+                        LogCamera($"[CAM{cameraIndex}] Próba Basic Auth...");
+                        var basicAuth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{camera.Username}:{camera.Password}"));
+
+                        var request2 = new HttpRequestMessage(HttpMethod.Get, url);
+                        request2.Headers.Authorization = new AuthenticationHeaderValue("Basic", basicAuth);
+
+                        var response2 = await _httpClient.SendAsync(request2);
+                        LogCamera($"[CAM{cameraIndex}] Response2 (Basic) Status: {(int)response2.StatusCode}");
+
+                        if (response2.IsSuccessStatusCode)
+                        {
+                            var data = await response2.Content.ReadAsByteArrayAsync();
+                            LogCamera($"[CAM{cameraIndex}] Sukces z Basic Auth! Rozmiar: {data.Length} bytes");
+                            if (data.Length > 0) return BytesToBitmapImage(data);
                         }
                     }
                 }
-                catch
-                {
-                    // Próbuj kolejny URL
-                }
+            }
+            catch (Exception ex)
+            {
+                LogCamera($"[CAM{cameraIndex}] WYJĄTEK: {ex.GetType().Name}: {ex.Message}");
             }
 
             return null;
+        }
+
+        private static void LogCamera(string message)
+        {
+            var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
+            var logEntry = $"[{timestamp}] {message}";
+            _cameraDebugLog.Add(logEntry);
+
+            // Zachowaj tylko ostatnie 100 wpisów
+            while (_cameraDebugLog.Count > 100)
+                _cameraDebugLog.RemoveAt(0);
+
+            // Zapisz do pliku debug
+            try
+            {
+                var logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "camera_debug.log");
+                File.AppendAllText(logPath, logEntry + Environment.NewLine);
+            }
+            catch { }
+        }
+
+        private static Dictionary<string, string> ParseDigestAuthHeader(string header)
+        {
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            // Regex do parsowania parametrów: key="value" lub key=value
+            var regex = new Regex(@"(\w+)=(?:""([^""]*)""|([^,\s]+))");
+            var matches = regex.Matches(header);
+
+            foreach (Match match in matches)
+            {
+                var key = match.Groups[1].Value;
+                var value = match.Groups[2].Success ? match.Groups[2].Value : match.Groups[3].Value;
+                result[key] = value;
+            }
+
+            return result;
+        }
+
+        private static string CalculateDigestAuth(string username, string password, Dictionary<string, string> authParams, string method, string uri)
+        {
+            var realm = authParams.GetValueOrDefault("realm", "");
+            var nonce = authParams.GetValueOrDefault("nonce", "");
+            var qop = authParams.GetValueOrDefault("qop", "");
+            var opaque = authParams.GetValueOrDefault("opaque", "");
+
+            // Generuj cnonce i zwiększ nc
+            var cnonce = Guid.NewGuid().ToString("N").Substring(0, 16);
+            _digestNonceCount++;
+            var nc = _digestNonceCount.ToString("x8");
+
+            // Oblicz HA1 = MD5(username:realm:password)
+            var ha1 = MD5Hash($"{username}:{realm}:{password}");
+
+            // Oblicz HA2 = MD5(method:uri)
+            var ha2 = MD5Hash($"{method}:{uri}");
+
+            // Oblicz response
+            string response;
+            if (!string.IsNullOrEmpty(qop))
+            {
+                // qop=auth: response = MD5(HA1:nonce:nc:cnonce:qop:HA2)
+                response = MD5Hash($"{ha1}:{nonce}:{nc}:{cnonce}:{qop}:{ha2}");
+            }
+            else
+            {
+                // bez qop: response = MD5(HA1:nonce:HA2)
+                response = MD5Hash($"{ha1}:{nonce}:{ha2}");
+            }
+
+            // Zbuduj header
+            var sb = new StringBuilder();
+            sb.Append($"username=\"{username}\", ");
+            sb.Append($"realm=\"{realm}\", ");
+            sb.Append($"nonce=\"{nonce}\", ");
+            sb.Append($"uri=\"{uri}\", ");
+
+            if (!string.IsNullOrEmpty(qop))
+            {
+                sb.Append($"qop={qop}, ");
+                sb.Append($"nc={nc}, ");
+                sb.Append($"cnonce=\"{cnonce}\", ");
+            }
+
+            sb.Append($"response=\"{response}\"");
+
+            if (!string.IsNullOrEmpty(opaque))
+            {
+                sb.Append($", opaque=\"{opaque}\"");
+            }
+
+            return sb.ToString();
+        }
+
+        private static string MD5Hash(string input)
+        {
+            using var md5 = MD5.Create();
+            var inputBytes = Encoding.UTF8.GetBytes(input);
+            var hashBytes = md5.ComputeHash(inputBytes);
+            return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
         }
 
         #endregion
