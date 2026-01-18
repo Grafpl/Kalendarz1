@@ -848,6 +848,16 @@ namespace Kalendarz1.WPF
             btnClose.Click += (s, e) => Close();
             navPanel.Children.Add(btnClose);
 
+            // Przyciski kamer (fullscreen)
+            var cameraButtonsPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 0) };
+            var btnCam1 = new Button { Content = "📹 1", FontSize = 14, FontWeight = FontWeights.Bold, Width = 38, Padding = new Thickness(4, 8, 4, 8), Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Margin = new Thickness(0, 0, 4, 0), Cursor = System.Windows.Input.Cursors.Hand };
+            btnCam1.Click += (s, e) => OpenFullscreenRtsp(0);
+            var btnCam2 = new Button { Content = "📹 2", FontSize = 14, FontWeight = FontWeights.Bold, Width = 38, Padding = new Thickness(4, 8, 4, 8), Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = System.Windows.Input.Cursors.Hand };
+            btnCam2.Click += (s, e) => OpenFullscreenRtsp(1);
+            cameraButtonsPanel.Children.Add(btnCam1);
+            cameraButtonsPanel.Children.Add(btnCam2);
+            navPanel.Children.Add(cameraButtonsPanel);
+
             // Przycisk wyłączenia komputera
             var btnShutdown = new Button
             {
