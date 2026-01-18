@@ -1707,6 +1707,7 @@ namespace Kalendarz1
                 new ModuleInfo("DashboardOfert", "Analiza Ofert", "Statystyki skuteczności ofert", "Sprzedaż i CRM", "📊"),
                 new ModuleInfo("DashboardWyczerpalnosci", "Klasy Wagowe", "Rozdzielanie klas wagowych", "Sprzedaż i CRM", "⚖️"),
                 new ModuleInfo("PanelReklamacji", "Reklamacje Klientów", "Obsługa reklamacji odbiorców", "Sprzedaż i CRM", "⚠️"),
+                new ModuleInfo("PanelPaniJola", "Panel Pani Jola", "Uproszczony widok zamówień - duże kafelki", "Sprzedaż i CRM", "📞"),
 
                 // ═══════════════════════════════════════════════════════════════════════
                 // PLANOWANIE I ANALIZY - Fioletowy
@@ -1787,7 +1788,8 @@ namespace Kalendarz1
                 [39] = "PanelPortiera",
                 [40] = "PanelLekarza",
                 [41] = "KontrolaGodzin",
-                [42] = "CentrumSpotkan"
+                [42] = "CentrumSpotkan",
+                [43] = "PanelPaniJola"
             };
         }
 
