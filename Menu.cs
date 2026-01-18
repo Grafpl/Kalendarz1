@@ -388,13 +388,31 @@ namespace Kalendarz1
                 BackColor = Color.FromArgb(50, 60, 70)
             };
 
-            // Dolna sekcja - wyloguj, admin i wersja
+            // Dolna sekcja - powiadomienia, wyloguj, admin i wersja
             var footerPanel = new Panel
             {
                 Dock = DockStyle.Bottom,
-                Height = 140,
+                Height = 185,
                 BackColor = Color.FromArgb(20, 28, 36)
             };
+
+            // Przycisk Powiadomienia (dzwonek)
+            var notificationButton = new Button
+            {
+                Text = "🔔 Powiadomienia",
+                Font = new Font("Segoe UI", 9),
+                Size = new Size(panelWidth - 20, 38),
+                Location = new Point(10, 10),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(76, 175, 80),
+                ForeColor = Color.White,
+                Cursor = Cursors.Hand
+            };
+            notificationButton.FlatAppearance.BorderSize = 0;
+            notificationButton.FlatAppearance.MouseOverBackColor = Color.FromArgb(56, 142, 60);
+            notificationButton.FlatAppearance.MouseDownBackColor = Color.FromArgb(46, 125, 50);
+            notificationButton.Click += NotificationButton_Click;
+            footerPanel.Controls.Add(notificationButton);
 
             // Przycisk Wyloguj
             var logoutButton = new Button
@@ -402,7 +420,7 @@ namespace Kalendarz1
                 Text = "Wyloguj",
                 Font = new Font("Segoe UI", 9),
                 Size = new Size(panelWidth - 20, 38),
-                Location = new Point(10, 10),
+                Location = new Point(10, 55),
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.FromArgb(55, 65, 75),
                 ForeColor = Color.White,
@@ -420,7 +438,7 @@ namespace Kalendarz1
                 Text = "Panel Admin",
                 Font = new Font("Segoe UI", 9, FontStyle.Bold),
                 Size = new Size(panelWidth - 20, 38),
-                Location = new Point(10, 55),
+                Location = new Point(10, 100),
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.FromArgb(229, 57, 53),
                 ForeColor = Color.White,
@@ -1975,6 +1993,30 @@ namespace Kalendarz1
             form.Controls.Add(closeButton);
 
             form.ShowDialog();
+        }
+
+        private void NotificationButton_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var notificationWindow = new NotificationWindow(App.UserID);
+                notificationWindow.OpenPanelRequested += (s, args) =>
+                {
+                    var zadaniaWindow = new ZadaniaWindow();
+                    zadaniaWindow.Show();
+                };
+                notificationWindow.OpenMeetingsRequested += (s, args) =>
+                {
+                    var spotkaniaWindow = new Spotkania.Views.SpotkaniaGlowneWindow(App.UserID);
+                    spotkaniaWindow.Show();
+                };
+                notificationWindow.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd otwierania powiadomień: {ex.Message}", "Błąd",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void LogoutButton_Click(object sender, EventArgs e)
