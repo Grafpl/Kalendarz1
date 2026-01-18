@@ -1594,6 +1594,8 @@
                                                         <TextBlock Text="📋" FontSize="12"/>
                                                     </Border>
                                                     <TextBlock Text="Dane dostawy" FontWeight="Bold" FontSize="12" Foreground="#1E293B" VerticalAlignment="Center"/>
+                                                    <TextBlock Text=" - " FontSize="12" Foreground="#64748B" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                                    <TextBlock x:Name="txtHodowcaDaneDostawy" FontWeight="Bold" FontSize="12" Foreground="#166534" VerticalAlignment="Center"/>
                                                 </StackPanel>
                                             </Grid>
 
@@ -1919,14 +1921,6 @@
                                                     </Border>
                                                     <!-- Badge'e informacyjne -->
                                                     <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                                                        <!-- Badge: Pozostało -->
-                                                        <Border Background="#FEF2F2" CornerRadius="12" Padding="10,4" Margin="0,0,6,0" BorderBrush="#FECACA" BorderThickness="1">
-                                                            <StackPanel Orientation="Horizontal">
-                                                                <TextBlock Text="🐔" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                                                <TextBlock Text="Pozostało: " FontSize="9" Foreground="#B91C1C" VerticalAlignment="Center"/>
-                                                                <TextBlock x:Name="txtSztukiPozostale" FontSize="9" Foreground="#B91C1C" FontWeight="Bold" VerticalAlignment="Center"/>
-                                                            </StackPanel>
-                                                        </Border>
                                                         <!-- Badge: Doba -->
                                                         <Border Background="#EFF6FF" CornerRadius="12" Padding="10,4" Margin="0,0,6,0" BorderBrush="#BFDBFE" BorderThickness="1">
                                                             <StackPanel Orientation="Horizontal">
@@ -2000,6 +1994,14 @@
                                                                 </Style>
                                                             </Button.Style>
                                                         </Button>
+                                                        <!-- Badge: Pozostało (przeniesione obok Edytuj) -->
+                                                        <Border Background="#FEF2F2" CornerRadius="12" Padding="10,4" Margin="4,0,0,0" BorderBrush="#FECACA" BorderThickness="1" VerticalAlignment="Center">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="🐔" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                                <TextBlock Text="Pozostało: " FontSize="9" Foreground="#B91C1C" VerticalAlignment="Center"/>
+                                                                <TextBlock x:Name="txtSztukiPozostale" FontSize="9" Foreground="#B91C1C" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                            </StackPanel>
+                                                        </Border>
                                                     </StackPanel>
                                                     <Border Grid.Column="2" CornerRadius="4" Padding="8,4" Background="#ECFDF5" BorderBrush="#86EFAC" BorderThickness="1">
                                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
