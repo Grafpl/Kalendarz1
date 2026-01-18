@@ -28,10 +28,10 @@ namespace Kalendarz1.WPF
 
         // UI
         private int _viewIndex = 0;
-        private bool _isAutoPlay = false;
+        private bool _isAutoPlay = true; // AUTO włączone domyślnie
         private DispatcherTimer? _autoTimer;
         private DispatcherTimer? _clockTimer;
-        private int _autoCountdown = 15;
+        private int _autoCountdown = 40; // 40 sekund
         private TextBlock? _clockText;
         private TextBlock? _countdownText;
         private ProgressBar? _countdownBar;
@@ -127,6 +127,8 @@ namespace Kalendarz1.WPF
 
                 if (_productDataList.Any())
                 {
+                    // Uruchom AUTO timer od razu przy starcie
+                    StartAutoTimer();
                     RefreshContent();
                 }
                 else
@@ -501,6 +503,22 @@ namespace Kalendarz1.WPF
             }
         }
 
+        private void StartAutoTimer()
+        {
+            if (_autoTimer != null) return; // już uruchomiony
+
+            _isAutoPlay = true;
+            _autoCountdown = 40;
+            _autoTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(40) };
+            _autoTimer.Tick += (ts, te) =>
+            {
+                _viewIndex = (_viewIndex + 1) % _productDataList.Count;
+                _autoCountdown = 40;
+                RefreshContent();
+            };
+            _autoTimer.Start();
+        }
+
         private void RefreshContent()
         {
             if (!_productDataList.Any()) return;
@@ -544,7 +562,7 @@ namespace Kalendarz1.WPF
                     if (_isAutoPlay && _countdownText != null && _countdownBar != null)
                     {
                         _autoCountdown--;
-                        if (_autoCountdown <= 0) _autoCountdown = 15;
+                        if (_autoCountdown <= 0) _autoCountdown = 40;
                         _countdownText.Text = $"{_autoCountdown}s";
                         _countdownBar.Value = _autoCountdown;
                     }
@@ -663,12 +681,12 @@ namespace Kalendarz1.WPF
                 _isAutoPlay = !_isAutoPlay;
                 if (_isAutoPlay)
                 {
-                    _autoCountdown = 15;
-                    _autoTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };
+                    _autoCountdown = 40;
+                    _autoTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(40) };
                     _autoTimer.Tick += (ts, te) =>
                     {
                         _viewIndex = (_viewIndex + 1) % _productDataList.Count;
-                        _autoCountdown = 15;
+                        _autoCountdown = 40;
                         RefreshContent();
                     };
                     _autoTimer.Start();
@@ -685,7 +703,7 @@ namespace Kalendarz1.WPF
             if (_isAutoPlay)
             {
                 var countdownPanel = new StackPanel { Margin = new Thickness(0, 5, 0, 0), HorizontalAlignment = HorizontalAlignment.Center };
-                _countdownBar = new ProgressBar { Width = 80, Height = 8, Minimum = 0, Maximum = 15, Value = _autoCountdown, Foreground = new SolidColorBrush(Color.FromRgb(52, 152, 219)), Background = new SolidColorBrush(Color.FromRgb(44, 62, 80)) };
+                _countdownBar = new ProgressBar { Width = 80, Height = 8, Minimum = 0, Maximum = 40, Value = _autoCountdown, Foreground = new SolidColorBrush(Color.FromRgb(52, 152, 219)), Background = new SolidColorBrush(Color.FromRgb(44, 62, 80)) };
                 countdownPanel.Children.Add(_countdownBar);
                 _countdownText = new TextBlock { Text = $"{_autoCountdown}s", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(52, 152, 219)), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 2, 0, 0) };
                 countdownPanel.Children.Add(_countdownText);
