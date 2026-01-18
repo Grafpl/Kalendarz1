@@ -3971,6 +3971,56 @@ namespace Kalendarz1.Zywiec.Kalendarz
             MessageBox.Show("Funkcja SMS wymaga konfiguracji Twilio.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
+        private void BtnRecznaAnkieta_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Pobierz numer telefonu hodowcy
+                string telefon = txtTel1?.Text?.Trim();
+                string nazwaHodowcy = txtNazwaHodowcyHeader?.Text?.Replace("- ", "").Trim();
+
+                if (string.IsNullOrEmpty(telefon))
+                {
+                    MessageBox.Show("Brak numeru telefonu hodowcy.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                if (string.IsNullOrEmpty(nazwaHodowcy))
+                {
+                    MessageBox.Show("Wybierz najpierw hodowcę.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // Potwierdź wysłanie
+                var result = MessageBox.Show(
+                    $"Czy wysłać ankietę SMS do:\n\n{nazwaHodowcy}\nTel: {telefon}",
+                    "Potwierdzenie wysłania ankiety",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    // Wyślij SMS z ankietą
+                    string wiadomosc = $"Piorkowscy: Prosimy o potwierdzenie dostawy. Odpowiedz TAK lub NIE.";
+
+                    try
+                    {
+                        SmsSender.SendSms(telefon, wiadomosc);
+                        ShowToast($"Ankieta wysłana do {nazwaHodowcy}", ToastType.Success);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Błąd wysyłania SMS: {ex.Message}\n\nSprawdź konfigurację Twilio w SmsSender.cs",
+                            "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         #endregion
 
         #region Obsługa wstawień
