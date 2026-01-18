@@ -1783,11 +1783,19 @@
                                     </Border>
 
                                     <!-- ═══════════════════════════════════════════════════════════════ -->
-                                    <!-- SEKCJA 3: ZAŁADUNEK AVILOG - Tabela obliczeń KG -->
+                                    <!-- SEKCJA 3: ZAŁADUNEK AVILOG - Tabela obliczeń KG (zwijana) -->
                                     <!-- ═══════════════════════════════════════════════════════════════ -->
-                                    <Border Background="White" CornerRadius="6" Padding="6" Margin="0,0,0,6" BorderBrush="#E2E8F0" BorderThickness="1">
-                                        <StackPanel>
-                                            <TextBlock Text="📦 ZAŁADUNEK AVILOG - Obliczenia KG" FontWeight="Bold" FontSize="9" Foreground="#64748B" Margin="0,0,0,4"/>
+                                    <Expander x:Name="expZaladunekAvilog" IsExpanded="False" BorderThickness="0" Margin="0,0,0,6">
+                                        <Expander.Header>
+                                            <Border Background="#DBEAFE" CornerRadius="6" Padding="8,6" Width="352">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="📦" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                    <TextBlock Text="ZAŁADUNEK AVILOG - Obliczenia KG" FontWeight="Bold" FontSize="10" Foreground="#1D4ED8" VerticalAlignment="Center"/>
+                                                    <TextBlock Text=" (kliknij aby rozwinąć)" FontSize="9" Foreground="#64748B" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </Expander.Header>
+                                        <Border Background="White" CornerRadius="0,0,6,6" Padding="6" BorderBrush="#E2E8F0" BorderThickness="1,0,1,1">
                                             <Border CornerRadius="4" BorderBrush="#E2E8F0" BorderThickness="1" Background="#FAFAFA">
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
@@ -1886,58 +1894,44 @@
                                                     </Border>
                                                 </Grid>
                                             </Border>
-                                        </StackPanel>
-                                    </Border>
+                                        </Border>
+                                    </Expander>
 
                                     <!-- ═══════════════════════════════════════════════════════════════ -->
-                                    <!-- SEKCJA 4: WSTAWIENIA - Historia dostaw (ZAWSZE WIDOCZNE) -->
+                                    <!-- SEKCJA 4: WSTAWIENIA - Historia dostaw (zwijana) -->
                                     <!-- ═══════════════════════════════════════════════════════════════ -->
-                                    <Border CornerRadius="8" BorderThickness="0" Margin="0,4,0,0">
-                                        <Border.Background>
-                                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                                <GradientStop Color="#FFFFFF" Offset="0"/>
-                                                <GradientStop Color="#F8FAFC" Offset="1"/>
-                                            </LinearGradientBrush>
-                                        </Border.Background>
-                                        <Border.Effect>
-                                            <DropShadowEffect BlurRadius="8" ShadowDepth="2" Opacity="0.1" Color="#000000"/>
-                                        </Border.Effect>
-                                        <Border CornerRadius="8" BorderBrush="#E2E8F0" BorderThickness="1" Padding="10">
+                                    <Expander x:Name="expWstawienia" IsExpanded="False" BorderThickness="0" Margin="0,4,0,0">
+                                        <Expander.Header>
+                                            <Border Background="#F0FDF4" CornerRadius="6" Padding="8,6" Width="352">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="📊" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                    <TextBlock Text="WSTAWIENIA" FontWeight="Bold" FontSize="10" Foreground="#166534" VerticalAlignment="Center"/>
+                                                    <TextBlock Text=" - " FontSize="10" Foreground="#64748B" VerticalAlignment="Center"/>
+                                                    <TextBlock x:Name="txtHodowcaWstawienia" FontWeight="Bold" FontSize="10" Foreground="#166534" VerticalAlignment="Center"/>
+                                                    <TextBlock Text=" (kliknij aby rozwinąć)" FontSize="9" Foreground="#64748B" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </Expander.Header>
+                                        <Border CornerRadius="0,0,8,8" BorderBrush="#E2E8F0" BorderThickness="1,0,1,1" Padding="10" Background="White">
                                             <StackPanel>
-                                                <!-- Nagłówek z tytułem i badge'ami -->
-                                                <Grid Margin="0,0,0,8">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <!-- Tytuł z ikoną -->
-                                                    <Border Grid.Column="0" Background="#F0FDF4" CornerRadius="6" Padding="8,4" VerticalAlignment="Center">
+                                                <!-- Badge'e informacyjne -->
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,8">
+                                                    <!-- Badge: Doba -->
+                                                    <Border Background="#EFF6FF" CornerRadius="12" Padding="10,4" Margin="0,0,6,0" BorderBrush="#BFDBFE" BorderThickness="1">
                                                         <StackPanel Orientation="Horizontal">
-                                                            <TextBlock Text="📊" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                                            <TextBlock Text="WSTAWIENIA" FontWeight="Bold" FontSize="11" Foreground="#166534" VerticalAlignment="Center"/>
-                                                            <TextBlock Text=" - " FontSize="11" Foreground="#64748B" VerticalAlignment="Center" Margin="4,0,0,0"/>
-                                                            <TextBlock x:Name="txtHodowcaWstawienia" FontWeight="Bold" FontSize="11" Foreground="#166534" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="📅" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                            <TextBlock Text="Doba obecna: " FontSize="9" Foreground="#1D4ED8" VerticalAlignment="Center"/>
+                                                            <TextBox x:Name="txtObecnaDoba" FontSize="9" Foreground="#1D4ED8" FontWeight="Bold" Background="Transparent" BorderThickness="0" Padding="0" IsReadOnly="True" VerticalAlignment="Center"/>
                                                         </StackPanel>
                                                     </Border>
-                                                    <!-- Badge'e informacyjne -->
-                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                                                        <!-- Badge: Doba -->
-                                                        <Border Background="#EFF6FF" CornerRadius="12" Padding="10,4" Margin="0,0,6,0" BorderBrush="#BFDBFE" BorderThickness="1">
-                                                            <StackPanel Orientation="Horizontal">
-                                                                <TextBlock Text="📅" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                                                <TextBlock Text="Doba obecna: " FontSize="9" Foreground="#1D4ED8" VerticalAlignment="Center"/>
-                                                                <TextBox x:Name="txtObecnaDoba" FontSize="9" Foreground="#1D4ED8" FontWeight="Bold" Background="Transparent" BorderThickness="0" Padding="0" IsReadOnly="True" VerticalAlignment="Center"/>
-                                                            </StackPanel>
-                                                        </Border>
-                                                        <!-- Badge: Data wstawienia -->
-                                                        <Border Background="#ECFDF5" CornerRadius="12" Padding="10,4" BorderBrush="#A7F3D0" BorderThickness="1">
-                                                            <StackPanel Orientation="Horizontal">
-                                                                <TextBlock Text="📆" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                                                <TextBox x:Name="txtDataWstawienia" FontSize="9" Foreground="#059669" FontWeight="Bold" Background="Transparent" BorderThickness="0" Padding="0" IsReadOnly="True" VerticalAlignment="Center"/>
-                                                            </StackPanel>
-                                                        </Border>
-                                                    </StackPanel>
-                                                </Grid>
+                                                    <!-- Badge: Data wstawienia -->
+                                                    <Border Background="#ECFDF5" CornerRadius="12" Padding="10,4" BorderBrush="#A7F3D0" BorderThickness="1">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="📆" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                            <TextBox x:Name="txtDataWstawienia" FontSize="9" Foreground="#059669" FontWeight="Bold" Background="Transparent" BorderThickness="0" Padding="0" IsReadOnly="True" VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </StackPanel>
                                                 <!-- Wiersz wyboru LP + przyciski + sztuki (kompaktowy) -->
                                                 <Grid Margin="0,0,0,8">
                                                     <Grid.ColumnDefinitions>
@@ -2102,7 +2096,7 @@
                                                 </DataGrid>
                                             </StackPanel>
                                         </Border>
-                                    </Border>
+                                    </Expander>
                                 </StackPanel>
                             </ScrollViewer>
 
