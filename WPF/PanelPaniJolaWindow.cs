@@ -16,6 +16,8 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Microsoft.Data.SqlClient;
+using LibVLCSharp.Shared;
+using LibVLCSharp.WPF;
 
 namespace Kalendarz1.WPF
 {
@@ -46,44 +48,43 @@ namespace Kalendarz1.WPF
         private ProgressBar? _countdownBar;
         private Grid _mainContainer;
 
-        // Kamery - konfiguracja
-        // Połączenie przez NVR (rejestrator) - znacznie stabilniejsze
+        // Kamery - konfiguracja RTSP przez NVR INTERNEC
+        // Format URL: rtsp://admin:terePacja12%24@192.168.0.125:554/unicast/c{CHANNEL}/s{STREAM}/live
+        // s0 = strumień główny (HD), s1 = podstrumień (SD - mniejsze obciążenie sieci)
         private static readonly List<CameraConfig> _cameras = new()
         {
             new CameraConfig
             {
-                Name = "Kamera 1 - Rampa Wyładunek",
-                // Przez NVR: kanał 18 = 1801 (main stream), 1802 (sub stream)
-                SnapshotUrl = "http://192.168.0.125/ISAPI/Streaming/channels/1801/picture",
-                Username = "admin",
-                Password = "terePacja12$"
+                Name = "Kanał 6 - PROD_Waga",
+                Channel = 6,
+                RtspUrl = "rtsp://admin:terePacja12%24@192.168.0.125:554/unicast/c6/s1/live" // s1 = sub stream
+            },
+            new CameraConfig
+            {
+                Name = "Kanał 21 - Zew_Tyl",
+                Channel = 21,
+                RtspUrl = "rtsp://admin:terePacja12%24@192.168.0.125:554/unicast/c21/s1/live" // s1 = sub stream
             }
-            // Przykłady innych kamer przez NVR:
-            // Kanał 1: http://192.168.0.125/ISAPI/Streaming/channels/101/picture
-            // Kanał 2: http://192.168.0.125/ISAPI/Streaming/channels/201/picture
-            // Kanał 15: http://192.168.0.125/ISAPI/Streaming/channels/1501/picture
         };
 
         private class CameraConfig
         {
             public string Name { get; set; } = "";
-            public string SnapshotUrl { get; set; } = "";
-            public string Username { get; set; } = "";
-            public string Password { get; set; } = "";
+            public int Channel { get; set; }
+            public string RtspUrl { get; set; } = "";
         }
 
-        // Obrazy kamer do aktualizacji
-        private Image? _camera1Image;
-        private Image? _camera2Image;
+        // LibVLC do streamingu RTSP
+        private LibVLC? _libVLC;
+        private MediaPlayer? _mediaPlayer1;
+        private MediaPlayer? _mediaPlayer2;
+        private VideoView? _videoView1;
+        private VideoView? _videoView2;
         private TextBlock? _camera1Status;
         private TextBlock? _camera2Status;
-        private bool _camera1Connected = false;
-        private bool _camera2Connected = false;
-        private readonly HttpClient _httpClient;
 
         // Debug log dla kamer
         private static readonly List<string> _cameraDebugLog = new();
-        private static int _digestNonceCount = 0;
 
         // Klasy danych
         private class ProductData
@@ -114,16 +115,14 @@ namespace Kalendarz1.WPF
             _connHandel = connHandel;
             _selectedDate = GetDefaultDate();
 
-            // HttpClient dla kamer - ręczna obsługa Digest Auth
-            var handler = new HttpClientHandler
-            {
-                AllowAutoRedirect = true,
-                UseCookies = true
-            };
-            _httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(10) };
-            _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0");
-
-            LogCamera($"[INIT] HttpClient utworzony, timeout: 10s");
+            // Inicjalizacja LibVLC dla streamingu RTSP
+            Core.Initialize();
+            _libVLC = new LibVLC(
+                "--rtsp-tcp",           // Używaj TCP zamiast UDP (stabilniejsze)
+                "--network-caching=300", // Bufor 300ms
+                "--no-audio"            // Bez dźwięku
+            );
+            LogCamera($"[INIT] LibVLC zainicjalizowany");
 
             Title = "Panel Pani Joli";
             WindowState = WindowState.Maximized;
@@ -135,7 +134,7 @@ namespace Kalendarz1.WPF
             Content = _mainContainer;
 
             Loaded += async (s, e) => await InitializeAsync();
-            Closed += (s, e) => { _autoTimer?.Stop(); _clockTimer?.Stop(); _cameraTimer?.Stop(); _httpClient?.Dispose(); };
+            Closed += (s, e) => DisposeResources();
 
             KeyDown += (s, e) =>
             {
@@ -876,79 +875,26 @@ namespace Kalendarz1.WPF
             Grid.SetRow(tabliceGrid, 0);
             rightPanel.Children.Add(tabliceGrid);
 
-            // Kamery
+            // Kamery RTSP
             var camerasGrid = new Grid { Margin = new Thickness(0, 5, 0, 0) };
             camerasGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             camerasGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-            // Funkcja otwierająca kamerę na pełny ekran
-            Action<int> openFullscreenCamera = (cameraNum) =>
-            {
-                if (cameraNum > _cameras.Count) return;
-
-                var fullscreenWindow = new Window
-                {
-                    Title = $"Kamera {cameraNum}",
-                    WindowState = WindowState.Maximized,
-                    WindowStyle = WindowStyle.None,
-                    Background = Brushes.Black,
-                    ResizeMode = ResizeMode.NoResize,
-                    Topmost = true
-                };
-
-                var fullscreenGrid = new Grid();
-                var fullscreenImage = new Image { Stretch = Stretch.Uniform };
-                fullscreenGrid.Children.Add(fullscreenImage);
-
-                // Timer do odświeżania obrazu w fullscreen
-                var fullscreenTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
-                fullscreenTimer.Tick += async (ts, te) =>
-                {
-                    var img = await LoadCameraSnapshotAsync(cameraNum - 1);
-                    if (img != null) fullscreenImage.Source = img;
-                };
-                fullscreenTimer.Start();
-
-                // Załaduj pierwszy obraz od razu
-                _ = Task.Run(async () =>
-                {
-                    var img = await LoadCameraSnapshotAsync(cameraNum - 1);
-                    Dispatcher.Invoke(() => { if (img != null) fullscreenImage.Source = img; });
-                });
-
-                var closeBtn = new Border
-                {
-                    Background = new SolidColorBrush(Color.FromRgb(231, 76, 60)),
-                    CornerRadius = new CornerRadius(10),
-                    Padding = new Thickness(25, 15, 25, 15),
-                    HorizontalAlignment = HorizontalAlignment.Right,
-                    VerticalAlignment = VerticalAlignment.Top,
-                    Margin = new Thickness(0, 30, 30, 0),
-                    Cursor = System.Windows.Input.Cursors.Hand
-                };
-                closeBtn.Child = new TextBlock { Text = "✕ ZAMKNIJ", FontSize = 24, FontWeight = FontWeights.Bold, Foreground = Brushes.White };
-                closeBtn.MouseLeftButtonDown += (s, e) => { fullscreenTimer.Stop(); fullscreenWindow.Close(); e.Handled = true; };
-                fullscreenGrid.Children.Add(closeBtn);
-
-                fullscreenWindow.Content = fullscreenGrid;
-                fullscreenWindow.KeyDown += (s, e) => { if (e.Key == System.Windows.Input.Key.Escape) { fullscreenTimer.Stop(); fullscreenWindow.Close(); } };
-                fullscreenWindow.Closed += (s, e) => fullscreenTimer.Stop();
-                fullscreenWindow.ShowDialog();
-            };
-
-            // Kamera 1
+            // Kamera 1 - RTSP Stream
             var camera1Border = new Border
             {
                 Background = new SolidColorBrush(Color.FromRgb(30, 35, 40)),
                 CornerRadius = new CornerRadius(10),
                 BorderBrush = new SolidColorBrush(Color.FromRgb(50, 55, 60)),
                 BorderThickness = new Thickness(1),
-                Margin = new Thickness(0, 0, 3, 0),
-                Cursor = System.Windows.Input.Cursors.Hand
+                Margin = new Thickness(0, 0, 3, 0)
             };
             var camera1Grid = new Grid();
-            _camera1Image = new Image { Stretch = Stretch.Uniform };
-            camera1Grid.Children.Add(_camera1Image);
+
+            // VideoView dla strumienia RTSP
+            _videoView1 = new VideoView { Background = Brushes.Black };
+            camera1Grid.Children.Add(_videoView1);
+
             // Status połączenia (widoczny gdy brak obrazu)
             _camera1Status = new TextBlock
             {
@@ -959,6 +905,7 @@ namespace Kalendarz1.WPF
                 VerticalAlignment = VerticalAlignment.Center
             };
             camera1Grid.Children.Add(_camera1Status);
+
             // Nakładka z nazwą
             var camera1Label = new Border
             {
@@ -976,50 +923,56 @@ namespace Kalendarz1.WPF
             };
             camera1Grid.Children.Add(camera1Label);
             camera1Border.Child = camera1Grid;
-            camera1Border.MouseLeftButtonDown += (s, e) => openFullscreenCamera(1);
+            camera1Border.MouseLeftButtonDown += (s, e) => OpenFullscreenRtsp(0);
             Grid.SetColumn(camera1Border, 0);
             camerasGrid.Children.Add(camera1Border);
 
-            // Kamera 2 (placeholder jeśli nie ma drugiej kamery)
+            // Kamera 2 - RTSP Stream
             var camera2Border = new Border
             {
                 Background = new SolidColorBrush(Color.FromRgb(30, 35, 40)),
                 CornerRadius = new CornerRadius(10),
                 BorderBrush = new SolidColorBrush(Color.FromRgb(50, 55, 60)),
                 BorderThickness = new Thickness(1),
-                Margin = new Thickness(3, 0, 0, 0),
-                Cursor = System.Windows.Input.Cursors.Hand
+                Margin = new Thickness(3, 0, 0, 0)
             };
-            if (_cameras.Count > 1)
+            var camera2Grid = new Grid();
+
+            _videoView2 = new VideoView { Background = Brushes.Black };
+            camera2Grid.Children.Add(_videoView2);
+
+            _camera2Status = new TextBlock
             {
-                var camera2Grid = new Grid();
-                _camera2Image = new Image { Stretch = Stretch.Uniform };
-                camera2Grid.Children.Add(_camera2Image);
-                var camera2Label = new Border
-                {
-                    Background = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)),
-                    VerticalAlignment = VerticalAlignment.Bottom,
-                    Padding = new Thickness(8, 4, 8, 4)
-                };
-                camera2Label.Child = new TextBlock { Text = _cameras[1].Name, FontSize = 14, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center };
-                camera2Grid.Children.Add(camera2Label);
-                camera2Border.Child = camera2Grid;
-                camera2Border.MouseLeftButtonDown += (s, e) => openFullscreenCamera(2);
-            }
-            else
+                Text = "⏳ Łączenie z kamerą...",
+                FontSize = 16,
+                Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            camera2Grid.Children.Add(_camera2Status);
+
+            var camera2Label = new Border
             {
-                // Placeholder dla drugiej kamery
-                var camera2Content = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-                camera2Content.Children.Add(new TextBlock { Text = "📹", FontSize = 50, HorizontalAlignment = HorizontalAlignment.Center, Foreground = new SolidColorBrush(Color.FromRgb(60, 70, 80)) });
-                camera2Content.Children.Add(new TextBlock { Text = "KAMERA 2", FontSize = 18, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(70, 80, 90)), HorizontalAlignment = HorizontalAlignment.Center });
-                camera2Content.Children.Add(new TextBlock { Text = "Nie skonfigurowana", FontSize = 12, Foreground = new SolidColorBrush(Color.FromRgb(100, 110, 120)), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 5, 0, 0) });
-                camera2Border.Child = camera2Content;
-            }
+                Background = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)),
+                VerticalAlignment = VerticalAlignment.Bottom,
+                Padding = new Thickness(8, 4, 8, 4)
+            };
+            camera2Label.Child = new TextBlock
+            {
+                Text = _cameras.Count > 1 ? _cameras[1].Name : "KAMERA 2",
+                FontSize = 14,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+            camera2Grid.Children.Add(camera2Label);
+            camera2Border.Child = camera2Grid;
+            camera2Border.MouseLeftButtonDown += (s, e) => OpenFullscreenRtsp(1);
             Grid.SetColumn(camera2Border, 1);
             camerasGrid.Children.Add(camera2Border);
 
-            // Uruchom timer kamer (odświeżanie co 1 sekundę)
-            StartCameraTimer();
+            // Uruchom strumienie RTSP
+            StartRtspStreams();
 
             Grid.SetRow(camerasGrid, 1);
             rightPanel.Children.Add(camerasGrid);
@@ -1030,179 +983,213 @@ namespace Kalendarz1.WPF
             _mainContainer.Children.Add(mainGrid);
         }
 
-        #region Kamery
+        #region Kamery RTSP
 
-        private void StartCameraTimer()
+        /// <summary>
+        /// Uruchamia strumienie RTSP dla obu kamer
+        /// </summary>
+        private void StartRtspStreams()
         {
-            if (_cameraTimer != null) return;
+            if (_libVLC == null) return;
 
-            _cameraTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-            _cameraTimer.Tick += async (s, e) =>
+            // Kamera 1
+            if (_cameras.Count > 0 && _videoView1 != null)
             {
-                // Odśwież kamerę 1
-                if (_camera1Image != null && _cameras.Count > 0)
+                try
                 {
-                    var img = await LoadCameraSnapshotAsync(0);
-                    if (img != null)
+                    _mediaPlayer1 = new MediaPlayer(_libVLC);
+                    _videoView1.MediaPlayer = _mediaPlayer1;
+
+                    _mediaPlayer1.Playing += (s, e) => Dispatcher.Invoke(() =>
                     {
-                        _camera1Image.Source = img;
-                        _camera1Connected = true;
                         if (_camera1Status != null) _camera1Status.Visibility = Visibility.Collapsed;
-                    }
-                    else if (!_camera1Connected && _camera1Status != null)
-                    {
-                        _camera1Status.Text = "❌ Błąd połączenia z kamerą";
-                        _camera1Status.Foreground = new SolidColorBrush(Color.FromRgb(231, 76, 60));
-                    }
-                }
+                        LogCamera($"[CAM1] Strumień RTSP uruchomiony");
+                    });
 
-                // Odśwież kamerę 2
-                if (_camera2Image != null && _cameras.Count > 1)
+                    _mediaPlayer1.EncounteredError += (s, e) => Dispatcher.Invoke(() =>
+                    {
+                        if (_camera1Status != null)
+                        {
+                            _camera1Status.Text = "❌ Błąd połączenia";
+                            _camera1Status.Foreground = new SolidColorBrush(Color.FromRgb(231, 76, 60));
+                            _camera1Status.Visibility = Visibility.Visible;
+                        }
+                        LogCamera($"[CAM1] Błąd strumienia RTSP");
+                    });
+
+                    var media1 = new Media(_libVLC, new Uri(_cameras[0].RtspUrl));
+                    media1.AddOption(":rtsp-tcp");
+                    media1.AddOption(":network-caching=300");
+                    _mediaPlayer1.Play(media1);
+
+                    LogCamera($"[CAM1] Łączenie z: {_cameras[0].RtspUrl}");
+                }
+                catch (Exception ex)
                 {
-                    var img = await LoadCameraSnapshotAsync(1);
-                    if (img != null)
-                    {
-                        _camera2Image.Source = img;
-                        _camera2Connected = true;
-                        if (_camera2Status != null) _camera2Status.Visibility = Visibility.Collapsed;
-                    }
-                    else if (!_camera2Connected && _camera2Status != null)
-                    {
-                        _camera2Status.Text = "❌ Błąd połączenia z kamerą";
-                        _camera2Status.Foreground = new SolidColorBrush(Color.FromRgb(231, 76, 60));
-                    }
+                    LogCamera($"[CAM1] Wyjątek: {ex.Message}");
                 }
-            };
-            _cameraTimer.Start();
+            }
 
-            // Załaduj pierwszy obraz od razu
-            _ = LoadInitialCameraImages();
+            // Kamera 2
+            if (_cameras.Count > 1 && _videoView2 != null)
+            {
+                try
+                {
+                    _mediaPlayer2 = new MediaPlayer(_libVLC);
+                    _videoView2.MediaPlayer = _mediaPlayer2;
+
+                    _mediaPlayer2.Playing += (s, e) => Dispatcher.Invoke(() =>
+                    {
+                        if (_camera2Status != null) _camera2Status.Visibility = Visibility.Collapsed;
+                        LogCamera($"[CAM2] Strumień RTSP uruchomiony");
+                    });
+
+                    _mediaPlayer2.EncounteredError += (s, e) => Dispatcher.Invoke(() =>
+                    {
+                        if (_camera2Status != null)
+                        {
+                            _camera2Status.Text = "❌ Błąd połączenia";
+                            _camera2Status.Foreground = new SolidColorBrush(Color.FromRgb(231, 76, 60));
+                            _camera2Status.Visibility = Visibility.Visible;
+                        }
+                        LogCamera($"[CAM2] Błąd strumienia RTSP");
+                    });
+
+                    var media2 = new Media(_libVLC, new Uri(_cameras[1].RtspUrl));
+                    media2.AddOption(":rtsp-tcp");
+                    media2.AddOption(":network-caching=300");
+                    _mediaPlayer2.Play(media2);
+
+                    LogCamera($"[CAM2] Łączenie z: {_cameras[1].RtspUrl}");
+                }
+                catch (Exception ex)
+                {
+                    LogCamera($"[CAM2] Wyjątek: {ex.Message}");
+                }
+            }
         }
 
-        private async Task LoadInitialCameraImages()
+        /// <summary>
+        /// Otwiera kamerę w trybie pełnoekranowym
+        /// </summary>
+        private void OpenFullscreenRtsp(int cameraIndex)
         {
-            if (_cameras.Count > 0 && _camera1Image != null)
-            {
-                var img = await LoadCameraSnapshotAsync(0);
-                Dispatcher.Invoke(() =>
-                {
-                    if (img != null)
-                    {
-                        _camera1Image.Source = img;
-                        _camera1Connected = true;
-                        if (_camera1Status != null) _camera1Status.Visibility = Visibility.Collapsed;
-                    }
-                });
-            }
-            if (_cameras.Count > 1 && _camera2Image != null)
-            {
-                var img = await LoadCameraSnapshotAsync(1);
-                Dispatcher.Invoke(() =>
-                {
-                    if (img != null)
-                    {
-                        _camera2Image.Source = img;
-                        _camera2Connected = true;
-                        if (_camera2Status != null) _camera2Status.Visibility = Visibility.Collapsed;
-                    }
-                });
-            }
-        }
-
-        private async Task<BitmapImage?> LoadCameraSnapshotAsync(int cameraIndex)
-        {
-            if (cameraIndex >= _cameras.Count) return null;
+            if (_libVLC == null || cameraIndex >= _cameras.Count) return;
 
             var camera = _cameras[cameraIndex];
-            var url = camera.SnapshotUrl;
+
+            var fullscreenWindow = new Window
+            {
+                Title = camera.Name,
+                WindowState = WindowState.Maximized,
+                WindowStyle = WindowStyle.None,
+                Background = Brushes.Black,
+                ResizeMode = ResizeMode.NoResize,
+                Topmost = true
+            };
+
+            var fullscreenGrid = new Grid();
+
+            // Pełnoekranowy VideoView
+            var fullscreenVideoView = new VideoView { Background = Brushes.Black };
+            fullscreenGrid.Children.Add(fullscreenVideoView);
+
+            // MediaPlayer dla fullscreen (używaj strumienia głównego s0 dla lepszej jakości)
+            var fullscreenUrl = camera.RtspUrl.Replace("/s1/", "/s0/"); // HD stream
+            var fullscreenPlayer = new MediaPlayer(_libVLC);
+            fullscreenVideoView.MediaPlayer = fullscreenPlayer;
+
+            var fullscreenMedia = new Media(_libVLC, new Uri(fullscreenUrl));
+            fullscreenMedia.AddOption(":rtsp-tcp");
+            fullscreenMedia.AddOption(":network-caching=300");
+            fullscreenPlayer.Play(fullscreenMedia);
+
+            LogCamera($"[FULLSCREEN] Otwarto kamerę {cameraIndex + 1}: {fullscreenUrl}");
+
+            // Przycisk zamknięcia
+            var closeBtn = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(231, 76, 60)),
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(25, 15, 25, 15),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(0, 30, 30, 0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            closeBtn.Child = new TextBlock
+            {
+                Text = "✕ ZAMKNIJ",
+                FontSize = 24,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White
+            };
+            closeBtn.MouseLeftButtonDown += (s, e) =>
+            {
+                fullscreenPlayer.Stop();
+                fullscreenPlayer.Dispose();
+                fullscreenWindow.Close();
+                e.Handled = true;
+            };
+            fullscreenGrid.Children.Add(closeBtn);
+
+            // Nazwa kamery
+            var nameLabel = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(30, 30, 0, 0),
+                Padding = new Thickness(15, 8, 15, 8),
+                CornerRadius = new CornerRadius(5)
+            };
+            nameLabel.Child = new TextBlock
+            {
+                Text = camera.Name,
+                FontSize = 20,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White
+            };
+            fullscreenGrid.Children.Add(nameLabel);
+
+            fullscreenWindow.Content = fullscreenGrid;
+            fullscreenWindow.KeyDown += (s, e) =>
+            {
+                if (e.Key == System.Windows.Input.Key.Escape)
+                {
+                    fullscreenPlayer.Stop();
+                    fullscreenPlayer.Dispose();
+                    fullscreenWindow.Close();
+                }
+            };
+            fullscreenWindow.Closed += (s, e) =>
+            {
+                fullscreenPlayer.Stop();
+                fullscreenPlayer.Dispose();
+            };
+            fullscreenWindow.ShowDialog();
+        }
+
+        /// <summary>
+        /// Zwalnia zasoby LibVLC i MediaPlayer
+        /// </summary>
+        private void DisposeResources()
+        {
+            _autoTimer?.Stop();
+            _clockTimer?.Stop();
+            _cameraTimer?.Stop();
 
             try
             {
-                LogCamera($"[CAM{cameraIndex}] Próba połączenia: {url}");
-
-                // Krok 1: Wykonaj request bez auth aby uzyskać WWW-Authenticate header
-                var request1 = new HttpRequestMessage(HttpMethod.Get, url);
-                var response1 = await _httpClient.SendAsync(request1);
-
-                LogCamera($"[CAM{cameraIndex}] Response1 Status: {(int)response1.StatusCode} {response1.StatusCode}");
-
-                // Jeśli od razu 200 - świetnie, nie potrzeba auth
-                if (response1.IsSuccessStatusCode)
-                {
-                    var data = await response1.Content.ReadAsByteArrayAsync();
-                    LogCamera($"[CAM{cameraIndex}] Sukces bez auth! Rozmiar: {data.Length} bytes");
-                    if (data.Length > 0) return BytesToBitmapImage(data);
-                }
-
-                // Jeśli 401 - potrzebujemy Digest Auth
-                if (response1.StatusCode == HttpStatusCode.Unauthorized)
-                {
-                    var wwwAuth = response1.Headers.WwwAuthenticate.FirstOrDefault();
-                    LogCamera($"[CAM{cameraIndex}] WWW-Authenticate: {wwwAuth}");
-
-                    if (wwwAuth != null && wwwAuth.Scheme.Equals("Digest", StringComparison.OrdinalIgnoreCase))
-                    {
-                        // Parsuj parametry Digest
-                        var authParams = ParseDigestAuthHeader(wwwAuth.Parameter ?? "");
-                        LogCamera($"[CAM{cameraIndex}] Digest params: realm={authParams.GetValueOrDefault("realm")}, nonce={authParams.GetValueOrDefault("nonce")?.Substring(0, Math.Min(10, authParams.GetValueOrDefault("nonce")?.Length ?? 0))}...");
-
-                        // Oblicz Digest response
-                        var digestHeader = CalculateDigestAuth(
-                            camera.Username,
-                            camera.Password,
-                            authParams,
-                            "GET",
-                            new Uri(url).PathAndQuery
-                        );
-
-                        LogCamera($"[CAM{cameraIndex}] Wysyłam request z Digest Auth...");
-
-                        // Krok 2: Wykonaj request z Digest Auth
-                        var request2 = new HttpRequestMessage(HttpMethod.Get, url);
-                        request2.Headers.Authorization = new AuthenticationHeaderValue("Digest", digestHeader);
-
-                        var response2 = await _httpClient.SendAsync(request2);
-                        LogCamera($"[CAM{cameraIndex}] Response2 Status: {(int)response2.StatusCode} {response2.StatusCode}");
-
-                        if (response2.IsSuccessStatusCode)
-                        {
-                            var data = await response2.Content.ReadAsByteArrayAsync();
-                            LogCamera($"[CAM{cameraIndex}] Sukces z Digest Auth! Rozmiar: {data.Length} bytes");
-                            if (data.Length > 0) return BytesToBitmapImage(data);
-                        }
-                        else
-                        {
-                            var errorBody = await response2.Content.ReadAsStringAsync();
-                            LogCamera($"[CAM{cameraIndex}] Błąd response2: {errorBody.Substring(0, Math.Min(200, errorBody.Length))}");
-                        }
-                    }
-                    else if (wwwAuth != null && wwwAuth.Scheme.Equals("Basic", StringComparison.OrdinalIgnoreCase))
-                    {
-                        // Fallback do Basic Auth
-                        LogCamera($"[CAM{cameraIndex}] Próba Basic Auth...");
-                        var basicAuth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{camera.Username}:{camera.Password}"));
-
-                        var request2 = new HttpRequestMessage(HttpMethod.Get, url);
-                        request2.Headers.Authorization = new AuthenticationHeaderValue("Basic", basicAuth);
-
-                        var response2 = await _httpClient.SendAsync(request2);
-                        LogCamera($"[CAM{cameraIndex}] Response2 (Basic) Status: {(int)response2.StatusCode}");
-
-                        if (response2.IsSuccessStatusCode)
-                        {
-                            var data = await response2.Content.ReadAsByteArrayAsync();
-                            LogCamera($"[CAM{cameraIndex}] Sukces z Basic Auth! Rozmiar: {data.Length} bytes");
-                            if (data.Length > 0) return BytesToBitmapImage(data);
-                        }
-                    }
-                }
+                _mediaPlayer1?.Stop();
+                _mediaPlayer1?.Dispose();
+                _mediaPlayer2?.Stop();
+                _mediaPlayer2?.Dispose();
+                _libVLC?.Dispose();
             }
-            catch (Exception ex)
-            {
-                LogCamera($"[CAM{cameraIndex}] WYJĄTEK: {ex.GetType().Name}: {ex.Message}");
-            }
+            catch { }
 
-            return null;
+            LogCamera("[DISPOSE] Zasoby kamery zwolnione");
         }
 
         private static void LogCamera(string message)
@@ -1222,87 +1209,6 @@ namespace Kalendarz1.WPF
                 File.AppendAllText(logPath, logEntry + Environment.NewLine);
             }
             catch { }
-        }
-
-        private static Dictionary<string, string> ParseDigestAuthHeader(string header)
-        {
-            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-            // Regex do parsowania parametrów: key="value" lub key=value
-            var regex = new Regex(@"(\w+)=(?:""([^""]*)""|([^,\s]+))");
-            var matches = regex.Matches(header);
-
-            foreach (Match match in matches)
-            {
-                var key = match.Groups[1].Value;
-                var value = match.Groups[2].Success ? match.Groups[2].Value : match.Groups[3].Value;
-                result[key] = value;
-            }
-
-            return result;
-        }
-
-        private static string CalculateDigestAuth(string username, string password, Dictionary<string, string> authParams, string method, string uri)
-        {
-            var realm = authParams.GetValueOrDefault("realm", "");
-            var nonce = authParams.GetValueOrDefault("nonce", "");
-            var qop = authParams.GetValueOrDefault("qop", "");
-            var opaque = authParams.GetValueOrDefault("opaque", "");
-
-            // Generuj cnonce i zwiększ nc
-            var cnonce = Guid.NewGuid().ToString("N").Substring(0, 16);
-            _digestNonceCount++;
-            var nc = _digestNonceCount.ToString("x8");
-
-            // Oblicz HA1 = MD5(username:realm:password)
-            var ha1 = MD5Hash($"{username}:{realm}:{password}");
-
-            // Oblicz HA2 = MD5(method:uri)
-            var ha2 = MD5Hash($"{method}:{uri}");
-
-            // Oblicz response
-            string response;
-            if (!string.IsNullOrEmpty(qop))
-            {
-                // qop=auth: response = MD5(HA1:nonce:nc:cnonce:qop:HA2)
-                response = MD5Hash($"{ha1}:{nonce}:{nc}:{cnonce}:{qop}:{ha2}");
-            }
-            else
-            {
-                // bez qop: response = MD5(HA1:nonce:HA2)
-                response = MD5Hash($"{ha1}:{nonce}:{ha2}");
-            }
-
-            // Zbuduj header
-            var sb = new StringBuilder();
-            sb.Append($"username=\"{username}\", ");
-            sb.Append($"realm=\"{realm}\", ");
-            sb.Append($"nonce=\"{nonce}\", ");
-            sb.Append($"uri=\"{uri}\", ");
-
-            if (!string.IsNullOrEmpty(qop))
-            {
-                sb.Append($"qop={qop}, ");
-                sb.Append($"nc={nc}, ");
-                sb.Append($"cnonce=\"{cnonce}\", ");
-            }
-
-            sb.Append($"response=\"{response}\"");
-
-            if (!string.IsNullOrEmpty(opaque))
-            {
-                sb.Append($", opaque=\"{opaque}\"");
-            }
-
-            return sb.ToString();
-        }
-
-        private static string MD5Hash(string input)
-        {
-            using var md5 = MD5.Create();
-            var inputBytes = Encoding.UTF8.GetBytes(input);
-            var hashBytes = md5.ComputeHash(inputBytes);
-            return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
         }
 
         #endregion
