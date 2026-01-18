@@ -84,11 +84,13 @@ namespace Kalendarz1.WPF
                 else if (e.Key == System.Windows.Input.Key.Up || e.Key == System.Windows.Input.Key.Left)
                 {
                     _viewIndex = (_viewIndex - 1 + _productDataList.Count) % _productDataList.Count;
+                    _autoCountdown = 40;
                     RefreshContent();
                 }
                 else if (e.Key == System.Windows.Input.Key.Down || e.Key == System.Windows.Input.Key.Right)
                 {
                     _viewIndex = (_viewIndex + 1) % _productDataList.Count;
+                    _autoCountdown = 40;
                     RefreshContent();
                 }
             };
@@ -653,13 +655,13 @@ namespace Kalendarz1.WPF
             var navPanel = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 0) };
 
             var btnPrev = new Button { Content = "▲", FontSize = 36, Width = 80, Height = 65, Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Margin = new Thickness(0, 0, 0, 5), Cursor = System.Windows.Input.Cursors.Hand };
-            btnPrev.Click += (s, e) => { _viewIndex = (_viewIndex - 1 + _productDataList.Count) % _productDataList.Count; RefreshContent(); };
+            btnPrev.Click += (s, e) => { _viewIndex = (_viewIndex - 1 + _productDataList.Count) % _productDataList.Count; _autoCountdown = 40; RefreshContent(); };
             navPanel.Children.Add(btnPrev);
 
             navPanel.Children.Add(new TextBlock { Text = $"{_viewIndex + 1} z {_productDataList.Count}", FontSize = 16, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 3, 0, 3) });
 
             var btnNext = new Button { Content = "▼", FontSize = 36, Width = 80, Height = 65, Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Margin = new Thickness(0, 5, 0, 0), Cursor = System.Windows.Input.Cursors.Hand };
-            btnNext.Click += (s, e) => { _viewIndex = (_viewIndex + 1) % _productDataList.Count; RefreshContent(); };
+            btnNext.Click += (s, e) => { _viewIndex = (_viewIndex + 1) % _productDataList.Count; _autoCountdown = 40; RefreshContent(); };
             navPanel.Children.Add(btnNext);
 
             // AUTO button
@@ -768,7 +770,7 @@ namespace Kalendarz1.WPF
                 };
                 nameText.Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = Colors.Black, Direction = 315, ShadowDepth = 3, Opacity = 0.9, BlurRadius = 6 };
                 prodBorder.Child = nameText;
-                prodBorder.MouseLeftButtonDown += (s, e) => { _viewIndex = prodIndex; RefreshContent(); };
+                prodBorder.MouseLeftButtonDown += (s, e) => { _viewIndex = prodIndex; _autoCountdown = 40; RefreshContent(); };
                 Grid.SetRow(prodBorder, i);
                 produktyGrid.Children.Add(prodBorder);
             }
