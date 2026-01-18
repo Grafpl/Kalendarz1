@@ -46,10 +46,16 @@ namespace Kalendarz1.WPF
         private TextBlock? _countdownText;
         private ProgressBar? _countdownBar;
         private Grid _mainContainer;
-        private Grid? _rootGrid;      // Główny grid - stały
-        private Grid? _leftPanel;     // Panel lewy (produkty, nawigacja) - odświeżany
-        private Grid? _contentPanel;  // Panel z tabelami - odświeżany
-        private Grid? _cameraPanel;   // Panel z kamerami - STAŁY, niezależny
+
+        // Separacja UI - kamery NIEZALEŻNE od RefreshContent()
+        private Grid? _contentArea;     // Góra (60%) - produkty/tabele - ODŚWIEŻANE
+        private Grid? _camerasArea;     // Dół (40%) - kamery - STAŁE, NIGDY nie odświeżane
+
+        // Flagi stanu kamer
+        private bool _camerasInitialized = false;
+        private bool _camera1Connected = false;
+        private bool _camera2Connected = false;
+        private DispatcherTimer? _reconnectTimer;
 
         // Kamery - konfiguracja RTSP przez NVR INTERNEC
         // Format URL: rtsp://admin:terePacja12%24@192.168.0.125:554/unicast/c{CHANNEL}/s{STREAM}/live
@@ -60,13 +66,15 @@ namespace Kalendarz1.WPF
             {
                 Name = "Kanał 6 - PROD_Waga",
                 Channel = 6,
-                RtspUrl = "rtsp://admin:terePacja12%24@192.168.0.125:554/unicast/c6/s1/live" // s1 = sub stream
+                RtspUrl = "rtsp://admin:terePacja12%24@192.168.0.125:554/unicast/c6/s1/live",     // s1 = substream (podgląd)
+                RtspUrlHD = "rtsp://admin:terePacja12%24@192.168.0.125:554/unicast/c6/s0/live"    // s0 = main (fullscreen)
             },
             new CameraConfig
             {
                 Name = "Kanał 21 - Zew_Tyl",
                 Channel = 21,
-                RtspUrl = "rtsp://admin:terePacja12%24@192.168.0.125:554/unicast/c21/s1/live" // s1 = sub stream
+                RtspUrl = "rtsp://admin:terePacja12%24@192.168.0.125:554/unicast/c21/s1/live",
+                RtspUrlHD = "rtsp://admin:terePacja12%24@192.168.0.125:554/unicast/c21/s0/live"
             }
         };
 
@@ -74,7 +82,8 @@ namespace Kalendarz1.WPF
         {
             public string Name { get; set; } = "";
             public int Channel { get; set; }
-            public string RtspUrl { get; set; } = "";
+            public string RtspUrl { get; set; } = "";       // Substream dla podglądu
+            public string RtspUrlHD { get; set; } = "";     // Main stream dla fullscreen
         }
 
         // LibVLC do streamingu RTSP
@@ -118,14 +127,23 @@ namespace Kalendarz1.WPF
             _connHandel = connHandel;
             _selectedDate = GetDefaultDate();
 
-            // Inicjalizacja LibVLC dla streamingu RTSP
+            // Inicjalizacja LibVLC dla streamingu RTSP - ZOPTYMALIZOWANE
             Core.Initialize();
             _libVLC = new LibVLC(
-                "--rtsp-tcp",           // Używaj TCP zamiast UDP (stabilniejsze)
-                "--network-caching=300", // Bufor 300ms
-                "--no-audio"            // Bez dźwięku
+                "--rtsp-tcp",                       // TCP zamiast UDP (stabilniejsze)
+                "--network-caching=1000",           // 1 sekunda bufora sieciowego
+                "--live-caching=1000",              // Bufor dla live stream
+                "--rtsp-frame-buffer-size=500000",  // Większy bufor ramek
+                "--no-audio",                       // Bez dźwięku
+                "--no-stats",                       // Bez statystyk (wydajność)
+                "--no-osd",                         // Bez OSD
+                "--avcodec-fast",                   // Szybkie dekodowanie
+                "--avcodec-threads=2",              // 2 wątki dekodowania
+                "--clock-jitter=0",                 // Minimalizuj jitter
+                "--drop-late-frames",               // Pomijaj opóźnione ramki
+                "--skip-frames"                     // Pomijaj ramki przy opóźnieniu
             );
-            LogCamera($"[INIT] LibVLC zainicjalizowany");
+            LogCamera($"[INIT] LibVLC zainicjalizowany z optymalizacjami");
 
             Title = "Panel Pani Joli";
             WindowState = WindowState.Maximized;
@@ -170,45 +188,31 @@ namespace Kalendarz1.WPF
 
         private async System.Threading.Tasks.Task InitializeAsync()
         {
-            // Utwórz główną strukturę - kamery będą NIEZALEŻNE od reszty
+            // ========== NOWA STRUKTURA LAYOUTU ==========
+            // _mainContainer podzielony na:
+            // - _contentArea (góra 60%) - produkty/tabele - ODŚWIEŻANE przez RefreshContent()
+            // - _camerasArea (dół 40%) - kamery - STAŁE, NIGDY nie odświeżane
+
             _mainContainer.Children.Clear();
+            _mainContainer.RowDefinitions.Clear();
 
-            // Główny Grid z dwoma kolumnami: lewa (produkty) i prawa (tabele + kamery)
-            _rootGrid = new Grid { Margin = new Thickness(10) };
-            _rootGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(170) }); // Lewa kolumna (produkty)
-            _rootGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Prawa kolumna
+            // Góra: 60% na produkty/tabele, Dół: 40% na kamery
+            _mainContainer.RowDefinitions.Add(new RowDefinition { Height = new GridLength(6, GridUnitType.Star) });
+            _mainContainer.RowDefinitions.Add(new RowDefinition { Height = new GridLength(4, GridUnitType.Star) });
 
-            // Panel lewy (produkty, nawigacja) - będzie odświeżany
-            _leftPanel = new Grid();
-            Grid.SetColumn(_leftPanel, 0);
-            _rootGrid.Children.Add(_leftPanel);
+            // Content area - będzie czyszczone w RefreshContent()
+            _contentArea = new Grid { Margin = new Thickness(10, 10, 10, 5) };
+            Grid.SetRow(_contentArea, 0);
+            _mainContainer.Children.Add(_contentArea);
 
-            // Prawa strona z dwoma wierszami: tabele (góra) i kamery (dół)
-            var rightSide = new Grid { Margin = new Thickness(5, 0, 0, 0) };
-            rightSide.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Tabele
-            rightSide.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Kamery
-            Grid.SetColumn(rightSide, 1);
-            _rootGrid.Children.Add(rightSide);
+            // Cameras area - NIGDY nie będzie czyszczone
+            _camerasArea = new Grid { Margin = new Thickness(10, 5, 10, 10) };
+            _camerasArea.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            _camerasArea.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            Grid.SetRow(_camerasArea, 1);
+            _mainContainer.Children.Add(_camerasArea);
 
-            // Panel z treścią (tabele) - będzie odświeżany przy zmianie produktu
-            _contentPanel = new Grid { Margin = new Thickness(0, 0, 0, 5) };
-            _contentPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            _contentPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            _contentPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            Grid.SetRow(_contentPanel, 0);
-            rightSide.Children.Add(_contentPanel);
-
-            // Panel z kamerami - STAŁY, nigdy nie będzie odświeżany
-            _cameraPanel = new Grid { Margin = new Thickness(0, 5, 0, 0) };
-            _cameraPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            _cameraPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            Grid.SetRow(_cameraPanel, 1);
-            rightSide.Children.Add(_cameraPanel);
-
-            // Inicjalizuj kamery RAZ na początku - pozostaną aktywne
-            InitializeCameras();
-
-            // Pokaż ładowanie
+            // Pokaż ładowanie w _contentArea
             var loadingText = new TextBlock
             {
                 Text = "Ładowanie danych...",
@@ -217,9 +221,16 @@ namespace Kalendarz1.WPF
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
-            Grid.SetColumnSpan(loadingText, 2);
-            _rootGrid.Children.Add(loadingText);
-            _mainContainer.Children.Add(_rootGrid);
+            _contentArea.Children.Add(loadingText);
+
+            // Inicjalizuj kamery RAZ - PRZED ładowaniem danych
+            InitializeCameras();
+
+            // Uruchom strumienie RTSP
+            StartRtspStreams();
+
+            // Uruchom timer auto-reconnect
+            StartReconnectTimer();
 
             try
             {
@@ -228,13 +239,13 @@ namespace Kalendarz1.WPF
                 await LoadDataAsync();
 
                 // Usuń loading text
-                _rootGrid.Children.Remove(loadingText);
+                _contentArea.Children.Remove(loadingText);
 
                 if (_productDataList.Any())
                 {
                     // Uruchom AUTO timer od razu przy starcie
                     StartAutoTimer();
-                    RefreshContent();
+                    RefreshContent(); // Odświeża TYLKO _contentArea!
                 }
                 else
                 {
@@ -247,13 +258,12 @@ namespace Kalendarz1.WPF
                         VerticalAlignment = VerticalAlignment.Center,
                         TextAlignment = TextAlignment.Center
                     };
-                    Grid.SetColumnSpan(noDataText, 2);
-                    _rootGrid.Children.Add(noDataText);
+                    _contentArea.Children.Add(noDataText);
                 }
             }
             catch (Exception ex)
             {
-                _mainContainer.Children.Clear();
+                _contentArea.Children.Clear();
                 var errorText = new TextBlock
                 {
                     Text = $"Błąd: {ex.Message}",
@@ -264,7 +274,7 @@ namespace Kalendarz1.WPF
                     TextWrapping = TextWrapping.Wrap,
                     Margin = new Thickness(50)
                 };
-                _mainContainer.Children.Add(errorText);
+                _contentArea.Children.Add(errorText);
             }
         }
 
@@ -626,14 +636,18 @@ namespace Kalendarz1.WPF
 
         private void RefreshContent()
         {
-            // Sprawdź czy panele są zainicjalizowane
-            if (!_productDataList.Any() || _leftPanel == null || _contentPanel == null) return;
+            // Sprawdź czy _contentArea jest zainicjalizowane
+            if (!_productDataList.Any() || _contentArea == null) return;
 
             var currentData = _productDataList[_viewIndex];
 
-            // Czyść TYLKO panele z treścią, NIE DOTYKAJ kamer!
-            _leftPanel.Children.Clear();
-            _contentPanel.Children.Clear();
+            // ========== CZYŚĆ TYLKO _contentArea, NIGDY _camerasArea! ==========
+            _contentArea.Children.Clear();
+            _contentArea.ColumnDefinitions.Clear();
+
+            // Struktura: lewa kolumna (170px) + prawa kolumna (reszta)
+            _contentArea.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(170) });
+            _contentArea.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
             // ========== LEWA KOLUMNA (produkty, nawigacja) ==========
             var leftStack = new StackPanel { Margin = new Thickness(0, 0, 10, 0) };
@@ -848,9 +862,17 @@ namespace Kalendarz1.WPF
             navPanel.Children.Add(btnShutdown);
 
             leftStack.Children.Add(navPanel);
-            _leftPanel.Children.Add(leftStack);
 
-            // ========== PRAWA STRONA - TABLICE (kamery są osobno, niezależne!) ==========
+            // Dodaj lewą kolumnę do _contentArea
+            Grid.SetColumn(leftStack, 0);
+            _contentArea.Children.Add(leftStack);
+
+            // ========== PRAWA STRONA - TABLICE (kamery są osobno w _camerasArea!) ==========
+            var rightPanel = new Grid { Margin = new Thickness(5, 0, 0, 0) };
+            rightPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            rightPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            rightPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
             var odbiorcy = currentData.Odbiorcy.OrderByDescending(o => o.Zamowione).ToList();
             int maxRowsPerTable = 12;
             var tablica1 = odbiorcy.Take(maxRowsPerTable).ToList();
@@ -896,127 +918,138 @@ namespace Kalendarz1.WPF
             }
             produktyPanel.Child = produktyGrid;
             Grid.SetColumn(produktyPanel, 0);
-            _contentPanel.Children.Add(produktyPanel);
+            rightPanel.Children.Add(produktyPanel);
 
             // Tabela 1 - kolumna 1
             var tab1 = CreateTable(tablica1, 1);
             Grid.SetColumn(tab1, 1);
-            _contentPanel.Children.Add(tab1);
+            rightPanel.Children.Add(tab1);
 
             // Tabela 2 - kolumna 2
             var tab2 = CreateTable(tablica2, maxRowsPerTable + 1);
             Grid.SetColumn(tab2, 2);
-            _contentPanel.Children.Add(tab2);
+            rightPanel.Children.Add(tab2);
 
-            // KAMERY NIE SĄ TUTAJ - są zainicjalizowane osobno w InitializeCameras() i działają niezależnie!
+            // Dodaj prawą stronę do _contentArea
+            Grid.SetColumn(rightPanel, 1);
+            _contentArea.Children.Add(rightPanel);
+
+            // ========== KAMERY NIE SĄ TUTAJ! ==========
+            // Kamery są w _camerasArea, zainicjalizowane RAZ w InitializeCameras()
+            // Działają niezależnie od RefreshContent()
         }
 
         #region Kamery RTSP
 
         /// <summary>
-        /// Inicjalizuje kamery RAZ przy starcie - pozostaną aktywne przez cały czas
+        /// Inicjalizuje kamery RAZ przy starcie - pozostaną aktywne przez cały czas.
+        /// Ta metoda jest wywoływana TYLKO RAZ w InitializeAsync().
         /// </summary>
         private void InitializeCameras()
         {
-            if (_cameraPanel == null || _libVLC == null) return;
+            // Sprawdź czy już zainicjalizowane - NIE twórz ponownie!
+            if (_camerasInitialized || _camerasArea == null || _libVLC == null) return;
 
-            _cameraPanel.Children.Clear();
+            LogCamera("[INIT] Tworzenie kontenerów kamer (tylko raz)...");
 
-            // Kamera 1 - RTSP Stream
+            // === KAMERA 1 ===
             var camera1Border = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(30, 35, 40)),
+                Background = new SolidColorBrush(Color.FromRgb(20, 25, 30)),
                 CornerRadius = new CornerRadius(10),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(50, 55, 60)),
-                BorderThickness = new Thickness(1),
-                Margin = new Thickness(0, 0, 3, 0)
+                Margin = new Thickness(0, 0, 5, 0),
+                ClipToBounds = true
             };
             var camera1Grid = new Grid();
 
-            // VideoView dla strumienia RTSP
-            _videoView1 = new VideoView { Background = Brushes.Black };
+            _videoView1 = new VideoView
+            {
+                Background = Brushes.Black,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch
+            };
             camera1Grid.Children.Add(_videoView1);
 
-            // Status połączenia (widoczny gdy brak obrazu)
             _camera1Status = new TextBlock
             {
-                Text = "⏳ Łączenie z kamerą...",
-                FontSize = 16,
+                Text = "⏳ Łączenie...",
+                FontSize = 18,
                 Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
             camera1Grid.Children.Add(_camera1Status);
 
-            // Nakładka z nazwą
-            var camera1Label = new Border
-            {
-                Background = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)),
-                VerticalAlignment = VerticalAlignment.Bottom,
-                Padding = new Thickness(8, 4, 8, 4)
-            };
-            camera1Label.Child = new TextBlock
-            {
-                Text = _cameras.Count > 0 ? _cameras[0].Name : "KAMERA 1",
-                FontSize = 14,
-                FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White,
-                HorizontalAlignment = HorizontalAlignment.Center
-            };
-            camera1Grid.Children.Add(camera1Label);
+            var label1 = CreateCameraLabel(_cameras.Count > 0 ? _cameras[0].Name : "KAMERA 1");
+            camera1Grid.Children.Add(label1);
+
             camera1Border.Child = camera1Grid;
             camera1Border.MouseLeftButtonDown += (s, e) => OpenFullscreenRtsp(0);
             Grid.SetColumn(camera1Border, 0);
-            _cameraPanel.Children.Add(camera1Border);
+            _camerasArea.Children.Add(camera1Border);
 
-            // Kamera 2 - RTSP Stream
+            // === KAMERA 2 ===
             var camera2Border = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(30, 35, 40)),
+                Background = new SolidColorBrush(Color.FromRgb(20, 25, 30)),
                 CornerRadius = new CornerRadius(10),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(50, 55, 60)),
-                BorderThickness = new Thickness(1),
-                Margin = new Thickness(3, 0, 0, 0)
+                Margin = new Thickness(5, 0, 0, 0),
+                ClipToBounds = true
             };
             var camera2Grid = new Grid();
 
-            _videoView2 = new VideoView { Background = Brushes.Black };
+            _videoView2 = new VideoView
+            {
+                Background = Brushes.Black,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch
+            };
             camera2Grid.Children.Add(_videoView2);
 
             _camera2Status = new TextBlock
             {
-                Text = "⏳ Łączenie z kamerą...",
-                FontSize = 16,
+                Text = "⏳ Łączenie...",
+                FontSize = 18,
                 Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
             camera2Grid.Children.Add(_camera2Status);
 
-            var camera2Label = new Border
+            var label2 = CreateCameraLabel(_cameras.Count > 1 ? _cameras[1].Name : "KAMERA 2");
+            camera2Grid.Children.Add(label2);
+
+            camera2Border.Child = camera2Grid;
+            camera2Border.MouseLeftButtonDown += (s, e) => OpenFullscreenRtsp(1);
+            Grid.SetColumn(camera2Border, 1);
+            _camerasArea.Children.Add(camera2Border);
+
+            // Oznacz jako zainicjalizowane
+            _camerasInitialized = true;
+            LogCamera("[INIT] Kontenery kamer utworzone - NIE będą tworzone ponownie");
+        }
+
+        /// <summary>
+        /// Tworzy etykietę z nazwą kamery
+        /// </summary>
+        private Border CreateCameraLabel(string name)
+        {
+            var label = new Border
             {
-                Background = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)),
+                Background = new SolidColorBrush(Color.FromArgb(200, 0, 0, 0)),
                 VerticalAlignment = VerticalAlignment.Bottom,
-                Padding = new Thickness(8, 4, 8, 4)
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                Padding = new Thickness(10, 6, 10, 6)
             };
-            camera2Label.Child = new TextBlock
+            label.Child = new TextBlock
             {
-                Text = _cameras.Count > 1 ? _cameras[1].Name : "KAMERA 2",
+                Text = name,
                 FontSize = 14,
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.White,
                 HorizontalAlignment = HorizontalAlignment.Center
             };
-            camera2Grid.Children.Add(camera2Label);
-            camera2Border.Child = camera2Grid;
-            camera2Border.MouseLeftButtonDown += (s, e) => OpenFullscreenRtsp(1);
-            Grid.SetColumn(camera2Border, 1);
-            _cameraPanel.Children.Add(camera2Border);
-
-            // Uruchom strumienie RTSP RAZ - będą działać ciągle
-            StartRtspStreams();
-
-            LogCamera("[INIT] Kamery zainicjalizowane - będą działać niezależnie");
+            return label;
         }
 
         /// <summary>
@@ -1026,81 +1059,156 @@ namespace Kalendarz1.WPF
         {
             if (_libVLC == null) return;
 
-            // Kamera 1
-            if (_cameras.Count > 0 && _videoView1 != null)
+            StartCameraStream(0);
+            StartCameraStream(1);
+        }
+
+        /// <summary>
+        /// Uruchamia strumień RTSP dla pojedynczej kamery
+        /// </summary>
+        private void StartCameraStream(int cameraIndex)
+        {
+            if (_libVLC == null || cameraIndex >= _cameras.Count) return;
+
+            var camera = _cameras[cameraIndex];
+            var videoView = cameraIndex == 0 ? _videoView1 : _videoView2;
+            var statusText = cameraIndex == 0 ? _camera1Status : _camera2Status;
+
+            if (videoView == null) return;
+
+            try
             {
-                try
+                // Zatrzymaj stary player jeśli istnieje
+                var oldPlayer = cameraIndex == 0 ? _mediaPlayer1 : _mediaPlayer2;
+                if (oldPlayer != null)
                 {
-                    _mediaPlayer1 = new LibVLCSharp.Shared.MediaPlayer(_libVLC);
-                    _videoView1.MediaPlayer = _mediaPlayer1;
-
-                    _mediaPlayer1.Playing += (s, e) => Dispatcher.Invoke(() =>
+                    try
                     {
-                        if (_camera1Status != null) _camera1Status.Visibility = Visibility.Collapsed;
-                        LogCamera($"[CAM1] Strumień RTSP uruchomiony");
-                    });
-
-                    _mediaPlayer1.EncounteredError += (s, e) => Dispatcher.Invoke(() =>
-                    {
-                        if (_camera1Status != null)
-                        {
-                            _camera1Status.Text = "❌ Błąd połączenia";
-                            _camera1Status.Foreground = new SolidColorBrush(Color.FromRgb(231, 76, 60));
-                            _camera1Status.Visibility = Visibility.Visible;
-                        }
-                        LogCamera($"[CAM1] Błąd strumienia RTSP");
-                    });
-
-                    var media1 = new Media(_libVLC, new Uri(_cameras[0].RtspUrl));
-                    media1.AddOption(":rtsp-tcp");
-                    media1.AddOption(":network-caching=300");
-                    _mediaPlayer1.Play(media1);
-
-                    LogCamera($"[CAM1] Łączenie z: {_cameras[0].RtspUrl}");
+                        oldPlayer.Stop();
+                        oldPlayer.Dispose();
+                    }
+                    catch { }
                 }
-                catch (Exception ex)
+
+                // Nowy MediaPlayer
+                var player = new LibVLCSharp.Shared.MediaPlayer(_libVLC)
                 {
-                    LogCamera($"[CAM1] Wyjątek: {ex.Message}");
+                    EnableHardwareDecoding = true
+                };
+
+                if (cameraIndex == 0)
+                    _mediaPlayer1 = player;
+                else
+                    _mediaPlayer2 = player;
+
+                videoView.MediaPlayer = player;
+
+                // Event: odtwarzanie rozpoczęte
+                player.Playing += (s, e) => Dispatcher.Invoke(() =>
+                {
+                    if (statusText != null)
+                        statusText.Visibility = Visibility.Collapsed;
+
+                    if (cameraIndex == 0)
+                        _camera1Connected = true;
+                    else
+                        _camera2Connected = true;
+
+                    LogCamera($"[CAM{cameraIndex + 1}] ✓ Połączono i odtwarza");
+                });
+
+                // Event: błąd
+                player.EncounteredError += (s, e) => Dispatcher.Invoke(() =>
+                {
+                    if (statusText != null)
+                    {
+                        statusText.Text = "❌ Błąd - ponawiam...";
+                        statusText.Foreground = new SolidColorBrush(Color.FromRgb(231, 76, 60));
+                        statusText.Visibility = Visibility.Visible;
+                    }
+
+                    if (cameraIndex == 0)
+                        _camera1Connected = false;
+                    else
+                        _camera2Connected = false;
+
+                    LogCamera($"[CAM{cameraIndex + 1}] ✗ Błąd połączenia");
+                });
+
+                // Event: koniec strumienia (rozłączenie)
+                player.EndReached += (s, e) => Dispatcher.Invoke(() =>
+                {
+                    if (cameraIndex == 0)
+                        _camera1Connected = false;
+                    else
+                        _camera2Connected = false;
+
+                    if (statusText != null)
+                    {
+                        statusText.Text = "⏳ Rozłączono - ponawiam...";
+                        statusText.Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15));
+                        statusText.Visibility = Visibility.Visible;
+                    }
+
+                    LogCamera($"[CAM{cameraIndex + 1}] Strumień zakończony");
+                });
+
+                // Utwórz media z opcjami
+                var media = new Media(_libVLC, new Uri(camera.RtspUrl));
+                media.AddOption(":rtsp-tcp");
+                media.AddOption(":network-caching=1000");
+                media.AddOption(":live-caching=1000");
+                media.AddOption(":clock-jitter=0");
+                media.AddOption(":rtsp-timeout=10");
+
+                // Uruchom
+                player.Play(media);
+
+                // Ustaw status
+                if (statusText != null)
+                {
+                    statusText.Text = "⏳ Łączenie...";
+                    statusText.Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166));
+                    statusText.Visibility = Visibility.Visible;
                 }
+
+                LogCamera($"[CAM{cameraIndex + 1}] Łączenie z: {camera.RtspUrl}");
             }
-
-            // Kamera 2
-            if (_cameras.Count > 1 && _videoView2 != null)
+            catch (Exception ex)
             {
-                try
-                {
-                    _mediaPlayer2 = new LibVLCSharp.Shared.MediaPlayer(_libVLC);
-                    _videoView2.MediaPlayer = _mediaPlayer2;
+                LogCamera($"[CAM{cameraIndex + 1}] Wyjątek: {ex.Message}");
 
-                    _mediaPlayer2.Playing += (s, e) => Dispatcher.Invoke(() =>
-                    {
-                        if (_camera2Status != null) _camera2Status.Visibility = Visibility.Collapsed;
-                        LogCamera($"[CAM2] Strumień RTSP uruchomiony");
-                    });
-
-                    _mediaPlayer2.EncounteredError += (s, e) => Dispatcher.Invoke(() =>
-                    {
-                        if (_camera2Status != null)
-                        {
-                            _camera2Status.Text = "❌ Błąd połączenia";
-                            _camera2Status.Foreground = new SolidColorBrush(Color.FromRgb(231, 76, 60));
-                            _camera2Status.Visibility = Visibility.Visible;
-                        }
-                        LogCamera($"[CAM2] Błąd strumienia RTSP");
-                    });
-
-                    var media2 = new Media(_libVLC, new Uri(_cameras[1].RtspUrl));
-                    media2.AddOption(":rtsp-tcp");
-                    media2.AddOption(":network-caching=300");
-                    _mediaPlayer2.Play(media2);
-
-                    LogCamera($"[CAM2] Łączenie z: {_cameras[1].RtspUrl}");
-                }
-                catch (Exception ex)
-                {
-                    LogCamera($"[CAM2] Wyjątek: {ex.Message}");
-                }
+                if (cameraIndex == 0)
+                    _camera1Connected = false;
+                else
+                    _camera2Connected = false;
             }
+        }
+
+        /// <summary>
+        /// Timer automatycznego ponownego łączenia - sprawdza co 10 sekund
+        /// </summary>
+        private void StartReconnectTimer()
+        {
+            _reconnectTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
+            _reconnectTimer.Tick += (s, e) =>
+            {
+                // Sprawdź kamerę 1
+                if (!_camera1Connected || (_mediaPlayer1 != null && !_mediaPlayer1.IsPlaying))
+                {
+                    LogCamera("[RECONNECT] Ponawiam połączenie z kamerą 1...");
+                    StartCameraStream(0);
+                }
+
+                // Sprawdź kamerę 2
+                if (!_camera2Connected || (_mediaPlayer2 != null && !_mediaPlayer2.IsPlaying))
+                {
+                    LogCamera("[RECONNECT] Ponawiam połączenie z kamerą 2...");
+                    StartCameraStream(1);
+                }
+            };
+            _reconnectTimer.Start();
+            LogCamera("[RECONNECT] Timer auto-reconnect uruchomiony (co 10s)");
         }
 
         /// <summary>
@@ -1128,14 +1236,18 @@ namespace Kalendarz1.WPF
             var fullscreenVideoView = new VideoView { Background = Brushes.Black };
             fullscreenGrid.Children.Add(fullscreenVideoView);
 
-            // MediaPlayer dla fullscreen (używaj strumienia głównego s0 dla lepszej jakości)
-            var fullscreenUrl = camera.RtspUrl.Replace("/s1/", "/s0/"); // HD stream
-            var fullscreenPlayer = new LibVLCSharp.Shared.MediaPlayer(_libVLC);
+            // MediaPlayer dla fullscreen - używaj RtspUrlHD (s0) dla lepszej jakości
+            var fullscreenUrl = !string.IsNullOrEmpty(camera.RtspUrlHD) ? camera.RtspUrlHD : camera.RtspUrl;
+            var fullscreenPlayer = new LibVLCSharp.Shared.MediaPlayer(_libVLC)
+            {
+                EnableHardwareDecoding = true
+            };
             fullscreenVideoView.MediaPlayer = fullscreenPlayer;
 
             var fullscreenMedia = new Media(_libVLC, new Uri(fullscreenUrl));
             fullscreenMedia.AddOption(":rtsp-tcp");
-            fullscreenMedia.AddOption(":network-caching=300");
+            fullscreenMedia.AddOption(":network-caching=1000");
+            fullscreenMedia.AddOption(":live-caching=1000");
             fullscreenPlayer.Play(fullscreenMedia);
 
             LogCamera($"[FULLSCREEN] Otwarto kamerę {cameraIndex + 1}: {fullscreenUrl}");
@@ -1209,18 +1321,40 @@ namespace Kalendarz1.WPF
         /// </summary>
         private void DisposeResources()
         {
+            // Zatrzymaj wszystkie timery
             _autoTimer?.Stop();
             _clockTimer?.Stop();
+            _reconnectTimer?.Stop();
+
+            LogCamera("[DISPOSE] Zwalnianie zasobów...");
 
             try
             {
+                // Zatrzymaj odtwarzacze
                 _mediaPlayer1?.Stop();
-                _mediaPlayer1?.Dispose();
                 _mediaPlayer2?.Stop();
+
+                // Poczekaj chwilę na zatrzymanie
+                System.Threading.Thread.Sleep(100);
+
+                // Zwolnij zasoby
+                _mediaPlayer1?.Dispose();
                 _mediaPlayer2?.Dispose();
                 _libVLC?.Dispose();
+
+                _mediaPlayer1 = null;
+                _mediaPlayer2 = null;
+                _libVLC = null;
+
+                // Reset flag
+                _camerasInitialized = false;
+                _camera1Connected = false;
+                _camera2Connected = false;
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogCamera($"[DISPOSE] Błąd: {ex.Message}");
+            }
 
             LogCamera("[DISPOSE] Zasoby kamery zwolnione");
         }
