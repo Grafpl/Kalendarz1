@@ -204,10 +204,10 @@ namespace Kalendarz1.WPF
             Grid.SetColumn(_leftPanel, 0);
             rootGrid.Children.Add(_leftPanel);
 
-            // Prawa strona z 2 wierszami
+            // Prawa strona z 2 wierszami - tabele 75%, kamery 25%
             var rightSide = new Grid { Margin = new Thickness(5, 0, 0, 0) };
-            rightSide.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Tabele
-            rightSide.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Kamery
+            rightSide.RowDefinitions.Add(new RowDefinition { Height = new GridLength(3, GridUnitType.Star) }); // Tabele (75%)
+            rightSide.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Kamery (25%)
             Grid.SetColumn(rightSide, 1);
             rootGrid.Children.Add(rightSide);
 
