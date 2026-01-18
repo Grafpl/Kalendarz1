@@ -3757,7 +3757,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
             // Pokaż dialog potwierdzenia
             string hodowca = droppedItem.Dostawca ?? "nieznany";
-            string auta = droppedItem.Auta?.ToString() ?? "?";
+            string auta = droppedItem.Auta.ToString();
             string oldDateStr = droppedItem.DataOdbioru.ToString("dd.MM.yyyy (dddd)");
             string newDateStr = newDate.ToString("dd.MM.yyyy (dddd)");
 
