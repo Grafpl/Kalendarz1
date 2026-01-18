@@ -1538,8 +1538,8 @@
             <!-- PANEL SZCZEGÓŁÓW - TABCONTROL - profesjonalny -->
             <Border Grid.Row="3" Background="White" CornerRadius="6" Margin="0,0,0,4" BorderBrush="#E2E8F0" BorderThickness="1">
                 <TabControl x:Name="tabSzczegoly" FontSize="10" BorderThickness="0" Padding="0">
-                    <!-- TAB: KARTA - profesjonalny design -->
-                    <TabItem Header="📋 Karta" FontSize="11" FontWeight="SemiBold">
+                    <!-- TAB: DOSTAWA - profesjonalny design -->
+                    <TabItem Header="🚚 Dostawa" FontSize="11" FontWeight="SemiBold">
                         <Grid Background="#F1F5F9">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="*"/>
