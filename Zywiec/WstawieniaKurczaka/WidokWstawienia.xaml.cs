@@ -954,14 +954,14 @@ namespace Kalendarz1
             {
                 Header = "LP",
                 Binding = new System.Windows.Data.Binding("LP"),
-                Width = 55
+                Width = 50
             });
 
             dataGridWstawienia.Columns.Add(new DataGridTextColumn
             {
                 Header = "Hodowca",
                 Binding = new System.Windows.Data.Binding("Dostawca"),
-                Width = new DataGridLength(1, DataGridLengthUnitType.Star)
+                Width = 95
             });
 
             dataGridWstawienia.Columns.Add(new DataGridTextColumn
@@ -971,7 +971,7 @@ namespace Kalendarz1
                 {
                     StringFormat = "yyyy-MM-dd ddd"
                 },
-                Width = 105
+                Width = 100
             });
 
             // Format z separatorem tysięcy
@@ -982,30 +982,55 @@ namespace Kalendarz1
                 {
                     StringFormat = "# ##0"
                 },
-                Width = 55
+                Width = 50
             });
 
             dataGridWstawienia.Columns.Add(new DataGridTextColumn
             {
                 Header = "Typ",
                 Binding = new System.Windows.Data.Binding("TypUmowy"),
-                Width = 60
+                Width = 55
             });
 
-            // Kolumna Typ Ceny
-            dataGridWstawienia.Columns.Add(new DataGridTextColumn
+            // Kolumna Typ Ceny z kolorowaniem
+            var typCenyColumn = new DataGridTemplateColumn
             {
                 Header = "Cena",
-                Binding = new System.Windows.Data.Binding("TypCeny"),
-                Width = 70
+                Width = 75
+            };
+
+            var cellTemplate = new DataTemplate();
+            var factory = new FrameworkElementFactory(typeof(Border));
+            factory.SetBinding(Border.BackgroundProperty, new System.Windows.Data.Binding("TypCeny")
+            {
+                Converter = new TypCenyToColorConverter()
             });
+            factory.SetValue(Border.CornerRadiusProperty, new CornerRadius(3));
+            factory.SetValue(Border.PaddingProperty, new Thickness(4, 2, 4, 2));
+            factory.SetValue(Border.MarginProperty, new Thickness(1));
+
+            var textFactory = new FrameworkElementFactory(typeof(TextBlock));
+            textFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("TypCeny"));
+            textFactory.SetBinding(TextBlock.ForegroundProperty, new System.Windows.Data.Binding("TypCeny")
+            {
+                Converter = new TypCenyToForegroundConverter()
+            });
+            textFactory.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
+            textFactory.SetValue(TextBlock.FontSizeProperty, 10.0);
+            textFactory.SetValue(TextBlock.TextAlignmentProperty, TextAlignment.Center);
+            textFactory.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+
+            factory.AppendChild(textFactory);
+            cellTemplate.VisualTree = factory;
+            typCenyColumn.CellTemplate = cellTemplate;
+            dataGridWstawienia.Columns.Add(typCenyColumn);
 
             // Kolumna "Kto"
             dataGridWstawienia.Columns.Add(new DataGridTextColumn
             {
                 Header = "Kto",
                 Binding = new System.Windows.Data.Binding("KtoStwo"),
-                Width = 55
+                Width = 50
             });
 
             // Kolumna Data i Godzina Utworzenia
@@ -1013,14 +1038,14 @@ namespace Kalendarz1
             {
                 Header = "Utworzono",
                 Binding = new System.Windows.Data.Binding("DataUtw"),
-                Width = 110
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star)
             });
 
             // Kolumna Potw.
             var potwColumn = new DataGridTextColumn
             {
                 Header = "Potw.",
-                Width = 50
+                Width = 45
             };
             potwColumn.Binding = new System.Windows.Data.Binding("isConf")
             {
@@ -1167,7 +1192,7 @@ namespace Kalendarz1
             {
                 Header = "LP",
                 Binding = new System.Windows.Data.Binding("LP"),
-                Width = 35
+                Width = 32
             });
 
             dataGridPrzypomnienia.Columns.Add(new DataGridTextColumn
@@ -1177,17 +1202,16 @@ namespace Kalendarz1
                 {
                     StringFormat = "MM-dd ddd"
                 },
-                Width = 80
+                Width = 70
             });
 
             dataGridPrzypomnienia.Columns.Add(new DataGridTextColumn
             {
                 Header = "Hodowca",
                 Binding = new System.Windows.Data.Binding("Dostawca"),
-                Width = new DataGridLength(1, DataGridLengthUnitType.Star)
+                Width = 70
             });
 
-            // ZMIANA: Format z separatorem tysięcy
             dataGridPrzypomnienia.Columns.Add(new DataGridTextColumn
             {
                 Header = "Ilość",
@@ -1195,14 +1219,14 @@ namespace Kalendarz1
                 {
                     StringFormat = "# ##0"
                 },
-                Width = 50
+                Width = 45
             });
 
             dataGridPrzypomnienia.Columns.Add(new DataGridTextColumn
             {
                 Header = "Tel",
                 Binding = new System.Windows.Data.Binding("Telefon"),
-                Width = 75
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star)
             });
         }
 
@@ -1409,7 +1433,7 @@ namespace Kalendarz1
             {
                 Header = "LP",
                 Binding = new Binding("LP"),
-                Width = 40
+                Width = 32
             });
 
             dataGridDoPotwierdzenia.Columns.Add(new DataGridTextColumn
@@ -1419,14 +1443,14 @@ namespace Kalendarz1
                 {
                     StringFormat = "MM-dd ddd"
                 },
-                Width = 85
+                Width = 70
             });
 
             dataGridDoPotwierdzenia.Columns.Add(new DataGridTextColumn
             {
                 Header = "Hodowca",
                 Binding = new Binding("Dostawca"),
-                Width = new DataGridLength(1.2, DataGridLengthUnitType.Star)
+                Width = 70
             });
 
             dataGridDoPotwierdzenia.Columns.Add(new DataGridTextColumn
@@ -1436,14 +1460,14 @@ namespace Kalendarz1
                 {
                     StringFormat = "# ##0"
                 },
-                Width = 60
+                Width = 45
             });
 
             dataGridDoPotwierdzenia.Columns.Add(new DataGridTextColumn
             {
                 Header = "Tel",
                 Binding = new Binding("Telefon"),
-                Width = 90
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star)
             });
 
             // Dodaj context menu
@@ -1889,30 +1913,28 @@ namespace Kalendarz1
                 {
                     StringFormat = "0.00"
                 },
-                Width = new DataGridLength(0.7, DataGridLengthUnitType.Star)
+                Width = 45
             });
 
-            // ZMIANA: Szersze Typ ceny
             dataGridDostawy.Columns.Add(new DataGridTextColumn
             {
                 Header = "T",
                 Binding = new System.Windows.Data.Binding("typCeny"),
-                Width = 60
+                Width = 50
             });
 
             dataGridDostawy.Columns.Add(new DataGridTextColumn
             {
                 Header = "Dni",
                 Binding = new System.Windows.Data.Binding("RoznicaDni"),
-                Width = new DataGridLength(0.5, DataGridLengthUnitType.Star)
+                Width = 30
             });
 
-            // ZMIANA: Szerszy Bufor
             dataGridDostawy.Columns.Add(new DataGridTextColumn
             {
                 Header = "B",
                 Binding = new System.Windows.Data.Binding("bufor"),
-                Width = 70
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star)
             });
         }
 
@@ -2714,6 +2736,55 @@ namespace Kalendarz1
 
             bool isConf = System.Convert.ToBoolean(value);
             return isConf ? "Potwierdzone" : "";
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    // ====== CONVERTER DLA KOLUMNY TYP CENY Z KOLORAMI ======
+    public class TypCenyToColorConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            string typCeny = value?.ToString()?.ToLower() ?? "";
+
+            switch (typCeny)
+            {
+                case "łączona":
+                    return new SolidColorBrush(Color.FromRgb(138, 43, 226));  // fioletowy
+                case "rolnicza":
+                    return new SolidColorBrush(Color.FromRgb(92, 138, 58));   // zielony
+                case "wolnyrynek":
+                    return new SolidColorBrush(Color.FromRgb(255, 193, 7));   // żółty
+                case "ministerialna":
+                    return new SolidColorBrush(Color.FromRgb(33, 150, 243));  // niebieski
+                default:
+                    return new SolidColorBrush(Color.FromRgb(149, 165, 166)); // szary dla innych/brak
+            }
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    // ====== CONVERTER DLA KOLORU TEKSTU TYPU CENY ======
+    public class TypCenyToForegroundConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            string typCeny = value?.ToString()?.ToLower() ?? "";
+
+            // Wolnyrynek ma żółte tło - potrzebny czarny tekst
+            if (typCeny == "wolnyrynek")
+                return Brushes.Black;
+
+            // Wszystkie pozostałe mają ciemne tło - biały tekst
+            return Brushes.White;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
