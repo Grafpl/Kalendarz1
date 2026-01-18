@@ -988,13 +988,21 @@ namespace Kalendarz1.WPF
             var label1 = CreateCameraLabel(_cameras.Count > 0 ? _cameras[0].Name : "KAMERA 1");
             camera1Grid.Children.Add(label1);
 
-            // Transparentny overlay do przechwytywania kliknięć (VideoView blokuje eventy)
+            // Overlay do przechwytywania kliknięć (VideoView/WindowsFormsHost blokuje eventy)
+            // Alpha=1 jest prawie niewidoczne ale przechwytuje kliknięcia (Transparent nie działa)
             var clickOverlay1 = new Border
             {
-                Background = Brushes.Transparent,
-                Cursor = System.Windows.Input.Cursors.Hand
+                Background = new SolidColorBrush(Color.FromArgb(1, 0, 0, 0)),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch
             };
-            clickOverlay1.MouseLeftButtonDown += (s, e) => { OpenFullscreenRtsp(0); e.Handled = true; };
+            clickOverlay1.MouseLeftButtonDown += (s, e) =>
+            {
+                LogCamera("[CLICK] Kliknięto kamerę 1");
+                OpenFullscreenRtsp(0);
+                e.Handled = true;
+            };
             camera1Grid.Children.Add(clickOverlay1);
 
             camera1Border.Child = camera1Grid;
@@ -1032,13 +1040,21 @@ namespace Kalendarz1.WPF
             var label2 = CreateCameraLabel(_cameras.Count > 1 ? _cameras[1].Name : "KAMERA 2");
             camera2Grid.Children.Add(label2);
 
-            // Transparentny overlay do przechwytywania kliknięć (VideoView blokuje eventy)
+            // Overlay do przechwytywania kliknięć (VideoView/WindowsFormsHost blokuje eventy)
+            // Alpha=1 jest prawie niewidoczne ale przechwytuje kliknięcia (Transparent nie działa)
             var clickOverlay2 = new Border
             {
-                Background = Brushes.Transparent,
-                Cursor = System.Windows.Input.Cursors.Hand
+                Background = new SolidColorBrush(Color.FromArgb(1, 0, 0, 0)),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch
             };
-            clickOverlay2.MouseLeftButtonDown += (s, e) => { OpenFullscreenRtsp(1); e.Handled = true; };
+            clickOverlay2.MouseLeftButtonDown += (s, e) =>
+            {
+                LogCamera("[CLICK] Kliknięto kamerę 2");
+                OpenFullscreenRtsp(1);
+                e.Handled = true;
+            };
             camera2Grid.Children.Add(clickOverlay2);
 
             camera2Border.Child = camera2Grid;
@@ -1274,6 +1290,24 @@ namespace Kalendarz1.WPF
 
             LogCamera($"[FULLSCREEN] Otwarto kamerę {cameraIndex + 1}: {camera.RtspUrl}");
 
+            // Overlay do przechwytywania kliknięć (VideoView/WindowsFormsHost blokuje eventy)
+            var fullscreenOverlay = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(1, 0, 0, 0)),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch
+            };
+            fullscreenOverlay.MouseLeftButtonDown += (s, e) =>
+            {
+                LogCamera("[FULLSCREEN] Kliknięto - zamykam");
+                fullscreenPlayer.Stop();
+                fullscreenPlayer.Dispose();
+                fullscreenWindow.Close();
+                e.Handled = true;
+            };
+            fullscreenGrid.Children.Add(fullscreenOverlay);
+
             // Nazwa kamery (mała etykieta w rogu)
             var nameLabel = new Border
             {
@@ -1294,14 +1328,6 @@ namespace Kalendarz1.WPF
             fullscreenGrid.Children.Add(nameLabel);
 
             fullscreenWindow.Content = fullscreenGrid;
-
-            // Zamknięcie przez kliknięcie gdziekolwiek
-            fullscreenWindow.MouseLeftButtonDown += (s, e) =>
-            {
-                fullscreenPlayer.Stop();
-                fullscreenPlayer.Dispose();
-                fullscreenWindow.Close();
-            };
 
             // Zamknięcie przez ESC
             fullscreenWindow.KeyDown += (s, e) =>
