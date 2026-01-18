@@ -1553,6 +1553,11 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
                                     // Transport
                                     txtSztNaSzufladeCalc.Text = r["SztSzuflada"]?.ToString();
+
+                                    // Załadunek AVILOG - ustaw Szt na szufladę i przelicz
+                                    txtSztNaSzufladeWaga.Text = r["SztSzuflada"]?.ToString();
+                                    CalculateZaladunekRow1();
+                                    CalculateZaladunekRow2();
                                 });
                             }
                         }
@@ -2083,6 +2088,11 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
                                 // Transport
                                 txtSztNaSzufladeCalc.Text = r["SztSzuflada"]?.ToString();
+
+                                // Załadunek AVILOG - ustaw Szt na szufladę i przelicz
+                                txtSztNaSzufladeWaga.Text = r["SztSzuflada"]?.ToString();
+                                CalculateZaladunekRow1();
+                                CalculateZaladunekRow2();
                             }
                         }
                     }
