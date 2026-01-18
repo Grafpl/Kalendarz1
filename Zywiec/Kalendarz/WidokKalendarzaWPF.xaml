@@ -686,13 +686,13 @@
                                                                 <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
                                                                     <Setter Property="Visibility" Value="Collapsed"/>
                                                                 </DataTrigger>
-                                                                <!-- Notatka z 2-3 dni - żółta czcionka z czarnym obramowaniem -->
+                                                                <!-- Notatka z 2-3 dni - czarna czcionka z czerwoną poświatą -->
                                                                 <DataTrigger Binding="{Binding IsRecentNote}" Value="True">
-                                                                    <Setter Property="Foreground" Value="#EAB308"/>
+                                                                    <Setter Property="Foreground" Value="#1F2937"/>
                                                                     <Setter Property="FontWeight" Value="SemiBold"/>
                                                                     <Setter Property="Effect">
                                                                         <Setter.Value>
-                                                                            <DropShadowEffect ShadowDepth="0" BlurRadius="3" Color="White" Opacity="1"/>
+                                                                            <DropShadowEffect ShadowDepth="0" BlurRadius="5" Color="#DC2626" Opacity="1"/>
                                                                         </Setter.Value>
                                                                     </Setter>
                                                                 </DataTrigger>
@@ -946,13 +946,13 @@
                                                             <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
                                                                 <Setter Property="Visibility" Value="Collapsed"/>
                                                             </DataTrigger>
-                                                            <!-- Notatka z 2-3 dni - żółta czcionka z białym obramowaniem -->
+                                                            <!-- Notatka z 2-3 dni - czarna czcionka z czerwoną poświatą -->
                                                             <DataTrigger Binding="{Binding IsRecentNote}" Value="True">
-                                                                <Setter Property="Foreground" Value="#EAB308"/>
+                                                                <Setter Property="Foreground" Value="#1F2937"/>
                                                                 <Setter Property="FontWeight" Value="SemiBold"/>
                                                                 <Setter Property="Effect">
                                                                     <Setter.Value>
-                                                                        <DropShadowEffect ShadowDepth="0" BlurRadius="3" Color="White" Opacity="1"/>
+                                                                        <DropShadowEffect ShadowDepth="0" BlurRadius="5" Color="#DC2626" Opacity="1"/>
                                                                     </Setter.Value>
                                                                 </Setter>
                                                             </DataTrigger>
