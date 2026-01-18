@@ -521,7 +521,13 @@ namespace Kalendarz1
                 ForeColor = Color.FromArgb(255, 220, 100),
                 Size = new Size(contentWidth, 18),
                 Location = new Point(10, y),
-                TextAlign = ContentAlignment.MiddleCenter
+                TextAlign = ContentAlignment.MiddleCenter,
+                Cursor = Cursors.Hand
+            };
+            weatherMainLabel.Click += (s, ev) =>
+            {
+                var weatherChartWindow = new WeatherChartWindow();
+                weatherChartWindow.Show();
             };
             infoPanel.Controls.Add(weatherMainLabel);
             y += 20;
