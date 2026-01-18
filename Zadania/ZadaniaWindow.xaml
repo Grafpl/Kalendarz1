@@ -181,11 +181,11 @@
             </Grid>
         </Border>
 
-        <!-- Tasks List - Timeline View -->
-        <Border Grid.Row="2" Background="#252542" CornerRadius="8" Padding="15">
+        <!-- Tasks List - Timeline View (Horizontal) -->
+        <Border Grid.Row="2" Background="#252542" CornerRadius="8" Padding="10">
             <Grid>
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel x:Name="timelineContainer"/>
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                    <StackPanel x:Name="timelineContainer" Orientation="Horizontal"/>
                 </ScrollViewer>
 
                 <!-- Empty state -->

@@ -185,94 +185,116 @@ namespace Kalendarz1.Zadania
         {
             var color = (Color)ColorConverter.ConvertFromString(colorHex);
 
-            // Sekcja header
-            var header = new Grid { Margin = new Thickness(0, 10, 0, 8) };
-            header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            // Kolumna sekcji
+            var column = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(0x1a, 0x1a, 0x2e)),
+                CornerRadius = new CornerRadius(8),
+                Margin = new Thickness(5),
+                Padding = new Thickness(10),
+                MinWidth = 280,
+                MaxWidth = 320,
+                VerticalAlignment = VerticalAlignment.Stretch
+            };
+
+            var columnStack = new StackPanel();
+
+            // Header
+            var header = new Grid { Margin = new Thickness(0, 0, 0, 10) };
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-            var iconText = new TextBlock
+            var headerLeft = new StackPanel { Orientation = Orientation.Horizontal };
+            headerLeft.Children.Add(new TextBlock
             {
                 Text = icon,
-                FontSize = 18,
+                FontSize = 16,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 8, 0)
-            };
-            Grid.SetColumn(iconText, 0);
-            header.Children.Add(iconText);
-
-            var titleText = new TextBlock
+                Margin = new Thickness(0, 0, 6, 0)
+            });
+            headerLeft.Children.Add(new TextBlock
             {
                 Text = title,
-                FontSize = 16,
+                FontSize = 14,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(color),
                 VerticalAlignment = VerticalAlignment.Center
-            };
-            Grid.SetColumn(titleText, 1);
-            header.Children.Add(titleText);
-
-            var line = new Border
-            {
-                Height = 2,
-                Background = new SolidColorBrush(Color.FromArgb(80, color.R, color.G, color.B)),
-                Margin = new Thickness(15, 0, 15, 0),
-                VerticalAlignment = VerticalAlignment.Center,
-                CornerRadius = new CornerRadius(1)
-            };
-            Grid.SetColumn(line, 2);
-            header.Children.Add(line);
+            });
+            Grid.SetColumn(headerLeft, 0);
+            header.Children.Add(headerLeft);
 
             var countBadge = new Border
             {
                 Background = new SolidColorBrush(color),
                 CornerRadius = new CornerRadius(10),
-                Padding = new Thickness(8, 2, 8, 2),
-                Margin = new Thickness(10, 0, 0, 0)
+                Padding = new Thickness(8, 2, 8, 2)
             };
             countBadge.Child = new TextBlock
             {
                 Text = tasks.Count.ToString(),
                 Foreground = Brushes.White,
-                FontSize = 12,
+                FontSize = 11,
                 FontWeight = FontWeights.SemiBold
             };
-            Grid.SetColumn(countBadge, 3);
+            Grid.SetColumn(countBadge, 2);
             header.Children.Add(countBadge);
 
-            timelineContainer.Children.Add(header);
+            columnStack.Children.Add(header);
 
-            // Zadania w sekcji
+            // Linia separatora
+            columnStack.Children.Add(new Border
+            {
+                Height = 2,
+                Background = new SolidColorBrush(Color.FromArgb(60, color.R, color.G, color.B)),
+                CornerRadius = new CornerRadius(1),
+                Margin = new Thickness(0, 0, 0, 8)
+            });
+
+            // Lista zadań w ScrollViewer
+            var tasksScroll = new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                MaxHeight = 500
+            };
+
+            var tasksStack = new StackPanel();
             foreach (var task in tasks)
             {
-                timelineContainer.Children.Add(CreateTaskRow(task));
+                tasksStack.Children.Add(CreateTaskCard(task, color));
             }
+            tasksScroll.Content = tasksStack;
+
+            columnStack.Children.Add(tasksScroll);
+            column.Child = columnStack;
+            timelineContainer.Children.Add(column);
         }
 
-        private Border CreateTaskRow(ZadanieViewModel task)
+        private Border CreateTaskCard(ZadanieViewModel task, Color sectionColor)
         {
-            var row = new Border
+            var card = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(0x1e, 0x1e, 0x36)),
+                Background = new SolidColorBrush(Color.FromRgb(0x25, 0x25, 0x42)),
                 CornerRadius = new CornerRadius(6),
-                Margin = new Thickness(0, 2, 0, 2),
-                Padding = new Thickness(12, 8, 12, 8),
+                Margin = new Thickness(0, 0, 0, 6),
+                Padding = new Thickness(10, 8, 10, 8),
+                BorderBrush = task.PriorityColor,
+                BorderThickness = new Thickness(3, 0, 0, 0),
                 Cursor = System.Windows.Input.Cursors.Hand
             };
 
-            var grid = new Grid();
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });      // Checkbox
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Title + badges
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });         // Avatars
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });      // Time
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });         // Actions
+            var stack = new StackPanel();
 
-            // Checkbox
-            var checkboxBorder = new Border
+            // Wiersz 1: Checkbox + Tytuł
+            var row1 = new Grid();
+            row1.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(26) });
+            row1.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var checkbox = new Border
             {
-                Width = 22,
-                Height = 22,
+                Width = 20,
+                Height = 20,
                 CornerRadius = new CornerRadius(4),
                 Background = task.Wykonane
                     ? new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50))
@@ -285,16 +307,16 @@ namespace Kalendarz1.Zadania
                 VerticalAlignment = VerticalAlignment.Center,
                 Tag = task.Id
             };
-            checkboxBorder.Child = new TextBlock
+            checkbox.Child = new TextBlock
             {
                 Text = task.Wykonane ? "✓" : "",
                 Foreground = Brushes.White,
-                FontSize = 12,
+                FontSize = 11,
                 FontWeight = FontWeights.Bold,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
-            checkboxBorder.MouseLeftButtonUp += (s, ev) =>
+            checkbox.MouseLeftButtonUp += (s, ev) =>
             {
                 var id = (int)((Border)s).Tag;
                 var t = allTasks.FirstOrDefault(x => x.Id == id);
@@ -306,111 +328,98 @@ namespace Kalendarz1.Zadania
                     ApplyFilters();
                 }
             };
-            Grid.SetColumn(checkboxBorder, 0);
-            grid.Children.Add(checkboxBorder);
-
-            // Title + Priority badge
-            var titleStack = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(5, 0, 10, 0)
-            };
-
-            var priorityDot = new Ellipse
-            {
-                Width = 8,
-                Height = 8,
-                Fill = task.PriorityColor,
-                Margin = new Thickness(0, 0, 8, 0),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            titleStack.Children.Add(priorityDot);
+            Grid.SetColumn(checkbox, 0);
+            row1.Children.Add(checkbox);
 
             var titleText = new TextBlock
             {
                 Text = task.TypZadania,
                 Foreground = task.Wykonane ? new SolidColorBrush(Color.FromRgb(0x66, 0x66, 0x66)) : Brushes.White,
                 FontSize = 13,
+                FontWeight = FontWeights.Medium,
                 TextDecorations = task.TextDecoration,
-                VerticalAlignment = VerticalAlignment.Center,
-                TextTrimming = TextTrimming.CharacterEllipsis
+                TextWrapping = TextWrapping.Wrap,
+                VerticalAlignment = VerticalAlignment.Center
             };
-            titleStack.Children.Add(titleText);
+            Grid.SetColumn(titleText, 1);
+            row1.Children.Add(titleText);
+
+            stack.Children.Add(row1);
+
+            // Wiersz 2: Czas + Zespołowe
+            var row2 = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(26, 4, 0, 0)
+            };
+
+            row2.Children.Add(new TextBlock
+            {
+                Text = task.TerminWykonania.ToString("HH:mm"),
+                Foreground = task.TerminColor,
+                FontSize = 11,
+                VerticalAlignment = VerticalAlignment.Center
+            });
 
             if (task.Zespolowe)
             {
-                var teamIcon = new TextBlock
+                row2.Children.Add(new TextBlock
                 {
-                    Text = "👥",
-                    FontSize = 12,
-                    Margin = new Thickness(8, 0, 0, 0),
+                    Text = " 👥",
+                    FontSize = 11,
                     VerticalAlignment = VerticalAlignment.Center,
                     ToolTip = "Zadanie zespołowe"
-                };
-                titleStack.Children.Add(teamIcon);
+                });
             }
 
-            Grid.SetColumn(titleStack, 1);
-            grid.Children.Add(titleStack);
+            stack.Children.Add(row2);
 
-            // Avatars
+            // Wiersz 3: Avatary + Akcje
+            var row3 = new Grid { Margin = new Thickness(0, 6, 0, 0) };
+            row3.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row3.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
             var avatarsPanel = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 10, 0)
+                VerticalAlignment = VerticalAlignment.Center
             };
 
-            foreach (var pracownik in task.Przypisani.Take(3))
+            foreach (var pracownik in task.Przypisani.Take(4))
             {
-                var avatar = CreateAvatar(pracownik.Id, pracownik.Nazwa, 28);
+                var avatar = CreateAvatar(pracownik.Id, pracownik.Nazwa, 24);
                 if (avatar is FrameworkElement fe)
                 {
-                    fe.Margin = new Thickness(0, 0, -6, 0);
+                    fe.Margin = new Thickness(0, 0, -4, 0);
                     fe.ToolTip = pracownik.Nazwa;
                 }
                 avatarsPanel.Children.Add(avatar);
             }
 
-            if (task.Przypisani.Count > 3)
+            if (task.Przypisani.Count > 4)
             {
                 var more = new Border
                 {
-                    Width = 28,
-                    Height = 28,
-                    CornerRadius = new CornerRadius(14),
+                    Width = 24,
+                    Height = 24,
+                    CornerRadius = new CornerRadius(12),
                     Background = new SolidColorBrush(Color.FromRgb(0x3a, 0x3a, 0x5c)),
                     Margin = new Thickness(2, 0, 0, 0)
                 };
                 more.Child = new TextBlock
                 {
-                    Text = $"+{task.Przypisani.Count - 3}",
+                    Text = $"+{task.Przypisani.Count - 4}",
                     Foreground = Brushes.White,
-                    FontSize = 10,
+                    FontSize = 9,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center
                 };
                 avatarsPanel.Children.Add(more);
             }
 
-            Grid.SetColumn(avatarsPanel, 2);
-            grid.Children.Add(avatarsPanel);
+            Grid.SetColumn(avatarsPanel, 0);
+            row3.Children.Add(avatarsPanel);
 
-            // Time
-            var timeText = new TextBlock
-            {
-                Text = task.TerminWykonania.ToString("HH:mm"),
-                Foreground = task.TerminColor,
-                FontSize = 12,
-                VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                Margin = new Thickness(0, 0, 10, 0)
-            };
-            Grid.SetColumn(timeText, 3);
-            grid.Children.Add(timeText);
-
-            // Action buttons
             var actionsPanel = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
@@ -421,12 +430,11 @@ namespace Kalendarz1.Zadania
             {
                 Content = "✏️",
                 Background = Brushes.Transparent,
-                Foreground = Brushes.White,
                 BorderThickness = new Thickness(0),
-                Padding = new Thickness(6, 2, 6, 2),
+                Padding = new Thickness(4, 2, 4, 2),
                 Cursor = System.Windows.Input.Cursors.Hand,
                 Tag = task.Id,
-                FontSize = 12
+                FontSize = 11
             };
             editBtn.Click += BtnEdytuj_Click;
             actionsPanel.Children.Add(editBtn);
@@ -435,28 +443,28 @@ namespace Kalendarz1.Zadania
             {
                 Content = "🗑️",
                 Background = Brushes.Transparent,
-                Foreground = Brushes.White,
                 BorderThickness = new Thickness(0),
-                Padding = new Thickness(6, 2, 6, 2),
+                Padding = new Thickness(4, 2, 4, 2),
                 Cursor = System.Windows.Input.Cursors.Hand,
                 Tag = task.Id,
-                FontSize = 12
+                FontSize = 11
             };
             deleteBtn.Click += BtnUsun_Click;
             actionsPanel.Children.Add(deleteBtn);
 
-            Grid.SetColumn(actionsPanel, 4);
-            grid.Children.Add(actionsPanel);
+            Grid.SetColumn(actionsPanel, 1);
+            row3.Children.Add(actionsPanel);
 
-            row.Child = grid;
+            stack.Children.Add(row3);
+
+            card.Child = stack;
 
             // Hover effect
-            row.MouseEnter += (s, e) => row.Background = new SolidColorBrush(Color.FromRgb(0x28, 0x28, 0x45));
-            row.MouseLeave += (s, e) => row.Background = new SolidColorBrush(Color.FromRgb(0x1e, 0x1e, 0x36));
+            card.MouseEnter += (s, e) => card.Background = new SolidColorBrush(Color.FromRgb(0x2d, 0x2d, 0x50));
+            card.MouseLeave += (s, e) => card.Background = new SolidColorBrush(Color.FromRgb(0x25, 0x25, 0x42));
 
-            return row;
+            return card;
         }
-
         private Border CreateTaskItem(ZadanieViewModel task)
         {
             var border = new Border
