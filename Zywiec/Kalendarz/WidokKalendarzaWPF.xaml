@@ -970,7 +970,7 @@
                                             </Style>
                                         </Expander.Style>
                                         <StackPanel Margin="0,4,0,0">
-                                            <!-- Wiersz 1: Waga, Szt/szuf, Sztuki, Auta, Cena -->
+                                            <!-- Wiersz 1: Waga, Szt/szuf, Sztuki, Auta, Cena z ikonkami -->
                                             <Grid Margin="0,0,0,4">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*"/>
@@ -982,35 +982,50 @@
                                                 <!-- Waga -->
                                                 <Border Grid.Column="0" Background="#ECFDF5" CornerRadius="4" Padding="4,3" Margin="0,0,2,0" BorderBrush="#A7F3D0" BorderThickness="1">
                                                     <StackPanel>
-                                                        <TextBlock Text="Waga" FontSize="8" Foreground="#059669" FontWeight="Medium"/>
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="⚖️" FontSize="8" VerticalAlignment="Center" Margin="0,0,2,0"/>
+                                                            <TextBlock Text="Waga" FontSize="8" Foreground="#059669" FontWeight="Medium"/>
+                                                        </StackPanel>
                                                         <TextBox x:Name="txtWagaDek" FontSize="12" FontWeight="Bold" Foreground="#065F46" Background="Transparent" BorderThickness="0" Padding="0" TextChanged="TxtWagaDek_TextChanged"/>
                                                     </StackPanel>
                                                 </Border>
                                                 <!-- Szt/szuf -->
                                                 <Border Grid.Column="1" Background="#EFF6FF" CornerRadius="4" Padding="4,3" Margin="2,0" BorderBrush="#93C5FD" BorderThickness="1">
                                                     <StackPanel>
-                                                        <TextBlock Text="Szt/szuf" FontSize="8" Foreground="#2563EB" FontWeight="Medium"/>
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="📦" FontSize="8" VerticalAlignment="Center" Margin="0,0,2,0"/>
+                                                            <TextBlock Text="Szt/szuf" FontSize="8" Foreground="#2563EB" FontWeight="Medium"/>
+                                                        </StackPanel>
                                                         <TextBox x:Name="txtSztNaSzuflade" FontSize="12" FontWeight="Bold" Foreground="#1E40AF" Background="Transparent" BorderThickness="0" Padding="0" TextChanged="TxtSztNaSzuflade_TextChanged"/>
                                                     </StackPanel>
                                                 </Border>
                                                 <!-- Sztuki -->
                                                 <Border Grid.Column="2" Background="#FEF3C7" CornerRadius="4" Padding="4,3" Margin="2,0" BorderBrush="#FCD34D" BorderThickness="1">
                                                     <StackPanel>
-                                                        <TextBlock Text="Sztuki" FontSize="8" Foreground="#D97706" FontWeight="Medium"/>
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="🐔" FontSize="8" VerticalAlignment="Center" Margin="0,0,2,0"/>
+                                                            <TextBlock Text="Sztuki" FontSize="8" Foreground="#D97706" FontWeight="Medium"/>
+                                                        </StackPanel>
                                                         <TextBox x:Name="txtSztuki" FontSize="12" FontWeight="Bold" Foreground="#92400E" Background="Transparent" BorderThickness="0" Padding="0"/>
                                                     </StackPanel>
                                                 </Border>
                                                 <!-- Auta -->
                                                 <Border Grid.Column="3" Background="#E0E7FF" CornerRadius="4" Padding="4,3" Margin="2,0" BorderBrush="#A5B4FC" BorderThickness="1">
                                                     <StackPanel>
-                                                        <TextBlock Text="Auta" FontSize="8" Foreground="#4F46E5" FontWeight="Medium"/>
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="🚚" FontSize="8" VerticalAlignment="Center" Margin="0,0,2,0"/>
+                                                            <TextBlock Text="Auta" FontSize="8" Foreground="#4F46E5" FontWeight="Medium"/>
+                                                        </StackPanel>
                                                         <TextBox x:Name="txtAuta" FontSize="12" FontWeight="Bold" Foreground="#3730A3" Background="Transparent" BorderThickness="0" Padding="0"/>
                                                     </StackPanel>
                                                 </Border>
                                                 <!-- Cena -->
                                                 <Border Grid.Column="4" Background="#FCE7F3" CornerRadius="4" Padding="4,3" Margin="2,0,0,0" BorderBrush="#F9A8D4" BorderThickness="1">
                                                     <StackPanel>
-                                                        <TextBlock Text="Cena" FontSize="8" Foreground="#DB2777" FontWeight="Medium"/>
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="💰" FontSize="8" VerticalAlignment="Center" Margin="0,0,2,0"/>
+                                                            <TextBlock Text="Cena" FontSize="8" Foreground="#DB2777" FontWeight="Medium"/>
+                                                        </StackPanel>
                                                         <TextBox x:Name="txtCena" FontSize="12" FontWeight="Bold" Foreground="#9D174D" Background="Transparent" BorderThickness="0" Padding="0"/>
                                                     </StackPanel>
                                                 </Border>
@@ -1033,7 +1048,7 @@
                                                 <ComboBox x:Name="cmbTypUmowy" Grid.Column="3" FontSize="9" Margin="2,0,0,0"/>
                                             </Grid>
 
-                                            <!-- Wiersz 3: Potwierdzenia + Zapisz -->
+                                            <!-- Wiersz 3: Potwierdzenia + Obliczenia transportu + Zapisz -->
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="Auto"/>
@@ -1042,24 +1057,68 @@
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
+                                                <!-- Potw. waga -->
                                                 <Border x:Name="borderPotwWaga" Grid.Column="0" Background="#FEE2E2" CornerRadius="3" Padding="4,2" Margin="0,0,4,0">
                                                     <StackPanel Orientation="Horizontal">
                                                         <CheckBox x:Name="chkPotwWaga" VerticalAlignment="Center" Margin="0,0,2,0"/>
                                                         <TextBlock Text="⚖️" FontSize="9" VerticalAlignment="Center"/>
                                                     </StackPanel>
                                                 </Border>
+                                                <!-- Potw. sztuki -->
                                                 <Border x:Name="borderPotwSztuki" Grid.Column="1" Background="#FEE2E2" CornerRadius="3" Padding="4,2" Margin="0,0,4,0">
                                                     <StackPanel Orientation="Horizontal">
                                                         <CheckBox x:Name="chkPotwSztuki" VerticalAlignment="Center" Margin="0,0,2,0"/>
                                                         <TextBlock Text="🐔" FontSize="9" VerticalAlignment="Center"/>
                                                     </StackPanel>
                                                 </Border>
-                                                <TextBox x:Name="txtDodatek" Grid.Column="2" Width="40" FontSize="9" Padding="3,2" BorderBrush="#CBD5E1" ToolTip="Dodatek"/>
-                                                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0">
-                                                    <TextBlock x:Name="txtKtoWaga" FontSize="7" Foreground="#94A3B8" Margin="0,0,4,0"/>
-                                                    <TextBlock x:Name="txtKtoSztuki" FontSize="7" Foreground="#94A3B8"/>
-                                                </StackPanel>
-                                                <Button Grid.Column="4" Content="💾 Zapisz" Click="BtnZapiszDostawe_Click" Padding="8,4" FontSize="9" Cursor="Hand">
+                                                <!-- Dodatek -->
+                                                <TextBox x:Name="txtDodatek" Grid.Column="2" Width="35" FontSize="9" Padding="3,2" BorderBrush="#CBD5E1" ToolTip="Dodatek"/>
+                                                <!-- Obliczenia transportu inline -->
+                                                <Border Grid.Column="3" Background="#EFF6FF" CornerRadius="4" Margin="4,0" Padding="4,2" BorderBrush="#93C5FD" BorderThickness="1">
+                                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                        <StackPanel Orientation="Horizontal" Margin="0,0,6,0">
+                                                            <TextBlock Text="Szt:" FontSize="8" Foreground="#64748B" VerticalAlignment="Center"/>
+                                                            <TextBox x:Name="txtSztNaSzufladeCalc" Width="28" FontSize="9" Padding="2,1" TextAlignment="Center" Background="Transparent" BorderThickness="0" FontWeight="SemiBold" TextChanged="TxtSztNaSzufladeCalc_TextChanged"/>
+                                                        </StackPanel>
+                                                        <StackPanel Orientation="Horizontal" Margin="0,0,6,0">
+                                                            <TextBlock Text="Wyl:" FontSize="8" Foreground="#64748B" VerticalAlignment="Center"/>
+                                                            <TextBox x:Name="txtWyliczone" Width="40" FontSize="9" Padding="2,1" TextAlignment="Center" IsReadOnly="True" Background="Transparent" BorderThickness="0" FontWeight="SemiBold" Foreground="#1D4ED8"/>
+                                                        </StackPanel>
+                                                        <StackPanel Orientation="Horizontal" Margin="0,0,6,0">
+                                                            <TextBlock Text="Auta:" FontSize="8" Foreground="#64748B" VerticalAlignment="Center"/>
+                                                            <TextBox x:Name="txtObliczoneAuta" Width="22" FontSize="9" Padding="2,1" TextAlignment="Center" Background="Transparent" BorderThickness="0" FontWeight="SemiBold" TextChanged="TxtObliczoneAuta_TextChanged"/>
+                                                        </StackPanel>
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="Szt:" FontSize="8" Foreground="#64748B" VerticalAlignment="Center"/>
+                                                            <TextBox x:Name="txtObliczoneSztuki" Width="45" FontSize="9" Padding="2,1" TextAlignment="Center" IsReadOnly="True" Background="Transparent" BorderThickness="0" FontWeight="SemiBold" Foreground="#1D4ED8"/>
+                                                        </StackPanel>
+                                                        <Button Content="📋" Click="BtnWklejObliczenia_Click" Padding="4,1" FontSize="9" Margin="4,0,0,0" ToolTip="Wklej do dostawy" Cursor="Hand">
+                                                            <Button.Style>
+                                                                <Style TargetType="Button">
+                                                                    <Setter Property="Background" Value="#3B82F6"/>
+                                                                    <Setter Property="Foreground" Value="White"/>
+                                                                    <Setter Property="BorderThickness" Value="0"/>
+                                                                    <Setter Property="Template">
+                                                                        <Setter.Value>
+                                                                            <ControlTemplate TargetType="Button">
+                                                                                <Border Background="{TemplateBinding Background}" CornerRadius="3" Padding="{TemplateBinding Padding}">
+                                                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                                </Border>
+                                                                            </ControlTemplate>
+                                                                        </Setter.Value>
+                                                                    </Setter>
+                                                                    <Style.Triggers>
+                                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                                            <Setter Property="Background" Value="#2563EB"/>
+                                                                        </Trigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Button.Style>
+                                                        </Button>
+                                                    </StackPanel>
+                                                </Border>
+                                                <!-- Zapisz -->
+                                                <Button Grid.Column="4" Content="💾" Click="BtnZapiszDostawe_Click" Padding="8,4" FontSize="9" Cursor="Hand" ToolTip="Zapisz dostawę">
                                                     <Button.Style>
                                                         <Style TargetType="Button">
                                                             <Setter Property="Background" Value="#10B981"/>
@@ -1083,6 +1142,11 @@
                                                     </Button.Style>
                                                 </Button>
                                             </Grid>
+                                            <!-- Kto info wiersz -->
+                                            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                                <TextBlock x:Name="txtKtoWaga" FontSize="7" Foreground="#94A3B8" Margin="0,0,8,0"/>
+                                                <TextBlock x:Name="txtKtoSztuki" FontSize="7" Foreground="#94A3B8"/>
+                                            </StackPanel>
                                         </StackPanel>
                                     </Expander>
 
@@ -1115,82 +1179,7 @@
                                         </StackPanel>
                                     </Expander>
 
-                                    <!-- SEKCJA 3: Obliczenia transportu -->
-                                    <Expander x:Name="expTransport" IsExpanded="True" BorderThickness="0,0,0,1" BorderBrush="#E2E8F0">
-                                        <Expander.Header>
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="🚛" FontSize="14" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                                <TextBlock Text="Obliczenia transportu" FontWeight="SemiBold" FontSize="11" Foreground="#1E293B"/>
-                                            </StackPanel>
-                                        </Expander.Header>
-                                        <Expander.Style>
-                                            <Style TargetType="Expander">
-                                                <Setter Property="Background" Value="White"/>
-                                                <Setter Property="Padding" Value="12,8"/>
-                                            </Style>
-                                        </Expander.Style>
-                                        <StackPanel Margin="0,8,0,0">
-                                            <Border Background="#EFF6FF" CornerRadius="6" BorderBrush="#BFDBFE" BorderThickness="1">
-                                                <Grid>
-                                                    <Grid.RowDefinitions>
-                                                        <RowDefinition Height="Auto"/>
-                                                        <RowDefinition Height="Auto"/>
-                                                    </Grid.RowDefinitions>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                    </Grid.ColumnDefinitions>
-
-                                                    <!-- Nagłówki -->
-                                                    <Border Grid.Row="0" Grid.Column="0" Background="#DBEAFE" Padding="6,4">
-                                                        <TextBlock Text="Szt/szuf" FontSize="8" Foreground="#1D4ED8" HorizontalAlignment="Center" FontWeight="Medium"/>
-                                                    </Border>
-                                                    <Border Grid.Row="0" Grid.Column="1" Background="#DBEAFE" Padding="6,4">
-                                                        <TextBlock Text="Wyliczone" FontSize="8" Foreground="#1D4ED8" HorizontalAlignment="Center" FontWeight="Medium"/>
-                                                    </Border>
-                                                    <Border Grid.Row="0" Grid.Column="2" Background="#DBEAFE" Padding="6,4">
-                                                        <TextBlock Text="Ilość aut" FontSize="8" Foreground="#1D4ED8" HorizontalAlignment="Center" FontWeight="Medium"/>
-                                                    </Border>
-                                                    <Border Grid.Row="0" Grid.Column="3" Background="#DBEAFE" Padding="6,4">
-                                                        <TextBlock Text="Obl. sztuki" FontSize="8" Foreground="#1D4ED8" HorizontalAlignment="Center" FontWeight="Medium"/>
-                                                    </Border>
-
-                                                    <!-- Wartości -->
-                                                    <TextBox x:Name="txtSztNaSzufladeCalc" Grid.Row="1" Grid.Column="0" FontSize="11" Padding="6,6" TextAlignment="Center" Background="Transparent" BorderThickness="0" FontWeight="SemiBold" TextChanged="TxtSztNaSzufladeCalc_TextChanged"/>
-                                                    <TextBox x:Name="txtWyliczone" Grid.Row="1" Grid.Column="1" FontSize="11" Padding="6,6" TextAlignment="Center" IsReadOnly="True" Background="Transparent" BorderThickness="0" FontWeight="SemiBold" Foreground="#1D4ED8"/>
-                                                    <TextBox x:Name="txtObliczoneAuta" Grid.Row="1" Grid.Column="2" FontSize="11" Padding="6,6" TextAlignment="Center" Background="Transparent" BorderThickness="0" FontWeight="SemiBold" TextChanged="TxtObliczoneAuta_TextChanged"/>
-                                                    <TextBox x:Name="txtObliczoneSztuki" Grid.Row="1" Grid.Column="3" FontSize="11" Padding="6,6" TextAlignment="Center" IsReadOnly="True" Background="Transparent" BorderThickness="0" FontWeight="SemiBold" Foreground="#1D4ED8"/>
-                                                </Grid>
-                                            </Border>
-                                            <Button Content="📋 Wklej do dostawy" Click="BtnWklejObliczenia_Click" Margin="0,8,0,0" Padding="10,6" FontSize="9">
-                                                <Button.Style>
-                                                    <Style TargetType="Button">
-                                                        <Setter Property="Background" Value="#3B82F6"/>
-                                                        <Setter Property="Foreground" Value="White"/>
-                                                        <Setter Property="BorderThickness" Value="0"/>
-                                                        <Setter Property="Template">
-                                                            <Setter.Value>
-                                                                <ControlTemplate TargetType="Button">
-                                                                    <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                                                                        <ContentPresenter HorizontalAlignment="Center"/>
-                                                                    </Border>
-                                                                </ControlTemplate>
-                                                            </Setter.Value>
-                                                        </Setter>
-                                                        <Style.Triggers>
-                                                            <Trigger Property="IsMouseOver" Value="True">
-                                                                <Setter Property="Background" Value="#2563EB"/>
-                                                            </Trigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Button.Style>
-                                            </Button>
-                                        </StackPanel>
-                                    </Expander>
-
-                                    <!-- SEKCJA 4: Załadunek AVILOG -->
+                                    <!-- SEKCJA 3: Załadunek AVILOG -->
                                     <Expander x:Name="expAvilog" IsExpanded="True" BorderThickness="0,0,0,1" BorderBrush="#E2E8F0">
                                         <Expander.Header>
                                             <StackPanel Orientation="Horizontal">
@@ -1306,7 +1295,7 @@
                                         </StackPanel>
                                     </Expander>
 
-                                    <!-- SEKCJA 5: Wstawienia -->
+                                    <!-- SEKCJA 4: Wstawienia -->
                                     <Expander x:Name="expWstawienia" IsExpanded="False" BorderThickness="0">
                                         <Expander.Header>
                                             <StackPanel Orientation="Horizontal">
