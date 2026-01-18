@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
         Title="Kalendarz Dostaw - Harmonogram Żywca"
         Height="1000" Width="1920"
@@ -1698,11 +1699,11 @@
                                             <Border CornerRadius="4" BorderBrush="#E2E8F0" BorderThickness="1" Background="#FAFAFA">
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="45"/>
-                                                        <ColumnDefinition Width="55"/>
-                                                        <ColumnDefinition Width="55"/>
-                                                        <ColumnDefinition Width="55"/>
-                                                        <ColumnDefinition Width="55"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="*"/>
                                                         <ColumnDefinition Width="*"/>
                                                     </Grid.ColumnDefinitions>
                                                     <Grid.RowDefinitions>
@@ -1736,7 +1737,7 @@
                                                     <Border Grid.Row="1" Grid.Column="0" BorderBrush="#E2E8F0" BorderThickness="0,0,1,1" Padding="1">
                                                         <TextBox x:Name="txtSztNaSzufladeWaga2" FontSize="9" Padding="1" TextAlignment="Center" IsReadOnly="True" Background="Transparent" BorderThickness="0" Foreground="#94A3B8"/>
                                                     </Border>
-                                                    <Border Grid.Row="1" Grid.Column="1" BorderBrush="#E2E8F0" BorderThickness="0,0,1,1" Padding="1">
+                                                    <Border x:Name="borderKGwSkrzynce2" Grid.Row="1" Grid.Column="1" BorderBrush="#E2E8F0" BorderThickness="0,0,1,1" Padding="1">
                                                         <TextBox x:Name="txtKGwSkrzynce2" FontSize="9" Padding="1" TextAlignment="Center" IsReadOnly="True" Background="Transparent" BorderThickness="0" Foreground="#94A3B8"/>
                                                     </Border>
                                                     <Border Grid.Row="1" Grid.Column="2" BorderBrush="#E2E8F0" BorderThickness="0,0,1,1" Padding="1">
@@ -1756,7 +1757,7 @@
                                                     <Border Grid.Row="2" Grid.Column="0" BorderBrush="#E2E8F0" BorderThickness="0,0,1,1" Padding="1" Background="#ECFDF5">
                                                         <TextBox x:Name="txtSztNaSzufladeWaga" FontSize="10" Padding="1" TextAlignment="Center" IsReadOnly="True" Background="Transparent" BorderThickness="0" FontWeight="Bold" Foreground="#059669"/>
                                                     </Border>
-                                                    <Border Grid.Row="2" Grid.Column="1" BorderBrush="#E2E8F0" BorderThickness="0,0,1,1" Padding="1" Background="#ECFDF5">
+                                                    <Border x:Name="borderKGwSkrzynce" Grid.Row="2" Grid.Column="1" BorderBrush="#E2E8F0" BorderThickness="0,0,1,1" Padding="1" Background="#ECFDF5">
                                                         <TextBox x:Name="txtKGwSkrzynce" FontSize="10" Padding="1" TextAlignment="Center" IsReadOnly="True" Background="Transparent" BorderThickness="0" FontWeight="Bold" Foreground="#059669"/>
                                                     </Border>
                                                     <Border Grid.Row="2" Grid.Column="2" BorderBrush="#E2E8F0" BorderThickness="0,0,1,1" Padding="1" Background="#ECFDF5">
@@ -1776,7 +1777,7 @@
                                                     <Border Grid.Row="3" Grid.Column="0" BorderBrush="#E2E8F0" BorderThickness="0,0,1,0" Padding="1">
                                                         <TextBox x:Name="txtSztNaSzufladeWaga3" FontSize="9" Padding="1" TextAlignment="Center" IsReadOnly="True" Background="Transparent" BorderThickness="0" Foreground="#94A3B8"/>
                                                     </Border>
-                                                    <Border Grid.Row="3" Grid.Column="1" BorderBrush="#E2E8F0" BorderThickness="0,0,1,0" Padding="1">
+                                                    <Border x:Name="borderKGwSkrzynce3" Grid.Row="3" Grid.Column="1" BorderBrush="#E2E8F0" BorderThickness="0,0,1,0" Padding="1">
                                                         <TextBox x:Name="txtKGwSkrzynce3" FontSize="9" Padding="1" TextAlignment="Center" IsReadOnly="True" Background="Transparent" BorderThickness="0" Foreground="#94A3B8"/>
                                                     </Border>
                                                     <Border Grid.Row="3" Grid.Column="2" BorderBrush="#E2E8F0" BorderThickness="0,0,1,0" Padding="1">
@@ -1911,15 +1912,16 @@
                                                         </Style>
                                                     </DataGrid.RowStyle>
                                                     <DataGrid.Columns>
-                                                        <DataGridTextColumn Header="Data" Binding="{Binding DataOdbioru, StringFormat=MM-dd ddd}" Width="70">
+                                                        <DataGridTextColumn Header="Data" Binding="{Binding DataOdbioru, StringFormat=MM-dd ddd}" Width="*">
                                                             <DataGridTextColumn.ElementStyle>
                                                                 <Style TargetType="TextBlock">
                                                                     <Setter Property="Foreground" Value="#334155"/>
                                                                     <Setter Property="VerticalAlignment" Value="Center"/>
+                                                                    <Setter Property="HorizontalAlignment" Value="Center"/>
                                                                 </Style>
                                                             </DataGridTextColumn.ElementStyle>
                                                         </DataGridTextColumn>
-                                                        <DataGridTextColumn Header="A" Binding="{Binding Auta}" Width="28">
+                                                        <DataGridTextColumn Header="A" Binding="{Binding Auta}" Width="30">
                                                             <DataGridTextColumn.ElementStyle>
                                                                 <Style TargetType="TextBlock">
                                                                     <Setter Property="HorizontalAlignment" Value="Center"/>
@@ -1927,19 +1929,19 @@
                                                                 </Style>
                                                             </DataGridTextColumn.ElementStyle>
                                                         </DataGridTextColumn>
-                                                        <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDekDisplay}" Width="65">
+                                                        <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDekDisplay}" Width="*">
                                                             <DataGridTextColumn.ElementStyle>
                                                                 <Style TargetType="TextBlock">
-                                                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                                    <Setter Property="HorizontalAlignment" Value="Center"/>
                                                                     <Setter Property="Foreground" Value="#166534"/>
                                                                     <Setter Property="FontWeight" Value="SemiBold"/>
                                                                 </Style>
                                                             </DataGridTextColumn.ElementStyle>
                                                         </DataGridTextColumn>
-                                                        <DataGridTextColumn Header="Waga" Binding="{Binding WagaDek, StringFormat=N2}" Width="50">
+                                                        <DataGridTextColumn Header="Waga" Binding="{Binding WagaDek, StringFormat=N2}" Width="*">
                                                             <DataGridTextColumn.ElementStyle>
                                                                 <Style TargetType="TextBlock">
-                                                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                                    <Setter Property="HorizontalAlignment" Value="Center"/>
                                                                     <Setter Property="Foreground" Value="#0369A1"/>
                                                                 </Style>
                                                             </DataGridTextColumn.ElementStyle>
@@ -2200,7 +2202,10 @@
                             </Grid.RowDefinitions>
                             <Border Grid.Row="0" Background="#388E3C" Padding="8,4" CornerRadius="4,4,0,0">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="Partie bieżące (dziś)" Foreground="White" FontWeight="SemiBold" FontSize="11"/>
+                                    <TextBlock Text="Partie bieżące" Foreground="White" FontWeight="SemiBold" FontSize="11" VerticalAlignment="Center"/>
+                                    <DatePicker x:Name="dpPartieData" SelectedDate="{x:Static sys:DateTime.Today}" SelectedDateChanged="DpPartieData_SelectedDateChanged"
+                                                Margin="10,0,0,0" Width="100" FontSize="9" Background="White" BorderThickness="0"
+                                                VerticalAlignment="Center"/>
                                     <TextBlock x:Name="txtPartieSuma" Text="" Foreground="#C8E6C9" FontSize="10" Margin="20,0,0,0" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Border>

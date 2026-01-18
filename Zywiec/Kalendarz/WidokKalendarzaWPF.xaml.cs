@@ -777,10 +777,13 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         #region Ładowanie danych - Partie
 
-        private async Task LoadPartieAsync()
+        private async Task LoadPartieAsync(DateTime? data = null)
         {
             try
             {
+                // Użyj przekazanej daty lub pobierz z DatePicker lub domyślnie dziś
+                DateTime dataPartii = data ?? dpPartieData?.SelectedDate ?? DateTime.Today;
+
                 var tempList = new List<PartiaModel>();
 
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
@@ -797,7 +800,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                             FROM [LibraNet].[dbo].[In0E] k
                             JOIN [LibraNet].[dbo].[PartiaDostawca] pd ON k.P1 = pd.Partia
                             LEFT JOIN [LibraNet].[dbo].[HarmonogramDostaw] hd ON k.CreateData = hd.DataOdbioru AND pd.CustomerName = hd.Dostawca
-                            WHERE k.ArticleID = 40 AND k.QntInCont > 4 AND CONVERT(date, k.CreateData) = CONVERT(date, GETDATE())
+                            WHERE k.ArticleID = 40 AND k.QntInCont > 4 AND CONVERT(date, k.CreateData) = @DataPartii
                             GROUP BY k.CreateData, k.P1, pd.CustomerName, hd.WagaDek
                         )
                         SELECT p.*, CONVERT(decimal(18,2), p.SredniaZywy - p.WagaDek) AS Roznica,
@@ -811,26 +814,29 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         ORDER BY p.PartiaFull DESC";
 
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
-                    using (SqlDataReader reader = await cmd.ExecuteReaderAsync(_cts.Token))
                     {
-                        while (await reader.ReadAsync(_cts.Token))
+                        cmd.Parameters.AddWithValue("@DataPartii", dataPartii.Date);
+                        using (SqlDataReader reader = await cmd.ExecuteReaderAsync(_cts.Token))
                         {
-                            tempList.Add(new PartiaModel
+                            while (await reader.ReadAsync(_cts.Token))
                             {
-                                Partia = reader["PartiaShort"]?.ToString(),
-                                PartiaFull = reader["PartiaFull"]?.ToString(),
-                                Dostawca = reader["Dostawca"]?.ToString(),
-                                Srednia = reader["Srednia"] != DBNull.Value ? Convert.ToDecimal(reader["Srednia"]) : 0,
-                                Zywiec = reader["SredniaZywy"] != DBNull.Value ? Convert.ToDecimal(reader["SredniaZywy"]) : 0,
-                                Roznica = reader["Roznica"] != DBNull.Value ? Convert.ToDecimal(reader["Roznica"]) : 0,
-                                Skrzydla = reader["Skrzydla_Ocena"] != DBNull.Value ? Convert.ToInt32(reader["Skrzydla_Ocena"]) : (int?)null,
-                                Nogi = reader["Nogi_Ocena"] != DBNull.Value ? Convert.ToInt32(reader["Nogi_Ocena"]) : (int?)null,
-                                Oparzenia = reader["Oparzenia_Ocena"] != DBNull.Value ? Convert.ToInt32(reader["Oparzenia_Ocena"]) : (int?)null,
-                                KlasaB = reader["KlasaB_Proc"] != DBNull.Value ? Convert.ToDecimal(reader["KlasaB_Proc"]) : (decimal?)null,
-                                Przekarmienie = reader["Przekarmienie_Kg"] != DBNull.Value ? Convert.ToDecimal(reader["Przekarmienie_Kg"]) : (decimal?)null,
-                                PhotoCount = reader["PhotoCount"] != DBNull.Value ? Convert.ToInt32(reader["PhotoCount"]) : 0,
-                                FolderPath = reader["FolderRel"]?.ToString()
-                            });
+                                tempList.Add(new PartiaModel
+                                {
+                                    Partia = reader["PartiaShort"]?.ToString(),
+                                    PartiaFull = reader["PartiaFull"]?.ToString(),
+                                    Dostawca = reader["Dostawca"]?.ToString(),
+                                    Srednia = reader["Srednia"] != DBNull.Value ? Convert.ToDecimal(reader["Srednia"]) : 0,
+                                    Zywiec = reader["SredniaZywy"] != DBNull.Value ? Convert.ToDecimal(reader["SredniaZywy"]) : 0,
+                                    Roznica = reader["Roznica"] != DBNull.Value ? Convert.ToDecimal(reader["Roznica"]) : 0,
+                                    Skrzydla = reader["Skrzydla_Ocena"] != DBNull.Value ? Convert.ToInt32(reader["Skrzydla_Ocena"]) : (int?)null,
+                                    Nogi = reader["Nogi_Ocena"] != DBNull.Value ? Convert.ToInt32(reader["Nogi_Ocena"]) : (int?)null,
+                                    Oparzenia = reader["Oparzenia_Ocena"] != DBNull.Value ? Convert.ToInt32(reader["Oparzenia_Ocena"]) : (int?)null,
+                                    KlasaB = reader["KlasaB_Proc"] != DBNull.Value ? Convert.ToDecimal(reader["KlasaB_Proc"]) : (decimal?)null,
+                                    Przekarmienie = reader["Przekarmienie_Kg"] != DBNull.Value ? Convert.ToDecimal(reader["Przekarmienie_Kg"]) : (decimal?)null,
+                                    PhotoCount = reader["PhotoCount"] != DBNull.Value ? Convert.ToInt32(reader["PhotoCount"]) : 0,
+                                    FolderPath = reader["FolderRel"]?.ToString()
+                                });
+                            }
                         }
                     }
                 }
@@ -1230,6 +1236,17 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 _selectedDate = calendarMain.SelectedDate.Value;
                 UpdateWeekNumber();
                 await LoadDostawyAsync();
+            }
+        }
+
+        // Obsługa zmiany daty w DatePicker Partii
+        private async void DpPartieData_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!IsLoaded) return;
+
+            if (dpPartieData?.SelectedDate != null)
+            {
+                await LoadPartieAsync(dpPartieData.SelectedDate.Value);
             }
         }
 
@@ -3248,6 +3265,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
             double kgSkrzyn = sztNaSzuflade * wagaDek;
             txtKGwSkrzynce.Text = kgSkrzyn > 0 ? kgSkrzyn.ToString("N2") : "";
 
+            // Aktualizuj kolor obramowania (żółty 49-51, czerwony >51)
+            UpdateKGBorderColor(borderKGwSkrzynce, kgSkrzyn);
+
             // KG skrzyn (×264) = KG/skrzyn × 264
             double kgSkrzyn264 = kgSkrzyn * 264;
             txtKGSkrzyn264.Text = kgSkrzyn264 > 0 ? kgSkrzyn264.ToString("N0") : "";
@@ -3273,6 +3293,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
             // KG/skrzyn = Sztuki na szufladę × Waga dek
             double kgSkrzyn2 = sztNaSzuflade2 * wagaDek;
             txtKGwSkrzynce2.Text = kgSkrzyn2 > 0 ? kgSkrzyn2.ToString("N2") : "";
+
+            // Aktualizuj kolor obramowania (żółty 49-51, czerwony >51)
+            UpdateKGBorderColor(borderKGwSkrzynce2, kgSkrzyn2);
 
             // KG skrzyn (×264) = KG/skrzyn × 264
             double kgSkrzyn264_2 = kgSkrzyn2 * 264;
@@ -3300,6 +3323,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
             double kgSkrzyn3 = sztNaSzuflade3 * wagaDek;
             txtKGwSkrzynce3.Text = kgSkrzyn3 > 0 ? kgSkrzyn3.ToString("N2") : "";
 
+            // Aktualizuj kolor obramowania (żółty 49-51, czerwony >51) - ostatni wiersz
+            UpdateKGBorderColor(borderKGwSkrzynce3, kgSkrzyn3, true);
+
             // KG skrzyn (×264) = KG/skrzyn × 264
             double kgSkrzyn264_3 = kgSkrzyn3 * 264;
             txtKGSkrzyn264_3.Text = kgSkrzyn264_3 > 0 ? kgSkrzyn264_3.ToString("N0") : "";
@@ -3313,6 +3339,31 @@ namespace Kalendarz1.Zywiec.Kalendarz
             CalculateKGSum();
             CalculateKGSum2();
             CalculateKGSum3();
+        }
+
+        // Metoda do aktualizacji koloru obramowania na podstawie wartości KG/skrzyn
+        private void UpdateKGBorderColor(Border border, double kgValue, bool isLastRow = false)
+        {
+            if (border == null) return;
+
+            if (kgValue > 51.0)
+            {
+                // Czerwone obramowanie dla wartości > 51
+                border.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Red);
+                border.BorderThickness = new Thickness(2);
+            }
+            else if (kgValue >= 49.0 && kgValue <= 51.0)
+            {
+                // Żółte obramowanie dla wartości 49-51
+                border.BorderBrush = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#EAB308"));
+                border.BorderThickness = new Thickness(2);
+            }
+            else
+            {
+                // Domyślne obramowanie
+                border.BorderBrush = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#E2E8F0"));
+                border.BorderThickness = isLastRow ? new Thickness(0, 0, 1, 0) : new Thickness(0, 0, 1, 1);
+            }
         }
 
         // Kliknięcie w nagłówek Paleciak - włącz/wyłącz
@@ -3699,6 +3750,27 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
             // Nie przenoś jeśli data się nie zmieniła
             if (droppedItem.DataOdbioru.Date == newDate)
+            {
+                _isDragging = false;
+                return;
+            }
+
+            // Pokaż dialog potwierdzenia
+            string hodowca = droppedItem.Dostawca ?? "nieznany";
+            string auta = droppedItem.Auta?.ToString() ?? "?";
+            string oldDateStr = droppedItem.DataOdbioru.ToString("dd.MM.yyyy (dddd)");
+            string newDateStr = newDate.ToString("dd.MM.yyyy (dddd)");
+
+            string message = $"Czy na pewno chcesz przenieść dostawę?\n\n" +
+                             $"Hodowca: {hodowca}\n" +
+                             $"Auta: {auta}\n\n" +
+                             $"Z: {oldDateStr}\n" +
+                             $"Na: {newDateStr}";
+
+            MessageBoxResult result = MessageBox.Show(message, "Potwierdzenie przeniesienia dostawy",
+                MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+            if (result != MessageBoxResult.Yes)
             {
                 _isDragging = false;
                 return;
