@@ -1,0 +1,371 @@
+<Window x:Class="Kalendarz1.Opakowania.Views.ListaOpakowanWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:converters="clr-namespace:Kalendarz1.Opakowania.Converters"
+        Title="{Binding TytulOkna}"
+        Height="700" Width="1000"
+        MinHeight="500" MinWidth="800"
+        WindowStartupLocation="CenterOwner"
+        Background="#F3F4F6">
+
+    <Window.Resources>
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
+        <converters:SaldoToColorConverter x:Key="SaldoToColor"/>
+        <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibility"/>
+
+        <!-- Styl przycisku -->
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#3B82F6"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#2563EB"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#E5E7EB"/>
+            <Setter Property="Foreground" Value="#374151"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#D1D5DB"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Styl DataGrid -->
+        <Style TargetType="DataGrid">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="RowHeaderWidth" Value="0"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#E5E7EB"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="CanUserDeleteRows" Value="False"/>
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="SelectionMode" Value="Single"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+
+        <Style TargetType="DataGridRow">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Height" Value="48"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#F0F9FF"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#DBEAFE"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style TargetType="DataGridCell">
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Setter Property="Foreground" Value="Black"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#F9FAFB"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#374151"/>
+            <Setter Property="BorderBrush" Value="#E5E7EB"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ======================= NAGŁÓWEK ======================= -->
+        <Border Grid.Row="0" Background="White" Padding="24,20" BorderBrush="#E5E7EB" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Button Content="← Wstecz" Click="BtnWstecz_Click" Style="{StaticResource SecondaryButtonStyle}"/>
+
+                <StackPanel Grid.Column="1" Margin="24,0,0,0">
+                    <TextBlock Text="{Binding TytulOpakowania}" FontSize="22" FontWeight="Bold" Foreground="#1F2937"/>
+                    <TextBlock Text="SALDA KONTRAHENTÓW" FontSize="12" Foreground="#6B7280" Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <TextBlock Text="Na dzień:" VerticalAlignment="Center" Margin="0,0,12,0" Foreground="#6B7280"/>
+                    <DatePicker SelectedDate="{Binding DataDo}" Width="130"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ======================= PODSUMOWANIE ======================= -->
+        <Border Grid.Row="1" Background="#EBF5FF" Padding="24,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Winni nam" FontSize="12" Foreground="#6B7280"/>
+                    <TextBlock FontSize="24" FontWeight="Bold" Foreground="#DC2626" Margin="0,4,0,0">
+                        <Run Text="{Binding SumaWinni}"/>
+                        <Run Text=" szt." FontSize="14" FontWeight="Normal"/>
+                    </TextBlock>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="My winni" FontSize="12" Foreground="#6B7280"/>
+                    <TextBlock FontSize="24" FontWeight="Bold" Foreground="#16A34A" Margin="0,4,0,0">
+                        <Run Text="{Binding SumaMyWinni}"/>
+                        <Run Text=" szt." FontSize="14" FontWeight="Normal"/>
+                    </TextBlock>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="Kontrahentów" FontSize="12" Foreground="#6B7280"/>
+                    <TextBlock Text="{Binding LiczbaKontrahentow}" FontSize="24" FontWeight="Bold" Foreground="#1F2937" Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="3">
+                    <TextBlock Text="Bez potwierdzenia" FontSize="12" Foreground="#6B7280"/>
+                    <TextBlock Text="{Binding LiczbaBezPotwierdzenia}" FontSize="24" FontWeight="Bold" Foreground="#F97316" Margin="0,4,0,0"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ======================= FILTRY ======================= -->
+        <Border Grid.Row="2" Background="White" Padding="24,12" BorderBrush="#E5E7EB" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="300"/>
+                    <ColumnDefinition Width="180"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Szukaj -->
+                <Border Background="#F3F4F6" CornerRadius="8" Padding="12,8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="&#xE721;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                   Foreground="#9CA3AF" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBox Grid.Column="1" x:Name="txtFiltr"
+                                 Text="{Binding FiltrTekst, UpdateSourceTrigger=PropertyChanged, Delay=200}"
+                                 Background="Transparent" BorderThickness="0" FontSize="13"
+                                 VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="Szukaj..." Foreground="#9CA3AF" FontSize="13"
+                                   VerticalAlignment="Center" IsHitTestVisible="False">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Text, ElementName=txtFiltr}" Value="">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                </Border>
+
+                <!-- Handlowiec -->
+                <ComboBox Grid.Column="1" ItemsSource="{Binding ListaHandlowcow}"
+                          SelectedItem="{Binding WybranyHandlowiec}"
+                          Margin="12,0,0,0" FontSize="13" VerticalContentAlignment="Center"/>
+
+                <!-- Tylko niezerowe -->
+                <CheckBox Grid.Column="2" Content="Tylko niezerowe"
+                          IsChecked="{Binding TylkoNiezerowe}"
+                          Margin="16,0,0,0" VerticalAlignment="Center" FontSize="13"/>
+            </Grid>
+        </Border>
+
+        <!-- ======================= LISTA KONTRAHENTÓW ======================= -->
+        <DataGrid Grid.Row="3" ItemsSource="{Binding ListaKontrahentow}"
+                  SelectedItem="{Binding WybranyKontrahent}"
+                  Margin="24,16"
+                  MouseDoubleClick="DataGrid_MouseDoubleClick"
+                  VirtualizingStackPanel.IsVirtualizing="True"
+                  VirtualizingStackPanel.VirtualizationMode="Recycling"
+                  EnableRowVirtualization="True"
+                  EnableColumnVirtualization="True"
+                  ScrollViewer.IsDeferredScrollingEnabled="True">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="KONTRAHENT" Binding="{Binding Kontrahent}" Width="150">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+
+                <DataGridTextColumn Header="NAZWA" Binding="{Binding Nazwa}" Width="*">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+
+                <DataGridTemplateColumn Header="SALDO" Width="100" SortMemberPath="SaldoAktualneOpakowania">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding SaldoAktualneOpakowania}"
+                                       Foreground="{Binding SaldoAktualneOpakowania, Converter={StaticResource SaldoToColor}}"
+                                       FontWeight="Bold" FontSize="15"
+                                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTemplateColumn Header="POTW." Width="70">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <!-- Potwierdzone -->
+                                <TextBlock Text="&#xE73E;" FontFamily="Segoe MDL2 Assets"
+                                           Foreground="#22C55E" FontSize="16"
+                                           Visibility="{Binding JestPotwierdzone, Converter={StaticResource BoolToVisibility}}"
+                                           ToolTip="{Binding DataPotwierdzeniaText}"/>
+                                <!-- Rozbieżność -->
+                                <TextBlock Text="&#xE7BA;" FontFamily="Segoe MDL2 Assets"
+                                           Foreground="#F97316" FontSize="16"
+                                           Visibility="{Binding MaRozbieznosc, Converter={StaticResource BoolToVisibility}}"
+                                           ToolTip="Rozbieżność"/>
+                                <!-- Brak -->
+                                <TextBlock Text="&#xE711;" FontFamily="Segoe MDL2 Assets"
+                                           Foreground="#9CA3AF" FontSize="16"
+                                           Visibility="{Binding BrakPotwierdzenia, Converter={StaticResource BoolToVisibility}}"
+                                           ToolTip="Brak potwierdzenia"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTextColumn Header="HANDLOWIEC" Binding="{Binding Handlowiec}" Width="130">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                            <Setter Property="Foreground" Value="#6B7280"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+
+                <DataGridTextColumn Header="OSTATNI DOK." Binding="{Binding OstatniDokumentTekst}" Width="100">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                            <Setter Property="Foreground" Value="#9CA3AF"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+
+                <DataGridTemplateColumn Header="" Width="40">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="›" FontSize="18" Foreground="#9CA3AF"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- ======================= STOPKA ======================= -->
+        <Border Grid.Row="4" Background="White" Padding="24,12" BorderBrush="#E5E7EB" BorderThickness="0,1,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Foreground="#6B7280" FontSize="12" VerticalAlignment="Center">
+                    <Run Text="Legenda: "/>
+                    <Run Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" Foreground="#22C55E"/>
+                    <Run Text=" = potwierdzone (30 dni)  "/>
+                    <Run Text="&#xE7BA;" FontFamily="Segoe MDL2 Assets" Foreground="#F97316"/>
+                    <Run Text=" = rozbieżność  "/>
+                    <Run Text="&#xE711;" FontFamily="Segoe MDL2 Assets" Foreground="#9CA3AF"/>
+                    <Run Text=" = brak potwierdzenia"/>
+                </TextBlock>
+
+                <TextBlock Grid.Column="1" Text="{Binding StatusMessage}" Foreground="#6B7280" FontSize="12"/>
+            </Grid>
+        </Border>
+
+        <!-- ======================= LOADING OVERLAY ======================= -->
+        <Border Grid.RowSpan="5" Background="#80FFFFFF"
+                Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <ProgressBar IsIndeterminate="True" Width="200" Height="4"/>
+                <TextBlock Text="{Binding StatusMessage}" Margin="0,12,0,0"
+                           HorizontalAlignment="Center" FontSize="14" Foreground="#6B7280"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

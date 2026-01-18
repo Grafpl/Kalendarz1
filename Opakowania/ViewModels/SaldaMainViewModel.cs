@@ -2,12 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Input;
+using ClosedXML.Excel;
 using Kalendarz1.Opakowania.Models;
 using Kalendarz1.Opakowania.Services;
+using Microsoft.Win32;
 
 namespace Kalendarz1.Opakowania.ViewModels
 {
@@ -26,6 +30,7 @@ namespace Kalendarz1.Opakowania.ViewModels
             _dataDo = DateTime.Today;
             _wszystkieSalda = new List<SaldoKontrahenta>();
 
+            // Wszystkie typy opakowań
             ListaE2 = new ObservableCollection<SaldoKontrahenta>();
             ListaH1 = new ObservableCollection<SaldoKontrahenta>();
             ListaEURO = new ObservableCollection<SaldoKontrahenta>();
@@ -121,7 +126,7 @@ namespace Kalendarz1.Opakowania.ViewModels
 
         public string NazwaHandlowca => string.IsNullOrEmpty(_handlowiecFilter) ? "Wszyscy" : _handlowiecFilter;
 
-        // Listy per zakładka
+        // Listy per zakładka - wszystkie typy opakowań
         public ObservableCollection<SaldoKontrahenta> ListaE2 { get; }
         public ObservableCollection<SaldoKontrahenta> ListaH1 { get; }
         public ObservableCollection<SaldoKontrahenta> ListaEURO { get; }
@@ -235,6 +240,7 @@ namespace Kalendarz1.Opakowania.ViewModels
 
         private void ObliczStatystyki()
         {
+            // Wszystkie typy opakowań
             var aktualnaLista = WybranaZakladka switch
             {
                 0 => ListaE2,
@@ -258,6 +264,259 @@ namespace Kalendarz1.Opakowania.ViewModels
             LiczbaKontrahentow = aktualnaLista.Count;
             SumaWydane = aktualnaLista.Where(s => s.GetSaldo(typSalda) > 0).Sum(s => s.GetSaldo(typSalda));
             SumaZwroty = aktualnaLista.Where(s => s.GetSaldo(typSalda) < 0).Sum(s => Math.Abs(s.GetSaldo(typSalda)));
+        }
+
+        public void EksportujDoExcel()
+        {
+            try
+            {
+                var saveDialog = new SaveFileDialog
+                {
+                    Filter = "Pliki Excel (*.xlsx)|*.xlsx",
+                    FileName = $"Salda_Opakowan_{DataDo:yyyy-MM-dd}.xlsx",
+                    Title = "Zapisz zestawienie sald"
+                };
+
+                if (saveDialog.ShowDialog() != true)
+                    return;
+
+                using (var workbook = new XLWorkbook())
+                {
+                    // Arkusz E2
+                    var wsE2 = workbook.Worksheets.Add("E2 - Pojemniki");
+                    DodajDaneDoArkusza(wsE2, ListaE2.ToList(), "E2");
+
+                    // Arkusz H1
+                    var wsH1 = workbook.Worksheets.Add("H1 - Palety");
+                    DodajDaneDoArkusza(wsH1, ListaH1.ToList(), "H1");
+
+                    // Arkusz EURO
+                    var wsEURO = workbook.Worksheets.Add("EURO - Palety");
+                    DodajDaneDoArkusza(wsEURO, ListaEURO.ToList(), "EURO");
+
+                    // Arkusz PCV
+                    var wsPCV = workbook.Worksheets.Add("PCV - Pojemniki");
+                    DodajDaneDoArkusza(wsPCV, ListaPCV.ToList(), "PCV");
+
+                    // Arkusz DREW
+                    var wsDREW = workbook.Worksheets.Add("DREW - Drewniane");
+                    DodajDaneDoArkusza(wsDREW, ListaDREW.ToList(), "DREW");
+
+                    // Arkusz podsumowanie
+                    var wsSummary = workbook.Worksheets.Add("Podsumowanie");
+                    DodajPodsumowanie(wsSummary);
+
+                    workbook.SaveAs(saveDialog.FileName);
+                }
+
+                MessageBox.Show($"Plik zapisany pomyslnie:\n{saveDialog.FileName}", "Eksport Excel", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // Otwórz plik
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = saveDialog.FileName,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad eksportu: {ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void DodajDaneDoArkusza(IXLWorksheet ws, List<SaldoKontrahenta> dane, string typSalda)
+        {
+            // Nagłówek tytułowy
+            ws.Cell(1, 1).Value = $"ZESTAWIENIE SALD OPAKOWAN - {typSalda}";
+            ws.Cell(1, 1).Style.Font.Bold = true;
+            ws.Cell(1, 1).Style.Font.FontSize = 14;
+            ws.Range(1, 1, 1, 7).Merge();
+
+            ws.Cell(2, 1).Value = $"Stan na dzien: {DataDo:dd.MM.yyyy}";
+            ws.Cell(2, 1).Style.Font.Italic = true;
+            ws.Range(2, 1, 2, 7).Merge();
+
+            // Nagłówki kolumn
+            var headerRow = 4;
+            var headers = new[] { "Lp.", "Symbol", "Nazwa", "Handlowiec", "Saldo", "Status", "Data potw." };
+
+            for (int i = 0; i < headers.Length; i++)
+            {
+                var cell = ws.Cell(headerRow, i + 1);
+                cell.Value = headers[i];
+                cell.Style.Font.Bold = true;
+                cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#FFE0B2");
+                cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+            }
+
+            // Dane
+            var row = headerRow + 1;
+            var lp = 1;
+
+            foreach (var s in dane)
+            {
+                var saldo = typSalda == "E2" ? s.E2 : s.H1;
+                var potwierdzone = typSalda == "E2" ? s.E2Potwierdzone : s.H1Potwierdzone;
+                var dataPotw = typSalda == "E2" ? s.E2DataPotwierdzenia : s.H1DataPotwierdzenia;
+
+                ws.Cell(row, 1).Value = lp++;
+                ws.Cell(row, 2).Value = s.Kontrahent;
+                ws.Cell(row, 3).Value = s.Nazwa;
+                ws.Cell(row, 4).Value = s.Handlowiec ?? "-";
+                ws.Cell(row, 5).Value = saldo;
+                ws.Cell(row, 6).Value = potwierdzone ? "Potwierdzone" : "Brak potw.";
+                ws.Cell(row, 7).Value = dataPotw?.ToString("dd.MM.yyyy") ?? "-";
+
+                // Kolorowanie
+                if (saldo > 0)
+                    ws.Cell(row, 5).Style.Font.FontColor = XLColor.FromHtml("#E53935");
+                else if (saldo < 0)
+                    ws.Cell(row, 5).Style.Font.FontColor = XLColor.FromHtml("#43A047");
+
+                if (!potwierdzone)
+                    ws.Cell(row, 6).Style.Font.FontColor = XLColor.FromHtml("#FB8C00");
+
+                // Ramki
+                for (int col = 1; col <= 7; col++)
+                    ws.Cell(row, col).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+
+                row++;
+            }
+
+            // Podsumowanie
+            row++;
+            ws.Cell(row, 4).Value = "RAZEM:";
+            ws.Cell(row, 4).Style.Font.Bold = true;
+            ws.Cell(row, 5).Value = dane.Sum(s => typSalda == "E2" ? s.E2 : s.H1);
+            ws.Cell(row, 5).Style.Font.Bold = true;
+
+            // Autofit
+            ws.Columns().AdjustToContents();
+        }
+
+        private void DodajPodsumowanie(IXLWorksheet ws)
+        {
+            ws.Cell(1, 1).Value = "PODSUMOWANIE SALD OPAKOWAN";
+            ws.Cell(1, 1).Style.Font.Bold = true;
+            ws.Cell(1, 1).Style.Font.FontSize = 16;
+            ws.Range(1, 1, 1, 3).Merge();
+
+            ws.Cell(2, 1).Value = $"Stan na dzien: {DataDo:dd.MM.yyyy}";
+            ws.Cell(2, 1).Style.Font.Italic = true;
+
+            var row = 4;
+
+            // E2
+            ws.Cell(row, 1).Value = "Pojemniki E2";
+            ws.Cell(row, 1).Style.Font.Bold = true;
+            row++;
+
+            ws.Cell(row, 1).Value = "Liczba kontrahentow:";
+            ws.Cell(row, 2).Value = ListaE2.Count;
+            row++;
+
+            ws.Cell(row, 1).Value = "Suma u kontrahentow:";
+            ws.Cell(row, 2).Value = ListaE2.Where(s => s.E2 > 0).Sum(s => s.E2);
+            row++;
+
+            ws.Cell(row, 1).Value = "Suma nadwyzek (u nas):";
+            ws.Cell(row, 2).Value = Math.Abs(ListaE2.Where(s => s.E2 < 0).Sum(s => s.E2));
+            row++;
+
+            ws.Cell(row, 1).Value = "Szacunkowa wartosc (15 PLN/szt):";
+            ws.Cell(row, 2).Value = ListaE2.Where(s => s.E2 > 0).Sum(s => s.E2) * 15;
+            ws.Cell(row, 2).Style.NumberFormat.Format = "#,##0 \"PLN\"";
+            row += 2;
+
+            // H1
+            ws.Cell(row, 1).Value = "Palety H1";
+            ws.Cell(row, 1).Style.Font.Bold = true;
+            row++;
+
+            ws.Cell(row, 1).Value = "Liczba kontrahentow:";
+            ws.Cell(row, 2).Value = ListaH1.Count;
+            row++;
+
+            ws.Cell(row, 1).Value = "Suma u kontrahentow:";
+            ws.Cell(row, 2).Value = ListaH1.Where(s => s.H1 > 0).Sum(s => s.H1);
+            row++;
+
+            ws.Cell(row, 1).Value = "Suma nadwyzek (u nas):";
+            ws.Cell(row, 2).Value = Math.Abs(ListaH1.Where(s => s.H1 < 0).Sum(s => s.H1));
+            row++;
+
+            ws.Cell(row, 1).Value = "Szacunkowa wartosc (80 PLN/szt):";
+            ws.Cell(row, 2).Value = ListaH1.Where(s => s.H1 > 0).Sum(s => s.H1) * 80;
+            ws.Cell(row, 2).Style.NumberFormat.Format = "#,##0 \"PLN\"";
+            row += 2;
+
+            // EURO
+            ws.Cell(row, 1).Value = "Palety EURO";
+            ws.Cell(row, 1).Style.Font.Bold = true;
+            row++;
+
+            ws.Cell(row, 1).Value = "Liczba kontrahentow:";
+            ws.Cell(row, 2).Value = ListaEURO.Count;
+            row++;
+
+            ws.Cell(row, 1).Value = "Suma u kontrahentow:";
+            ws.Cell(row, 2).Value = ListaEURO.Where(s => s.EURO > 0).Sum(s => s.EURO);
+            row++;
+
+            ws.Cell(row, 1).Value = "Szacunkowa wartosc (60 PLN/szt):";
+            ws.Cell(row, 2).Value = ListaEURO.Where(s => s.EURO > 0).Sum(s => s.EURO) * 60;
+            ws.Cell(row, 2).Style.NumberFormat.Format = "#,##0 \"PLN\"";
+            row += 2;
+
+            // PCV
+            ws.Cell(row, 1).Value = "Pojemniki PCV";
+            ws.Cell(row, 1).Style.Font.Bold = true;
+            row++;
+
+            ws.Cell(row, 1).Value = "Liczba kontrahentow:";
+            ws.Cell(row, 2).Value = ListaPCV.Count;
+            row++;
+
+            ws.Cell(row, 1).Value = "Suma u kontrahentow:";
+            ws.Cell(row, 2).Value = ListaPCV.Where(s => s.PCV > 0).Sum(s => s.PCV);
+            row++;
+
+            ws.Cell(row, 1).Value = "Szacunkowa wartosc (50 PLN/szt):";
+            ws.Cell(row, 2).Value = ListaPCV.Where(s => s.PCV > 0).Sum(s => s.PCV) * 50;
+            ws.Cell(row, 2).Style.NumberFormat.Format = "#,##0 \"PLN\"";
+            row += 2;
+
+            // DREW
+            ws.Cell(row, 1).Value = "Opakowania drewniane (DREW)";
+            ws.Cell(row, 1).Style.Font.Bold = true;
+            row++;
+
+            ws.Cell(row, 1).Value = "Liczba kontrahentow:";
+            ws.Cell(row, 2).Value = ListaDREW.Count;
+            row++;
+
+            ws.Cell(row, 1).Value = "Suma u kontrahentow:";
+            ws.Cell(row, 2).Value = ListaDREW.Where(s => s.DREW > 0).Sum(s => s.DREW);
+            row++;
+
+            ws.Cell(row, 1).Value = "Szacunkowa wartosc (40 PLN/szt):";
+            ws.Cell(row, 2).Value = ListaDREW.Where(s => s.DREW > 0).Sum(s => s.DREW) * 40;
+            ws.Cell(row, 2).Style.NumberFormat.Format = "#,##0 \"PLN\"";
+            row += 2;
+
+            // Łącznie
+            ws.Cell(row, 1).Value = "LACZNIE WARTOSC KAUCJI:";
+            ws.Cell(row, 1).Style.Font.Bold = true;
+            var lacznaWartosc = (ListaE2.Where(s => s.E2 > 0).Sum(s => s.E2) * 15) +
+                                (ListaH1.Where(s => s.H1 > 0).Sum(s => s.H1) * 80) +
+                                (ListaEURO.Where(s => s.EURO > 0).Sum(s => s.EURO) * 60) +
+                                (ListaPCV.Where(s => s.PCV > 0).Sum(s => s.PCV) * 50) +
+                                (ListaDREW.Where(s => s.DREW > 0).Sum(s => s.DREW) * 40);
+            ws.Cell(row, 2).Value = lacznaWartosc;
+            ws.Cell(row, 2).Style.Font.Bold = true;
+            ws.Cell(row, 2).Style.NumberFormat.Format = "#,##0 \"PLN\"";
+
+            ws.Columns().AdjustToContents();
         }
 
         #endregion

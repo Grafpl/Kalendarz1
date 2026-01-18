@@ -97,6 +97,77 @@ namespace Kalendarz1.Opakowania.Models
             _ => false
         };
 
+        // === Status potwierdzenia dla UI ===
+
+        // E2 Status
+        public string E2StatusIkona => GetStatusIkona(E2Potwierdzone, E2 != 0, E2DataPotwierdzenia);
+        public SolidColorBrush E2StatusKolor => GetStatusKolor(E2Potwierdzone, E2 != 0, E2DataPotwierdzenia);
+        public string E2StatusTekst => GetStatusTekst(E2Potwierdzone, E2 != 0, E2DataPotwierdzenia);
+        public string E2StatusTooltip => GetStatusTooltip(E2Potwierdzone, E2DataPotwierdzenia, E2 != 0);
+
+        // H1 Status
+        public string H1StatusIkona => GetStatusIkona(H1Potwierdzone, H1 != 0, H1DataPotwierdzenia);
+        public SolidColorBrush H1StatusKolor => GetStatusKolor(H1Potwierdzone, H1 != 0, H1DataPotwierdzenia);
+        public string H1StatusTekst => GetStatusTekst(H1Potwierdzone, H1 != 0, H1DataPotwierdzenia);
+        public string H1StatusTooltip => GetStatusTooltip(H1Potwierdzone, H1DataPotwierdzenia, H1 != 0);
+
+        private static string GetStatusIkona(bool potwierdzone, bool maSaldo, DateTime? dataPotwierdzenia)
+        {
+            if (!maSaldo) return "";
+            if (potwierdzone) return "\uE73E"; // Checkmark
+
+            // Sprawdź ile dni od ostatniego potwierdzenia
+            if (dataPotwierdzenia.HasValue)
+            {
+                var dni = (DateTime.Today - dataPotwierdzenia.Value).TotalDays;
+                if (dni > 90) return "\uE783"; // Warning
+                if (dni > 30) return "\uE823"; // Clock
+            }
+            return "\uE7BA"; // X mark
+        }
+
+        private static SolidColorBrush GetStatusKolor(bool potwierdzone, bool maSaldo, DateTime? dataPotwierdzenia)
+        {
+            if (!maSaldo) return new SolidColorBrush(Colors.Transparent);
+            if (potwierdzone) return new SolidColorBrush(Color.FromRgb(76, 175, 80)); // Zielony
+
+            if (dataPotwierdzenia.HasValue)
+            {
+                var dni = (DateTime.Today - dataPotwierdzenia.Value).TotalDays;
+                if (dni > 90) return new SolidColorBrush(Color.FromRgb(229, 57, 53)); // Czerwony
+                if (dni > 30) return new SolidColorBrush(Color.FromRgb(251, 140, 0)); // Pomarańczowy
+            }
+            return new SolidColorBrush(Color.FromRgb(229, 57, 53)); // Czerwony
+        }
+
+        private static string GetStatusTekst(bool potwierdzone, bool maSaldo, DateTime? dataPotwierdzenia)
+        {
+            if (!maSaldo) return "";
+            if (potwierdzone) return "OK";
+
+            if (dataPotwierdzenia.HasValue)
+            {
+                var dni = (int)(DateTime.Today - dataPotwierdzenia.Value).TotalDays;
+                if (dni > 90) return $"{dni}d!";
+                if (dni > 30) return $"{dni}d";
+                return "Oczek.";
+            }
+            return "Brak";
+        }
+
+        private static string GetStatusTooltip(bool potwierdzone, DateTime? data, bool maSaldo)
+        {
+            if (!maSaldo) return "";
+            if (potwierdzone && data.HasValue)
+                return $"Potwierdzone: {data.Value:dd.MM.yyyy}";
+            if (data.HasValue)
+            {
+                var dni = (int)(DateTime.Today - data.Value).TotalDays;
+                return $"Ostatnie potwierdzenie: {data.Value:dd.MM.yyyy} ({dni} dni temu)";
+            }
+            return "Brak potwierdzenia";
+        }
+
         // INotifyPropertyChanged
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string name = null)

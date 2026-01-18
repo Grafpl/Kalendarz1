@@ -37,10 +37,13 @@ namespace Kalendarz1.Opakowania.Views
 
             var okno = new SaldoOdbiorcyWindow(saldo.KontrahentId, saldo.Kontrahent, App.UserID ?? "11111");
             okno.Owner = this;
-            okno.ShowDialog();
+            var result = okno.ShowDialog();
 
-            // Odśwież dane po zamknięciu
-            _viewModel.OdswiezCommand.Execute(null);
+            // Odśwież dane tylko jeśli coś zmieniono (DialogResult = true)
+            if (result == true)
+            {
+                _viewModel.OdswiezCommand.Execute(null);
+            }
         }
 
         #endregion

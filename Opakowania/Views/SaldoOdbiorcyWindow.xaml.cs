@@ -270,7 +270,9 @@ namespace Kalendarz1.Opakowania.Views
 
         private void BtnPowrot_Click(object sender, RoutedEventArgs e)
         {
-            DialogResult = true;
+            // Nie ustawiaj DialogResult = true przy zwykłym zamknięciu
+            // Cache nie będzie niepotrzebnie odświeżany
+            // DialogResult = true ustawiane jest tylko gdy wprowadzono zmiany
             Close();
         }
 
