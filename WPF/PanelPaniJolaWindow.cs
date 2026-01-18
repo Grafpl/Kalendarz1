@@ -1259,14 +1259,24 @@ namespace Kalendarz1.WPF
 
             var camera = _cameras[cameraIndex];
 
+            // Oblicz 96% rozmiaru ekranu, aby guziki były widoczne
+            var screenWidth = SystemParameters.PrimaryScreenWidth;
+            var screenHeight = SystemParameters.PrimaryScreenHeight;
+            var windowWidth = screenWidth * 0.96;
+            var windowHeight = screenHeight * 0.96;
+
             var fullscreenWindow = new Window
             {
                 Title = camera.Name,
-                WindowState = WindowState.Maximized,
+                WindowState = WindowState.Normal,
                 WindowStyle = WindowStyle.None,
                 Background = Brushes.Black,
                 ResizeMode = ResizeMode.NoResize,
-                Topmost = true
+                Topmost = true,
+                Width = windowWidth,
+                Height = windowHeight,
+                Left = (screenWidth - windowWidth) / 2,
+                Top = (screenHeight - windowHeight) / 2
             };
 
             var fullscreenGrid = new Grid();
