@@ -3411,19 +3411,73 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
             foreach (var group in grouped)
             {
-                // Dodaj nagłówek dnia
+                var deliveries = group.ToList();
+
+                // Oblicz sumy i średnie ważone dla tego dnia (tak jak w LoadDostawyForWeekAsync)
+                double sumaAuta = 0;
+                double sumaSztuki = 0;
+                double sumaWagaPomnozona = 0;
+                double sumaCenaPomnozona = 0;
+                double sumaKMPomnozona = 0;
+                double sumaDobyPomnozona = 0;
+                int sumaUbytek = 0;
+                int iloscZDoby = 0;
+                int liczbaSprzedanych = 0;
+                int liczbaAnulowanych = 0;
+
+                foreach (var item in deliveries)
+                {
+                    sumaAuta += item.Auta;
+                    sumaSztuki += item.SztukiDek;
+                    sumaWagaPomnozona += (double)item.WagaDek * item.Auta;
+                    sumaCenaPomnozona += (double)item.Cena * item.Auta;
+                    sumaKMPomnozona += item.Distance * item.Auta;
+
+                    // Średnia Doby
+                    if (item.RoznicaDni.HasValue && item.RoznicaDni.Value > 0)
+                    {
+                        sumaDobyPomnozona += item.RoznicaDni.Value * item.Auta;
+                        iloscZDoby += item.Auta;
+                    }
+
+                    // Licz ubytki (lekkie kurczaki 0.5-2.4 kg)
+                    if (item.WagaDek >= 0.5m && item.WagaDek <= 2.4m)
+                    {
+                        sumaUbytek += item.Auta;
+                    }
+
+                    // Licz sprzedane i anulowane
+                    if (item.Bufor == "Sprzedany") liczbaSprzedanych++;
+                    if (item.Bufor == "Anulowany") liczbaAnulowanych++;
+                }
+
+                // Oblicz średnie ważone
+                double sredniaWaga = sumaAuta > 0 ? sumaWagaPomnozona / sumaAuta : 0;
+                double sredniaCena = sumaAuta > 0 ? sumaCenaPomnozona / sumaAuta : 0;
+                double sredniaKM = sumaAuta > 0 ? sumaKMPomnozona / sumaAuta : 0;
+                double sredniaDoby = iloscZDoby > 0 ? sumaDobyPomnozona / iloscZDoby : 0;
+
+                // Dodaj nagłówek dnia z pełnymi statystykami
                 var dayHeader = new DostawaModel
                 {
                     IsHeaderRow = true,
+                    IsEmptyDay = deliveries.Count == 0,
                     DataOdbioru = group.Key,
                     Dostawca = GetDayName(group.Key),
-                    Auta = group.Sum(d => d.Auta),
-                    SztukiDek = group.Sum(d => d.SztukiDek)
+                    SumaAuta = sumaAuta,
+                    SumaSztuki = sumaSztuki,
+                    SredniaWaga = sredniaWaga,
+                    SredniaCena = sredniaCena,
+                    SredniaKM = sredniaKM,
+                    SredniaDoby = sredniaDoby,
+                    SumaUbytek = sumaUbytek,
+                    LiczbaSprzedanych = liczbaSprzedanych,
+                    LiczbaAnulowanych = liczbaAnulowanych
                 };
                 collection.Add(dayHeader);
 
                 // Dodaj dostawy
-                foreach (var d in group.OrderBy(x => x.Dostawca))
+                foreach (var d in deliveries.OrderBy(x => x.Dostawca))
                 {
                     collection.Add(d);
                 }
