@@ -716,6 +716,34 @@ namespace Kalendarz1.WPF
             btnClose.Click += (s, e) => Close();
             navPanel.Children.Add(btnClose);
 
+            // Przycisk wyłączenia komputera
+            var btnShutdown = new Button
+            {
+                Content = "⏻ WYŁĄCZ PC",
+                FontSize = 12,
+                FontWeight = FontWeights.Bold,
+                Padding = new Thickness(10, 8, 10, 8),
+                Background = new SolidColorBrush(Color.FromRgb(120, 40, 40)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Margin = new Thickness(0, 8, 0, 0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            btnShutdown.Click += (s, e) =>
+            {
+                var result = MessageBox.Show(
+                    "Czy na pewno chcesz wyłączyć komputer?",
+                    "Potwierdzenie wyłączenia",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    System.Diagnostics.Process.Start("shutdown", "/s /t 0");
+                }
+            };
+            navPanel.Children.Add(btnShutdown);
+
             leftPanel.Children.Add(navPanel);
             Grid.SetColumn(leftPanel, 0);
             mainGrid.Children.Add(leftPanel);
