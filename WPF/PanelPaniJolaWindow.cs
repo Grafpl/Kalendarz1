@@ -967,6 +967,7 @@ namespace Kalendarz1.WPF
             };
             var camera1Grid = new Grid();
 
+            // Warstwa 1: VideoView (na spodzie)
             _videoView1 = new VideoView
             {
                 Background = Brushes.Black,
@@ -975,6 +976,7 @@ namespace Kalendarz1.WPF
             };
             camera1Grid.Children.Add(_videoView1);
 
+            // Warstwa 2: Status text
             _camera1Status = new TextBlock
             {
                 Text = "Laczenie...",
@@ -985,27 +987,21 @@ namespace Kalendarz1.WPF
             };
             camera1Grid.Children.Add(_camera1Status);
 
+            // Warstwa 3: Przezroczysty overlay do przechwytywania kliknięć
+            // (VideoView przechwytuje wszystkie eventy myszy - overlay je odbiera)
+            var clickOverlay1 = new Border
+            {
+                Background = Brushes.Transparent, // przezroczysty ale klikalny
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            clickOverlay1.MouseLeftButtonDown += (s, e) => OpenFullscreenRtsp(0);
+            camera1Grid.Children.Add(clickOverlay1);
+
+            // Warstwa 4: Label z nazwą kamery (na dole)
             var label1 = CreateCameraLabel(_cameras.Count > 0 ? _cameras[0].Name : "KAMERA 1");
             camera1Grid.Children.Add(label1);
 
-            // Przycisk powiększenia w prawym górnym rogu - NAD obrazem kamery
-            var fullscreenBtn1 = CreateFullscreenButton(0);
-            camera1Grid.Children.Add(fullscreenBtn1);
-
             camera1Border.Child = camera1Grid;
-            camera1Border.Cursor = System.Windows.Input.Cursors.Hand;
-            camera1Border.MouseLeftButtonDown += (s, e) =>
-            {
-                // Nie reaguj na kliknięcie przycisku fullscreen
-                DependencyObject? source = e.OriginalSource as DependencyObject;
-                while (source != null)
-                {
-                    if (source is Button)
-                        return;
-                    source = VisualTreeHelper.GetParent(source);
-                }
-                OpenFullscreenRtsp(0);
-            };
             Grid.SetColumn(camera1Border, 0);
             _camerasArea.Children.Add(camera1Border);
 
@@ -1019,6 +1015,7 @@ namespace Kalendarz1.WPF
             };
             var camera2Grid = new Grid();
 
+            // Warstwa 1: VideoView (na spodzie)
             _videoView2 = new VideoView
             {
                 Background = Brushes.Black,
@@ -1027,6 +1024,7 @@ namespace Kalendarz1.WPF
             };
             camera2Grid.Children.Add(_videoView2);
 
+            // Warstwa 2: Status text
             _camera2Status = new TextBlock
             {
                 Text = "Laczenie...",
@@ -1037,27 +1035,20 @@ namespace Kalendarz1.WPF
             };
             camera2Grid.Children.Add(_camera2Status);
 
+            // Warstwa 3: Przezroczysty overlay do przechwytywania kliknięć
+            var clickOverlay2 = new Border
+            {
+                Background = Brushes.Transparent, // przezroczysty ale klikalny
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            clickOverlay2.MouseLeftButtonDown += (s, e) => OpenFullscreenRtsp(1);
+            camera2Grid.Children.Add(clickOverlay2);
+
+            // Warstwa 4: Label z nazwą kamery (na dole)
             var label2 = CreateCameraLabel(_cameras.Count > 1 ? _cameras[1].Name : "KAMERA 2");
             camera2Grid.Children.Add(label2);
 
-            // Przycisk powiększenia w prawym górnym rogu - NAD obrazem kamery
-            var fullscreenBtn2 = CreateFullscreenButton(1);
-            camera2Grid.Children.Add(fullscreenBtn2);
-
             camera2Border.Child = camera2Grid;
-            camera2Border.Cursor = System.Windows.Input.Cursors.Hand;
-            camera2Border.MouseLeftButtonDown += (s, e) =>
-            {
-                // Nie reaguj na kliknięcie przycisku fullscreen
-                DependencyObject? source = e.OriginalSource as DependencyObject;
-                while (source != null)
-                {
-                    if (source is Button)
-                        return;
-                    source = VisualTreeHelper.GetParent(source);
-                }
-                OpenFullscreenRtsp(1);
-            };
             Grid.SetColumn(camera2Border, 1);
             _camerasArea.Children.Add(camera2Border);
 
@@ -1087,46 +1078,6 @@ namespace Kalendarz1.WPF
                 HorizontalAlignment = HorizontalAlignment.Center
             };
             return label;
-        }
-
-        /// <summary>
-        /// Tworzy przycisk powiększenia kamery w prawym górnym rogu
-        /// </summary>
-        private Button CreateFullscreenButton(int cameraIndex)
-        {
-            var btn = new Button
-            {
-                Content = "[ ]",
-                FontSize = 20,
-                FontWeight = FontWeights.Bold,
-                Width = 50,
-                Height = 50,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                VerticalAlignment = VerticalAlignment.Top,
-                Margin = new Thickness(0, 10, 10, 0),
-                Background = new SolidColorBrush(Color.FromArgb(200, 52, 152, 219)),
-                Foreground = Brushes.White,
-                BorderThickness = new Thickness(0),
-                Cursor = System.Windows.Input.Cursors.Hand
-            };
-
-            // Styl hover
-            btn.MouseEnter += (s, e) =>
-            {
-                btn.Background = new SolidColorBrush(Color.FromArgb(255, 41, 128, 185));
-            };
-            btn.MouseLeave += (s, e) =>
-            {
-                btn.Background = new SolidColorBrush(Color.FromArgb(200, 52, 152, 219));
-            };
-
-            btn.Click += (s, e) =>
-            {
-                LogCamera($"[CLICK] Przycisk fullscreen kamery {cameraIndex + 1}");
-                OpenFullscreenRtsp(cameraIndex);
-            };
-
-            return btn;
         }
 
         /// <summary>
