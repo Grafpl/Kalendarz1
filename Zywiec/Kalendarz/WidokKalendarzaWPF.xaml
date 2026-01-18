@@ -1166,6 +1166,42 @@
                                 </Button>
                             </StackPanel>
                         </Border>
+                        <!-- Tryb Symulacji -->
+                        <Border x:Name="borderSimulation" CornerRadius="6" Padding="4,2" Margin="0,0,8,0" BorderThickness="1">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="#F8FAFC"/>
+                                    <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                </Style>
+                            </Border.Style>
+                            <Button x:Name="btnSimulation" Click="BtnSimulation_Click" ToolTip="Tryb symulacji - testuj przesunięcia bez zapisu do bazy" Height="28" Padding="8,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock x:Name="txtSimulationIcon" Text="🧪" FontSize="11" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="txtSimulationText" Text="Symulacja" FontSize="10" Margin="4,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Background" Value="Transparent"/>
+                                        <Setter Property="BorderThickness" Value="0"/>
+                                        <Setter Property="Cursor" Value="Hand"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="{TemplateBinding Background}" CornerRadius="4">
+                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#FEF3C7"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </Border>
                         <!-- Odśwież z licznikiem -->
                         <Border Background="#F8FAFC" CornerRadius="6" Padding="2,2,6,2" BorderBrush="#E2E8F0" BorderThickness="1">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
