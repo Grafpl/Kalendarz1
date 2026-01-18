@@ -396,10 +396,10 @@ namespace Kalendarz1
                 BackColor = Color.FromArgb(20, 28, 36)
             };
 
-            // Przycisk Powiadomienia (dzwonek)
+            // Przycisk Powiadomienia
             var notificationButton = new Button
             {
-                Text = "🔔 Powiadomienia",
+                Text = "Powiadomienia",
                 Font = new Font("Segoe UI", 9),
                 Size = new Size(panelWidth - 20, 38),
                 Location = new Point(10, 10),
