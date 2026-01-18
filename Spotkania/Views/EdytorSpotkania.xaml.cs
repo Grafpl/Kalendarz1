@@ -126,7 +126,7 @@ namespace Kalendarz1.Spotkania.Views
             // Podstawowe dane
             TxtTytul.Text = _spotkanie.Tytul;
             TxtOpis.Text = _spotkanie.Opis;
-            TxtLokalizacja.Text = _spotkanie.Lokalizacja;
+            CmbLokalizacja.Text = _spotkanie.Lokalizacja;
             TxtLink.Text = _spotkanie.LinkSpotkania;
 
             // Data i czas
@@ -364,7 +364,7 @@ namespace Kalendarz1.Spotkania.Views
             {
                 Tytul = TxtTytul.Text.Trim(),
                 Opis = TxtOpis.Text.Trim(),
-                Lokalizacja = TxtLokalizacja.Text.Trim(),
+                Lokalizacja = CmbLokalizacja.Text.Trim(),
                 LinkSpotkania = TxtLink.Text.Trim(),
                 OrganizatorID = _userID
             };
