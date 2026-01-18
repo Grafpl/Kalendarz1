@@ -2812,7 +2812,14 @@ namespace Kalendarz1
 
             if (wstawienie.ShowDialog() == true)
             {
-                ShowConfetti();
+                if (wstawienie.PobitoRekord)
+                {
+                    ShowRekordConfetti();
+                }
+                else
+                {
+                    ShowConfetti();
+                }
             }
 
             RefreshAll();
@@ -2936,6 +2943,157 @@ namespace Kalendarz1
                 ((RotateTransform)confetti.RenderTransform).BeginAnimation(RotateTransform.AngleProperty, rotateAnimation);
                 confetti.BeginAnimation(UIElement.OpacityProperty, fadeAnimation);
             }
+        }
+
+        // ====== SPECJALNE KONFETTI DLA REKORDU ======
+        private void ShowRekordConfetti()
+        {
+            var random = new Random();
+
+            // Złote i celebracyjne kolory dla rekordu
+            var colors = new[]
+            {
+                Color.FromRgb(255, 215, 0),    // złoty
+                Color.FromRgb(255, 193, 7),    // złoty ciemniejszy
+                Color.FromRgb(255, 245, 157),  // jasny złoty
+                Color.FromRgb(255, 152, 0),    // pomarańczowy
+                Color.FromRgb(255, 255, 255),  // biały
+                Color.FromRgb(255, 223, 0),    // żółty złoty
+                Color.FromRgb(218, 165, 32),   // goldenrod
+                Color.FromRgb(255, 69, 0)      // czerwono-pomarańczowy
+            };
+
+            // Więcej konfetti dla rekordu!
+            int confettiCount = 150;
+
+            // Fale konfetti - 3 fale
+            for (int wave = 0; wave < 3; wave++)
+            {
+                double waveDelay = wave * 0.3;
+
+                for (int i = 0; i < confettiCount / 3; i++)
+                {
+                    // Mieszanka kształtów - prostokąty i gwiazdy
+                    System.Windows.Shapes.Shape confetti;
+
+                    if (random.Next(3) == 0)
+                    {
+                        // Gwiazda (używamy wielokąta)
+                        confetti = new System.Windows.Shapes.Polygon
+                        {
+                            Points = CreateStarPoints(random.Next(10, 16)),
+                            Fill = new SolidColorBrush(colors[random.Next(colors.Length)]),
+                            RenderTransformOrigin = new Point(0.5, 0.5),
+                            RenderTransform = new RotateTransform(random.Next(0, 360))
+                        };
+                    }
+                    else
+                    {
+                        confetti = new System.Windows.Shapes.Rectangle
+                        {
+                            Width = random.Next(10, 18),
+                            Height = random.Next(10, 18),
+                            Fill = new SolidColorBrush(colors[random.Next(colors.Length)]),
+                            RenderTransformOrigin = new Point(0.5, 0.5),
+                            RenderTransform = new RotateTransform(random.Next(0, 360))
+                        };
+                    }
+
+                    double startX = random.Next(0, (int)ActualWidth);
+                    double startY = -30;
+
+                    Canvas.SetLeft(confetti, startX);
+                    Canvas.SetTop(confetti, startY);
+                    confettiCanvas.Children.Add(confetti);
+
+                    double endY = ActualHeight + 50;
+                    double horizontalDrift = random.Next(-200, 200);
+                    double duration = random.NextDouble() * 2.5 + 2.5;
+                    double delay = waveDelay + random.NextDouble() * 0.4;
+
+                    var fallAnimation = new System.Windows.Media.Animation.DoubleAnimation
+                    {
+                        From = startY,
+                        To = endY,
+                        Duration = TimeSpan.FromSeconds(duration),
+                        BeginTime = TimeSpan.FromSeconds(delay),
+                        EasingFunction = new System.Windows.Media.Animation.QuadraticEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseIn }
+                    };
+
+                    var driftAnimation = new System.Windows.Media.Animation.DoubleAnimation
+                    {
+                        From = startX,
+                        To = startX + horizontalDrift,
+                        Duration = TimeSpan.FromSeconds(duration),
+                        BeginTime = TimeSpan.FromSeconds(delay)
+                    };
+
+                    var rotateAnimation = new System.Windows.Media.Animation.DoubleAnimation
+                    {
+                        From = 0,
+                        To = random.Next(720, 1440) * (random.Next(2) == 0 ? 1 : -1),
+                        Duration = TimeSpan.FromSeconds(duration),
+                        BeginTime = TimeSpan.FromSeconds(delay)
+                    };
+
+                    // Pulsujący efekt skali dla gwiazd
+                    var scaleTransform = new ScaleTransform(1, 1);
+                    var transformGroup = new TransformGroup();
+                    transformGroup.Children.Add(confetti.RenderTransform);
+                    transformGroup.Children.Add(scaleTransform);
+                    confetti.RenderTransform = transformGroup;
+
+                    var scaleAnimation = new System.Windows.Media.Animation.DoubleAnimation
+                    {
+                        From = 1.0,
+                        To = 1.3,
+                        Duration = TimeSpan.FromSeconds(0.3),
+                        AutoReverse = true,
+                        RepeatBehavior = new System.Windows.Media.Animation.RepeatBehavior(TimeSpan.FromSeconds(duration)),
+                        BeginTime = TimeSpan.FromSeconds(delay)
+                    };
+
+                    var fadeAnimation = new System.Windows.Media.Animation.DoubleAnimation
+                    {
+                        From = 1,
+                        To = 0,
+                        Duration = TimeSpan.FromSeconds(0.5),
+                        BeginTime = TimeSpan.FromSeconds(delay + duration - 0.5)
+                    };
+
+                    var confettiRef = confetti;
+                    fadeAnimation.Completed += (s, e) =>
+                    {
+                        confettiCanvas.Children.Remove(confettiRef);
+                    };
+
+                    confetti.BeginAnimation(Canvas.TopProperty, fallAnimation);
+                    confetti.BeginAnimation(Canvas.LeftProperty, driftAnimation);
+                    ((RotateTransform)((TransformGroup)confetti.RenderTransform).Children[0]).BeginAnimation(RotateTransform.AngleProperty, rotateAnimation);
+                    scaleTransform.BeginAnimation(ScaleTransform.ScaleXProperty, scaleAnimation);
+                    scaleTransform.BeginAnimation(ScaleTransform.ScaleYProperty, scaleAnimation);
+                    confetti.BeginAnimation(UIElement.OpacityProperty, fadeAnimation);
+                }
+            }
+        }
+
+        private System.Windows.Media.PointCollection CreateStarPoints(double size)
+        {
+            var points = new System.Windows.Media.PointCollection();
+            double outerRadius = size / 2;
+            double innerRadius = size / 4;
+
+            for (int i = 0; i < 10; i++)
+            {
+                double angle = Math.PI / 2 + i * Math.PI / 5;
+                double radius = (i % 2 == 0) ? outerRadius : innerRadius;
+                points.Add(new Point(
+                    size / 2 + radius * Math.Cos(angle),
+                    size / 2 - radius * Math.Sin(angle)
+                ));
+            }
+
+            return points;
         }
     }
 

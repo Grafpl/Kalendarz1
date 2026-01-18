@@ -20,6 +20,10 @@ namespace Kalendarz1
         public DateTime DataWstawienia { get; set; }
         public DaneOstatniegoDostarczonego DaneOstatniegoDostarczonego { get; set; }
 
+        // Flaga informująca czy pobito rekord czasu
+        public bool PobitoRekord { get; private set; } = false;
+        public int NowyRekordSekund { get; private set; } = 0;
+
         private List<DostawaRow> dostawyRows = new List<DostawaRow>();
         private List<SeriaWstawienRow> seriaRows = new List<SeriaWstawienRow>();
         private int nextDostawaId = 1;
@@ -926,18 +930,52 @@ namespace Kalendarz1
                                 // Zatrzymaj stoper i oblicz czas
                                 stopwatch.Stop();
                                 var elapsed = stopwatch.Elapsed;
+                                int aktualneSekundy = (int)elapsed.TotalSeconds;
                                 string czasInfo = "";
+                                string rekordInfo = "";
+
                                 if (!Modyfikacja && elapsed.TotalSeconds > 0)
                                 {
+                                    // Sprawdź rekord użytkownika
+                                    int? najlepszyczas = PobierzNajlepszyczas(conn, UserID);
+
                                     if (elapsed.TotalMinutes >= 1)
                                         czasInfo = $"\n\n⏱️ Czas tworzenia: {elapsed.Minutes}m {elapsed.Seconds}s";
                                     else
                                         czasInfo = $"\n\n⏱️ Czas tworzenia: {elapsed.Seconds}s";
+
+                                    // Sprawdź czy pobito rekord
+                                    if (!najlepszyczas.HasValue || aktualneSekundy < najlepszyczas.Value)
+                                    {
+                                        PobitoRekord = true;
+                                        NowyRekordSekund = aktualneSekundy;
+
+                                        if (!najlepszyczas.HasValue)
+                                        {
+                                            rekordInfo = "\n\n🏆 PIERWSZY REKORD USTANOWIONY! 🎉";
+                                        }
+                                        else
+                                        {
+                                            int roznica = najlepszyczas.Value - aktualneSekundy;
+                                            string[] gratulacje = new[]
+                                            {
+                                                $"🏆 NOWY REKORD! Pobiłeś swój wynik o {roznica}s! 🎉",
+                                                $"🔥 FENOMENALNIE! Rekord pobity o {roznica}s! 🚀",
+                                                $"⚡ BŁYSKAWICA! Nowy rekord - {roznica}s szybciej! 💪",
+                                                $"🌟 MISTRZOSTWO! Poprawiłeś rekord o {roznica}s! 🏅",
+                                                $"🎯 PERFEKCJA! {roznica}s szybciej niż poprzednio! 🎊"
+                                            };
+                                            var random = new Random();
+                                            rekordInfo = $"\n\n{gratulacje[random.Next(gratulacje.Length)]}";
+                                        }
+                                    }
                                 }
 
                                 string infoAuta = zapiszAuta ? "\n\n✅ Auta zostały zapisane" : "\n\n⚠️ Auta NIE zostały zapisane (Wolnyrynek)";
                                 string infoNotatki = maNotatki ? $"\n📝 Dodano {iloscNotatek} notatek do dostaw" : "";
-                                MessageBox.Show($"✅ Zapisano{infoAuta}{infoNotatki}{czasInfo}", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                                string tytul = PobitoRekord ? "🏆 REKORD! 🏆" : "Sukces";
+                                MessageBox.Show($"✅ Zapisano{infoAuta}{infoNotatki}{czasInfo}{rekordInfo}", tytul, MessageBoxButton.OK, MessageBoxImage.Information);
                             }
 
                             DialogResult = true;
@@ -1072,6 +1110,28 @@ namespace Kalendarz1
                 cmd.Parameters.AddWithValue("@TC", typCeny);
                 cmd.Parameters.AddWithValue("@Czas", czasTworzeniaSek);
                 cmd.ExecuteNonQuery();
+            }
+        }
+
+        private int? PobierzNajlepszyczas(SqlConnection conn, string userId)
+        {
+            try
+            {
+                const string sql = @"SELECT MIN(CzasTworzeniaSek) FROM dbo.WstawieniaKurczakow
+                                     WHERE KtoStwo = @Kto AND CzasTworzeniaSek IS NOT NULL AND CzasTworzeniaSek > 0";
+                using (var cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@Kto", userId ?? "");
+                    var result = cmd.ExecuteScalar();
+                    if (result == null || result == DBNull.Value)
+                        return null;
+                    return Convert.ToInt32(result);
+                }
+            }
+            catch
+            {
+                // Jeśli kolumna nie istnieje lub inny błąd - zwróć null
+                return null;
             }
         }
 
