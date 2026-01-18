@@ -1351,6 +1351,83 @@ namespace Kalendarz1.Zywiec.Kalendarz
             if (colCheckConfirm2 != null) colCheckConfirm2.Visibility = visibility;
         }
 
+        // Otwieranie menu filtrów
+        private void BtnFiltry_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (sender is FrameworkElement element && element.ContextMenu != null)
+            {
+                element.ContextMenu.PlacementTarget = element;
+                element.ContextMenu.IsOpen = true;
+            }
+        }
+
+        // Synchronizacja menu z ukrytymi checkboxami
+        private async void MenuFilter_Changed(object sender, RoutedEventArgs e)
+        {
+            if (!IsLoaded) return;
+
+            // Synchronizuj menu z ukrytymi checkboxami
+            if (menuChkAnulowane != null && chkAnulowane != null)
+                chkAnulowane.IsChecked = menuChkAnulowane.IsChecked;
+            if (menuChkSprzedane != null && chkSprzedane != null)
+                chkSprzedane.IsChecked = menuChkSprzedane.IsChecked;
+            if (menuChkDoWykupienia != null && chkDoWykupienia != null)
+                chkDoWykupienia.IsChecked = menuChkDoWykupienia.IsChecked;
+            if (menuChkPokazCeny != null && chkPokazCeny != null)
+                chkPokazCeny.IsChecked = menuChkPokazCeny.IsChecked;
+
+            if (colCena != null && chkPokazCeny != null)
+                colCena.Visibility = chkPokazCeny.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+
+            await LoadDostawyAsync();
+        }
+
+        private void MenuChkPokazCheckboxy_Changed(object sender, RoutedEventArgs e)
+        {
+            if (!IsLoaded) return;
+
+            if (menuChkPokazCheckboxy != null && chkPokazCheckboxy != null)
+                chkPokazCheckboxy.IsChecked = menuChkPokazCheckboxy.IsChecked;
+
+            var visibility = chkPokazCheckboxy?.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+
+            if (colCheckConfirm != null) colCheckConfirm.Visibility = visibility;
+            if (colCheckWstawienie != null) colCheckWstawienie.Visibility = visibility;
+            if (colCheckConfirm2 != null) colCheckConfirm2.Visibility = visibility;
+        }
+
+        private async void MenuChkNastepnyTydzien_Changed(object sender, RoutedEventArgs e)
+        {
+            if (!IsLoaded) return;
+
+            if (menuChkNastepnyTydzien != null && chkNastepnyTydzien != null)
+                chkNastepnyTydzien.IsChecked = menuChkNastepnyTydzien.IsChecked;
+
+            if (chkNastepnyTydzien?.IsChecked == true)
+            {
+                if (colNastepnyTydzien != null) colNastepnyTydzien.Width = new GridLength(1, GridUnitType.Star);
+                if (borderNastepnyTydzien != null)
+                {
+                    AnimateExpandCollapse(borderNastepnyTydzien, expand: true);
+                }
+                await LoadDostawyForWeekAsync(_dostawyNastepnyTydzien, _selectedDate.AddDays(7));
+            }
+            else
+            {
+                if (borderNastepnyTydzien != null)
+                {
+                    AnimateExpandCollapse(borderNastepnyTydzien, expand: false, onComplete: () =>
+                    {
+                        if (colNastepnyTydzien != null) colNastepnyTydzien.Width = new GridLength(0);
+                    });
+                }
+                else if (colNastepnyTydzien != null)
+                {
+                    colNastepnyTydzien.Width = new GridLength(0);
+                }
+            }
+        }
+
         #endregion
 
         #region Obsługa DataGrid - Dostawy
