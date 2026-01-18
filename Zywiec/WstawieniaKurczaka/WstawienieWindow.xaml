@@ -143,31 +143,33 @@
 
                 <!-- DANE ADRESOWE DOSTAWCY -->
                 <Border x:Name="panelDaneDostawcy" Style="{StaticResource Card}" Visibility="Collapsed">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
 
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="📍 Adres:" FontSize="10" FontWeight="SemiBold" Margin="0,0,5,5"/>
-                                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="txtAdresDostawcy" Text="" FontSize="10" Margin="0,0,15,5"/>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="📍 Adres:" FontSize="10" FontWeight="SemiBold" Margin="0,0,5,5"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" x:Name="txtAdresDostawcy" Text="" FontSize="10" Margin="0,0,15,5"/>
 
-                                <TextBlock Grid.Row="0" Grid.Column="2" Text="📞 Telefon:" FontSize="10" FontWeight="SemiBold" Margin="0,0,5,5"/>
-                                <TextBlock Grid.Row="0" Grid.Column="3" x:Name="txtTelefonDostawcy" Text="" FontSize="10" Margin="0,0,0,5"/>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Text="📞 Telefon:" FontSize="10" FontWeight="SemiBold" Margin="0,0,5,5"/>
+                            <TextBlock Grid.Row="0" Grid.Column="3" x:Name="txtTelefonDostawcy" Text="" FontSize="10" Margin="0,0,0,5"/>
 
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="🚗 Odległość:" FontSize="10" FontWeight="SemiBold" Margin="0,0,5,0"/>
-                                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="txtKmDostawcy" Text="" FontSize="10"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="🚗 Odległość:" FontSize="10" FontWeight="SemiBold" Margin="0,0,5,0"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" x:Name="txtKmDostawcy" Text="" FontSize="10"/>
 
-                                <TextBlock Grid.Row="1" Grid.Column="2" Text="📧 Email:" FontSize="10" FontWeight="SemiBold" Margin="0,0,5,0"/>
-                                <TextBlock Grid.Row="1" Grid.Column="3" x:Name="txtEmailDostawcy" Text="" FontSize="10"/>
-                            </Grid>
+                            <TextBlock Grid.Row="1" Grid.Column="2" Text="📧 Email:" FontSize="10" FontWeight="SemiBold" Margin="0,0,5,0"/>
+                            <TextBlock Grid.Row="1" Grid.Column="3" x:Name="txtEmailDostawcy" Text="" FontSize="10"/>
+                        </Grid>
                         <TextBox x:Name="txtKmH" Visibility="Collapsed"/>
+                    </StackPanel>
                 </Border>
 
                 <!-- JEDNO WSTAWIENIE -->
