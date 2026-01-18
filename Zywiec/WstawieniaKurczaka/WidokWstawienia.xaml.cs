@@ -914,15 +914,16 @@ namespace Kalendarz1
         private void LoadWstawienia()
         {
             string query = @"
-                SELECT W.LP, W.Dostawca, 
-                       CONVERT(varchar, W.DataWstawienia, 23) AS Data, 
-                       W.IloscWstawienia, W.TypUmowy, 
-                       ISNULL(O.Name, '-') AS KtoStwo, 
+                SELECT W.LP, W.Dostawca,
+                       CONVERT(varchar, W.DataWstawienia, 23) AS Data,
+                       W.IloscWstawienia, W.TypUmowy,
+                       ISNULL(W.TypCeny, '-') AS TypCeny,
+                       ISNULL(O.Name, '-') AS KtoStwo,
                        CONVERT(varchar, W.DataUtw, 120) AS DataUtw,
                        W.[isCheck],
                        W.[isConf]
-                FROM dbo.WstawieniaKurczakow W 
-                LEFT JOIN dbo.operators O ON W.KtoStwo = O.ID 
+                FROM dbo.WstawieniaKurczakow W
+                LEFT JOIN dbo.operators O ON W.KtoStwo = O.ID
                 ORDER BY W.LP DESC, W.DataWstawienia DESC";
 
             using (var connection = new SqlConnection(connectionString))
@@ -960,7 +961,7 @@ namespace Kalendarz1
             {
                 Header = "Hodowca",
                 Binding = new System.Windows.Data.Binding("Dostawca"),
-                Width = new DataGridLength(1.2, DataGridLengthUnitType.Star)
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star)
             });
 
             dataGridWstawienia.Columns.Add(new DataGridTextColumn
@@ -973,7 +974,7 @@ namespace Kalendarz1
                 Width = 105
             });
 
-            // ZMIANA: Format z separatorem tysięcy
+            // Format z separatorem tysięcy
             dataGridWstawienia.Columns.Add(new DataGridTextColumn
             {
                 Header = "Ilość",
@@ -981,29 +982,45 @@ namespace Kalendarz1
                 {
                     StringFormat = "# ##0"
                 },
-                Width = 60
+                Width = 55
             });
 
             dataGridWstawienia.Columns.Add(new DataGridTextColumn
             {
                 Header = "Typ",
                 Binding = new System.Windows.Data.Binding("TypUmowy"),
-                Width = 65
+                Width = 60
             });
 
-            // ZMIANA: Węższa kolumna "Kto"
+            // Kolumna Typ Ceny
+            dataGridWstawienia.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Cena",
+                Binding = new System.Windows.Data.Binding("TypCeny"),
+                Width = 70
+            });
+
+            // Kolumna "Kto"
             dataGridWstawienia.Columns.Add(new DataGridTextColumn
             {
                 Header = "Kto",
                 Binding = new System.Windows.Data.Binding("KtoStwo"),
-                Width = 60
+                Width = 55
             });
 
-            // Nowa kolumna Potw.
+            // Kolumna Data i Godzina Utworzenia
+            dataGridWstawienia.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Utworzono",
+                Binding = new System.Windows.Data.Binding("DataUtw"),
+                Width = 110
+            });
+
+            // Kolumna Potw.
             var potwColumn = new DataGridTextColumn
             {
                 Header = "Potw.",
-                Width = 80
+                Width = 50
             };
             potwColumn.Binding = new System.Windows.Data.Binding("isConf")
             {
@@ -1192,7 +1209,8 @@ namespace Kalendarz1
         private void LoadHistoria()
         {
             string query = @"
-                SELECT 
+                SELECT
+                    ch.ContactID,
                     ch.Dostawca,
                     ISNULL(o.Name, ch.UserID) AS UserName,
                     ch.SnoozedUntil,
@@ -1200,7 +1218,7 @@ namespace Kalendarz1
                     ch.CreatedAt
                 FROM dbo.ContactHistory ch
                 LEFT JOIN dbo.operators o ON ch.UserID = o.ID
-                ORDER BY 
+                ORDER BY
                     CASE WHEN ch.ContactDate IS NOT NULL THEN 0 ELSE 1 END,
                     ch.ContactDate DESC,
                     ch.CreatedAt DESC,
@@ -1269,6 +1287,19 @@ namespace Kalendarz1
                 },
                 Width = 75
             });
+
+            // Menu kontekstowe dla historii kontaktów
+            var contextMenu = new ContextMenu();
+
+            var menuItemEdytuj = new MenuItem { Header = "✏️ Edytuj notatkę" };
+            menuItemEdytuj.Click += MenuEdytujHistorie_Click;
+            contextMenu.Items.Add(menuItemEdytuj);
+
+            var menuItemUsun = new MenuItem { Header = "🗑️ Usuń wpis" };
+            menuItemUsun.Click += MenuUsunHistorie_Click;
+            contextMenu.Items.Add(menuItemUsun);
+
+            dataGridHistoria.ContextMenu = contextMenu;
         }
         private void MenuDodajTelefonDoPotwierdzenia_Click(object sender, RoutedEventArgs e)
         {
@@ -1282,7 +1313,32 @@ namespace Kalendarz1
             var row = (DataRowView)dataGridDoPotwierdzenia.SelectedItem;
             string dostawca = Convert.ToString(row["Dostawca"]);
 
-            var dialogNumer = new OknoDodaniaNumeruDialog(dostawca);
+            // Pobierz obecne numery telefonów
+            string phone1 = "", phone2 = "", phone3 = "";
+            try
+            {
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    string query = "SELECT ISNULL(Phone1, ''), ISNULL(Phone2, ''), ISNULL(Phone3, '') FROM dbo.Dostawcy WHERE ShortName = @Dostawca";
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@Dostawca", dostawca);
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                phone1 = reader.GetString(0);
+                                phone2 = reader.GetString(1);
+                                phone3 = reader.GetString(2);
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            var dialogNumer = new OknoDodaniaNumeruDialog(dostawca, phone1, phone2, phone3);
             if (dialogNumer.ShowDialog() == true)
             {
                 try
@@ -1290,16 +1346,23 @@ namespace Kalendarz1
                     using (var connection = new SqlConnection(connectionString))
                     {
                         connection.Open();
-                        string query = "UPDATE dbo.Dostawcy SET Phone1 = @Phone WHERE ShortName = @Dostawca";
+                        string query = "UPDATE dbo.Dostawcy SET Phone1 = @Phone1, Phone2 = @Phone2, Phone3 = @Phone3 WHERE ShortName = @Dostawca";
                         using (var cmd = new SqlCommand(query, connection))
                         {
-                            cmd.Parameters.AddWithValue("@Phone", dialogNumer.NumerTelefonu);
+                            cmd.Parameters.AddWithValue("@Phone1", dialogNumer.NumerTelefonu ?? "");
+                            cmd.Parameters.AddWithValue("@Phone2", dialogNumer.NumerTelefonu2 ?? "");
+                            cmd.Parameters.AddWithValue("@Phone3", dialogNumer.NumerTelefonu3 ?? "");
                             cmd.Parameters.AddWithValue("@Dostawca", dostawca);
                             cmd.ExecuteNonQuery();
                         }
                     }
 
-                    MessageBox.Show($"Dodano numer telefonu: {dialogNumer.NumerTelefonu}",
+                    var zapisaneNumery = new List<string>();
+                    if (!string.IsNullOrEmpty(dialogNumer.NumerTelefonu)) zapisaneNumery.Add(dialogNumer.NumerTelefonu);
+                    if (!string.IsNullOrEmpty(dialogNumer.NumerTelefonu2)) zapisaneNumery.Add(dialogNumer.NumerTelefonu2);
+                    if (!string.IsNullOrEmpty(dialogNumer.NumerTelefonu3)) zapisaneNumery.Add(dialogNumer.NumerTelefonu3);
+
+                    MessageBox.Show($"Zapisano numery telefonu:\n{string.Join("\n", zapisaneNumery)}",
                         "Sukces",
                         MessageBoxButton.OK, MessageBoxImage.Information);
 
@@ -2033,6 +2096,188 @@ namespace Kalendarz1
             }
         }
 
+        private void MenuZmienTypCeny_Click(object sender, RoutedEventArgs e)
+        {
+            if (dataGridWstawienia.SelectedItem == null)
+            {
+                MessageBox.Show("Wybierz wstawienie do zmiany typu ceny.", "Uwaga",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var row = (DataRowView)dataGridWstawienia.SelectedItem;
+            if (row["LP"] == DBNull.Value) return;
+
+            int lp = Convert.ToInt32(row["LP"]);
+            string obecnyTyp = row["TypCeny"]?.ToString() ?? "-";
+            string dostawca = row["Dostawca"]?.ToString() ?? "";
+
+            // Wyświetl dialog wyboru typu ceny z kolorami
+            string nowyTypCeny = WybierzTypCenyDialog(dostawca, obecnyTyp);
+
+            if (string.IsNullOrEmpty(nowyTypCeny) || nowyTypCeny == obecnyTyp)
+            {
+                return;
+            }
+
+            var result = MessageBox.Show(
+                $"Czy chcesz zmienić typ ceny z \"{obecnyTyp}\" na \"{nowyTypCeny}\"?\n\n" +
+                "Zmiana zostanie zastosowana również do wszystkich powiązanych dostaw.",
+                "Zmiana typu ceny",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    using (var connection = new SqlConnection(connectionString))
+                    {
+                        connection.Open();
+
+                        // Aktualizuj typ ceny w wstawieniu
+                        string queryWstawienie = "UPDATE dbo.WstawieniaKurczakow SET TypCeny = @TypCeny WHERE Lp = @LP";
+                        using (var cmd = new SqlCommand(queryWstawienie, connection))
+                        {
+                            cmd.Parameters.AddWithValue("@TypCeny", nowyTypCeny);
+                            cmd.Parameters.AddWithValue("@LP", lp);
+                            cmd.ExecuteNonQuery();
+                        }
+
+                        // Aktualizuj typ ceny w dostawach
+                        string queryDostawy = "UPDATE dbo.HarmonogramDostaw SET typCeny = @TypCeny WHERE LpW = @LP";
+                        using (var cmd = new SqlCommand(queryDostawy, connection))
+                        {
+                            cmd.Parameters.AddWithValue("@TypCeny", nowyTypCeny);
+                            cmd.Parameters.AddWithValue("@LP", lp);
+                            int dostaw = cmd.ExecuteNonQuery();
+
+                            MessageBox.Show(
+                                $"Zmieniono typ ceny na \"{nowyTypCeny}\".\n\nZaktualizowano {dostaw} dostaw(y).",
+                                "Sukces",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Information);
+                        }
+                    }
+
+                    RefreshAll();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Błąd aktualizacji: " + ex.Message, "Błąd",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        private string WybierzTypCenyDialog(string dostawca, string obecnyTyp)
+        {
+            var dialog = new Window
+            {
+                Title = "Zmiana typu ceny",
+                Width = 280,
+                Height = 320,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                WindowStyle = WindowStyle.None,
+                AllowsTransparency = true,
+                Background = Brushes.Transparent,
+                ResizeMode = ResizeMode.NoResize
+            };
+
+            var mainBorder = new Border
+            {
+                Background = Brushes.White,
+                CornerRadius = new CornerRadius(15),
+                Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    ShadowDepth = 0,
+                    Color = Colors.Black,
+                    Opacity = 0.2,
+                    BlurRadius = 20
+                }
+            };
+
+            var panel = new StackPanel { Margin = new Thickness(20) };
+            string wybrana = null;
+
+            // Tytuł
+            var titlePanel = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)),
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(15, 10, 15, 10),
+                Margin = new Thickness(0, 0, 0, 15)
+            };
+            var titleText = new TextBlock
+            {
+                Text = $"💰 Typ ceny - {dostawca}",
+                FontSize = 14,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White,
+                TextAlignment = TextAlignment.Center
+            };
+            titlePanel.Child = titleText;
+            panel.Children.Add(titlePanel);
+
+            // Info o obecnym typie
+            var infoText = new TextBlock
+            {
+                Text = $"Obecny typ: {obecnyTyp}",
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)),
+                TextAlignment = TextAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+            panel.Children.Add(infoText);
+
+            // Kolory dla typów cen
+            var opcjeKolory = new Dictionary<string, (Color bg, Color fg)>
+            {
+                { "łączona", (Color.FromRgb(138, 43, 226), Colors.White) },      // fioletowy
+                { "rolnicza", (Color.FromRgb(92, 138, 58), Colors.White) },       // zielony
+                { "wolnyrynek", (Color.FromRgb(255, 193, 7), Colors.Black) },     // żółty
+                { "ministerialna", (Color.FromRgb(33, 150, 243), Colors.White) }  // niebieski
+            };
+
+            foreach (var opcja in opcjeKolory)
+            {
+                var btn = new Button
+                {
+                    Content = opcja.Key + (opcja.Key == obecnyTyp ? " ✓" : ""),
+                    Margin = new Thickness(0, 5, 0, 5),
+                    Padding = new Thickness(12),
+                    FontSize = 14,
+                    FontWeight = FontWeights.SemiBold,
+                    Background = new SolidColorBrush(opcja.Value.bg),
+                    Foreground = new SolidColorBrush(opcja.Value.fg),
+                    BorderThickness = new Thickness(0),
+                    Cursor = Cursors.Hand
+                };
+                btn.Click += (s, ev) => { wybrana = opcja.Key; dialog.DialogResult = true; };
+                panel.Children.Add(btn);
+            }
+
+            // Przycisk anuluj
+            var btnCancel = new Button
+            {
+                Content = "❌ Anuluj",
+                Margin = new Thickness(0, 15, 0, 0),
+                Padding = new Thickness(10),
+                FontSize = 12,
+                Background = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand
+            };
+            btnCancel.Click += (s, ev) => { dialog.DialogResult = false; dialog.Close(); };
+            panel.Children.Add(btnCancel);
+
+            mainBorder.Child = panel;
+            dialog.Content = mainBorder;
+            dialog.ShowDialog();
+            return wybrana;
+        }
+
         // ====== MENU KONTEKSTOWE - PRZYPOMNIENIA ======
         private void MenuNieOdebral_Click(object sender, RoutedEventArgs e)
         {
@@ -2168,7 +2413,32 @@ namespace Kalendarz1
             var row = (DataRowView)dataGridPrzypomnienia.SelectedItem;
             string dostawca = Convert.ToString(row["Dostawca"]);
 
-            var dialogNumer = new OknoDodaniaNumeruDialog(dostawca);
+            // Pobierz obecne numery telefonów
+            string phone1 = "", phone2 = "", phone3 = "";
+            try
+            {
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    string query = "SELECT ISNULL(Phone1, ''), ISNULL(Phone2, ''), ISNULL(Phone3, '') FROM dbo.Dostawcy WHERE ShortName = @Dostawca";
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@Dostawca", dostawca);
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                phone1 = reader.GetString(0);
+                                phone2 = reader.GetString(1);
+                                phone3 = reader.GetString(2);
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            var dialogNumer = new OknoDodaniaNumeruDialog(dostawca, phone1, phone2, phone3);
             if (dialogNumer.ShowDialog() == true)
             {
                 try
@@ -2176,16 +2446,23 @@ namespace Kalendarz1
                     using (var connection = new SqlConnection(connectionString))
                     {
                         connection.Open();
-                        string query = "UPDATE dbo.Dostawcy SET Phone1 = @Phone WHERE ShortName = @Dostawca";
+                        string query = "UPDATE dbo.Dostawcy SET Phone1 = @Phone1, Phone2 = @Phone2, Phone3 = @Phone3 WHERE ShortName = @Dostawca";
                         using (var cmd = new SqlCommand(query, connection))
                         {
-                            cmd.Parameters.AddWithValue("@Phone", dialogNumer.NumerTelefonu);
+                            cmd.Parameters.AddWithValue("@Phone1", dialogNumer.NumerTelefonu ?? "");
+                            cmd.Parameters.AddWithValue("@Phone2", dialogNumer.NumerTelefonu2 ?? "");
+                            cmd.Parameters.AddWithValue("@Phone3", dialogNumer.NumerTelefonu3 ?? "");
                             cmd.Parameters.AddWithValue("@Dostawca", dostawca);
                             cmd.ExecuteNonQuery();
                         }
                     }
 
-                    MessageBox.Show($"Dodano numer telefonu: {dialogNumer.NumerTelefonu}",
+                    var zapisaneNumery = new List<string>();
+                    if (!string.IsNullOrEmpty(dialogNumer.NumerTelefonu)) zapisaneNumery.Add(dialogNumer.NumerTelefonu);
+                    if (!string.IsNullOrEmpty(dialogNumer.NumerTelefonu2)) zapisaneNumery.Add(dialogNumer.NumerTelefonu2);
+                    if (!string.IsNullOrEmpty(dialogNumer.NumerTelefonu3)) zapisaneNumery.Add(dialogNumer.NumerTelefonu3);
+
+                    MessageBox.Show($"Zapisano numery telefonu:\n{string.Join("\n", zapisaneNumery)}",
                         "Sukces",
                         MessageBoxButton.OK, MessageBoxImage.Information);
 
@@ -2198,6 +2475,113 @@ namespace Kalendarz1
                 }
             }
         }
+
+        // ====== MENU KONTEKSTOWE - HISTORIA KONTAKTÓW ======
+        private void MenuEdytujHistorie_Click(object sender, RoutedEventArgs e)
+        {
+            if (dataGridHistoria.SelectedItem == null)
+            {
+                MessageBox.Show("Wybierz wpis do edycji.", "Uwaga",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var row = (DataRowView)dataGridHistoria.SelectedItem;
+            if (row["ContactID"] == DBNull.Value)
+            {
+                MessageBox.Show("Brak ID wpisu.", "Błąd",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            int contactId = Convert.ToInt32(row["ContactID"]);
+            string obecnaNotatka = row["Reason"]?.ToString() ?? "";
+            string hodowca = row["Dostawca"]?.ToString() ?? "";
+
+            var dialog = new OknoEdycjiNotatkiHistoriiDialog(hodowca, obecnaNotatka);
+            if (dialog.ShowDialog() == true)
+            {
+                try
+                {
+                    using (var connection = new SqlConnection(connectionString))
+                    {
+                        connection.Open();
+                        string query = "UPDATE dbo.ContactHistory SET Reason = @Reason WHERE ContactID = @ContactID";
+                        using (var cmd = new SqlCommand(query, connection))
+                        {
+                            cmd.Parameters.AddWithValue("@Reason", dialog.NowaNotatka);
+                            cmd.Parameters.AddWithValue("@ContactID", contactId);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+
+                    MessageBox.Show("Notatka została zaktualizowana.", "Sukces",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+
+                    RefreshAll();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Błąd zapisu: " + ex.Message, "Błąd",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        private void MenuUsunHistorie_Click(object sender, RoutedEventArgs e)
+        {
+            if (dataGridHistoria.SelectedItem == null)
+            {
+                MessageBox.Show("Wybierz wpis do usunięcia.", "Uwaga",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var row = (DataRowView)dataGridHistoria.SelectedItem;
+            if (row["ContactID"] == DBNull.Value)
+            {
+                MessageBox.Show("Brak ID wpisu.", "Błąd",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            int contactId = Convert.ToInt32(row["ContactID"]);
+            string hodowca = row["Dostawca"]?.ToString() ?? "";
+
+            var result = MessageBox.Show(
+                $"Czy na pewno chcesz usunąć wpis historii kontaktu z hodowcą \"{hodowca}\"?\n\nTej operacji nie można cofnąć!",
+                "Potwierdzenie usunięcia",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    using (var connection = new SqlConnection(connectionString))
+                    {
+                        connection.Open();
+                        string query = "DELETE FROM dbo.ContactHistory WHERE ContactID = @ContactID";
+                        using (var cmd = new SqlCommand(query, connection))
+                        {
+                            cmd.Parameters.AddWithValue("@ContactID", contactId);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+
+                    MessageBox.Show("Wpis został usunięty.", "Sukces",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+
+                    RefreshAll();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Błąd usuwania: " + ex.Message, "Błąd",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
         private void MenuPotwierdzWstawienie_Click(object sender, RoutedEventArgs e)
         {
             if (dataGridDoPotwierdzenia.SelectedItem == null)
@@ -2911,16 +3295,23 @@ namespace Kalendarz1
     public partial class OknoDodaniaNumeruDialog : Window
     {
         public string NumerTelefonu { get; private set; }
+        public string NumerTelefonu2 { get; private set; }
+        public string NumerTelefonu3 { get; private set; }
 
         public OknoDodaniaNumeruDialog(string dostawca)
         {
-            InitializeComponent(dostawca);
+            InitializeComponent(dostawca, "", "", "");
         }
 
-        private void InitializeComponent(string dostawca)
+        public OknoDodaniaNumeruDialog(string dostawca, string obecnyPhone1, string obecnyPhone2, string obecnyPhone3)
+        {
+            InitializeComponent(dostawca, obecnyPhone1, obecnyPhone2, obecnyPhone3);
+        }
+
+        private void InitializeComponent(string dostawca, string obecnyPhone1, string obecnyPhone2, string obecnyPhone3)
         {
             Width = 450;
-            Height = 280;
+            Height = 420;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
             WindowStyle = WindowStyle.None;
             AllowsTransparency = true;
@@ -2941,12 +3332,8 @@ namespace Kalendarz1
             };
 
             var grid = new Grid { Margin = new Thickness(30) };
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            for (int i = 0; i < 12; i++)
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
             var titlePanel = new Border
             {
@@ -2956,7 +3343,7 @@ namespace Kalendarz1
             };
             var titleText = new TextBlock
             {
-                Text = $"📞 Dodanie numeru - {dostawca}",
+                Text = $"📞 Numery telefonu - {dostawca}",
                 FontSize = 17,
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.White,
@@ -2965,36 +3352,92 @@ namespace Kalendarz1
             titlePanel.Child = titleText;
             Grid.SetRow(titlePanel, 0);
 
-            var spacer1 = new Border { Height = 20 };
+            var spacer1 = new Border { Height = 15 };
             Grid.SetRow(spacer1, 1);
 
-            var labelPhone = new TextBlock
+            // Phone 1
+            var labelPhone1 = new TextBlock
             {
-                Text = "Numer telefonu hodowcy",
+                Text = "📱 Telefon 1 (główny)",
                 FontSize = 13,
                 Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
                 FontWeight = FontWeights.SemiBold
             };
-            Grid.SetRow(labelPhone, 2);
+            Grid.SetRow(labelPhone1, 2);
 
-            var txtPhone = new TextBox
+            var txtPhone1 = new TextBox
             {
-                Padding = new Thickness(12, 10, 12, 10),
+                Text = obecnyPhone1 ?? "",
+                Padding = new Thickness(12, 8, 12, 8),
                 FontSize = 14,
-                Height = 45
+                Height = 38
             };
-            var txtPhoneBorder = new Border
+            var txtPhone1Border = new Border
             {
                 CornerRadius = new CornerRadius(8),
                 BorderBrush = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
                 BorderThickness = new Thickness(2),
-                Child = txtPhone,
-                Margin = new Thickness(0, 5, 0, 0)
+                Child = txtPhone1,
+                Margin = new Thickness(0, 5, 0, 10)
             };
-            Grid.SetRow(txtPhoneBorder, 3);
+            Grid.SetRow(txtPhone1Border, 3);
 
-            var spacer2 = new Border { Height = 20 };
-            Grid.SetRow(spacer2, 4);
+            // Phone 2
+            var labelPhone2 = new TextBlock
+            {
+                Text = "📱 Telefon 2",
+                FontSize = 13,
+                Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                FontWeight = FontWeights.SemiBold
+            };
+            Grid.SetRow(labelPhone2, 4);
+
+            var txtPhone2 = new TextBox
+            {
+                Text = obecnyPhone2 ?? "",
+                Padding = new Thickness(12, 8, 12, 8),
+                FontSize = 14,
+                Height = 38
+            };
+            var txtPhone2Border = new Border
+            {
+                CornerRadius = new CornerRadius(8),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(46, 204, 113)),
+                BorderThickness = new Thickness(2),
+                Child = txtPhone2,
+                Margin = new Thickness(0, 5, 0, 10)
+            };
+            Grid.SetRow(txtPhone2Border, 5);
+
+            // Phone 3
+            var labelPhone3 = new TextBlock
+            {
+                Text = "📱 Telefon 3",
+                FontSize = 13,
+                Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                FontWeight = FontWeights.SemiBold
+            };
+            Grid.SetRow(labelPhone3, 6);
+
+            var txtPhone3 = new TextBox
+            {
+                Text = obecnyPhone3 ?? "",
+                Padding = new Thickness(12, 8, 12, 8),
+                FontSize = 14,
+                Height = 38
+            };
+            var txtPhone3Border = new Border
+            {
+                CornerRadius = new CornerRadius(8),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(155, 89, 182)),
+                BorderThickness = new Thickness(2),
+                Child = txtPhone3,
+                Margin = new Thickness(0, 5, 0, 10)
+            };
+            Grid.SetRow(txtPhone3Border, 7);
+
+            var spacer2 = new Border { Height = 10 };
+            Grid.SetRow(spacer2, 8);
 
             var buttonPanel = new StackPanel
             {
@@ -3015,17 +3458,15 @@ namespace Kalendarz1
                 Cursor = Cursors.Hand,
                 BorderThickness = new Thickness(0)
             };
-            var btnOKBorder = new Border
-            {
-                CornerRadius = new CornerRadius(8),
-                Child = btnOK
-            };
             btnOK.Click += (s, e) =>
             {
-                NumerTelefonu = txtPhone.Text?.Trim();
-                if (string.IsNullOrEmpty(NumerTelefonu))
+                NumerTelefonu = txtPhone1.Text?.Trim() ?? "";
+                NumerTelefonu2 = txtPhone2.Text?.Trim() ?? "";
+                NumerTelefonu3 = txtPhone3.Text?.Trim() ?? "";
+
+                if (string.IsNullOrEmpty(NumerTelefonu) && string.IsNullOrEmpty(NumerTelefonu2) && string.IsNullOrEmpty(NumerTelefonu3))
                 {
-                    MessageBox.Show("Proszę podać numer telefonu.", "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show("Proszę podać przynajmniej jeden numer telefonu.", "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
                 DialogResult = true;
@@ -3045,25 +3486,24 @@ namespace Kalendarz1
                 Cursor = Cursors.Hand,
                 BorderThickness = new Thickness(0)
             };
-            var btnCancelBorder = new Border
-            {
-                CornerRadius = new CornerRadius(8),
-                Child = btnCancel
-            };
             btnCancel.Click += (s, e) =>
             {
                 DialogResult = false;
                 Close();
             };
 
-            buttonPanel.Children.Add(btnOKBorder);
-            buttonPanel.Children.Add(btnCancelBorder);
-            Grid.SetRow(buttonPanel, 5);
+            buttonPanel.Children.Add(btnOK);
+            buttonPanel.Children.Add(btnCancel);
+            Grid.SetRow(buttonPanel, 9);
 
             grid.Children.Add(titlePanel);
             grid.Children.Add(spacer1);
-            grid.Children.Add(labelPhone);
-            grid.Children.Add(txtPhoneBorder);
+            grid.Children.Add(labelPhone1);
+            grid.Children.Add(txtPhone1Border);
+            grid.Children.Add(labelPhone2);
+            grid.Children.Add(txtPhone2Border);
+            grid.Children.Add(labelPhone3);
+            grid.Children.Add(txtPhone3Border);
             grid.Children.Add(spacer2);
             grid.Children.Add(buttonPanel);
 
@@ -3263,5 +3703,159 @@ namespace Kalendarz1
             Content = mainBorder;
         }
 
+    }
+
+    // ====== OKNO DIALOGOWE DLA EDYCJI NOTATKI HISTORII KONTAKTÓW ======
+    public partial class OknoEdycjiNotatkiHistoriiDialog : Window
+    {
+        public string NowaNotatka { get; private set; }
+
+        public OknoEdycjiNotatkiHistoriiDialog(string hodowca, string obecnaNotatka)
+        {
+            InitializeComponent(hodowca, obecnaNotatka);
+        }
+
+        private void InitializeComponent(string hodowca, string obecnaNotatka)
+        {
+            Width = 450;
+            Height = 320;
+            WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            WindowStyle = WindowStyle.None;
+            AllowsTransparency = true;
+            Background = Brushes.Transparent;
+            ResizeMode = ResizeMode.NoResize;
+
+            var mainBorder = new Border
+            {
+                Background = Brushes.White,
+                CornerRadius = new CornerRadius(15),
+                Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    ShadowDepth = 0,
+                    Color = Colors.Black,
+                    Opacity = 0.2,
+                    BlurRadius = 20
+                }
+            };
+
+            var grid = new Grid { Margin = new Thickness(30) };
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var titlePanel = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(20, 12, 20, 12)
+            };
+            var titleText = new TextBlock
+            {
+                Text = $"✏️ Edycja notatki - {hodowca}",
+                FontSize = 17,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White,
+                TextAlignment = TextAlignment.Center
+            };
+            titlePanel.Child = titleText;
+            Grid.SetRow(titlePanel, 0);
+
+            var spacer1 = new Border { Height = 20 };
+            Grid.SetRow(spacer1, 1);
+
+            var labelNotatka = new TextBlock
+            {
+                Text = "Treść notatki:",
+                FontSize = 13,
+                Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                FontWeight = FontWeights.SemiBold
+            };
+            Grid.SetRow(labelNotatka, 2);
+
+            var txtNotatka = new TextBox
+            {
+                Text = obecnaNotatka,
+                Padding = new Thickness(12, 10, 12, 10),
+                FontSize = 14,
+                Height = 80,
+                TextWrapping = TextWrapping.Wrap,
+                AcceptsReturn = true,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+            };
+            var txtNotatkaBorder = new Border
+            {
+                CornerRadius = new CornerRadius(8),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
+                BorderThickness = new Thickness(2),
+                Child = txtNotatka,
+                Margin = new Thickness(0, 5, 0, 0)
+            };
+            Grid.SetRow(txtNotatkaBorder, 3);
+
+            var spacer2 = new Border { Height = 20 };
+            Grid.SetRow(spacer2, 4);
+
+            var buttonPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+
+            var btnOK = new Button
+            {
+                Content = "✅ ZAPISZ",
+                Width = 140,
+                Height = 42,
+                Margin = new Thickness(5),
+                Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
+                Foreground = Brushes.White,
+                FontWeight = FontWeights.Bold,
+                FontSize = 13,
+                Cursor = Cursors.Hand,
+                BorderThickness = new Thickness(0)
+            };
+            btnOK.Click += (s, e) =>
+            {
+                NowaNotatka = txtNotatka.Text?.Trim() ?? "";
+                DialogResult = true;
+                Close();
+            };
+
+            var btnCancel = new Button
+            {
+                Content = "❌ ANULUJ",
+                Width = 130,
+                Height = 42,
+                Margin = new Thickness(5),
+                Background = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
+                Foreground = Brushes.White,
+                FontWeight = FontWeights.Bold,
+                FontSize = 13,
+                Cursor = Cursors.Hand,
+                BorderThickness = new Thickness(0)
+            };
+            btnCancel.Click += (s, e) =>
+            {
+                DialogResult = false;
+                Close();
+            };
+
+            buttonPanel.Children.Add(btnOK);
+            buttonPanel.Children.Add(btnCancel);
+            Grid.SetRow(buttonPanel, 5);
+
+            grid.Children.Add(titlePanel);
+            grid.Children.Add(spacer1);
+            grid.Children.Add(labelNotatka);
+            grid.Children.Add(txtNotatkaBorder);
+            grid.Children.Add(spacer2);
+            grid.Children.Add(buttonPanel);
+
+            mainBorder.Child = grid;
+            Content = mainBorder;
+        }
     }
 }

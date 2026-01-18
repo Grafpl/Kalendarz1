@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 
 namespace Kalendarz1
@@ -989,14 +990,34 @@ namespace Kalendarz1
 
         private string WybierzTypCeny()
         {
-            var dialog = new Window { Title = "Typ ceny", Width = 250, Height = 200, WindowStartupLocation = WindowStartupLocation.CenterOwner, Owner = this };
+            var dialog = new Window { Title = "Typ ceny", Width = 250, Height = 250, WindowStartupLocation = WindowStartupLocation.CenterOwner, Owner = this };
             var panel = new StackPanel { Margin = new Thickness(15) };
             string wybrana = null;
 
-            foreach (var opcja in new[] { "łączona", "rolnicza", "wolnyrynek", "ministerialna" })
+            // Kolory dla typów cen: łączona=fioletowy, rolnicza=zielony, wolnyrynek=żółty, ministerialna=niebieski
+            var opcjeKolory = new Dictionary<string, (Color bg, Color fg)>
             {
-                var btn = new Button { Content = opcja, Margin = new Thickness(0, 5, 0, 5), Padding = new Thickness(8), Style = (Style)FindResource("PrimaryButton") };
-                btn.Click += (s, e) => { wybrana = opcja; dialog.DialogResult = true; };
+                { "łączona", (Color.FromRgb(138, 43, 226), Colors.White) },      // fioletowy
+                { "rolnicza", (Color.FromRgb(92, 138, 58), Colors.White) },       // zielony
+                { "wolnyrynek", (Color.FromRgb(255, 193, 7), Colors.Black) },     // żółty
+                { "ministerialna", (Color.FromRgb(33, 150, 243), Colors.White) }  // niebieski
+            };
+
+            foreach (var opcja in opcjeKolory)
+            {
+                var btn = new Button
+                {
+                    Content = opcja.Key,
+                    Margin = new Thickness(0, 5, 0, 5),
+                    Padding = new Thickness(10),
+                    FontSize = 14,
+                    FontWeight = FontWeights.SemiBold,
+                    Background = new SolidColorBrush(opcja.Value.bg),
+                    Foreground = new SolidColorBrush(opcja.Value.fg),
+                    BorderThickness = new Thickness(0),
+                    Cursor = Cursors.Hand
+                };
+                btn.Click += (s, e) => { wybrana = opcja.Key; dialog.DialogResult = true; };
                 panel.Children.Add(btn);
             }
 
