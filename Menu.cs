@@ -63,6 +63,11 @@ namespace Kalendarz1
                     var zadaniaWindow = new ZadaniaWindow();
                     zadaniaWindow.Show();
                 };
+                notificationWindow.OpenMeetingsRequested += (s, args) =>
+                {
+                    var spotkaniaWindow = new Spotkania.Views.SpotkaniaGlowneWindow();
+                    spotkaniaWindow.Show();
+                };
                 notificationWindow.Show();
             }
             catch (Exception ex)
