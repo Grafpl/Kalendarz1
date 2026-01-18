@@ -993,6 +993,19 @@ namespace Kalendarz1.WPF
             camera1Grid.Children.Add(fullscreenBtn1);
 
             camera1Border.Child = camera1Grid;
+            camera1Border.Cursor = System.Windows.Input.Cursors.Hand;
+            camera1Border.MouseLeftButtonDown += (s, e) =>
+            {
+                // Nie reaguj na kliknięcie przycisku fullscreen
+                DependencyObject? source = e.OriginalSource as DependencyObject;
+                while (source != null)
+                {
+                    if (source is Button)
+                        return;
+                    source = VisualTreeHelper.GetParent(source);
+                }
+                OpenFullscreenRtsp(0);
+            };
             Grid.SetColumn(camera1Border, 0);
             _camerasArea.Children.Add(camera1Border);
 
@@ -1032,6 +1045,19 @@ namespace Kalendarz1.WPF
             camera2Grid.Children.Add(fullscreenBtn2);
 
             camera2Border.Child = camera2Grid;
+            camera2Border.Cursor = System.Windows.Input.Cursors.Hand;
+            camera2Border.MouseLeftButtonDown += (s, e) =>
+            {
+                // Nie reaguj na kliknięcie przycisku fullscreen
+                DependencyObject? source = e.OriginalSource as DependencyObject;
+                while (source != null)
+                {
+                    if (source is Button)
+                        return;
+                    source = VisualTreeHelper.GetParent(source);
+                }
+                OpenFullscreenRtsp(1);
+            };
             Grid.SetColumn(camera2Border, 1);
             _camerasArea.Children.Add(camera2Border);
 
