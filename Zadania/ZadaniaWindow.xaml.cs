@@ -215,10 +215,11 @@ namespace Kalendarz1.Zadania
 
             var line = new Border
             {
-                Height = 1,
-                Background = new SolidColorBrush(Color.FromRgb(0x3a, 0x3a, 0x5c)),
-                Margin = new Thickness(15, 0, 0, 0),
-                VerticalAlignment = VerticalAlignment.Center
+                Height = 2,
+                Background = new SolidColorBrush(Color.FromArgb(80, color.R, color.G, color.B)),
+                Margin = new Thickness(15, 0, 15, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                CornerRadius = new CornerRadius(1)
             };
             Grid.SetColumn(line, 2);
             header.Children.Add(line);
