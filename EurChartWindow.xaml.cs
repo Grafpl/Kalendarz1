@@ -26,14 +26,14 @@ namespace Kalendarz1
             set { _dateLabels = value; OnPropertyChanged(); }
         }
 
-        private double _yAxisMin;
+        private double _yAxisMin = double.NaN;
         public double YAxisMin
         {
             get => _yAxisMin;
             set { _yAxisMin = value; OnPropertyChanged(); }
         }
 
-        private double _yAxisMax;
+        private double _yAxisMax = double.NaN;
         public double YAxisMax
         {
             get => _yAxisMax;
