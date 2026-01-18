@@ -2703,8 +2703,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
                 if (isPast)
                 {
-                    // Przeszły dzień - szary
-                    e.Row.Background = new SolidColorBrush(Color.FromRgb(97, 97, 97));
+                    // Przeszły dzień - czarny z białą czcionką
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(0, 0, 0));
                     e.Row.Foreground = Brushes.White;
                 }
                 else
