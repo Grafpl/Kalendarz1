@@ -886,24 +886,197 @@
                         </Border>
                     </StackPanel>
 
-                    <!-- PRAWA: Przyciski akcji -->
+                    <!-- PRAWA: Przyciski akcji - profesjonalny toolbar -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Content="▲" Click="BtnDateUp_Click" ToolTip="Dzień w górę" Style="{StaticResource ActionButtonStyle}" Padding="8,4" Margin="1,0"/>
-                        <Button Content="▼" Click="BtnDateDown_Click" ToolTip="Dzień w dół" Style="{StaticResource ActionButtonStyle}" Padding="8,4" Margin="1,0"/>
-                        <Button Content="➕" Click="BtnNowaDostawa_Click" ToolTip="Nowa dostawa" Style="{StaticResource MainButtonStyle}" Padding="8,4" Margin="1,0"/>
-                        <Button Content="📋" Click="BtnDuplikuj_Click" ToolTip="Duplikuj" Style="{StaticResource ActionButtonStyle}" Padding="8,4" Margin="1,0"/>
-                        <Button Content="📜" Click="BtnHistoriaZmian_Click" ToolTip="Historia" Style="{StaticResource ActionButtonStyle}" Padding="8,4" Margin="1,0"/>
-                        <Button Content="🗑" Click="BtnUsun_Click" ToolTip="Usuń" Style="{StaticResource DangerButtonStyle}" Padding="8,4" Margin="1,0"/>
-                        <Button Content="🔄" Click="BtnRefresh_Click" ToolTip="Odśwież" Style="{StaticResource ActionButtonStyle}" Padding="8,4" Margin="1,0"/>
-                        <Border Background="#F1F5F9" CornerRadius="4" Padding="6,4" Margin="4,0,0,0" VerticalAlignment="Center">
-                            <TextBlock x:Name="txtRefreshCountdown" Text="10:00" Foreground="#64748B" FontSize="9" FontWeight="SemiBold"/>
+                        <!-- Grupa nawigacji daty -->
+                        <Border Background="#F8FAFC" CornerRadius="6" Padding="2" Margin="0,0,8,0" BorderBrush="#E2E8F0" BorderThickness="1">
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="▲" Click="BtnDateUp_Click" ToolTip="Dzień w górę" Width="28" Height="28" FontSize="10">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Setter Property="Cursor" Value="Hand"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}" CornerRadius="4">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#E2E8F0"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                                <Button Content="▼" Click="BtnDateDown_Click" ToolTip="Dzień w dół" Width="28" Height="28" FontSize="10">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Setter Property="Cursor" Value="Hand"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}" CornerRadius="4">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#E2E8F0"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+                        <!-- Grupa akcji głównych -->
+                        <Border Background="#F8FAFC" CornerRadius="6" Padding="2" Margin="0,0,8,0" BorderBrush="#E2E8F0" BorderThickness="1">
+                            <StackPanel Orientation="Horizontal">
+                                <Button Click="BtnNowaDostawa_Click" ToolTip="Nowa dostawa" Width="32" Height="28">
+                                    <TextBlock Text="➕" FontSize="12"/>
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Background" Value="#10B981"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Setter Property="Cursor" Value="Hand"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}" CornerRadius="4">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#059669"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                                <Button Click="BtnDuplikuj_Click" ToolTip="Duplikuj dostawę" Width="28" Height="28">
+                                    <TextBlock Text="📋" FontSize="11"/>
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Setter Property="Cursor" Value="Hand"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}" CornerRadius="4">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#E2E8F0"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                                <Button Click="BtnHistoriaZmian_Click" ToolTip="Historia zmian" Width="28" Height="28">
+                                    <TextBlock Text="📜" FontSize="11"/>
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Setter Property="Cursor" Value="Hand"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}" CornerRadius="4">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#E2E8F0"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                                <Rectangle Width="1" Fill="#E2E8F0" Margin="4,4"/>
+                                <Button Click="BtnUsun_Click" ToolTip="Usuń dostawę" Width="28" Height="28">
+                                    <TextBlock Text="🗑" FontSize="11"/>
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Setter Property="Cursor" Value="Hand"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}" CornerRadius="4">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#FEE2E2"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+                        <!-- Odśwież z licznikiem -->
+                        <Border Background="#F8FAFC" CornerRadius="6" Padding="2,2,6,2" BorderBrush="#E2E8F0" BorderThickness="1">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Click="BtnRefresh_Click" ToolTip="Odśwież dane" Width="28" Height="28">
+                                    <TextBlock Text="🔄" FontSize="11"/>
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Setter Property="Cursor" Value="Hand"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}" CornerRadius="4">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#DBEAFE"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                                <TextBlock x:Name="txtRefreshCountdown" Text="10:00" Foreground="#64748B" FontSize="9" FontWeight="SemiBold" VerticalAlignment="Center" Margin="2,0,0,0"/>
+                            </StackPanel>
                         </Border>
                     </StackPanel>
                 </Grid>
             </Border>
 
-            <!-- WYSZUKIWARKA -->
-            <Border Grid.Row="1" Background="White" CornerRadius="4" Padding="6" Margin="0,0,0,3">
+            <!-- WYSZUKIWARKA - profesjonalna -->
+            <Border Grid.Row="1" Background="White" CornerRadius="6" Padding="8,6" Margin="0,0,0,4" BorderBrush="#E2E8F0" BorderThickness="1">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
@@ -911,29 +1084,54 @@
                     </Grid.ColumnDefinitions>
 
                     <!-- Przycisk filtrów z menu kontekstowym -->
-                    <Border Grid.Column="0" Background="#F1F5F9" CornerRadius="4" Padding="8,4" Cursor="Hand" MouseLeftButtonDown="BtnFiltry_Click">
+                    <Border Grid.Column="0" Background="White" CornerRadius="6" Padding="10,6" Cursor="Hand" MouseLeftButtonDown="BtnFiltry_Click" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#F8FAFC"/>
+                                        <Setter Property="BorderBrush" Value="#94A3B8"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="🔍" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                            <TextBlock Text="Filtry" FontWeight="SemiBold" Foreground="#2C3E50" VerticalAlignment="Center" FontSize="9"/>
-                            <TextBlock Text="▼" FontSize="8" Foreground="#64748B" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                            <TextBlock Text="⚙️" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="Filtry" FontWeight="SemiBold" Foreground="#374151" VerticalAlignment="Center" FontSize="10"/>
+                            <TextBlock Text=" ▾" FontSize="9" Foreground="#9CA3AF" VerticalAlignment="Center"/>
                         </StackPanel>
                         <Border.ContextMenu>
                             <ContextMenu x:Name="menuFiltry">
-                                <MenuItem Header="📋 OPCJE FILTROWANIA" IsEnabled="False" FontWeight="Bold"/>
+                                <MenuItem Header="⚙️ OPCJE FILTROWANIA" IsEnabled="False" FontWeight="Bold" FontSize="11"/>
                                 <Separator/>
-                                <MenuItem x:Name="menuChkAnulowane" Header="Anulowane" IsCheckable="True" Click="MenuFilter_Changed"/>
-                                <MenuItem x:Name="menuChkSprzedane" Header="Sprzedane" IsCheckable="True" Click="MenuFilter_Changed"/>
-                                <MenuItem x:Name="menuChkDoWykupienia" Header="Do wykupienia" IsCheckable="True" IsChecked="True" Click="MenuFilter_Changed"/>
+                                <MenuItem x:Name="menuChkAnulowane" Header="  Anulowane" IsCheckable="True" Click="MenuFilter_Changed"/>
+                                <MenuItem x:Name="menuChkSprzedane" Header="  Sprzedane" IsCheckable="True" Click="MenuFilter_Changed"/>
+                                <MenuItem x:Name="menuChkDoWykupienia" Header="  Do wykupienia" IsCheckable="True" IsChecked="True" Click="MenuFilter_Changed"/>
                                 <Separator/>
-                                <MenuItem x:Name="menuChkPokazCeny" Header="Pokaż ceny" IsCheckable="True" IsChecked="True" Click="MenuFilter_Changed"/>
-                                <MenuItem x:Name="menuChkPokazCheckboxy" Header="Pokaż ✓/W" IsCheckable="True" Click="MenuChkPokazCheckboxy_Changed"/>
-                                <MenuItem x:Name="menuChkNastepnyTydzien" Header="+ Następny tydzień" IsCheckable="True" IsChecked="True" Click="MenuChkNastepnyTydzien_Changed"/>
+                                <MenuItem x:Name="menuChkPokazCeny" Header="💰 Pokaż ceny" IsCheckable="True" IsChecked="True" Click="MenuFilter_Changed"/>
+                                <MenuItem x:Name="menuChkPokazCheckboxy" Header="✓ Pokaż ✓/W" IsCheckable="True" Click="MenuChkPokazCheckboxy_Changed"/>
+                                <MenuItem x:Name="menuChkNastepnyTydzien" Header="📅 + Następny tydzień" IsCheckable="True" IsChecked="True" Click="MenuChkNastepnyTydzien_Changed"/>
                             </ContextMenu>
                         </Border.ContextMenu>
                     </Border>
 
                     <!-- Wyszukiwarka -->
-                    <TextBox x:Name="txtSearch" Grid.Column="1" Style="{StaticResource SearchBoxStyle}" ToolTip="Szukaj hodowcy (Ctrl+F)" TextChanged="TxtSearch_TextChanged" Margin="8,0,0,0"/>
+                    <Border Grid.Column="1" Background="#F8FAFC" CornerRadius="6" Padding="8,4" Margin="10,0,0,0" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="🔍" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="#9CA3AF"/>
+                            <TextBox x:Name="txtSearch" Grid.Column="1" Background="Transparent" BorderThickness="0" VerticalAlignment="Center" FontSize="11" Foreground="#374151" ToolTip="Szukaj hodowcy (Ctrl+F)" TextChanged="TxtSearch_TextChanged">
+                                <TextBox.Style>
+                                    <Style TargetType="TextBox">
+                                        <Setter Property="Foreground" Value="#374151"/>
+                                    </Style>
+                                </TextBox.Style>
+                            </TextBox>
+                        </Grid>
+                    </Border>
                 </Grid>
             </Border>
 
@@ -948,62 +1146,140 @@
                 <TextBlock x:Name="txtUserName" Text="-"/>
             </StackPanel>
 
-            <!-- KALENDARZ - ROZWIJANY z nawigacją w nagłówku -->
-            <Border Grid.Row="2" Background="White" CornerRadius="4" Padding="4" Margin="0,0,0,3">
-                <Expander x:Name="expKalendarz" IsExpanded="False" BorderThickness="0">
+            <!-- KALENDARZ - profesjonalny rozwijany panel -->
+            <Border Grid.Row="2" Background="White" CornerRadius="6" Padding="0" Margin="0,0,0,4" BorderBrush="#E2E8F0" BorderThickness="1">
+                <Expander x:Name="expKalendarz" IsExpanded="False" BorderThickness="0" Padding="0">
                     <Expander.Header>
-                        <Grid Width="320">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                <TextBlock Text="📅" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                <TextBlock Text="Kalendarz" FontWeight="SemiBold" FontSize="10" Foreground="#1E293B" VerticalAlignment="Center"/>
-                            </StackPanel>
-                            <!-- Nawigacja w nagłówku -->
-                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                <Button Content="◀" Style="{StaticResource NavButtonStyle}" Click="BtnPreviousWeek_Click" Width="30" Height="22" Padding="0" Margin="2,0" ToolTip="Poprzedni tydzień" FontSize="10"/>
-                                <Button Content="Dziś" Style="{StaticResource MainButtonStyle}" Click="BtnToday_Click" Width="45" Height="22" Padding="0" Margin="2,0" FontSize="9"/>
-                                <Button Content="▶" Style="{StaticResource NavButtonStyle}" Click="BtnNextWeek_Click" Width="30" Height="22" Padding="0" Margin="2,0" ToolTip="Następny tydzień" FontSize="10"/>
-                            </StackPanel>
-                        </Grid>
+                        <Border Background="Transparent" Padding="8,6" Width="340">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                    <Border Background="#EFF6FF" CornerRadius="6" Padding="6,4" Margin="0,0,8,0">
+                                        <TextBlock Text="📅" FontSize="14" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="Kalendarz" FontWeight="SemiBold" FontSize="11" Foreground="#1E293B" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <!-- Nawigacja w nagłówku - elegancka grupa -->
+                                <Border Grid.Column="2" Background="#F8FAFC" CornerRadius="6" Padding="2" BorderBrush="#E2E8F0" BorderThickness="1">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Click="BtnPreviousWeek_Click" Width="28" Height="24" ToolTip="Poprzedni tydzień">
+                                            <TextBlock Text="◀" FontSize="10" Foreground="#374151"/>
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Background" Value="Transparent"/>
+                                                    <Setter Property="BorderThickness" Value="0"/>
+                                                    <Setter Property="Cursor" Value="Hand"/>
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="Button">
+                                                                <Border Background="{TemplateBinding Background}" CornerRadius="4">
+                                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                </Border>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                    <Style.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter Property="Background" Value="#E2E8F0"/>
+                                                        </Trigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                        <Button Click="BtnToday_Click" Height="24" Padding="8,0" ToolTip="Idź do dzisiaj">
+                                            <TextBlock Text="Dziś" FontSize="9" Foreground="White" FontWeight="SemiBold"/>
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Background" Value="#3B82F6"/>
+                                                    <Setter Property="BorderThickness" Value="0"/>
+                                                    <Setter Property="Cursor" Value="Hand"/>
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="Button">
+                                                                <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                </Border>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                    <Style.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter Property="Background" Value="#2563EB"/>
+                                                        </Trigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                        <Button Click="BtnNextWeek_Click" Width="28" Height="24" ToolTip="Następny tydzień">
+                                            <TextBlock Text="▶" FontSize="10" Foreground="#374151"/>
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Background" Value="Transparent"/>
+                                                    <Setter Property="BorderThickness" Value="0"/>
+                                                    <Setter Property="Cursor" Value="Hand"/>
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="Button">
+                                                                <Border Background="{TemplateBinding Background}" CornerRadius="4">
+                                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                </Border>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                    <Style.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter Property="Background" Value="#E2E8F0"/>
+                                                        </Trigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </Border>
                     </Expander.Header>
-                    <StackPanel Margin="0,4,0,0">
+                    <Border BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="8">
                         <Calendar x:Name="calendarMain" HorizontalAlignment="Center" SelectedDatesChanged="CalendarMain_SelectedDatesChanged"/>
-                    </StackPanel>
+                    </Border>
                 </Expander>
             </Border>
 
-            <!-- PANEL SZCZEGÓŁÓW - TABCONTROL -->
-            <Border Grid.Row="3" Background="White" CornerRadius="4" Margin="0,0,0,3">
-                <TabControl x:Name="tabSzczegoly" FontSize="10">
-                    <!-- TAB: KARTA - Nowy design w stylu React -->
-                    <TabItem Header="Karta">
-                        <Grid Background="#F8FAFC">
+            <!-- PANEL SZCZEGÓŁÓW - TABCONTROL - profesjonalny -->
+            <Border Grid.Row="3" Background="White" CornerRadius="6" Margin="0,0,0,4" BorderBrush="#E2E8F0" BorderThickness="1">
+                <TabControl x:Name="tabSzczegoly" FontSize="10" BorderThickness="0" Padding="0">
+                    <!-- TAB: KARTA - profesjonalny design -->
+                    <TabItem Header="📋 Karta" FontSize="11" FontWeight="SemiBold">
+                        <Grid Background="#F1F5F9">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="*"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
-                            <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+                            <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" Padding="8">
                                 <StackPanel>
                                     <!-- ═══════════════════════════════════════════════════════════════ -->
-                                    <!-- SEKCJA 1: DANE DOSTAWY - Główne pola edycyjne -->
+                                    <!-- SEKCJA 1: DANE DOSTAWY -->
                                     <!-- ═══════════════════════════════════════════════════════════════ -->
-                                    <Border Background="White" CornerRadius="6" Padding="8" Margin="0,0,0,6" BorderBrush="#E2E8F0" BorderThickness="1">
+                                    <Border Background="White" CornerRadius="8" Padding="12" Margin="0,0,0,8" BorderBrush="#E2E8F0" BorderThickness="1">
+                                        <Border.Effect>
+                                            <DropShadowEffect BlurRadius="4" ShadowDepth="1" Opacity="0.08" Color="#000000"/>
+                                        </Border.Effect>
                                         <StackPanel>
-                                            <!-- Nagłówek z przyciskiem Zapisz po LEWEJ -->
-                                            <Grid Margin="0,0,0,6">
+                                            <!-- Nagłówek z przyciskiem Zapisz -->
+                                            <Grid Margin="0,0,0,10">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
-                                                <Button Grid.Column="0" Click="BtnZapiszDostawe_Click" Padding="10,4" FontSize="9" Cursor="Hand" ToolTip="Zapisz dostawę" Margin="0,0,8,0">
+                                                <Button Grid.Column="0" Click="BtnZapiszDostawe_Click" Padding="12,6" FontSize="10" Cursor="Hand" ToolTip="Zapisz zmiany (Ctrl+S)" Margin="0,0,12,0">
                                                     <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="💾" Margin="0,0,4,0"/>
-                                                        <TextBlock Text="ZAPISZ"/>
+                                                        <TextBlock Text="💾" FontSize="12" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="Zapisz" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                                     </StackPanel>
                                                     <Button.Style>
                                                         <Style TargetType="Button">
@@ -1013,7 +1289,7 @@
                                                             <Setter Property="Template">
                                                                 <Setter.Value>
                                                                     <ControlTemplate TargetType="Button">
-                                                                        <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                                                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
                                                                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                                         </Border>
                                                                     </ControlTemplate>
@@ -1027,11 +1303,16 @@
                                                         </Style>
                                                     </Button.Style>
                                                 </Button>
-                                                <TextBlock Grid.Column="1" Text="📋 DANE DOSTAWY" FontWeight="Bold" FontSize="10" Foreground="#1E293B" VerticalAlignment="Center"/>
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <Border Background="#EFF6FF" CornerRadius="4" Padding="6,3" Margin="0,0,6,0">
+                                                        <TextBlock Text="📋" FontSize="12"/>
+                                                    </Border>
+                                                    <TextBlock Text="Dane dostawy" FontWeight="Bold" FontSize="12" Foreground="#1E293B" VerticalAlignment="Center"/>
+                                                </StackPanel>
                                             </Grid>
 
-                                            <!-- Wiersz 1: Główne pola - WIĘKSZE -->
-                                            <Grid Margin="0,0,0,4">
+                                            <!-- Wiersz 1: Główne pola -->
+                                            <Grid Margin="0,0,0,8">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="*"/>
@@ -1041,45 +1322,45 @@
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
                                                 <!-- Waga -->
-                                                <Border Grid.Column="0" Background="#ECFDF5" CornerRadius="4" Padding="6,4" Margin="0,0,2,0" BorderBrush="#A7F3D0" BorderThickness="1">
+                                                <Border Grid.Column="0" Background="#F0FDF4" CornerRadius="6" Padding="8,6" Margin="0,0,4,0" BorderBrush="#BBF7D0" BorderThickness="1">
                                                     <StackPanel>
-                                                        <TextBlock Text="⚖️ Waga" FontSize="8" Foreground="#059669" FontWeight="Medium"/>
-                                                        <TextBox x:Name="txtWagaDek" FontSize="13" FontWeight="Bold" Foreground="#065F46" Background="Transparent" BorderThickness="0" Padding="0" TextChanged="TxtWagaDek_TextChanged"/>
+                                                        <TextBlock Text="⚖️ Waga" FontSize="9" Foreground="#15803D" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                                                        <TextBox x:Name="txtWagaDek" FontSize="14" FontWeight="Bold" Foreground="#166534" Background="Transparent" BorderThickness="0" Padding="0" TextChanged="TxtWagaDek_TextChanged"/>
                                                     </StackPanel>
                                                 </Border>
                                                 <!-- Szt/szuf -->
-                                                <Border Grid.Column="1" Background="#EFF6FF" CornerRadius="4" Padding="6,4" Margin="2,0" BorderBrush="#93C5FD" BorderThickness="1">
+                                                <Border Grid.Column="1" Background="#EFF6FF" CornerRadius="6" Padding="8,6" Margin="4,0" BorderBrush="#BFDBFE" BorderThickness="1">
                                                     <StackPanel>
-                                                        <TextBlock Text="📦 Szt/szuf" FontSize="8" Foreground="#2563EB" FontWeight="Medium"/>
-                                                        <TextBox x:Name="txtSztNaSzuflade" FontSize="13" FontWeight="Bold" Foreground="#1E40AF" Background="Transparent" BorderThickness="0" Padding="0" TextChanged="TxtSztNaSzuflade_TextChanged"/>
+                                                        <TextBlock Text="📦 Szt/szuf" FontSize="9" Foreground="#1D4ED8" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                                                        <TextBox x:Name="txtSztNaSzuflade" FontSize="14" FontWeight="Bold" Foreground="#1E40AF" Background="Transparent" BorderThickness="0" Padding="0" TextChanged="TxtSztNaSzuflade_TextChanged"/>
                                                     </StackPanel>
                                                 </Border>
                                                 <!-- Sztuki -->
-                                                <Border Grid.Column="2" Background="#FEF3C7" CornerRadius="4" Padding="6,4" Margin="2,0" BorderBrush="#FCD34D" BorderThickness="1">
+                                                <Border Grid.Column="2" Background="#FEF9C3" CornerRadius="6" Padding="8,6" Margin="4,0" BorderBrush="#FDE047" BorderThickness="1">
                                                     <StackPanel>
-                                                        <TextBlock Text="🐔 Sztuki" FontSize="8" Foreground="#D97706" FontWeight="Medium"/>
-                                                        <TextBox x:Name="txtSztuki" FontSize="13" FontWeight="Bold" Foreground="#92400E" Background="Transparent" BorderThickness="0" Padding="0"/>
+                                                        <TextBlock Text="🐔 Sztuki" FontSize="9" Foreground="#A16207" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                                                        <TextBox x:Name="txtSztuki" FontSize="14" FontWeight="Bold" Foreground="#854D0E" Background="Transparent" BorderThickness="0" Padding="0"/>
                                                     </StackPanel>
                                                 </Border>
                                                 <!-- Auta -->
-                                                <Border Grid.Column="3" Background="#E0E7FF" CornerRadius="4" Padding="6,4" Margin="2,0" BorderBrush="#A5B4FC" BorderThickness="1">
+                                                <Border Grid.Column="3" Background="#E0E7FF" CornerRadius="6" Padding="8,6" Margin="4,0" BorderBrush="#C7D2FE" BorderThickness="1">
                                                     <StackPanel>
-                                                        <TextBlock Text="🚚 Auta" FontSize="8" Foreground="#4F46E5" FontWeight="Medium"/>
-                                                        <TextBox x:Name="txtAuta" FontSize="13" FontWeight="Bold" Foreground="#3730A3" Background="Transparent" BorderThickness="0" Padding="0"/>
+                                                        <TextBlock Text="🚚 Auta" FontSize="9" Foreground="#4338CA" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                                                        <TextBox x:Name="txtAuta" FontSize="14" FontWeight="Bold" Foreground="#3730A3" Background="Transparent" BorderThickness="0" Padding="0"/>
                                                     </StackPanel>
                                                 </Border>
                                                 <!-- Cena -->
-                                                <Border Grid.Column="4" Background="#FCE7F3" CornerRadius="4" Padding="6,4" Margin="2,0" BorderBrush="#F9A8D4" BorderThickness="1">
+                                                <Border Grid.Column="4" Background="#FCE7F3" CornerRadius="6" Padding="8,6" Margin="4,0" BorderBrush="#FBCFE8" BorderThickness="1">
                                                     <StackPanel>
-                                                        <TextBlock Text="💰 Cena" FontSize="8" Foreground="#DB2777" FontWeight="Medium"/>
-                                                        <TextBox x:Name="txtCena" FontSize="13" FontWeight="Bold" Foreground="#9D174D" Background="Transparent" BorderThickness="0" Padding="0"/>
+                                                        <TextBlock Text="💰 Cena" FontSize="9" Foreground="#BE185D" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                                                        <TextBox x:Name="txtCena" FontSize="14" FontWeight="Bold" Foreground="#9D174D" Background="Transparent" BorderThickness="0" Padding="0"/>
                                                     </StackPanel>
                                                 </Border>
-                                                <!-- Dodatek - taka sama szerokość jak Cena -->
-                                                <Border Grid.Column="5" Background="#F1F5F9" CornerRadius="4" Padding="6,4" Margin="2,0,0,0" BorderBrush="#CBD5E1" BorderThickness="1">
+                                                <!-- Dodatek -->
+                                                <Border Grid.Column="5" Background="#F8FAFC" CornerRadius="6" Padding="8,6" Margin="4,0,0,0" BorderBrush="#E2E8F0" BorderThickness="1">
                                                     <StackPanel>
-                                                        <TextBlock Text="➕ Dodatek" FontSize="8" Foreground="#64748B" FontWeight="Medium"/>
-                                                        <TextBox x:Name="txtDodatek" FontSize="13" FontWeight="Bold" Foreground="#334155" Background="Transparent" BorderThickness="0" Padding="0"/>
+                                                        <TextBlock Text="➕ Dodatek" FontSize="9" Foreground="#475569" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                                                        <TextBox x:Name="txtDodatek" FontSize="14" FontWeight="Bold" Foreground="#334155" Background="Transparent" BorderThickness="0" Padding="0"/>
                                                     </StackPanel>
                                                 </Border>
                                             </Grid>
