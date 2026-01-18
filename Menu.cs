@@ -629,7 +629,7 @@ namespace Kalendarz1
             infoPanel.Controls.Add(sepTasks);
             y += 4;
 
-            // ========== KURS WALUT - kompaktowy ==========
+            // ========== KURS WALUT - kompaktowy (klikalny) ==========
             var eurChangeColor = currency.IsValid && currency.EurChange.StartsWith("+")
                 ? Color.FromArgb(76, 175, 80) : Color.FromArgb(244, 67, 54);
             var currencyText = currency.IsValid
@@ -642,7 +642,13 @@ namespace Kalendarz1
                 ForeColor = currency.IsValid ? Color.White : Color.FromArgb(100, 110, 120),
                 Size = new Size(contentWidth, 16),
                 Location = new Point(10, y),
-                TextAlign = ContentAlignment.MiddleCenter
+                TextAlign = ContentAlignment.MiddleCenter,
+                Cursor = Cursors.Hand
+            };
+            currencyLabel.Click += (s, ev) =>
+            {
+                var eurWindow = new EurChartWindow();
+                eurWindow.Show();
             };
             infoPanel.Controls.Add(currencyLabel);
             y += 18;

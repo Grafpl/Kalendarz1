@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -25,6 +26,12 @@ namespace Kalendarz1
             public string UsdChange { get; set; } = "";
             public DateTime Date { get; set; }
             public bool IsValid { get; set; }
+        }
+
+        public class CurrencyHistoryItem
+        {
+            public DateTime Date { get; set; }
+            public decimal Rate { get; set; }
         }
 
         static CurrencyManager()
@@ -146,6 +153,55 @@ namespace Kalendarz1
                     _cachedData = new CurrencyData { IsValid = false };
                 }
             }
+        }
+
+        /// <summary>
+        /// Pobiera historyczne kursy EUR z ostatnich 2 miesiecy
+        /// </summary>
+        public static async Task<List<CurrencyHistoryItem>> GetEurHistoryAsync()
+        {
+            var result = new List<CurrencyHistoryItem>();
+
+            try
+            {
+                // Oblicz daty - 2 miesiace wstecz
+                var endDate = DateTime.Today;
+                var startDate = endDate.AddMonths(-2);
+
+                // NBP API format: YYYY-MM-DD
+                var startStr = startDate.ToString("yyyy-MM-dd");
+                var endStr = endDate.ToString("yyyy-MM-dd");
+
+                // Pobierz dane z API NBP
+                var url = $"https://api.nbp.pl/api/exchangerates/rates/a/eur/{startStr}/{endStr}/?format=json";
+                var response = await _httpClient.GetStringAsync(url);
+                var json = JObject.Parse(response);
+                var rates = json["rates"] as JArray;
+
+                if (rates != null)
+                {
+                    foreach (var rate in rates)
+                    {
+                        var dateStr = rate["effectiveDate"]?.Value<string>();
+                        var mid = rate["mid"]?.Value<decimal>() ?? 0;
+
+                        if (DateTime.TryParse(dateStr, out var date))
+                        {
+                            result.Add(new CurrencyHistoryItem
+                            {
+                                Date = date,
+                                Rate = mid
+                            });
+                        }
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // W przypadku bledu zwroc pusta liste
+            }
+
+            return result;
         }
     }
 }
