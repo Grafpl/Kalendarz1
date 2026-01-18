@@ -686,15 +686,22 @@
                                                                 <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
                                                                     <Setter Property="Visibility" Value="Collapsed"/>
                                                                 </DataTrigger>
-                                                                <!-- Notatka z 2-3 dni - czarna czcionka z czerwoną poświatą -->
+                                                                <!-- Notatka z 2-3 dni - czarna czcionka pulsująca -->
                                                                 <DataTrigger Binding="{Binding IsRecentNote}" Value="True">
                                                                     <Setter Property="Foreground" Value="#1F2937"/>
                                                                     <Setter Property="FontWeight" Value="SemiBold"/>
-                                                                    <Setter Property="Effect">
-                                                                        <Setter.Value>
-                                                                            <DropShadowEffect ShadowDepth="0" BlurRadius="5" Color="#DC2626" Opacity="1"/>
-                                                                        </Setter.Value>
-                                                                    </Setter>
+                                                                    <DataTrigger.EnterActions>
+                                                                        <BeginStoryboard>
+                                                                            <Storyboard RepeatBehavior="Forever">
+                                                                                <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                                                                 From="1" To="0.4" Duration="0:0:0.8" AutoReverse="True">
+                                                                                    <DoubleAnimation.EasingFunction>
+                                                                                        <SineEase EasingMode="EaseInOut"/>
+                                                                                    </DoubleAnimation.EasingFunction>
+                                                                                </DoubleAnimation>
+                                                                            </Storyboard>
+                                                                        </BeginStoryboard>
+                                                                    </DataTrigger.EnterActions>
                                                                 </DataTrigger>
                                                                 <!-- Notatka z 1 dnia - czerwona pulsująca z czarnym obramowaniem -->
                                                                 <DataTrigger Binding="{Binding IsVeryRecentNote}" Value="True">
@@ -946,15 +953,22 @@
                                                             <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
                                                                 <Setter Property="Visibility" Value="Collapsed"/>
                                                             </DataTrigger>
-                                                            <!-- Notatka z 2-3 dni - czarna czcionka z czerwoną poświatą -->
+                                                            <!-- Notatka z 2-3 dni - czarna czcionka pulsująca -->
                                                             <DataTrigger Binding="{Binding IsRecentNote}" Value="True">
                                                                 <Setter Property="Foreground" Value="#1F2937"/>
                                                                 <Setter Property="FontWeight" Value="SemiBold"/>
-                                                                <Setter Property="Effect">
-                                                                    <Setter.Value>
-                                                                        <DropShadowEffect ShadowDepth="0" BlurRadius="5" Color="#DC2626" Opacity="1"/>
-                                                                    </Setter.Value>
-                                                                </Setter>
+                                                                <DataTrigger.EnterActions>
+                                                                    <BeginStoryboard>
+                                                                        <Storyboard RepeatBehavior="Forever">
+                                                                            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                                                             From="1" To="0.4" Duration="0:0:0.8" AutoReverse="True">
+                                                                                <DoubleAnimation.EasingFunction>
+                                                                                    <SineEase EasingMode="EaseInOut"/>
+                                                                                </DoubleAnimation.EasingFunction>
+                                                                            </DoubleAnimation>
+                                                                        </Storyboard>
+                                                                    </BeginStoryboard>
+                                                                </DataTrigger.EnterActions>
                                                             </DataTrigger>
                                                             <!-- Notatka z 1 dnia - czerwona pulsująca z czarnym obramowaniem -->
                                                             <DataTrigger Binding="{Binding IsVeryRecentNote}" Value="True">
