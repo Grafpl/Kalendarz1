@@ -100,11 +100,6 @@ namespace Kalendarz1
                     var zadaniaWindow = new ZadaniaWindow();
                     zadaniaWindow.Show();
                 };
-                notificationWindow.OpenMeetingsRequested += (s, args) =>
-                {
-                    var spotkaniaWindow = new Spotkania.Views.SpotkaniaGlowneWindow(App.UserID);
-                    spotkaniaWindow.Show();
-                };
                 notificationWindow.Show();
             }
             catch (Exception ex)
@@ -2016,11 +2011,6 @@ namespace Kalendarz1
                 {
                     var zadaniaWindow = new ZadaniaWindow();
                     zadaniaWindow.Show();
-                };
-                notificationWindow.OpenMeetingsRequested += (s, args) =>
-                {
-                    var spotkaniaWindow = new Spotkania.Views.SpotkaniaGlowneWindow(App.UserID);
-                    spotkaniaWindow.Show();
                 };
                 notificationWindow.Show();
             }
