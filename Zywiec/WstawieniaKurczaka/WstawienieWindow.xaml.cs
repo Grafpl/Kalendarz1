@@ -93,21 +93,33 @@ namespace Kalendarz1
         {
             // Pytanie czy użytkownik dobrze zrobił pierwsze wstawienie
             var result = MessageBox.Show(
-                "Aby zrobić serię, najpierw zrób dobrze pierwsze wstawienie, a później naciśnij 'Seria'.\n\nCzy tak zrobiłeś?",
+                "Aby zrobić serię, najpierw zrób dobrze pierwsze wstawienie (Data + Sztuki), a później naciśnij 'Seria'.\n\nCzy wypełniłeś dane pierwszego wstawienia?",
                 "Seria wstawień",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question);
 
             if (result == MessageBoxResult.Yes)
             {
+                // Sprawdź czy pierwsze wstawienie jest wypełnione
+                if (dpDataWstawienia.SelectedDate == null || string.IsNullOrWhiteSpace(txtSztukiWstawienia.Text))
+                {
+                    MessageBox.Show(
+                        "Najpierw wypełnij datę i ilość sztuk pierwszego wstawienia!",
+                        "Uwaga",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                    chkSeria.IsChecked = false;
+                    return;
+                }
+
                 MessageBox.Show(
-                    "Ok, to pamiętaj że teraz na górze zaczynasz od wstawienia numer 2, bo numer 1 się schowało.",
+                    "Super! Wstawienie nr 1 zostanie zapisane automatycznie.\nTeraz dodaj kolejne wstawienia (nr 2, 3, ...).",
                     "Informacja",
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
 
                 trybSerii = true;
-                panelJednePodstawy.Visibility = Visibility.Collapsed;
+                // NIE ukrywaj panelJednePodstawy - niech użytkownik widzi pierwsze wstawienie
                 panelSeria.Visibility = Visibility.Visible;
 
                 if (seriaRows.Count == 0)
@@ -123,7 +135,6 @@ namespace Kalendarz1
         private void ChkSeria_Unchecked(object sender, RoutedEventArgs e)
         {
             trybSerii = false;
-            panelJednePodstawy.Visibility = Visibility.Visible;
             panelSeria.Visibility = Visibility.Collapsed;
         }
 
@@ -134,7 +145,8 @@ namespace Kalendarz1
 
         private void DodajWpisSerii()
         {
-            var seria = new SeriaWstawienRow { Id = seriaRows.Count + 1 };
+            // Seria zaczyna się od #2 bo #1 jest w panelJednePodstawy
+            var seria = new SeriaWstawienRow { Id = seriaRows.Count + 2 };
             var grid = CreateSeriaGrid(seria);
             seriaRows.Add(seria);
             stackPanelSeria.Children.Add(grid);
@@ -193,12 +205,7 @@ namespace Kalendarz1
 
         private void UsunWpisSerii(SeriaWstawienRow seria)
         {
-            if (seriaRows.Count <= 1)
-            {
-                MessageBox.Show("Musisz mieć przynajmniej jedno wstawienie!", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
+            // Można usunąć wszystkie - wstawienie #1 jest w panelJednePodstawy
             Grid gridToRemove = null;
             foreach (Grid grid in stackPanelSeria.Children)
             {
@@ -213,6 +220,28 @@ namespace Kalendarz1
             {
                 stackPanelSeria.Children.Remove(gridToRemove);
                 seriaRows.Remove(seria);
+                OdswiezNumeracjeSerii();
+            }
+        }
+
+        private void OdswiezNumeracjeSerii()
+        {
+            // Seria zaczyna się od #2 (bo #1 jest w panelJednePodstawy)
+            for (int i = 0; i < seriaRows.Count; i++)
+            {
+                seriaRows[i].Id = i + 2;
+
+                // Znajdź grid i zaktualizuj numer
+                foreach (Grid grid in stackPanelSeria.Children)
+                {
+                    if (grid.Tag == seriaRows[i])
+                    {
+                        var txtNr = grid.Children[0] as TextBlock;
+                        if (txtNr != null)
+                            txtNr.Text = (i + 2).ToString();
+                        break;
+                    }
+                }
             }
         }
 
@@ -527,7 +556,7 @@ namespace Kalendarz1
                                 txtEmailDostawcy.Text = reader.IsDBNull(5) ? "-" : reader["Email"].ToString();
                                 txtKmH.Text = reader.IsDBNull(3) ? "" : reader["Distance"].ToString();
 
-                                panelDaneDostawcy.Visibility = Visibility.Visible;
+                                // Panel jest ukryty - nie pokazuj info o hodowcy
                             }
                         }
                     }
@@ -889,6 +918,25 @@ namespace Kalendarz1
                             if (trybSerii)
                             {
                                 int zapisane = 0;
+
+                                // NAJPIERW zapisz wstawienie #1 z panelJednePodstawy
+                                if (dpDataWstawienia.SelectedDate != null && !string.IsNullOrWhiteSpace(txtSztukiWstawienia.Text))
+                                {
+                                    if (int.TryParse(txtSztukiWstawienia.Text, out int iloscPierwszego))
+                                    {
+                                        long lpW = NowyNumerWstawienia(conn, trans);
+                                        WstawWstawienieDb(conn, trans, lpW, dpDataWstawienia.SelectedDate.Value, iloscPierwszego, typUmowy, typCeny);
+
+                                        foreach (var dostawa in dostawyRows)
+                                        {
+                                            WstawDostaweDb(conn, trans, dostawa, lpW, dpDataWstawienia.SelectedDate.Value, typUmowy, typCeny, bufor, zapiszAuta);
+                                            if (maNotatki) iloscNotatek++;
+                                        }
+                                        zapisane++;
+                                    }
+                                }
+
+                                // POTEM zapisz pozostałe wstawienia z serii
                                 foreach (var seria in seriaRows)
                                 {
                                     if (seria.DpData?.SelectedDate == null || string.IsNullOrWhiteSpace(seria.TxtIlosc?.Text))

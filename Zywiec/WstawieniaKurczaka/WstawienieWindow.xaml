@@ -193,13 +193,13 @@
                     </Grid>
                 </Border>
 
-                <!-- SERIA WSTAWIEŃ -->
+                <!-- SERIA WSTAWIEŃ (od #2 - #1 jest na górze) -->
                 <Border x:Name="panelSeria" Style="{StaticResource Card}" Visibility="Collapsed">
                     <StackPanel>
                         <Grid Margin="0,0,0,8">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="📋 Seria Wstawień" FontSize="13" FontWeight="Bold" Foreground="#2C3E50" VerticalAlignment="Center"/>
-                                <Button Content="📋 Wklej wszystkie" Style="{StaticResource SmallButton}" 
+                                <TextBlock Text="📋 Kolejne wstawienia (od #2)" FontSize="13" FontWeight="Bold" Foreground="#2C3E50" VerticalAlignment="Center"/>
+                                <Button Content="📋 Wklej wszystkie" Style="{StaticResource SmallButton}"
                                         Margin="15,0,0,0" Click="BtnWklejWszystkieSztuki_Click"
                                         ToolTip="Wklej ilość wstawienia do wszystkich serii"/>
                             </StackPanel>
