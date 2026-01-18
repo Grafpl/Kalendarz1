@@ -1245,15 +1245,20 @@ namespace Kalendarz1
             var textBlock = sender as TextBlock;
             if (textBlock != null)
             {
-                var animation = new System.Windows.Media.Animation.DoubleAnimation
+                // Animacja z klatkami kluczowymi: dłużej na 1.0, krótkie przejście do 0.7
+                var animation = new System.Windows.Media.Animation.DoubleAnimationUsingKeyFrames
                 {
-                    From = 1.0,
-                    To = 0.5,
-                    Duration = TimeSpan.FromSeconds(1.2),
-                    AutoReverse = true,
-                    RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever,
-                    EasingFunction = new System.Windows.Media.Animation.SineEase()
+                    RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever
                 };
+
+                // Pozostaje na 1.0 przez 1.5 sekundy
+                animation.KeyFrames.Add(new System.Windows.Media.Animation.LinearDoubleKeyFrame(1.0, TimeSpan.FromSeconds(0)));
+                animation.KeyFrames.Add(new System.Windows.Media.Animation.LinearDoubleKeyFrame(1.0, TimeSpan.FromSeconds(1.5)));
+                // Przejście do 0.7 przez 0.4 sekundy
+                animation.KeyFrames.Add(new System.Windows.Media.Animation.EasingDoubleKeyFrame(0.7, TimeSpan.FromSeconds(1.9), new System.Windows.Media.Animation.SineEase()));
+                // Powrót do 1.0 przez 0.4 sekundy
+                animation.KeyFrames.Add(new System.Windows.Media.Animation.EasingDoubleKeyFrame(1.0, TimeSpan.FromSeconds(2.3), new System.Windows.Media.Animation.SineEase()));
+
                 textBlock.BeginAnimation(TextBlock.OpacityProperty, animation);
             }
         }
