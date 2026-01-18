@@ -381,6 +381,11 @@ namespace Kalendarz1
             }
         }
 
+        private void NotificationButton_Click(object sender, RoutedEventArgs e)
+        {
+            ShowNotificationWindow();
+        }
+
         protected override void OnClosed(EventArgs e)
         {
             base.OnClosed(e);

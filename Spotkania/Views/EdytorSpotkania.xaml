@@ -155,18 +155,8 @@
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Grid.Column="0" Margin="0,0,10,0">
-                            <TextBlock Text="Miejsce spotkania" Style="{StaticResource FieldLabel}"/>
-                            <ComboBox x:Name="CmbLokalizacja" FontSize="14" Padding="10,8" IsEditable="True">
-                                <ComboBoxItem Content="Duża konferencyjna"/>
-                                <ComboBoxItem Content="Mała konferencyjna"/>
-                                <ComboBoxItem Content="Gabinet Sergiusz"/>
-                                <ComboBoxItem Content="Gabinet Marcin"/>
-                                <ComboBoxItem Content="Gabinet Tomek"/>
-                                <ComboBoxItem Content="Sala szkoleniowa"/>
-                                <ComboBoxItem Content="Recepcja"/>
-                                <ComboBoxItem Content="U klienta"/>
-                                <ComboBoxItem Content="Online"/>
-                            </ComboBox>
+                            <TextBlock Text="Lokalizacja" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="TxtLokalizacja" FontSize="14" Padding="10,8"/>
                         </StackPanel>
 
                         <StackPanel Grid.Column="1">
