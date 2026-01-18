@@ -711,7 +711,9 @@ namespace Kalendarz1
         {
             if (cmbDostawca.SelectedItem != null)
             {
-                WczytajDaneDostawcy(cmbDostawca.SelectedItem.ToString());
+                string nazwaDostawcy = cmbDostawca.SelectedItem.ToString();
+                txtNazwaDostawcy.Text = nazwaDostawcy;
+                WczytajDaneDostawcy(nazwaDostawcy);
             }
         }
 
