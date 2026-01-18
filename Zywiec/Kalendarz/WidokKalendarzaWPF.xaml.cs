@@ -1726,6 +1726,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         private void DgDostawy_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            // Wyczyść pola kalkulatora transportu przy zmianie zaznaczenia
+            txtSztNaSzufladeCalc.Text = "";
+            txtWyliczone.Text = "";
+            txtObliczoneAuta.Text = "";
+            txtObliczoneSztuki.Text = "";
+
             // Wyczyść zaznaczenie w drugiej tabeli
             if (!_isUpdatingSelection && dgDostawyNastepny.SelectedItems.Count > 0)
             {
@@ -1828,6 +1834,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         private void DgDostawyNastepny_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            // Wyczyść pola kalkulatora transportu przy zmianie zaznaczenia
+            txtSztNaSzufladeCalc.Text = "";
+            txtWyliczone.Text = "";
+            txtObliczoneAuta.Text = "";
+            txtObliczoneSztuki.Text = "";
+
             // Wyczyść zaznaczenie w pierwszej tabeli
             if (!_isUpdatingSelection && dgDostawy.SelectedItems.Count > 0)
             {
