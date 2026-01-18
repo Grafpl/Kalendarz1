@@ -147,11 +147,17 @@ namespace Kalendarz1.WPF
             _selectedDate = initialDate ?? GetDefaultDate();
             _openPanelJolaOnStart = openPanelJola;
 
-            // Jeśli uruchamiamy bezpośrednio Panel Pani Jola - ukryj główne okno
+            // Jeśli uruchamiamy bezpośrednio Panel Pani Jola - ukryj główne okno całkowicie
             if (_openPanelJolaOnStart)
             {
-                this.WindowState = WindowState.Minimized;
+                this.WindowState = WindowState.Normal;
                 this.ShowInTaskbar = false;
+                this.Opacity = 0; // Całkowicie przezroczyste - niewidoczne
+                this.Width = 1;
+                this.Height = 1;
+                this.WindowStartupLocation = WindowStartupLocation.Manual;
+                this.Left = -10000; // Poza ekranem
+                this.Top = -10000;
             }
 
             InitializeAsync();
@@ -278,16 +284,29 @@ namespace Kalendarz1.WPF
                 cmbWidok.Items.Clear();
                 cmbWidok.Items.Add(new ComboBoxItem { Content = "(Wybierz widok)", Tag = null });
                 int defaultIndex = 0;
+                DashboardView? defaultView = null;
                 int idx = 1;
                 foreach (var view in _savedViews)
                 {
                     var displayName = view.IsDomyslny ? $"⭐ {view.Nazwa}" : view.Nazwa;
                     cmbWidok.Items.Add(new ComboBoxItem { Content = displayName, Tag = view });
                     if (view.IsDomyslny)
+                    {
                         defaultIndex = idx;
+                        defaultView = view;
+                    }
                     idx++;
                 }
                 cmbWidok.SelectedIndex = defaultIndex;
+
+                // Załaduj produkty z domyślnego widoku (bo CmbWidok_SelectionChanged nie zadziała przed IsLoaded)
+                if (defaultView != null)
+                {
+                    foreach (var p in _allProducts)
+                        p.IsSelected = defaultView.ProductIds.Contains(p.Id);
+                    _selectedProductIds = defaultView.ProductIds.ToList();
+                    UpdateSelectedCount();
+                }
             }
             catch
             {
