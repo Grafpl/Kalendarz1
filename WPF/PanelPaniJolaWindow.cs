@@ -48,8 +48,9 @@ namespace Kalendarz1.WPF
         private Grid _mainContainer;
 
         // Separacja UI - kamery NIEZALEŻNE od RefreshContent()
-        private Grid? _contentArea;     // Góra (60%) - produkty/tabele - ODŚWIEŻANE
-        private Grid? _camerasArea;     // Dół (40%) - kamery - STAŁE, NIGDY nie odświeżane
+        private Grid? _leftPanel;       // Lewy panel (produkty, nawigacja) - ODŚWIEŻANY
+        private Grid? _contentPanel;    // Tabele odbiorców - ODŚWIEŻANE
+        private Grid? _camerasArea;     // Kamery - STAŁE, NIGDY nie odświeżane
 
         // Flagi stanu kamer
         private bool _camerasInitialized = false;
@@ -188,31 +189,46 @@ namespace Kalendarz1.WPF
 
         private async System.Threading.Tasks.Task InitializeAsync()
         {
-            // ========== NOWA STRUKTURA LAYOUTU ==========
-            // _mainContainer podzielony na:
-            // - _contentArea (góra 60%) - produkty/tabele - ODŚWIEŻANE przez RefreshContent()
-            // - _camerasArea (dół 40%) - kamery - STAŁE, NIGDY nie odświeżane
+            // ========== ORYGINALNA STRUKTURA LAYOUTU ==========
+            // rootGrid: 2 kolumny (lewa 170px, prawa reszta)
+            // prawa kolumna: 2 wiersze (góra: tabele, dół: kamery)
 
             _mainContainer.Children.Clear();
-            _mainContainer.RowDefinitions.Clear();
 
-            // Góra: 75% na produkty/tabele, Dół: 25% na kamery
-            _mainContainer.RowDefinitions.Add(new RowDefinition { Height = new GridLength(75, GridUnitType.Star) });
-            _mainContainer.RowDefinitions.Add(new RowDefinition { Height = new GridLength(25, GridUnitType.Star) });
+            var rootGrid = new Grid { Margin = new Thickness(10) };
+            rootGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(170) }); // Lewa kolumna
+            rootGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Prawa kolumna
 
-            // Content area - będzie czyszczone w RefreshContent()
-            _contentArea = new Grid { Margin = new Thickness(10, 10, 10, 5) };
-            Grid.SetRow(_contentArea, 0);
-            _mainContainer.Children.Add(_contentArea);
+            // Lewy panel - produkty, nawigacja (ODŚWIEŻANY)
+            _leftPanel = new Grid();
+            Grid.SetColumn(_leftPanel, 0);
+            rootGrid.Children.Add(_leftPanel);
 
-            // Cameras area - NIGDY nie będzie czyszczone
-            _camerasArea = new Grid { Margin = new Thickness(10, 5, 10, 10) };
+            // Prawa strona z 2 wierszami
+            var rightSide = new Grid { Margin = new Thickness(5, 0, 0, 0) };
+            rightSide.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Tabele
+            rightSide.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Kamery
+            Grid.SetColumn(rightSide, 1);
+            rootGrid.Children.Add(rightSide);
+
+            // Panel z tabelami (ODŚWIEŻANY)
+            _contentPanel = new Grid { Margin = new Thickness(0, 0, 0, 5) };
+            _contentPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            _contentPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            _contentPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            Grid.SetRow(_contentPanel, 0);
+            rightSide.Children.Add(_contentPanel);
+
+            // Panel z kamerami - STAŁY, NIGDY nie odświeżany
+            _camerasArea = new Grid { Margin = new Thickness(0, 5, 0, 0) };
             _camerasArea.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             _camerasArea.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             Grid.SetRow(_camerasArea, 1);
-            _mainContainer.Children.Add(_camerasArea);
+            rightSide.Children.Add(_camerasArea);
 
-            // Pokaż ładowanie w _contentArea
+            _mainContainer.Children.Add(rootGrid);
+
+            // Pokaż ładowanie
             var loadingText = new TextBlock
             {
                 Text = "Ładowanie danych...",
@@ -221,7 +237,8 @@ namespace Kalendarz1.WPF
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
-            _contentArea.Children.Add(loadingText);
+            Grid.SetColumnSpan(loadingText, 2);
+            rootGrid.Children.Add(loadingText);
 
             // Inicjalizuj kamery RAZ - PRZED ładowaniem danych
             InitializeCameras();
@@ -239,13 +256,13 @@ namespace Kalendarz1.WPF
                 await LoadDataAsync();
 
                 // Usuń loading text
-                _contentArea.Children.Remove(loadingText);
+                rootGrid.Children.Remove(loadingText);
 
                 if (_productDataList.Any())
                 {
                     // Uruchom AUTO timer od razu przy starcie
                     StartAutoTimer();
-                    RefreshContent(); // Odświeża TYLKO _contentArea!
+                    RefreshContent(); // Odświeża TYLKO _leftPanel i _contentPanel!
                 }
                 else
                 {
@@ -258,12 +275,14 @@ namespace Kalendarz1.WPF
                         VerticalAlignment = VerticalAlignment.Center,
                         TextAlignment = TextAlignment.Center
                     };
-                    _contentArea.Children.Add(noDataText);
+                    Grid.SetColumnSpan(noDataText, 2);
+                    rootGrid.Children.Add(noDataText);
                 }
             }
             catch (Exception ex)
             {
-                _contentArea.Children.Clear();
+                _leftPanel.Children.Clear();
+                _contentPanel.Children.Clear();
                 var errorText = new TextBlock
                 {
                     Text = $"Błąd: {ex.Message}",
@@ -274,7 +293,7 @@ namespace Kalendarz1.WPF
                     TextWrapping = TextWrapping.Wrap,
                     Margin = new Thickness(50)
                 };
-                _contentArea.Children.Add(errorText);
+                _leftPanel.Children.Add(errorText);
             }
         }
 
@@ -636,18 +655,14 @@ namespace Kalendarz1.WPF
 
         private void RefreshContent()
         {
-            // Sprawdź czy _contentArea jest zainicjalizowane
-            if (!_productDataList.Any() || _contentArea == null) return;
+            // Sprawdź czy panele są zainicjalizowane
+            if (!_productDataList.Any() || _leftPanel == null || _contentPanel == null) return;
 
             var currentData = _productDataList[_viewIndex];
 
-            // ========== CZYŚĆ TYLKO _contentArea, NIGDY _camerasArea! ==========
-            _contentArea.Children.Clear();
-            _contentArea.ColumnDefinitions.Clear();
-
-            // Struktura: lewa kolumna (170px) + prawa kolumna (reszta)
-            _contentArea.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(170) });
-            _contentArea.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            // ========== CZYŚĆ TYLKO _leftPanel i _contentPanel, NIGDY _camerasArea! ==========
+            _leftPanel.Children.Clear();
+            _contentPanel.Children.Clear();
 
             // ========== LEWA KOLUMNA (produkty, nawigacja) ==========
             var leftStack = new StackPanel { Margin = new Thickness(0, 0, 10, 0) };
@@ -863,16 +878,10 @@ namespace Kalendarz1.WPF
 
             leftStack.Children.Add(navPanel);
 
-            // Dodaj lewą kolumnę do _contentArea
-            Grid.SetColumn(leftStack, 0);
-            _contentArea.Children.Add(leftStack);
+            // Dodaj lewą kolumnę do _leftPanel
+            _leftPanel.Children.Add(leftStack);
 
             // ========== PRAWA STRONA - TABLICE (kamery są osobno w _camerasArea!) ==========
-            var rightPanel = new Grid { Margin = new Thickness(5, 0, 0, 0) };
-            rightPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            rightPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            rightPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
             var odbiorcy = currentData.Odbiorcy.OrderByDescending(o => o.Zamowione).ToList();
             int maxRowsPerTable = 12;
             var tablica1 = odbiorcy.Take(maxRowsPerTable).ToList();
@@ -918,21 +927,17 @@ namespace Kalendarz1.WPF
             }
             produktyPanel.Child = produktyGrid;
             Grid.SetColumn(produktyPanel, 0);
-            rightPanel.Children.Add(produktyPanel);
+            _contentPanel.Children.Add(produktyPanel);
 
             // Tabela 1 - kolumna 1
             var tab1 = CreateTable(tablica1, 1);
             Grid.SetColumn(tab1, 1);
-            rightPanel.Children.Add(tab1);
+            _contentPanel.Children.Add(tab1);
 
             // Tabela 2 - kolumna 2
             var tab2 = CreateTable(tablica2, maxRowsPerTable + 1);
             Grid.SetColumn(tab2, 2);
-            rightPanel.Children.Add(tab2);
-
-            // Dodaj prawą stronę do _contentArea
-            Grid.SetColumn(rightPanel, 1);
-            _contentArea.Children.Add(rightPanel);
+            _contentPanel.Children.Add(tab2);
 
             // ========== KAMERY NIE SĄ TUTAJ! ==========
             // Kamery są w _camerasArea, zainicjalizowane RAZ w InitializeCameras()
