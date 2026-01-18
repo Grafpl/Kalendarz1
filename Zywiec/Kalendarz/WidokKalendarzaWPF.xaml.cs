@@ -4511,6 +4511,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
         public int SumaUbytek { get; set; }
         public int LiczbaSprzedanych { get; set; }
         public int LiczbaAnulowanych { get; set; }
+        public bool HasBothCounts => IsHeaderRow && !IsSeparator && LiczbaSprzedanych > 0 && LiczbaAnulowanych > 0;
 
         // Główna kolumna - dla nagłówka pokazuje datę, dla danych pokazuje dostawcę
         private static readonly string[] DniSkrot = { "niedz.", "pon.", "wt.", "śr.", "czw.", "pt.", "sob." };

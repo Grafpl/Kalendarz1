@@ -14,6 +14,9 @@
         Loaded="Window_Loaded">
 
     <Window.Resources>
+        <!-- ==================== KONWERTERY ==================== -->
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+
         <!-- ==================== ANIMACJE ==================== -->
 
         <!-- Storyboard: Pulsowanie dla dzisiejszego nagłówka -->
@@ -505,7 +508,7 @@
                         </DataGrid.RenderTransform>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="LP" Binding="{Binding LP}" Visibility="Collapsed"/>
-                                <DataGridTextColumn x:Name="colDostawcaHeader" Header="Tydzień" Binding="{Binding DostawcaDisplay}" Width="100" IsReadOnly="True">
+                                <DataGridTextColumn x:Name="colDostawcaHeader" Header="📅 Tydzień" Binding="{Binding DostawcaDisplay}" Width="100" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -515,7 +518,7 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="A" Binding="{Binding AutaDisplay}" Width="28" IsReadOnly="True">
+                                <DataGridTextColumn Header="🚛" Binding="{Binding AutaDisplay}" Width="28" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="HorizontalAlignment" Value="Center"/>
@@ -523,7 +526,7 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTemplateColumn Header="Szt" Width="65" IsReadOnly="True">
+                                <DataGridTemplateColumn Header="🐔 Szt" Width="65" IsReadOnly="True">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Border Padding="2,0">
@@ -545,7 +548,7 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="Waga" Width="55" IsReadOnly="True">
+                                <DataGridTemplateColumn Header="⚖️ Waga" Width="55" IsReadOnly="True">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Border Padding="2,0">
@@ -567,12 +570,12 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="Ub" Binding="{Binding RoznicaDniDisplay}" Width="42" IsReadOnly="True">
+                                <DataGridTextColumn Header="📉 Ub" Binding="{Binding RoznicaDniDisplay}" Width="42" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/></Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTemplateColumn Header="Typ" Width="45" IsReadOnly="True">
+                                <DataGridTemplateColumn Header="📊 Typ" Width="45" IsReadOnly="True">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Border Padding="2,0" CornerRadius="2" Margin="1">
@@ -617,46 +620,25 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn x:Name="colCena" Header="Cena" Binding="{Binding CenaDisplay}" Width="45" IsReadOnly="True">
+                                <DataGridTextColumn x:Name="colCena" Header="💰 Cena" Binding="{Binding CenaDisplay}" Width="50" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="KM" Binding="{Binding KmDisplay}" Width="35" IsReadOnly="True">
+                                <DataGridTextColumn Header="🚗 KM" Binding="{Binding KmDisplay}" Width="42" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="HorizontalAlignment" Value="Right"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTemplateColumn x:Name="colUwagi" Header="Uwagi" Width="*" MinWidth="60" IsReadOnly="True">
+                                <DataGridTemplateColumn x:Name="colUwagi" Header="📝 Uwagi" Width="*" MinWidth="60" IsReadOnly="True">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <!-- Dla nagłówka - pokaż S: z kolorem niebieskim -->
-                                                <TextBlock Text="{Binding LiczbaSprzedanych, StringFormat=S:{0}}" FontSize="10" FontWeight="Bold"
-                                                           Foreground="#2563EB" Margin="0,0,6,0">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                            <Style.Triggers>
-                                                                <MultiDataTrigger>
-                                                                    <MultiDataTrigger.Conditions>
-                                                                        <Condition Binding="{Binding IsHeaderRow}" Value="True"/>
-                                                                        <Condition Binding="{Binding IsSeparator}" Value="False"/>
-                                                                    </MultiDataTrigger.Conditions>
-                                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                                </MultiDataTrigger>
-                                                                <DataTrigger Binding="{Binding LiczbaSprzedanych}" Value="0">
-                                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                                <!-- Dla nagłówka - pokaż A: z kolorem czerwonym -->
-                                                <TextBlock Text="{Binding LiczbaAnulowanych, StringFormat=A:{0}}" FontSize="10" FontWeight="Bold"
-                                                           Foreground="#DC2626">
+                                                <!-- Dla nagłówka - pokaż Anulowane: X -->
+                                                <TextBlock Text="{Binding LiczbaAnulowanych, StringFormat=Anulowane: {0}}" FontSize="9" FontWeight="Bold"
+                                                           Foreground="White">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
                                                             <Setter Property="Visibility" Value="Collapsed"/>
@@ -669,6 +651,30 @@
                                                                     <Setter Property="Visibility" Value="Visible"/>
                                                                 </MultiDataTrigger>
                                                                 <DataTrigger Binding="{Binding LiczbaAnulowanych}" Value="0">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <!-- Separator / -->
+                                                <TextBlock Text=" / " FontSize="9" FontWeight="Bold" Foreground="White"
+                                                           Visibility="{Binding HasBothCounts, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}"/>
+                                                <!-- Dla nagłówka - pokaż Sprzedane: X -->
+                                                <TextBlock Text="{Binding LiczbaSprzedanych, StringFormat=Sprzedane: {0}}" FontSize="9" FontWeight="Bold"
+                                                           Foreground="White">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <MultiDataTrigger>
+                                                                    <MultiDataTrigger.Conditions>
+                                                                        <Condition Binding="{Binding IsHeaderRow}" Value="True"/>
+                                                                        <Condition Binding="{Binding IsSeparator}" Value="False"/>
+                                                                    </MultiDataTrigger.Conditions>
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </MultiDataTrigger>
+                                                                <DataTrigger Binding="{Binding LiczbaSprzedanych}" Value="0">
                                                                     <Setter Property="Visibility" Value="Collapsed"/>
                                                                 </DataTrigger>
                                                             </Style.Triggers>
@@ -692,7 +698,7 @@
                                                                     <Setter Property="FontWeight" Value="SemiBold"/>
                                                                     <Setter Property="Effect">
                                                                         <Setter.Value>
-                                                                            <DropShadowEffect ShadowDepth="0" BlurRadius="3" Color="Black" Opacity="0.9"/>
+                                                                            <DropShadowEffect ShadowDepth="0" BlurRadius="3" Color="White" Opacity="1"/>
                                                                         </Setter.Value>
                                                                     </Setter>
                                                                 </DataTrigger>
@@ -702,7 +708,7 @@
                                                                     <Setter Property="FontWeight" Value="Bold"/>
                                                                     <Setter Property="Effect">
                                                                         <Setter.Value>
-                                                                            <DropShadowEffect ShadowDepth="0" BlurRadius="3" Color="Black" Opacity="0.9"/>
+                                                                            <DropShadowEffect ShadowDepth="0" BlurRadius="3" Color="White" Opacity="1"/>
                                                                         </Setter.Value>
                                                                     </Setter>
                                                                     <DataTrigger.EnterActions>
@@ -770,7 +776,7 @@
                         </DataGrid.RenderTransform>
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="LP" Binding="{Binding LP}" Visibility="Collapsed"/>
-                            <DataGridTextColumn x:Name="colDostawcaHeader2" Header="Tydzień" Binding="{Binding DostawcaDisplay}" Width="100" IsReadOnly="True">
+                            <DataGridTextColumn x:Name="colDostawcaHeader2" Header="📅 Tydzień" Binding="{Binding DostawcaDisplay}" Width="100" IsReadOnly="True">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="VerticalAlignment" Value="Center"/>
@@ -780,7 +786,7 @@
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="A" Binding="{Binding AutaDisplay}" Width="28" IsReadOnly="True">
+                            <DataGridTextColumn Header="🚛" Binding="{Binding AutaDisplay}" Width="28" IsReadOnly="True">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="HorizontalAlignment" Value="Center"/>
@@ -788,7 +794,7 @@
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTemplateColumn Header="Szt" Width="65" IsReadOnly="True">
+                            <DataGridTemplateColumn Header="🐔 Szt" Width="65" IsReadOnly="True">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <Border Padding="2,0">
@@ -810,7 +816,7 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTemplateColumn Header="Waga" Width="55" IsReadOnly="True">
+                            <DataGridTemplateColumn Header="⚖️ Waga" Width="55" IsReadOnly="True">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <Border Padding="2,0">
@@ -832,12 +838,12 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Ub" Binding="{Binding RoznicaDniDisplay}" Width="42" IsReadOnly="True">
+                            <DataGridTextColumn Header="📉 Ub" Binding="{Binding RoznicaDniDisplay}" Width="42" IsReadOnly="True">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/></Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTemplateColumn Header="Typ" Width="45" IsReadOnly="True">
+                            <DataGridTemplateColumn Header="📊 Typ" Width="45" IsReadOnly="True">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <Border Padding="2,0" CornerRadius="2" Margin="1">
@@ -882,44 +888,23 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Cena" Binding="{Binding CenaDisplay}" Width="45" IsReadOnly="True">
+                            <DataGridTextColumn Header="💰 Cena" Binding="{Binding CenaDisplay}" Width="50" IsReadOnly="True">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="KM" Binding="{Binding KmDisplay}" Width="35" IsReadOnly="True">
+                            <DataGridTextColumn Header="🚗 KM" Binding="{Binding KmDisplay}" Width="42" IsReadOnly="True">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTemplateColumn x:Name="colUwagi2" Header="Uwagi" Width="*" MinWidth="60" IsReadOnly="True">
+                            <DataGridTemplateColumn x:Name="colUwagi2" Header="📝 Uwagi" Width="*" MinWidth="60" IsReadOnly="True">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <!-- Dla nagłówka - pokaż S: z kolorem niebieskim -->
-                                            <TextBlock Text="{Binding LiczbaSprzedanych, StringFormat=S:{0}}" FontSize="10" FontWeight="Bold"
-                                                       Foreground="#2563EB" Margin="0,0,6,0">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                        <Style.Triggers>
-                                                            <MultiDataTrigger>
-                                                                <MultiDataTrigger.Conditions>
-                                                                    <Condition Binding="{Binding IsHeaderRow}" Value="True"/>
-                                                                    <Condition Binding="{Binding IsSeparator}" Value="False"/>
-                                                                </MultiDataTrigger.Conditions>
-                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                            </MultiDataTrigger>
-                                                            <DataTrigger Binding="{Binding LiczbaSprzedanych}" Value="0">
-                                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                            <!-- Dla nagłówka - pokaż A: z kolorem czerwonym -->
-                                            <TextBlock Text="{Binding LiczbaAnulowanych, StringFormat=A:{0}}" FontSize="10" FontWeight="Bold"
-                                                       Foreground="#DC2626">
+                                            <!-- Dla nagłówka - pokaż Anulowane: X -->
+                                            <TextBlock Text="{Binding LiczbaAnulowanych, StringFormat=Anulowane: {0}}" FontSize="9" FontWeight="Bold"
+                                                       Foreground="White">
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">
                                                         <Setter Property="Visibility" Value="Collapsed"/>
@@ -938,6 +923,30 @@
                                                     </Style>
                                                 </TextBlock.Style>
                                             </TextBlock>
+                                            <!-- Separator / -->
+                                            <TextBlock Text=" / " FontSize="9" FontWeight="Bold" Foreground="White"
+                                                       Visibility="{Binding HasBothCounts, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}"/>
+                                            <!-- Dla nagłówka - pokaż Sprzedane: X -->
+                                            <TextBlock Text="{Binding LiczbaSprzedanych, StringFormat=Sprzedane: {0}}" FontSize="9" FontWeight="Bold"
+                                                       Foreground="White">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding IsHeaderRow}" Value="True"/>
+                                                                    <Condition Binding="{Binding IsSeparator}" Value="False"/>
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </MultiDataTrigger>
+                                                            <DataTrigger Binding="{Binding LiczbaSprzedanych}" Value="0">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
                                             <!-- Dla normalnych wierszy - pokaż uwagi -->
                                             <TextBlock Text="{Binding Uwagi}" TextTrimming="CharacterEllipsis"
                                                        ToolTip="{Binding Uwagi}" FontSize="10">
@@ -949,13 +958,13 @@
                                                             <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
                                                                 <Setter Property="Visibility" Value="Collapsed"/>
                                                             </DataTrigger>
-                                                            <!-- Notatka z 2-3 dni - żółta czcionka z czarnym obramowaniem -->
+                                                            <!-- Notatka z 2-3 dni - żółta czcionka z białym obramowaniem -->
                                                             <DataTrigger Binding="{Binding IsRecentNote}" Value="True">
                                                                 <Setter Property="Foreground" Value="#EAB308"/>
                                                                 <Setter Property="FontWeight" Value="SemiBold"/>
                                                                 <Setter Property="Effect">
                                                                     <Setter.Value>
-                                                                        <DropShadowEffect ShadowDepth="0" BlurRadius="3" Color="Black" Opacity="0.9"/>
+                                                                        <DropShadowEffect ShadowDepth="0" BlurRadius="3" Color="White" Opacity="1"/>
                                                                     </Setter.Value>
                                                                 </Setter>
                                                             </DataTrigger>
@@ -965,7 +974,7 @@
                                                                 <Setter Property="FontWeight" Value="Bold"/>
                                                                 <Setter Property="Effect">
                                                                     <Setter.Value>
-                                                                        <DropShadowEffect ShadowDepth="0" BlurRadius="3" Color="Black" Opacity="0.9"/>
+                                                                        <DropShadowEffect ShadowDepth="0" BlurRadius="3" Color="White" Opacity="1"/>
                                                                     </Setter.Value>
                                                                 </Setter>
                                                                 <DataTrigger.EnterActions>
@@ -1129,54 +1138,6 @@
                         <!-- Grupa akcji głównych -->
                         <Border Background="#F8FAFC" CornerRadius="6" Padding="2" Margin="0,0,8,0" BorderBrush="#E2E8F0" BorderThickness="1">
                             <StackPanel Orientation="Horizontal">
-                                <Button Click="BtnNowaDostawa_Click" ToolTip="Nowa dostawa" Width="32" Height="28">
-                                    <TextBlock Text="➕" FontSize="12"/>
-                                    <Button.Style>
-                                        <Style TargetType="Button">
-                                            <Setter Property="Background" Value="#10B981"/>
-                                            <Setter Property="BorderThickness" Value="0"/>
-                                            <Setter Property="Cursor" Value="Hand"/>
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="Button">
-                                                        <Border Background="{TemplateBinding Background}" CornerRadius="4">
-                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                        </Border>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                            <Style.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter Property="Background" Value="#059669"/>
-                                                </Trigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                </Button>
-                                <Button Click="BtnDuplikuj_Click" ToolTip="Duplikuj dostawę" Width="28" Height="28">
-                                    <TextBlock Text="📋" FontSize="11"/>
-                                    <Button.Style>
-                                        <Style TargetType="Button">
-                                            <Setter Property="Background" Value="Transparent"/>
-                                            <Setter Property="BorderThickness" Value="0"/>
-                                            <Setter Property="Cursor" Value="Hand"/>
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="Button">
-                                                        <Border Background="{TemplateBinding Background}" CornerRadius="4">
-                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                        </Border>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                            <Style.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter Property="Background" Value="#E2E8F0"/>
-                                                </Trigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                </Button>
                                 <Button Click="BtnHistoriaZmian_Click" ToolTip="Historia zmian" Width="28" Height="28">
                                     <TextBlock Text="📜" FontSize="11"/>
                                     <Button.Style>
@@ -1196,31 +1157,6 @@
                                             <Style.Triggers>
                                                 <Trigger Property="IsMouseOver" Value="True">
                                                     <Setter Property="Background" Value="#E2E8F0"/>
-                                                </Trigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                </Button>
-                                <Rectangle Width="1" Fill="#E2E8F0" Margin="4,4"/>
-                                <Button Click="BtnUsun_Click" ToolTip="Usuń dostawę" Width="28" Height="28">
-                                    <TextBlock Text="🗑" FontSize="11"/>
-                                    <Button.Style>
-                                        <Style TargetType="Button">
-                                            <Setter Property="Background" Value="Transparent"/>
-                                            <Setter Property="BorderThickness" Value="0"/>
-                                            <Setter Property="Cursor" Value="Hand"/>
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="Button">
-                                                        <Border Background="{TemplateBinding Background}" CornerRadius="4">
-                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                        </Border>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                            <Style.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter Property="Background" Value="#FEE2E2"/>
                                                 </Trigger>
                                             </Style.Triggers>
                                         </Style>
@@ -1912,7 +1848,7 @@
                                                         </Style>
                                                     </DataGrid.RowStyle>
                                                     <DataGrid.Columns>
-                                                        <DataGridTextColumn Header="Data" Binding="{Binding DataOdbioru, StringFormat=MM-dd ddd}" Width="*">
+                                                        <DataGridTextColumn Header="📅 Data" Binding="{Binding DataOdbioru, StringFormat=MM-dd ddd}" Width="*">
                                                             <DataGridTextColumn.ElementStyle>
                                                                 <Style TargetType="TextBlock">
                                                                     <Setter Property="Foreground" Value="#334155"/>
@@ -1921,7 +1857,7 @@
                                                                 </Style>
                                                             </DataGridTextColumn.ElementStyle>
                                                         </DataGridTextColumn>
-                                                        <DataGridTextColumn Header="A" Binding="{Binding Auta}" Width="30">
+                                                        <DataGridTextColumn Header="🚛" Binding="{Binding Auta}" Width="30">
                                                             <DataGridTextColumn.ElementStyle>
                                                                 <Style TargetType="TextBlock">
                                                                     <Setter Property="HorizontalAlignment" Value="Center"/>
@@ -1929,7 +1865,7 @@
                                                                 </Style>
                                                             </DataGridTextColumn.ElementStyle>
                                                         </DataGridTextColumn>
-                                                        <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDekDisplay}" Width="*">
+                                                        <DataGridTextColumn Header="🐔 Sztuki" Binding="{Binding SztukiDekDisplay}" Width="*">
                                                             <DataGridTextColumn.ElementStyle>
                                                                 <Style TargetType="TextBlock">
                                                                     <Setter Property="HorizontalAlignment" Value="Center"/>
@@ -1938,7 +1874,7 @@
                                                                 </Style>
                                                             </DataGridTextColumn.ElementStyle>
                                                         </DataGridTextColumn>
-                                                        <DataGridTextColumn Header="Waga" Binding="{Binding WagaDek, StringFormat=N2}" Width="*">
+                                                        <DataGridTextColumn Header="⚖️ Waga" Binding="{Binding WagaDek, StringFormat=N2}" Width="*">
                                                             <DataGridTextColumn.ElementStyle>
                                                                 <Style TargetType="TextBlock">
                                                                     <Setter Property="HorizontalAlignment" Value="Center"/>
@@ -1946,7 +1882,7 @@
                                                                 </Style>
                                                             </DataGridTextColumn.ElementStyle>
                                                         </DataGridTextColumn>
-                                                        <DataGridTextColumn Header="Status" Binding="{Binding Bufor}" Width="*">
+                                                        <DataGridTextColumn Header="ℹ️ Status" Binding="{Binding Bufor}" Width="*">
                                                             <DataGridTextColumn.ElementStyle>
                                                                 <Style TargetType="TextBlock">
                                                                     <Setter Property="Foreground" Value="#64748B"/>
