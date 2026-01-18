@@ -66,6 +66,10 @@ namespace Kalendarz1.WPF
         // Obrazy kamer do aktualizacji
         private Image? _camera1Image;
         private Image? _camera2Image;
+        private TextBlock? _camera1Status;
+        private TextBlock? _camera2Status;
+        private bool _camera1Connected = false;
+        private bool _camera2Connected = false;
         private readonly HttpClient _httpClient;
 
         // Klasy danych
@@ -97,10 +101,18 @@ namespace Kalendarz1.WPF
             _connHandel = connHandel;
             _selectedDate = GetDefaultDate();
 
-            // HttpClient dla kamer z Basic Auth
+            // HttpClient dla kamer z Digest Auth (wymagane przez Hikvision)
+            var credentialCache = new CredentialCache();
+            foreach (var camera in _cameras)
+            {
+                var uri = new Uri(camera.SnapshotUrl);
+                var baseUri = new Uri($"{uri.Scheme}://{uri.Host}:{uri.Port}/");
+                credentialCache.Add(baseUri, "Digest", new NetworkCredential(camera.Username, camera.Password));
+            }
             var handler = new HttpClientHandler
             {
-                Credentials = new NetworkCredential(_cameras.FirstOrDefault()?.Username ?? "", _cameras.FirstOrDefault()?.Password ?? "")
+                Credentials = credentialCache,
+                PreAuthenticate = false // Digest wymaga challenge-response
             };
             _httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(5) };
 
@@ -928,6 +940,16 @@ namespace Kalendarz1.WPF
             var camera1Grid = new Grid();
             _camera1Image = new Image { Stretch = Stretch.Uniform };
             camera1Grid.Children.Add(_camera1Image);
+            // Status połączenia (widoczny gdy brak obrazu)
+            _camera1Status = new TextBlock
+            {
+                Text = "⏳ Łączenie z kamerą...",
+                FontSize = 16,
+                Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            camera1Grid.Children.Add(_camera1Status);
             // Nakładka z nazwą
             var camera1Label = new Border
             {
@@ -1012,14 +1034,34 @@ namespace Kalendarz1.WPF
                 if (_camera1Image != null && _cameras.Count > 0)
                 {
                     var img = await LoadCameraSnapshotAsync(0);
-                    if (img != null) _camera1Image.Source = img;
+                    if (img != null)
+                    {
+                        _camera1Image.Source = img;
+                        _camera1Connected = true;
+                        if (_camera1Status != null) _camera1Status.Visibility = Visibility.Collapsed;
+                    }
+                    else if (!_camera1Connected && _camera1Status != null)
+                    {
+                        _camera1Status.Text = "❌ Błąd połączenia z kamerą";
+                        _camera1Status.Foreground = new SolidColorBrush(Color.FromRgb(231, 76, 60));
+                    }
                 }
 
                 // Odśwież kamerę 2
                 if (_camera2Image != null && _cameras.Count > 1)
                 {
                     var img = await LoadCameraSnapshotAsync(1);
-                    if (img != null) _camera2Image.Source = img;
+                    if (img != null)
+                    {
+                        _camera2Image.Source = img;
+                        _camera2Connected = true;
+                        if (_camera2Status != null) _camera2Status.Visibility = Visibility.Collapsed;
+                    }
+                    else if (!_camera2Connected && _camera2Status != null)
+                    {
+                        _camera2Status.Text = "❌ Błąd połączenia z kamerą";
+                        _camera2Status.Foreground = new SolidColorBrush(Color.FromRgb(231, 76, 60));
+                    }
                 }
             };
             _cameraTimer.Start();
@@ -1033,12 +1075,28 @@ namespace Kalendarz1.WPF
             if (_cameras.Count > 0 && _camera1Image != null)
             {
                 var img = await LoadCameraSnapshotAsync(0);
-                Dispatcher.Invoke(() => { if (img != null) _camera1Image.Source = img; });
+                Dispatcher.Invoke(() =>
+                {
+                    if (img != null)
+                    {
+                        _camera1Image.Source = img;
+                        _camera1Connected = true;
+                        if (_camera1Status != null) _camera1Status.Visibility = Visibility.Collapsed;
+                    }
+                });
             }
             if (_cameras.Count > 1 && _camera2Image != null)
             {
                 var img = await LoadCameraSnapshotAsync(1);
-                Dispatcher.Invoke(() => { if (img != null) _camera2Image.Source = img; });
+                Dispatcher.Invoke(() =>
+                {
+                    if (img != null)
+                    {
+                        _camera2Image.Source = img;
+                        _camera2Connected = true;
+                        if (_camera2Status != null) _camera2Status.Visibility = Visibility.Collapsed;
+                    }
+                });
             }
         }
 
@@ -1046,20 +1104,41 @@ namespace Kalendarz1.WPF
         {
             if (cameraIndex >= _cameras.Count) return null;
 
-            try
-            {
-                var camera = _cameras[cameraIndex];
-                var response = await _httpClient.GetAsync(camera.SnapshotUrl);
+            var camera = _cameras[cameraIndex];
 
-                if (response.IsSuccessStatusCode)
-                {
-                    var data = await response.Content.ReadAsByteArrayAsync();
-                    return BytesToBitmapImage(data);
-                }
-            }
-            catch
+            // Lista możliwych URL-i dla Hikvision (różne modele używają różnych endpointów)
+            var urls = new[]
             {
-                // Ignoruj błędy połączenia - kamera może być niedostępna
+                camera.SnapshotUrl,
+                camera.SnapshotUrl.Replace("/ISAPI/Streaming/channels/101/picture", "/Streaming/channels/101/picture"),
+                camera.SnapshotUrl.Replace("/ISAPI/Streaming/channels/101/picture", "/ISAPI/Streaming/channels/1/picture"),
+                $"http://{new Uri(camera.SnapshotUrl).Host}/cgi-bin/snapshot.cgi"
+            };
+
+            foreach (var url in urls)
+            {
+                try
+                {
+                    var response = await _httpClient.GetAsync(url);
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var data = await response.Content.ReadAsByteArrayAsync();
+                        if (data.Length > 0)
+                        {
+                            // Jeśli inny URL zadziałał, zaktualizuj konfigurację
+                            if (url != camera.SnapshotUrl)
+                            {
+                                camera.SnapshotUrl = url;
+                            }
+                            return BytesToBitmapImage(data);
+                        }
+                    }
+                }
+                catch
+                {
+                    // Próbuj kolejny URL
+                }
             }
 
             return null;
