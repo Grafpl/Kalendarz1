@@ -2044,18 +2044,30 @@ namespace Kalendarz1.Zywiec.Kalendarz
             // Określ z której tabeli pochodzi element
             bool isFromSecondTable = (dg == dgDostawyNastepny);
 
-            // Obsługa edycji dla konkretnych kolumn
-            if (columnHeader == "A" || columnHeader == "Szt" || columnHeader == "Waga")
+            // Obsługa edycji dla konkretnych kolumn (z obsługą emoji w nagłówkach)
+            if (columnHeader == "🚛" || columnHeader.Contains("Auta"))
             {
-                await EditCellValueAsync(selectedItem.LP, columnHeader, isFromSecondTable);
+                await EditCellValueAsync(selectedItem.LP, "A", isFromSecondTable);
             }
-            else if (columnHeader == "Uwagi")
+            else if (columnHeader == "🐔 Szt" || columnHeader.Contains("Szt"))
             {
-                await EditNoteAsync(selectedItem.LP);
+                await EditCellValueAsync(selectedItem.LP, "Szt", isFromSecondTable);
             }
-            else if (columnHeader == "Typ")
+            else if (columnHeader == "⚖️ Waga" || columnHeader.Contains("Waga"))
+            {
+                await EditCellValueAsync(selectedItem.LP, "Waga", isFromSecondTable);
+            }
+            else if (columnHeader == "📊 Typ" || columnHeader.Contains("Typ"))
             {
                 await EditTypCenyAsync(selectedItem, isFromSecondTable);
+            }
+            else if (columnHeader == "💰 Cena" || columnHeader.Contains("Cena"))
+            {
+                await EditCenaAsync(selectedItem, isFromSecondTable);
+            }
+            else if (columnHeader == "📝 Uwagi" || columnHeader.Contains("Uwagi"))
+            {
+                await EditNoteAsync(selectedItem.LP);
             }
         }
 
@@ -2401,6 +2413,88 @@ namespace Kalendarz1.Zywiec.Kalendarz
             mainStack.Children.Add(buttonPanel);
 
             dialog.Content = mainStack;
+            dialog.ShowDialog();
+        }
+
+        private async Task EditCenaAsync(DostawaModel selectedItem, bool isFromSecondTable)
+        {
+            if (selectedItem == null || selectedItem.IsHeaderRow) return;
+
+            string currentValue = selectedItem.Cena.ToString("0.00").Replace(",", ".");
+
+            // Pokaż dialog edycji ceny
+            var dialog = new Window
+            {
+                Title = "Edycja ceny",
+                Width = 250,
+                Height = 120,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                ResizeMode = ResizeMode.NoResize
+            };
+
+            var stack = new StackPanel { Margin = new Thickness(10) };
+            var textBox = new TextBox { Text = currentValue, FontSize = 14, Margin = new Thickness(0, 0, 0, 10) };
+            textBox.SelectAll();
+
+            var buttonPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+            var btnOk = new Button { Content = "OK", Width = 60, Margin = new Thickness(0, 0, 5, 0) };
+            var btnCancel = new Button { Content = "Anuluj", Width = 60 };
+
+            btnOk.Click += async (s, e) =>
+            {
+                string newValue = textBox.Text.Trim().Replace(",", ".");
+                try
+                {
+                    using (SqlConnection conn = new SqlConnection(ConnectionString))
+                    {
+                        await conn.OpenAsync();
+                        string sql = "UPDATE HarmonogramDostaw SET Cena = @val, DataMod = GETDATE(), KtoMod = @kto WHERE LP = @lp";
+                        using (SqlCommand cmd = new SqlCommand(sql, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@val", decimal.Parse(newValue, CultureInfo.InvariantCulture));
+                            cmd.Parameters.AddWithValue("@kto", UserID ?? "0");
+                            cmd.Parameters.AddWithValue("@lp", selectedItem.LP);
+                            await cmd.ExecuteNonQueryAsync();
+                        }
+                    }
+
+                    // AUDIT LOG - logowanie zmiany ceny
+                    if (_auditService != null)
+                    {
+                        await _auditService.LogFieldChangeAsync(
+                            "HarmonogramDostaw", selectedItem.LP, AuditChangeSource.DoubleClick_Cena, "Cena",
+                            currentValue, newValue,
+                            new AuditContextInfo { Dostawca = selectedItem.Dostawca, DataOdbioru = selectedItem.DataOdbioru },
+                            _cts.Token);
+                    }
+
+                    dialog.Close();
+                    ShowToast("Cena zaktualizowana", ToastType.Success);
+                    await LoadDostawyAsync();
+                }
+                catch (Exception ex)
+                {
+                    ShowToast($"Błąd: {ex.Message}", ToastType.Error);
+                }
+            };
+
+            btnCancel.Click += (s, e) => dialog.Close();
+
+            textBox.KeyDown += (s, e) =>
+            {
+                if (e.Key == Key.Enter) btnOk.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                if (e.Key == Key.Escape) dialog.Close();
+            };
+
+            buttonPanel.Children.Add(btnOk);
+            buttonPanel.Children.Add(btnCancel);
+            stack.Children.Add(new TextBlock { Text = "Podaj nową wartość dla Cena:", Margin = new Thickness(0, 0, 0, 5) });
+            stack.Children.Add(textBox);
+            stack.Children.Add(buttonPanel);
+            dialog.Content = stack;
+
+            textBox.Focus();
             dialog.ShowDialog();
         }
 
@@ -3820,41 +3914,19 @@ namespace Kalendarz1.Zywiec.Kalendarz
             if (!string.IsNullOrEmpty(hodowca))
             {
                 LoadLpWstawieniaForHodowca(hodowca);
+                // Aktualizuj nagłówek z nazwą hodowcy
+                txtNazwaHodowcyHeader.Text = $"- {hodowca}";
+            }
+            else
+            {
+                txtNazwaHodowcyHeader.Text = "";
             }
         }
 
         private void CmbStatus_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (cmbStatus == null) return;
-            string status = cmbStatus.SelectedItem?.ToString();
-
-            switch (status)
-            {
-                case "Potwierdzony":
-                    cmbStatus.Background = new SolidColorBrush(Color.FromRgb(34, 197, 94)); // Green
-                    cmbStatus.Foreground = Brushes.White;
-                    break;
-                case "Anulowany":
-                    cmbStatus.Background = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Red
-                    cmbStatus.Foreground = Brushes.White;
-                    break;
-                case "Sprzedany":
-                    cmbStatus.Background = new SolidColorBrush(Color.FromRgb(59, 130, 246)); // Blue
-                    cmbStatus.Foreground = Brushes.White;
-                    break;
-                case "B.Wolny.":
-                    cmbStatus.Background = new SolidColorBrush(Color.FromRgb(250, 204, 21)); // Yellow
-                    cmbStatus.Foreground = Brushes.Black;
-                    break;
-                case "B.Kontr.":
-                    cmbStatus.Background = new SolidColorBrush(Color.FromRgb(168, 85, 247)); // Purple
-                    cmbStatus.Foreground = Brushes.White;
-                    break;
-                default:
-                    cmbStatus.Background = Brushes.White;
-                    cmbStatus.Foreground = Brushes.Black;
-                    break;
-            }
+            // Formatowanie kolorów usunięte na życzenie użytkownika
+            // ComboBox zachowuje domyślny wygląd
         }
 
         private void BtnMapa_Click(object sender, RoutedEventArgs e)
@@ -3885,6 +3957,49 @@ namespace Kalendarz1.Zywiec.Kalendarz
             if (!string.IsNullOrEmpty(lp))
             {
                 LoadWstawienia(lp);
+            }
+        }
+
+        private void BtnNoweWstawienie_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Otwórz okno nowego wstawienia
+                var wstawienieWindow = new WstawienieWindow();
+                wstawienieWindow.Owner = this;
+                wstawienieWindow.ShowDialog();
+
+                // Odśwież dane po zamknięciu okna
+                _ = LoadDostawyAsync();
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd: {ex.Message}", ToastType.Error);
+            }
+        }
+
+        private void BtnEdytujWstawienie_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string selectedLp = cmbLpWstawienia.SelectedItem?.ToString();
+                if (string.IsNullOrEmpty(selectedLp))
+                {
+                    ShowToast("Wybierz wstawienie do edycji", ToastType.Warning);
+                    return;
+                }
+
+                // Otwórz okno edycji wstawienia
+                var wstawienieWindow = new WstawienieWindow(selectedLp);
+                wstawienieWindow.Owner = this;
+                wstawienieWindow.ShowDialog();
+
+                // Odśwież dane po zamknięciu okna
+                _ = LoadDostawyAsync();
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd: {ex.Message}", ToastType.Error);
             }
         }
 

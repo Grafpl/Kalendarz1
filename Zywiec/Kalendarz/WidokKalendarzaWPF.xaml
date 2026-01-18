@@ -1925,7 +1925,7 @@
                                                         <Border Background="#EFF6FF" CornerRadius="12" Padding="10,4" Margin="0,0,6,0" BorderBrush="#BFDBFE" BorderThickness="1">
                                                             <StackPanel Orientation="Horizontal">
                                                                 <TextBlock Text="📅" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                                                <TextBlock Text="Doba: " FontSize="9" Foreground="#1D4ED8" VerticalAlignment="Center"/>
+                                                                <TextBlock Text="Doba obecna: " FontSize="9" Foreground="#1D4ED8" VerticalAlignment="Center"/>
                                                                 <TextBox x:Name="txtObecnaDoba" FontSize="9" Foreground="#1D4ED8" FontWeight="Bold" Background="Transparent" BorderThickness="0" Padding="0" IsReadOnly="True" VerticalAlignment="Center"/>
                                                             </StackPanel>
                                                         </Border>
@@ -1938,14 +1938,64 @@
                                                         </Border>
                                                     </StackPanel>
                                                 </Grid>
-                                                <!-- Wiersz wyboru LP + sztuki (kompaktowy) -->
+                                                <!-- Wiersz wyboru LP + przyciski + sztuki (kompaktowy) -->
                                                 <Grid Margin="0,0,0,8">
                                                     <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="120"/>
                                                         <ColumnDefinition Width="*"/>
                                                         <ColumnDefinition Width="Auto"/>
                                                     </Grid.ColumnDefinitions>
                                                     <ComboBox x:Name="cmbLpWstawienia" Grid.Column="0" FontSize="10" Height="26" Padding="6,4" Margin="0,0,8,0" SelectionChanged="CmbLpWstawienia_SelectionChanged"/>
-                                                    <Border Grid.Column="1" CornerRadius="4" Padding="8,4" Background="#ECFDF5" BorderBrush="#86EFAC" BorderThickness="1">
+                                                    <!-- Przyciski akcji -->
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
+                                                        <Button Content="➕ Nowe" Click="BtnNoweWstawienie_Click" Padding="8,4" FontSize="9" Margin="0,0,4,0" Cursor="Hand" ToolTip="Dodaj nowe wstawienie">
+                                                            <Button.Style>
+                                                                <Style TargetType="Button">
+                                                                    <Setter Property="Background" Value="#10B981"/>
+                                                                    <Setter Property="Foreground" Value="White"/>
+                                                                    <Setter Property="BorderThickness" Value="0"/>
+                                                                    <Setter Property="Template">
+                                                                        <Setter.Value>
+                                                                            <ControlTemplate TargetType="Button">
+                                                                                <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                                </Border>
+                                                                            </ControlTemplate>
+                                                                        </Setter.Value>
+                                                                    </Setter>
+                                                                    <Style.Triggers>
+                                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                                            <Setter Property="Background" Value="#059669"/>
+                                                                        </Trigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Button.Style>
+                                                        </Button>
+                                                        <Button Content="✏️ Edytuj" Click="BtnEdytujWstawienie_Click" Padding="8,4" FontSize="9" Margin="0,0,4,0" Cursor="Hand" ToolTip="Edytuj wybrane wstawienie">
+                                                            <Button.Style>
+                                                                <Style TargetType="Button">
+                                                                    <Setter Property="Background" Value="#3B82F6"/>
+                                                                    <Setter Property="Foreground" Value="White"/>
+                                                                    <Setter Property="BorderThickness" Value="0"/>
+                                                                    <Setter Property="Template">
+                                                                        <Setter.Value>
+                                                                            <ControlTemplate TargetType="Button">
+                                                                                <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                                </Border>
+                                                                            </ControlTemplate>
+                                                                        </Setter.Value>
+                                                                    </Setter>
+                                                                    <Style.Triggers>
+                                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                                            <Setter Property="Background" Value="#2563EB"/>
+                                                                        </Trigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Button.Style>
+                                                        </Button>
+                                                    </StackPanel>
+                                                    <Border Grid.Column="2" CornerRadius="4" Padding="8,4" Background="#ECFDF5" BorderBrush="#86EFAC" BorderThickness="1">
                                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                                             <TextBlock Text="🐔" FontSize="11" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                                             <TextBox x:Name="txtSztukiWstawienia" FontSize="12" FontWeight="Bold" Foreground="#166534" IsReadOnly="True" Background="Transparent" BorderThickness="0" Padding="0" VerticalAlignment="Center"/>
@@ -2065,7 +2115,13 @@
                     <TabItem Header="Hodowca">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <StackPanel Margin="8">
-                                <GroupBox Header="Dane hodowcy" Style="{StaticResource ModernGroupBoxStyle}">
+                                <GroupBox Style="{StaticResource ModernGroupBoxStyle}">
+                                    <GroupBox.Header>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="Dane hodowcy" VerticalAlignment="Center"/>
+                                            <TextBlock x:Name="txtNazwaHodowcyHeader" FontWeight="Bold" Foreground="#166534" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </GroupBox.Header>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="70"/>
