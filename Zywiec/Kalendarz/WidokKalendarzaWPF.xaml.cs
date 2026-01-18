@@ -85,6 +85,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
         private static readonly TimeSpan SURVEY_START = new TimeSpan(14, 30, 0);
         private static readonly TimeSpan SURVEY_END = new TimeSpan(15, 0, 0);
 
+        // Paleciak włączony/wyłączony
+        private bool _paleciakEnabled = true;
+
         // Cancellation token dla async operacji
         private CancellationTokenSource _cts = new CancellationTokenSource();
 
@@ -2914,10 +2917,34 @@ namespace Kalendarz1.Zywiec.Kalendarz
             CalculateKGSum3();
         }
 
-        // Dla kompatybilności wstecznej (jeśli checkbox jest używany)
-        private void ChkPaleciak_Changed(object sender, RoutedEventArgs e)
+        // Kliknięcie w nagłówek Paleciak - włącz/wyłącz
+        private void BorderPaleciakHeader_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
-            // Checkbox usunięty - paleciak stały 3150
+            _paleciakEnabled = !_paleciakEnabled;
+
+            if (_paleciakEnabled)
+            {
+                // Włącz paleciak
+                txtPaleciakHeader.Text = "Paleciak ✓";
+                borderPaleciakHeader.Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FFF59D"));
+                txtKGwPaleciak.Text = "3150";
+                txtKGwPaleciak2.Text = "3150";
+                txtKGwPaleciak3.Text = "3150";
+            }
+            else
+            {
+                // Wyłącz paleciak
+                txtPaleciakHeader.Text = "Paleciak ✗";
+                borderPaleciakHeader.Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FFCDD2"));
+                txtKGwPaleciak.Text = "";
+                txtKGwPaleciak2.Text = "";
+                txtKGwPaleciak3.Text = "";
+            }
+
+            // Przelicz sumy
+            CalculateKGSum();
+            CalculateKGSum2();
+            CalculateKGSum3();
         }
 
         // Obliczenie Suma KG dla wiersza 1: KG skrzyn (×264) + WagaSamochodu + Paleciak
