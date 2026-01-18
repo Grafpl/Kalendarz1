@@ -972,6 +972,9 @@ namespace Kalendarz1
                 "PanelReklamacji", "ReklamacjeJakosc", "RaportyHodowcow",
                 "AdminPermissions", "AnalizaPrzychodu", "PanelPortiera", "PanelLekarza",
                 "KontrolaGodzin", "CentrumSpotkan", "PanelPaniJola"
+<<<<<<< HEAD
+>>>>>>> Sprzedaż
+=======
 >>>>>>> Sprzedaż
             };
         }
@@ -1161,6 +1164,15 @@ namespace Kalendarz1
                         "Kompleksowa analiza sprzedaży - wykresy, trendy, porównanie miesięczne, top odbiorcy",
                         Color.FromArgb(41, 121, 255), // Niebieski #2979FF (gradient sprzedaży)
                         () => new HandlowiecDashboardWindow(), "📊", "Dashboard"),
+
+                    new MenuItemConfig("PanelPaniJola", "Panel Pani Jola",
+                        "Uproszczony widok zamówień i produktów - duże kafelki, łatwa nawigacja",
+                        Color.FromArgb(30, 136, 229), // Niebieski #1E88E5
+                        () => {
+                            var connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+                            var connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+                            return new WPF.PanelPaniJolaWindow(connLibra, connHandel);
+                        }, "📞"),
 
                     new MenuItemConfig("PanelPaniJola", "Panel Pani Jola",
                         "Uproszczony widok zamówień i produktów - duże kafelki, łatwa nawigacja",
