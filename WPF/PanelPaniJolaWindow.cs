@@ -977,7 +977,7 @@ namespace Kalendarz1.WPF
 
             _camera1Status = new TextBlock
             {
-                Text = "⏳ Łączenie...",
+                Text = "Laczenie...",
                 FontSize = 18,
                 Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
                 HorizontalAlignment = HorizontalAlignment.Center,
@@ -988,22 +988,9 @@ namespace Kalendarz1.WPF
             var label1 = CreateCameraLabel(_cameras.Count > 0 ? _cameras[0].Name : "KAMERA 1");
             camera1Grid.Children.Add(label1);
 
-            // Overlay do przechwytywania kliknięć (VideoView/WindowsFormsHost blokuje eventy)
-            // Alpha=1 jest prawie niewidoczne ale przechwytuje kliknięcia (Transparent nie działa)
-            var clickOverlay1 = new Border
-            {
-                Background = new SolidColorBrush(Color.FromArgb(1, 0, 0, 0)),
-                Cursor = System.Windows.Input.Cursors.Hand,
-                HorizontalAlignment = HorizontalAlignment.Stretch,
-                VerticalAlignment = VerticalAlignment.Stretch
-            };
-            clickOverlay1.MouseLeftButtonDown += (s, e) =>
-            {
-                LogCamera("[CLICK] Kliknięto kamerę 1");
-                OpenFullscreenRtsp(0);
-                e.Handled = true;
-            };
-            camera1Grid.Children.Add(clickOverlay1);
+            // Przycisk powiększenia w prawym górnym rogu - NAD obrazem kamery
+            var fullscreenBtn1 = CreateFullscreenButton(0);
+            camera1Grid.Children.Add(fullscreenBtn1);
 
             camera1Border.Child = camera1Grid;
             Grid.SetColumn(camera1Border, 0);
@@ -1029,7 +1016,7 @@ namespace Kalendarz1.WPF
 
             _camera2Status = new TextBlock
             {
-                Text = "⏳ Łączenie...",
+                Text = "Laczenie...",
                 FontSize = 18,
                 Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
                 HorizontalAlignment = HorizontalAlignment.Center,
@@ -1040,22 +1027,9 @@ namespace Kalendarz1.WPF
             var label2 = CreateCameraLabel(_cameras.Count > 1 ? _cameras[1].Name : "KAMERA 2");
             camera2Grid.Children.Add(label2);
 
-            // Overlay do przechwytywania kliknięć (VideoView/WindowsFormsHost blokuje eventy)
-            // Alpha=1 jest prawie niewidoczne ale przechwytuje kliknięcia (Transparent nie działa)
-            var clickOverlay2 = new Border
-            {
-                Background = new SolidColorBrush(Color.FromArgb(1, 0, 0, 0)),
-                Cursor = System.Windows.Input.Cursors.Hand,
-                HorizontalAlignment = HorizontalAlignment.Stretch,
-                VerticalAlignment = VerticalAlignment.Stretch
-            };
-            clickOverlay2.MouseLeftButtonDown += (s, e) =>
-            {
-                LogCamera("[CLICK] Kliknięto kamerę 2");
-                OpenFullscreenRtsp(1);
-                e.Handled = true;
-            };
-            camera2Grid.Children.Add(clickOverlay2);
+            // Przycisk powiększenia w prawym górnym rogu - NAD obrazem kamery
+            var fullscreenBtn2 = CreateFullscreenButton(1);
+            camera2Grid.Children.Add(fullscreenBtn2);
 
             camera2Border.Child = camera2Grid;
             Grid.SetColumn(camera2Border, 1);
@@ -1087,6 +1061,46 @@ namespace Kalendarz1.WPF
                 HorizontalAlignment = HorizontalAlignment.Center
             };
             return label;
+        }
+
+        /// <summary>
+        /// Tworzy przycisk powiększenia kamery w prawym górnym rogu
+        /// </summary>
+        private Button CreateFullscreenButton(int cameraIndex)
+        {
+            var btn = new Button
+            {
+                Content = "[ ]",
+                FontSize = 20,
+                FontWeight = FontWeights.Bold,
+                Width = 50,
+                Height = 50,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(0, 10, 10, 0),
+                Background = new SolidColorBrush(Color.FromArgb(200, 52, 152, 219)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+
+            // Styl hover
+            btn.MouseEnter += (s, e) =>
+            {
+                btn.Background = new SolidColorBrush(Color.FromArgb(255, 41, 128, 185));
+            };
+            btn.MouseLeave += (s, e) =>
+            {
+                btn.Background = new SolidColorBrush(Color.FromArgb(200, 52, 152, 219));
+            };
+
+            btn.Click += (s, e) =>
+            {
+                LogCamera($"[CLICK] Przycisk fullscreen kamery {cameraIndex + 1}");
+                OpenFullscreenRtsp(cameraIndex);
+            };
+
+            return btn;
         }
 
         /// <summary>
@@ -1151,7 +1165,7 @@ namespace Kalendarz1.WPF
                     else
                         _camera2Connected = true;
 
-                    LogCamera($"[CAM{cameraIndex + 1}] ✓ Połączono i odtwarza");
+                    LogCamera($"[CAM{cameraIndex + 1}] OK Polaczono i odtwarza");
                 });
 
                 // Event: błąd
@@ -1159,7 +1173,7 @@ namespace Kalendarz1.WPF
                 {
                     if (statusText != null)
                     {
-                        statusText.Text = "❌ Błąd - ponawiam...";
+                        statusText.Text = "BLAD - ponawiam...";
                         statusText.Foreground = new SolidColorBrush(Color.FromRgb(231, 76, 60));
                         statusText.Visibility = Visibility.Visible;
                     }
@@ -1169,7 +1183,7 @@ namespace Kalendarz1.WPF
                     else
                         _camera2Connected = false;
 
-                    LogCamera($"[CAM{cameraIndex + 1}] ✗ Błąd połączenia");
+                    LogCamera($"[CAM{cameraIndex + 1}] BLAD polaczenia");
                 });
 
                 // Event: koniec strumienia (rozłączenie)
@@ -1182,7 +1196,7 @@ namespace Kalendarz1.WPF
 
                     if (statusText != null)
                     {
-                        statusText.Text = "⏳ Rozłączono - ponawiam...";
+                        statusText.Text = "Rozlaczono - ponawiam...";
                         statusText.Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15));
                         statusText.Visibility = Visibility.Visible;
                     }
@@ -1204,7 +1218,7 @@ namespace Kalendarz1.WPF
                 // Ustaw status
                 if (statusText != null)
                 {
-                    statusText.Text = "⏳ Łączenie...";
+                    statusText.Text = "Laczenie...";
                     statusText.Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166));
                     statusText.Visibility = Visibility.Visible;
                 }
@@ -1250,7 +1264,7 @@ namespace Kalendarz1.WPF
 
         /// <summary>
         /// Otwiera kamerę w trybie pełnoekranowym (na podstrumieniu s1).
-        /// Kliknięcie gdziekolwiek na pełnym ekranie zamyka widok.
+        /// Przycisk X w prawym górnym rogu zamyka widok.
         /// </summary>
         private void OpenFullscreenRtsp(int cameraIndex)
         {
@@ -1265,8 +1279,7 @@ namespace Kalendarz1.WPF
                 WindowStyle = WindowStyle.None,
                 Background = Brushes.Black,
                 ResizeMode = ResizeMode.NoResize,
-                Topmost = true,
-                Cursor = System.Windows.Input.Cursors.Hand
+                Topmost = true
             };
 
             var fullscreenGrid = new Grid();
@@ -1290,25 +1303,40 @@ namespace Kalendarz1.WPF
 
             LogCamera($"[FULLSCREEN] Otwarto kamerę {cameraIndex + 1}: {camera.RtspUrl}");
 
-            // Overlay do przechwytywania kliknięć (VideoView/WindowsFormsHost blokuje eventy)
-            var fullscreenOverlay = new Border
+            // Przycisk zamknięcia w prawym górnym rogu
+            var closeBtn = new Button
             {
-                Background = new SolidColorBrush(Color.FromArgb(1, 0, 0, 0)),
-                Cursor = System.Windows.Input.Cursors.Hand,
-                HorizontalAlignment = HorizontalAlignment.Stretch,
-                VerticalAlignment = VerticalAlignment.Stretch
+                Content = "X",
+                FontSize = 28,
+                FontWeight = FontWeights.Bold,
+                Width = 60,
+                Height = 60,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(0, 20, 20, 0),
+                Background = new SolidColorBrush(Color.FromArgb(200, 231, 76, 60)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand
             };
-            fullscreenOverlay.MouseLeftButtonDown += (s, e) =>
+            closeBtn.MouseEnter += (s, e) =>
             {
-                LogCamera("[FULLSCREEN] Kliknięto - zamykam");
+                closeBtn.Background = new SolidColorBrush(Color.FromArgb(255, 192, 57, 43));
+            };
+            closeBtn.MouseLeave += (s, e) =>
+            {
+                closeBtn.Background = new SolidColorBrush(Color.FromArgb(200, 231, 76, 60));
+            };
+            closeBtn.Click += (s, e) =>
+            {
+                LogCamera("[FULLSCREEN] Przycisk X - zamykam");
                 fullscreenPlayer.Stop();
                 fullscreenPlayer.Dispose();
                 fullscreenWindow.Close();
-                e.Handled = true;
             };
-            fullscreenGrid.Children.Add(fullscreenOverlay);
+            fullscreenGrid.Children.Add(closeBtn);
 
-            // Nazwa kamery (mała etykieta w rogu)
+            // Nazwa kamery (mała etykieta w lewym dolnym rogu)
             var nameLabel = new Border
             {
                 Background = new SolidColorBrush(Color.FromArgb(150, 0, 0, 0)),
@@ -1317,11 +1345,11 @@ namespace Kalendarz1.WPF
                 Margin = new Thickness(20, 0, 0, 20),
                 Padding = new Thickness(12, 6, 12, 6),
                 CornerRadius = new CornerRadius(5),
-                IsHitTestVisible = false // Nie blokuje kliknięć
+                IsHitTestVisible = false
             };
             nameLabel.Child = new TextBlock
             {
-                Text = $"{camera.Name} (kliknij aby zamknąć)",
+                Text = $"{camera.Name} (ESC aby zamknac)",
                 FontSize = 16,
                 Foreground = Brushes.White
             };
