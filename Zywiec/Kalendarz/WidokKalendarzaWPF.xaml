@@ -948,22 +948,30 @@
                 <TextBlock x:Name="txtUserName" Text="-"/>
             </StackPanel>
 
-            <!-- KALENDARZ - ROZWIJANY -->
+            <!-- KALENDARZ - ROZWIJANY z nawigacją w nagłówku -->
             <Border Grid.Row="2" Background="White" CornerRadius="4" Padding="4" Margin="0,0,0,3">
                 <Expander x:Name="expKalendarz" IsExpanded="False" BorderThickness="0">
                     <Expander.Header>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="📅" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBlock Text="Kalendarz" FontWeight="SemiBold" FontSize="10" Foreground="#1E293B" VerticalAlignment="Center"/>
-                        </StackPanel>
+                        <Grid Width="320">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                <TextBlock Text="📅" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <TextBlock Text="Kalendarz" FontWeight="SemiBold" FontSize="10" Foreground="#1E293B" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <!-- Nawigacja w nagłówku -->
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Content="◀" Style="{StaticResource NavButtonStyle}" Click="BtnPreviousWeek_Click" Width="30" Height="22" Padding="0" Margin="2,0" ToolTip="Poprzedni tydzień" FontSize="10"/>
+                                <Button Content="Dziś" Style="{StaticResource MainButtonStyle}" Click="BtnToday_Click" Width="45" Height="22" Padding="0" Margin="2,0" FontSize="9"/>
+                                <Button Content="▶" Style="{StaticResource NavButtonStyle}" Click="BtnNextWeek_Click" Width="30" Height="22" Padding="0" Margin="2,0" ToolTip="Następny tydzień" FontSize="10"/>
+                            </StackPanel>
+                        </Grid>
                     </Expander.Header>
                     <StackPanel Margin="0,4,0,0">
                         <Calendar x:Name="calendarMain" HorizontalAlignment="Center" SelectedDatesChanged="CalendarMain_SelectedDatesChanged"/>
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
-                            <Button Content="◀" Style="{StaticResource NavButtonStyle}" Click="BtnPreviousWeek_Click" Width="40" Margin="2,0" ToolTip="Poprzedni tydzień"/>
-                            <Button Content="Dziś" Style="{StaticResource MainButtonStyle}" Click="BtnToday_Click" Width="60" Margin="2,0"/>
-                            <Button Content="▶" Style="{StaticResource NavButtonStyle}" Click="BtnNextWeek_Click" Width="40" Margin="2,0" ToolTip="Następny tydzień"/>
-                        </StackPanel>
                     </StackPanel>
                 </Expander>
             </Border>
@@ -986,14 +994,13 @@
                                     <!-- ═══════════════════════════════════════════════════════════════ -->
                                     <Border Background="White" CornerRadius="6" Padding="8" Margin="0,0,0,6" BorderBrush="#E2E8F0" BorderThickness="1">
                                         <StackPanel>
-                                            <!-- Nagłówek z przyciskiem Zapisz -->
+                                            <!-- Nagłówek z przyciskiem Zapisz po LEWEJ -->
                                             <Grid Margin="0,0,0,6">
                                                 <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
-                                                <TextBlock Text="📋 DANE DOSTAWY" FontWeight="Bold" FontSize="10" Foreground="#1E293B" VerticalAlignment="Center"/>
-                                                <Button Grid.Column="1" Click="BtnZapiszDostawe_Click" Padding="10,4" FontSize="9" Cursor="Hand" ToolTip="Zapisz dostawę">
+                                                <Button Grid.Column="0" Click="BtnZapiszDostawe_Click" Padding="10,4" FontSize="9" Cursor="Hand" ToolTip="Zapisz dostawę" Margin="0,0,8,0">
                                                     <StackPanel Orientation="Horizontal">
                                                         <TextBlock Text="💾" Margin="0,0,4,0"/>
                                                         <TextBlock Text="ZAPISZ"/>
@@ -1020,58 +1027,59 @@
                                                         </Style>
                                                     </Button.Style>
                                                 </Button>
+                                                <TextBlock Grid.Column="1" Text="📋 DANE DOSTAWY" FontWeight="Bold" FontSize="10" Foreground="#1E293B" VerticalAlignment="Center"/>
                                             </Grid>
 
-                                            <!-- Wiersz 1: Główne pola -->
+                                            <!-- Wiersz 1: Główne pola - WIĘKSZE -->
                                             <Grid Margin="0,0,0,4">
                                                 <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="55"/>
-                                                    <ColumnDefinition Width="50"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="60"/>
-                                                    <ColumnDefinition Width="35"/>
-                                                    <ColumnDefinition Width="50"/>
+                                                    <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
                                                 <!-- Waga -->
-                                                <Border Grid.Column="0" Background="#ECFDF5" CornerRadius="4" Padding="3,2" Margin="0,0,2,0" BorderBrush="#A7F3D0" BorderThickness="1">
+                                                <Border Grid.Column="0" Background="#ECFDF5" CornerRadius="4" Padding="6,4" Margin="0,0,2,0" BorderBrush="#A7F3D0" BorderThickness="1">
                                                     <StackPanel>
-                                                        <TextBlock Text="⚖️ Waga" FontSize="7" Foreground="#059669" FontWeight="Medium"/>
-                                                        <TextBox x:Name="txtWagaDek" FontSize="11" FontWeight="Bold" Foreground="#065F46" Background="Transparent" BorderThickness="0" Padding="0" TextChanged="TxtWagaDek_TextChanged"/>
+                                                        <TextBlock Text="⚖️ Waga" FontSize="8" Foreground="#059669" FontWeight="Medium"/>
+                                                        <TextBox x:Name="txtWagaDek" FontSize="13" FontWeight="Bold" Foreground="#065F46" Background="Transparent" BorderThickness="0" Padding="0" TextChanged="TxtWagaDek_TextChanged"/>
                                                     </StackPanel>
                                                 </Border>
                                                 <!-- Szt/szuf -->
-                                                <Border Grid.Column="1" Background="#EFF6FF" CornerRadius="4" Padding="3,2" Margin="2,0" BorderBrush="#93C5FD" BorderThickness="1">
+                                                <Border Grid.Column="1" Background="#EFF6FF" CornerRadius="4" Padding="6,4" Margin="2,0" BorderBrush="#93C5FD" BorderThickness="1">
                                                     <StackPanel>
-                                                        <TextBlock Text="📦 Szt/szuf" FontSize="7" Foreground="#2563EB" FontWeight="Medium"/>
-                                                        <TextBox x:Name="txtSztNaSzuflade" FontSize="11" FontWeight="Bold" Foreground="#1E40AF" Background="Transparent" BorderThickness="0" Padding="0" TextChanged="TxtSztNaSzuflade_TextChanged"/>
+                                                        <TextBlock Text="📦 Szt/szuf" FontSize="8" Foreground="#2563EB" FontWeight="Medium"/>
+                                                        <TextBox x:Name="txtSztNaSzuflade" FontSize="13" FontWeight="Bold" Foreground="#1E40AF" Background="Transparent" BorderThickness="0" Padding="0" TextChanged="TxtSztNaSzuflade_TextChanged"/>
                                                     </StackPanel>
                                                 </Border>
                                                 <!-- Sztuki -->
-                                                <Border Grid.Column="2" Background="#FEF3C7" CornerRadius="4" Padding="3,2" Margin="2,0" BorderBrush="#FCD34D" BorderThickness="1">
+                                                <Border Grid.Column="2" Background="#FEF3C7" CornerRadius="4" Padding="6,4" Margin="2,0" BorderBrush="#FCD34D" BorderThickness="1">
                                                     <StackPanel>
-                                                        <TextBlock Text="🐔 Sztuki" FontSize="7" Foreground="#D97706" FontWeight="Medium"/>
-                                                        <TextBox x:Name="txtSztuki" FontSize="11" FontWeight="Bold" Foreground="#92400E" Background="Transparent" BorderThickness="0" Padding="0"/>
+                                                        <TextBlock Text="🐔 Sztuki" FontSize="8" Foreground="#D97706" FontWeight="Medium"/>
+                                                        <TextBox x:Name="txtSztuki" FontSize="13" FontWeight="Bold" Foreground="#92400E" Background="Transparent" BorderThickness="0" Padding="0"/>
                                                     </StackPanel>
                                                 </Border>
                                                 <!-- Auta -->
-                                                <Border Grid.Column="3" Background="#E0E7FF" CornerRadius="4" Padding="3,2" Margin="2,0" BorderBrush="#A5B4FC" BorderThickness="1">
+                                                <Border Grid.Column="3" Background="#E0E7FF" CornerRadius="4" Padding="6,4" Margin="2,0" BorderBrush="#A5B4FC" BorderThickness="1">
                                                     <StackPanel>
-                                                        <TextBlock Text="🚚 Auta" FontSize="7" Foreground="#4F46E5" FontWeight="Medium"/>
-                                                        <TextBox x:Name="txtAuta" FontSize="11" FontWeight="Bold" Foreground="#3730A3" Background="Transparent" BorderThickness="0" Padding="0"/>
+                                                        <TextBlock Text="🚚 Auta" FontSize="8" Foreground="#4F46E5" FontWeight="Medium"/>
+                                                        <TextBox x:Name="txtAuta" FontSize="13" FontWeight="Bold" Foreground="#3730A3" Background="Transparent" BorderThickness="0" Padding="0"/>
                                                     </StackPanel>
                                                 </Border>
                                                 <!-- Cena -->
-                                                <Border Grid.Column="4" Background="#FCE7F3" CornerRadius="4" Padding="3,2" Margin="2,0" BorderBrush="#F9A8D4" BorderThickness="1">
+                                                <Border Grid.Column="4" Background="#FCE7F3" CornerRadius="4" Padding="6,4" Margin="2,0" BorderBrush="#F9A8D4" BorderThickness="1">
                                                     <StackPanel>
-                                                        <TextBlock Text="💰 Cena" FontSize="7" Foreground="#DB2777" FontWeight="Medium"/>
-                                                        <TextBox x:Name="txtCena" FontSize="11" FontWeight="Bold" Foreground="#9D174D" Background="Transparent" BorderThickness="0" Padding="0"/>
+                                                        <TextBlock Text="💰 Cena" FontSize="8" Foreground="#DB2777" FontWeight="Medium"/>
+                                                        <TextBox x:Name="txtCena" FontSize="13" FontWeight="Bold" Foreground="#9D174D" Background="Transparent" BorderThickness="0" Padding="0"/>
                                                     </StackPanel>
                                                 </Border>
-                                                <!-- Dodatek -->
-                                                <Border Grid.Column="5" Background="#F1F5F9" CornerRadius="4" Padding="3,2" Margin="2,0,0,0" BorderBrush="#CBD5E1" BorderThickness="1">
+                                                <!-- Dodatek - taka sama szerokość jak Cena -->
+                                                <Border Grid.Column="5" Background="#F1F5F9" CornerRadius="4" Padding="6,4" Margin="2,0,0,0" BorderBrush="#CBD5E1" BorderThickness="1">
                                                     <StackPanel>
-                                                        <TextBlock Text="➕ Dodatek" FontSize="7" Foreground="#64748B" FontWeight="Medium"/>
-                                                        <TextBox x:Name="txtDodatek" FontSize="11" FontWeight="Bold" Foreground="#334155" Background="Transparent" BorderThickness="0" Padding="0"/>
+                                                        <TextBlock Text="➕ Dodatek" FontSize="8" Foreground="#64748B" FontWeight="Medium"/>
+                                                        <TextBox x:Name="txtDodatek" FontSize="13" FontWeight="Bold" Foreground="#334155" Background="Transparent" BorderThickness="0" Padding="0"/>
                                                     </StackPanel>
                                                 </Border>
                                             </Grid>
@@ -1165,18 +1173,29 @@
                                     </Border>
 
                                     <!-- ═══════════════════════════════════════════════════════════════ -->
-                                    <!-- SEKCJA 2: NOTATKI DOSTAWY -->
+                                    <!-- SEKCJA 2: NOTATKI DOSTAWY - WIĘKSZE -->
                                     <!-- ═══════════════════════════════════════════════════════════════ -->
-                                    <Border Background="White" CornerRadius="6" Padding="6" Margin="0,0,0,6" BorderBrush="#E2E8F0" BorderThickness="1">
+                                    <Border Background="White" CornerRadius="6" Padding="8" Margin="0,0,0,6" BorderBrush="#E2E8F0" BorderThickness="1">
                                         <StackPanel>
-                                            <TextBlock Text="📝 NOTATKI DOSTAWY" FontWeight="Bold" FontSize="9" Foreground="#64748B" Margin="0,0,0,4"/>
-                                            <DataGrid x:Name="dgNotatkiKarta" MaxHeight="120" FontSize="9" IsReadOnly="True" AutoGenerateColumns="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="1" BorderBrush="#E2E8F0" Background="#FAFAFA">
+                                            <TextBlock Text="📝 NOTATKI DOSTAWY" FontWeight="Bold" FontSize="11" Foreground="#1E293B" Margin="0,0,0,6"/>
+                                            <DataGrid x:Name="dgNotatkiKarta" MaxHeight="150" FontSize="11" IsReadOnly="True" AutoGenerateColumns="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="1" BorderBrush="#E2E8F0" Background="#FAFAFA" RowHeight="28">
                                                 <DataGrid.Columns>
-                                                    <DataGridTextColumn Header="Data" Binding="{Binding DataUtworzenia, StringFormat=MM-dd HH:mm}" Width="80"/>
-                                                    <DataGridTextColumn Header="Kto" Binding="{Binding KtoDodal}" Width="60"/>
-                                                    <DataGridTextColumn Header="Treść" Binding="{Binding Tresc}" Width="*">
+                                                    <DataGridTextColumn Header="Data" Binding="{Binding DataUtworzenia, StringFormat=MM-dd HH:mm}" Width="100">
                                                         <DataGridTextColumn.ElementStyle>
-                                                            <Style TargetType="TextBlock"><Setter Property="TextWrapping" Value="Wrap"/></Style>
+                                                            <Style TargetType="TextBlock"><Setter Property="Padding" Value="4,2"/></Style>
+                                                        </DataGridTextColumn.ElementStyle>
+                                                    </DataGridTextColumn>
+                                                    <DataGridTextColumn Header="Kto" Binding="{Binding KtoDodal}" Width="80">
+                                                        <DataGridTextColumn.ElementStyle>
+                                                            <Style TargetType="TextBlock"><Setter Property="Padding" Value="4,2"/></Style>
+                                                        </DataGridTextColumn.ElementStyle>
+                                                    </DataGridTextColumn>
+                                                    <DataGridTextColumn Header="Treść notatki" Binding="{Binding Tresc}" Width="*">
+                                                        <DataGridTextColumn.ElementStyle>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="TextWrapping" Value="Wrap"/>
+                                                                <Setter Property="Padding" Value="4,2"/>
+                                                            </Style>
                                                         </DataGridTextColumn.ElementStyle>
                                                     </DataGridTextColumn>
                                                 </DataGrid.Columns>
@@ -1292,48 +1311,66 @@
                                     </Border>
 
                                     <!-- ═══════════════════════════════════════════════════════════════ -->
-                                    <!-- SEKCJA 4: WSTAWIENIA - Historia dostaw (ROZWIJANE) -->
+                                    <!-- SEKCJA 4: WSTAWIENIA - Historia dostaw (ZAWSZE WIDOCZNE) -->
                                     <!-- ═══════════════════════════════════════════════════════════════ -->
-                                    <Border Background="White" CornerRadius="6" Padding="6" BorderBrush="#E2E8F0" BorderThickness="1">
-                                        <Expander x:Name="expWstawienia" IsExpanded="False" BorderThickness="0">
-                                            <Expander.Header>
-                                                <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Text="📊" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                                    <TextBlock Text="Wstawienia" FontWeight="SemiBold" FontSize="10" Foreground="#1E293B" VerticalAlignment="Center"/>
-                                                    <Border Background="#FEE2E2" CornerRadius="10" Padding="6,2" Margin="8,0,0,0">
+                                    <Border Background="White" CornerRadius="6" Padding="8" BorderBrush="#E2E8F0" BorderThickness="1">
+                                        <StackPanel>
+                                            <!-- Nagłówek z badge'ami informacyjnymi -->
+                                            <Grid Margin="0,0,0,8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="📊 WSTAWIENIA" FontWeight="Bold" FontSize="11" Foreground="#1E293B" VerticalAlignment="Center"/>
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                                    <!-- Badge: Pozostało -->
+                                                    <Border Background="#FEE2E2" CornerRadius="10" Padding="8,3" Margin="0,0,6,0">
                                                         <StackPanel Orientation="Horizontal">
-                                                            <TextBlock Text="Pozostało: " FontSize="8" Foreground="#DC2626"/>
-                                                            <TextBlock x:Name="txtSztukiPozostale" FontSize="8" Foreground="#DC2626" FontWeight="Bold"/>
+                                                            <TextBlock Text="🐔 Pozostało: " FontSize="9" Foreground="#DC2626" FontWeight="Medium"/>
+                                                            <TextBlock x:Name="txtSztukiPozostale" FontSize="9" Foreground="#DC2626" FontWeight="Bold"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                    <!-- Badge: Doba -->
+                                                    <Border Background="#DBEAFE" CornerRadius="10" Padding="8,3" Margin="0,0,6,0">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="📅 Doba: " FontSize="9" Foreground="#1D4ED8" FontWeight="Medium"/>
+                                                            <TextBox x:Name="txtObecnaDoba" FontSize="9" Foreground="#1D4ED8" FontWeight="Bold" Background="Transparent" BorderThickness="0" Padding="0" IsReadOnly="True"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                    <!-- Badge: Data wstawienia -->
+                                                    <Border Background="#D1FAE5" CornerRadius="10" Padding="8,3">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="📆 " FontSize="9" Foreground="#059669"/>
+                                                            <TextBox x:Name="txtDataWstawienia" FontSize="9" Foreground="#059669" FontWeight="Bold" Background="Transparent" BorderThickness="0" Padding="0" IsReadOnly="True"/>
                                                         </StackPanel>
                                                     </Border>
                                                 </StackPanel>
-                                            </Expander.Header>
-                                            <StackPanel Margin="0,8,0,0">
-                                                <Grid Margin="0,0,0,8">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="80"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <ComboBox x:Name="cmbLpWstawienia" Grid.Column="0" FontSize="10" Padding="6,4" Margin="0,0,8,0" SelectionChanged="CmbLpWstawienia_SelectionChanged"/>
-                                                    <TextBox x:Name="txtSztukiWstawienia" Grid.Column="1" FontSize="10" Padding="6,4" IsReadOnly="True" Background="#F8FAFC" BorderBrush="#E2E8F0"/>
-                                                </Grid>
-                                                <DataGrid x:Name="dgWstawienia" MaxHeight="120" FontSize="9" AutoGenerateColumns="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="1" BorderBrush="#E2E8F0" Background="#FAFAFA">
-                                                    <DataGrid.Columns>
-                                                        <DataGridTextColumn Header="Data" Binding="{Binding DataOdbioru, StringFormat=MM-dd ddd}" Width="65"/>
-                                                        <DataGridTextColumn Header="A" Binding="{Binding Auta}" Width="25"/>
-                                                        <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDekDisplay}" Width="55"/>
-                                                        <DataGridTextColumn Header="Waga" Binding="{Binding WagaDek}" Width="40"/>
-                                                        <DataGridTextColumn Header="Status" Binding="{Binding Bufor}" Width="*"/>
-                                                    </DataGrid.Columns>
-                                                </DataGrid>
-                                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                                    <TextBlock Text="Doba:" FontSize="9" Foreground="#64748B" VerticalAlignment="Center"/>
-                                                    <TextBox x:Name="txtObecnaDoba" Width="35" Margin="4,0,12,0" FontSize="9" Padding="4,2" IsReadOnly="True" Background="#F8FAFC" BorderBrush="#E2E8F0"/>
-                                                    <TextBlock Text="Data:" FontSize="9" Foreground="#64748B" VerticalAlignment="Center"/>
-                                                    <TextBox x:Name="txtDataWstawienia" Width="70" Margin="4,0,0,0" FontSize="9" Padding="4,2" IsReadOnly="True" Background="#F8FAFC" BorderBrush="#E2E8F0"/>
-                                                </StackPanel>
-                                            </StackPanel>
-                                        </Expander>
+                                            </Grid>
+                                            <!-- Wiersz wyboru LP + sztuki -->
+                                            <Grid Margin="0,0,0,8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="100"/>
+                                                </Grid.ColumnDefinitions>
+                                                <ComboBox x:Name="cmbLpWstawienia" Grid.Column="0" FontSize="10" Padding="6,4" Margin="0,0,8,0" SelectionChanged="CmbLpWstawienia_SelectionChanged"/>
+                                                <Border Grid.Column="1" Background="#F0FDF4" CornerRadius="4" Padding="6,4" BorderBrush="#A7F3D0" BorderThickness="1">
+                                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                        <TextBlock Text="🐔 " FontSize="10" VerticalAlignment="Center"/>
+                                                        <TextBox x:Name="txtSztukiWstawienia" FontSize="11" FontWeight="Bold" Foreground="#059669" IsReadOnly="True" Background="Transparent" BorderThickness="0" Padding="0"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </Grid>
+                                            <!-- Tabela wstawień -->
+                                            <DataGrid x:Name="dgWstawienia" MaxHeight="140" FontSize="10" AutoGenerateColumns="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="1" BorderBrush="#E2E8F0" Background="#FAFAFA" RowHeight="24">
+                                                <DataGrid.Columns>
+                                                    <DataGridTextColumn Header="📅 Data" Binding="{Binding DataOdbioru, StringFormat=MM-dd ddd}" Width="75"/>
+                                                    <DataGridTextColumn Header="🚚" Binding="{Binding Auta}" Width="30"/>
+                                                    <DataGridTextColumn Header="🐔 Sztuki" Binding="{Binding SztukiDekDisplay}" Width="70"/>
+                                                    <DataGridTextColumn Header="⚖️ Waga" Binding="{Binding WagaDek}" Width="55"/>
+                                                    <DataGridTextColumn Header="📋 Status" Binding="{Binding Bufor}" Width="*"/>
+                                                </DataGrid.Columns>
+                                            </DataGrid>
+                                        </StackPanel>
                                     </Border>
                                 </StackPanel>
                             </ScrollViewer>
