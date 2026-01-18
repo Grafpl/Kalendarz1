@@ -365,7 +365,7 @@
                             <Ellipse.Triggers>
                                 <EventTrigger RoutedEvent="Loaded">
                                     <BeginStoryboard>
-                                        <Storyboard RepeatBehavior="Forever" BeginTime="0:0:3">
+                                        <Storyboard RepeatBehavior="Forever">
                                             <DoubleAnimation Storyboard.TargetProperty="(Canvas.Top)" From="600" To="-50" Duration="0:0:16"/>
                                             <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="0.5" Duration="0:0:2"/>
                                             <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0.5" To="0" BeginTime="0:0:14" Duration="0:0:2"/>
@@ -378,7 +378,7 @@
                             <Ellipse.Triggers>
                                 <EventTrigger RoutedEvent="Loaded">
                                     <BeginStoryboard>
-                                        <Storyboard RepeatBehavior="Forever" BeginTime="0:0:5">
+                                        <Storyboard RepeatBehavior="Forever">
                                             <DoubleAnimation Storyboard.TargetProperty="(Canvas.Top)" From="650" To="-50" Duration="0:0:20"/>
                                             <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="0.4" Duration="0:0:2"/>
                                             <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0.4" To="0" BeginTime="0:0:18" Duration="0:0:2"/>
@@ -391,7 +391,7 @@
                             <Ellipse.Triggers>
                                 <EventTrigger RoutedEvent="Loaded">
                                     <BeginStoryboard>
-                                        <Storyboard RepeatBehavior="Forever" BeginTime="0:0:2">
+                                        <Storyboard RepeatBehavior="Forever">
                                             <DoubleAnimation Storyboard.TargetProperty="(Canvas.Top)" From="580" To="-50" Duration="0:0:14"/>
                                             <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="0.6" Duration="0:0:2"/>
                                             <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0.6" To="0" BeginTime="0:0:12" Duration="0:0:2"/>

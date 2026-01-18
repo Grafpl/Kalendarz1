@@ -128,13 +128,16 @@ namespace Kalendarz1.Zadania
                     {
                         while (reader.Read())
                         {
+                            // Sprawdź czy TerminWykonania nie jest NULL
+                            if (reader.IsDBNull(2)) continue;
+
                             tasks.Add(new TaskNotification
                             {
                                 Id = reader.GetInt32(0),
                                 Title = reader.IsDBNull(1) ? "" : reader.GetString(1),
                                 DueDate = reader.GetDateTime(2),
-                                Priority = reader.GetInt32(3),
-                                IsCompleted = reader.GetBoolean(4),
+                                Priority = reader.IsDBNull(3) ? 1 : reader.GetInt32(3),
+                                IsCompleted = reader.IsDBNull(4) ? false : reader.GetBoolean(4),
                                 Description = reader.IsDBNull(5) ? "" : reader.GetString(5),
                                 CreatedDate = reader.IsDBNull(6) ? DateTime.Now : reader.GetDateTime(6),
                                 CreatorName = reader.IsDBNull(7) ? "" : reader.GetString(7)
@@ -151,6 +154,7 @@ namespace Kalendarz1.Zadania
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error loading tasks: {ex.Message}");
+                MessageBox.Show($"Błąd ładowania zadań: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
 
