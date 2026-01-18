@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 
 namespace Kalendarz1
@@ -19,11 +20,18 @@ namespace Kalendarz1
         public DateTime DataWstawienia { get; set; }
         public DaneOstatniegoDostarczonego DaneOstatniegoDostarczonego { get; set; }
 
+        // Flaga informująca czy pobito rekord czasu
+        public bool PobitoRekord { get; private set; } = false;
+        public int NowyRekordSekund { get; private set; } = 0;
+
         private List<DostawaRow> dostawyRows = new List<DostawaRow>();
         private List<SeriaWstawienRow> seriaRows = new List<SeriaWstawienRow>();
         private int nextDostawaId = 1;
         private bool trybSerii = false;
         private bool isLoading = false;
+
+        // Stoper do mierzenia czasu tworzenia wstawienia
+        private System.Diagnostics.Stopwatch stopwatch = new System.Diagnostics.Stopwatch();
 
         public WstawienieWindow()
         {
@@ -47,6 +55,9 @@ namespace Kalendarz1
             {
                 txtTrybFormularza.Text = "Nowe";
                 dpDataWstawienia.SelectedDate = DateTime.Today;
+
+                // Start stopera do mierzenia czasu tworzenia
+                stopwatch.Start();
 
                 // ZMIANA: Sprawdź czy przekazano dane z innego okna
                 if (!string.IsNullOrEmpty(Dostawca))
@@ -80,8 +91,19 @@ namespace Kalendarz1
 
         private void ChkSeria_Checked(object sender, RoutedEventArgs e)
         {
+            // Sprawdź czy pierwsze wstawienie jest wypełnione
+            if (dpDataWstawienia.SelectedDate == null || string.IsNullOrWhiteSpace(txtSztukiWstawienia.Text))
+            {
+                MessageBox.Show(
+                    "Najpierw wypełnij datę i ilość sztuk pierwszego wstawienia!",
+                    "Uwaga",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                chkSeria.IsChecked = false;
+                return;
+            }
+
             trybSerii = true;
-            panelJednePodstawy.Visibility = Visibility.Collapsed;
             panelSeria.Visibility = Visibility.Visible;
 
             if (seriaRows.Count == 0)
@@ -91,7 +113,6 @@ namespace Kalendarz1
         private void ChkSeria_Unchecked(object sender, RoutedEventArgs e)
         {
             trybSerii = false;
-            panelJednePodstawy.Visibility = Visibility.Visible;
             panelSeria.Visibility = Visibility.Collapsed;
         }
 
@@ -102,7 +123,8 @@ namespace Kalendarz1
 
         private void DodajWpisSerii()
         {
-            var seria = new SeriaWstawienRow { Id = seriaRows.Count + 1 };
+            // Seria zaczyna się od #2 bo #1 jest w panelJednePodstawy
+            var seria = new SeriaWstawienRow { Id = seriaRows.Count + 2 };
             var grid = CreateSeriaGrid(seria);
             seriaRows.Add(seria);
             stackPanelSeria.Children.Add(grid);
@@ -161,12 +183,7 @@ namespace Kalendarz1
 
         private void UsunWpisSerii(SeriaWstawienRow seria)
         {
-            if (seriaRows.Count <= 1)
-            {
-                MessageBox.Show("Musisz mieć przynajmniej jedno wstawienie!", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
+            // Można usunąć wszystkie - wstawienie #1 jest w panelJednePodstawy
             Grid gridToRemove = null;
             foreach (Grid grid in stackPanelSeria.Children)
             {
@@ -181,6 +198,28 @@ namespace Kalendarz1
             {
                 stackPanelSeria.Children.Remove(gridToRemove);
                 seriaRows.Remove(seria);
+                OdswiezNumeracjeSerii();
+            }
+        }
+
+        private void OdswiezNumeracjeSerii()
+        {
+            // Seria zaczyna się od #2 (bo #1 jest w panelJednePodstawy)
+            for (int i = 0; i < seriaRows.Count; i++)
+            {
+                seriaRows[i].Id = i + 2;
+
+                // Znajdź grid i zaktualizuj numer
+                foreach (Grid grid in stackPanelSeria.Children)
+                {
+                    if (grid.Tag == seriaRows[i])
+                    {
+                        var txtNr = grid.Children[0] as TextBlock;
+                        if (txtNr != null)
+                            txtNr.Text = (i + 2).ToString();
+                        break;
+                    }
+                }
             }
         }
 
@@ -495,7 +534,7 @@ namespace Kalendarz1
                                 txtEmailDostawcy.Text = reader.IsDBNull(5) ? "-" : reader["Email"].ToString();
                                 txtKmH.Text = reader.IsDBNull(3) ? "" : reader["Distance"].ToString();
 
-                                panelDaneDostawcy.Visibility = Visibility.Visible;
+                                // Panel jest ukryty - nie pokazuj info o hodowcy
                             }
                         }
                     }
@@ -859,6 +898,25 @@ namespace Kalendarz1
                             if (trybSerii)
                             {
                                 int zapisane = 0;
+
+                                // NAJPIERW zapisz wstawienie #1 z panelJednePodstawy
+                                if (dpDataWstawienia.SelectedDate != null && !string.IsNullOrWhiteSpace(txtSztukiWstawienia.Text))
+                                {
+                                    if (int.TryParse(txtSztukiWstawienia.Text, out int iloscPierwszego))
+                                    {
+                                        long lpW = NowyNumerWstawienia(conn, trans);
+                                        WstawWstawienieDb(conn, trans, lpW, dpDataWstawienia.SelectedDate.Value, iloscPierwszego, typUmowy, typCeny);
+
+                                        foreach (var dostawa in dostawyRows)
+                                        {
+                                            WstawDostaweDb(conn, trans, dostawa, lpW, dpDataWstawienia.SelectedDate.Value, typUmowy, typCeny, bufor, zapiszAuta);
+                                            if (maNotatki) iloscNotatek++;
+                                        }
+                                        zapisane++;
+                                    }
+                                }
+
+                                // POTEM zapisz pozostałe wstawienia z serii
                                 foreach (var seria in seriaRows)
                                 {
                                     if (seria.DpData?.SelectedDate == null || string.IsNullOrWhiteSpace(seria.TxtIlosc?.Text))
@@ -918,9 +976,55 @@ namespace Kalendarz1
                                 }
                                 trans.Commit();
 
+                                // Zatrzymaj stoper i oblicz czas
+                                stopwatch.Stop();
+                                var elapsed = stopwatch.Elapsed;
+                                int aktualneSekundy = (int)elapsed.TotalSeconds;
+                                string czasInfo = "";
+                                string rekordInfo = "";
+
+                                if (!Modyfikacja && elapsed.TotalSeconds > 0)
+                                {
+                                    // Sprawdź rekord użytkownika
+                                    int? najlepszyczas = PobierzNajlepszyczas(conn, UserID);
+
+                                    if (elapsed.TotalMinutes >= 1)
+                                        czasInfo = $"\n\n⏱️ Czas tworzenia: {elapsed.Minutes}m {elapsed.Seconds}s";
+                                    else
+                                        czasInfo = $"\n\n⏱️ Czas tworzenia: {elapsed.Seconds}s";
+
+                                    // Sprawdź czy pobito rekord
+                                    if (!najlepszyczas.HasValue || aktualneSekundy < najlepszyczas.Value)
+                                    {
+                                        PobitoRekord = true;
+                                        NowyRekordSekund = aktualneSekundy;
+
+                                        if (!najlepszyczas.HasValue)
+                                        {
+                                            rekordInfo = "\n\n🏆 PIERWSZY REKORD USTANOWIONY! 🎉";
+                                        }
+                                        else
+                                        {
+                                            int roznica = najlepszyczas.Value - aktualneSekundy;
+                                            string[] gratulacje = new[]
+                                            {
+                                                $"🏆 NOWY REKORD! Pobiłeś swój wynik o {roznica}s! 🎉",
+                                                $"🔥 FENOMENALNIE! Rekord pobity o {roznica}s! 🚀",
+                                                $"⚡ BŁYSKAWICA! Nowy rekord - {roznica}s szybciej! 💪",
+                                                $"🌟 MISTRZOSTWO! Poprawiłeś rekord o {roznica}s! 🏅",
+                                                $"🎯 PERFEKCJA! {roznica}s szybciej niż poprzednio! 🎊"
+                                            };
+                                            var random = new Random();
+                                            rekordInfo = $"\n\n{gratulacje[random.Next(gratulacje.Length)]}";
+                                        }
+                                    }
+                                }
+
                                 string infoAuta = zapiszAuta ? "\n\n✅ Auta zostały zapisane" : "\n\n⚠️ Auta NIE zostały zapisane (Wolnyrynek)";
                                 string infoNotatki = maNotatki ? $"\n📝 Dodano {iloscNotatek} notatek do dostaw" : "";
-                                MessageBox.Show($"✅ Zapisano{infoAuta}{infoNotatki}", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                                string tytul = PobitoRekord ? "🏆 REKORD! 🏆" : "Sukces";
+                                MessageBox.Show($"✅ Zapisano{infoAuta}{infoNotatki}{czasInfo}{rekordInfo}", tytul, MessageBoxButton.OK, MessageBoxImage.Information);
                             }
 
                             DialogResult = true;
@@ -991,14 +1095,34 @@ namespace Kalendarz1
 
         private string WybierzTypCeny()
         {
-            var dialog = new Window { Title = "Typ ceny", Width = 250, Height = 200, WindowStartupLocation = WindowStartupLocation.CenterOwner, Owner = this };
+            var dialog = new Window { Title = "Typ ceny", Width = 250, Height = 250, WindowStartupLocation = WindowStartupLocation.CenterOwner, Owner = this };
             var panel = new StackPanel { Margin = new Thickness(15) };
             string wybrana = null;
 
-            foreach (var opcja in new[] { "łączona", "rolnicza", "wolnyrynek", "ministerialna" })
+            // Kolory dla typów cen: łączona=fioletowy, rolnicza=zielony, wolnyrynek=żółty, ministerialna=niebieski
+            var opcjeKolory = new Dictionary<string, (Color bg, Color fg)>
             {
-                var btn = new Button { Content = opcja, Margin = new Thickness(0, 5, 0, 5), Padding = new Thickness(8), Style = (Style)FindResource("PrimaryButton") };
-                btn.Click += (s, e) => { wybrana = opcja; dialog.DialogResult = true; };
+                { "łączona", (Color.FromRgb(138, 43, 226), Colors.White) },      // fioletowy
+                { "rolnicza", (Color.FromRgb(92, 138, 58), Colors.White) },       // zielony
+                { "wolnyrynek", (Color.FromRgb(255, 193, 7), Colors.Black) },     // żółty
+                { "ministerialna", (Color.FromRgb(33, 150, 243), Colors.White) }  // niebieski
+            };
+
+            foreach (var opcja in opcjeKolory)
+            {
+                var btn = new Button
+                {
+                    Content = opcja.Key,
+                    Margin = new Thickness(0, 5, 0, 5),
+                    Padding = new Thickness(10),
+                    FontSize = 14,
+                    FontWeight = FontWeights.SemiBold,
+                    Background = new SolidColorBrush(opcja.Value.bg),
+                    Foreground = new SolidColorBrush(opcja.Value.fg),
+                    BorderThickness = new Thickness(0),
+                    Cursor = Cursors.Hand
+                };
+                btn.Click += (s, e) => { wybrana = opcja.Key; dialog.DialogResult = true; };
                 panel.Children.Add(btn);
             }
 
@@ -1018,6 +1142,35 @@ namespace Kalendarz1
 
         private void WstawWstawienieDb(SqlConnection conn, SqlTransaction trans, long lpW, DateTime data, int ilosc, string typUmowy, string typCeny)
         {
+            // Pobierz czas tworzenia ze stopera
+            int czasTworzeniaSek = (int)stopwatch.Elapsed.TotalSeconds;
+
+            // Najpierw spróbuj z kolumną CzasTworzeniaSek
+            try
+            {
+                const string sqlZCzasem = @"INSERT INTO dbo.WstawieniaKurczakow (Lp, Dostawca, DataWstawienia, IloscWstawienia, DataUtw, KtoStwo, Uwagi, TypUmowy, TypCeny, CzasTworzeniaSek)
+                    VALUES (@Lp, @D, @DW, @Il, SYSDATETIME(), @Kto, @Uw, @TU, @TC, @Czas)";
+                using (var cmd = new SqlCommand(sqlZCzasem, conn, trans))
+                {
+                    cmd.Parameters.AddWithValue("@Lp", lpW);
+                    cmd.Parameters.AddWithValue("@D", cmbDostawca.SelectedItem.ToString());
+                    cmd.Parameters.AddWithValue("@DW", data);
+                    cmd.Parameters.AddWithValue("@Il", ilosc);
+                    cmd.Parameters.AddWithValue("@Kto", UserID ?? "");
+                    cmd.Parameters.AddWithValue("@Uw", txtNotatki?.Text ?? "");
+                    cmd.Parameters.AddWithValue("@TU", typUmowy);
+                    cmd.Parameters.AddWithValue("@TC", typCeny);
+                    cmd.Parameters.AddWithValue("@Czas", czasTworzeniaSek);
+                    cmd.ExecuteNonQuery();
+                    return;
+                }
+            }
+            catch (SqlException ex) when (ex.Message.Contains("Invalid column name") || ex.Message.Contains("CzasTworzeniaSek"))
+            {
+                // Kolumna nie istnieje - użyj wersji bez niej
+            }
+
+            // Wersja bez kolumny CzasTworzeniaSek
             const string sql = @"INSERT INTO dbo.WstawieniaKurczakow (Lp, Dostawca, DataWstawienia, IloscWstawienia, DataUtw, KtoStwo, Uwagi, TypUmowy, TypCeny)
                 VALUES (@Lp, @D, @DW, @Il, SYSDATETIME(), @Kto, @Uw, @TU, @TC)";
             using (var cmd = new SqlCommand(sql, conn, trans))
@@ -1031,6 +1184,57 @@ namespace Kalendarz1
                 cmd.Parameters.AddWithValue("@TU", typUmowy);
                 cmd.Parameters.AddWithValue("@TC", typCeny);
                 cmd.ExecuteNonQuery();
+            }
+        }
+
+        private int? PobierzNajlepszyczas(SqlConnection conn, string userId)
+        {
+            try
+            {
+                const string sql = @"SELECT MIN(CzasTworzeniaSek) FROM dbo.WstawieniaKurczakow
+                                     WHERE KtoStwo = @Kto AND CzasTworzeniaSek IS NOT NULL AND CzasTworzeniaSek > 0";
+                using (var cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@Kto", userId ?? "");
+                    var result = cmd.ExecuteScalar();
+                    if (result == null || result == DBNull.Value)
+                        return null;
+                    return Convert.ToInt32(result);
+                }
+            }
+            catch
+            {
+                // Jeśli kolumna nie istnieje lub inny błąd - zwróć null
+                return null;
+            }
+        }
+
+        private void ChkPomoc_Changed(object sender, RoutedEventArgs e)
+        {
+            if (kolumnaPomoc != null)
+            {
+                if (chkPomoc.IsChecked == true)
+                {
+                    // Rozszerz okno i pokaż kolumnę pomocy
+                    this.Width = 1300;
+                    kolumnaPomoc.Width = new GridLength(300);
+                }
+                else
+                {
+                    // Zmniejsz okno i ukryj kolumnę pomocy
+                    this.Width = 980;
+                    kolumnaPomoc.Width = new GridLength(0);
+                }
+            }
+        }
+
+        private void ChkDostawy_Changed(object sender, RoutedEventArgs e)
+        {
+            if (panelDostawy != null)
+            {
+                panelDostawy.Visibility = chkDostawy.IsChecked == true
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
             }
         }
 
