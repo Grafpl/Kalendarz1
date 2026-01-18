@@ -927,7 +927,6 @@ namespace Kalendarz1
             // Pełna lista wszystkich modułów dostępnych w menu
             return new List<string>
             {
-<<<<<<< HEAD
                 // ZAOPATRZENIE I ZAKUPY
                 "DaneHodowcy", "WstawieniaHodowcy", "TerminyDostawyZywca", "PlachtyAviloga",
                 "PanelPortiera", "PanelLekarza", "Specyfikacje", "DokumentyZakupu",
@@ -949,7 +948,7 @@ namespace Kalendarz1
                 "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "UstalanieTranportu",
 
                 // FINANSE I ZARZĄDZANIE
-                "DaneFinansowe", "CentrumSpotkan", "NotatkiZeSpotkan",
+                "DaneFinansowe", "CentrumSpotkan", "NotatkiZeSpotkan", "PanelPaniJola",
 
                 // KADRY I HR
                 "KontrolaGodzin",
@@ -959,23 +958,6 @@ namespace Kalendarz1
 
                 // Nieużywane ale w systemie uprawnień
                 "RezerwacjaKlas", "ReklamacjeJakosc"
-=======
-                "DaneHodowcy", "ZakupPaszyPisklak", "WstawieniaHodowcy", "TerminyDostawyZywca",
-                "PlachtyAviloga", "DokumentyZakupu", "Specyfikacje", "PlatnosciHodowcy",
-                "CRM", "ZamowieniaOdbiorcow", "DashboardHandlowca", "KalkulacjaKrojenia", "PrzychodMrozni",
-                "DokumentySprzedazy", "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "DaneFinansowe",
-                "UstalanieTranportu", "ZmianyUHodowcow", "ProdukcjaPodglad", "OfertaCenowa",
-                "PrognozyUboju", "AnalizaTygodniowa", "NotatkiZeSpotkan", "PlanTygodniowy",
-                "LiczenieMagazynu", "PanelMagazyniera", "KartotekaOdbiorcow", "AnalizaWydajnosci",
-                "RezerwacjaKlas", "DashboardWyczerpalnosci",
-                "ListaOfert", "DashboardOfert",
-                "PanelReklamacji", "ReklamacjeJakosc", "RaportyHodowcow",
-                "AdminPermissions", "AnalizaPrzychodu", "PanelPortiera", "PanelLekarza",
-                "KontrolaGodzin", "CentrumSpotkan", "PanelPaniJola"
-<<<<<<< HEAD
->>>>>>> Sprzedaż
-=======
->>>>>>> Sprzedaż
             };
         }
 

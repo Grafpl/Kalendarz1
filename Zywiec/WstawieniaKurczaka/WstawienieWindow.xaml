@@ -106,22 +106,14 @@
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
-<<<<<<< HEAD
-=======
                             <ColumnDefinition Width="Auto"/>
->>>>>>> Wstawienia
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-<<<<<<< HEAD
-                        <StackPanel Orientation="Horizontal" Grid.Column="0">
-                            <TextBlock Text="🐔" FontSize="26" Margin="0,0,10,0"/>
-=======
                         <!-- Lewa: Ikona + Nazwa -->
                         <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,15,0">
                             <TextBlock Text="🐔" FontSize="22" Margin="0,0,8,0" VerticalAlignment="Center"/>
->>>>>>> Wstawienia
                             <StackPanel VerticalAlignment="Center">
                                 <TextBlock Text="Wstawienia" FontSize="14" FontWeight="Bold" Foreground="#2C3E50"/>
                                 <StackPanel Orientation="Horizontal">
@@ -131,54 +123,6 @@
                             </StackPanel>
                         </StackPanel>
 
-<<<<<<< HEAD
-                        <ComboBox x:Name="cmbDostawca" Grid.Column="1" Style="{StaticResource ModernComboBox}"
-                                  SelectionChanged="CmbDostawca_SelectionChanged"
-                                  Margin="20,0,20,0" VerticalAlignment="Center" MinWidth="200"/>
-
-                        <CheckBox x:Name="chkSeria" Content="📋 Seria wstawień" Grid.Column="2"
-                                  FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"
-                                  Checked="ChkSeria_Checked" Unchecked="ChkSeria_Unchecked"/>
-                    </Grid>
-                </Border>
-
-                <!-- DANE DOSTAWCY -->
-                <Border x:Name="panelDaneDostawcy" Style="{StaticResource Card}" Visibility="Collapsed">
-                    <StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                            <TextBlock Text="👨‍🌾 Dane Dostawcy:" FontSize="12" FontWeight="SemiBold" Foreground="#2C3E50"/>
-                            <TextBlock x:Name="txtNazwaDostawcy" Text="" FontSize="12" FontWeight="Bold" Foreground="#5C8A3A" Margin="8,0,0,0"/>
-                        </StackPanel>
-
-                        <Border Background="#F8F9FA" CornerRadius="6" Padding="10">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="📍 Adres:" FontSize="10" FontWeight="SemiBold" Margin="0,0,5,5"/>
-                                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="txtAdresDostawcy" Text="" FontSize="10" Margin="0,0,15,5"/>
-
-                                <TextBlock Grid.Row="0" Grid.Column="2" Text="📞 Telefon:" FontSize="10" FontWeight="SemiBold" Margin="0,0,5,5"/>
-                                <TextBlock Grid.Row="0" Grid.Column="3" x:Name="txtTelefonDostawcy" Text="" FontSize="10" Margin="0,0,0,5"/>
-
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="🚗 Odległość:" FontSize="10" FontWeight="SemiBold" Margin="0,0,5,0"/>
-                                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="txtKmDostawcy" Text="" FontSize="10"/>
-
-                                <TextBlock Grid.Row="1" Grid.Column="2" Text="📧 Email:" FontSize="10" FontWeight="SemiBold" Margin="0,0,5,0"/>
-                                <TextBlock Grid.Row="1" Grid.Column="3" x:Name="txtEmailDostawcy" Text="" FontSize="10"/>
-                            </Grid>
-                        </Border>
-
-                        <TextBox x:Name="txtKmH" Visibility="Collapsed"/>
-=======
                         <!-- Środek: Dostawca -->
                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                             <TextBlock Text="👨‍🌾" FontSize="14" VerticalAlignment="Center" Margin="0,0,5,0"/>
@@ -204,12 +148,12 @@
                 <!-- Ukryte pola (używane w kodzie) -->
                 <Border x:Name="panelDaneDostawcy" Visibility="Collapsed">
                     <StackPanel>
+                        <TextBlock x:Name="txtNazwaDostawcy"/>
                         <TextBlock x:Name="txtAdresDostawcy"/>
                         <TextBlock x:Name="txtTelefonDostawcy"/>
                         <TextBlock x:Name="txtKmDostawcy"/>
                         <TextBlock x:Name="txtEmailDostawcy"/>
                         <TextBox x:Name="txtKmH"/>
->>>>>>> Wstawienia
                     </StackPanel>
                 </Border>
 
