@@ -637,11 +637,10 @@
                                                     <Style TargetType="TextBlock">
                                                         <Setter Property="Foreground" Value="#374151"/>
                                                         <Style.Triggers>
-                                                            <!-- Notatka z 2-3 dni - żółta bez pulsowania -->
+                                                            <!-- Notatka z 2-3 dni - żółta czcionka bez pulsowania -->
                                                             <DataTrigger Binding="{Binding IsRecentNote}" Value="True">
-                                                                <Setter Property="Foreground" Value="#B45309"/>
+                                                                <Setter Property="Foreground" Value="#EAB308"/>
                                                                 <Setter Property="FontWeight" Value="SemiBold"/>
-                                                                <Setter Property="Background" Value="#FEF3C7"/>
                                                             </DataTrigger>
                                                             <!-- Notatka z 1 dnia - czerwona pulsująca -->
                                                             <DataTrigger Binding="{Binding IsVeryRecentNote}" Value="True">
@@ -842,11 +841,10 @@
                                                 <Style TargetType="TextBlock">
                                                     <Setter Property="Foreground" Value="#374151"/>
                                                     <Style.Triggers>
-                                                        <!-- Notatka z 2-3 dni - żółta bez pulsowania -->
+                                                        <!-- Notatka z 2-3 dni - żółta czcionka bez pulsowania -->
                                                         <DataTrigger Binding="{Binding IsRecentNote}" Value="True">
-                                                            <Setter Property="Foreground" Value="#B45309"/>
+                                                            <Setter Property="Foreground" Value="#EAB308"/>
                                                             <Setter Property="FontWeight" Value="SemiBold"/>
-                                                            <Setter Property="Background" Value="#FEF3C7"/>
                                                         </DataTrigger>
                                                         <!-- Notatka z 1 dnia - czerwona pulsująca -->
                                                         <DataTrigger Binding="{Binding IsVeryRecentNote}" Value="True">
