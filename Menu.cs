@@ -31,6 +31,7 @@ namespace Kalendarz1
         private Panel sidePanel;
         private TableLayoutPanel mainLayout;
         private System.Windows.Forms.Timer taskNotificationTimer;
+        private MeetingChangeMonitor meetingChangeMonitor;
 
         public MENU()
         {
@@ -48,6 +49,42 @@ namespace Kalendarz1
             taskNotificationTimer.Interval = 5000; // 5 sekund na start
             taskNotificationTimer.Tick += TaskNotificationTimer_Tick;
             taskNotificationTimer.Start();
+
+            // Start meeting change monitor
+            StartMeetingChangeMonitor();
+        }
+
+        private void StartMeetingChangeMonitor()
+        {
+            try
+            {
+                meetingChangeMonitor = new MeetingChangeMonitor(App.UserID);
+                meetingChangeMonitor.ChangesDetected += MeetingChangeMonitor_ChangesDetected;
+                meetingChangeMonitor.Start(2); // Check every 2 minutes
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"MeetingChangeMonitor error: {ex.Message}");
+            }
+        }
+
+        private void MeetingChangeMonitor_ChangesDetected(object sender, System.Collections.Generic.List<MeetingChange> changes)
+        {
+            try
+            {
+                var popup = new MeetingChangePopup();
+                popup.ShowChanges(changes);
+                popup.ViewMeetingRequested += (s, meetingId) =>
+                {
+                    var spotkaniaWindow = new Spotkania.Views.SpotkaniaGlowneWindow(App.UserID);
+                    spotkaniaWindow.Show();
+                };
+                popup.Show();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"MeetingChangePopup error: {ex.Message}");
+            }
         }
 
         private void TaskNotificationTimer_Tick(object sender, EventArgs e)

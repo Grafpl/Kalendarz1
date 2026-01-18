@@ -4,7 +4,6 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using System.Windows.Threading;
 using Microsoft.Data.SqlClient;
@@ -19,24 +18,19 @@ namespace Kalendarz1.Zadania
         private List<MeetingNotification> meetings = new List<MeetingNotification>();
         private DispatcherTimer pulseTimer;
 
-        private enum ViewMode { All, Tasks, Meetings }
-        private ViewMode currentView = ViewMode.All;
-
-        // Company colors
+        // Colors
         private static readonly Color PrimaryGreen = (Color)ColorConverter.ConvertFromString("#27AE60");
         private static readonly Color AlertRed = (Color)ColorConverter.ConvertFromString("#E74C3C");
         private static readonly Color WarningOrange = (Color)ColorConverter.ConvertFromString("#F39C12");
         private static readonly Color InfoBlue = (Color)ColorConverter.ConvertFromString("#3498DB");
         private static readonly Color Purple = (Color)ColorConverter.ConvertFromString("#9B59B6");
-        private static readonly Color LiveRed = (Color)ColorConverter.ConvertFromString("#E74C3C");
-        private static readonly Color DarkBg = (Color)ColorConverter.ConvertFromString("#1A242F");
-        private static readonly Color CardBg = (Color)ColorConverter.ConvertFromString("#212F3D");
-        private static readonly Color CardBgHover = (Color)ColorConverter.ConvertFromString("#283747");
-        private static readonly Color CardBgLive = (Color)ColorConverter.ConvertFromString("#2D1F1F");
+        private static readonly Color DarkBg = (Color)ColorConverter.ConvertFromString("#0F1419");
+        private static readonly Color CardBg = (Color)ColorConverter.ConvertFromString("#1A1F26");
+        private static readonly Color CardBgHover = (Color)ColorConverter.ConvertFromString("#242B35");
         private static readonly Color TextGray = (Color)ColorConverter.ConvertFromString("#7F8C8D");
         private static readonly Color TextLight = (Color)ColorConverter.ConvertFromString("#BDC3C7");
 
-        // Avatar colors palette
+        // Avatar colors
         private static readonly string[] AvatarColors = new[]
         {
             "#27AE60", "#3498DB", "#9B59B6", "#E74C3C", "#F39C12",
@@ -61,7 +55,6 @@ namespace Kalendarz1.Zadania
             LoadTasks();
             LoadMeetings();
             UpdateStatistics();
-            BuildLiveNowSection();
             BuildContent();
             StartPulseAnimation();
         }
@@ -86,49 +79,11 @@ namespace Kalendarz1.Zadania
             pulseTimer.Tick += (s, e) =>
             {
                 isVisible = !isVisible;
-                var opacity = isVisible ? 1.0 : 0.4;
-
-                liveDot.Opacity = opacity;
-                liveIndicator.Opacity = opacity;
+                liveDot.Opacity = isVisible ? 1.0 : 0.4;
             };
 
             pulseTimer.Start();
         }
-
-        #region Tab Navigation
-
-        private void TabAll_Click(object sender, RoutedEventArgs e)
-        {
-            currentView = ViewMode.All;
-            UpdateTabStyles();
-            BuildContent();
-        }
-
-        private void TabTasks_Click(object sender, RoutedEventArgs e)
-        {
-            currentView = ViewMode.Tasks;
-            UpdateTabStyles();
-            BuildContent();
-        }
-
-        private void TabMeetings_Click(object sender, RoutedEventArgs e)
-        {
-            currentView = ViewMode.Meetings;
-            UpdateTabStyles();
-            BuildContent();
-        }
-
-        private void UpdateTabStyles()
-        {
-            var activeStyle = (Style)FindResource("TabButtonActive");
-            var inactiveStyle = (Style)FindResource("TabButton");
-
-            tabAll.Style = currentView == ViewMode.All ? activeStyle : inactiveStyle;
-            tabTasks.Style = currentView == ViewMode.Tasks ? activeStyle : inactiveStyle;
-            tabMeetings.Style = currentView == ViewMode.Meetings ? activeStyle : inactiveStyle;
-        }
-
-        #endregion
 
         #region Statistics
 
@@ -137,44 +92,33 @@ namespace Kalendarz1.Zadania
             var today = DateTime.Today;
             var now = DateTime.Now;
 
-            // Live now meetings
+            // Live meetings
             var liveMeetings = meetings.Where(m => m.IsLive).ToList();
-            txtLiveCount.Text = liveMeetings.Count.ToString();
-            txtLiveLabel.Text = GetPolishPlural(liveMeetings.Count, "spotkanie", "spotkania", "spotkań");
+            if (liveMeetings.Count > 0)
+            {
+                liveNowStat.Visibility = Visibility.Visible;
+                tasksStat.Visibility = Visibility.Collapsed;
+                txtLiveCount.Text = liveMeetings.Count.ToString();
+            }
+            else
+            {
+                liveNowStat.Visibility = Visibility.Collapsed;
+                tasksStat.Visibility = Visibility.Visible;
+            }
 
-            // Urgent: overdue tasks + tasks due within 2h + meetings within 30min
+            // Urgent count
             var urgentTasksCount = tasks.Count(t => t.DueDate.Date < today || (t.DueDate.Date == today && t.DueDate <= now.AddHours(2)));
             var urgentMeetingsCount = meetings.Count(m => !m.IsLive && m.MinutesToMeeting > 0 && m.MinutesToMeeting <= 30);
             var urgentTotal = urgentTasksCount + urgentMeetingsCount;
 
             txtUrgentCount.Text = urgentTotal.ToString();
-            txtUrgentLabel.Text = GetPolishPlural(urgentTotal, "element", "elementy", "elementów");
-
             txtTasksCount.Text = tasks.Count.ToString();
-            txtTasksLabel.Text = GetPolishPlural(tasks.Count, "zadanie", "zadania", "zadań");
-
             txtMeetingsCount.Text = meetings.Count.ToString();
-            txtMeetingsLabel.Text = GetPolishPlural(meetings.Count, "spotkanie", "spotkania", "spotkań");
 
-            // Update subtitle with date
+            // Subtitle with date
             var culture = new System.Globalization.CultureInfo("pl-PL");
-            var dayName = DateTime.Today.ToString("dddd, d MMMM yyyy", culture);
+            var dayName = DateTime.Today.ToString("dddd, d MMMM", culture);
             txtSubtitle.Text = char.ToUpper(dayName[0]) + dayName.Substring(1);
-
-            // Highlight live card if there are live meetings
-            if (liveMeetings.Count > 0)
-            {
-                liveNowCard.Background = new SolidColorBrush(CardBgLive);
-                liveNowCard.BorderBrush = new SolidColorBrush(LiveRed);
-                liveNowCard.BorderThickness = new Thickness(1);
-            }
-        }
-
-        private string GetPolishPlural(int count, string one, string few, string many)
-        {
-            if (count == 1) return one;
-            if (count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 10 || count % 100 >= 20)) return few;
-            return many;
         }
 
         #endregion
@@ -228,7 +172,6 @@ namespace Kalendarz1.Zadania
                         }
                     }
 
-                    // Load assigned users for each task
                     foreach (var task in tasks)
                     {
                         LoadTaskAssignees(conn, task);
@@ -332,7 +275,6 @@ namespace Kalendarz1.Zadania
                         }
                     }
 
-                    // Load attendees for each meeting
                     foreach (var meeting in meetings)
                     {
                         LoadMeetingAttendees(conn, meeting);
@@ -383,68 +325,141 @@ namespace Kalendarz1.Zadania
 
         #endregion
 
-        #region Build Live Now Section
+        #region Build Content
 
-        private void BuildLiveNowSection()
+        private void BuildContent()
         {
+            contentPanel.Children.Clear();
+
+            var today = DateTime.Today;
+            var now = DateTime.Now;
+
+            // Get live meetings
             var liveMeetings = meetings.Where(m => m.IsLive).ToList();
 
-            if (liveMeetings.Count == 0)
+            // Get upcoming meetings (not live)
+            var upcomingMeetings = meetings.Where(m => !m.IsLive && m.MeetingDate >= now).OrderBy(m => m.MeetingDate).ToList();
+
+            // Get overdue and upcoming tasks
+            var overdueTasks = tasks.Where(t => t.DueDate < now).ToList();
+            var upcomingTasks = tasks.Where(t => t.DueDate >= now).OrderBy(t => t.DueDate).ToList();
+
+            if (liveMeetings.Count == 0 && upcomingMeetings.Count == 0 && tasks.Count == 0)
             {
-                liveNowSection.Visibility = Visibility.Collapsed;
+                contentPanel.Children.Add(CreateEmptyState());
                 return;
             }
 
-            liveNowSection.Visibility = Visibility.Visible;
-            liveMeetingsPanel.Children.Clear();
-
-            foreach (var meeting in liveMeetings)
+            // LIVE MEETINGS - prominent display
+            if (liveMeetings.Count > 0)
             {
-                liveMeetingsPanel.Children.Add(CreateLiveMeetingCard(meeting));
+                AddSectionHeader("Trwa teraz", AlertRed);
+                foreach (var meeting in liveMeetings)
+                    contentPanel.Children.Add(CreateLiveMeetingCard(meeting));
             }
+
+            // Combine upcoming items by time
+            var allItems = new List<(DateTime time, string type, object item)>();
+
+            foreach (var task in overdueTasks)
+                allItems.Add((task.DueDate, "overdue_task", task));
+
+            foreach (var meeting in upcomingMeetings.Take(5))
+                allItems.Add((meeting.MeetingDate, "meeting", meeting));
+
+            foreach (var task in upcomingTasks.Take(5))
+                allItems.Add((task.DueDate, "task", task));
+
+            // Sort by time
+            allItems = allItems.OrderBy(x => x.time).ToList();
+
+            // Overdue section
+            var overdueItems = allItems.Where(x => x.type == "overdue_task").ToList();
+            if (overdueItems.Count > 0)
+            {
+                AddSectionHeader("Zaległe", AlertRed);
+                foreach (var item in overdueItems)
+                    contentPanel.Children.Add(CreateTaskCard((TaskNotification)item.item, true));
+            }
+
+            // Upcoming section
+            var upcoming = allItems.Where(x => x.type != "overdue_task").Take(8).ToList();
+            if (upcoming.Count > 0)
+            {
+                AddSectionHeader("Nadchodzące", InfoBlue);
+                foreach (var item in upcoming)
+                {
+                    if (item.type == "meeting")
+                        contentPanel.Children.Add(CreateMeetingCard((MeetingNotification)item.item));
+                    else
+                        contentPanel.Children.Add(CreateTaskCard((TaskNotification)item.item, false));
+                }
+            }
+
+            contentPanel.Children.Add(new Border { Height = 10 });
+        }
+
+        private void AddSectionHeader(string title, Color color)
+        {
+            var header = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(0, 14, 0, 10)
+            };
+
+            header.Children.Add(new Border
+            {
+                Width = 4,
+                Height = 18,
+                CornerRadius = new CornerRadius(2),
+                Background = new SolidColorBrush(color),
+                Margin = new Thickness(0, 0, 10, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+
+            header.Children.Add(new TextBlock
+            {
+                Text = title.ToUpper(),
+                FontSize = 11,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(color),
+                VerticalAlignment = VerticalAlignment.Center,
+                LetterSpacing = 0.5
+            });
+
+            contentPanel.Children.Add(header);
         }
 
         private Border CreateLiveMeetingCard(MeetingNotification meeting)
         {
             var card = new Border
             {
-                Background = new SolidColorBrush(Color.FromArgb(40, LiveRed.R, LiveRed.G, LiveRed.B)),
-                CornerRadius = new CornerRadius(12),
-                Padding = new Thickness(16, 14, 16, 14),
+                Background = new SolidColorBrush(Color.FromArgb(30, AlertRed.R, AlertRed.G, AlertRed.B)),
+                CornerRadius = new CornerRadius(14),
+                Padding = new Thickness(16),
                 Margin = new Thickness(0, 0, 0, 10),
+                BorderBrush = new SolidColorBrush(AlertRed),
+                BorderThickness = new Thickness(1),
                 Cursor = System.Windows.Input.Cursors.Hand
+            };
+
+            card.Effect = new DropShadowEffect
+            {
+                BlurRadius = 15,
+                ShadowDepth = 0,
+                Opacity = 0.3,
+                Color = AlertRed
             };
 
             var mainStack = new StackPanel();
 
-            // Header row with title and time remaining
-            var headerRow = new Grid();
-            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            // Title row with LIVE badge
+            var titleRow = new Grid();
+            titleRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            titleRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-            // Live icon
-            var liveIcon = new Border
-            {
-                Width = 44,
-                Height = 44,
-                CornerRadius = new CornerRadius(10),
-                Background = new SolidColorBrush(Color.FromArgb(60, LiveRed.R, LiveRed.G, LiveRed.B)),
-                Margin = new Thickness(0, 0, 14, 0)
-            };
-            liveIcon.Child = new TextBlock
-            {
-                Text = "🔴",
-                FontSize = 20,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            Grid.SetColumn(liveIcon, 0);
-            headerRow.Children.Add(liveIcon);
-
-            // Title and info
-            var infoStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            infoStack.Children.Add(new TextBlock
+            var titleStack = new StackPanel();
+            titleStack.Children.Add(new TextBlock
             {
                 Text = meeting.Title,
                 FontSize = 15,
@@ -456,8 +471,8 @@ namespace Kalendarz1.Zadania
             var detailsRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
             detailsRow.Children.Add(new TextBlock
             {
-                Text = $"Rozpoczęto o {meeting.MeetingDate:HH:mm}",
-                FontSize = 12,
+                Text = $"Od {meeting.MeetingDate:HH:mm}",
+                FontSize = 11,
                 Foreground = new SolidColorBrush(TextLight)
             });
 
@@ -465,71 +480,62 @@ namespace Kalendarz1.Zadania
             {
                 detailsRow.Children.Add(new TextBlock
                 {
-                    Text = $"  •  📍 {meeting.Location}",
-                    FontSize = 12,
+                    Text = $"  •  {meeting.Location}",
+                    FontSize = 11,
                     Foreground = new SolidColorBrush(TextGray)
                 });
             }
-            infoStack.Children.Add(detailsRow);
+            titleStack.Children.Add(detailsRow);
+            Grid.SetColumn(titleStack, 0);
+            titleRow.Children.Add(titleStack);
 
-            Grid.SetColumn(infoStack, 1);
-            headerRow.Children.Add(infoStack);
-
-            // Time remaining
-            var remainingMinutes = (int)(meeting.EndTime - DateTime.Now).TotalMinutes;
-            var timeStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            timeStack.Children.Add(new TextBlock
+            // LIVE badge
+            var liveBadge = new Border
             {
-                Text = "TRWA",
+                Background = new SolidColorBrush(AlertRed),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(10, 5, 10, 5),
+                VerticalAlignment = VerticalAlignment.Top
+            };
+            liveBadge.Child = new TextBlock
+            {
+                Text = "LIVE",
                 FontSize = 10,
                 FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(LiveRed),
-                HorizontalAlignment = HorizontalAlignment.Right
-            });
-            timeStack.Children.Add(new TextBlock
-            {
-                Text = remainingMinutes > 0 ? $"jeszcze {remainingMinutes}m" : "kończy się",
-                FontSize = 11,
-                Foreground = new SolidColorBrush(TextGray),
-                HorizontalAlignment = HorizontalAlignment.Right
-            });
-            Grid.SetColumn(timeStack, 2);
-            headerRow.Children.Add(timeStack);
+                Foreground = Brushes.White
+            };
+            Grid.SetColumn(liveBadge, 1);
+            titleRow.Children.Add(liveBadge);
 
-            mainStack.Children.Add(headerRow);
+            mainStack.Children.Add(titleRow);
 
-            // Attendees row with LARGE avatars
+            // LARGE Avatars - 48px
             if (meeting.Attendees.Count > 0)
             {
-                var attendeesSection = new StackPanel { Margin = new Thickness(58, 12, 0, 0) };
+                var avatarRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 14, 0, 0) };
 
-                // Avatar row
-                var avatarRow = new StackPanel { Orientation = Orientation.Horizontal };
-                var displayCount = Math.Min(meeting.Attendees.Count, 8);
-
-                for (int i = 0; i < displayCount; i++)
+                for (int i = 0; i < Math.Min(meeting.Attendees.Count, 6); i++)
                 {
-                    var attendee = meeting.Attendees[i];
-                    avatarRow.Children.Add(CreateLargeAvatar(attendee, i, 38));
+                    avatarRow.Children.Add(CreateAvatar(meeting.Attendees[i], i, 48));
                 }
 
-                if (meeting.Attendees.Count > 8)
+                if (meeting.Attendees.Count > 6)
                 {
                     var moreCount = new Border
                     {
-                        Width = 38,
-                        Height = 38,
-                        CornerRadius = new CornerRadius(19),
-                        Background = new SolidColorBrush(Color.FromArgb(80, 255, 255, 255)),
-                        BorderBrush = new SolidColorBrush(CardBgLive),
+                        Width = 48,
+                        Height = 48,
+                        CornerRadius = new CornerRadius(24),
+                        Background = new SolidColorBrush(Color.FromArgb(100, 255, 255, 255)),
+                        BorderBrush = new SolidColorBrush(CardBg),
                         BorderThickness = new Thickness(3),
-                        Margin = new Thickness(-10, 0, 0, 0)
+                        Margin = new Thickness(-12, 0, 0, 0)
                     };
                     moreCount.Child = new TextBlock
                     {
-                        Text = $"+{meeting.Attendees.Count - 8}",
-                        FontSize = 11,
-                        FontWeight = FontWeights.SemiBold,
+                        Text = $"+{meeting.Attendees.Count - 6}",
+                        FontSize = 14,
+                        FontWeight = FontWeights.Bold,
                         Foreground = Brushes.White,
                         HorizontalAlignment = HorizontalAlignment.Center,
                         VerticalAlignment = VerticalAlignment.Center
@@ -537,271 +543,192 @@ namespace Kalendarz1.Zadania
                     avatarRow.Children.Add(moreCount);
                 }
 
-                attendeesSection.Children.Add(avatarRow);
-
-                // Status summary
-                var accepted = meeting.Attendees.Count(a => a.Status == "Zaakceptowane");
-                var statusText = new TextBlock
-                {
-                    Text = $"{accepted} z {meeting.Attendees.Count} uczestników potwierdziło",
-                    FontSize = 11,
-                    Foreground = new SolidColorBrush(TextGray),
-                    Margin = new Thickness(0, 8, 0, 0)
-                };
-                attendeesSection.Children.Add(statusText);
-
-                mainStack.Children.Add(attendeesSection);
+                mainStack.Children.Add(avatarRow);
             }
 
             card.Child = mainStack;
             return card;
         }
 
-        #endregion
-
-        #region Build Content
-
-        private void BuildContent()
-        {
-            contentPanel.Children.Clear();
-
-            var today = DateTime.Today;
-            var now = DateTime.Now;
-
-            var showTasks = currentView == ViewMode.All || currentView == ViewMode.Tasks;
-            var showMeetings = currentView == ViewMode.All || currentView == ViewMode.Meetings;
-
-            // Exclude live meetings from regular content (they're shown in special section)
-            var nonLiveMeetings = meetings.Where(m => !m.IsLive).ToList();
-
-            // Group tasks
-            var overdueTasks = showTasks ? tasks.Where(t => t.DueDate.Date < today).ToList() : new List<TaskNotification>();
-            var urgentTasks = showTasks ? tasks.Where(t => t.DueDate.Date == today && t.DueDate <= now.AddHours(2)).ToList() : new List<TaskNotification>();
-            var todayTasks = showTasks ? tasks.Where(t => t.DueDate.Date == today && t.DueDate > now.AddHours(2)).ToList() : new List<TaskNotification>();
-            var tomorrowTasks = showTasks ? tasks.Where(t => t.DueDate.Date == today.AddDays(1)).ToList() : new List<TaskNotification>();
-            var laterTasks = showTasks ? tasks.Where(t => t.DueDate.Date > today.AddDays(1)).ToList() : new List<TaskNotification>();
-
-            // Group meetings
-            var urgentMeetings = showMeetings ? nonLiveMeetings.Where(m => m.MinutesToMeeting > 0 && m.MinutesToMeeting <= 60).ToList() : new List<MeetingNotification>();
-            var todayMeetings = showMeetings ? nonLiveMeetings.Where(m => m.MeetingDate.Date == today && m.MinutesToMeeting > 60).ToList() : new List<MeetingNotification>();
-            var tomorrowMeetings = showMeetings ? nonLiveMeetings.Where(m => m.MeetingDate.Date == today.AddDays(1)).ToList() : new List<MeetingNotification>();
-            var laterMeetings = showMeetings ? nonLiveMeetings.Where(m => m.MeetingDate.Date > today.AddDays(1)).ToList() : new List<MeetingNotification>();
-
-            int totalItems = overdueTasks.Count + urgentTasks.Count + todayTasks.Count + tomorrowTasks.Count + laterTasks.Count +
-                           urgentMeetings.Count + todayMeetings.Count + tomorrowMeetings.Count + laterMeetings.Count;
-
-            if (totalItems == 0)
-            {
-                contentPanel.Children.Add(CreateEmptyState());
-                return;
-            }
-
-            // OVERDUE TASKS
-            if (overdueTasks.Count > 0)
-            {
-                AddSectionHeader("Zaległe", "Przekroczony termin!", AlertRed, overdueTasks.Count);
-                foreach (var task in overdueTasks)
-                    contentPanel.Children.Add(CreateTaskCard(task, AlertRed, true));
-            }
-
-            // URGENT section
-            if (urgentTasks.Count > 0 || urgentMeetings.Count > 0)
-            {
-                var urgentCount = urgentTasks.Count + urgentMeetings.Count;
-                AddSectionHeader("Za chwilę", "W ciągu godziny", WarningOrange, urgentCount);
-
-                foreach (var meeting in urgentMeetings.OrderBy(m => m.MeetingDate))
-                    contentPanel.Children.Add(CreateMeetingCard(meeting, WarningOrange, true));
-
-                foreach (var task in urgentTasks)
-                    contentPanel.Children.Add(CreateTaskCard(task, WarningOrange, false));
-            }
-
-            // TODAY section
-            if (todayTasks.Count > 0 || todayMeetings.Count > 0)
-            {
-                var todayCount = todayTasks.Count + todayMeetings.Count;
-                var culture = new System.Globalization.CultureInfo("pl-PL");
-                AddSectionHeader("Dzisiaj", DateTime.Today.ToString("dddd, d MMMM", culture), InfoBlue, todayCount);
-
-                foreach (var meeting in todayMeetings.OrderBy(m => m.MeetingDate))
-                    contentPanel.Children.Add(CreateMeetingCard(meeting, InfoBlue, false));
-
-                foreach (var task in todayTasks.OrderByDescending(t => t.Priority))
-                    contentPanel.Children.Add(CreateTaskCard(task, InfoBlue, false));
-            }
-
-            // TOMORROW section
-            if (tomorrowTasks.Count > 0 || tomorrowMeetings.Count > 0)
-            {
-                var tomorrowCount = tomorrowTasks.Count + tomorrowMeetings.Count;
-                var culture = new System.Globalization.CultureInfo("pl-PL");
-                AddSectionHeader("Jutro", DateTime.Today.AddDays(1).ToString("dddd, d MMMM", culture), Purple, tomorrowCount);
-
-                foreach (var meeting in tomorrowMeetings.OrderBy(m => m.MeetingDate))
-                    contentPanel.Children.Add(CreateMeetingCard(meeting, Purple, false));
-
-                foreach (var task in tomorrowTasks.OrderByDescending(t => t.Priority))
-                    contentPanel.Children.Add(CreateTaskCard(task, Purple, false));
-            }
-
-            // LATER section
-            if (laterTasks.Count > 0 || laterMeetings.Count > 0)
-            {
-                var laterCount = laterTasks.Count + laterMeetings.Count;
-                AddSectionHeader("Nadchodzące", "Następne dni", PrimaryGreen, laterCount);
-
-                var allLaterItems = new List<(DateTime date, object item)>();
-                allLaterItems.AddRange(laterMeetings.Select(m => (m.MeetingDate.Date, (object)m)));
-                allLaterItems.AddRange(laterTasks.Select(t => (t.DueDate.Date, (object)t)));
-
-                var groupedByDate = allLaterItems.GroupBy(x => x.date).OrderBy(g => g.Key).Take(7);
-
-                foreach (var group in groupedByDate)
-                {
-                    AddDateSubheader(group.Key);
-
-                    foreach (var item in group.OrderBy(x => x.item is MeetingNotification m ? m.MeetingDate : ((TaskNotification)x.item).DueDate))
-                    {
-                        if (item.item is MeetingNotification meeting)
-                            contentPanel.Children.Add(CreateMeetingCard(meeting, PrimaryGreen, false));
-                        else if (item.item is TaskNotification task)
-                            contentPanel.Children.Add(CreateTaskCard(task, PrimaryGreen, false));
-                    }
-                }
-            }
-
-            contentPanel.Children.Add(new Border { Height = 16 });
-        }
-
-        private void AddSectionHeader(string title, string subtitle, Color color, int count)
-        {
-            var header = new Border { Margin = new Thickness(0, 16, 0, 10) };
-
-            var grid = new Grid();
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-            var leftStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-
-            leftStack.Children.Add(new Border
-            {
-                Width = 5,
-                Height = 32,
-                CornerRadius = new CornerRadius(2),
-                Background = new SolidColorBrush(color),
-                Margin = new Thickness(0, 0, 14, 0)
-            });
-
-            var titleStack = new StackPanel();
-            titleStack.Children.Add(new TextBlock
-            {
-                Text = title,
-                FontSize = 16,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(color)
-            });
-            titleStack.Children.Add(new TextBlock
-            {
-                Text = subtitle,
-                FontSize = 12,
-                Foreground = new SolidColorBrush(TextGray),
-                Margin = new Thickness(0, 2, 0, 0)
-            });
-            leftStack.Children.Add(titleStack);
-
-            Grid.SetColumn(leftStack, 0);
-            grid.Children.Add(leftStack);
-
-            var badge = new Border
-            {
-                Background = new SolidColorBrush(Color.FromArgb(50, color.R, color.G, color.B)),
-                CornerRadius = new CornerRadius(14),
-                Padding = new Thickness(12, 5, 12, 5),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            badge.Child = new TextBlock
-            {
-                Text = count.ToString(),
-                FontSize = 13,
-                FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(color)
-            };
-
-            Grid.SetColumn(badge, 2);
-            grid.Children.Add(badge);
-
-            header.Child = grid;
-            contentPanel.Children.Add(header);
-        }
-
-        private void AddDateSubheader(DateTime date)
-        {
-            var culture = new System.Globalization.CultureInfo("pl-PL");
-            var dayName = date.ToString("dddd", culture);
-            dayName = char.ToUpper(dayName[0]) + dayName.Substring(1);
-
-            var subheader = new TextBlock
-            {
-                Text = $"{dayName}, {date:d MMMM}",
-                FontSize = 13,
-                FontWeight = FontWeights.Medium,
-                Foreground = new SolidColorBrush(TextLight),
-                Margin = new Thickness(19, 12, 0, 8)
-            };
-
-            contentPanel.Children.Add(subheader);
-        }
-
-        private Border CreateTaskCard(TaskNotification task, Color sectionColor, bool isOverdue)
+        private Border CreateMeetingCard(MeetingNotification meeting)
         {
             var card = new Border
             {
                 Background = new SolidColorBrush(CardBg),
                 CornerRadius = new CornerRadius(12),
-                Margin = new Thickness(0, 0, 0, 10),
-                Padding = new Thickness(16, 14, 16, 14),
-                BorderThickness = new Thickness(0, 0, 5, 0),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(120, sectionColor.R, sectionColor.G, sectionColor.B)),
+                Padding = new Thickness(14),
+                Margin = new Thickness(0, 0, 0, 8),
                 Cursor = System.Windows.Input.Cursors.Hand
             };
 
             card.MouseEnter += (s, e) => card.Background = new SolidColorBrush(CardBgHover);
             card.MouseLeave += (s, e) => card.Background = new SolidColorBrush(CardBg);
 
-            var mainStack = new StackPanel();
+            var mainGrid = new Grid();
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-            // Header row
-            var headerRow = new Grid();
-            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            // Meeting icon
+            var iconBg = new Border
+            {
+                Width = 40,
+                Height = 40,
+                CornerRadius = new CornerRadius(10),
+                Margin = new Thickness(0, 0, 12, 0),
+                VerticalAlignment = VerticalAlignment.Top
+            };
+            iconBg.Background = new LinearGradientBrush(Purple, Color.FromArgb(255, 142, 68, 173), 45);
+            iconBg.Child = new TextBlock
+            {
+                Text = "📅",
+                FontSize = 18,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(iconBg, 0);
+            mainGrid.Children.Add(iconBg);
 
-            // Task icon with priority
+            // Content
+            var contentStack = new StackPanel { VerticalAlignment = VerticalAlignment.Top };
+
+            contentStack.Children.Add(new TextBlock
+            {
+                Text = meeting.Title,
+                FontSize = 13,
+                FontWeight = FontWeights.Medium,
+                Foreground = Brushes.White,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            });
+
+            // Time and location
+            var infoRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+            infoRow.Children.Add(new TextBlock
+            {
+                Text = meeting.MeetingDate.ToString("HH:mm"),
+                FontSize = 11,
+                Foreground = new SolidColorBrush(Purple),
+                FontWeight = FontWeights.SemiBold
+            });
+
+            infoRow.Children.Add(new TextBlock
+            {
+                Text = $"  •  {meeting.DurationMin} min",
+                FontSize = 11,
+                Foreground = new SolidColorBrush(TextGray)
+            });
+
+            if (!string.IsNullOrEmpty(meeting.Location))
+            {
+                infoRow.Children.Add(new TextBlock
+                {
+                    Text = $"  •  {meeting.Location}",
+                    FontSize = 11,
+                    Foreground = new SolidColorBrush(TextGray),
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    MaxWidth = 120
+                });
+            }
+            contentStack.Children.Add(infoRow);
+
+            // LARGE Avatars - 44px
+            if (meeting.Attendees.Count > 0)
+            {
+                var avatarRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 0) };
+
+                for (int i = 0; i < Math.Min(meeting.Attendees.Count, 5); i++)
+                {
+                    avatarRow.Children.Add(CreateAvatar(meeting.Attendees[i], i, 44));
+                }
+
+                if (meeting.Attendees.Count > 5)
+                {
+                    var moreText = new TextBlock
+                    {
+                        Text = $"+{meeting.Attendees.Count - 5}",
+                        FontSize = 11,
+                        Foreground = new SolidColorBrush(TextGray),
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Margin = new Thickness(4, 0, 0, 0)
+                    };
+                    avatarRow.Children.Add(moreText);
+                }
+
+                contentStack.Children.Add(avatarRow);
+            }
+
+            Grid.SetColumn(contentStack, 1);
+            mainGrid.Children.Add(contentStack);
+
+            // Time badge
+            var timeStack = new StackPanel { VerticalAlignment = VerticalAlignment.Top, HorizontalAlignment = HorizontalAlignment.Right };
+            var timeText = GetRelativeTime(meeting.MeetingDate);
+
+            var timeBadge = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(40, Purple.R, Purple.G, Purple.B)),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(8, 4, 8, 4)
+            };
+            timeBadge.Child = new TextBlock
+            {
+                Text = timeText,
+                FontSize = 10,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Purple)
+            };
+            timeStack.Children.Add(timeBadge);
+
+            Grid.SetColumn(timeStack, 2);
+            mainGrid.Children.Add(timeStack);
+
+            card.Child = mainGrid;
+            return card;
+        }
+
+        private Border CreateTaskCard(TaskNotification task, bool isOverdue)
+        {
             var priorityColor = task.Priority == 3 ? AlertRed : task.Priority == 2 ? WarningOrange : PrimaryGreen;
-            var iconContainer = new Grid { Width = 42, Height = 42, Margin = new Thickness(0, 0, 14, 0) };
+
+            var card = new Border
+            {
+                Background = new SolidColorBrush(CardBg),
+                CornerRadius = new CornerRadius(12),
+                Padding = new Thickness(14),
+                Margin = new Thickness(0, 0, 0, 8),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+
+            card.MouseEnter += (s, e) => card.Background = new SolidColorBrush(CardBgHover);
+            card.MouseLeave += (s, e) => card.Background = new SolidColorBrush(CardBg);
+
+            var mainGrid = new Grid();
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            // Task icon with priority indicator
+            var iconContainer = new Grid { Width = 40, Height = 40, Margin = new Thickness(0, 0, 12, 0), VerticalAlignment = VerticalAlignment.Top };
 
             var iconBg = new Border
             {
-                Width = 42,
-                Height = 42,
-                CornerRadius = new CornerRadius(10),
-                Background = new SolidColorBrush(Color.FromArgb(40, priorityColor.R, priorityColor.G, priorityColor.B))
+                Width = 40,
+                Height = 40,
+                CornerRadius = new CornerRadius(10)
             };
-            iconContainer.Children.Add(iconBg);
-
-            iconContainer.Children.Add(new TextBlock
+            iconBg.Background = new LinearGradientBrush(InfoBlue, Color.FromArgb(255, 41, 128, 185), 45);
+            iconBg.Child = new TextBlock
             {
                 Text = "✓",
                 FontSize = 18,
                 FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(priorityColor),
+                Foreground = Brushes.White,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
-            });
+            };
+            iconContainer.Children.Add(iconBg);
 
-            // Priority indicator dot
+            // Priority dot
             var priorityDot = new Border
             {
                 Width = 12,
@@ -812,379 +739,105 @@ namespace Kalendarz1.Zadania
                 BorderThickness = new Thickness(2),
                 HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Top,
-                Margin = new Thickness(0, -3, -3, 0)
+                Margin = new Thickness(0, -2, -2, 0)
             };
             iconContainer.Children.Add(priorityDot);
 
             Grid.SetColumn(iconContainer, 0);
-            headerRow.Children.Add(iconContainer);
+            mainGrid.Children.Add(iconContainer);
 
-            // Title and details
-            var infoStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            // Content
+            var contentStack = new StackPanel { VerticalAlignment = VerticalAlignment.Top };
 
-            infoStack.Children.Add(new TextBlock
+            contentStack.Children.Add(new TextBlock
             {
                 Text = task.Title,
-                FontSize = 14,
+                FontSize = 13,
                 FontWeight = FontWeights.Medium,
                 Foreground = Brushes.White,
-                TextTrimming = TextTrimming.CharacterEllipsis,
-                MaxWidth = 450
+                TextTrimming = TextTrimming.CharacterEllipsis
             });
-
-            // Badges row
-            var badgesRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
-
-            // Type badge
-            badgesRow.Children.Add(CreateBadge("ZADANIE", TextLight, Color.FromArgb(40, 255, 255, 255)));
-
-            // Priority badge
-            var priorityText = task.Priority == 3 ? "Wysoki" : task.Priority == 2 ? "Średni" : "Niski";
-            badgesRow.Children.Add(CreateBadge(priorityText, priorityColor, Color.FromArgb(30, priorityColor.R, priorityColor.G, priorityColor.B)));
 
             // Due time
-            badgesRow.Children.Add(new TextBlock
+            var infoRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+            infoRow.Children.Add(new TextBlock
             {
-                Text = $"Termin: {task.DueDate:HH:mm}",
+                Text = task.DueDate.ToString("HH:mm"),
                 FontSize = 11,
-                Foreground = new SolidColorBrush(TextGray),
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(8, 0, 0, 0)
+                Foreground = new SolidColorBrush(isOverdue ? AlertRed : InfoBlue),
+                FontWeight = FontWeights.SemiBold
             });
 
-            infoStack.Children.Add(badgesRow);
-
-            Grid.SetColumn(infoStack, 1);
-            headerRow.Children.Add(infoStack);
-
-            // Time indicator
-            var timeStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
-            var timeText = GetTaskRelativeTime(task.DueDate);
-            timeStack.Children.Add(new TextBlock
+            var priorityText = task.Priority == 3 ? "Wysoki" : task.Priority == 2 ? "Średni" : "Niski";
+            infoRow.Children.Add(new TextBlock
             {
-                Text = timeText,
-                FontSize = 14,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(isOverdue ? AlertRed : sectionColor),
-                HorizontalAlignment = HorizontalAlignment.Right
+                Text = $"  •  {priorityText}",
+                FontSize = 11,
+                Foreground = new SolidColorBrush(priorityColor)
             });
 
-            if (!isOverdue)
-            {
-                timeStack.Children.Add(new TextBlock
-                {
-                    Text = task.DueDate.ToString("HH:mm"),
-                    FontSize = 11,
-                    Foreground = new SolidColorBrush(TextGray),
-                    HorizontalAlignment = HorizontalAlignment.Right,
-                    Margin = new Thickness(0, 3, 0, 0)
-                });
-            }
+            contentStack.Children.Add(infoRow);
 
-            Grid.SetColumn(timeStack, 2);
-            headerRow.Children.Add(timeStack);
-
-            mainStack.Children.Add(headerRow);
-
-            // Description preview
-            if (!string.IsNullOrWhiteSpace(task.Description))
-            {
-                var descPreview = task.Description.Length > 80 ? task.Description.Substring(0, 80) + "..." : task.Description;
-                mainStack.Children.Add(new TextBlock
-                {
-                    Text = descPreview,
-                    FontSize = 12,
-                    Foreground = new SolidColorBrush(TextGray),
-                    Margin = new Thickness(56, 8, 0, 0),
-                    TextTrimming = TextTrimming.CharacterEllipsis,
-                    FontStyle = FontStyles.Italic
-                });
-            }
-
-            // Assignees avatars
+            // LARGE Avatars - 44px
             if (task.Assignees.Count > 0)
             {
-                var assigneesRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(56, 10, 0, 0) };
+                var avatarRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 0) };
 
-                for (int i = 0; i < Math.Min(task.Assignees.Count, 6); i++)
+                for (int i = 0; i < Math.Min(task.Assignees.Count, 4); i++)
                 {
                     var assignee = task.Assignees[i];
-                    assigneesRow.Children.Add(CreateLargeAvatar(
+                    avatarRow.Children.Add(CreateAvatar(
                         new MeetingAttendee { Name = assignee.Name, OperatorId = assignee.OperatorId, Status = "Przypisany" },
-                        i, 32));
+                        i, 44));
                 }
 
-                if (task.Assignees.Count > 6)
+                if (task.Assignees.Count > 4)
                 {
-                    assigneesRow.Children.Add(new TextBlock
+                    var moreText = new TextBlock
                     {
-                        Text = $"+{task.Assignees.Count - 6}",
+                        Text = $"+{task.Assignees.Count - 4}",
                         FontSize = 11,
                         Foreground = new SolidColorBrush(TextGray),
                         VerticalAlignment = VerticalAlignment.Center,
-                        Margin = new Thickness(6, 0, 0, 0)
-                    });
-                }
-
-                mainStack.Children.Add(assigneesRow);
-            }
-
-            card.Child = mainStack;
-            return card;
-        }
-
-        private Border CreateMeetingCard(MeetingNotification meeting, Color sectionColor, bool isUrgent)
-        {
-            var card = new Border
-            {
-                Background = new SolidColorBrush(CardBg),
-                CornerRadius = new CornerRadius(12),
-                Margin = new Thickness(0, 0, 0, 10),
-                Padding = new Thickness(16, 14, 16, 14),
-                BorderThickness = new Thickness(0, 0, 5, 0),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(120, InfoBlue.R, InfoBlue.G, InfoBlue.B)),
-                Cursor = System.Windows.Input.Cursors.Hand
-            };
-
-            card.MouseEnter += (s, e) => card.Background = new SolidColorBrush(CardBgHover);
-            card.MouseLeave += (s, e) => card.Background = new SolidColorBrush(CardBg);
-
-            var mainStack = new StackPanel();
-
-            // Header row
-            var headerRow = new Grid();
-            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-            // Meeting icon
-            var iconBg = new Border
-            {
-                Width = 42,
-                Height = 42,
-                CornerRadius = new CornerRadius(10),
-                Background = new SolidColorBrush(Color.FromArgb(40, InfoBlue.R, InfoBlue.G, InfoBlue.B)),
-                Margin = new Thickness(0, 0, 14, 0)
-            };
-            iconBg.Child = new TextBlock
-            {
-                Text = "📅",
-                FontSize = 18,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            Grid.SetColumn(iconBg, 0);
-            headerRow.Children.Add(iconBg);
-
-            // Title and details
-            var infoStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-
-            infoStack.Children.Add(new TextBlock
-            {
-                Text = meeting.Title,
-                FontSize = 14,
-                FontWeight = FontWeights.Medium,
-                Foreground = Brushes.White,
-                TextTrimming = TextTrimming.CharacterEllipsis,
-                MaxWidth = 450
-            });
-
-            // Badges row
-            var badgesRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
-
-            badgesRow.Children.Add(CreateBadge("SPOTKANIE", InfoBlue, Color.FromArgb(40, InfoBlue.R, InfoBlue.G, InfoBlue.B)));
-
-            badgesRow.Children.Add(new TextBlock
-            {
-                Text = $"{meeting.DurationMin} min",
-                FontSize = 11,
-                Foreground = new SolidColorBrush(TextGray),
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(8, 0, 0, 0)
-            });
-
-            if (!string.IsNullOrEmpty(meeting.Location))
-            {
-                badgesRow.Children.Add(new TextBlock
-                {
-                    Text = $"📍 {meeting.Location}",
-                    FontSize = 11,
-                    Foreground = new SolidColorBrush(TextGray),
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(8, 0, 0, 0)
-                });
-            }
-
-            infoStack.Children.Add(badgesRow);
-
-            Grid.SetColumn(infoStack, 1);
-            headerRow.Children.Add(infoStack);
-
-            // Time indicator
-            var timeStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
-            var timeText = GetMeetingRelativeTime(meeting);
-            timeStack.Children.Add(new TextBlock
-            {
-                Text = timeText,
-                FontSize = 14,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(isUrgent ? WarningOrange : sectionColor),
-                HorizontalAlignment = HorizontalAlignment.Right
-            });
-
-            timeStack.Children.Add(new TextBlock
-            {
-                Text = meeting.MeetingDate.ToString("HH:mm"),
-                FontSize = 11,
-                Foreground = new SolidColorBrush(TextGray),
-                HorizontalAlignment = HorizontalAlignment.Right,
-                Margin = new Thickness(0, 3, 0, 0)
-            });
-
-            Grid.SetColumn(timeStack, 2);
-            headerRow.Children.Add(timeStack);
-
-            mainStack.Children.Add(headerRow);
-
-            // LARGE Attendees section
-            if (meeting.Attendees.Count > 0)
-            {
-                var attendeesSection = new Border
-                {
-                    Background = new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)),
-                    CornerRadius = new CornerRadius(10),
-                    Padding = new Thickness(14, 12, 14, 12),
-                    Margin = new Thickness(56, 12, 0, 0)
-                };
-
-                var attendeesStack = new StackPanel();
-
-                // Label
-                attendeesStack.Children.Add(new TextBlock
-                {
-                    Text = $"UCZESTNICY ({meeting.Attendees.Count})",
-                    FontSize = 10,
-                    FontWeight = FontWeights.Bold,
-                    Foreground = new SolidColorBrush(TextGray),
-                    Margin = new Thickness(0, 0, 0, 10)
-                });
-
-                // Avatar row - LARGE avatars
-                var avatarRow = new StackPanel { Orientation = Orientation.Horizontal };
-                var displayCount = Math.Min(meeting.Attendees.Count, 10);
-
-                for (int i = 0; i < displayCount; i++)
-                {
-                    var attendee = meeting.Attendees[i];
-                    avatarRow.Children.Add(CreateLargeAvatar(attendee, i, 36));
-                }
-
-                if (meeting.Attendees.Count > 10)
-                {
-                    var moreCount = new Border
-                    {
-                        Width = 36,
-                        Height = 36,
-                        CornerRadius = new CornerRadius(18),
-                        Background = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255)),
-                        BorderBrush = new SolidColorBrush(CardBg),
-                        BorderThickness = new Thickness(3),
-                        Margin = new Thickness(-10, 0, 0, 0)
+                        Margin = new Thickness(4, 0, 0, 0)
                     };
-                    moreCount.Child = new TextBlock
-                    {
-                        Text = $"+{meeting.Attendees.Count - 10}",
-                        FontSize = 10,
-                        FontWeight = FontWeights.SemiBold,
-                        Foreground = Brushes.White,
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        VerticalAlignment = VerticalAlignment.Center
-                    };
-                    avatarRow.Children.Add(moreCount);
+                    avatarRow.Children.Add(moreText);
                 }
 
-                attendeesStack.Children.Add(avatarRow);
-
-                // Status summary
-                var accepted = meeting.Attendees.Count(a => a.Status == "Zaakceptowane");
-                var declined = meeting.Attendees.Count(a => a.Status == "Odrzucone");
-                var pending = meeting.Attendees.Count(a => a.Status == "Oczekuje");
-
-                var statusRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 0) };
-
-                if (accepted > 0)
-                {
-                    statusRow.Children.Add(new TextBlock
-                    {
-                        Text = $"✓ {accepted}",
-                        FontSize = 11,
-                        Foreground = new SolidColorBrush(PrimaryGreen),
-                        Margin = new Thickness(0, 0, 12, 0)
-                    });
-                }
-                if (declined > 0)
-                {
-                    statusRow.Children.Add(new TextBlock
-                    {
-                        Text = $"✗ {declined}",
-                        FontSize = 11,
-                        Foreground = new SolidColorBrush(AlertRed),
-                        Margin = new Thickness(0, 0, 12, 0)
-                    });
-                }
-                if (pending > 0)
-                {
-                    statusRow.Children.Add(new TextBlock
-                    {
-                        Text = $"? {pending}",
-                        FontSize = 11,
-                        Foreground = new SolidColorBrush(TextGray)
-                    });
-                }
-
-                attendeesStack.Children.Add(statusRow);
-
-                attendeesSection.Child = attendeesStack;
-                mainStack.Children.Add(attendeesSection);
+                contentStack.Children.Add(avatarRow);
             }
 
-            // Organizer
-            if (!string.IsNullOrEmpty(meeting.OrganizerName))
-            {
-                mainStack.Children.Add(new TextBlock
-                {
-                    Text = $"Organizator: {meeting.OrganizerName}",
-                    FontSize = 11,
-                    Foreground = new SolidColorBrush(TextGray),
-                    Margin = new Thickness(56, 8, 0, 0),
-                    FontStyle = FontStyles.Italic
-                });
-            }
+            Grid.SetColumn(contentStack, 1);
+            mainGrid.Children.Add(contentStack);
 
-            card.Child = mainStack;
-            return card;
-        }
+            // Time badge
+            var timeStack = new StackPanel { VerticalAlignment = VerticalAlignment.Top, HorizontalAlignment = HorizontalAlignment.Right };
+            var timeText = GetRelativeTime(task.DueDate);
 
-        private Border CreateBadge(string text, Color textColor, Color bgColor)
-        {
-            var badge = new Border
+            var badgeColor = isOverdue ? AlertRed : InfoBlue;
+            var timeBadge = new Border
             {
-                Background = new SolidColorBrush(bgColor),
-                CornerRadius = new CornerRadius(5),
-                Padding = new Thickness(8, 3, 8, 3),
-                Margin = new Thickness(0, 0, 8, 0)
+                Background = new SolidColorBrush(Color.FromArgb(40, badgeColor.R, badgeColor.G, badgeColor.B)),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(8, 4, 8, 4)
             };
-            badge.Child = new TextBlock
+            timeBadge.Child = new TextBlock
             {
-                Text = text,
+                Text = isOverdue ? "Zaległe" : timeText,
                 FontSize = 10,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(textColor)
+                Foreground = new SolidColorBrush(badgeColor)
             };
-            return badge;
+            timeStack.Children.Add(timeBadge);
+
+            Grid.SetColumn(timeStack, 2);
+            mainGrid.Children.Add(timeStack);
+
+            card.Child = mainGrid;
+            return card;
         }
 
-        private Border CreateLargeAvatar(MeetingAttendee attendee, int index, int size)
+        private Border CreateAvatar(MeetingAttendee attendee, int index, int size)
         {
             var colorHex = AvatarColors[Math.Abs(attendee.Name?.GetHashCode() ?? index) % AvatarColors.Length];
             var color = (Color)ColorConverter.ConvertFromString(colorHex);
@@ -1203,32 +856,33 @@ namespace Kalendarz1.Zadania
                 Background = new SolidColorBrush(color),
                 BorderBrush = new SolidColorBrush(borderColor),
                 BorderThickness = new Thickness(3),
-                Margin = new Thickness(index > 0 ? -10 : 0, 0, 0, 0)
+                Margin = new Thickness(index > 0 ? -12 : 0, 0, 0, 0)
+            };
+
+            avatar.Effect = new DropShadowEffect
+            {
+                BlurRadius = 6,
+                ShadowDepth = 1,
+                Opacity = 0.3,
+                Color = Colors.Black
             };
 
             avatar.Child = new TextBlock
             {
                 Text = initials,
                 Foreground = Brushes.White,
-                FontSize = size * 0.32,
-                FontWeight = FontWeights.SemiBold,
+                FontSize = size * 0.35,
+                FontWeight = FontWeights.Bold,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
 
-            // Detailed tooltip
+            // Tooltip
             var statusText = attendee.Status == "Zaakceptowane" ? "Potwierdzone" :
                            attendee.Status == "Odrzucone" ? "Odrzucone" :
-                           attendee.Status == "Przypisany" ? "Przypisany" : "Oczekuje na odpowiedź";
+                           attendee.Status == "Przypisany" ? "Przypisany" : "Oczekuje";
 
-            var tooltipContent = $"{attendee.Name}";
-            if (!string.IsNullOrEmpty(attendee.Email))
-                tooltipContent += $"\n{attendee.Email}";
-            tooltipContent += $"\nStatus: {statusText}";
-            if (attendee.IsRequired)
-                tooltipContent += "\n⭐ Obowiązkowy uczestnik";
-
-            avatar.ToolTip = tooltipContent;
+            avatar.ToolTip = $"{attendee.Name}\nStatus: {statusText}";
 
             return avatar;
         }
@@ -1244,7 +898,7 @@ namespace Kalendarz1.Zadania
 
         private UIElement CreateEmptyState()
         {
-            var container = new Border { Margin = new Thickness(0, 80, 0, 80) };
+            var container = new Border { Margin = new Thickness(0, 60, 0, 60) };
 
             var stack = new StackPanel
             {
@@ -1254,17 +908,19 @@ namespace Kalendarz1.Zadania
 
             var iconBorder = new Border
             {
-                Width = 80,
-                Height = 80,
-                CornerRadius = new CornerRadius(40),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Background = new SolidColorBrush(Color.FromArgb(30, PrimaryGreen.R, PrimaryGreen.G, PrimaryGreen.B))
+                Width = 70,
+                Height = 70,
+                CornerRadius = new CornerRadius(35),
+                HorizontalAlignment = HorizontalAlignment.Center
             };
+            iconBorder.Background = new LinearGradientBrush(PrimaryGreen, Color.FromArgb(255, 30, 132, 73), 45);
+            iconBorder.Effect = new DropShadowEffect { BlurRadius = 15, ShadowDepth = 0, Opacity = 0.4, Color = PrimaryGreen };
             iconBorder.Child = new TextBlock
             {
                 Text = "✓",
-                FontSize = 36,
-                Foreground = new SolidColorBrush(PrimaryGreen),
+                FontSize = 32,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -1272,35 +928,28 @@ namespace Kalendarz1.Zadania
 
             stack.Children.Add(new TextBlock
             {
-                Text = "Wszystko pod kontrolą!",
-                FontSize = 20,
+                Text = "Wszystko ogarnięte!",
+                FontSize = 18,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = Brushes.White,
                 HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 20, 0, 0)
+                Margin = new Thickness(0, 18, 0, 0)
             });
-
-            var subtitle = currentView switch
-            {
-                ViewMode.Tasks => "Brak zadań do wykonania",
-                ViewMode.Meetings => "Brak zaplanowanych spotkań",
-                _ => "Brak pilnych zadań i spotkań"
-            };
 
             stack.Children.Add(new TextBlock
             {
-                Text = subtitle,
-                FontSize = 14,
+                Text = "Brak zadań i spotkań",
+                FontSize = 12,
                 Foreground = new SolidColorBrush(TextGray),
                 HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 8, 0, 0)
+                Margin = new Thickness(0, 6, 0, 0)
             });
 
             container.Child = stack;
             return container;
         }
 
-        private string GetTaskRelativeTime(DateTime dateTime)
+        private string GetRelativeTime(DateTime dateTime)
         {
             var now = DateTime.Now;
             var diff = dateTime - now;
@@ -1324,16 +973,6 @@ namespace Kalendarz1.Zadania
             return dateTime.ToString("dd.MM");
         }
 
-        private string GetMeetingRelativeTime(MeetingNotification meeting)
-        {
-            if (meeting.IsLive) return "TRWA";
-            if (meeting.MinutesToMeeting <= 0) return "teraz!";
-            if (meeting.MinutesToMeeting < 60) return $"za {meeting.MinutesToMeeting}m";
-            if (meeting.MinutesToMeeting < 1440) return $"za {meeting.MinutesToMeeting / 60}h";
-            if (meeting.MeetingDate.Date == DateTime.Today.AddDays(1)) return "jutro";
-            return meeting.MeetingDate.ToString("dd.MM");
-        }
-
         #endregion
 
         #region Button Handlers
@@ -1354,7 +993,6 @@ namespace Kalendarz1.Zadania
                 case 1: snoozeTime = TimeSpan.FromMinutes(30); break;
                 case 2: snoozeTime = TimeSpan.FromHours(1); break;
                 case 3: snoozeTime = TimeSpan.FromHours(2); break;
-                case 4: snoozeTime = TimeSpan.FromHours(24); break;
                 default: snoozeTime = TimeSpan.FromMinutes(30); break;
             }
 
