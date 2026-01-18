@@ -981,7 +981,7 @@ namespace Kalendarz1
                 {
                     StringFormat = "# ##0"
                 },
-                Width = 58
+                Width = 65
             });
 
             dataGridWstawienia.Columns.Add(new DataGridTextColumn
@@ -995,7 +995,7 @@ namespace Kalendarz1
             var typCenyColumn = new DataGridTemplateColumn
             {
                 Header = "Cena",
-                Width = 78
+                Width = 85
             };
 
             var cellTemplate = new DataTemplate();
@@ -1029,7 +1029,7 @@ namespace Kalendarz1
             {
                 Header = "Kto",
                 Binding = new System.Windows.Data.Binding("KtoStwo"),
-                Width = 50
+                Width = 60
             });
 
             // Kolumna Data i Godzina Utworzenia
@@ -1040,16 +1040,26 @@ namespace Kalendarz1
                 Width = new DataGridLength(1, DataGridLengthUnitType.Star)
             });
 
-            // Kolumna Potw. - znaczek ✓
-            var potwColumn = new DataGridTextColumn
+            // Kolumna Potw. - znaczek ✓ (zielony i pogrubiony)
+            var potwColumn = new DataGridTemplateColumn
             {
                 Header = "✓",
                 Width = 30
             };
-            potwColumn.Binding = new System.Windows.Data.Binding("isConf")
+
+            var potwCellTemplate = new DataTemplate();
+            var potwTextFactory = new FrameworkElementFactory(typeof(TextBlock));
+            potwTextFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("isConf")
             {
                 Converter = new IsConfConverter()
-            };
+            });
+            potwTextFactory.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(0, 150, 0)));
+            potwTextFactory.SetValue(TextBlock.FontWeightProperty, FontWeights.Bold);
+            potwTextFactory.SetValue(TextBlock.FontSizeProperty, 14.0);
+            potwTextFactory.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            potwTextFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            potwCellTemplate.VisualTree = potwTextFactory;
+            potwColumn.CellTemplate = potwCellTemplate;
             dataGridWstawienia.Columns.Add(potwColumn);
         }
 
