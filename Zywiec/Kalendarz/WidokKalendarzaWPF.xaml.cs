@@ -2530,20 +2530,23 @@ namespace Kalendarz1.Zywiec.Kalendarz
             string lp = checkbox.Tag?.ToString();
             if (string.IsNullOrEmpty(lp)) return;
 
-            // TRYB SYMULACJI - blokuj i cofnij zmianę checkboxa
-            if (_isSimulationMode)
-            {
-                checkbox.IsChecked = !checkbox.IsChecked; // Cofnij zmianę
-                ShowToast("⚠️ Tryb symulacji - akcja zablokowana", ToastType.Warning);
-                return;
-            }
-
             bool isChecked = checkbox.IsChecked == true;
             string status = isChecked ? "Potwierdzony" : "Niepotwierdzony";
             string oldStatus = isChecked ? "Niepotwierdzony" : "Potwierdzony";
 
-            // Pobierz info o dostawie dla audytu
+            // Pobierz info o dostawie
             var dostawa = _dostawy.FirstOrDefault(d => d.LP == lp) ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == lp);
+
+            // TRYB SYMULACJI - tylko zmiana w pamięci
+            if (_isSimulationMode)
+            {
+                if (dostawa != null)
+                {
+                    dostawa.Bufor = status;
+                }
+                ShowToast(isChecked ? "📝 Potwierdzono (symulacja)" : "📝 Cofnięto potwierdzenie (symulacja)", ToastType.Info);
+                return;
+            }
 
             try
             {
@@ -2678,6 +2681,89 @@ namespace Kalendarz1.Zywiec.Kalendarz
             MoveDeliveryToDate(lp, newDate);
         }
 
+        /// <summary>
+        /// Zapisuje zmiany w dostawie tylko w pamięci (tryb symulacji)
+        /// </summary>
+        private void SimulationSaveDelivery(DostawaModel dostawa)
+        {
+            if (dostawa == null)
+            {
+                ShowToast("Nie znaleziono dostawy", ToastType.Warning);
+                return;
+            }
+
+            // Aktualizuj właściwości z formularza
+            if (dpData.SelectedDate.HasValue)
+            {
+                DateTime oldDate = dostawa.DataOdbioru;
+                DateTime newDate = dpData.SelectedDate.Value;
+                if (oldDate.Date != newDate.Date)
+                {
+                    dostawa.DataOdbioru = newDate;
+                }
+            }
+
+            if (cmbDostawca.SelectedItem != null)
+                dostawa.Dostawca = cmbDostawca.SelectedItem.ToString();
+
+            if (int.TryParse(txtAuta.Text, out int auta))
+                dostawa.Auta = auta;
+
+            if (int.TryParse(txtSztuki.Text, out int sztuki))
+                dostawa.SztukiDek = sztuki;
+
+            if (decimal.TryParse(txtWagaDek.Text.Replace(",", "."), System.Globalization.NumberStyles.Any, CultureInfo.InvariantCulture, out decimal waga))
+                dostawa.WagaDek = waga;
+
+            if (cmbTypCeny.SelectedItem != null)
+                dostawa.TypCeny = cmbTypCeny.SelectedItem.ToString();
+
+            if (decimal.TryParse(txtCena.Text.Replace(",", "."), System.Globalization.NumberStyles.Any, CultureInfo.InvariantCulture, out decimal cena))
+                dostawa.Cena = cena;
+
+            if (cmbStatus.SelectedItem != null)
+                dostawa.Bufor = cmbStatus.SelectedItem.ToString();
+
+            // Odśwież widok
+            RefreshDostawyView();
+
+            ShowToast("📝 Zmiany zapisane w symulacji", ToastType.Info);
+        }
+
+        /// <summary>
+        /// Duplikuje dostawę tylko w pamięci (tryb symulacji)
+        /// </summary>
+        private void SimulationDuplicateDelivery(string lp)
+        {
+            var dostawa = _dostawy.FirstOrDefault(d => d.LP == lp) ??
+                          _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == lp);
+
+            if (dostawa == null)
+            {
+                ShowToast("Nie znaleziono dostawy", ToastType.Warning);
+                return;
+            }
+
+            // Utwórz kopię z nowym LP (symulacyjnym)
+            var copy = CloneDostawaModel(dostawa);
+            copy.LP = $"SIM_{DateTime.Now.Ticks}"; // Unikalne LP dla symulacji
+
+            // Dodaj do odpowiedniej kolekcji
+            if (_dostawy.Any(d => d.LP == lp))
+            {
+                _dostawy.Add(copy);
+            }
+            else
+            {
+                _dostawyNastepnyTydzien.Add(copy);
+            }
+
+            // Odśwież widok
+            RefreshDostawyView();
+
+            ShowToast($"📋 Zduplikowano: {dostawa.Dostawca}", ToastType.Info);
+        }
+
         private async Task ChangeDeliveryDateAsync(string lp, int days)
         {
             // Pobierz info o dostawie dla audytu
@@ -2771,14 +2857,18 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 return;
             }
 
-            // TRYB SYMULACJI - blokuj
+            var dostawa = _dostawy.FirstOrDefault(d => d.LP == _selectedLP) ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == _selectedLP);
+
+            // TRYB SYMULACJI - tylko zmiana w UI, bez bazy i logów
             if (_isSimulationMode)
             {
-                ShowToast("⚠️ Tryb symulacji - akcja zablokowana", ToastType.Warning);
+                if (dostawa != null) dostawa.PotwWaga = true;
+                chkPotwWaga.IsChecked = true;
+                borderPotwWaga.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C8E6C9"));
+                txtKtoWaga.Text = $"({UserName})";
+                ShowToast("📝 Waga potwierdzona (symulacja)", ToastType.Info);
                 return;
             }
-
-            var dostawa = _dostawy.FirstOrDefault(d => d.LP == _selectedLP) ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == _selectedLP);
 
             try
             {
@@ -2822,14 +2912,18 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 return;
             }
 
-            // TRYB SYMULACJI - blokuj
+            var dostawa = _dostawy.FirstOrDefault(d => d.LP == _selectedLP) ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == _selectedLP);
+
+            // TRYB SYMULACJI - tylko zmiana w UI, bez bazy i logów
             if (_isSimulationMode)
             {
-                ShowToast("⚠️ Tryb symulacji - akcja zablokowana", ToastType.Warning);
+                if (dostawa != null) dostawa.PotwSztuki = true;
+                chkPotwSztuki.IsChecked = true;
+                borderPotwSztuki.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C8E6C9"));
+                txtKtoSztuki.Text = $"({UserName})";
+                ShowToast("📝 Sztuki potwierdzone (symulacja)", ToastType.Info);
                 return;
             }
-
-            var dostawa = _dostawy.FirstOrDefault(d => d.LP == _selectedLP) ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == _selectedLP);
 
             try
             {
@@ -2875,6 +2969,17 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
             var dostawa = _dostawy.FirstOrDefault(d => d.LP == _selectedLP) ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == _selectedLP);
 
+            // TRYB SYMULACJI - tylko zmiana w UI, bez bazy i logów
+            if (_isSimulationMode)
+            {
+                if (dostawa != null) dostawa.PotwWaga = false;
+                chkPotwWaga.IsChecked = false;
+                borderPotwWaga.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCDD2"));
+                txtKtoWaga.Text = "";
+                ShowToast("📝 Cofnięto potwierdzenie wagi (symulacja)", ToastType.Info);
+                return;
+            }
+
             try
             {
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
@@ -2918,6 +3023,17 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
             var dostawa = _dostawy.FirstOrDefault(d => d.LP == _selectedLP) ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == _selectedLP);
 
+            // TRYB SYMULACJI - tylko zmiana w UI, bez bazy i logów
+            if (_isSimulationMode)
+            {
+                if (dostawa != null) dostawa.PotwSztuki = false;
+                chkPotwSztuki.IsChecked = false;
+                borderPotwSztuki.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCDD2"));
+                txtKtoSztuki.Text = "";
+                ShowToast("📝 Cofnięto potwierdzenie sztuk (symulacja)", ToastType.Info);
+                return;
+            }
+
             try
             {
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
@@ -2958,16 +3074,16 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 return;
             }
 
-            // TRYB SYMULACJI - blokuj
-            if (_isSimulationMode)
-            {
-                ShowToast("⚠️ Tryb symulacji - akcja zablokowana", ToastType.Warning);
-                return;
-            }
-
             if (MessageBox.Show("Czy na pewno chcesz zduplikować tę dostawę?", "Potwierdzenie",
                 MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
             {
+                // TRYB SYMULACJI - duplikuj tylko w pamięci
+                if (_isSimulationMode)
+                {
+                    SimulationDuplicateDelivery(_selectedLP);
+                    return;
+                }
+
                 await DuplicateDeliveryAsync(_selectedLP);
                 await LoadDostawyAsync();
             }
@@ -3347,15 +3463,15 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 return;
             }
 
-            // TRYB SYMULACJI - blokuj zapis do bazy
-            if (_isSimulationMode)
-            {
-                ShowToast("⚠️ Tryb symulacji - zapis zablokowany! Użyj strzałek ▲▼ do przesuwania dat.", ToastType.Warning);
-                return;
-            }
-
             // Pobierz stare wartości dla audytu
             var oldDostawa = _dostawy.FirstOrDefault(d => d.LP == _selectedLP) ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == _selectedLP);
+
+            // TRYB SYMULACJI - zapisz tylko w pamięci, bez bazy i logów
+            if (_isSimulationMode)
+            {
+                SimulationSaveDelivery(oldDostawa);
+                return;
+            }
 
             // Nowe wartości z formularza
             DateTime? newDataOdbioru = dpData.SelectedDate;
@@ -4117,6 +4233,13 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         private async Task MoveDeliveryToDateAsync(string lp, DateTime oldDate, DateTime newDate, string dostawca)
         {
+            // TRYB SYMULACJI - tylko zmiana lokalna, bez zapisu do bazy i logów
+            if (_isSimulationMode)
+            {
+                MoveDeliveryToDate(lp, newDate);
+                return;
+            }
+
             try
             {
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
