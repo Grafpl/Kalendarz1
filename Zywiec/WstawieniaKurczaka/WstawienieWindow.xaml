@@ -222,37 +222,42 @@
                     </StackPanel>
                 </Border>
 
-                <!-- PODSUMOWANIE -->
-                <Border Style="{StaticResource Card}" Background="#E8F5E9" BorderBrush="#5C8A3A" BorderThickness="1.5">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition/>
-                            <ColumnDefinition/>
-                        </Grid.ColumnDefinitions>
-
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="📈 Suma: " FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                            <TextBox x:Name="txtSztukiSuma" Style="{StaticResource ReadOnlyTextBox}" Width="90" Margin="5,0"/>
-                        </StackPanel>
-
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                            <TextBlock Text="✅ Różnica: " FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                            <TextBox x:Name="txtSztukiRoznica" Style="{StaticResource ReadOnlyTextBox}" Width="90" Margin="5,0"/>
-                        </StackPanel>
-                    </Grid>
-                </Border>
-
                 <!-- SZABLON DOSTAW -->
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
                         <Grid Margin="0,0,0,8">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Lewa strona: Szablon + Wklej różnicę -->
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock Text="🚚 Szablon Dostaw" FontSize="13" FontWeight="Bold" Foreground="#2C3E50" VerticalAlignment="Center"/>
-                                <Button Content="📋 Wklej różnicę" Style="{StaticResource SmallButton}" 
+                                <Button Content="📋 Wklej różnicę" Style="{StaticResource SmallButton}"
                                         Margin="15,0,0,0" Click="BtnWklejRozniceDoWszystkich_Click"
                                         ToolTip="Wklej różnicę do wszystkich dostaw"/>
                             </StackPanel>
-                            <Button Content="➕ Dostawa" Style="{StaticResource SmallButton}" HorizontalAlignment="Right" Click="BtnDodajDostawe_Click"/>
+
+                            <!-- Środek: Suma i Różnica -->
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Border Background="#E8F5E9" CornerRadius="4" Padding="8,4" Margin="10,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="📈 Suma: " FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <TextBox x:Name="txtSztukiSuma" Style="{StaticResource ReadOnlyTextBox}" Width="80" FontSize="11"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="#FFF3E0" CornerRadius="4" Padding="8,4">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="✅ Różnica: " FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <TextBox x:Name="txtSztukiRoznica" Style="{StaticResource ReadOnlyTextBox}" Width="80" FontSize="11"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
+                            <!-- Prawa strona: Dodaj dostawę -->
+                            <Button Grid.Column="2" Content="➕ Dostawa" Style="{StaticResource SmallButton}" HorizontalAlignment="Right" Click="BtnDodajDostawe_Click"/>
                         </Grid>
 
                         <!-- Nagłówki -->
