@@ -3205,20 +3205,20 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 Auta = original.Auta,
                 SztukiDek = original.SztukiDek,
                 WagaDek = original.WagaDek,
-                SztSzuflada = original.SztSzuflada,
                 TypCeny = original.TypCeny,
                 Cena = original.Cena,
-                TypUmowy = original.TypUmowy,
-                Dodatek = original.Dodatek,
+                Distance = original.Distance,
                 Bufor = original.Bufor,
                 PotwWaga = original.PotwWaga,
                 PotwSztuki = original.PotwSztuki,
                 Uwagi = original.Uwagi,
-                LpWstawienia = original.LpWstawienia,
+                LpW = original.LpW,
                 DataNotatki = original.DataNotatki,
                 RoznicaDni = original.RoznicaDni,
+                Ubytek = original.Ubytek,
                 IsHeaderRow = original.IsHeaderRow,
-                IsSeparator = original.IsSeparator
+                IsSeparator = original.IsSeparator,
+                IsEmptyDay = original.IsEmptyDay
             };
         }
 
