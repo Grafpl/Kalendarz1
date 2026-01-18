@@ -439,6 +439,59 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
             // Aktualizuj status bar
             UpdateStatusBar();
+
+            // Aktualizuj nagłówki kolumn Uwagi z liczbą sprzedanych/anulowanych
+            UpdateUwagiColumnHeaders();
+        }
+
+        private void UpdateUwagiColumnHeaders()
+        {
+            try
+            {
+                // Policz sprzedane i anulowane dla pierwszego tygodnia
+                int sprzedane1 = _allDostawy?.Count(d => d.Bufor == "Sprzedany") ?? 0;
+                int anulowane1 = _allDostawy?.Count(d => d.Bufor == "Anulowany") ?? 0;
+
+                // Utwórz wizualny nagłówek dla pierwszej tabeli
+                if (colUwagi != null)
+                {
+                    var headerPanel = new StackPanel { Orientation = Orientation.Horizontal };
+                    headerPanel.Children.Add(new TextBlock { Text = "Uwagi ", FontSize = 10, Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81)), VerticalAlignment = VerticalAlignment.Center });
+
+                    if (sprzedane1 > 0)
+                    {
+                        headerPanel.Children.Add(new TextBlock { Text = $"S:{sprzedane1}", FontSize = 9, Foreground = new SolidColorBrush(Color.FromRgb(37, 99, 235)), FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(2, 0, 0, 0) });
+                    }
+                    if (anulowane1 > 0)
+                    {
+                        headerPanel.Children.Add(new TextBlock { Text = $"A:{anulowane1}", FontSize = 9, Foreground = new SolidColorBrush(Color.FromRgb(220, 38, 38)), FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 0) });
+                    }
+
+                    colUwagi.Header = headerPanel;
+                }
+
+                // Policz dla drugiego tygodnia
+                int sprzedane2 = _allDostawyNastepny?.Count(d => d.Bufor == "Sprzedany") ?? 0;
+                int anulowane2 = _allDostawyNastepny?.Count(d => d.Bufor == "Anulowany") ?? 0;
+
+                if (colUwagi2 != null)
+                {
+                    var headerPanel2 = new StackPanel { Orientation = Orientation.Horizontal };
+                    headerPanel2.Children.Add(new TextBlock { Text = "Uwagi ", FontSize = 10, Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81)), VerticalAlignment = VerticalAlignment.Center });
+
+                    if (sprzedane2 > 0)
+                    {
+                        headerPanel2.Children.Add(new TextBlock { Text = $"S:{sprzedane2}", FontSize = 9, Foreground = new SolidColorBrush(Color.FromRgb(37, 99, 235)), FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(2, 0, 0, 0) });
+                    }
+                    if (anulowane2 > 0)
+                    {
+                        headerPanel2.Children.Add(new TextBlock { Text = $"A:{anulowane2}", FontSize = 9, Foreground = new SolidColorBrush(Color.FromRgb(220, 38, 38)), FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 0) });
+                    }
+
+                    colUwagi2.Header = headerPanel2;
+                }
+            }
+            catch { }
         }
 
         // Stara synchroniczna wersja dla kompatybilności
@@ -2139,6 +2192,81 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
             dialog.Content = mainStack;
             dialog.ShowDialog();
+        }
+
+        private void DgWstawienia_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            var dg = sender as DataGrid;
+            if (dg == null) return;
+
+            var selectedItem = dg.SelectedItem as DostawaModel;
+            if (selectedItem == null || selectedItem.IsHeaderRow) return;
+
+            // Znajdź dostawę w głównych tabelach
+            DostawaModel targetDostawa = null;
+            DataGrid targetGrid = null;
+
+            // Szukaj w bieżącym tygodniu
+            targetDostawa = _dostawy.FirstOrDefault(d => d.LP == selectedItem.LP && !d.IsHeaderRow && !d.IsSeparator);
+            if (targetDostawa != null)
+            {
+                targetGrid = dgDostawy;
+            }
+            else
+            {
+                // Szukaj w następnym tygodniu
+                targetDostawa = _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == selectedItem.LP && !d.IsHeaderRow && !d.IsSeparator);
+                if (targetDostawa != null)
+                {
+                    targetGrid = dgDostawyNastepny;
+                }
+            }
+
+            // Jeśli znaleziono - przeskocz do tej dostawy i podświetl
+            if (targetDostawa != null && targetGrid != null)
+            {
+                targetGrid.SelectedItem = targetDostawa;
+                targetGrid.ScrollIntoView(targetDostawa);
+
+                // Dodatkowe podświetlenie (flash)
+                var row = targetGrid.ItemContainerGenerator.ContainerFromItem(targetDostawa) as DataGridRow;
+                if (row != null)
+                {
+                    var originalBackground = row.Background;
+                    row.Background = new SolidColorBrush(Color.FromRgb(253, 224, 71)); // Yellow highlight
+
+                    // Przywróć oryginalny kolor po 1.5 sekundy
+                    var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(1.5) };
+                    timer.Tick += (s, args) =>
+                    {
+                        row.Background = originalBackground;
+                        timer.Stop();
+                    };
+                    timer.Start();
+                }
+
+                ShowToast($"Przejście do dostawy: {targetDostawa.Dostawca}", ToastType.Info);
+            }
+            else
+            {
+                // Jeśli nie znaleziono - może jest w innym tygodniu, trzeba zmienić tydzień
+                var targetDate = selectedItem.DataOdbioru.Date;
+                var currentWeekStart = _currentWeekStart;
+                var currentWeekEnd = currentWeekStart.AddDays(7);
+
+                if (targetDate < currentWeekStart || targetDate >= currentWeekEnd)
+                {
+                    // Zmień tydzień na ten, w którym jest dostawa
+                    _currentWeekStart = targetDate.AddDays(-(int)targetDate.DayOfWeek + (int)DayOfWeek.Monday);
+                    if (targetDate.DayOfWeek == DayOfWeek.Sunday)
+                        _currentWeekStart = _currentWeekStart.AddDays(-7);
+
+                    UpdateCalendarHeader();
+                    _ = LoadDostawyAsync();
+
+                    ShowToast($"Zmiana tygodnia na {_currentWeekStart:dd.MM}", ToastType.Info);
+                }
+            }
         }
 
         private void DgDostawy_LoadingRow(object sender, DataGridRowEventArgs e)
