@@ -1197,46 +1197,65 @@ namespace Kalendarz1
         {
             dataGridPrzypomnienia.Columns.Clear();
 
-            dataGridPrzypomnienia.Columns.Add(new DataGridTextColumn
-            {
-                Header = "LP",
-                Binding = new System.Windows.Data.Binding("LP"),
-                Width = 38
-            });
+            // Kolumna LP z pulsacją
+            var lpColumn = new DataGridTemplateColumn { Header = "LP", Width = 38 };
+            lpColumn.CellTemplate = CreatePulsatingTextTemplate("LP", null);
+            dataGridPrzypomnienia.Columns.Add(lpColumn);
 
-            dataGridPrzypomnienia.Columns.Add(new DataGridTextColumn
+            // Kolumna Data z pulsacją
+            var dataColumn = new DataGridTemplateColumn { Header = "Data", Width = 70 };
+            dataColumn.CellTemplate = CreatePulsatingTextTemplate("Data", "MM-dd ddd");
+            dataGridPrzypomnienia.Columns.Add(dataColumn);
+
+            // Kolumna Hodowca z pulsacją (trochę węższa na rzecz Tel)
+            var hodowcaColumn = new DataGridTemplateColumn { Header = "Hodowca", Width = new DataGridLength(0.85, DataGridLengthUnitType.Star) };
+            hodowcaColumn.CellTemplate = CreatePulsatingTextTemplate("Dostawca", null);
+            dataGridPrzypomnienia.Columns.Add(hodowcaColumn);
+
+            // Kolumna Ilość z pulsacją
+            var iloscColumn = new DataGridTemplateColumn { Header = "Ilość", Width = 52 };
+            iloscColumn.CellTemplate = CreatePulsatingTextTemplate("Ilosc", "# ##0");
+            dataGridPrzypomnienia.Columns.Add(iloscColumn);
+
+            // Kolumna Tel z pulsacją (szersza)
+            var telColumn = new DataGridTemplateColumn { Header = "Tel", Width = 82 };
+            telColumn.CellTemplate = CreatePulsatingTextTemplate("Telefon", null);
+            dataGridPrzypomnienia.Columns.Add(telColumn);
+        }
+
+        private DataTemplate CreatePulsatingTextTemplate(string bindingPath, string stringFormat)
+        {
+            var template = new DataTemplate();
+            var textBlockFactory = new FrameworkElementFactory(typeof(TextBlock));
+
+            var binding = new System.Windows.Data.Binding(bindingPath);
+            if (!string.IsNullOrEmpty(stringFormat))
+                binding.StringFormat = stringFormat;
+            textBlockFactory.SetBinding(TextBlock.TextProperty, binding);
+
+            textBlockFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            textBlockFactory.AddHandler(FrameworkElement.LoadedEvent, new RoutedEventHandler(StartPulsatingAnimation));
+
+            template.VisualTree = textBlockFactory;
+            return template;
+        }
+
+        private void StartPulsatingAnimation(object sender, RoutedEventArgs e)
+        {
+            var textBlock = sender as TextBlock;
+            if (textBlock != null)
             {
-                Header = "Data",
-                Binding = new System.Windows.Data.Binding("Data")
+                var animation = new System.Windows.Media.Animation.DoubleAnimation
                 {
-                    StringFormat = "MM-dd ddd"
-                },
-                Width = 70
-            });
-
-            dataGridPrzypomnienia.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Hodowca",
-                Binding = new System.Windows.Data.Binding("Dostawca"),
-                Width = new DataGridLength(1, DataGridLengthUnitType.Star)
-            });
-
-            dataGridPrzypomnienia.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Ilość",
-                Binding = new System.Windows.Data.Binding("Ilosc")
-                {
-                    StringFormat = "# ##0"
-                },
-                Width = 52
-            });
-
-            dataGridPrzypomnienia.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Tel",
-                Binding = new System.Windows.Data.Binding("Telefon"),
-                Width = 70
-            });
+                    From = 1.0,
+                    To = 0.5,
+                    Duration = TimeSpan.FromSeconds(1.2),
+                    AutoReverse = true,
+                    RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever,
+                    EasingFunction = new System.Windows.Media.Animation.SineEase()
+                };
+                textBlock.BeginAnimation(TextBlock.OpacityProperty, animation);
+            }
         }
 
         private void LoadHistoria()
