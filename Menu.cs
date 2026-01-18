@@ -65,7 +65,7 @@ namespace Kalendarz1
                 };
                 notificationWindow.OpenMeetingsRequested += (s, args) =>
                 {
-                    var spotkaniaWindow = new Spotkania.Views.SpotkaniaGlowneWindow();
+                    var spotkaniaWindow = new Spotkania.Views.SpotkaniaGlowneWindow(App.UserID);
                     spotkaniaWindow.Show();
                 };
                 notificationWindow.Show();
