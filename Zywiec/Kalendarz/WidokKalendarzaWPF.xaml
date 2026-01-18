@@ -1382,7 +1382,7 @@
                             </ScrollViewer>
 
                             <!-- Context Menu (zachowane dla kompatybilności) -->
-                            <Border.ContextMenu>
+                            <Grid.ContextMenu>
                                 <ContextMenu>
                                     <MenuItem Header="✅ Potwierdź WAGĘ" Click="MenuPotwierdzWage_Click" FontWeight="Bold"/>
                                     <MenuItem Header="✅ Potwierdź SZTUKI" Click="MenuPotwierdzSztuki_Click" FontWeight="Bold"/>
@@ -1390,7 +1390,7 @@
                                     <MenuItem Header="❌ Cofnij potwierdzenie WAGI" Click="MenuCofnijWage_Click"/>
                                     <MenuItem Header="❌ Cofnij potwierdzenie SZTUK" Click="MenuCofnijSztuki_Click"/>
                                 </ContextMenu>
-                            </Border.ContextMenu>
+                            </Grid.ContextMenu>
                         </Grid>
                     </TabItem>
 
