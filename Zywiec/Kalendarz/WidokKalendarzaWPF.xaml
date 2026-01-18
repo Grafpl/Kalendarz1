@@ -2190,7 +2190,6 @@
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
                                     <Button Content="📍 Mapa" Style="{StaticResource ActionButtonStyle}" Click="BtnMapa_Click"/>
                                     <Button Content="📱 SMS" Style="{StaticResource WarningButtonStyle}" Click="BtnSMS_Click"/>
-                                    <Button Content="📝 Ankieta" Style="{StaticResource ActionButtonStyle}" Click="BtnRecznaAnkieta_Click" ToolTip="Wyślij ręcznie ankietę SMS"/>
                                 </StackPanel>
                             </StackPanel>
                         </ScrollViewer>
