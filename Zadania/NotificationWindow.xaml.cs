@@ -21,6 +21,11 @@ namespace Kalendarz1.Zadania
         {
             InitializeComponent();
             operatorId = userId;
+            Loaded += NotificationWindow_Loaded;
+        }
+
+        private void NotificationWindow_Loaded(object sender, RoutedEventArgs e)
+        {
             PositionWindow();
             LoadNotifications();
         }
@@ -28,8 +33,8 @@ namespace Kalendarz1.Zadania
         private void PositionWindow()
         {
             var workArea = SystemParameters.WorkArea;
-            Left = workArea.Right - Width - 20;
-            Top = workArea.Bottom - Height - 20;
+            Left = workArea.Right - ActualWidth - 20;
+            Top = workArea.Bottom - ActualHeight - 20;
         }
 
         private void LoadNotifications()

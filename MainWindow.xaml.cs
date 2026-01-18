@@ -17,6 +17,7 @@ namespace Kalendarz1
         private Dictionary<string, bool> userPermissions = new Dictionary<string, bool>();
         private bool isAdmin = false;
         private DispatcherTimer clockTimer;
+        private DispatcherTimer notificationTimer;
 
         public MainWindow()
         {
@@ -38,18 +39,42 @@ namespace Kalendarz1
             SetupMenuItems();
 
             // Uruchomienie systemu powiadomień
-            StartNotificationService();
+            StartNotifications();
         }
 
-        private void StartNotificationService()
+        private void StartNotifications()
         {
-            NotificationService.Initialize(App.UserID);
-            NotificationService.Instance.OpenPanelRequested += (s, e) =>
+            // Pokaż powiadomienie po 5 sekundach od startu
+            notificationTimer = new DispatcherTimer();
+            notificationTimer.Interval = TimeSpan.FromSeconds(5);
+            notificationTimer.Tick += (s, e) =>
             {
-                var zadaniaWindow = new ZadaniaWindow();
-                zadaniaWindow.Show();
+                notificationTimer.Stop();
+                ShowNotificationWindow();
+
+                // Ustaw timer na co 15 minut
+                notificationTimer.Interval = TimeSpan.FromMinutes(15);
+                notificationTimer.Start();
             };
-            NotificationService.Instance.Start();
+            notificationTimer.Start();
+        }
+
+        private void ShowNotificationWindow()
+        {
+            try
+            {
+                var window = new NotificationWindow(App.UserID);
+                window.OpenPanelRequested += (s, args) =>
+                {
+                    var zadaniaWindow = new ZadaniaWindow();
+                    zadaniaWindow.Show();
+                };
+                window.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd powiadomień");
+            }
         }
 
         private void StartClock()
