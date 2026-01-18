@@ -1217,7 +1217,8 @@ namespace Kalendarz1.WPF
         }
 
         /// <summary>
-        /// Otwiera kamerę w trybie pełnoekranowym
+        /// Otwiera kamerę w trybie pełnoekranowym (na podstrumieniu s1).
+        /// Kliknięcie gdziekolwiek na pełnym ekranie zamyka widok.
         /// </summary>
         private void OpenFullscreenRtsp(int cameraIndex)
         {
@@ -1232,7 +1233,8 @@ namespace Kalendarz1.WPF
                 WindowStyle = WindowStyle.None,
                 Background = Brushes.Black,
                 ResizeMode = ResizeMode.NoResize,
-                Topmost = true
+                Topmost = true,
+                Cursor = System.Windows.Input.Cursors.Hand
             };
 
             var fullscreenGrid = new Grid();
@@ -1241,69 +1243,51 @@ namespace Kalendarz1.WPF
             var fullscreenVideoView = new VideoView { Background = Brushes.Black };
             fullscreenGrid.Children.Add(fullscreenVideoView);
 
-            // MediaPlayer dla fullscreen - używaj RtspUrlHD (s0) dla lepszej jakości
-            var fullscreenUrl = !string.IsNullOrEmpty(camera.RtspUrlHD) ? camera.RtspUrlHD : camera.RtspUrl;
+            // MediaPlayer dla fullscreen - używaj podstrumienia (s1) tak jak w podglądzie
             var fullscreenPlayer = new LibVLCSharp.Shared.MediaPlayer(_libVLC)
             {
                 EnableHardwareDecoding = true
             };
             fullscreenVideoView.MediaPlayer = fullscreenPlayer;
 
-            var fullscreenMedia = new Media(_libVLC, new Uri(fullscreenUrl));
+            var fullscreenMedia = new Media(_libVLC, new Uri(camera.RtspUrl)); // s1 - substream
             fullscreenMedia.AddOption(":rtsp-tcp");
             fullscreenMedia.AddOption(":network-caching=1000");
             fullscreenMedia.AddOption(":live-caching=1000");
             fullscreenPlayer.Play(fullscreenMedia);
 
-            LogCamera($"[FULLSCREEN] Otwarto kamerę {cameraIndex + 1}: {fullscreenUrl}");
+            LogCamera($"[FULLSCREEN] Otwarto kamerę {cameraIndex + 1}: {camera.RtspUrl}");
 
-            // Przycisk zamknięcia
-            var closeBtn = new Border
-            {
-                Background = new SolidColorBrush(Color.FromRgb(231, 76, 60)),
-                CornerRadius = new CornerRadius(10),
-                Padding = new Thickness(25, 15, 25, 15),
-                HorizontalAlignment = HorizontalAlignment.Right,
-                VerticalAlignment = VerticalAlignment.Top,
-                Margin = new Thickness(0, 30, 30, 0),
-                Cursor = System.Windows.Input.Cursors.Hand
-            };
-            closeBtn.Child = new TextBlock
-            {
-                Text = "✕ ZAMKNIJ",
-                FontSize = 24,
-                FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White
-            };
-            closeBtn.MouseLeftButtonDown += (s, e) =>
-            {
-                fullscreenPlayer.Stop();
-                fullscreenPlayer.Dispose();
-                fullscreenWindow.Close();
-                e.Handled = true;
-            };
-            fullscreenGrid.Children.Add(closeBtn);
-
-            // Nazwa kamery
+            // Nazwa kamery (mała etykieta w rogu)
             var nameLabel = new Border
             {
-                Background = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)),
+                Background = new SolidColorBrush(Color.FromArgb(150, 0, 0, 0)),
                 HorizontalAlignment = HorizontalAlignment.Left,
-                VerticalAlignment = VerticalAlignment.Top,
-                Margin = new Thickness(30, 30, 0, 0),
-                Padding = new Thickness(15, 8, 15, 8),
-                CornerRadius = new CornerRadius(5)
+                VerticalAlignment = VerticalAlignment.Bottom,
+                Margin = new Thickness(20, 0, 0, 20),
+                Padding = new Thickness(12, 6, 12, 6),
+                CornerRadius = new CornerRadius(5),
+                IsHitTestVisible = false // Nie blokuje kliknięć
             };
             nameLabel.Child = new TextBlock
             {
-                Text = camera.Name,
-                FontSize = 20,
-                FontWeight = FontWeights.Bold,
+                Text = $"{camera.Name} (kliknij aby zamknąć)",
+                FontSize = 16,
                 Foreground = Brushes.White
             };
             fullscreenGrid.Children.Add(nameLabel);
 
             fullscreenWindow.Content = fullscreenGrid;
+
+            // Zamknięcie przez kliknięcie gdziekolwiek
+            fullscreenWindow.MouseLeftButtonDown += (s, e) =>
+            {
+                fullscreenPlayer.Stop();
+                fullscreenPlayer.Dispose();
+                fullscreenWindow.Close();
+            };
+
+            // Zamknięcie przez ESC
             fullscreenWindow.KeyDown += (s, e) =>
             {
                 if (e.Key == System.Windows.Input.Key.Escape)
@@ -1313,11 +1297,17 @@ namespace Kalendarz1.WPF
                     fullscreenWindow.Close();
                 }
             };
+
             fullscreenWindow.Closed += (s, e) =>
             {
-                fullscreenPlayer.Stop();
-                fullscreenPlayer.Dispose();
+                try
+                {
+                    fullscreenPlayer.Stop();
+                    fullscreenPlayer.Dispose();
+                }
+                catch { }
             };
+
             fullscreenWindow.ShowDialog();
         }
 
