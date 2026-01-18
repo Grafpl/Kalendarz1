@@ -692,7 +692,7 @@
                                                                     <Setter Property="FontWeight" Value="SemiBold"/>
                                                                     <Setter Property="Effect">
                                                                         <Setter.Value>
-                                                                            <DropShadowEffect ShadowDepth="0" BlurRadius="1" Color="Black" Opacity="0.8"/>
+                                                                            <DropShadowEffect ShadowDepth="0" BlurRadius="3" Color="Black" Opacity="0.9"/>
                                                                         </Setter.Value>
                                                                     </Setter>
                                                                 </DataTrigger>
@@ -702,7 +702,7 @@
                                                                     <Setter Property="FontWeight" Value="Bold"/>
                                                                     <Setter Property="Effect">
                                                                         <Setter.Value>
-                                                                            <DropShadowEffect ShadowDepth="0" BlurRadius="1" Color="Black" Opacity="0.8"/>
+                                                                            <DropShadowEffect ShadowDepth="0" BlurRadius="3" Color="Black" Opacity="0.9"/>
                                                                         </Setter.Value>
                                                                     </Setter>
                                                                     <DataTrigger.EnterActions>
@@ -955,7 +955,7 @@
                                                                 <Setter Property="FontWeight" Value="SemiBold"/>
                                                                 <Setter Property="Effect">
                                                                     <Setter.Value>
-                                                                        <DropShadowEffect ShadowDepth="0" BlurRadius="1" Color="Black" Opacity="0.8"/>
+                                                                        <DropShadowEffect ShadowDepth="0" BlurRadius="3" Color="Black" Opacity="0.9"/>
                                                                     </Setter.Value>
                                                                 </Setter>
                                                             </DataTrigger>
@@ -965,7 +965,7 @@
                                                                 <Setter Property="FontWeight" Value="Bold"/>
                                                                 <Setter Property="Effect">
                                                                     <Setter.Value>
-                                                                        <DropShadowEffect ShadowDepth="0" BlurRadius="1" Color="Black" Opacity="0.8"/>
+                                                                        <DropShadowEffect ShadowDepth="0" BlurRadius="3" Color="Black" Opacity="0.9"/>
                                                                     </Setter.Value>
                                                                 </Setter>
                                                                 <DataTrigger.EnterActions>
