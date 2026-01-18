@@ -47,17 +47,21 @@ namespace Kalendarz1.WPF
         private Grid _mainContainer;
 
         // Kamery - konfiguracja
+        // Połączenie przez NVR (rejestrator) - znacznie stabilniejsze
         private static readonly List<CameraConfig> _cameras = new()
         {
             new CameraConfig
             {
-                Name = "Kamera 1",
-                SnapshotUrl = "http://192.168.0.211/ISAPI/Streaming/channels/101/picture",
+                Name = "Kamera 1 - Rampa Wyładunek",
+                // Przez NVR: kanał 18 = 1801 (main stream), 1802 (sub stream)
+                SnapshotUrl = "http://192.168.0.125/ISAPI/Streaming/channels/1801/picture",
                 Username = "admin",
-                Password = "terePacja$12"
+                Password = "terePacja12$"
             }
-            // Druga kamera - dodaj gdy będzie dostępna
-            // new CameraConfig { Name = "Kamera 2", SnapshotUrl = "...", Username = "...", Password = "..." }
+            // Przykłady innych kamer przez NVR:
+            // Kanał 1: http://192.168.0.125/ISAPI/Streaming/channels/101/picture
+            // Kanał 2: http://192.168.0.125/ISAPI/Streaming/channels/201/picture
+            // Kanał 15: http://192.168.0.125/ISAPI/Streaming/channels/1501/picture
         };
 
         private class CameraConfig
