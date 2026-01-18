@@ -181,7 +181,8 @@ namespace Kalendarz1
                 [35] = "AdminPermissions",
                 [36] = "AnalizaPrzychodu",
                 [37] = "DashboardHandlowca",
-                [38] = "PanelFaktur"
+                [38] = "PanelFaktur",
+                [39] = "PanelPaniJola"
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
@@ -217,7 +218,7 @@ namespace Kalendarz1
                 "CRM", "ZamowieniaOdbiorcow", "KalkulacjaKrojenia", "PrzychodMrozni",
                 "DokumentySprzedazy", "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "DaneFinansowe",
                 "UstalanieTranportu", "ZmianyUHodowcow", "ProdukcjaPodglad", "OfertaCenowa",
-                "PrognozyUboju", "AnalizaTygodniowa"
+                "PrognozyUboju", "AnalizaTygodniowa", "PanelPaniJola"
             };
         }
 
@@ -248,6 +249,11 @@ namespace Kalendarz1
                     new ModuleConfig("CRM", "CRM", "Zarządzaj relacjami z klientami", "#3498DB", () => new CRM.CRMWindow { UserID = App.UserID }, "👥"),
                     new ModuleConfig("ZamowieniaOdbiorcow", "Zamówienia Mięsa", "Przeglądaj i zarządzaj zamówieniami", "#3498DB", () => new WidokZamowieniaPodsumowanie { UserID = App.UserID }, "📦"),
                     new ModuleConfig("DokumentySprzedazy", "Faktury Sprzedaży", "Generuj i przeglądaj faktury", "#3498DB", () => new WidokFakturSprzedazy { UserID = App.UserID }, "🧾"),
+                    new ModuleConfig("PanelPaniJola", "Panel Pani Jola", "Uproszczony widok zamówień i produktów", "#E91E63", () => {
+                        var connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+                        var connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+                        return new WPF.DashboardWindow(connLibra, connHandel, null, true);
+                    }, "👩‍🦳"),
                     new ModuleConfig("PrognozyUboju", "Prognoza Uboju", "Analizuj średnie tygodniowe zakupów", "#9B59B6", () => new PrognozyUboju.PrognozyUbojuWindow(), "📈"),
                     new ModuleConfig("AnalizaTygodniowa", "Dashboard Analityczny", "Analizuj bilans produkcji i sprzedaży", "#E91E63", () => new Kalendarz1.AnalizaTygodniowa.AnalizaTygodniowaWindow(), "📊"),
                     new ModuleConfig("OfertaCenowa", "Oferty Handlowe", "Twórz i zarządzaj ofertami", "#3498DB", () => new OfertaCenowa.OfertaHandlowaWindow(), "💵")

@@ -5527,9 +5527,10 @@ ORDER BY zm.Id";
             var contextMenu = new ContextMenu();
 
             var menuPowieksz = new MenuItem { Header = "🔍 Powiększ do nowego okna" };
-            menuPowieksz.Click += (s, e) =>
+            menuPowieksz.Click += async (s, e) =>
             {
-                ShowProductDetailWindow(nazwa, towarId, plan, fakt, zamLubWyd, bilans, stan);
+                // Użyj tego samego okna co DashboardWindow
+                await DashboardWindow.OpenProductDetailDirectlyAsync(_connLibra, _connHandel, nazwa, _selectedDate);
             };
             contextMenu.Items.Add(menuPowieksz);
 
@@ -5711,160 +5712,6 @@ ORDER BY zm.Id";
             // Jeśli nie znaleziono przycisku, ustaw filtr ręcznie
             _selectedProductId = towarId;
             _ = RefreshAllDataAsync();
-        }
-
-        /// <summary>
-        /// Pokazuje szczegóły produktu w nowym oknie (powiększenie) - styl jak w DashboardWindow
-        /// </summary>
-        private void ShowProductDetailWindow(string nazwa, int towarId, decimal plan, decimal fakt, decimal zamLubWyd, decimal bilans, decimal stan)
-        {
-            bool uzywajWydan = rbBilansWydania?.IsChecked == true;
-            bool uzytoFakt = fakt > 0;
-            decimal cel = uzytoFakt ? fakt : plan;
-            decimal procentRealizacji = cel > 0 ? (zamLubWyd / cel) * 100 : 0;
-            bool przekroczono = procentRealizacji > 100;
-
-            var dialog = new Window
-            {
-                Title = $"[{towarId}] {nazwa}",
-                WindowState = WindowState.Maximized,
-                WindowStyle = WindowStyle.None,
-                Background = new SolidColorBrush(Color.FromRgb(20, 25, 30)),
-                ResizeMode = ResizeMode.NoResize
-            };
-
-            // === GŁÓWNY KONTENER ===
-            var mainGrid = new Grid { Margin = new Thickness(60) };
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-            // === NAGŁÓWEK ===
-            var headerPanel = new Grid { Margin = new Thickness(0, 0, 0, 30) };
-            headerPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            headerPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            headerPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            headerPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-            // Zdjęcie produktu
-            var productImage = towarId > 0 ? GetProductImage(towarId) : null;
-            var imageBorder = new Border
-            {
-                Width = 120, Height = 120,
-                CornerRadius = new CornerRadius(15),
-                Background = productImage != null
-                    ? (Brush)new ImageBrush { ImageSource = productImage, Stretch = Stretch.UniformToFill }
-                    : new SolidColorBrush(Color.FromRgb(52, 73, 94)),
-                Margin = new Thickness(0, 0, 30, 0)
-            };
-            if (productImage == null)
-                imageBorder.Child = new TextBlock { Text = "📦", FontSize = 50, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)) };
-            Grid.SetColumn(imageBorder, 0);
-            headerPanel.Children.Add(imageBorder);
-
-            // Nazwa produktu i data
-            var titleStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            titleStack.Children.Add(new TextBlock { Text = nazwa, FontSize = 48, FontWeight = FontWeights.Bold, Foreground = Brushes.White });
-            titleStack.Children.Add(new TextBlock { Text = _selectedDate.ToString("dddd, d MMMM yyyy", new CultureInfo("pl-PL")), FontSize = 20, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)), Margin = new Thickness(0, 5, 0, 0) });
-            Grid.SetColumn(titleStack, 1);
-            headerPanel.Children.Add(titleStack);
-
-            // BILANS - duży wyświetlacz
-            var bilansBorder = new Border
-            {
-                Background = new SolidColorBrush(bilans >= 0 ? Color.FromRgb(39, 174, 96) : Color.FromRgb(231, 76, 60)),
-                CornerRadius = new CornerRadius(20), Padding = new Thickness(40, 20, 40, 20),
-                Margin = new Thickness(30, 0, 30, 0), VerticalAlignment = VerticalAlignment.Center
-            };
-            var bilansStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
-            bilansStack.Children.Add(new TextBlock { Text = "BILANS", FontSize = 18, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, Opacity = 0.9 });
-            bilansStack.Children.Add(new TextBlock { Text = $"{bilans:N0} kg", FontSize = 56, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center });
-            bilansBorder.Child = bilansStack;
-            Grid.SetColumn(bilansBorder, 2);
-            headerPanel.Children.Add(bilansBorder);
-
-            // Przycisk zamknij
-            var closeBtn = new Button { Content = "✕", FontSize = 32, Width = 60, Height = 60, Background = new SolidColorBrush(Color.FromRgb(231, 76, 60)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = System.Windows.Input.Cursors.Hand };
-            closeBtn.Click += (s, e) => dialog.Close();
-            Grid.SetColumn(closeBtn, 3);
-            headerPanel.Children.Add(closeBtn);
-            Grid.SetRow(headerPanel, 0);
-            mainGrid.Children.Add(headerPanel);
-
-            // === GŁÓWNA SEKCJA - FORMUŁA I DANE ===
-            var contentPanel = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-
-            // Formuła bilansu
-            var formulaBorder = new Border { Background = new SolidColorBrush(Color.FromRgb(44, 62, 80)), CornerRadius = new CornerRadius(15), Padding = new Thickness(40, 25, 40, 25), Margin = new Thickness(0, 0, 0, 40), HorizontalAlignment = HorizontalAlignment.Center };
-            var formulaPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
-
-            if (uzytoFakt)
-            {
-                formulaPanel.Children.Add(new TextBlock { Text = $"PLAN {plan:N0}", FontSize = 28, Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)), TextDecorations = TextDecorations.Strikethrough, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 20, 0) });
-                formulaPanel.Children.Add(new TextBlock { Text = $"FAKT {fakt:N0}", FontSize = 36, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(155, 89, 182)), VerticalAlignment = VerticalAlignment.Center });
-            }
-            else
-            {
-                formulaPanel.Children.Add(new TextBlock { Text = $"PLAN {plan:N0}", FontSize = 36, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(52, 152, 219)), VerticalAlignment = VerticalAlignment.Center });
-            }
-            formulaPanel.Children.Add(new TextBlock { Text = "  +  ", FontSize = 36, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
-            formulaPanel.Children.Add(new TextBlock { Text = $"STAN {stan:N0}", FontSize = 36, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(26, 188, 156)), VerticalAlignment = VerticalAlignment.Center });
-            formulaPanel.Children.Add(new TextBlock { Text = "  −  ", FontSize = 36, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
-            string zamWydLabel = uzywajWydan ? "WYD" : "ZAM";
-            formulaPanel.Children.Add(new TextBlock { Text = $"{zamWydLabel} {zamLubWyd:N0}", FontSize = 36, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(uzywajWydan ? Color.FromRgb(192, 57, 43) : Color.FromRgb(230, 126, 34)), VerticalAlignment = VerticalAlignment.Center });
-            formulaPanel.Children.Add(new TextBlock { Text = "  =  ", FontSize = 36, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
-            formulaPanel.Children.Add(new TextBlock { Text = $"{bilans:N0}", FontSize = 44, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(bilans >= 0 ? Color.FromRgb(39, 174, 96) : Color.FromRgb(231, 76, 60)), VerticalAlignment = VerticalAlignment.Center });
-            formulaBorder.Child = formulaPanel;
-            contentPanel.Children.Add(formulaBorder);
-
-            // Pasek postępu realizacji
-            var progressBorder = new Border { Background = new SolidColorBrush(Color.FromRgb(39, 55, 70)), CornerRadius = new CornerRadius(15), Padding = new Thickness(40, 30, 40, 30), HorizontalAlignment = HorizontalAlignment.Center, MinWidth = 800 };
-            var progressStack = new StackPanel();
-
-            // Label
-            var progressHeader = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 15) };
-            progressHeader.Children.Add(new TextBlock { Text = "REALIZACJA: ", FontSize = 24, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
-            progressHeader.Children.Add(new TextBlock { Text = $"{procentRealizacji:N1}%", FontSize = 32, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(przekroczono ? Color.FromRgb(155, 89, 182) : procentRealizacji >= 90 ? Color.FromRgb(39, 174, 96) : procentRealizacji >= 70 ? Color.FromRgb(241, 196, 15) : Color.FromRgb(231, 76, 60)), VerticalAlignment = VerticalAlignment.Center });
-            progressStack.Children.Add(progressHeader);
-
-            // Pasek
-            var barContainer = new Grid { Height = 40 };
-            barContainer.Children.Add(new Border { Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)), CornerRadius = new CornerRadius(10) });
-            double displayPct = Math.Min((double)procentRealizacji, 140) / 140 * 100;
-            Color barColor = przekroczono ? Color.FromRgb(155, 89, 182) : procentRealizacji >= 90 ? Color.FromRgb(39, 174, 96) : procentRealizacji >= 70 ? Color.FromRgb(241, 196, 15) : Color.FromRgb(231, 76, 60);
-            var progressBar = new Border { Background = new SolidColorBrush(barColor), CornerRadius = new CornerRadius(10), HorizontalAlignment = HorizontalAlignment.Left };
-            progressBar.SetValue(Border.WidthProperty, new GridLength(displayPct, GridUnitType.Star).Value * 7); // Scale to ~700px max
-            barContainer.Children.Add(progressBar);
-
-            // Marker 100%
-            var marker100 = new Border { Width = 3, Background = Brushes.White, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(500, 0, 0, 0) }; // ~71% of 700
-            barContainer.Children.Add(marker100);
-
-            progressStack.Children.Add(barContainer);
-
-            // Legenda
-            var legendPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 15, 0, 0), HorizontalAlignment = HorizontalAlignment.Center };
-            legendPanel.Children.Add(new TextBlock { Text = $"CEL: {cel:N0} kg", FontSize = 18, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)), Margin = new Thickness(0, 0, 40, 0) });
-            legendPanel.Children.Add(new TextBlock { Text = $"WYKONANO: {zamLubWyd:N0} kg", FontSize = 18, Foreground = new SolidColorBrush(barColor) });
-            progressStack.Children.Add(legendPanel);
-
-            progressBorder.Child = progressStack;
-            contentPanel.Children.Add(progressBorder);
-
-            Grid.SetRow(contentPanel, 1);
-            mainGrid.Children.Add(contentPanel);
-
-            // === STOPKA - ESC info ===
-            var footerText = new TextBlock { Text = "Naciśnij ESC lub ✕ aby zamknąć", FontSize = 16, Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 30, 0, 0) };
-            Grid.SetRow(footerText, 2);
-            mainGrid.Children.Add(footerText);
-
-            dialog.Content = mainGrid;
-
-            // Obsługa klawisza ESC
-            dialog.KeyDown += (s, e) => { if (e.Key == System.Windows.Input.Key.Escape) dialog.Close(); };
-
-            dialog.Show();
         }
 
         private void DgAggregation_LoadingRow(object sender, DataGridRowEventArgs e)

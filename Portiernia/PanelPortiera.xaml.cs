@@ -91,6 +91,31 @@ namespace Kalendarz1
         private DispatcherTimer pipCameraTimer;
         private bool pipEnabled = true; // czy PiP ma się pokazywać
 
+        // Konfiguracja wielu kamer w trybie KAMERY
+        private class CameraConfig
+        {
+            public string Name { get; set; }
+            public string IP { get; set; }
+            public string User { get; set; }
+            public string Pass { get; set; }
+
+            public CameraConfig(string name, string ip, string user, string pass)
+            {
+                Name = name;
+                IP = ip;
+                User = user;
+                Pass = pass;
+            }
+        }
+
+        private List<CameraConfig> cameraList = new List<CameraConfig>
+        {
+            new CameraConfig("WJAZD", "192.168.0.76", "admin", "terePacja12$"),
+            new CameraConfig("WAGA", "192.168.0.77", "admin", "terePacja12$"),
+            new CameraConfig("PARKING", "192.168.0.78", "admin", "terePacja12$")
+        };
+        private int currentCameraIndex = 0;
+
         public DostawaPortiera WybranaDostwa
         {
             get => _wybranaDostwa;
@@ -2431,6 +2456,10 @@ namespace Kalendarz1
             cameraFrameCount = 0;
             lastCameraFrameTime = DateTime.Now;
 
+            // Pobierz aktualną kamerę i aktualizuj nazwę w UI
+            var camera = GetCurrentCamera();
+            lblCurrentCameraName.Text = $"{camera.Name} ({currentCameraIndex + 1}/{cameraList.Count})";
+
             // Timer - SD: 200ms (5 FPS), HD: 100ms (10 FPS)
             int interval = cameraHdMode ? 100 : 200;
             cameraViewTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(interval) };
@@ -2439,7 +2468,7 @@ namespace Kalendarz1
 
             // Aktualizuj etykiety
             lblCameraResolution.Text = cameraHdMode ? "1920x1080 (HD)" : "640x480 (SD)";
-            cameraViewStatus.Text = "Łączenie z kamerą...";
+            cameraViewStatus.Text = $"Łączenie z kamerą {camera.Name}...";
 
             // Timer aktualizacji FPS (co sekundę)
             var fpsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -2488,20 +2517,23 @@ namespace Kalendarz1
 
             try
             {
+                // Pobierz aktualną kamerę
+                var camera = GetCurrentCamera();
+
                 // Endpoint zależny od jakości
                 string channel = cameraHdMode ? "101" : "102"; // 101=główny HD, 102=substream SD
                 string[] endpoints = new string[]
                 {
-                    $"http://{CAMERA_IP}/ISAPI/Streaming/channels/{channel}/picture",
-                    $"http://{CAMERA_IP}/ISAPI/Streaming/channels/1/picture",
-                    $"http://{CAMERA_IP}/Streaming/channels/1/picture",
-                    $"http://{CAMERA_IP}/cgi-bin/snapshot.cgi",
-                    $"http://{CAMERA_IP}/snap.jpg"
+                    $"http://{camera.IP}/ISAPI/Streaming/channels/{channel}/picture",
+                    $"http://{camera.IP}/ISAPI/Streaming/channels/1/picture",
+                    $"http://{camera.IP}/Streaming/channels/1/picture",
+                    $"http://{camera.IP}/cgi-bin/snapshot.cgi",
+                    $"http://{camera.IP}/snap.jpg"
                 };
 
                 using (var handler = new HttpClientHandler())
                 {
-                    handler.Credentials = new System.Net.NetworkCredential(CAMERA_USER, CAMERA_PASS);
+                    handler.Credentials = new System.Net.NetworkCredential(camera.User, camera.Pass);
 
                     using (var client = new HttpClient(handler))
                     {
@@ -2592,6 +2624,79 @@ namespace Kalendarz1
             // Przełącz na tryb AVILOG
             rbAvilog.IsChecked = true;
             ZmienTryb_Click(rbAvilog, null);
+        }
+
+        /// <summary>
+        /// Przycisk X - zamknij pełnoekranowy widok kamery, wróć do AVILOG
+        /// </summary>
+        public void BtnCameraFullscreenClose_Click(object sender, RoutedEventArgs e)
+        {
+            // Przełącz na tryb AVILOG
+            rbAvilog.IsChecked = true;
+            ZmienTryb_Click(rbAvilog, null);
+        }
+
+        /// <summary>
+        /// Przycisk < - poprzednia kamera
+        /// </summary>
+        public void BtnCameraPrev_Click(object sender, RoutedEventArgs e)
+        {
+            if (cameraList.Count == 0) return;
+
+            currentCameraIndex--;
+            if (currentCameraIndex < 0)
+                currentCameraIndex = cameraList.Count - 1;
+
+            SwitchToCurrentCamera();
+        }
+
+        /// <summary>
+        /// Przycisk > - następna kamera
+        /// </summary>
+        public void BtnCameraNext_Click(object sender, RoutedEventArgs e)
+        {
+            if (cameraList.Count == 0) return;
+
+            currentCameraIndex++;
+            if (currentCameraIndex >= cameraList.Count)
+                currentCameraIndex = 0;
+
+            SwitchToCurrentCamera();
+        }
+
+        /// <summary>
+        /// Przełącza na aktualnie wybraną kamerę (wg currentCameraIndex)
+        /// </summary>
+        private void SwitchToCurrentCamera()
+        {
+            if (cameraList.Count == 0 || currentCameraIndex < 0 || currentCameraIndex >= cameraList.Count)
+                return;
+
+            var camera = cameraList[currentCameraIndex];
+
+            // Aktualizuj nazwę kamery w UI
+            lblCurrentCameraName.Text = $"{camera.Name} ({currentCameraIndex + 1}/{cameraList.Count})";
+
+            // Zatrzymaj i uruchom ponownie stream
+            StopCameraViewStream();
+            cameraViewStatus.Text = $"Przełączanie na {camera.Name}...";
+            cameraViewImage.Source = null;
+
+            // Uruchom stream dla nowej kamery
+            StartCameraViewStream();
+
+            Debug.WriteLine($"[CAMERA] Przełączono na kamerę: {camera.Name} ({camera.IP})");
+        }
+
+        /// <summary>
+        /// Zwraca aktualnie wybraną kamerę
+        /// </summary>
+        private CameraConfig GetCurrentCamera()
+        {
+            if (cameraList.Count == 0 || currentCameraIndex < 0 || currentCameraIndex >= cameraList.Count)
+                return new CameraConfig("WJAZD", CAMERA_IP, CAMERA_USER, CAMERA_PASS);
+
+            return cameraList[currentCameraIndex];
         }
 
         #endregion

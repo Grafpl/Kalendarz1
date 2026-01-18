@@ -2106,6 +2106,30 @@ namespace Kalendarz1
         {
             var menuAgregacja = new ContextMenuStrip();
 
+            // === Powiększ do nowego okna - używa tego samego okna co Dashboard ===
+            var menuPowieksz = new ToolStripMenuItem("🔍 Powiększ do nowego okna");
+            menuPowieksz.Click += async (s, e) =>
+            {
+                if (dgvAgregacja.CurrentRow == null) return;
+
+                try
+                {
+                    var row = dgvAgregacja.CurrentRow;
+                    string produktNazwa = row.Cells["Produkt"]?.Value?.ToString() ?? "";
+
+                    // Użyj DashboardWindow do wyświetlenia szczegółów - to samo okno co z Dashboard
+                    await Kalendarz1.WPF.DashboardWindow.OpenProductDetailDirectlyAsync(
+                        _connLibra,
+                        _connHandel,
+                        produktNazwa,
+                        _selectedDate);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(this, $"Błąd wyświetlania szczegółów: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            };
+
             var menuScalowanie = new ToolStripMenuItem("Konfiguruj scalowanie towarów");
             menuScalowanie.Click += async (s, e) =>
             {
@@ -2124,6 +2148,8 @@ namespace Kalendarz1
                 await WyswietlAgregacjeProduktowAsync(_selectedDate);
             };
 
+            menuAgregacja.Items.Add(menuPowieksz);
+            menuAgregacja.Items.Add(new ToolStripSeparator());
             menuAgregacja.Items.Add(menuScalowanie);
             menuAgregacja.Items.Add(new ToolStripSeparator());
             menuAgregacja.Items.Add(menuOdswiez);
