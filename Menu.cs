@@ -30,6 +30,7 @@ namespace Kalendarz1
         private bool isAdmin = false;
         private Panel sidePanel;
         private TableLayoutPanel mainLayout;
+        private System.Windows.Forms.Timer taskNotificationTimer;
 
         public MENU()
         {
@@ -38,6 +39,40 @@ namespace Kalendarz1
             LoadUserPermissions();
             SetupMenuItems();
             ApplyModernStyle();
+            StartTaskNotifications();
+        }
+
+        private void StartTaskNotifications()
+        {
+            taskNotificationTimer = new System.Windows.Forms.Timer();
+            taskNotificationTimer.Interval = 5000; // 5 sekund na start
+            taskNotificationTimer.Tick += TaskNotificationTimer_Tick;
+            taskNotificationTimer.Start();
+        }
+
+        private void TaskNotificationTimer_Tick(object sender, EventArgs e)
+        {
+            taskNotificationTimer.Stop();
+
+            try
+            {
+                // Pokaż okno powiadomień (WPF Window z Windows Forms)
+                var notificationWindow = new NotificationWindow(App.UserID);
+                notificationWindow.OpenPanelRequested += (s, args) =>
+                {
+                    var zadaniaWindow = new ZadaniaWindow();
+                    zadaniaWindow.Show();
+                };
+                notificationWindow.Show();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Notification error: {ex.Message}");
+            }
+
+            // Ustaw timer na 15 minut
+            taskNotificationTimer.Interval = 15 * 60 * 1000; // 15 minut
+            taskNotificationTimer.Start();
         }
 
         private void InitializeCustomComponents()
