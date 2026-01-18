@@ -3990,7 +3990,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 }
 
                 // Otwórz okno edycji wstawienia
-                var wstawienieWindow = new WstawienieWindow(selectedLp);
+                var wstawienieWindow = new WstawienieWindow();
+                wstawienieWindow.Modyfikacja = true;
+                if (int.TryParse(selectedLp, out int lpInt))
+                {
+                    wstawienieWindow.LpWstawienia = lpInt;
+                }
                 wstawienieWindow.Owner = this;
                 wstawienieWindow.ShowDialog();
 
