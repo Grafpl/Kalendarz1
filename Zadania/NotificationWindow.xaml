@@ -95,7 +95,6 @@
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
@@ -114,7 +113,7 @@
                     </Border>
 
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <TextBlock Text="Centrum powiadomień" FontSize="15" FontWeight="SemiBold" Foreground="White"/>
+                        <TextBlock Text="Przypomnienia" FontSize="15" FontWeight="SemiBold" Foreground="White"/>
                         <TextBlock x:Name="txtSubtitle" Text="Zadania i spotkania" FontSize="11" Foreground="#95A5A6"/>
                     </StackPanel>
 
@@ -126,25 +125,15 @@
                 </Grid>
             </Border>
 
-            <!-- Tabs -->
-            <Border Grid.Row="1" Background="#212F3D" Padding="0,0,0,0">
-                <StackPanel x:Name="tabPanel" Orientation="Horizontal" HorizontalAlignment="Center">
-                    <Button x:Name="btnTabZadania" Content="Zadania" Style="{StaticResource TabButton}"
-                            Click="BtnTabZadania_Click" BorderBrush="#27AE60" Foreground="White"/>
-                    <Button x:Name="btnTabSpotkania" Content="Spotkania" Style="{StaticResource TabButton}"
-                            Click="BtnTabSpotkania_Click"/>
-                </StackPanel>
-            </Border>
-
             <!-- Content -->
-            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="15">
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="15">
                 <StackPanel x:Name="contentPanel">
                     <!-- Sekcje będą dodawane dynamicznie -->
                 </StackPanel>
             </ScrollViewer>
 
             <!-- Footer -->
-            <Border Grid.Row="3" Background="#212F3D" CornerRadius="0,0,12,12" Padding="15">
+            <Border Grid.Row="2" Background="#212F3D" CornerRadius="0,0,12,12" Padding="15">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
