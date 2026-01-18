@@ -1554,16 +1554,17 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                     // Transport
                                     txtSztNaSzufladeCalc.Text = r["SztSzuflada"]?.ToString();
 
-                                    // Załadunek AVILOG - ustaw Szt na szufladę i przelicz
+                                    // Załadunek AVILOG - ustaw wszystkie 3 wiersze
                                     string sztSzuflada = r["SztSzuflada"]?.ToString();
-                                    txtSztNaSzufladeWaga.Text = sztSzuflada;
-                                    // Wiersz 2 = wiersz 1 - 1
-                                    if (int.TryParse(sztSzuflada, out int szt) && szt > 1)
-                                        txtSztNaSzufladeWaga2.Text = (szt - 1).ToString();
-                                    else
-                                        txtSztNaSzufladeWaga2.Text = sztSzuflada;
+                                    txtSztNaSzufladeWaga.Text = sztSzuflada; // Środkowy (podświetlony)
+                                    if (int.TryParse(sztSzuflada, out int szt))
+                                    {
+                                        txtSztNaSzufladeWaga2.Text = szt > 1 ? (szt - 1).ToString() : szt.ToString(); // Górny = Szt - 1
+                                        txtSztNaSzufladeWaga3.Text = (szt + 1).ToString(); // Dolny = Szt + 1
+                                    }
                                     CalculateZaladunekRow1();
                                     CalculateZaladunekRow2();
+                                    CalculateZaladunekRow3();
                                 });
                             }
                         }
@@ -2097,14 +2098,15 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
                                 // Załadunek AVILOG - ustaw Szt na szufladę i przelicz
                                 string sztSzuflada = r["SztSzuflada"]?.ToString();
-                                txtSztNaSzufladeWaga.Text = sztSzuflada;
-                                // Wiersz 2 = wiersz 1 - 1
-                                if (int.TryParse(sztSzuflada, out int szt) && szt > 1)
-                                    txtSztNaSzufladeWaga2.Text = (szt - 1).ToString();
-                                else
-                                    txtSztNaSzufladeWaga2.Text = sztSzuflada;
+                                txtSztNaSzufladeWaga.Text = sztSzuflada; // Środkowy (podświetlony)
+                                if (int.TryParse(sztSzuflada, out int szt))
+                                {
+                                    txtSztNaSzufladeWaga2.Text = szt > 1 ? (szt - 1).ToString() : szt.ToString(); // Górny = Szt - 1
+                                    txtSztNaSzufladeWaga3.Text = (szt + 1).ToString(); // Dolny = Szt + 1
+                                }
                                 CalculateZaladunekRow1();
                                 CalculateZaladunekRow2();
+                                CalculateZaladunekRow3();
                             }
                         }
                     }
@@ -2794,33 +2796,36 @@ namespace Kalendarz1.Zywiec.Kalendarz
         // Synchronizacja Szt/szuflade z DANE DOSTAWY do ZAŁADUNEK AVILOG
         private void TxtSztNaSzuflade_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (txtSztNaSzufladeWaga == null || txtSztNaSzufladeWaga2 == null) return;
+            if (txtSztNaSzufladeWaga == null || txtSztNaSzufladeWaga2 == null || txtSztNaSzufladeWaga3 == null) return;
 
-            // Kopiuj wartość do wiersza 1
+            // Wiersz środkowy (podświetlony) = wartość z dostawy
             txtSztNaSzufladeWaga.Text = txtSztNaSzuflade.Text;
 
-            // Wiersz 2 = wiersz 1 - 1
-            if (int.TryParse(txtSztNaSzuflade.Text, out int szt) && szt > 1)
-                txtSztNaSzufladeWaga2.Text = (szt - 1).ToString();
+            if (int.TryParse(txtSztNaSzuflade.Text, out int szt))
+            {
+                // Wiersz 1 (górny) = Szt - 1
+                txtSztNaSzufladeWaga2.Text = szt > 1 ? (szt - 1).ToString() : szt.ToString();
+                // Wiersz 3 (dolny) = Szt + 1
+                txtSztNaSzufladeWaga3.Text = (szt + 1).ToString();
+            }
             else
-                txtSztNaSzufladeWaga2.Text = txtSztNaSzuflade.Text;
+            {
+                txtSztNaSzufladeWaga2.Text = "";
+                txtSztNaSzufladeWaga3.Text = "";
+            }
 
-            // Przelicz wartości
+            // Przelicz wszystkie wiersze
             CalculateZaladunekRow1();
             CalculateZaladunekRow2();
+            CalculateZaladunekRow3();
         }
 
-        // Wiersz 2 - edytowalny Szt/szuflade
-        private void TxtSztNaSzufladeWaga2_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            CalculateZaladunekRow2();
-        }
-
-        // Gdy zmienia się Waga dek - przelicz oba wiersze
+        // Gdy zmienia się Waga dek - przelicz wszystkie wiersze
         private void TxtWagaDek_TextChanged(object sender, TextChangedEventArgs e)
         {
             CalculateZaladunekRow1();
             CalculateZaladunekRow2();
+            CalculateZaladunekRow3();
         }
 
         // Obliczenie dla wiersza 1: KG/skrzyn = Szt × Waga, KG skrzyn = KG/skrzyn × 264
@@ -2875,11 +2880,38 @@ namespace Kalendarz1.Zywiec.Kalendarz
             CalculateKGSum2();
         }
 
+        // Obliczenie dla wiersza 3: Szt + 1
+        private void CalculateZaladunekRow3()
+        {
+            // Sprawdź czy kontrolki są zainicjalizowane
+            if (txtWagaDek == null || txtSztNaSzufladeWaga3 == null || txtKGwSkrzynce3 == null || txtKGSkrzyn264_3 == null)
+                return;
+
+            // Pobierz wagę dek z pola txtWagaDek (obsłuż oba separatory: , i .)
+            if (!double.TryParse(txtWagaDek.Text?.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double wagaDek))
+                wagaDek = 0;
+
+            // Pobierz sztuki na szufladę (wiersz 3)
+            if (!double.TryParse(txtSztNaSzufladeWaga3.Text?.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double sztNaSzuflade3))
+                sztNaSzuflade3 = 0;
+
+            // KG/skrzyn = Sztuki na szufladę × Waga dek
+            double kgSkrzyn3 = sztNaSzuflade3 * wagaDek;
+            txtKGwSkrzynce3.Text = kgSkrzyn3 > 0 ? kgSkrzyn3.ToString("N2") : "";
+
+            // KG skrzyn (×264) = KG/skrzyn × 264
+            double kgSkrzyn264_3 = kgSkrzyn3 * 264;
+            txtKGSkrzyn264_3.Text = kgSkrzyn264_3 > 0 ? kgSkrzyn264_3.ToString("N0") : "";
+
+            CalculateKGSum3();
+        }
+
         // Zdarzenie zmiany wartości w polach Załadunku
         private void TxtZaladunekField_TextChanged(object sender, TextChangedEventArgs e)
         {
             CalculateKGSum();
             CalculateKGSum2();
+            CalculateKGSum3();
         }
 
         // Dla kompatybilności wstecznej (jeśli checkbox jest używany)
@@ -2934,6 +2966,30 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 sum += paleciak2;
 
             txtKGSuma2.Text = sum.ToString("N0");
+        }
+
+        // Obliczenie Suma KG dla wiersza 3
+        private void CalculateKGSum3()
+        {
+            // Sprawdź czy kontrolki są zainicjalizowane
+            if (txtKGSkrzyn264_3 == null || txtWagaSamochodu3 == null || txtKGwPaleciak3 == null || txtKGSuma3 == null)
+                return;
+
+            double sum = 0;
+
+            // KG skrzyn (×264) wiersz 3
+            if (double.TryParse(txtKGSkrzyn264_3.Text?.Replace(",", "").Replace(" ", ""), out double kgSkrzyn264_3))
+                sum += kgSkrzyn264_3;
+
+            // Waga samochodu (wiersz 3)
+            if (double.TryParse(txtWagaSamochodu3.Text?.Replace(",", "").Replace(" ", ""), out double wagaSam))
+                sum += wagaSam;
+
+            // Waga paleciaka (wiersz 3)
+            if (double.TryParse(txtKGwPaleciak3.Text?.Replace(",", "").Replace(" ", ""), out double paleciak3))
+                sum += paleciak3;
+
+            txtKGSuma3.Text = sum.ToString("N0");
         }
 
         private void BtnWklejObliczenia_Click(object sender, RoutedEventArgs e)
