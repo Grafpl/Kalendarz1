@@ -31,11 +31,13 @@ namespace Kalendarz1
         private Timer timer;
         private Timer timer2;
 
-        // === Ankieta: 14:30 codziennie ===
+        // === Ankieta: 14:30 i 20:16 codziennie ===
         private System.Windows.Forms.Timer surveyTimer;
         private bool surveyShownThisSession = false; // wyświetlono w tej sesji
-        private static readonly TimeSpan SURVEY_START = new TimeSpan(0, 0, 0); // 14:30
-        private static readonly TimeSpan SURVEY_END = new TimeSpan(23, 59, 0); // 15:00
+        private static readonly TimeSpan SURVEY_START = new TimeSpan(14, 30, 0);
+        private static readonly TimeSpan SURVEY_END = new TimeSpan(15, 0, 0);
+        private static readonly TimeSpan SURVEY_START_2 = new TimeSpan(20, 16, 0);
+        private static readonly TimeSpan SURVEY_END_2 = new TimeSpan(20, 46, 0);
 
 
 
@@ -2796,7 +2798,9 @@ ORDER BY p.PartiaFull DESC, p.Data DESC;
             if (surveyShownThisSession) return; // w tej sesji już pokazano
 
             var now = DateTime.Now.TimeOfDay;
-            if (now >= SURVEY_START && now < SURVEY_END)
+            bool inWindow1 = now >= SURVEY_START && now < SURVEY_END;
+            bool inWindow2 = now >= SURVEY_START_2 && now < SURVEY_END_2;
+            if (inWindow1 || inWindow2)
             {
                 surveyShownThisSession = true; // od teraz w tej sesji już nie powtarzamy
                 RunSurveyWorkflowOnce();
@@ -3450,7 +3454,9 @@ ORDER BY p.PartiaFull DESC, p.Data DESC;
             if (surveyShownThisSession) return;
 
             var now = DateTime.Now.TimeOfDay;
-            if (now >= SURVEY_START && now < SURVEY_END)
+            bool inWindow1 = now >= SURVEY_START && now < SURVEY_END;
+            bool inWindow2 = now >= SURVEY_START_2 && now < SURVEY_END_2;
+            if (inWindow1 || inWindow2)
             {
                 try
                 {

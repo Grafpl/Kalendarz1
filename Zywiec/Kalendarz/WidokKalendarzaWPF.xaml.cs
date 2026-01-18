@@ -84,6 +84,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
         private bool _surveyShownThisSession = false;
         private static readonly TimeSpan SURVEY_START = new TimeSpan(14, 30, 0);
         private static readonly TimeSpan SURVEY_END = new TimeSpan(15, 0, 0);
+        private static readonly TimeSpan SURVEY_START_2 = new TimeSpan(20, 16, 0);
+        private static readonly TimeSpan SURVEY_END_2 = new TimeSpan(20, 46, 0);
 
         // Paleciak włączony/wyłączony
         private bool _paleciakEnabled = true;
@@ -4431,7 +4433,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
             if (_surveyShownThisSession) return;
 
             var now = DateTime.Now.TimeOfDay;
-            if (now >= SURVEY_START && now <= SURVEY_END)
+            bool inWindow1 = now >= SURVEY_START && now <= SURVEY_END;
+            bool inWindow2 = now >= SURVEY_START_2 && now <= SURVEY_END_2;
+            if (inWindow1 || inWindow2)
             {
                 _surveyShownThisSession = true;
                 // Tutaj wywołanie ankiety jeśli jest zaimplementowana
