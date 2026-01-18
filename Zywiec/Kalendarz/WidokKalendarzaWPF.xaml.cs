@@ -231,7 +231,31 @@ namespace Kalendarz1.Zywiec.Kalendarz
             {
                 int minutes = _refreshCountdown / 60;
                 int seconds = _refreshCountdown % 60;
-                txtRefreshCountdown.Text = $"Odświeżenie za: {minutes}:{seconds:D2}";
+                txtRefreshCountdown.Text = $"{minutes}:{seconds:D2}";
+            }
+
+            // Aktualizuj bieżącą datę, czas i tydzień w nagłówku kalendarza
+            UpdateCurrentDateTimeDisplay();
+        }
+
+        private void UpdateCurrentDateTimeDisplay()
+        {
+            var now = DateTime.Now;
+            var culture = new System.Globalization.CultureInfo("pl-PL");
+
+            // Format: "18.01 sob 12:30"
+            if (txtCurrentDateTime != null)
+            {
+                string dayOfWeek = culture.DateTimeFormat.GetAbbreviatedDayName(now.DayOfWeek).ToLower();
+                txtCurrentDateTime.Text = $"{now:dd.MM} {dayOfWeek} {now:HH:mm}";
+            }
+
+            // Numer tygodnia
+            if (txtCurrentWeek != null)
+            {
+                var cal = culture.Calendar;
+                int weekNum = cal.GetWeekOfYear(now, System.Globalization.CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
+                txtCurrentWeek.Text = weekNum.ToString();
             }
         }
 
@@ -481,6 +505,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                     Cena = reader["Cena"] != DBNull.Value ? Convert.ToDecimal(reader["Cena"]) : 0,
                                     Distance = reader["Distance"] != DBNull.Value ? Convert.ToInt32(reader["Distance"]) : 0,
                                     Uwagi = reader["UWAGI"]?.ToString(),
+                                    DataNotatki = reader["DataNotatki"] != DBNull.Value ? Convert.ToDateTime(reader["DataNotatki"]) : (DateTime?)null,
                                     IsConfirmed = reader["bufor"]?.ToString() == "Potwierdzony",
                                     IsWstawienieConfirmed = reader["isConf"] != DBNull.Value && Convert.ToBoolean(reader["isConf"]),
                                     LpW = reader["LpW"] != DBNull.Value ? reader["LpW"].ToString() : null,
@@ -627,6 +652,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     HD.LP, HD.DataOdbioru, HD.Dostawca, HD.Auta, HD.SztukiDek, HD.WagaDek, HD.bufor,
                     HD.TypCeny, HD.Cena, WK.DataWstawienia, D.Distance, HD.Ubytek, HD.LpW,
                     (SELECT TOP 1 N.Tresc FROM Notatki N WHERE N.IndeksID = HD.Lp ORDER BY N.DataUtworzenia DESC) AS UWAGI,
+                    (SELECT TOP 1 N.DataUtworzenia FROM Notatki N WHERE N.IndeksID = HD.Lp ORDER BY N.DataUtworzenia DESC) AS DataNotatki,
                     HD.PotwWaga, HD.PotwSztuki, WK.isConf,
                     CASE WHEN HD.bufor = 'Potwierdzony' THEN 1 WHEN HD.bufor = 'B.Kontr.' THEN 2
                          WHEN HD.bufor = 'B.Wolny.' THEN 3 WHEN HD.bufor = 'Do Wykupienia' THEN 5 ELSE 4 END AS buforPriority
@@ -1764,6 +1790,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
             {
                 await EditNoteAsync(selectedItem.LP);
             }
+            else if (columnHeader == "Typ")
+            {
+                await EditTypCenyAsync(selectedItem, isFromSecondTable);
+            }
         }
 
         private async Task EditCellValueAsync(string lp, string columnName, bool isFromSecondTable = false)
@@ -1958,6 +1988,156 @@ namespace Kalendarz1.Zywiec.Kalendarz
             dialog.Content = stack;
 
             textBox.Focus();
+            dialog.ShowDialog();
+        }
+
+        private async Task EditTypCenyAsync(DostawaModel selectedItem, bool isFromSecondTable)
+        {
+            if (selectedItem == null || selectedItem.IsHeaderRow) return;
+
+            // Lista typów cen
+            var typyCeny = new[] { "wolnyrynek", "rolnicza", "łączona", "ministerialna" };
+
+            // Pokaż dialog wyboru typu ceny
+            var dialog = new Window
+            {
+                Title = "Zmień typ ceny",
+                Width = 320,
+                Height = 200,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                ResizeMode = ResizeMode.NoResize,
+                Background = new SolidColorBrush(Color.FromRgb(250, 250, 250))
+            };
+
+            var mainStack = new StackPanel { Margin = new Thickness(15) };
+
+            // Nagłówek
+            mainStack.Children.Add(new TextBlock
+            {
+                Text = $"Dostawa: {selectedItem.Dostawca}",
+                FontWeight = FontWeights.SemiBold,
+                FontSize = 12,
+                Margin = new Thickness(0, 0, 0, 10)
+            });
+
+            // ComboBox z typami cen
+            var comboBox = new ComboBox
+            {
+                ItemsSource = typyCeny,
+                SelectedItem = selectedItem.TypCeny,
+                FontSize = 13,
+                Padding = new Thickness(8, 6, 8, 6),
+                Margin = new Thickness(0, 0, 0, 15)
+            };
+            mainStack.Children.Add(new TextBlock { Text = "Wybierz typ ceny:", Margin = new Thickness(0, 0, 0, 5), FontSize = 11 });
+            mainStack.Children.Add(comboBox);
+
+            // Checkbox - zmień wszystkie powiązane dostawy
+            var checkBoxAll = new CheckBox
+            {
+                Content = "Zmień wszystkie dostawy z tego wstawienia",
+                FontSize = 11,
+                Margin = new Thickness(0, 0, 0, 15),
+                IsEnabled = !string.IsNullOrEmpty(selectedItem.LpW)
+            };
+            if (string.IsNullOrEmpty(selectedItem.LpW))
+            {
+                checkBoxAll.ToolTip = "Ta dostawa nie ma przypisanego wstawienia";
+            }
+            mainStack.Children.Add(checkBoxAll);
+
+            // Przyciski
+            var buttonPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+            var btnOk = new Button
+            {
+                Content = "Zapisz",
+                Width = 70,
+                Margin = new Thickness(0, 0, 8, 0),
+                Padding = new Thickness(0, 5, 0, 5),
+                Background = new SolidColorBrush(Color.FromRgb(37, 99, 235)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0)
+            };
+            var btnCancel = new Button
+            {
+                Content = "Anuluj",
+                Width = 70,
+                Padding = new Thickness(0, 5, 0, 5)
+            };
+
+            btnOk.Click += async (s, e) =>
+            {
+                string newTypCeny = comboBox.SelectedItem?.ToString();
+                if (string.IsNullOrEmpty(newTypCeny) || newTypCeny == selectedItem.TypCeny)
+                {
+                    dialog.Close();
+                    return;
+                }
+
+                bool changeAll = checkBoxAll.IsChecked == true && !string.IsNullOrEmpty(selectedItem.LpW);
+
+                // Potwierdzenie
+                string message = changeAll
+                    ? $"Czy zmienić typ ceny na \"{newTypCeny}\" dla WSZYSTKICH dostaw z wstawienia {selectedItem.LpW}?"
+                    : $"Czy zmienić typ ceny na \"{newTypCeny}\" dla tej dostawy?";
+
+                if (MessageBox.Show(message, "Potwierdzenie zmiany typu ceny",
+                    MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                {
+                    try
+                    {
+                        using (SqlConnection conn = new SqlConnection(ConnectionString))
+                        {
+                            await conn.OpenAsync();
+
+                            string sql;
+                            if (changeAll)
+                            {
+                                // Zmień dla wszystkich dostaw z tego samego wstawienia
+                                sql = "UPDATE HarmonogramDostaw SET TypCeny = @typCeny, DataMod = GETDATE(), KtoMod = @kto WHERE LpW = @lpW";
+                                using (SqlCommand cmd = new SqlCommand(sql, conn))
+                                {
+                                    cmd.Parameters.AddWithValue("@typCeny", newTypCeny);
+                                    cmd.Parameters.AddWithValue("@kto", UserID ?? "0");
+                                    cmd.Parameters.AddWithValue("@lpW", selectedItem.LpW);
+                                    int affected = await cmd.ExecuteNonQueryAsync();
+                                    ShowToast($"Zmieniono typ ceny dla {affected} dostaw", ToastType.Success);
+                                }
+                            }
+                            else
+                            {
+                                // Zmień tylko dla tej dostawy
+                                sql = "UPDATE HarmonogramDostaw SET TypCeny = @typCeny, DataMod = GETDATE(), KtoMod = @kto WHERE LP = @lp";
+                                using (SqlCommand cmd = new SqlCommand(sql, conn))
+                                {
+                                    cmd.Parameters.AddWithValue("@typCeny", newTypCeny);
+                                    cmd.Parameters.AddWithValue("@kto", UserID ?? "0");
+                                    cmd.Parameters.AddWithValue("@lp", selectedItem.LP);
+                                    await cmd.ExecuteNonQueryAsync();
+                                    ShowToast("Typ ceny zmieniony", ToastType.Success);
+                                }
+                            }
+                        }
+
+                        dialog.Close();
+                        // Odśwież tabele dostaw
+                        await LoadDostawyAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        ShowToast($"Błąd: {ex.Message}", ToastType.Error);
+                    }
+                }
+            };
+
+            btnCancel.Click += (s, e) => dialog.Close();
+
+            buttonPanel.Children.Add(btnOk);
+            buttonPanel.Children.Add(btnCancel);
+            mainStack.Children.Add(buttonPanel);
+
+            dialog.Content = mainStack;
             dialog.ShowDialog();
         }
 
@@ -4091,6 +4271,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
         public decimal Cena { get; set; }
         public int Distance { get; set; }
         public string Uwagi { get; set; }
+        public DateTime? DataNotatki { get; set; }
         public int? RoznicaDni { get; set; }
         public string LpW { get; set; }
         public bool PotwWaga { get; set; }
@@ -4152,6 +4333,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
             return typ;
         }
         public string UwagiDisplay => Uwagi;
+
+        // Właściwość sprawdzająca czy notatka została dodana w ciągu ostatnich 3 dni
+        public bool IsRecentNote => DataNotatki.HasValue && (DateTime.Now - DataNotatki.Value).TotalDays <= 3;
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
