@@ -3385,6 +3385,180 @@ namespace Kalendarz1.Zywiec.Kalendarz
             }
         }
 
+        #region Menu kontekstowe - Widoki i raporty
+
+        // Pokaż wagi dla zaznaczonego dostawcy
+        private void MenuPokazWagi_Click(object sender, RoutedEventArgs e)
+        {
+            // Pobierz dostawcę z zaznaczonej dostawy
+            var dostawa = _dostawy.FirstOrDefault(d => d.LP == _selectedLP) ??
+                          _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == _selectedLP);
+
+            if (dostawa == null)
+            {
+                ShowToast("Wybierz dostawę", ToastType.Warning);
+                return;
+            }
+
+            try
+            {
+                // Tworzenie nowej instancji WidokWaga
+                WidokWaga widokWaga = new WidokWaga();
+
+                // Ustawienie wartości TextBoxa w WidokWaga (dostawca)
+                widokWaga.TextBoxValue = dostawa.Dostawca;
+
+                // Ustaw wartość TextBoxa przed wyświetleniem formularza
+                widokWaga.SetTextBoxValue();
+
+                // Wyświetlanie formularza
+                widokWaga.Show();
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd otwierania widoku wag: {ex.Message}", ToastType.Error);
+            }
+        }
+
+        // Pokaż wszystkie dostawy
+        private void MenuPokazDostawy_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                WidokWszystkichDostaw widokWszystkichDostaw = new WidokWszystkichDostaw();
+                widokWszystkichDostaw.Show();
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd otwierania widoku dostaw: {ex.Message}", ToastType.Error);
+            }
+        }
+
+        // Pokaż ceny
+        private void MenuPokazCeny_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                WidokCenWszystkich widokCenWszystkich = new WidokCenWszystkich();
+                widokCenWszystkich.Show();
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd otwierania widoku cen: {ex.Message}", ToastType.Error);
+            }
+        }
+
+        // Dodaj cenę
+        private void MenuDodajCene_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                WidokCena widokcena = new WidokCena();
+                widokcena.Show();
+                DodajAktywnosc(6);
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd otwierania formularza ceny: {ex.Message}", ToastType.Error);
+            }
+        }
+
+        // Pokaż pasze/pisklęta
+        private void MenuPokazPaszePiskleta_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                WidokPaszaPisklak widokPaszaPisklak = new WidokPaszaPisklak();
+                widokPaszaPisklak.Show();
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd otwierania widoku pasz/piskląt: {ex.Message}", ToastType.Error);
+            }
+        }
+
+        // Pokaż cenę tuszki
+        private void MenuPokazTuszke_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                PokazCeneTuszki pokazCeneTuszki = new PokazCeneTuszki();
+                pokazCeneTuszki.Show();
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd otwierania widoku tuszki: {ex.Message}", ToastType.Error);
+            }
+        }
+
+        // Pokaż avilog
+        private void MenuPokazAvilog_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                WidokAvilogPlan widokAvilogPlan = new WidokAvilogPlan();
+                widokAvilogPlan.Show();
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd otwierania widoku avilog: {ex.Message}", ToastType.Error);
+            }
+        }
+
+        // Pokaż plan sprzedaży
+        private void MenuPokazPlanSprzedazy_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                WidokSprzedazPlan widokSprzedazPlan = new WidokSprzedazPlan();
+                widokSprzedazPlan.Show();
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd otwierania planu sprzedaży: {ex.Message}", ToastType.Error);
+            }
+        }
+
+        // Dodanie aktywności do bazy danych
+        private async void DodajAktywnosc(int typLicznika)
+        {
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync(_cts.Token);
+
+                    int nextLp;
+                    using (SqlCommand getMaxCmd = new SqlCommand("SELECT ISNULL(MAX(Lp), 0) + 1 FROM Aktywnosc", conn))
+                    {
+                        var result = await getMaxCmd.ExecuteScalarAsync(_cts.Token);
+                        nextLp = Convert.ToInt32(result);
+                    }
+
+                    string insertQuery = @"
+                        INSERT INTO Aktywnosc (Lp, Licznik, TypLicznika, KtoStworzyl, Data)
+                        VALUES (@Lp, @Licznik, @TypLicznika, @KtoStworzyl, @Data)";
+
+                    using (SqlCommand cmd = new SqlCommand(insertQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Lp", nextLp);
+                        cmd.Parameters.AddWithValue("@Licznik", 1);
+                        cmd.Parameters.AddWithValue("@TypLicznika", typLicznika);
+                        cmd.Parameters.AddWithValue("@KtoStworzyl", UserID ?? "0");
+                        cmd.Parameters.AddWithValue("@Data", DateTime.Now);
+
+                        await cmd.ExecuteNonQueryAsync(_cts.Token);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd logowania aktywności: {ex.Message}");
+            }
+        }
+
+        #endregion
+
         private async void BtnDuplikuj_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrEmpty(_selectedLP))
