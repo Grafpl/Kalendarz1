@@ -69,7 +69,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
         private DostawaModel _draggedItem;
         private bool _isDragging = false;
 
-        // Flaga blokująca drag & drop po zamknięciu menu kontekstowego
+        // Flaga blokująca drag & drop gdy menu kontekstowe jest otwarte lub niedawno zamknięte
+        private bool _isContextMenuOpen = false;
         private DateTime _contextMenuClosedTime = DateTime.MinValue;
         private const int CONTEXT_MENU_DRAG_BLOCK_MS = 500; // Blokuj drag przez 500ms po zamknięciu menu
 
@@ -4811,16 +4812,22 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         private void DgDostawy_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            // Ignoruj jeśli menu kontekstowe było niedawno zamknięte (zapobiega przypadkowemu drag & drop)
-            if ((DateTime.Now - _contextMenuClosedTime).TotalMilliseconds < CONTEXT_MENU_DRAG_BLOCK_MS)
+            // Ignoruj jeśli menu kontekstowe jest otwarte lub było niedawno zamknięte
+            if (_isContextMenuOpen || (DateTime.Now - _contextMenuClosedTime).TotalMilliseconds < CONTEXT_MENU_DRAG_BLOCK_MS)
             {
                 return;
             }
             _dragStartPoint = e.GetPosition(null);
         }
 
+        private void DgDostawy_ContextMenuOpened(object sender, RoutedEventArgs e)
+        {
+            _isContextMenuOpen = true;
+        }
+
         private void DgDostawy_ContextMenuClosed(object sender, RoutedEventArgs e)
         {
+            _isContextMenuOpen = false;
             _contextMenuClosedTime = DateTime.Now;
         }
 
@@ -4832,9 +4839,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 return;
             }
 
-            // Ignoruj jeśli menu kontekstowe było niedawno zamknięte
-            // (zapobiega przypadkowemu drag & drop przy zamykaniu menu kliknięciem)
-            if ((DateTime.Now - _contextMenuClosedTime).TotalMilliseconds < CONTEXT_MENU_DRAG_BLOCK_MS)
+            // Ignoruj jeśli menu kontekstowe jest otwarte lub było niedawno zamknięte
+            if (_isContextMenuOpen || (DateTime.Now - _contextMenuClosedTime).TotalMilliseconds < CONTEXT_MENU_DRAG_BLOCK_MS)
             {
                 return;
             }

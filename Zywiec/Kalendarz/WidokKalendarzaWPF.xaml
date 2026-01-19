@@ -535,7 +535,7 @@
                                   RenderTransformOrigin="0.5,0.5"
                                   SelectionChanged="DgDostawy_SelectionChanged" MouseDoubleClick="DgDostawy_MouseDoubleClick" LoadingRow="DgDostawy_LoadingRow">
                         <DataGrid.ContextMenu>
-                            <ContextMenu Closed="DgDostawy_ContextMenuClosed">
+                            <ContextMenu Opened="DgDostawy_ContextMenuOpened" Closed="DgDostawy_ContextMenuClosed">
                                 <!-- SEKCJA: Operacje na dostawie -->
                                 <MenuItem Header="📦 DOSTAWA" IsEnabled="False" FontWeight="Bold" FontSize="10" Foreground="#6B7280"/>
                                 <MenuItem Header="➕ Nowa dostawa na ten dzień" Click="MenuItemNowaDostawaZDaty_Click" FontWeight="SemiBold" InputGestureText="Ctrl+N"/>
@@ -831,7 +831,7 @@
                               RenderTransformOrigin="0.5,0.5"
                               SelectionChanged="DgDostawyNastepny_SelectionChanged" MouseDoubleClick="DgDostawy_MouseDoubleClick">
                         <DataGrid.ContextMenu>
-                            <ContextMenu Closed="DgDostawy_ContextMenuClosed">
+                            <ContextMenu Opened="DgDostawy_ContextMenuOpened" Closed="DgDostawy_ContextMenuClosed">
                                 <!-- SEKCJA: Operacje na dostawie -->
                                 <MenuItem Header="📦 DOSTAWA" IsEnabled="False" FontWeight="Bold" FontSize="10" Foreground="#6B7280"/>
                                 <MenuItem Header="➕ Nowa dostawa na ten dzień" Click="MenuItemNowaDostawaZDaty_Click" FontWeight="SemiBold" InputGestureText="Ctrl+N"/>
