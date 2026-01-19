@@ -233,7 +233,7 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Wysyla zgloszenie ZURD bezposrednio przez API IRZplus
+        /// Wysyla zgloszenie ZURD bezposrednio przez API IRZplus - KAZDY DOSTAWCA OSOBNO
         /// </summary>
         private async void BtnSendApi_Click(object sender, RoutedEventArgs e)
         {
@@ -256,12 +256,13 @@ namespace Kalendarz1
 
             var envText = settings.UseTestEnvironment ? "TESTOWE" : "PRODUKCYJNE";
             var confirmResult = MessageBox.Show(
-                $"Czy na pewno chcesz wyslac zgloszenie ZURD przez API?\n\n" +
+                $"Czy na pewno chcesz wyslac zgloszenia ZURD przez API?\n\n" +
                 $"Srodowisko: {envText}\n" +
                 $"Data uboju: {_dataUboju:dd.MM.yyyy}\n" +
-                $"Liczba pozycji: {wybrane.Count}\n" +
+                $"Liczba dostawcow: {wybrane.Count}\n" +
                 $"Suma sztuk: {wybrane.Sum(s => s.LiczbaSztukDrobiu):N0}\n" +
-                $"Suma wagi: {wybrane.Sum(s => s.WagaNetto):N2} kg",
+                $"Suma wagi: {wybrane.Sum(s => s.WagaNetto):N2} kg\n\n" +
+                $"UWAGA: Kazdy dostawca zostanie wyslany OSOBNO!",
                 "Potwierdzenie wysylki API",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question);
@@ -274,7 +275,9 @@ namespace Kalendarz1
                 btnSendApi.IsEnabled = false;
                 txtStatus.Text = "Logowanie do API IRZplus...";
                 progressBar.Visibility = Visibility.Visible;
-                progressBar.IsIndeterminate = true;
+                progressBar.IsIndeterminate = false;
+                progressBar.Maximum = wybrane.Count;
+                progressBar.Value = 0;
 
                 // Ustaw srodowisko
                 _apiService.SetTestEnvironment(settings.UseTestEnvironment);
@@ -288,42 +291,100 @@ namespace Kalendarz1
                     return;
                 }
 
-                txtStatus.Text = "Wysylanie zgloszenia ZURD...";
+                // Wysylaj KAZDA POZYCJE OSOBNO
+                int successCount = 0;
+                int errorCount = 0;
+                var errors = new List<string>();
+                var successResults = new List<(string Hodowca, ApiResult Result)>();
 
-                // Przygotuj numer partii uboju (format: yyMMddNN gdzie NN = numer sekwencyjny)
-                var numerPartii = _dataUboju.ToString("yyMMdd") + "01";
-
-                // Przygotuj pozycje
-                var pozycje = wybrane.Select((spec, idx) => new PozycjaZURDApi
+                for (int i = 0; i < wybrane.Count; i++)
                 {
-                    Lp = idx + 1,
-                    NumerIdenPartiiDrobiu = numerPartii,
-                    LiczbaDrobiu = spec.LiczbaSztukDrobiu,
-                    MasaDrobiu = spec.WagaNetto,
-                    TypZdarzenia = new KodValueApi { Kod = "ZURDUR" }, // ZURDUR = przybycie do rzeźni i ubój drobiu
-                    DataZdarzenia = spec.DataZdarzenia.ToString("yyyy-MM-dd"),
-                    DataKupnaWwozu = spec.DataZdarzenia.ToString("yyyy-MM-dd"),
-                    PrzyjeteZDzialalnosci = spec.IRZPlus,
-                    UbojRytualny = false
-                }).ToList();
+                    var spec = wybrane[i];
+                    progressBar.Value = i + 1;
+                    txtStatus.Text = $"Wysylanie {i + 1}/{wybrane.Count}: {spec.Hodowca}...";
 
-                // Utworz i wyslij dyspozycje
-                var dyspozycja = _apiService.UtworzDyspozycje(numerPartii, pozycje);
-                var result = await _apiService.WyslijZURDAsync(dyspozycja);
+                    // Przygotuj numer partii uboju (format: yyMMddNN gdzie NN = numer sekwencyjny dla kazdego dostawcy)
+                    var numerPartii = _dataUboju.ToString("yyMMdd") + (i + 1).ToString("00");
 
-                // Pokaz szczegolowe okno wyniku
-                ShowApiResultWindow(result, result.RequestJson);
+                    // Przygotuj pojedyncza pozycje dla tego dostawcy
+                    var pozycje = new List<PozycjaZURDApi>
+                    {
+                        new PozycjaZURDApi
+                        {
+                            Lp = 1,
+                            NumerIdenPartiiDrobiu = numerPartii,
+                            LiczbaDrobiu = spec.LiczbaSztukDrobiu,
+                            MasaDrobiu = spec.WagaNetto,
+                            TypZdarzenia = new KodValueApi { Kod = "ZURDUR" },
+                            DataZdarzenia = spec.DataZdarzenia.ToString("yyyy-MM-dd"),
+                            DataKupnaWwozu = spec.DataZdarzenia.ToString("yyyy-MM-dd"),
+                            PrzyjeteZDzialalnosci = spec.IRZPlus,
+                            UbojRytualny = false
+                        }
+                    };
 
-                if (result.Success)
-                {
-                    WysylkaZakonczona = true;
-                    NumerZgloszenia = result.NumerZgloszenia;
-                    txtStatus.Text = $"Wyslano przez API: {result.NumerZgloszenia}";
+                    // Utworz i wyslij dyspozycje
+                    var dyspozycja = _apiService.UtworzDyspozycje(numerPartii, pozycje);
+                    var result = await _apiService.WyslijZURDAsync(dyspozycja);
+
+                    if (result.Success)
+                    {
+                        successCount++;
+                        successResults.Add((spec.Hodowca, result));
+
+                        // Pokaz okno sukcesu dla kazdego dostawcy
+                        ShowSuccessDialog(result, spec.Hodowca);
+                    }
+                    else
+                    {
+                        errorCount++;
+                        errors.Add($"{spec.Hodowca}: {result.Message}");
+
+                        // Pokaz blad ale kontynuuj wysylanie pozostalych
+                        var continueResult = MessageBox.Show(
+                            $"Blad wysylania dla: {spec.Hodowca}\n\n{result.Message}\n\nCzy kontynuowac wysylanie pozostalych?",
+                            "Blad wysylania",
+                            MessageBoxButton.YesNo,
+                            MessageBoxImage.Warning);
+
+                        if (continueResult != MessageBoxResult.Yes)
+                            break;
+                    }
+
+                    // Krotka pauza miedzy requestami
+                    await Task.Delay(500);
                 }
-                else
+
+                // Podsumowanie
+                WysylkaZakonczona = successCount > 0;
+                if (successResults.Any())
                 {
-                    txtStatus.Text = "Blad wysylania przez API";
+                    NumerZgloszenia = successResults.Last().Result.NumerZgloszenia;
                 }
+
+                var summary = $"Wyslano: {successCount}/{wybrane.Count}";
+                if (errorCount > 0)
+                {
+                    summary += $"\nBledy: {errorCount}";
+                }
+                txtStatus.Text = summary;
+
+                // Pokaz podsumowanie
+                var summaryMsg = $"PODSUMOWANIE WYSYLKI\n\n" +
+                    $"Wyslano pomyslnie: {successCount}\n" +
+                    $"Bledy: {errorCount}\n";
+
+                if (errors.Any())
+                {
+                    summaryMsg += $"\nBLEDY:\n{string.Join("\n", errors.Take(5))}";
+                    if (errors.Count > 5)
+                        summaryMsg += $"\n... i {errors.Count - 5} wiecej";
+                }
+
+                MessageBox.Show(summaryMsg,
+                    successCount == wybrane.Count ? "Wysylka zakonczona" : "Wysylka zakonczona z bledami",
+                    MessageBoxButton.OK,
+                    successCount == wybrane.Count ? MessageBoxImage.Information : MessageBoxImage.Warning);
             }
             catch (Exception ex)
             {
@@ -677,6 +738,166 @@ namespace Kalendarz1
             {
                 return json;
             }
+        }
+
+        /// <summary>
+        /// Pokazuje ladne okno sukcesu z numerem dokumentu i przyciskiem kopiowania
+        /// </summary>
+        private void ShowSuccessDialog(ApiResult result, string hodowcaNazwa = null)
+        {
+            var window = new Window
+            {
+                Title = "Zgloszenie wyslane pomyslnie",
+                Width = 500,
+                Height = 350,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                ResizeMode = ResizeMode.NoResize,
+                Background = new SolidColorBrush(Color.FromRgb(245, 245, 245))
+            };
+
+            var mainStack = new StackPanel { Margin = new Thickness(20) };
+
+            // Naglowek z ikona sukcesu
+            var headerStack = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 20) };
+            var successIcon = new TextBlock
+            {
+                Text = "[OK]",
+                FontSize = 24,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(76, 175, 80)),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 10, 0)
+            };
+            var headerText = new TextBlock
+            {
+                Text = "Zgloszenie zostalo przyjete!",
+                FontSize = 18,
+                FontWeight = FontWeights.Bold,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            headerStack.Children.Add(successIcon);
+            headerStack.Children.Add(headerText);
+            mainStack.Children.Add(headerStack);
+
+            // Nazwa hodowcy jesli podana
+            if (!string.IsNullOrEmpty(hodowcaNazwa))
+            {
+                var hodowcaText = new TextBlock
+                {
+                    Text = $"Hodowca: {hodowcaNazwa}",
+                    FontSize = 14,
+                    Margin = new Thickness(0, 0, 0, 15),
+                    Foreground = Brushes.DarkGray
+                };
+                mainStack.Children.Add(hodowcaText);
+            }
+
+            // Panel z numerem dokumentu
+            var docPanel = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(240, 248, 255)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(30, 144, 255)),
+                BorderThickness = new Thickness(2),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(15),
+                Margin = new Thickness(0, 0, 0, 15)
+            };
+
+            var docStack = new StackPanel();
+            var docLabel = new TextBlock
+            {
+                Text = "Numer dokumentu:",
+                FontSize = 12,
+                Foreground = Brushes.Gray,
+                Margin = new Thickness(0, 0, 0, 5)
+            };
+            docStack.Children.Add(docLabel);
+
+            var docValuePanel = new StackPanel { Orientation = Orientation.Horizontal };
+            var numerDok = result.NumerDokumentu ?? result.NumerZgloszenia ?? "N/A";
+            var docValue = new TextBlock
+            {
+                Text = numerDok,
+                FontSize = 20,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(30, 144, 255)),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 15, 0)
+            };
+            docValuePanel.Children.Add(docValue);
+
+            var copyButton = new Button
+            {
+                Content = "Kopiuj",
+                Padding = new Thickness(15, 8, 15, 8),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Background = new SolidColorBrush(Color.FromRgb(76, 175, 80)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                FontWeight = FontWeights.Bold
+            };
+            copyButton.Click += (s, ev) =>
+            {
+                if (!string.IsNullOrEmpty(numerDok) && numerDok != "N/A")
+                {
+                    System.Windows.Clipboard.SetText(numerDok);
+                    copyButton.Content = "Skopiowano!";
+                    copyButton.Background = new SolidColorBrush(Color.FromRgb(56, 142, 60));
+                }
+            };
+            docValuePanel.Children.Add(copyButton);
+            docStack.Children.Add(docValuePanel);
+            docPanel.Child = docStack;
+            mainStack.Children.Add(docPanel);
+
+            // Dodatkowe informacje
+            var infoStack = new StackPanel { Margin = new Thickness(0, 0, 0, 20) };
+
+            if (!string.IsNullOrEmpty(result.Status))
+            {
+                infoStack.Children.Add(new TextBlock
+                {
+                    Text = $"Status: {result.Status}",
+                    Margin = new Thickness(0, 3, 0, 3)
+                });
+            }
+            if (!string.IsNullOrEmpty(result.DataUtworzenia))
+            {
+                infoStack.Children.Add(new TextBlock
+                {
+                    Text = $"Data utworzenia: {result.DataUtworzenia}",
+                    Margin = new Thickness(0, 3, 0, 3)
+                });
+            }
+            if (result.Podsumowanie != null)
+            {
+                infoStack.Children.Add(new TextBlock
+                {
+                    Text = $"Zaakceptowanych: {result.Podsumowanie.LiczbaZaakceptowanych}, Sztuk: {result.Podsumowanie.SumaSztuk}, Masa: {result.Podsumowanie.SumaMasy} kg",
+                    Margin = new Thickness(0, 3, 0, 3)
+                });
+            }
+            mainStack.Children.Add(infoStack);
+
+            // Przycisk OK
+            var closeButton = new Button
+            {
+                Content = "OK",
+                Width = 120,
+                Padding = new Thickness(10, 10, 10, 10),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Background = new SolidColorBrush(Color.FromRgb(33, 150, 243)),
+                Foreground = Brushes.White,
+                FontWeight = FontWeights.Bold,
+                FontSize = 14,
+                BorderThickness = new Thickness(0)
+            };
+            closeButton.Click += (s, ev) => window.Close();
+            mainStack.Children.Add(closeButton);
+
+            window.Content = mainStack;
+            window.ShowDialog();
         }
 
         private async Task SendToIRZplusAsync(List<SpecyfikacjaDoIRZplusViewModel> wybrane)
