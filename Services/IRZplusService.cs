@@ -8,6 +8,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 using Microsoft.Data.SqlClient;
 
 namespace Kalendarz1.Services
@@ -282,6 +283,33 @@ namespace Kalendarz1.Services
             }
         }
 
+        /// <summary>
+        /// Zapisuje tylko numer dokumentu ARIMR do bazy danych
+        /// </summary>
+        public async Task<bool> SaveNrDokArimrAsync(string connectionString, int farmerCalcId, string nrDokArimr)
+        {
+            try
+            {
+                using var conn = new SqlConnection(connectionString);
+                await conn.OpenAsync();
+
+                var sql = @"UPDATE dbo.FarmerCalc
+                    SET NrDokArimr = @NrDokArimr
+                    WHERE ID = @Id";
+
+                using var cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@Id", farmerCalcId);
+                cmd.Parameters.AddWithValue("@NrDokArimr", (object)nrDokArimr ?? DBNull.Value);
+
+                await cmd.ExecuteNonQueryAsync();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         public async Task<IRZplusResult> WyslijZgloszenieAsync(ZgloszenieZbiorczeRequest request)
         {
             try
@@ -302,21 +330,22 @@ namespace Kalendarz1.Services
                             Lp = idx + 1,
                             NumerIdenPartiiDrobiu = d.NumerSiedliska,
                             LiczbaDrobiu = d.IloscSztuk,
-                            TypZdarzenia = new KodOpisDto { Kod = "UR" },
+                            MasaDrobiu = d.WagaKg,  // WYMAGANE! K1231
+                            TypZdarzenia = new KodOpisDto { Kod = "ZURDUR" }, // ZURDUR = przybycie do rzeźni i ubój drobiu
                             DataZdarzenia = request.DataUboju.ToString("yyyy-MM-dd"),
+                            DataKupnaWwozu = request.DataUboju.ToString("yyyy-MM-dd"),  // WYMAGANE! K0181
                             // NumerSiedliska juz zawiera pelny numer np. "038481631-001" - NIE DODAWAC -001!
-                        PrzyjeteZDzialalnosci = d.NumerSiedliska,
+                            PrzyjeteZDzialalnosci = d.NumerSiedliska,
                             UbojRytualny = false
                         }).ToList()
                     }
                 };
 
-                // Serializuj NOWĄ strukturę (ignoruj null)
+                // Serializuj NOWĄ strukturę - NIE ignoruj null! masaDrobiu i dataKupnaWwozu sa WYMAGANE!
                 var json = JsonSerializer.Serialize(dyspozycja, new JsonSerializerOptions
                 {
                     PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                    WriteIndented = true,
-                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+                    WriteIndented = true
                 });
 
                 // Debug - zapisz JSON do pliku
@@ -340,7 +369,8 @@ namespace Kalendarz1.Services
 
                 if (response.IsSuccessStatusCode)
                 {
-                    return new IRZplusResult { Success = true, Message = "Wysłano pomyślnie!", ResponseData = responseBody };
+                    var numerZgloszenia = TryGetNumerZgloszenia(responseBody);
+                    return new IRZplusResult { Success = true, Message = "Wysłano pomyślnie!", NumerZgloszenia = numerZgloszenia, ResponseData = responseBody };
                 }
                 else
                 {
@@ -459,8 +489,10 @@ namespace Kalendarz1.Services
                     Lp = lp++,
                     NumerIdenPartiiDrobiu = irzPlus,  // np. "080640491-001"
                     LiczbaDrobiu = spec.LiczbaSztukDrobiu,
-                    TypZdarzenia = new KodOpisDto { Kod = "UR" }, // UR = ubój w rzeźni
+                    MasaDrobiu = spec.WagaNetto,  // WYMAGANE! K1231 - Pole Masa drobiu jest wymagane
+                    TypZdarzenia = new KodOpisDto { Kod = "ZURDUR" }, // ZURDUR = przybycie do rzeźni i ubój drobiu
                     DataZdarzenia = spec.DataZdarzenia.ToString("yyyy-MM-dd"),
+                    DataKupnaWwozu = spec.DataZdarzenia.ToString("yyyy-MM-dd"),  // WYMAGANE! K0181 - Pole Data kupna/wwozu
                     // irzPlus juz zawiera pelny numer np. "080640491-001" - NIE DODAWAC -001!
                     PrzyjeteZDzialalnosci = irzPlus,
                     UbojRytualny = false
@@ -484,8 +516,8 @@ namespace Kalendarz1.Services
                 var jsonOptions = new JsonSerializerOptions
                 {
                     PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                    WriteIndented = true,
-                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+                    WriteIndented = true
+                    // NIE uzywac WhenWritingNull - masaDrobiu i dataKupnaWwozu sa WYMAGANE!
                 };
                 var json = JsonSerializer.Serialize(zurd, jsonOptions);
 
@@ -493,6 +525,18 @@ namespace Kalendarz1.Services
                 var exportPath = _settings.LocalExportPath ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "IRZplus_Export");
                 if (!Directory.Exists(exportPath)) Directory.CreateDirectory(exportPath);
                 File.WriteAllText(Path.Combine(exportPath, $"debug_zurd_{DateTime.Now:yyyyMMdd_HHmmss}.json"), json);
+
+                // DEBUG: Pokaż JSON i zapytaj o potwierdzenie
+                var dialogResult = MessageBox.Show(
+                    json,
+                    "JSON do wysłania - Czy wysłać?",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (dialogResult != DialogResult.Yes)
+                {
+                    return new IRZplusResult { Success = false, Message = "Anulowano przez użytkownika" };
+                }
 
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 var url = _settings.UseTestEnvironment ? API_URL_TEST : API_URL_PROD;
@@ -718,11 +762,19 @@ namespace Kalendarz1.Services
         [JsonPropertyName("liczbaDrobiu")]
         public int LiczbaDrobiu { get; set; }
 
+        // WYMAGANE! K1231 - Pole Masa drobiu jest wymagane
+        [JsonPropertyName("masaDrobiu")]
+        public decimal MasaDrobiu { get; set; }
+
         [JsonPropertyName("typZdarzenia")]
-        public KodOpisDto TypZdarzenia { get; set; }  // {"kod": "UR"}
+        public KodOpisDto TypZdarzenia { get; set; }  // {"kod": "ZURDUR"} - przybycie do rzeźni i ubój drobiu
 
         [JsonPropertyName("dataZdarzenia")]
         public string DataZdarzenia { get; set; }  // format "2025-01-13"
+
+        // WYMAGANE! K0181 - Pole Data kupna/wwozu - Brak danych
+        [JsonPropertyName("dataKupnaWwozu")]
+        public string DataKupnaWwozu { get; set; }  // format "2025-01-13"
 
         [JsonPropertyName("przyjeteZDzialalnosci")]
         public string PrzyjeteZDzialalnosci { get; set; }  // np. "080640491-001" (pelny numer siedliska)

@@ -149,33 +149,41 @@ namespace Kalendarz1.Services
                 var csv = new StringBuilder();
 
                 // === POZYCJE (BEZ NAGLOWKA, BEZ Lp!) ===
-                // Portal IRZplus oczekuje kolumn w kolejnosci POL FORMULARZA:
-                // 1. Numer identyfikacyjny/numer partii = SIEDLISKO HODOWCY (nie rzezni!)
+                // Format CSV zgodny z oficjalnym szablonem ARiMR (13 kolumn):
+                // 1. Numer identyfikacyjny/numer partii (puste lub numer rzezni)
                 // 2. Liczba sztuk drobiu
-                // 3. Masa drobiu poddanego ubojowi (kg)
-                // 4. Typ zdarzenia (UR)
-                // 5. Data zdarzenia (DD-MM-RRRR)
-                // 6. Kraj wwozu (pusty dla krajowych)
-                // 7. Data kupna/wwozu (DD-MM-RRRR)
-                // 8. Przyjete z dzialalnosci = SIEDLISKO HODOWCY
-                // 9. Uboj rytualny (T/N)
+                // 3. Masa drobiu poddanego ubojowi (liczba calkowita)
+                // 4. Typ zdarzenia = "ZURDUR"
+                // 5. Data zdarzenia (RRRR-MM-DD)
+                // 6. Kraj wwozu (puste dla PL)
+                // 7. Data kupna/wwozu (RRRR-MM-DD)
+                // 8. Przyjete z dzialalnosci (numer siedliska hodowcy)
+                // 9. WNI przewoznika (puste lub wartosc)
+                // 10. Srodek transportu (puste lub "SA"/"PR"/"NA")
+                // 11. Numer rejestracyjny srodka transportu (puste lub numer)
+                // 12. Transport wlasny ("TAK" lub "NIE")
+                // 13. Uboj rytualny ("TAK" lub "NIE")
                 foreach (var poz in zgloszenie.Pozycje.OrderBy(p => p.Lp))
                 {
-                    var dataZdarzeniaStr = poz.DataZdarzenia.ToString("dd-MM-yyyy");
+                    var dataZdarzeniaStr = poz.DataZdarzenia.ToString("yyyy-MM-dd");
                     var masaStr = ((int)Math.Round(poz.MasaKg)).ToString(CultureInfo.InvariantCulture);
                     var numerSiedliska = NormalizujNumerSiedliska(poz.PrzyjeteZDzialalnosci);
 
                     csv.AppendLine(string.Join(";", new[]
                     {
-                        numerSiedliska,                               // Kol 1: Numer identyfikacyjny = SIEDLISKO HODOWCY
+                        zgloszenie.NumerPartiiUboju,                  // Kol 1: Numer partii uboju (np. 26011601)
                         poz.LiczbaSztuk.ToString(),                   // Kol 2: Liczba sztuk
-                        masaStr,                                      // Kol 3: Masa (liczba calkowita!)
-                        "Przybycie do rzeźni i ubój",                 // Kol 4: Typ zdarzenia (pelna nazwa!)
+                        masaStr,                                      // Kol 3: Masa (liczba calkowita)
+                        "ZURDUR",                                     // Kol 4: Typ zdarzenia
                         dataZdarzeniaStr,                             // Kol 5: Data zdarzenia
-                        poz.KrajWwozu ?? "",                          // Kol 6: Kraj wwozu
-                        dataZdarzeniaStr,                             // Kol 7: Data kupna = data zdarzenia
+                        "",                                           // Kol 6: Kraj wwozu (puste dla PL)
+                        dataZdarzeniaStr,                             // Kol 7: Data kupna/wwozu
                         numerSiedliska,                               // Kol 8: Przyjete z dzialalnosci
-                        poz.UbojRytualny ? "T" : "N"                  // Kol 9: Uboj rytualny
+                        "",                                           // Kol 9: WNI przewoznika (puste)
+                        "",                                           // Kol 10: Srodek transportu (puste)
+                        "",                                           // Kol 11: Nr rejestracyjny (puste)
+                        "NIE",                                        // Kol 12: Transport wlasny
+                        poz.UbojRytualny ? "TAK" : "NIE"              // Kol 13: Uboj rytualny
                     }));
                 }
 
@@ -294,14 +302,13 @@ namespace Kalendarz1.Services
                                         new XElement("liczbaDrobiu", poz.LiczbaSztuk),
                                         new XElement("masaDrobiu", poz.MasaKg.ToString("F2", CultureInfo.InvariantCulture)),
                                         new XElement("typZdarzenia",
-                                            new XElement("kod", poz.TypZdarzenia ?? "UR")
+                                            new XElement("kod", poz.TypZdarzenia ?? "ZURDUR")
                                         ),
                                         new XElement("dataZdarzenia", poz.DataZdarzenia.ToString("yyyy-MM-dd")),
+                                        // dataKupnaWwozu jest WYMAGANE przez API - uzywamy DataZdarzenia jesli nie ustawione
+                                        new XElement("dataKupnaWwozu", (poz.DataKupnaWwozu ?? poz.DataZdarzenia).ToString("yyyy-MM-dd")),
                                         !string.IsNullOrEmpty(poz.KrajWwozu)
                                             ? new XElement("krajWwozu", poz.KrajWwozu)
-                                            : null,
-                                        poz.DataKupnaWwozu.HasValue
-                                            ? new XElement("dataKupnaWwozu", poz.DataKupnaWwozu.Value.ToString("yyyy-MM-dd"))
                                             : null,
                                         new XElement("przyjeteZDzialalnosci", poz.PrzyjeteZDzialalnosci),
                                         new XElement("ubojRytualny", poz.UbojRytualny.ToString().ToLower())
@@ -417,36 +424,44 @@ namespace Kalendarz1.Services
                 var instrukcjaFileName = $"INSTRUKCJA_{dataUboju:yyyyMMdd}_{numerSiedliskaBezMyslnikow}_{timestamp}.txt";
                 var instrukcjaFilePath = Path.Combine(_exportPath, instrukcjaFileName);
 
-                // Data zdarzenia w formacie DD-MM-RRRR
-                var dataZdarzeniaStr = dataUboju.ToString("dd-MM-yyyy");
+                // Data zdarzenia w formacie RRRR-MM-DD (oficjalny format ARiMR)
+                var dataZdarzeniaStr = dataUboju.ToString("yyyy-MM-dd");
 
                 // Masa jako liczba calkowita BEZ separatorow
                 var masaStr = ((int)Math.Round(masaKg)).ToString(CultureInfo.InvariantCulture);
 
                 // === BUDUJ CSV (BEZ NAGLOWKA, BEZ Lp!) ===
-                // Portal IRZplus oczekuje kolumn w kolejnosci POL FORMULARZA (lewo-prawo, gora-dol):
-                // 1. Numer identyfikacyjny/numer partii = SIEDLISKO HODOWCY (nie rzezni!)
+                // Format CSV zgodny z oficjalnym szablonem ARiMR (13 kolumn):
+                // 1. Numer identyfikacyjny/numer partii (puste lub numer rzezni)
                 // 2. Liczba sztuk drobiu
-                // 3. Masa drobiu poddanego ubojowi (kg)
-                // 4. Typ zdarzenia (UR)
-                // 5. Data zdarzenia (DD-MM-RRRR)
-                // 6. Kraj wwozu (pusty dla krajowych)
-                // 7. Data kupna/wwozu (DD-MM-RRRR)
-                // 8. Przyjete z dzialalnosci = SIEDLISKO HODOWCY
-                // 9. Uboj rytualny (T/N)
+                // 3. Masa drobiu poddanego ubojowi (liczba calkowita)
+                // 4. Typ zdarzenia = "ZURDUR"
+                // 5. Data zdarzenia (RRRR-MM-DD)
+                // 6. Kraj wwozu (puste dla PL)
+                // 7. Data kupna/wwozu (RRRR-MM-DD)
+                // 8. Przyjete z dzialalnosci (numer siedliska hodowcy)
+                // 9. WNI przewoznika (puste lub wartosc)
+                // 10. Srodek transportu (puste lub "SA"/"PR"/"NA")
+                // 11. Numer rejestracyjny srodka transportu (puste lub numer)
+                // 12. Transport wlasny ("TAK" lub "NIE")
+                // 13. Uboj rytualny ("TAK" lub "NIE")
                 var csv = new StringBuilder();
 
                 csv.AppendLine(string.Join(";", new[]
                 {
-                    numerSiedliskaHodowcy,              // Kol 1: Numer identyfikacyjny = SIEDLISKO HODOWCY
+                    numerPartiiUboju,                   // Kol 1: Numer partii uboju (np. 26011601)
                     liczbaSztuk.ToString(),             // Kol 2: Liczba sztuk
-                    masaStr,                            // Kol 3: Masa (liczba calkowita!)
-                    "Przybycie do rzeźni i ubój",       // Kol 4: Typ zdarzenia (pelna nazwa!)
+                    masaStr,                            // Kol 3: Masa (liczba calkowita)
+                    "ZURDUR",                           // Kol 4: Typ zdarzenia
                     dataZdarzeniaStr,                   // Kol 5: Data zdarzenia
-                    "",                                 // Kol 6: Kraj wwozu (pusty dla krajowych)
-                    dataZdarzeniaStr,                   // Kol 7: Data kupna = data zdarzenia
-                    numerSiedliskaHodowcy,              // Kol 8: Przyjete z dzialalnosci = SIEDLISKO HODOWCY
-                    "N"                                 // Kol 9: Uboj rytualny
+                    "",                                 // Kol 6: Kraj wwozu (puste dla PL)
+                    dataZdarzeniaStr,                   // Kol 7: Data kupna/wwozu
+                    numerSiedliskaHodowcy,              // Kol 8: Przyjete z dzialalnosci
+                    "",                                 // Kol 9: WNI przewoznika (puste)
+                    "",                                 // Kol 10: Srodek transportu (puste)
+                    "",                                 // Kol 11: Nr rejestracyjny (puste)
+                    "NIE",                              // Kol 12: Transport wlasny
+                    "NIE"                               // Kol 13: Uboj rytualny
                 }));
 
                 // Zapisz CSV z UTF-8 BOM
@@ -613,22 +628,29 @@ namespace Kalendarz1.Services
                     // Normalizuj numer siedliska
                     var numerSiedliska = NormalizujNumerSiedliska(transport.PrzyjeteZDzialalnosci);
 
-                    // Buduj CSV
+                    // Generuj numer partii uboju (format: yyMMddNN)
+                    var numerPartiiUboju = ZgloszenieZURD.GenerujNumerPartiiUboju(dataUboju, kolejnosc);
+
+                    // Buduj CSV (format ARiMR 13 kolumn)
                     var csv = new StringBuilder();
-                    var dataZdarzeniaStr = dataUboju.ToString("dd-MM-yyyy");
+                    var dataZdarzeniaStr = dataUboju.ToString("yyyy-MM-dd");
                     var masaStr = ((int)Math.Round(transport.MasaKg)).ToString(CultureInfo.InvariantCulture);
 
                     csv.AppendLine(string.Join(";", new[]
                     {
-                        numerSiedliska,                               // Kol 1: Numer identyfikacyjny
+                        numerPartiiUboju,                             // Kol 1: Numer partii uboju (np. 26011601)
                         transport.LiczbaSztuk.ToString(),             // Kol 2: Liczba sztuk
                         masaStr,                                      // Kol 3: Masa
-                        "Przybycie do rzeźni i ubój",                 // Kol 4: Typ zdarzenia
+                        "ZURDUR",                                     // Kol 4: Typ zdarzenia
                         dataZdarzeniaStr,                             // Kol 5: Data zdarzenia
-                        "",                                           // Kol 6: Kraj wwozu
+                        "",                                           // Kol 6: Kraj wwozu (puste)
                         dataZdarzeniaStr,                             // Kol 7: Data kupna
                         numerSiedliska,                               // Kol 8: Przyjete z dzialalnosci
-                        transport.UbojRytualny ? "T" : "N"            // Kol 9: Uboj rytualny
+                        "",                                           // Kol 9: WNI przewoznika (puste)
+                        "",                                           // Kol 10: Srodek transportu (puste)
+                        "",                                           // Kol 11: Nr rejestracyjny (puste)
+                        "NIE",                                        // Kol 12: Transport wlasny
+                        transport.UbojRytualny ? "TAK" : "NIE"        // Kol 13: Uboj rytualny
                     }));
 
                     File.WriteAllText(filePath, csv.ToString(), new UTF8Encoding(true));
@@ -671,23 +693,28 @@ namespace Kalendarz1.Services
 
                 var csv = new StringBuilder();
 
+                // Format CSV zgodny z oficjalnym szablonem ARiMR (13 kolumn)
                 foreach (var poz in zgloszenie.Pozycje.OrderBy(p => p.Lp))
                 {
-                    var dataZdarzeniaStr = poz.DataZdarzenia.ToString("dd-MM-yyyy");
+                    var dataZdarzeniaStr = poz.DataZdarzenia.ToString("yyyy-MM-dd");
                     var masaStr = ((int)Math.Round(poz.MasaKg)).ToString(CultureInfo.InvariantCulture);
                     var numerSiedliska = NormalizujNumerSiedliska(poz.PrzyjeteZDzialalnosci);
 
                     csv.AppendLine(string.Join(";", new[]
                     {
-                        numerSiedliska,                               // Kol 1: Numer identyfikacyjny
+                        zgloszenie.NumerPartiiUboju,                  // Kol 1: Numer partii uboju (np. 26011601)
                         poz.LiczbaSztuk.ToString(),                   // Kol 2: Liczba sztuk
                         masaStr,                                      // Kol 3: Masa
-                        "Przybycie do rzeźni i ubój",                 // Kol 4: Typ zdarzenia
+                        "ZURDUR",                                     // Kol 4: Typ zdarzenia
                         dataZdarzeniaStr,                             // Kol 5: Data zdarzenia
-                        poz.KrajWwozu ?? "",                          // Kol 6: Kraj wwozu
+                        "",                                           // Kol 6: Kraj wwozu (puste)
                         dataZdarzeniaStr,                             // Kol 7: Data kupna
                         numerSiedliska,                               // Kol 8: Przyjete z dzialalnosci
-                        poz.UbojRytualny ? "T" : "N"                  // Kol 9: Uboj rytualny
+                        "",                                           // Kol 9: WNI przewoznika (puste)
+                        "",                                           // Kol 10: Srodek transportu (puste)
+                        "",                                           // Kol 11: Nr rejestracyjny (puste)
+                        "NIE",                                        // Kol 12: Transport wlasny
+                        poz.UbojRytualny ? "TAK" : "NIE"              // Kol 13: Uboj rytualny
                     }));
                 }
 
@@ -758,6 +785,8 @@ namespace Kalendarz1.Services
                                             new XElement("kod", "UR")
                                         ),
                                         new XElement("dataZdarzenia", dataUboju.ToString("yyyy-MM-dd")),
+                                        // dataKupnaWwozu jest WYMAGANE przez API
+                                        new XElement("dataKupnaWwozu", dataUboju.ToString("yyyy-MM-dd")),
                                         new XElement("przyjeteZDzialalnosci", numerSiedliska),
                                         new XElement("ubojRytualny", transport.UbojRytualny.ToString().ToLower())
                                     )
@@ -824,9 +853,11 @@ namespace Kalendarz1.Services
                                         new XElement("liczbaDrobiu", poz.LiczbaSztuk),
                                         new XElement("masaDrobiu", poz.MasaKg.ToString("F2", CultureInfo.InvariantCulture)),
                                         new XElement("typZdarzenia",
-                                            new XElement("kod", poz.TypZdarzenia ?? "UR")
+                                            new XElement("kod", poz.TypZdarzenia ?? "ZURDUR")
                                         ),
                                         new XElement("dataZdarzenia", poz.DataZdarzenia.ToString("yyyy-MM-dd")),
+                                        // dataKupnaWwozu jest WYMAGANE przez API - uzywamy DataZdarzenia jesli nie ustawione
+                                        new XElement("dataKupnaWwozu", (poz.DataKupnaWwozu ?? poz.DataZdarzenia).ToString("yyyy-MM-dd")),
                                         new XElement("przyjeteZDzialalnosci", poz.PrzyjeteZDzialalnosci),
                                         new XElement("ubojRytualny", poz.UbojRytualny.ToString().ToLower())
                                     )
@@ -1739,26 +1770,30 @@ namespace Kalendarz1.Services
             }
 
             // Generuj CSV dokladnie tak jak w eksporcie - BEZ NAGLOWKA, BEZ Lp!
-            // Kolejnosc: NumerSiedliska;LiczbaSztuk;Masa;TypZdarzenia;Data;KrajWwozu;DataKupna;Przyjete;Uboj
+            // Format ARiMR: 13 kolumn
             var csv = new StringBuilder();
 
             foreach (var poz in zgloszenie.Pozycje.OrderBy(p => p.Lp))
             {
-                var dataZdarzeniaStr = poz.DataZdarzenia.ToString("dd-MM-yyyy");
+                var dataZdarzeniaStr = poz.DataZdarzenia.ToString("yyyy-MM-dd");
                 var masaStr = ((int)Math.Round(poz.MasaKg)).ToString(CultureInfo.InvariantCulture);
                 var numerSiedliska = NormalizujNumerSiedliska(poz.PrzyjeteZDzialalnosci);
 
                 csv.AppendLine(string.Join(";", new[]
                 {
-                    numerSiedliska,                               // Kol 1: Numer identyfikacyjny = SIEDLISKO HODOWCY
+                    zgloszenie.NumerPartiiUboju,                  // Kol 1: Numer partii uboju (np. 26011601)
                     poz.LiczbaSztuk.ToString(),                   // Kol 2: Liczba sztuk
                     masaStr,                                      // Kol 3: Masa
-                    "Przybycie do rzeźni i ubój",                 // Kol 4: Typ zdarzenia (pelna nazwa!)
+                    "ZURDUR",                                     // Kol 4: Typ zdarzenia
                     dataZdarzeniaStr,                             // Kol 5: Data zdarzenia
-                    poz.KrajWwozu ?? "",                          // Kol 6: Kraj wwozu
+                    "",                                           // Kol 6: Kraj wwozu (puste)
                     dataZdarzeniaStr,                             // Kol 7: Data kupna
                     numerSiedliska,                               // Kol 8: Przyjete z dzialalnosci
-                    poz.UbojRytualny ? "T" : "N"                  // Kol 9: Uboj rytualny
+                    "",                                           // Kol 9: WNI przewoznika (puste)
+                    "",                                           // Kol 10: Srodek transportu (puste)
+                    "",                                           // Kol 11: Nr rejestracyjny (puste)
+                    "NIE",                                        // Kol 12: Transport wlasny
+                    poz.UbojRytualny ? "TAK" : "NIE"              // Kol 13: Uboj rytualny
                 }));
             }
 
@@ -1771,30 +1806,33 @@ namespace Kalendarz1.Services
             // Analiza
             var csvLines = csv.ToString().Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
             sb.AppendLine($"Liczba linii w CSV: {csvLines.Length}");
-            sb.AppendLine($"  - 1 linia naglowka");
-            sb.AppendLine($"  - {csvLines.Length - 1} linii danych");
+            sb.AppendLine($"  - BEZ naglowka (format ARiMR)");
+            sb.AppendLine($"  - {csvLines.Length} linii danych");
             sb.AppendLine();
 
-            // Sprawdz pierwszy wiersz danych
-            if (csvLines.Length > 1)
+            // Sprawdz pierwszy wiersz danych (format ARiMR 13 kolumn)
+            if (csvLines.Length > 0)
             {
-                var firstDataLine = csvLines[1];
+                var firstDataLine = csvLines[0];
                 var cols = firstDataLine.Split(';');
                 sb.AppendLine("─── ANALIZA PIERWSZEGO WIERSZA DANYCH ───");
-                sb.AppendLine($"Liczba kolumn: {cols.Length} (oczekiwano: 10)");
+                sb.AppendLine($"Liczba kolumn: {cols.Length} (oczekiwano: 13)");
 
                 var expectedCols = new[]
                 {
-                    ("Lp", "1"),
-                    ("Nr identyfikacyjny", NUMER_RZEZNI),
-                    ("Typ zdarzenia", "UR"),
+                    ("Nr identyfikacyjny", "puste"),
                     ("Liczba sztuk", "liczba"),
-                    ("Data zdarzenia", "DD-MM-RRRR"),
                     ("Masa", "liczba calkowita"),
+                    ("Typ zdarzenia", "ZURDUR"),
+                    ("Data zdarzenia", "RRRR-MM-DD"),
                     ("Kraj wwozu", "puste"),
-                    ("Data kupna", "DD-MM-RRRR"),
+                    ("Data kupna", "RRRR-MM-DD"),
                     ("Przyjete z dzial.", "NNN-NNN"),
-                    ("Uboj rytualny", "N lub T")
+                    ("WNI przewoznika", "puste"),
+                    ("Srodek transportu", "puste"),
+                    ("Nr rejestracyjny", "puste"),
+                    ("Transport wlasny", "NIE"),
+                    ("Uboj rytualny", "NIE lub TAK")
                 };
 
                 for (int i = 0; i < Math.Min(cols.Length, expectedCols.Length); i++)
@@ -1803,14 +1841,17 @@ namespace Kalendarz1.Services
                     var actual = cols[i];
                     var status = "?";
 
-                    // Proste walidacje
-                    if (i == 1 && actual == NUMER_RZEZNI) status = "OK";
-                    else if (i == 2 && (actual == "UR" || actual == "BD")) status = "OK";
-                    else if (i == 5 && int.TryParse(actual, out _) && !actual.Contains(" ") && !actual.Contains(",")) status = "OK";
-                    else if (i == 6 && string.IsNullOrEmpty(actual)) status = "OK";
-                    else if ((i == 4 || i == 7) && System.Text.RegularExpressions.Regex.IsMatch(actual, @"^\d{2}-\d{2}-\d{4}$")) status = "OK";
-                    else if (i == 9 && (actual == "N" || actual == "T")) status = "OK";
-                    else if (i == 0 || i == 3 || i == 8) status = "?";
+                    // Proste walidacje dla nowego formatu ARiMR
+                    if (i == 0 && string.IsNullOrEmpty(actual)) status = "OK";
+                    else if (i == 1 && int.TryParse(actual, out _)) status = "OK";
+                    else if (i == 2 && int.TryParse(actual, out _) && !actual.Contains(" ") && !actual.Contains(",")) status = "OK";
+                    else if (i == 3 && actual == "ZURDUR") status = "OK";
+                    else if ((i == 4 || i == 6) && System.Text.RegularExpressions.Regex.IsMatch(actual, @"^\d{4}-\d{2}-\d{2}$")) status = "OK";
+                    else if (i == 5 && string.IsNullOrEmpty(actual)) status = "OK";
+                    else if (i == 7 && !string.IsNullOrEmpty(actual)) status = "OK";
+                    else if ((i == 8 || i == 9 || i == 10) && string.IsNullOrEmpty(actual)) status = "OK";
+                    else if (i == 11 && actual == "NIE") status = "OK";
+                    else if (i == 12 && (actual == "NIE" || actual == "TAK")) status = "OK";
 
                     sb.AppendLine($"  [{i + 1}] {nazwa,-20}: \"{actual}\" ({oczekiwane}) [{status}]");
                 }
