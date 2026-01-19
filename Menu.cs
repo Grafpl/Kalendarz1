@@ -7,6 +7,7 @@ using Kalendarz1.KontrolaGodzin;
 using Kalendarz1.Zywiec.RaportyStatystyki;
 using Kalendarz1.Spotkania.Views;
 using Kalendarz1.Zadania;
+using Kalendarz1.Komunikator.Services;
 using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
@@ -33,6 +34,8 @@ namespace Kalendarz1
         private TableLayoutPanel mainLayout;
         private System.Windows.Forms.Timer taskNotificationTimer;
         private MeetingChangeMonitor meetingChangeMonitor;
+        private Label _chatBadgeLabel;
+        private System.Windows.Forms.Timer _chatBadgeTimer;
 
         public MENU()
         {
@@ -42,6 +45,7 @@ namespace Kalendarz1
             SetupMenuItems();
             ApplyModernStyle();
             StartTaskNotifications();
+            StartChatBadgeTimer();
         }
 
         private void StartTaskNotifications()
@@ -111,6 +115,52 @@ namespace Kalendarz1
             // Ustaw timer na 15 minut
             taskNotificationTimer.Interval = 15 * 60 * 1000; // 15 minut
             taskNotificationTimer.Start();
+        }
+
+        private void StartChatBadgeTimer()
+        {
+            _chatBadgeTimer = new System.Windows.Forms.Timer();
+            _chatBadgeTimer.Interval = 5000; // Co 5 sekund
+            _chatBadgeTimer.Tick += (s, e) => UpdateChatBadge();
+            _chatBadgeTimer.Start();
+
+            // Pierwsze sprawdzenie od razu
+            UpdateChatBadge();
+        }
+
+        private void UpdateChatBadge()
+        {
+            if (_chatBadgeLabel == null) return;
+
+            try
+            {
+                var count = ChatService.GetUnreadSendersCount(App.UserID);
+
+                if (InvokeRequired)
+                {
+                    Invoke(new Action(() => UpdateBadgeUI(count)));
+                }
+                else
+                {
+                    UpdateBadgeUI(count);
+                }
+            }
+            catch { }
+        }
+
+        private void UpdateBadgeUI(int count)
+        {
+            if (_chatBadgeLabel == null) return;
+
+            if (count > 0)
+            {
+                _chatBadgeLabel.Text = count > 99 ? "99+" : count.ToString();
+                _chatBadgeLabel.Visible = true;
+            }
+            else
+            {
+                _chatBadgeLabel.Visible = false;
+            }
         }
 
         private void InitializeCustomComponents()
@@ -1439,6 +1489,38 @@ namespace Kalendarz1
             tile.Controls.Add(titleLabel);
             tile.Controls.Add(descriptionLabel);
             tile.Controls.Add(iconLabel);
+
+            // Badge z liczbą nieprzeczytanych wiadomości dla Komunikatora
+            if (config.ModuleName == "KomunikatorFirmowy")
+            {
+                var badgeLabel = new Label
+                {
+                    Text = "0",
+                    Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                    Size = new Size(26, 26),
+                    Location = new Point(tile.Width - 38, 8),
+                    ForeColor = Color.White,
+                    BackColor = Color.FromArgb(239, 68, 68), // Czerwony
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    Visible = false,
+                    Cursor = Cursors.Hand
+                };
+
+                // Zaokrąglone rogi badge
+                badgeLabel.Paint += (s, e) =>
+                {
+                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    using (var path = new GraphicsPath())
+                    {
+                        path.AddEllipse(0, 0, badgeLabel.Width - 1, badgeLabel.Height - 1);
+                        badgeLabel.Region = new Region(path);
+                    }
+                };
+
+                tile.Controls.Add(badgeLabel);
+                badgeLabel.BringToFront();
+                _chatBadgeLabel = badgeLabel;
+            }
 
             // Podłącz ikonę do efektu bounce
             tile.SetIconLabel(iconLabel);

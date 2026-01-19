@@ -453,6 +453,36 @@ namespace Kalendarz1.Komunikator.Services
         }
 
         /// <summary>
+        /// Pobiera liczbę osób które wysłały nieprzeczytane wiadomości (statyczna metoda dla Menu)
+        /// </summary>
+        public static int GetUnreadSendersCount(string userId)
+        {
+            try
+            {
+                string connStr = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+                using (var conn = new SqlConnection(connStr))
+                {
+                    conn.Open();
+                    string sql = @"
+                        SELECT COUNT(DISTINCT SenderId) FROM ChatMessages
+                        WHERE ReceiverId = @UserId AND ReadAt IS NULL AND IsDeleted = 0
+                    ";
+
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@UserId", userId);
+                        var result = cmd.ExecuteScalar();
+                        return Convert.ToInt32(result);
+                    }
+                }
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        /// <summary>
         /// Wyszukuje użytkowników
         /// </summary>
         public async Task<List<ChatUser>> SearchUsersAsync(string searchText)

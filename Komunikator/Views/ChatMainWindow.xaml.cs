@@ -75,7 +75,7 @@ namespace Kalendarz1.Komunikator.Views
                 BitmapSource avatar = null;
                 if (UserAvatarManager.HasAvatar(_currentUserId))
                 {
-                    using (var img = UserAvatarManager.GetAvatarRounded(_currentUserId, 56))
+                    using (var img = UserAvatarManager.GetAvatarRounded(_currentUserId, 50))
                     {
                         if (img != null)
                             avatar = ConvertToBitmapSource(img);
@@ -84,7 +84,7 @@ namespace Kalendarz1.Komunikator.Views
 
                 if (avatar == null)
                 {
-                    using (var img = UserAvatarManager.GenerateDefaultAvatar(_currentUserName, _currentUserId, 56))
+                    using (var img = UserAvatarManager.GenerateDefaultAvatar(_currentUserName, _currentUserId, 50))
                     {
                         avatar = ConvertToBitmapSource(img);
                     }
@@ -413,7 +413,7 @@ namespace Kalendarz1.Komunikator.Views
         {
             try
             {
-                AvatarSource = user.GetAvatarBitmap(56);
+                AvatarSource = user.GetAvatarBitmap(48);
             }
             catch { }
         }
