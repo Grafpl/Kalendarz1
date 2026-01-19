@@ -3209,11 +3209,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
                     await conn.OpenAsync(_cts.Token);
-                    string sql = "UPDATE HarmonogramDostaw SET PotwWaga = 1, WagaKto = @User WHERE Lp = @Lp";
+                    string sql = "UPDATE HarmonogramDostaw SET PotwWaga = 1 WHERE Lp = @Lp";
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@Lp", _selectedLP);
-                        cmd.Parameters.AddWithValue("@User", UserName ?? "System");
                         await cmd.ExecuteNonQueryAsync(_cts.Token);
                     }
                 }
@@ -3264,11 +3263,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
                     await conn.OpenAsync(_cts.Token);
-                    string sql = "UPDATE HarmonogramDostaw SET PotwSztuki = 1, SztukiKto = @User WHERE Lp = @Lp";
+                    string sql = "UPDATE HarmonogramDostaw SET PotwSztuki = 1 WHERE Lp = @Lp";
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@Lp", _selectedLP);
-                        cmd.Parameters.AddWithValue("@User", UserName ?? "System");
                         await cmd.ExecuteNonQueryAsync(_cts.Token);
                     }
                 }
@@ -3319,7 +3317,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
                     await conn.OpenAsync(_cts.Token);
-                    string sql = "UPDATE HarmonogramDostaw SET PotwWaga = 0, WagaKto = NULL WHERE Lp = @Lp";
+                    string sql = "UPDATE HarmonogramDostaw SET PotwWaga = 0 WHERE Lp = @Lp";
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@Lp", _selectedLP);
@@ -3373,7 +3371,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
                     await conn.OpenAsync(_cts.Token);
-                    string sql = "UPDATE HarmonogramDostaw SET PotwSztuki = 0, SztukiKto = NULL WHERE Lp = @Lp";
+                    string sql = "UPDATE HarmonogramDostaw SET PotwSztuki = 0 WHERE Lp = @Lp";
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@Lp", _selectedLP);
@@ -3438,23 +3436,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
                     await conn.OpenAsync(_cts.Token);
-                    string sql;
-                    if (isChecked)
-                    {
-                        sql = "UPDATE HarmonogramDostaw SET PotwWaga = 1, WagaKto = @User, KiedyWaga = @DataPotwierdzenia WHERE Lp = @Lp";
-                    }
-                    else
-                    {
-                        sql = "UPDATE HarmonogramDostaw SET PotwWaga = 0, WagaKto = NULL, KiedyWaga = NULL WHERE Lp = @Lp";
-                    }
+                    string sql = isChecked
+                        ? "UPDATE HarmonogramDostaw SET PotwWaga = 1 WHERE Lp = @Lp"
+                        : "UPDATE HarmonogramDostaw SET PotwWaga = 0 WHERE Lp = @Lp";
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@Lp", _selectedLP);
-                        if (isChecked)
-                        {
-                            cmd.Parameters.AddWithValue("@User", UserName ?? "System");
-                            cmd.Parameters.AddWithValue("@DataPotwierdzenia", DateTime.Now);
-                        }
                         await cmd.ExecuteNonQueryAsync(_cts.Token);
                     }
                 }
@@ -3536,23 +3523,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
                     await conn.OpenAsync(_cts.Token);
-                    string sql;
-                    if (isChecked)
-                    {
-                        sql = "UPDATE HarmonogramDostaw SET PotwSztuki = 1, SztukiKto = @User, KiedySztuki = @DataPotwierdzenia WHERE Lp = @Lp";
-                    }
-                    else
-                    {
-                        sql = "UPDATE HarmonogramDostaw SET PotwSztuki = 0, SztukiKto = NULL, KiedySztuki = NULL WHERE Lp = @Lp";
-                    }
+                    string sql = isChecked
+                        ? "UPDATE HarmonogramDostaw SET PotwSztuki = 1 WHERE Lp = @Lp"
+                        : "UPDATE HarmonogramDostaw SET PotwSztuki = 0 WHERE Lp = @Lp";
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@Lp", _selectedLP);
-                        if (isChecked)
-                        {
-                            cmd.Parameters.AddWithValue("@User", UserName ?? "System");
-                            cmd.Parameters.AddWithValue("@DataPotwierdzenia", DateTime.Now);
-                        }
                         await cmd.ExecuteNonQueryAsync(_cts.Token);
                     }
                 }
