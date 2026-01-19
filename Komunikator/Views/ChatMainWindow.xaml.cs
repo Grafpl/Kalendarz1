@@ -75,7 +75,7 @@ namespace Kalendarz1.Komunikator.Views
                 BitmapSource avatar = null;
                 if (UserAvatarManager.HasAvatar(_currentUserId))
                 {
-                    using (var img = UserAvatarManager.GetAvatarRounded(_currentUserId, 52))
+                    using (var img = UserAvatarManager.GetAvatarRounded(_currentUserId, 44))
                     {
                         if (img != null)
                             avatar = ConvertToBitmapSource(img);
@@ -84,7 +84,7 @@ namespace Kalendarz1.Komunikator.Views
 
                 if (avatar == null)
                 {
-                    using (var img = UserAvatarManager.GenerateDefaultAvatar(_currentUserName, _currentUserId, 52))
+                    using (var img = UserAvatarManager.GenerateDefaultAvatar(_currentUserName, _currentUserId, 44))
                     {
                         avatar = ConvertToBitmapSource(img);
                     }
@@ -444,7 +444,7 @@ namespace Kalendarz1.Komunikator.Views
         {
             try
             {
-                AvatarSource = user.GetAvatarBitmap(54);
+                AvatarSource = user.GetAvatarBitmap(50);
             }
             catch { }
         }
@@ -515,7 +515,7 @@ namespace Kalendarz1.Komunikator.Views
             {
                 if (UserAvatarManager.HasAvatar(senderId))
                 {
-                    using (var img = UserAvatarManager.GetAvatarRounded(senderId, 36))
+                    using (var img = UserAvatarManager.GetAvatarRounded(senderId, 32))
                     {
                         if (img != null)
                         {
@@ -525,7 +525,7 @@ namespace Kalendarz1.Komunikator.Views
                     }
                 }
 
-                using (var img = UserAvatarManager.GenerateDefaultAvatar(senderName, senderId, 36))
+                using (var img = UserAvatarManager.GenerateDefaultAvatar(senderName, senderId, 32))
                 {
                     SenderAvatar = ConvertToBitmapSource(img);
                 }
