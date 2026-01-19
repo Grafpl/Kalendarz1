@@ -103,9 +103,15 @@ namespace Kalendarz1
             {
                 try
                 {
-                    using (var fs = new FileStream(networkPath, FileMode.Open, FileAccess.Read))
+                    // Wczytaj cały plik do pamięci, żeby nie blokować pliku sieciowego
+                    byte[] imageData = File.ReadAllBytes(networkPath);
+                    using (var ms = new MemoryStream(imageData))
                     {
-                        return Image.FromStream(fs);
+                        // Utwórz kopię obrazu, która nie zależy od strumienia
+                        using (var tempImage = Image.FromStream(ms))
+                        {
+                            return new Bitmap(tempImage);
+                        }
                     }
                 }
                 catch { }
