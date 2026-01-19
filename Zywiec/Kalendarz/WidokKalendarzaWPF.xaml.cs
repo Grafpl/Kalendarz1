@@ -69,7 +69,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
         private DostawaModel _draggedItem;
         private bool _isDragging = false;
 
-        // Flaga blokująca drag & drop po zamknięciu menu kontekstowego
+        // Flaga blokująca drag & drop gdy menu kontekstowe jest otwarte lub niedawno zamknięte
+        private bool _isContextMenuOpen = false;
         private DateTime _contextMenuClosedTime = DateTime.MinValue;
         private const int CONTEXT_MENU_DRAG_BLOCK_MS = 500; // Blokuj drag przez 500ms po zamknięciu menu
 
@@ -1346,11 +1347,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
             _weekMapOffset = 0;
             GenerateWeekMap();
 
-            // Fade in bez slide
-            var fadeAnimation = new DoubleAnimation(0.5, 1, TimeSpan.FromMilliseconds(300));
-            dgDostawy.BeginAnimation(OpacityProperty, fadeAnimation);
-            if (chkNastepnyTydzien?.IsChecked == true)
-                dgDostawyNastepny.BeginAnimation(OpacityProperty, fadeAnimation);
+            // Bez animacji - szybkie przełączenie
             await LoadDostawyAsync();
         }
 
@@ -1361,52 +1358,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
         /// </summary>
         private async Task AnimateWeekTransition(bool isNextWeek)
         {
-            bool showSecondTable = chkNastepnyTydzien?.IsChecked == true;
-
-            // Upewnij się, że transformacje są ustawione
-            EnsureTransformsInitialized();
-
-            // FAZA 1: Animacja wyjścia
-            var slideOutKey = isNextWeek ? "WeekSlideOutLeftAnimation" : "WeekSlideOutRightAnimation";
-            var slideOutStoryboard = (Storyboard)FindResource(slideOutKey);
-
-            // Klonuj storyboard dla każdej tabeli
-            var slideOut1 = slideOutStoryboard.Clone();
-            Storyboard.SetTarget(slideOut1, dgDostawy);
-
-            // Rozpocznij animację wyjścia
-            var tcs = new System.Threading.Tasks.TaskCompletionSource<bool>();
-            slideOut1.Completed += (s, e) => tcs.TrySetResult(true);
-            slideOut1.Begin();
-
-            if (showSecondTable)
-            {
-                var slideOut2 = slideOutStoryboard.Clone();
-                Storyboard.SetTarget(slideOut2, dgDostawyNastepny);
-                slideOut2.Begin();
-            }
-
-            // Czekaj na zakończenie animacji wyjścia (350ms)
-            await tcs.Task;
-
-            // FAZA 2: Załaduj dane (podczas gdy elementy są niewidoczne)
+            // Bez animacji - szybkie przełączenie
             await LoadDostawyAsync();
-
-            // FAZA 3: Animacja wejścia z nowych danych
-            var slideInKey = isNextWeek ? "WeekSlideInFromRightAnimation" : "WeekSlideInFromLeftAnimation";
-            var slideInStoryboard = (Storyboard)FindResource(slideInKey);
-
-            // Klonuj storyboard dla każdej tabeli
-            var slideIn1 = slideInStoryboard.Clone();
-            Storyboard.SetTarget(slideIn1, dgDostawy);
-            slideIn1.Begin();
-
-            if (showSecondTable)
-            {
-                var slideIn2 = slideInStoryboard.Clone();
-                Storyboard.SetTarget(slideIn2, dgDostawyNastepny);
-                slideIn2.Begin();
-            }
         }
 
         /// <summary>
@@ -1605,8 +1558,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
         {
             if (!IsLoaded) return;
 
-            if (colCena != null && chkPokazCeny != null)
-                colCena.Visibility = chkPokazCeny.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            // Ustaw widoczność kolumny ceny dla obu tabel
+            var showCena = chkPokazCeny?.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            if (colCena != null)
+                colCena.Visibility = showCena;
+            if (colCenaNastepny != null)
+                colCenaNastepny.Visibility = showCena;
 
             await LoadDostawyAsync();
         }
@@ -1681,8 +1638,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
             if (menuChkPokazCeny != null && chkPokazCeny != null)
                 chkPokazCeny.IsChecked = menuChkPokazCeny.IsChecked;
 
-            if (colCena != null && chkPokazCeny != null)
-                colCena.Visibility = chkPokazCeny.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            // Ustaw widoczność kolumny ceny dla obu tabel
+            var showCena = chkPokazCeny?.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            if (colCena != null)
+                colCena.Visibility = showCena;
+            if (colCenaNastepny != null)
+                colCenaNastepny.Visibility = showCena;
 
             await LoadDostawyAsync();
         }
@@ -1775,15 +1736,22 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 _ = LoadDeliveryDetailsAsync(selected.LP);
                 _ = LoadNotatkiAsync(selected.LP);
 
-                // Aktualizuj nazwę hodowcy w sekcjach Notatki, Wstawienia i Dane dostawy
-                txtHodowcaNotatki.Text = selected.Dostawca ?? "";
-                txtHodowcaWstawienia.Text = selected.Dostawca ?? "";
-                txtHodowcaDaneDostawy.Text = selected.Dostawca ?? "";
+                // Aktualizuj nazwę hodowcy w sekcjach Notatki, Wstawienia i Dane dostawy (z LP)
+                string lpDostawca = $"{selected.LP} - {selected.Dostawca ?? ""}";
+                txtHodowcaNotatki.Text = lpDostawca;
+                txtHodowcaWstawienia.Text = lpDostawca;
+                txtHodowcaDaneDostawy.Text = lpDostawca;
 
                 if (!string.IsNullOrEmpty(selected.LpW))
                 {
                     cmbLpWstawienia.SelectedItem = selected.LpW;
                     _ = LoadWstawieniaAsync(selected.LpW);
+                    // Podświetl wiersze z tym samym LpW
+                    HighlightMatchingLpWRows(selected.LpW);
+                }
+                else
+                {
+                    ClearLpWHighlights();
                 }
 
                 // Podświetl nagłówek dnia
@@ -1792,6 +1760,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
             else
             {
                 ClearDayHeaderHighlight();
+                ClearLpWHighlights();
             }
 
             // Aktualizuj status bar z informacją o zaznaczeniu
@@ -1849,6 +1818,66 @@ namespace Kalendarz1.Zywiec.Kalendarz
             }
         }
 
+        private List<(DataGridRow Row, Storyboard Animation)> _highlightedLpWRows = new List<(DataGridRow, Storyboard)>();
+
+        /// <summary>
+        /// Podświetla wszystkie wiersze z tym samym LpW (Lp wstawienia) - pulsująca pogrubiona czcionka
+        /// </summary>
+        private void HighlightMatchingLpWRows(string lpW)
+        {
+            // Najpierw wyczyść poprzednie podświetlenia
+            ClearLpWHighlights();
+
+            if (string.IsNullOrEmpty(lpW)) return;
+
+            // Podświetl w obu tabelach
+            HighlightLpWInDataGrid(dgDostawy, lpW);
+            HighlightLpWInDataGrid(dgDostawyNastepny, lpW);
+        }
+
+        private void HighlightLpWInDataGrid(DataGrid dg, string lpW)
+        {
+            foreach (var item in dg.Items)
+            {
+                var dostawa = item as DostawaModel;
+                if (dostawa != null && !dostawa.IsHeaderRow && !dostawa.IsSeparator && dostawa.LpW == lpW)
+                {
+                    var row = dg.ItemContainerGenerator.ContainerFromItem(item) as DataGridRow;
+                    if (row != null)
+                    {
+                        // Pogrubiona, większa czcionka z pulsującym czarnym kolorem
+                        row.FontWeight = FontWeights.Bold;
+                        row.FontSize = 13;
+                        row.Foreground = new SolidColorBrush(Colors.Black);
+
+                        // Uruchom animację pulsowania koloru czcionki
+                        var pulseStoryboard = (Storyboard)FindResource("LpWMatchPulseAnimation");
+                        var clonedStoryboard = pulseStoryboard.Clone();
+                        Storyboard.SetTarget(clonedStoryboard, row);
+                        clonedStoryboard.Begin();
+
+                        _highlightedLpWRows.Add((row, clonedStoryboard));
+                    }
+                }
+            }
+        }
+
+        private void ClearLpWHighlights()
+        {
+            foreach (var (row, animation) in _highlightedLpWRows)
+            {
+                if (row != null)
+                {
+                    // Zatrzymaj animację
+                    animation?.Stop();
+                    // Przywróć domyślne wartości
+                    row.FontWeight = FontWeights.Normal;
+                    row.Foreground = Brushes.Black;
+                }
+            }
+            _highlightedLpWRows.Clear();
+        }
+
         private void DgDostawyNastepny_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             // Wyczyść pola kalkulatora transportu przy zmianie zaznaczenia
@@ -1872,15 +1901,22 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 _ = LoadDeliveryDetailsAsync(selected.LP);
                 _ = LoadNotatkiAsync(selected.LP);
 
-                // Aktualizuj nazwę hodowcy w sekcjach Notatki, Wstawienia i Dane dostawy
-                txtHodowcaNotatki.Text = selected.Dostawca ?? "";
-                txtHodowcaWstawienia.Text = selected.Dostawca ?? "";
-                txtHodowcaDaneDostawy.Text = selected.Dostawca ?? "";
+                // Aktualizuj nazwę hodowcy w sekcjach Notatki, Wstawienia i Dane dostawy (z LP)
+                string lpDostawca = $"{selected.LP} - {selected.Dostawca ?? ""}";
+                txtHodowcaNotatki.Text = lpDostawca;
+                txtHodowcaWstawienia.Text = lpDostawca;
+                txtHodowcaDaneDostawy.Text = lpDostawca;
 
                 if (!string.IsNullOrEmpty(selected.LpW))
                 {
                     cmbLpWstawienia.SelectedItem = selected.LpW;
                     _ = LoadWstawieniaAsync(selected.LpW);
+                    // Podświetl wiersze z tym samym LpW
+                    HighlightMatchingLpWRows(selected.LpW);
+                }
+                else
+                {
+                    ClearLpWHighlights();
                 }
 
                 // Podświetl nagłówek dnia
@@ -1889,6 +1925,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
             else
             {
                 ClearDayHeaderHighlight();
+                ClearLpWHighlights();
             }
         }
 
@@ -3706,6 +3743,32 @@ namespace Kalendarz1.Zywiec.Kalendarz
             }
         }
 
+        /// <summary>
+        /// Pokaż historię zmian dla wybranego LP (menu kontekstowe)
+        /// </summary>
+        private void MenuPokazHistorieLP_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Pobierz zaznaczoną dostawę
+                var selected = dgDostawy.SelectedItem as DostawaModel ?? dgDostawyNastepny.SelectedItem as DostawaModel;
+
+                if (selected == null || selected.IsHeaderRow || selected.IsSeparator)
+                {
+                    ShowToast("Wybierz dostawę, aby zobaczyć historię zmian", ToastType.Warning);
+                    return;
+                }
+
+                // Otwórz okno historii z filtrem LP i nazwą hodowcy (pełny ekran)
+                var historiaWindow = new HistoriaZmianWindow(ConnectionString, UserID, selected.LP, selected.Dostawca);
+                historiaWindow.Show();
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd otwierania historii: {ex.Message}", ToastType.Error);
+            }
+        }
+
         // Dodanie aktywności do bazy danych
         private async void DodajAktywnosc(int typLicznika)
         {
@@ -3906,6 +3969,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
         /// <summary>
         /// Rozpoczyna tryb symulacji - tworzy kopię danych i zmienia UI
         /// </summary>
+        private Storyboard _simulationPulseStoryboard1;
+        private Storyboard _simulationPulseStoryboard2;
+        private Storyboard _simulationButtonPulseStoryboard;
+
         private void StartSimulationMode()
         {
             _isSimulationMode = true;
@@ -3925,18 +3992,37 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 .Select(d => CloneDostawaModel(d))
                 .ToList();
 
-            // Zmień wygląd UI - tryb symulacji aktywny
-            borderSimulation.Background = new SolidColorBrush(Color.FromRgb(254, 243, 199)); // Żółte tło
-            borderSimulation.BorderBrush = new SolidColorBrush(Color.FromRgb(251, 191, 36)); // Pomarańczowa ramka
-            txtSimulationIcon.Text = "🔬";
+            // Zmień wygląd UI - tryb symulacji aktywny (czerwony motyw)
+            borderSimulation.Background = new SolidColorBrush(Color.FromRgb(254, 226, 226)); // Czerwone tło
+            borderSimulation.BorderBrush = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Czerwona ramka
+            txtSimulationIcon.Text = "🔴";
             txtSimulationText.Text = "SYMULACJA";
             txtSimulationText.FontWeight = FontWeights.Bold;
-            txtSimulationText.Foreground = new SolidColorBrush(Color.FromRgb(180, 83, 9));
+            txtSimulationText.Foreground = new SolidColorBrush(Color.FromRgb(185, 28, 28));
+
+            // Ustaw czerwoną ramkę na tabelach i uruchom pulsowanie
+            borderDostawy.BorderBrush = new SolidColorBrush(Color.FromRgb(229, 57, 53));
+            borderDostawy.BorderThickness = new Thickness(3);
+            borderNastepnyTydzien.BorderBrush = new SolidColorBrush(Color.FromRgb(229, 57, 53));
+            borderNastepnyTydzien.BorderThickness = new Thickness(3);
+
+            // Uruchom animację pulsowania tabel
+            _simulationPulseStoryboard1 = (Storyboard)FindResource("SimulationPulseAnimation");
+            _simulationPulseStoryboard2 = _simulationPulseStoryboard1.Clone();
+            Storyboard.SetTarget(_simulationPulseStoryboard1, borderDostawy);
+            Storyboard.SetTarget(_simulationPulseStoryboard2, borderNastepnyTydzien);
+            _simulationPulseStoryboard1.Begin();
+            _simulationPulseStoryboard2.Begin();
+
+            // Uruchom animację pulsowania przycisku
+            _simulationButtonPulseStoryboard = (Storyboard)FindResource("SimulationButtonPulseAnimation");
+            Storyboard.SetTarget(_simulationButtonPulseStoryboard, borderSimulation);
+            _simulationButtonPulseStoryboard.Begin();
 
             // Dodaj pasek informacyjny na górze
             ShowSimulationBanner(true);
 
-            ShowToast("🧪 Tryb symulacji WŁĄCZONY - zmiany nie będą zapisywane!", ToastType.Info);
+            ShowToast("🔴 Tryb symulacji WŁĄCZONY - zmiany nie będą zapisywane!", ToastType.Info);
         }
 
         /// <summary>
@@ -3954,16 +4040,27 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
             _isSimulationMode = false;
 
+            // Zatrzymaj animacje pulsowania
+            _simulationPulseStoryboard1?.Stop();
+            _simulationPulseStoryboard2?.Stop();
+            _simulationButtonPulseStoryboard?.Stop();
+
             // Przywróć oryginalne dane z kopii
             RestoreFromBackup();
 
-            // Przywróć wygląd UI
+            // Przywróć wygląd UI przycisku
             borderSimulation.Background = new SolidColorBrush(Color.FromRgb(248, 250, 252));
             borderSimulation.BorderBrush = new SolidColorBrush(Color.FromRgb(226, 232, 240));
             txtSimulationIcon.Text = "🧪";
             txtSimulationText.Text = "Symulacja";
             txtSimulationText.FontWeight = FontWeights.Normal;
             txtSimulationText.Foreground = Brushes.Black;
+
+            // Przywróć oryginalne ramki tabel
+            borderDostawy.BorderBrush = new SolidColorBrush(Color.FromRgb(221, 221, 221));
+            borderDostawy.BorderThickness = new Thickness(1);
+            borderNastepnyTydzien.BorderBrush = new SolidColorBrush(Color.FromRgb(52, 152, 219));
+            borderNastepnyTydzien.BorderThickness = new Thickness(2);
 
             // Ukryj pasek informacyjny
             ShowSimulationBanner(false);
@@ -4080,20 +4177,23 @@ namespace Kalendarz1.Zywiec.Kalendarz
         }
 
         /// <summary>
-        /// Buduje pogrupowany widok dostaw
+        /// Buduje pogrupowany widok dostaw (z pustymi dniami)
         /// </summary>
         private void RebuildGroupedView(ObservableCollection<DostawaModel> collection, List<DostawaModel> data, DateTime baseDate)
         {
-            DateTime startOfWeek = baseDate.AddDays(-(int)baseDate.DayOfWeek);
+            // Oblicz poniedziałek tygodnia
+            DateTime startOfWeek = baseDate.AddDays(-(int)baseDate.DayOfWeek + 1);
             if (baseDate.DayOfWeek == DayOfWeek.Sunday) startOfWeek = baseDate.AddDays(-6);
 
-            var grouped = data.GroupBy(d => d.DataOdbioru.Date).OrderBy(g => g.Key);
+            var grouped = data.GroupBy(d => d.DataOdbioru.Date).ToDictionary(g => g.Key, g => g.ToList());
 
-            foreach (var group in grouped)
+            // Iteruj przez wszystkie 7 dni tygodnia
+            for (int i = 0; i < 7; i++)
             {
-                var deliveries = group.ToList();
+                DateTime currentDay = startOfWeek.AddDays(i);
+                var deliveries = grouped.ContainsKey(currentDay) ? grouped[currentDay] : new List<DostawaModel>();
 
-                // Oblicz sumy i średnie ważone dla tego dnia (tak jak w LoadDostawyForWeekAsync)
+                // Oblicz sumy i średnie ważone dla tego dnia
                 double sumaAuta = 0;
                 double sumaSztuki = 0;
                 double sumaWagaPomnozona = 0;
@@ -4113,37 +4213,33 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     sumaCenaPomnozona += (double)item.Cena * item.Auta;
                     sumaKMPomnozona += item.Distance * item.Auta;
 
-                    // Średnia Doby
                     if (item.RoznicaDni.HasValue && item.RoznicaDni.Value > 0)
                     {
                         sumaDobyPomnozona += item.RoznicaDni.Value * item.Auta;
                         iloscZDoby += item.Auta;
                     }
 
-                    // Licz ubytki (lekkie kurczaki 0.5-2.4 kg)
                     if (item.WagaDek >= 0.5m && item.WagaDek <= 2.4m)
                     {
                         sumaUbytek += item.Auta;
                     }
 
-                    // Licz sprzedane i anulowane
                     if (item.Bufor == "Sprzedany") liczbaSprzedanych++;
                     if (item.Bufor == "Anulowany") liczbaAnulowanych++;
                 }
 
-                // Oblicz średnie ważone
                 double sredniaWaga = sumaAuta > 0 ? sumaWagaPomnozona / sumaAuta : 0;
                 double sredniaCena = sumaAuta > 0 ? sumaCenaPomnozona / sumaAuta : 0;
                 double sredniaKM = sumaAuta > 0 ? sumaKMPomnozona / sumaAuta : 0;
                 double sredniaDoby = iloscZDoby > 0 ? sumaDobyPomnozona / iloscZDoby : 0;
 
-                // Dodaj nagłówek dnia z pełnymi statystykami
+                // Dodaj nagłówek dnia
                 var dayHeader = new DostawaModel
                 {
                     IsHeaderRow = true,
                     IsEmptyDay = deliveries.Count == 0,
-                    DataOdbioru = group.Key,
-                    Dostawca = GetDayName(group.Key),
+                    DataOdbioru = currentDay,
+                    Dostawca = GetDayName(currentDay),
                     SumaAuta = sumaAuta,
                     SumaSztuki = sumaSztuki,
                     SredniaWaga = sredniaWaga,
@@ -4156,10 +4252,18 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 };
                 collection.Add(dayHeader);
 
-                // Dodaj dostawy
-                foreach (var d in deliveries.OrderBy(x => x.Dostawca))
+                if (deliveries.Count > 0)
                 {
-                    collection.Add(d);
+                    // Dodaj dostawy
+                    foreach (var d in deliveries.OrderBy(x => x.Dostawca))
+                    {
+                        collection.Add(d);
+                    }
+                }
+                else
+                {
+                    // Dodaj separator dla pustego dnia
+                    collection.Add(new DostawaModel { IsSeparator = true, DataOdbioru = currentDay });
                 }
             }
         }
@@ -4238,12 +4342,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         cmd.Parameters.AddWithValue("@Dostawca", cmbDostawca.SelectedItem ?? (object)DBNull.Value);
                         cmd.Parameters.AddWithValue("@Auta", int.TryParse(txtAuta.Text, out int a) ? a : (object)DBNull.Value);
                         cmd.Parameters.AddWithValue("@SztukiDek", int.TryParse(txtSztuki.Text, out int s) ? s : (object)DBNull.Value);
-                        cmd.Parameters.AddWithValue("@WagaDek", decimal.TryParse(txtWagaDek.Text.Replace(",", "."), out decimal w) ? w : (object)DBNull.Value);
+                        cmd.Parameters.AddWithValue("@WagaDek", decimal.TryParse(txtWagaDek.Text.Replace(",", "."), System.Globalization.NumberStyles.Any, CultureInfo.InvariantCulture, out decimal w) ? w : (object)DBNull.Value);
                         cmd.Parameters.AddWithValue("@SztSzuflada", int.TryParse(txtSztNaSzuflade.Text, out int sz) ? sz : (object)DBNull.Value);
                         cmd.Parameters.AddWithValue("@TypUmowy", cmbTypUmowy.SelectedItem ?? (object)DBNull.Value);
                         cmd.Parameters.AddWithValue("@TypCeny", cmbTypCeny.SelectedItem ?? (object)DBNull.Value);
-                        cmd.Parameters.AddWithValue("@Cena", decimal.TryParse(txtCena.Text.Replace(",", "."), out decimal c) ? c : (object)DBNull.Value);
-                        cmd.Parameters.AddWithValue("@Dodatek", decimal.TryParse(txtDodatek.Text.Replace(",", "."), out decimal d) ? d : (object)DBNull.Value);
+                        cmd.Parameters.AddWithValue("@Cena", decimal.TryParse(txtCena.Text.Replace(",", "."), System.Globalization.NumberStyles.Any, CultureInfo.InvariantCulture, out decimal c) ? c : (object)DBNull.Value);
+                        cmd.Parameters.AddWithValue("@Dodatek", decimal.TryParse(txtDodatek.Text.Replace(",", "."), System.Globalization.NumberStyles.Any, CultureInfo.InvariantCulture, out decimal d) ? d : (object)DBNull.Value);
                         cmd.Parameters.AddWithValue("@Bufor", cmbStatus.SelectedItem ?? (object)DBNull.Value);
                         cmd.Parameters.AddWithValue("@DataMod", DateTime.Now);
                         cmd.Parameters.AddWithValue("@KtoMod", UserID ?? (object)DBNull.Value);
@@ -4418,6 +4522,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
             {
                 int wyliczone = sztNaSzuflade * 264; // 264 szuflady w aucie
                 txtWyliczone.Text = wyliczone.ToString();
+
+                // Aktualizuj też sztuki jeśli jest podana ilość aut
+                if (int.TryParse(txtObliczoneAuta.Text, out int auta))
+                {
+                    txtObliczoneSztuki.Text = (wyliczone * auta).ToString();
+                }
             }
         }
 
@@ -4811,16 +4921,22 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         private void DgDostawy_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            // Ignoruj jeśli menu kontekstowe było niedawno zamknięte (zapobiega przypadkowemu drag & drop)
-            if ((DateTime.Now - _contextMenuClosedTime).TotalMilliseconds < CONTEXT_MENU_DRAG_BLOCK_MS)
+            // Ignoruj jeśli menu kontekstowe jest otwarte lub było niedawno zamknięte
+            if (_isContextMenuOpen || (DateTime.Now - _contextMenuClosedTime).TotalMilliseconds < CONTEXT_MENU_DRAG_BLOCK_MS)
             {
                 return;
             }
             _dragStartPoint = e.GetPosition(null);
         }
 
+        private void DgDostawy_ContextMenuOpened(object sender, RoutedEventArgs e)
+        {
+            _isContextMenuOpen = true;
+        }
+
         private void DgDostawy_ContextMenuClosed(object sender, RoutedEventArgs e)
         {
+            _isContextMenuOpen = false;
             _contextMenuClosedTime = DateTime.Now;
         }
 
@@ -4829,6 +4945,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
             if (e.LeftButton != MouseButtonState.Pressed)
             {
                 _isDragging = false;
+                return;
+            }
+
+            // Ignoruj jeśli menu kontekstowe jest otwarte lub było niedawno zamknięte
+            if (_isContextMenuOpen || (DateTime.Now - _contextMenuClosedTime).TotalMilliseconds < CONTEXT_MENU_DRAG_BLOCK_MS)
+            {
                 return;
             }
 

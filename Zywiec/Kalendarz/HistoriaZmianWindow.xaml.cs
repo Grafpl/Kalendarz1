@@ -18,6 +18,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
     {
         private readonly string _connectionString;
         private readonly string _userId;
+        private readonly string _filterByLP;
+        private readonly string _hodowcaName;
         private ObservableCollection<AuditLogDisplayModel> _auditLogs = new ObservableCollection<AuditLogDisplayModel>();
 
         public HistoriaZmianWindow(string connectionString, string userId = null)
@@ -25,10 +27,52 @@ namespace Kalendarz1.Zywiec.Kalendarz
             InitializeComponent();
             _connectionString = connectionString;
             _userId = userId;
+            _filterByLP = null;
+            _hodowcaName = null;
 
             dgAuditLog.ItemsSource = _auditLogs;
             dpDateFrom.SelectedDate = DateTime.Today.AddDays(-7);
             dpDateTo.SelectedDate = DateTime.Today;
+
+            Loaded += async (s, e) =>
+            {
+                await LoadUsersAsync();
+                await LoadAuditLogAsync();
+            };
+        }
+
+        /// <summary>
+        /// Konstruktor do otwierania historii dla konkretnego LP (pełny ekran)
+        /// </summary>
+        public HistoriaZmianWindow(string connectionString, string userId, string filterLP, string hodowcaName)
+        {
+            InitializeComponent();
+            _connectionString = connectionString;
+            _userId = userId;
+            _filterByLP = filterLP;
+            _hodowcaName = hodowcaName;
+
+            // Pełny ekran
+            WindowState = WindowState.Maximized;
+
+            // Wyświetl informacje o filtrowanym LP i hodowcy
+            if (!string.IsNullOrEmpty(filterLP))
+            {
+                txtFilteredLP.Text = $"- LP: {filterLP}";
+                txtFilterLP.Text = filterLP;
+                txtFilterLP.IsEnabled = false; // Zablokuj zmianę LP
+            }
+            if (!string.IsNullOrEmpty(hodowcaName))
+            {
+                txtFilteredHodowca.Text = $"| Hodowca: {hodowcaName}";
+            }
+
+            // Pokaż wszystkie zmiany dla tego LP (bez limitu czasowego)
+            cmbFilterPeriod.SelectedIndex = 3; // "Własny zakres"
+            dpDateFrom.SelectedDate = DateTime.Today.AddYears(-1);
+            dpDateTo.SelectedDate = DateTime.Today;
+
+            dgAuditLog.ItemsSource = _auditLogs;
 
             Loaded += async (s, e) =>
             {

@@ -87,6 +87,32 @@
             </DoubleAnimation>
         </Storyboard>
 
+        <!-- Storyboard: Pulsowanie czerwone dla trybu symulacji -->
+        <Storyboard x:Key="SimulationPulseAnimation" RepeatBehavior="Forever">
+            <ColorAnimation Storyboard.TargetProperty="(Border.BorderBrush).(SolidColorBrush.Color)"
+                            From="#E53935" To="#FFCDD2" Duration="0:0:0.8" AutoReverse="True"/>
+            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                             From="1" To="0.85" Duration="0:0:0.8" AutoReverse="True"/>
+        </Storyboard>
+
+        <!-- Storyboard: Pulsowanie dla przycisku symulacji -->
+        <Storyboard x:Key="SimulationButtonPulseAnimation" RepeatBehavior="Forever">
+            <ColorAnimation Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                            From="#FEE2E2" To="#FECACA" Duration="0:0:0.6" AutoReverse="True"/>
+            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                             From="1" To="1.03" Duration="0:0:0.6" AutoReverse="True"/>
+            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                             From="1" To="1.03" Duration="0:0:0.6" AutoReverse="True"/>
+        </Storyboard>
+
+        <!-- Storyboard: Pulsowanie czcionki dla wierszy z tym samym LpW -->
+        <Storyboard x:Key="LpWMatchPulseAnimation" RepeatBehavior="Forever">
+            <ColorAnimation Storyboard.TargetProperty="(DataGridRow.Foreground).(SolidColorBrush.Color)"
+                            From="#000000" To="#555555" Duration="0:0:0.5" AutoReverse="True"/>
+            <DoubleAnimation Storyboard.TargetProperty="(DataGridRow.FontSize)"
+                            From="13" To="14" Duration="0:0:0.5" AutoReverse="True"/>
+        </Storyboard>
+
         <!-- Storyboard: Pulsowanie dla niedawnych notatek (3 dni) -->
         <Storyboard x:Key="RecentNotePulseAnimation" RepeatBehavior="Forever">
             <DoubleAnimation Storyboard.TargetProperty="Opacity"
@@ -530,12 +556,12 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- TABELA GŁÓWNA (bieżący tydzień) -->
-                <Border Grid.Column="0" Margin="6,3,3,3" Background="White" CornerRadius="4" BorderBrush="#DDDDDD" BorderThickness="1" ClipToBounds="True">
+                <Border x:Name="borderDostawy" Grid.Column="0" Margin="6,3,3,3" Background="White" CornerRadius="4" BorderBrush="#DDDDDD" BorderThickness="1" ClipToBounds="True">
                     <DataGrid x:Name="dgDostawy" Style="{StaticResource MainDataGridStyle}"
                                   RenderTransformOrigin="0.5,0.5"
                                   SelectionChanged="DgDostawy_SelectionChanged" MouseDoubleClick="DgDostawy_MouseDoubleClick" LoadingRow="DgDostawy_LoadingRow">
                         <DataGrid.ContextMenu>
-                            <ContextMenu Closed="DgDostawy_ContextMenuClosed">
+                            <ContextMenu Opened="DgDostawy_ContextMenuOpened" Closed="DgDostawy_ContextMenuClosed">
                                 <!-- SEKCJA: Operacje na dostawie -->
                                 <MenuItem Header="📦 DOSTAWA" IsEnabled="False" FontWeight="Bold" FontSize="10" Foreground="#6B7280"/>
                                 <MenuItem Header="➕ Nowa dostawa na ten dzień" Click="MenuItemNowaDostawaZDaty_Click" FontWeight="SemiBold" InputGestureText="Ctrl+N"/>
@@ -566,6 +592,7 @@
                                 <MenuItem Header="🍗 Pokaż tuszkę" Click="MenuPokazTuszke_Click" InputGestureText="F6"/>
                                 <MenuItem Header="📋 Pokaż avilog" Click="MenuPokazAvilog_Click" InputGestureText="F7"/>
                                 <MenuItem Header="📈 Pokaż plan sprzedaży" Click="MenuPokazPlanSprzedazy_Click" InputGestureText="F8"/>
+                                <MenuItem Header="📜 Historia zmian dostawy" Click="MenuPokazHistorieLP_Click" InputGestureText="Ctrl+H"/>
                                 <Separator/>
 
                                 <!-- SEKCJA: Usuwanie -->
@@ -633,9 +660,11 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="📉 Ub" Binding="{Binding RoznicaDniDisplay}" Width="42" IsReadOnly="True">
+                                <DataGridTextColumn Header="📉 Ub" Width="42" Binding="{Binding RoznicaDniDisplay}" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/></Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
                                 <DataGridTemplateColumn Header="📊 Typ" Width="45" IsReadOnly="True">
@@ -831,7 +860,7 @@
                               RenderTransformOrigin="0.5,0.5"
                               SelectionChanged="DgDostawyNastepny_SelectionChanged" MouseDoubleClick="DgDostawy_MouseDoubleClick">
                         <DataGrid.ContextMenu>
-                            <ContextMenu Closed="DgDostawy_ContextMenuClosed">
+                            <ContextMenu Opened="DgDostawy_ContextMenuOpened" Closed="DgDostawy_ContextMenuClosed">
                                 <!-- SEKCJA: Operacje na dostawie -->
                                 <MenuItem Header="📦 DOSTAWA" IsEnabled="False" FontWeight="Bold" FontSize="10" Foreground="#6B7280"/>
                                 <MenuItem Header="➕ Nowa dostawa na ten dzień" Click="MenuItemNowaDostawaZDaty_Click" FontWeight="SemiBold" InputGestureText="Ctrl+N"/>
@@ -862,6 +891,7 @@
                                 <MenuItem Header="🍗 Pokaż tuszkę" Click="MenuPokazTuszke_Click" InputGestureText="F6"/>
                                 <MenuItem Header="📋 Pokaż avilog" Click="MenuPokazAvilog_Click" InputGestureText="F7"/>
                                 <MenuItem Header="📈 Pokaż plan sprzedaży" Click="MenuPokazPlanSprzedazy_Click" InputGestureText="F8"/>
+                                <MenuItem Header="📜 Historia zmian dostawy" Click="MenuPokazHistorieLP_Click" InputGestureText="Ctrl+H"/>
                                 <Separator/>
 
                                 <!-- SEKCJA: Usuwanie -->
@@ -929,9 +959,11 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="📉 Ub" Binding="{Binding RoznicaDniDisplay}" Width="42" IsReadOnly="True">
+                            <DataGridTextColumn Header="📉 Ub" Width="42" Binding="{Binding RoznicaDniDisplay}" IsReadOnly="True">
                                 <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/></Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                    </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
                             <DataGridTemplateColumn Header="📊 Typ" Width="45" IsReadOnly="True">
@@ -979,7 +1011,7 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="💰 Cena" Binding="{Binding CenaDisplay}" Width="50" IsReadOnly="True">
+                            <DataGridTextColumn x:Name="colCenaNastepny" Header="💰 Cena" Binding="{Binding CenaDisplay}" Width="50" IsReadOnly="True">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                 </DataGridTextColumn.ElementStyle>
@@ -1263,7 +1295,10 @@
                             </StackPanel>
                         </Border>
                         <!-- Tryb Symulacji -->
-                        <Border x:Name="borderSimulation" CornerRadius="6" Padding="4,2" Margin="0,0,8,0" BorderThickness="1">
+                        <Border x:Name="borderSimulation" CornerRadius="6" Padding="4,2" Margin="0,0,8,0" BorderThickness="1" RenderTransformOrigin="0.5,0.5">
+                            <Border.RenderTransform>
+                                <ScaleTransform ScaleX="1" ScaleY="1"/>
+                            </Border.RenderTransform>
                             <Border.Style>
                                 <Style TargetType="Border">
                                     <Setter Property="Background" Value="#F8FAFC"/>
@@ -1342,7 +1377,7 @@
                     </Grid.ColumnDefinitions>
 
                     <!-- Przycisk filtrów z menu kontekstowym -->
-                    <Border Grid.Column="0" Background="White" CornerRadius="6" Padding="10,6" Cursor="Hand" MouseLeftButtonDown="BtnFiltry_Click" BorderBrush="#E2E8F0" BorderThickness="1">
+                    <Border Grid.Column="1" Background="White" CornerRadius="6" Padding="10,6" Cursor="Hand" MouseLeftButtonDown="BtnFiltry_Click" BorderBrush="#E2E8F0" BorderThickness="1" Margin="6,0,0,0">
                         <Border.Style>
                             <Style TargetType="Border">
                                 <Style.Triggers>
@@ -1374,7 +1409,7 @@
                     </Border>
 
                     <!-- Strzałki do zmiany dnia dostawy -->
-                    <Border Grid.Column="1" Background="#F0FDF4" CornerRadius="6" Padding="2" Margin="6,0,0,0" BorderBrush="#86EFAC" BorderThickness="1" ToolTip="Zmień datę zaznaczonej dostawy">
+                    <Border Grid.Column="0" Background="#F0FDF4" CornerRadius="6" Padding="2" BorderBrush="#86EFAC" BorderThickness="1" ToolTip="Zmień datę zaznaczonej dostawy">
                         <StackPanel Orientation="Horizontal">
                             <Button Click="BtnDateDown_Click" ToolTip="Przesuń -1 dzień (wcześniej)" Width="26" Height="26">
                                 <TextBlock Text="▲" FontSize="10" FontWeight="Bold" Foreground="#16A34A"/>
