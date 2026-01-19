@@ -386,6 +386,42 @@ namespace Kalendarz1.Komunikator.Views
             }), System.Windows.Threading.DispatcherPriority.Background);
         }
 
+        private void ContactAvatar_Click(object sender, MouseButtonEventArgs e)
+        {
+            e.Handled = true;
+            if (sender is FrameworkElement element && element.DataContext is ContactViewModel contact)
+            {
+                ShowAvatarPreview(contact.AvatarSource, contact.Name, contact.IsOnline, contact.OnlineStatus);
+            }
+        }
+
+        private void SelectedUserAvatar_Click(object sender, MouseButtonEventArgs e)
+        {
+            e.Handled = true;
+            if (_selectedUser != null)
+            {
+                var avatar = SelectedUserAvatar.ImageSource as BitmapSource;
+                ShowAvatarPreview(avatar, _selectedUser.Name, _selectedUser.IsOnline);
+            }
+        }
+
+        private void MessageAvatar_Click(object sender, MouseButtonEventArgs e)
+        {
+            e.Handled = true;
+            if (sender is FrameworkElement element && element.DataContext is MessageViewModel message)
+            {
+                ShowAvatarPreview(message.SenderAvatar, message.SenderName, false);
+            }
+        }
+
+        private void ShowAvatarPreview(BitmapSource avatar, string userName, bool isOnline, string status = null)
+        {
+            if (avatar != null)
+            {
+                AvatarPreviewWindow.ShowPreview(avatar, userName, isOnline, status);
+            }
+        }
+
         private BitmapSource ConvertToBitmapSource(System.Drawing.Image image)
         {
             if (image == null) return null;

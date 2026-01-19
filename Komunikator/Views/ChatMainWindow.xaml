@@ -246,7 +246,8 @@
                                 </Grid.ColumnDefinitions>
 
                                 <!-- Avatar z efektem online -->
-                                <Grid Width="50" Height="50">
+                                <Grid Width="50" Height="50" Cursor="Hand"
+                                      MouseLeftButtonUp="ContactAvatar_Click">
                                     <!-- Zielona poświata gdy online -->
                                     <Ellipse Width="50" Height="50" Opacity="0.25">
                                         <Ellipse.Style>
@@ -362,7 +363,8 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
-                        <Grid Width="46" Height="46">
+                        <Grid Width="46" Height="46" Cursor="Hand"
+                              MouseLeftButtonUp="SelectedUserAvatar_Click">
                             <Ellipse x:Name="SelectedUserGlow" Width="46" Height="46" Fill="#25D366" Opacity="0">
                                 <Ellipse.Effect>
                                     <BlurEffect Radius="8"/>
@@ -447,7 +449,8 @@
                                             </Grid.ColumnDefinitions>
 
                                             <Grid Width="32" Height="32" VerticalAlignment="Bottom" Margin="0,0,8,0"
-                                                  Visibility="{Binding ShowAvatar, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                  Visibility="{Binding ShowAvatar, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                  Cursor="Hand" MouseLeftButtonUp="MessageAvatar_Click">
                                                 <Ellipse>
                                                     <Ellipse.Fill>
                                                         <ImageBrush ImageSource="{Binding SenderAvatar}" Stretch="UniformToFill"/>
