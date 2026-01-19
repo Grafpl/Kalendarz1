@@ -136,7 +136,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
             SetupTimers();
             SetupKeyboardShortcuts();
             SetupDragDrop();
-            SetupContextMenu();
+            // Menu kontekstowe jest teraz zdefiniowane w XAML
         }
 
         #endregion
@@ -366,49 +366,6 @@ namespace Kalendarz1.Zywiec.Kalendarz
             dgDostawyNastepny.DragLeave += DgDostawy_DragLeave;
             dgDostawyNastepny.DragOver += DgDostawy_DragOver;
             dgDostawyNastepny.AllowDrop = true;
-        }
-
-        private void SetupContextMenu()
-        {
-            // Context menu dla głównej tabeli dostaw
-            var contextMenu = new ContextMenu();
-
-            var menuDuplikuj = new MenuItem { Header = "Zduplikuj (Ctrl+D)", Icon = new TextBlock { Text = "📋" } };
-            menuDuplikuj.Click += (s, e) => DuplicateSelectedDelivery();
-
-            var menuNowa = new MenuItem { Header = "Nowa dostawa (Ctrl+N)", Icon = new TextBlock { Text = "➕" } };
-            menuNowa.Click += (s, e) => CreateNewDelivery();
-
-            var menuUsun = new MenuItem { Header = "Usuń (Delete)", Icon = new TextBlock { Text = "🗑" } };
-            menuUsun.Click += (s, e) => DeleteSelectedDelivery();
-
-            contextMenu.Items.Add(menuDuplikuj);
-            contextMenu.Items.Add(menuNowa);
-            contextMenu.Items.Add(new Separator());
-
-            var menuDateUp = new MenuItem { Header = "Przesuń +1 dzień (+)", Icon = new TextBlock { Text = "▲" } };
-            menuDateUp.Click += (s, e) => ChangeSelectedDeliveryDate(1);
-
-            var menuDateDown = new MenuItem { Header = "Przesuń -1 dzień (-)", Icon = new TextBlock { Text = "▼" } };
-            menuDateDown.Click += (s, e) => ChangeSelectedDeliveryDate(-1);
-
-            contextMenu.Items.Add(menuDateUp);
-            contextMenu.Items.Add(menuDateDown);
-            contextMenu.Items.Add(new Separator());
-
-            var menuPotwierdz = new MenuItem { Header = "Potwierdź zaznaczone", Icon = new TextBlock { Text = "✓" } };
-            menuPotwierdz.Click += async (s, e) => await BulkConfirmAsync(true);
-
-            var menuAnuluj = new MenuItem { Header = "Anuluj zaznaczone", Icon = new TextBlock { Text = "✗" } };
-            menuAnuluj.Click += async (s, e) => await BulkCancelAsync();
-
-            contextMenu.Items.Add(menuPotwierdz);
-            contextMenu.Items.Add(menuAnuluj);
-            contextMenu.Items.Add(new Separator());
-            contextMenu.Items.Add(menuUsun);
-
-            dgDostawy.ContextMenu = contextMenu;
-            dgDostawyNastepny.ContextMenu = contextMenu;
         }
 
         private async Task LoadAllDataAsync()
