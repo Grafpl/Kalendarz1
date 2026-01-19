@@ -470,23 +470,35 @@
 
                     <!-- Główna zawartość lewego panelu -->
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="40">
-                        <!-- Logo firmy - duże z pulsacją -->
+                        <!-- Logo firmy - duże z pulsacją i efektem poświaty -->
                         <Border x:Name="LeftLogoPanel" Margin="0,0,0,25" HorizontalAlignment="Center"
                                 MouseRightButtonUp="LogoBorder_MouseRightButtonUp" Cursor="Arrow"
                                 RenderTransformOrigin="0.5,0.5">
                             <Border.RenderTransform>
                                 <ScaleTransform x:Name="LogoScaleTransform" ScaleX="1" ScaleY="1"/>
                             </Border.RenderTransform>
+                            <Border.Effect>
+                                <DropShadowEffect x:Name="LogoGlowEffect" ShadowDepth="0" Color="#4CAF50"
+                                                  BlurRadius="5" Opacity="0.8"/>
+                            </Border.Effect>
                             <Border.Triggers>
                                 <EventTrigger RoutedEvent="Loaded">
                                     <BeginStoryboard>
                                         <Storyboard RepeatBehavior="Forever">
+                                            <!-- Animacja skalowania (pulsacja) -->
                                             <DoubleAnimation Storyboard.TargetName="LogoScaleTransform"
                                                            Storyboard.TargetProperty="ScaleX"
                                                            From="1.0" To="1.02" Duration="0:0:3" AutoReverse="True"/>
                                             <DoubleAnimation Storyboard.TargetName="LogoScaleTransform"
                                                            Storyboard.TargetProperty="ScaleY"
                                                            From="1.0" To="1.02" Duration="0:0:3" AutoReverse="True"/>
+                                            <!-- Animacja poświaty (glow) - oddychanie światłem -->
+                                            <DoubleAnimation Storyboard.TargetName="LogoGlowEffect"
+                                                           Storyboard.TargetProperty="BlurRadius"
+                                                           From="5" To="15" Duration="0:0:2" AutoReverse="True"/>
+                                            <DoubleAnimation Storyboard.TargetName="LogoGlowEffect"
+                                                           Storyboard.TargetProperty="Opacity"
+                                                           From="0.6" To="0.9" Duration="0:0:2" AutoReverse="True"/>
                                         </Storyboard>
                                     </BeginStoryboard>
                                 </EventTrigger>
