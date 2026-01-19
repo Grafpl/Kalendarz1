@@ -303,21 +303,22 @@ namespace Kalendarz1.Services
                             Lp = idx + 1,
                             NumerIdenPartiiDrobiu = d.NumerSiedliska,
                             LiczbaDrobiu = d.IloscSztuk,
+                            MasaDrobiu = d.WagaKg,  // WYMAGANE! K1231
                             TypZdarzenia = new KodOpisDto { Kod = "ZURDUR" }, // ZURDUR = przybycie do rzeźni i ubój drobiu
                             DataZdarzenia = request.DataUboju.ToString("yyyy-MM-dd"),
+                            DataKupnaWwozu = request.DataUboju.ToString("yyyy-MM-dd"),  // WYMAGANE! K0181
                             // NumerSiedliska juz zawiera pelny numer np. "038481631-001" - NIE DODAWAC -001!
-                        PrzyjeteZDzialalnosci = d.NumerSiedliska,
+                            PrzyjeteZDzialalnosci = d.NumerSiedliska,
                             UbojRytualny = false
                         }).ToList()
                     }
                 };
 
-                // Serializuj NOWĄ strukturę (ignoruj null)
+                // Serializuj NOWĄ strukturę - NIE ignoruj null! masaDrobiu i dataKupnaWwozu sa WYMAGANE!
                 var json = JsonSerializer.Serialize(dyspozycja, new JsonSerializerOptions
                 {
                     PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                    WriteIndented = true,
-                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+                    WriteIndented = true
                 });
 
                 // Debug - zapisz JSON do pliku
@@ -461,8 +462,10 @@ namespace Kalendarz1.Services
                     Lp = lp++,
                     NumerIdenPartiiDrobiu = irzPlus,  // np. "080640491-001"
                     LiczbaDrobiu = spec.LiczbaSztukDrobiu,
+                    MasaDrobiu = spec.WagaNetto,  // WYMAGANE! K1231 - Pole Masa drobiu jest wymagane
                     TypZdarzenia = new KodOpisDto { Kod = "ZURDUR" }, // ZURDUR = przybycie do rzeźni i ubój drobiu
                     DataZdarzenia = spec.DataZdarzenia.ToString("yyyy-MM-dd"),
+                    DataKupnaWwozu = spec.DataZdarzenia.ToString("yyyy-MM-dd"),  // WYMAGANE! K0181 - Pole Data kupna/wwozu
                     // irzPlus juz zawiera pelny numer np. "080640491-001" - NIE DODAWAC -001!
                     PrzyjeteZDzialalnosci = irzPlus,
                     UbojRytualny = false
@@ -486,8 +489,8 @@ namespace Kalendarz1.Services
                 var jsonOptions = new JsonSerializerOptions
                 {
                     PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                    WriteIndented = true,
-                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+                    WriteIndented = true
+                    // NIE uzywac WhenWritingNull - masaDrobiu i dataKupnaWwozu sa WYMAGANE!
                 };
                 var json = JsonSerializer.Serialize(zurd, jsonOptions);
 
@@ -732,11 +735,19 @@ namespace Kalendarz1.Services
         [JsonPropertyName("liczbaDrobiu")]
         public int LiczbaDrobiu { get; set; }
 
+        // WYMAGANE! K1231 - Pole Masa drobiu jest wymagane
+        [JsonPropertyName("masaDrobiu")]
+        public decimal MasaDrobiu { get; set; }
+
         [JsonPropertyName("typZdarzenia")]
         public KodOpisDto TypZdarzenia { get; set; }  // {"kod": "ZURDUR"} - przybycie do rzeźni i ubój drobiu
 
         [JsonPropertyName("dataZdarzenia")]
         public string DataZdarzenia { get; set; }  // format "2025-01-13"
+
+        // WYMAGANE! K0181 - Pole Data kupna/wwozu - Brak danych
+        [JsonPropertyName("dataKupnaWwozu")]
+        public string DataKupnaWwozu { get; set; }  // format "2025-01-13"
 
         [JsonPropertyName("przyjeteZDzialalnosci")]
         public string PrzyjeteZDzialalnosci { get; set; }  // np. "080640491-001" (pelny numer siedliska)

@@ -135,7 +135,7 @@ namespace Kalendarz1.Services
                 var json = JsonSerializer.Serialize(dyspozycja, new JsonSerializerOptions
                 {
                     PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+                    // UWAGA: NIE uzywac WhenWritingNull/WhenWritingDefault - pola masaDrobiu i dataKupnaWwozu sa WYMAGANE!
                     WriteIndented = true
                 });
 

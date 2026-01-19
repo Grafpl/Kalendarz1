@@ -305,11 +305,10 @@ namespace Kalendarz1.Services
                                             new XElement("kod", poz.TypZdarzenia ?? "ZURDUR")
                                         ),
                                         new XElement("dataZdarzenia", poz.DataZdarzenia.ToString("yyyy-MM-dd")),
+                                        // dataKupnaWwozu jest WYMAGANE przez API - uzywamy DataZdarzenia jesli nie ustawione
+                                        new XElement("dataKupnaWwozu", (poz.DataKupnaWwozu ?? poz.DataZdarzenia).ToString("yyyy-MM-dd")),
                                         !string.IsNullOrEmpty(poz.KrajWwozu)
                                             ? new XElement("krajWwozu", poz.KrajWwozu)
-                                            : null,
-                                        poz.DataKupnaWwozu.HasValue
-                                            ? new XElement("dataKupnaWwozu", poz.DataKupnaWwozu.Value.ToString("yyyy-MM-dd"))
                                             : null,
                                         new XElement("przyjeteZDzialalnosci", poz.PrzyjeteZDzialalnosci),
                                         new XElement("ubojRytualny", poz.UbojRytualny.ToString().ToLower())
@@ -786,6 +785,8 @@ namespace Kalendarz1.Services
                                             new XElement("kod", "UR")
                                         ),
                                         new XElement("dataZdarzenia", dataUboju.ToString("yyyy-MM-dd")),
+                                        // dataKupnaWwozu jest WYMAGANE przez API
+                                        new XElement("dataKupnaWwozu", dataUboju.ToString("yyyy-MM-dd")),
                                         new XElement("przyjeteZDzialalnosci", numerSiedliska),
                                         new XElement("ubojRytualny", transport.UbojRytualny.ToString().ToLower())
                                     )
@@ -855,6 +856,8 @@ namespace Kalendarz1.Services
                                             new XElement("kod", poz.TypZdarzenia ?? "ZURDUR")
                                         ),
                                         new XElement("dataZdarzenia", poz.DataZdarzenia.ToString("yyyy-MM-dd")),
+                                        // dataKupnaWwozu jest WYMAGANE przez API - uzywamy DataZdarzenia jesli nie ustawione
+                                        new XElement("dataKupnaWwozu", (poz.DataKupnaWwozu ?? poz.DataZdarzenia).ToString("yyyy-MM-dd")),
                                         new XElement("przyjeteZDzialalnosci", poz.PrzyjeteZDzialalnosci),
                                         new XElement("ubojRytualny", poz.UbojRytualny.ToString().ToLower())
                                     )
