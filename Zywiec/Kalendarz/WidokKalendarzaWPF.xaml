@@ -108,7 +108,9 @@
         <!-- Storyboard: Pulsowanie czcionki dla wierszy z tym samym LpW -->
         <Storyboard x:Key="LpWMatchPulseAnimation" RepeatBehavior="Forever">
             <ColorAnimation Storyboard.TargetProperty="(DataGridRow.Foreground).(SolidColorBrush.Color)"
-                            From="#000000" To="#666666" Duration="0:0:0.5" AutoReverse="True"/>
+                            From="#000000" To="#555555" Duration="0:0:0.5" AutoReverse="True"/>
+            <DoubleAnimation Storyboard.TargetProperty="(DataGridRow.FontSize)"
+                            From="13" To="14" Duration="0:0:0.5" AutoReverse="True"/>
         </Storyboard>
 
         <!-- Storyboard: Pulsowanie dla niedawnych notatek (3 dni) -->
