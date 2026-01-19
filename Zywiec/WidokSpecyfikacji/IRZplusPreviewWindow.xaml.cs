@@ -254,13 +254,14 @@ namespace Kalendarz1
                 return;
             }
 
-            var envText = "PRODUKCJA";
+            var envText = settings.UseTestEnvironment ? "TESTOWE" : "PRODUKCYJNE";
             var confirmResult = MessageBox.Show(
                 $"Czy na pewno chcesz wyslac zgloszenie ZURD przez API?\n\n" +
                 $"Srodowisko: {envText}\n" +
                 $"Data uboju: {_dataUboju:dd.MM.yyyy}\n" +
                 $"Liczba pozycji: {wybrane.Count}\n" +
-                $"Suma sztuk: {wybrane.Sum(s => s.LiczbaSztukDrobiu):N0}",
+                $"Suma sztuk: {wybrane.Sum(s => s.LiczbaSztukDrobiu):N0}\n" +
+                $"Suma wagi: {wybrane.Sum(s => s.WagaNetto):N2} kg",
                 "Potwierdzenie wysylki API",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question);
@@ -275,12 +276,14 @@ namespace Kalendarz1
                 progressBar.Visibility = Visibility.Visible;
                 progressBar.IsIndeterminate = true;
 
+                // Ustaw srodowisko
+                _apiService.SetTestEnvironment(settings.UseTestEnvironment);
+
                 // Autoryzacja
                 var authResult = await _apiService.AuthenticateAsync(settings.Username, settings.Password);
                 if (!authResult.Success)
                 {
-                    MessageBox.Show($"Blad logowania:\n{authResult.Message}", "Blad",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    ShowApiResultWindow(authResult, null);
                     txtStatus.Text = "Blad logowania";
                     return;
                 }
@@ -308,37 +311,371 @@ namespace Kalendarz1
                 var dyspozycja = _apiService.UtworzDyspozycje(numerPartii, pozycje);
                 var result = await _apiService.WyslijZURDAsync(dyspozycja);
 
+                // Pokaz szczegolowe okno wyniku
+                ShowApiResultWindow(result, result.RequestJson);
+
                 if (result.Success)
                 {
                     WysylkaZakonczona = true;
                     NumerZgloszenia = result.NumerZgloszenia;
-
-                    MessageBox.Show(
-                        $"ZGLOSZENIE WYSLANE POMYSLNIE!\n\n" +
-                        $"Numer zgloszenia: {result.NumerZgloszenia}\n" +
-                        $"Pozycji: {pozycje.Count}\n" +
-                        $"Suma sztuk: {pozycje.Sum(p => p.LiczbaDrobiu):N0}",
-                        "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
-
                     txtStatus.Text = $"Wyslano przez API: {result.NumerZgloszenia}";
                 }
                 else
                 {
-                    MessageBox.Show($"Blad wysylania:\n{result.Message}", "Blad",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
                     txtStatus.Text = "Blad wysylania przez API";
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Wyjatek:\n{ex.Message}", "Blad",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                var errorResult = new ApiResult
+                {
+                    Success = false,
+                    Message = $"WYJATEK: {ex.Message}\n\n{ex.StackTrace}"
+                };
+                ShowApiResultWindow(errorResult, null);
                 txtStatus.Text = "Wyjatek";
             }
             finally
             {
                 btnSendApi.IsEnabled = true;
                 progressBar.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        /// <summary>
+        /// Wyswietla szczegolowe okno z wynikiem operacji API
+        /// </summary>
+        private void ShowApiResultWindow(ApiResult result, string requestJson)
+        {
+            var window = new Window
+            {
+                Title = result.Success ? "Zgloszenie wyslane pomyslnie" : "Blad wysylania zgloszenia",
+                Width = 800,
+                Height = 650,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F5F5F5"))
+            };
+
+            var mainGrid = new Grid();
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            // Naglowek z ikonka sukcesu/bledu
+            var headerBorder = new Border
+            {
+                Background = new SolidColorBrush(result.Success
+                    ? (Color)ColorConverter.ConvertFromString("#4CAF50")
+                    : (Color)ColorConverter.ConvertFromString("#F44336")),
+                Padding = new Thickness(15, 10, 15, 10)
+            };
+            var headerPanel = new StackPanel { Orientation = Orientation.Horizontal };
+            var iconText = new TextBlock
+            {
+                Text = result.Success ? "[OK]" : "[X]",
+                FontSize = 18,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White,
+                Margin = new Thickness(0, 0, 10, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            var headerText = new TextBlock
+            {
+                Text = result.Success ? "ZGLOSZENIE PRZYJETE" : "BLAD WYSYLANIA",
+                FontSize = 16,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            headerPanel.Children.Add(iconText);
+            headerPanel.Children.Add(headerText);
+            headerBorder.Child = headerPanel;
+            Grid.SetRow(headerBorder, 0);
+            mainGrid.Children.Add(headerBorder);
+
+            // TabControl z zakladkami
+            var tabControl = new TabControl { Margin = new Thickness(10) };
+
+            // Tab 1: Wynik
+            var tab1 = new TabItem { Header = "Wynik" };
+            var scroll1 = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            var txt1 = new TextBox
+            {
+                Text = BuildResultText(result),
+                IsReadOnly = true,
+                TextWrapping = TextWrapping.Wrap,
+                FontFamily = new FontFamily("Consolas"),
+                FontSize = 12,
+                Padding = new Thickness(10),
+                BorderThickness = new Thickness(0),
+                Background = Brushes.White
+            };
+            scroll1.Content = txt1;
+            tab1.Content = scroll1;
+            tabControl.Items.Add(tab1);
+
+            // Tab 2: Response JSON
+            var tab2 = new TabItem { Header = "Response JSON" };
+            var scroll2 = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto };
+            var txt2 = new TextBox
+            {
+                Text = FormatJson(result.ResponseJson ?? "(brak odpowiedzi)"),
+                IsReadOnly = true,
+                TextWrapping = TextWrapping.NoWrap,
+                FontFamily = new FontFamily("Consolas"),
+                FontSize = 11,
+                Padding = new Thickness(10),
+                BorderThickness = new Thickness(0),
+                Background = Brushes.White
+            };
+            scroll2.Content = txt2;
+            tab2.Content = scroll2;
+            tabControl.Items.Add(tab2);
+
+            // Tab 3: Request JSON
+            var tab3 = new TabItem { Header = "Request JSON" };
+            var scroll3 = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto };
+            var txt3 = new TextBox
+            {
+                Text = FormatJson(requestJson ?? "(brak requestu)"),
+                IsReadOnly = true,
+                TextWrapping = TextWrapping.NoWrap,
+                FontFamily = new FontFamily("Consolas"),
+                FontSize = 11,
+                Padding = new Thickness(10),
+                BorderThickness = new Thickness(0),
+                Background = Brushes.White
+            };
+            scroll3.Content = txt3;
+            tab3.Content = scroll3;
+            tabControl.Items.Add(tab3);
+
+            // Tab 4: Bledy i ostrzezenia (jesli sa)
+            if (result.Bledy.Any() || result.Ostrzezenia.Any() || result.Komunikaty.Any())
+            {
+                var tab4 = new TabItem { Header = "Komunikaty" };
+                var scroll4 = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+                var sb4 = new System.Text.StringBuilder();
+
+                if (result.Bledy.Any())
+                {
+                    sb4.AppendLine("=== BLEDY WALIDACJI ===");
+                    foreach (var b in result.Bledy)
+                        sb4.AppendLine($"  [!] {b}");
+                    sb4.AppendLine();
+                }
+
+                if (result.Ostrzezenia.Any())
+                {
+                    sb4.AppendLine("=== OSTRZEZENIA ===");
+                    foreach (var o in result.Ostrzezenia)
+                        sb4.AppendLine($"  [?] {o}");
+                    sb4.AppendLine();
+                }
+
+                if (result.Komunikaty.Any())
+                {
+                    sb4.AppendLine("=== KOMUNIKATY ===");
+                    foreach (var k in result.Komunikaty)
+                        sb4.AppendLine($"  [i] {k}");
+                }
+
+                var txt4 = new TextBox
+                {
+                    Text = sb4.ToString(),
+                    IsReadOnly = true,
+                    TextWrapping = TextWrapping.Wrap,
+                    FontFamily = new FontFamily("Consolas"),
+                    FontSize = 12,
+                    Padding = new Thickness(10),
+                    BorderThickness = new Thickness(0),
+                    Background = Brushes.White
+                };
+                scroll4.Content = txt4;
+                tab4.Content = scroll4;
+                tabControl.Items.Add(tab4);
+            }
+
+            Grid.SetRow(tabControl, 1);
+            mainGrid.Children.Add(tabControl);
+
+            // Panel przyciskow
+            var buttonPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(10)
+            };
+
+            var btnCopy = new Button
+            {
+                Content = "Kopiuj wszystko",
+                Padding = new Thickness(15, 8, 15, 8),
+                Margin = new Thickness(5),
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1976D2")),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            btnCopy.Click += (s, ev) =>
+            {
+                var all = $"=== WYNIK ===\n{BuildResultText(result)}\n\n" +
+                          $"=== RESPONSE JSON ===\n{result.ResponseJson ?? "(brak)"}\n\n" +
+                          $"=== REQUEST JSON ===\n{requestJson ?? "(brak)"}";
+                System.Windows.Clipboard.SetText(all);
+                MessageBox.Show("Skopiowano wszystkie dane do schowka!", "Skopiowano",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            };
+            buttonPanel.Children.Add(btnCopy);
+
+            var btnOpenLog = new Button
+            {
+                Content = "Otworz folder logow",
+                Padding = new Thickness(15, 8, 15, 8),
+                Margin = new Thickness(5),
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF9800")),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            btnOpenLog.Click += (s, ev) =>
+            {
+                try
+                {
+                    var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "IRZplus_Logs");
+                    if (!Directory.Exists(logDir))
+                        Directory.CreateDirectory(logDir);
+                    System.Diagnostics.Process.Start("explorer.exe", logDir);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Blad otwierania folderu:\n{ex.Message}", "Blad",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            };
+            buttonPanel.Children.Add(btnOpenLog);
+
+            var btnClose = new Button
+            {
+                Content = "Zamknij",
+                Padding = new Thickness(15, 8, 15, 8),
+                Margin = new Thickness(5),
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#757575")),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            btnClose.Click += (s, ev) => window.Close();
+            buttonPanel.Children.Add(btnClose);
+
+            Grid.SetRow(buttonPanel, 2);
+            mainGrid.Children.Add(buttonPanel);
+
+            window.Content = mainGrid;
+            window.ShowDialog();
+        }
+
+        /// <summary>
+        /// Buduje tekst wyniku z ApiResult
+        /// </summary>
+        private string BuildResultText(ApiResult result)
+        {
+            var sb = new System.Text.StringBuilder();
+
+            sb.AppendLine($"HTTP Status: {result.HttpStatusCode}");
+            sb.AppendLine();
+
+            if (!string.IsNullOrEmpty(result.NumerZgloszenia))
+                sb.AppendLine($"Numer zgloszenia: {result.NumerZgloszenia}");
+
+            if (!string.IsNullOrEmpty(result.NumerDokumentu))
+                sb.AppendLine($"Numer dokumentu: {result.NumerDokumentu}");
+
+            if (!string.IsNullOrEmpty(result.Status))
+                sb.AppendLine($"Status: {result.Status}");
+
+            if (!string.IsNullOrEmpty(result.StatusKod))
+                sb.AppendLine($"Kod statusu: {result.StatusKod}");
+
+            if (!string.IsNullOrEmpty(result.DataUtworzenia))
+                sb.AppendLine($"Data utworzenia: {result.DataUtworzenia}");
+
+            if (!string.IsNullOrEmpty(result.DataModyfikacji))
+                sb.AppendLine($"Data modyfikacji: {result.DataModyfikacji}");
+
+            if (result.Podsumowanie != null)
+            {
+                sb.AppendLine();
+                sb.AppendLine("=== PODSUMOWANIE ===");
+                sb.AppendLine($"  Zaakceptowanych: {result.Podsumowanie.LiczbaZaakceptowanych}");
+                sb.AppendLine($"  Odrzuconych: {result.Podsumowanie.LiczbaOdrzuconych}");
+                sb.AppendLine($"  Suma sztuk: {result.Podsumowanie.SumaSztuk}");
+                sb.AppendLine($"  Suma masy: {result.Podsumowanie.SumaMasy} kg");
+            }
+
+            if (result.Pozycje != null && result.Pozycje.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine($"=== POZYCJE ({result.Pozycje.Count}) ===");
+                foreach (var poz in result.Pozycje.Take(20))
+                {
+                    sb.AppendLine($"  Lp {poz.Lp}: {poz.Status} - {poz.NumerEwidencyjny}");
+                }
+                if (result.Pozycje.Count > 20)
+                    sb.AppendLine($"  ... i {result.Pozycje.Count - 20} wiecej");
+            }
+
+            if (result.Komunikaty.Any())
+            {
+                sb.AppendLine();
+                sb.AppendLine("=== KOMUNIKATY ===");
+                foreach (var k in result.Komunikaty)
+                    sb.AppendLine($"  {k}");
+            }
+
+            if (result.Bledy.Any())
+            {
+                sb.AppendLine();
+                sb.AppendLine("=== BLEDY ===");
+                foreach (var b in result.Bledy)
+                    sb.AppendLine($"  [!] {b}");
+            }
+
+            if (result.Ostrzezenia.Any())
+            {
+                sb.AppendLine();
+                sb.AppendLine("=== OSTRZEZENIA ===");
+                foreach (var o in result.Ostrzezenia)
+                    sb.AppendLine($"  [?] {o}");
+            }
+
+            sb.AppendLine();
+            sb.AppendLine("=== PELNA WIADOMOSC ===");
+            sb.AppendLine(result.Message ?? "(brak)");
+
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Formatuje JSON dla ladniejszego wyswietlania
+        /// </summary>
+        private string FormatJson(string json)
+        {
+            if (string.IsNullOrEmpty(json))
+                return "(brak danych)";
+
+            try
+            {
+                using (var doc = System.Text.Json.JsonDocument.Parse(json))
+                {
+                    return System.Text.Json.JsonSerializer.Serialize(doc.RootElement,
+                        new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                }
+            }
+            catch
+            {
+                return json;
             }
         }
 
