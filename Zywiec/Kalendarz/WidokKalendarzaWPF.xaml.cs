@@ -1845,8 +1845,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     var row = dg.ItemContainerGenerator.ContainerFromItem(item) as DataGridRow;
                     if (row != null)
                     {
-                        // Pogrubiona czcionka z pulsującym kolorem
+                        // Pogrubiona, większa czcionka z pulsującym kolorem
                         row.FontWeight = FontWeights.Bold;
+                        row.FontSize = 13;
                         row.Foreground = new SolidColorBrush(Color.FromRgb(21, 101, 192)); // Niebieski startowy
 
                         // Uruchom animację pulsowania koloru czcionki
@@ -4176,20 +4177,23 @@ namespace Kalendarz1.Zywiec.Kalendarz
         }
 
         /// <summary>
-        /// Buduje pogrupowany widok dostaw
+        /// Buduje pogrupowany widok dostaw (z pustymi dniami)
         /// </summary>
         private void RebuildGroupedView(ObservableCollection<DostawaModel> collection, List<DostawaModel> data, DateTime baseDate)
         {
-            DateTime startOfWeek = baseDate.AddDays(-(int)baseDate.DayOfWeek);
+            // Oblicz poniedziałek tygodnia
+            DateTime startOfWeek = baseDate.AddDays(-(int)baseDate.DayOfWeek + 1);
             if (baseDate.DayOfWeek == DayOfWeek.Sunday) startOfWeek = baseDate.AddDays(-6);
 
-            var grouped = data.GroupBy(d => d.DataOdbioru.Date).OrderBy(g => g.Key);
+            var grouped = data.GroupBy(d => d.DataOdbioru.Date).ToDictionary(g => g.Key, g => g.ToList());
 
-            foreach (var group in grouped)
+            // Iteruj przez wszystkie 7 dni tygodnia
+            for (int i = 0; i < 7; i++)
             {
-                var deliveries = group.ToList();
+                DateTime currentDay = startOfWeek.AddDays(i);
+                var deliveries = grouped.ContainsKey(currentDay) ? grouped[currentDay] : new List<DostawaModel>();
 
-                // Oblicz sumy i średnie ważone dla tego dnia (tak jak w LoadDostawyForWeekAsync)
+                // Oblicz sumy i średnie ważone dla tego dnia
                 double sumaAuta = 0;
                 double sumaSztuki = 0;
                 double sumaWagaPomnozona = 0;
@@ -4209,37 +4213,33 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     sumaCenaPomnozona += (double)item.Cena * item.Auta;
                     sumaKMPomnozona += item.Distance * item.Auta;
 
-                    // Średnia Doby
                     if (item.RoznicaDni.HasValue && item.RoznicaDni.Value > 0)
                     {
                         sumaDobyPomnozona += item.RoznicaDni.Value * item.Auta;
                         iloscZDoby += item.Auta;
                     }
 
-                    // Licz ubytki (lekkie kurczaki 0.5-2.4 kg)
                     if (item.WagaDek >= 0.5m && item.WagaDek <= 2.4m)
                     {
                         sumaUbytek += item.Auta;
                     }
 
-                    // Licz sprzedane i anulowane
                     if (item.Bufor == "Sprzedany") liczbaSprzedanych++;
                     if (item.Bufor == "Anulowany") liczbaAnulowanych++;
                 }
 
-                // Oblicz średnie ważone
                 double sredniaWaga = sumaAuta > 0 ? sumaWagaPomnozona / sumaAuta : 0;
                 double sredniaCena = sumaAuta > 0 ? sumaCenaPomnozona / sumaAuta : 0;
                 double sredniaKM = sumaAuta > 0 ? sumaKMPomnozona / sumaAuta : 0;
                 double sredniaDoby = iloscZDoby > 0 ? sumaDobyPomnozona / iloscZDoby : 0;
 
-                // Dodaj nagłówek dnia z pełnymi statystykami
+                // Dodaj nagłówek dnia
                 var dayHeader = new DostawaModel
                 {
                     IsHeaderRow = true,
                     IsEmptyDay = deliveries.Count == 0,
-                    DataOdbioru = group.Key,
-                    Dostawca = GetDayName(group.Key),
+                    DataOdbioru = currentDay,
+                    Dostawca = GetDayName(currentDay),
                     SumaAuta = sumaAuta,
                     SumaSztuki = sumaSztuki,
                     SredniaWaga = sredniaWaga,
@@ -4252,10 +4252,18 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 };
                 collection.Add(dayHeader);
 
-                // Dodaj dostawy
-                foreach (var d in deliveries.OrderBy(x => x.Dostawca))
+                if (deliveries.Count > 0)
                 {
-                    collection.Add(d);
+                    // Dodaj dostawy
+                    foreach (var d in deliveries.OrderBy(x => x.Dostawca))
+                    {
+                        collection.Add(d);
+                    }
+                }
+                else
+                {
+                    // Dodaj separator dla pustego dnia
+                    collection.Add(new DostawaModel { IsSeparator = true, DataOdbioru = currentDay });
                 }
             }
         }
