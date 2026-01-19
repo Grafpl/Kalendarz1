@@ -300,7 +300,7 @@ namespace Kalendarz1
                     NumerIdenPartiiDrobiu = numerPartii,
                     LiczbaDrobiu = spec.LiczbaSztukDrobiu,
                     MasaDrobiu = spec.WagaNetto,
-                    TypZdarzenia = new KodValueApi { Kod = "UR" },
+                    TypZdarzenia = new KodValueApi { Kod = "ZURDUR" }, // ZURDUR = przybycie do rzeźni i ubój drobiu
                     DataZdarzenia = spec.DataZdarzenia.ToString("yyyy-MM-dd"),
                     DataKupnaWwozu = spec.DataZdarzenia.ToString("yyyy-MM-dd"),
                     PrzyjeteZDzialalnosci = spec.IRZPlus,

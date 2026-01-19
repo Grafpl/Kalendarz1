@@ -302,7 +302,7 @@ namespace Kalendarz1.Services
                                         new XElement("liczbaDrobiu", poz.LiczbaSztuk),
                                         new XElement("masaDrobiu", poz.MasaKg.ToString("F2", CultureInfo.InvariantCulture)),
                                         new XElement("typZdarzenia",
-                                            new XElement("kod", poz.TypZdarzenia ?? "UR")
+                                            new XElement("kod", poz.TypZdarzenia ?? "ZURDUR")
                                         ),
                                         new XElement("dataZdarzenia", poz.DataZdarzenia.ToString("yyyy-MM-dd")),
                                         !string.IsNullOrEmpty(poz.KrajWwozu)
@@ -852,7 +852,7 @@ namespace Kalendarz1.Services
                                         new XElement("liczbaDrobiu", poz.LiczbaSztuk),
                                         new XElement("masaDrobiu", poz.MasaKg.ToString("F2", CultureInfo.InvariantCulture)),
                                         new XElement("typZdarzenia",
-                                            new XElement("kod", poz.TypZdarzenia ?? "UR")
+                                            new XElement("kod", poz.TypZdarzenia ?? "ZURDUR")
                                         ),
                                         new XElement("dataZdarzenia", poz.DataZdarzenia.ToString("yyyy-MM-dd")),
                                         new XElement("przyjeteZDzialalnosci", poz.PrzyjeteZDzialalnosci),

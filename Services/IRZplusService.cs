@@ -302,7 +302,7 @@ namespace Kalendarz1.Services
                             Lp = idx + 1,
                             NumerIdenPartiiDrobiu = d.NumerSiedliska,
                             LiczbaDrobiu = d.IloscSztuk,
-                            TypZdarzenia = new KodOpisDto { Kod = "UR" },
+                            TypZdarzenia = new KodOpisDto { Kod = "ZURDUR" }, // ZURDUR = przybycie do rzeźni i ubój drobiu
                             DataZdarzenia = request.DataUboju.ToString("yyyy-MM-dd"),
                             // NumerSiedliska juz zawiera pelny numer np. "038481631-001" - NIE DODAWAC -001!
                         PrzyjeteZDzialalnosci = d.NumerSiedliska,
@@ -460,7 +460,7 @@ namespace Kalendarz1.Services
                     Lp = lp++,
                     NumerIdenPartiiDrobiu = irzPlus,  // np. "080640491-001"
                     LiczbaDrobiu = spec.LiczbaSztukDrobiu,
-                    TypZdarzenia = new KodOpisDto { Kod = "UR" }, // UR = ubój w rzeźni
+                    TypZdarzenia = new KodOpisDto { Kod = "ZURDUR" }, // ZURDUR = przybycie do rzeźni i ubój drobiu
                     DataZdarzenia = spec.DataZdarzenia.ToString("yyyy-MM-dd"),
                     // irzPlus juz zawiera pelny numer np. "080640491-001" - NIE DODAWAC -001!
                     PrzyjeteZDzialalnosci = irzPlus,
@@ -720,7 +720,7 @@ namespace Kalendarz1.Services
         public int LiczbaDrobiu { get; set; }
 
         [JsonPropertyName("typZdarzenia")]
-        public KodOpisDto TypZdarzenia { get; set; }  // {"kod": "UR"}
+        public KodOpisDto TypZdarzenia { get; set; }  // {"kod": "ZURDUR"} - przybycie do rzeźni i ubój drobiu
 
         [JsonPropertyName("dataZdarzenia")]
         public string DataZdarzenia { get; set; }  // format "2025-01-13"

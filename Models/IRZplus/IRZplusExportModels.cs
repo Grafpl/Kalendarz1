@@ -19,12 +19,13 @@ namespace Kalendarz1.Models.IRZplus
     }
 
     /// <summary>
-    /// Typ zdarzenia dla ZURD (Zgloszenie Uboju w Rzezni)
+    /// Typ zdarzenia dla ZURD (Zgloszenie Uboju Drobiu w Rzezni)
+    /// Slownik: SIA-SL02126 (TYPY_ZDARZEN_DROBIU)
     /// </summary>
     public static class TypZdarzeniaZURD
     {
-        public const string UbojRzezniczy = "UR";
-        public const string UbojRytualny = "URR";
+        public const string UbojRzezniczy = "ZURDUR";  // Przybycie do rzezni i uboj drobiu
+        public const string UbojRytualny = "ZURDUW";   // Uboj po wwozie
         public const string Padniecie = "P";
     }
 
@@ -53,7 +54,7 @@ namespace Kalendarz1.Models.IRZplus
         /// <summary>Numer identyfikacyjny partii drobiu / numer siedliska hodowcy (np. 038481631-001)</summary>
         public string NumerPartiiDrobiu { get; set; }
 
-        /// <summary>Typ zdarzenia: UR, URR, P</summary>
+        /// <summary>Typ zdarzenia: ZURDUR, ZURDUW, P (slownik SIA-SL02126)</summary>
         public string TypZdarzenia { get; set; } = TypZdarzeniaZURD.UbojRzezniczy;
 
         /// <summary>Liczba sztuk drobiu w tym transporcie</summary>
