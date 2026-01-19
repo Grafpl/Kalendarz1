@@ -75,7 +75,7 @@ namespace Kalendarz1.Komunikator.Views
                 BitmapSource avatar = null;
                 if (UserAvatarManager.HasAvatar(_currentUserId))
                 {
-                    using (var img = UserAvatarManager.GetAvatarRounded(_currentUserId, 48))
+                    using (var img = UserAvatarManager.GetAvatarRounded(_currentUserId, 56))
                     {
                         if (img != null)
                             avatar = ConvertToBitmapSource(img);
@@ -84,7 +84,7 @@ namespace Kalendarz1.Komunikator.Views
 
                 if (avatar == null)
                 {
-                    using (var img = UserAvatarManager.GenerateDefaultAvatar(_currentUserName, _currentUserId, 48))
+                    using (var img = UserAvatarManager.GenerateDefaultAvatar(_currentUserName, _currentUserId, 56))
                     {
                         avatar = ConvertToBitmapSource(img);
                     }
@@ -220,9 +220,9 @@ namespace Kalendarz1.Komunikator.Views
             catch { }
         }
 
-        private void Contact_Click(object sender, MouseButtonEventArgs e)
+        private void ContactsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (sender is FrameworkElement element && element.DataContext is ContactViewModel contact)
+            if (ContactsList.SelectedItem is ContactViewModel contact)
             {
                 SelectContact(contact);
             }
@@ -287,21 +287,6 @@ namespace Kalendarz1.Komunikator.Views
             }
         }
 
-        private void Contact_MouseEnter(object sender, MouseEventArgs e)
-        {
-            if (sender is Border border)
-            {
-                border.Background = (Brush)FindResource("HoverBrush");
-            }
-        }
-
-        private void Contact_MouseLeave(object sender, MouseEventArgs e)
-        {
-            if (sender is Border border)
-            {
-                border.Background = Brushes.Transparent;
-            }
-        }
 
         private async void SendButton_Click(object sender, RoutedEventArgs e)
         {
@@ -428,7 +413,7 @@ namespace Kalendarz1.Komunikator.Views
         {
             try
             {
-                AvatarSource = user.GetAvatarBitmap(48);
+                AvatarSource = user.GetAvatarBitmap(56);
             }
             catch { }
         }
