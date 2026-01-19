@@ -9,12 +9,17 @@ namespace Kalendarz1
     /// <summary>
     /// Manager avatarów użytkowników - przechowuje avatary jako pliki PNG
     /// Avatary są zapisywane w folderze %AppData%/ZPSP/Avatars/
+    /// Rozwiązanie nr 2: Jeśli avatar nie istnieje lokalnie, próbuje pobrać z serwera sieciowego
     /// </summary>
     public static class UserAvatarManager
     {
         private static string AvatarsFolder => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "ZPSP", "Avatars");
+
+        // Ścieżki sieciowe do avatarów (rozwiązanie nr 2)
+        private static readonly string NetworkAvatarsPath1 = @"\\192.168.0.170\Install\Prace Graficzne\Avatary";
+        private static readonly string NetworkAvatarsPath2 = @"\\192.168.0.171\Install\Prace Graficzne\Avatary";
 
         /// <summary>
         /// Inicjalizuje folder avatarów
@@ -41,33 +46,86 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Sprawdza czy użytkownik ma zapisany avatar
+        /// Sprawdza czy użytkownik ma zapisany avatar (lokalnie lub na serwerze sieciowym)
         /// </summary>
         public static bool HasAvatar(string userId)
         {
-            return File.Exists(GetAvatarPath(userId));
+            // Najpierw sprawdź lokalnie
+            if (File.Exists(GetAvatarPath(userId)))
+                return true;
+
+            // Rozwiązanie nr 2: Sprawdź na serwerze sieciowym
+            var networkPath = GetNetworkAvatarPath(userId);
+            return networkPath != null;
+        }
+
+        /// <summary>
+        /// Próbuje znaleźć avatar na serwerze sieciowym
+        /// </summary>
+        private static string GetNetworkAvatarPath(string userId)
+        {
+            string[] extensions = { ".png", ".jpg", ".jpeg", ".bmp" };
+            string[] networkPaths = { NetworkAvatarsPath1, NetworkAvatarsPath2 };
+
+            foreach (var networkPath in networkPaths)
+            {
+                try
+                {
+                    if (!Directory.Exists(networkPath))
+                        continue;
+
+                    foreach (var ext in extensions)
+                    {
+                        string avatarPath = Path.Combine(networkPath, $"{userId}{ext}");
+                        if (File.Exists(avatarPath))
+                            return avatarPath;
+                    }
+                }
+                catch
+                {
+                    // Serwer niedostępny, spróbuj następny
+                    continue;
+                }
+            }
+
+            return null;
         }
 
         /// <summary>
         /// Pobiera avatar użytkownika jako Image (null jeśli nie istnieje)
+        /// Najpierw sprawdza lokalnie, potem na serwerze sieciowym (rozwiązanie nr 2)
         /// </summary>
         public static Image GetAvatar(string userId)
         {
-            string path = GetAvatarPath(userId);
-            if (!File.Exists(path)) return null;
-
-            try
+            // Najpierw sprawdź lokalnie
+            string localPath = GetAvatarPath(userId);
+            if (File.Exists(localPath))
             {
-                // Wczytaj do pamięci aby nie blokować pliku
-                using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read))
+                try
                 {
-                    return Image.FromStream(fs);
+                    using (var fs = new FileStream(localPath, FileMode.Open, FileAccess.Read))
+                    {
+                        return Image.FromStream(fs);
+                    }
                 }
+                catch { }
             }
-            catch
+
+            // Rozwiązanie nr 2: Pobierz z serwera sieciowego
+            string networkPath = GetNetworkAvatarPath(userId);
+            if (networkPath != null)
             {
-                return null;
+                try
+                {
+                    using (var fs = new FileStream(networkPath, FileMode.Open, FileAccess.Read))
+                    {
+                        return Image.FromStream(fs);
+                    }
+                }
+                catch { }
             }
+
+            return null;
         }
 
         /// <summary>

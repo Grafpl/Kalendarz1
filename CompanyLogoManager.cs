@@ -9,6 +9,7 @@ namespace Kalendarz1
     /// <summary>
     /// Manager logo firmy - przechowuje logo jako plik PNG
     /// Logo jest zapisywane w folderze %AppData%/ZPSP/Logo/
+    /// Rozwiązanie nr 2: Jeśli logo nie istnieje lokalnie, próbuje pobrać z serwera sieciowego
     /// Może być używane w różnych aplikacjach
     /// </summary>
     public static class CompanyLogoManager
@@ -18,6 +19,11 @@ namespace Kalendarz1
             "ZPSP", "Logo");
 
         private static string LogoPath => Path.Combine(LogoFolder, "company_logo.png");
+
+        // Ścieżki sieciowe do logo firmy (rozwiązanie nr 2)
+        private static readonly string NetworkLogoPath1 = @"\\192.168.0.170\Install\Prace Graficzne\Logo";
+        private static readonly string NetworkLogoPath2 = @"\\192.168.0.171\Install\Prace Graficzne\Logo";
+        private static readonly string NetworkLogoFileName = "company_logo";
 
         /// <summary>
         /// Inicjalizuje folder logo
@@ -44,32 +50,85 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Sprawdza czy logo firmy jest zapisane
+        /// Sprawdza czy logo firmy jest zapisane (lokalnie lub na serwerze sieciowym)
         /// </summary>
         public static bool HasLogo()
         {
-            return File.Exists(LogoPath);
+            // Najpierw sprawdź lokalnie
+            if (File.Exists(LogoPath))
+                return true;
+
+            // Rozwiązanie nr 2: Sprawdź na serwerze sieciowym
+            var networkPath = GetNetworkLogoPath();
+            return networkPath != null;
+        }
+
+        /// <summary>
+        /// Próbuje znaleźć logo na serwerze sieciowym
+        /// </summary>
+        private static string GetNetworkLogoPath()
+        {
+            string[] extensions = { ".png", ".jpg", ".jpeg", ".bmp" };
+            string[] networkPaths = { NetworkLogoPath1, NetworkLogoPath2 };
+
+            foreach (var networkPath in networkPaths)
+            {
+                try
+                {
+                    if (!Directory.Exists(networkPath))
+                        continue;
+
+                    foreach (var ext in extensions)
+                    {
+                        string logoPath = Path.Combine(networkPath, $"{NetworkLogoFileName}{ext}");
+                        if (File.Exists(logoPath))
+                            return logoPath;
+                    }
+                }
+                catch
+                {
+                    // Serwer niedostępny, spróbuj następny
+                    continue;
+                }
+            }
+
+            return null;
         }
 
         /// <summary>
         /// Pobiera logo firmy jako Image (null jeśli nie istnieje)
+        /// Najpierw sprawdza lokalnie, potem na serwerze sieciowym (rozwiązanie nr 2)
         /// </summary>
         public static Image GetLogo()
         {
-            if (!File.Exists(LogoPath)) return null;
-
-            try
+            // Najpierw sprawdź lokalnie
+            if (File.Exists(LogoPath))
             {
-                // Wczytaj do pamięci aby nie blokować pliku
-                using (var fs = new FileStream(LogoPath, FileMode.Open, FileAccess.Read))
+                try
                 {
-                    return Image.FromStream(fs);
+                    using (var fs = new FileStream(LogoPath, FileMode.Open, FileAccess.Read))
+                    {
+                        return Image.FromStream(fs);
+                    }
                 }
+                catch { }
             }
-            catch
+
+            // Rozwiązanie nr 2: Pobierz z serwera sieciowego
+            string networkPath = GetNetworkLogoPath();
+            if (networkPath != null)
             {
-                return null;
+                try
+                {
+                    using (var fs = new FileStream(networkPath, FileMode.Open, FileAccess.Read))
+                    {
+                        return Image.FromStream(fs);
+                    }
+                }
+                catch { }
             }
+
+            return null;
         }
 
         /// <summary>
