@@ -510,6 +510,16 @@
                                Margin="0,30,0,15" Opacity="0.7" RenderOptions.BitmapScalingMode="Fant"/>
                         <TextBlock Text="Sergiusz Piórkowski" Foreground="White" FontWeight="Bold"
                                    TextAlignment="Center" FontSize="15" Margin="0,0,0,0" Opacity="0.8"/>
+
+                        <!-- Cytat dnia -->
+                        <Border Margin="0,25,0,0" Padding="15,10" Background="#FFFFFF" Opacity="0.15" CornerRadius="8">
+                            <Border.Effect>
+                                <BlurEffect Radius="0"/>
+                            </Border.Effect>
+                        </Border>
+                        <TextBlock x:Name="QuoteTextBlock" TextWrapping="Wrap" TextAlignment="Center"
+                                   Foreground="White" FontSize="12" FontStyle="Italic" Opacity="0.85"
+                                   Margin="10,-45,10,0" MaxWidth="400"/>
                     </StackPanel>
 
                     <!-- Data, godzina i imieniny w lewym dolnym rogu -->

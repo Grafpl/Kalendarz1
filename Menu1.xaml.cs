@@ -47,8 +47,28 @@ namespace Kalendarz1
             SetFooterText();
             LoadCompanyLogo();
             LoadRecentLogins();
+            LoadQuoteOfTheDay();
             InitializeClock();
             InitializeServerStatusCheck();
+        }
+
+        private void LoadQuoteOfTheDay()
+        {
+            try
+            {
+                var quote = QuotesManager.GetQuoteOfTheDay();
+                string quoteText = "\"" + quote.Text + "\"";
+                if (!string.IsNullOrEmpty(quote.Author))
+                {
+                    quoteText += "\n— " + quote.Author;
+                }
+                QuoteTextBlock.Text = quoteText;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"LoadQuoteOfTheDay error: {ex.Message}");
+                QuoteTextBlock.Text = "";
+            }
         }
 
         private void LoadCompanyLogo()
