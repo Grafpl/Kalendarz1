@@ -699,10 +699,12 @@
                                                             </ItemsControl.ItemsPanel>
                                                             <ItemsControl.ItemTemplate>
                                                                 <DataTemplate>
-                                                                    <Border Background="#1A2E35" CornerRadius="10" Padding="4,2" Margin="0,0,4,0">
+                                                                    <Border Background="#FFD54F" CornerRadius="12" Padding="6,3" Margin="0,0,4,0"
+                                                                            BorderBrush="#FFC107" BorderThickness="1">
                                                                         <StackPanel Orientation="Horizontal">
-                                                                            <TextBlock Text="{Binding Emoji}" FontSize="12"/>
-                                                                            <TextBlock Text="{Binding Count}" Foreground="#8696A0" FontSize="10" Margin="2,0,0,0"
+                                                                            <TextBlock Text="{Binding Emoji}" FontSize="14"/>
+                                                                            <TextBlock Text="{Binding Count}" Foreground="#5D4037" FontSize="11"
+                                                                                       FontWeight="SemiBold" Margin="3,0,0,0"
                                                                                        Visibility="{Binding ShowCount, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                                                         </StackPanel>
                                                                     </Border>
@@ -804,10 +806,12 @@
                                                             </ItemsControl.ItemsPanel>
                                                             <ItemsControl.ItemTemplate>
                                                                 <DataTemplate>
-                                                                    <Border Background="#004D40" CornerRadius="10" Padding="4,2" Margin="0,0,4,0">
+                                                                    <Border Background="#FFD54F" CornerRadius="12" Padding="6,3" Margin="0,0,4,0"
+                                                                            BorderBrush="#FFC107" BorderThickness="1">
                                                                         <StackPanel Orientation="Horizontal">
-                                                                            <TextBlock Text="{Binding Emoji}" FontSize="12"/>
-                                                                            <TextBlock Text="{Binding Count}" Foreground="#7EBFAD" FontSize="10" Margin="2,0,0,0"
+                                                                            <TextBlock Text="{Binding Emoji}" FontSize="14"/>
+                                                                            <TextBlock Text="{Binding Count}" Foreground="#5D4037" FontSize="11"
+                                                                                       FontWeight="SemiBold" Margin="3,0,0,0"
                                                                                        Visibility="{Binding ShowCount, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                                                         </StackPanel>
                                                                     </Border>

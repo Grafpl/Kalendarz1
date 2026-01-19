@@ -411,6 +411,23 @@ namespace Kalendarz1.Komunikator.Views
 
                     var vm = new MessageViewModel(msg, _currentUserId);
 
+                    // Załaduj reakcje dla tej wiadomości
+                    var reactions = await _chatService.GetReactionsAsync(msg.Id);
+                    if (reactions != null && reactions.Any())
+                    {
+                        // Grupuj reakcje po emoji
+                        var grouped = reactions.GroupBy(r => r.Emoji);
+                        foreach (var group in grouped)
+                        {
+                            vm.Reactions.Add(new ReactionViewModel
+                            {
+                                Emoji = group.Key,
+                                Count = group.Count(),
+                                UserId = group.Any(r => r.UserId == _currentUserId) ? _currentUserId : group.First().UserId
+                            });
+                        }
+                    }
+
                     // Grupowanie - pokaż avatar tylko dla pierwszej wiadomości w grupie
                     if (previousVm != null &&
                         previousVm.SenderId == msg.SenderId &&
