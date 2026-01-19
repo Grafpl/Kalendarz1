@@ -2554,31 +2554,11 @@ namespace Kalendarz1
 
             try
             {
-<<<<<<< HEAD
-                // Pobierz aktualną kamerę
-                var camera = GetCurrentCamera();
-
-                // Endpoint zależny od jakości
-                string channel = cameraHdMode ? "101" : "102"; // 101=główny HD, 102=substream SD
-                string[] endpoints = new string[]
-                {
-                    $"http://{camera.IP}/ISAPI/Streaming/channels/{channel}/picture",
-                    $"http://{camera.IP}/ISAPI/Streaming/channels/1/picture",
-                    $"http://{camera.IP}/Streaming/channels/1/picture",
-                    $"http://{camera.IP}/cgi-bin/snapshot.cgi",
-                    $"http://{camera.IP}/snap.jpg"
-                };
-
-                using (var handler = new HttpClientHandler())
-                {
-                    handler.Credentials = new System.Net.NetworkCredential(camera.User, camera.Pass);
-=======
                 // Endpoint zależny od jakości - tylko jeden, bez pętli (szybciej!)
                 string channel = cameraHdMode ? "101" : "102"; // 101=główny HD, 102=substream SD
                 string url = $"http://{CAMERA_IP}/ISAPI/Streaming/channels/{channel}/picture";
 
                 var response = await CameraHttpClient.GetAsync(url);
->>>>>>> KameryPorier
 
                 if (response.IsSuccessStatusCode)
                 {
