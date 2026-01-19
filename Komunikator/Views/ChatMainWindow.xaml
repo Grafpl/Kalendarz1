@@ -25,6 +25,9 @@
         <SolidColorBrush x:Key="HoverBg" Color="#2A3942"/>
         <SolidColorBrush x:Key="SelectedBg" Color="#2A3942"/>
         <SolidColorBrush x:Key="RedBadge" Color="#EF4444"/>
+        <!-- Aliasy dla code-behind -->
+        <SolidColorBrush x:Key="OnlineBrush" Color="#25D366"/>
+        <SolidColorBrush x:Key="OfflineBrush" Color="#8696A0"/>
 
         <!-- Styl TextBox -->
         <Style x:Key="ChatInput" TargetType="TextBox">
