@@ -4832,6 +4832,13 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 return;
             }
 
+            // Ignoruj jeśli menu kontekstowe było niedawno zamknięte
+            // (zapobiega przypadkowemu drag & drop przy zamykaniu menu kliknięciem)
+            if ((DateTime.Now - _contextMenuClosedTime).TotalMilliseconds < CONTEXT_MENU_DRAG_BLOCK_MS)
+            {
+                return;
+            }
+
             var dg = sender as DataGrid;
             if (dg == null) return;
 
