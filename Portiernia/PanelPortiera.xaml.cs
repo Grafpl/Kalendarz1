@@ -2234,7 +2234,29 @@ namespace Kalendarz1
         private const string CAMERA_PASS = "terePacja12$";
         private DispatcherTimer cameraTimer;
         private bool cameraActive = false;
-        
+
+        // Współdzielony HttpClient dla kamery (wydajność!)
+        private static HttpClient _cameraHttpClient;
+        private static HttpClient CameraHttpClient
+        {
+            get
+            {
+                if (_cameraHttpClient == null)
+                {
+                    var handler = new HttpClientHandler
+                    {
+                        Credentials = new System.Net.NetworkCredential(CAMERA_USER, CAMERA_PASS),
+                        PreAuthenticate = true // Unika 401 przy każdym żądaniu
+                    };
+                    _cameraHttpClient = new HttpClient(handler)
+                    {
+                        Timeout = TimeSpan.FromSeconds(2) // Krótszy timeout
+                    };
+                }
+                return _cameraHttpClient;
+            }
+        }
+
         // Zoom i przesuwanie kamery
         private double currentZoom = 1.0;
         private Point cameraDragStart;
@@ -2503,67 +2525,43 @@ namespace Kalendarz1
 
             try
             {
-                // Endpoint zależny od jakości
+                // Endpoint zależny od jakości - tylko jeden, bez pętli (szybciej!)
                 string channel = cameraHdMode ? "101" : "102"; // 101=główny HD, 102=substream SD
-                string[] endpoints = new string[]
-                {
-                    $"http://{CAMERA_IP}/ISAPI/Streaming/channels/{channel}/picture",
-                    $"http://{CAMERA_IP}/ISAPI/Streaming/channels/1/picture",
-                    $"http://{CAMERA_IP}/Streaming/channels/1/picture",
-                    $"http://{CAMERA_IP}/cgi-bin/snapshot.cgi",
-                    $"http://{CAMERA_IP}/snap.jpg"
-                };
+                string url = $"http://{CAMERA_IP}/ISAPI/Streaming/channels/{channel}/picture";
 
-                using (var handler = new HttpClientHandler())
-                {
-                    handler.Credentials = new System.Net.NetworkCredential(CAMERA_USER, CAMERA_PASS);
+                var response = await CameraHttpClient.GetAsync(url);
 
-                    using (var client = new HttpClient(handler))
+                if (response.IsSuccessStatusCode)
+                {
+                    var imageData = await response.Content.ReadAsByteArrayAsync();
+
+                    if (imageData.Length > 2 && imageData[0] == 0xFF && imageData[1] == 0xD8)
                     {
-                        client.Timeout = TimeSpan.FromSeconds(5);
-
-                        foreach (var url in endpoints)
-                        {
-                            try
-                            {
-                                var response = await client.GetAsync(url);
-
-                                if (response.IsSuccessStatusCode)
-                                {
-                                    var imageData = await response.Content.ReadAsByteArrayAsync();
-
-                                    if (imageData.Length > 2 && imageData[0] == 0xFF && imageData[1] == 0xD8)
-                                    {
-                                        Dispatcher.Invoke(() =>
-                                        {
-                                            if (!cameraViewActive) return;
-
-                                            var bitmap = new BitmapImage();
-                                            using (var ms = new MemoryStream(imageData))
-                                            {
-                                                bitmap.BeginInit();
-                                                bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                                                bitmap.StreamSource = ms;
-                                                bitmap.EndInit();
-                                                bitmap.Freeze();
-                                            }
-                                            cameraViewImage.Source = bitmap;
-                                            cameraViewStatus.Text = "";
-                                            cameraFrameCount++;
-                                        });
-                                        return;
-                                    }
-                                }
-                            }
-                            catch { }
-                        }
-
                         Dispatcher.Invoke(() =>
                         {
-                            cameraViewStatus.Text = "Nie można połączyć z kamerą.";
+                            if (!cameraViewActive) return;
+
+                            var bitmap = new BitmapImage();
+                            using (var ms = new MemoryStream(imageData))
+                            {
+                                bitmap.BeginInit();
+                                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                                bitmap.StreamSource = ms;
+                                bitmap.EndInit();
+                                bitmap.Freeze();
+                            }
+                            cameraViewImage.Source = bitmap;
+                            cameraViewStatus.Text = "";
+                            cameraFrameCount++;
                         });
+                        return;
                     }
                 }
+
+                Dispatcher.Invoke(() =>
+                {
+                    cameraViewStatus.Text = "Nie można połączyć z kamerą.";
+                });
             }
             catch (Exception ex)
             {
@@ -2670,69 +2668,41 @@ namespace Kalendarz1
 
             try
             {
-                // Różne endpointy Hikvision - próbujemy po kolei
-                string[] endpoints = new string[]
+                // Używamy współdzielonego HttpClient i głównego endpointu
+                string url = $"http://{CAMERA_IP}/ISAPI/Streaming/channels/101/picture";
+                var response = await CameraHttpClient.GetAsync(url);
+
+                if (response.IsSuccessStatusCode)
                 {
-                    $"http://{CAMERA_IP}/ISAPI/Streaming/channels/101/picture",
-                    $"http://{CAMERA_IP}/ISAPI/Streaming/channels/1/picture",
-                    $"http://{CAMERA_IP}/Streaming/channels/1/picture",
-                    $"http://{CAMERA_IP}/cgi-bin/snapshot.cgi",
-                    $"http://{CAMERA_IP}/snap.jpg",
-                    $"http://{CAMERA_IP}/jpg/image.jpg",
-                    $"http://{CAMERA_IP}/onvif-http/snapshot?Profile_1"
-                };
-                
-                using (var handler = new HttpClientHandler())
-                {
-                    handler.Credentials = new System.Net.NetworkCredential(CAMERA_USER, CAMERA_PASS);
-                    
-                    using (var client = new HttpClient(handler))
+                    var imageData = await response.Content.ReadAsByteArrayAsync();
+
+                    // Sprawdź czy to rzeczywiście obraz (JPEG zaczyna się od FF D8)
+                    if (imageData.Length > 2 && imageData[0] == 0xFF && imageData[1] == 0xD8)
                     {
-                        client.Timeout = TimeSpan.FromSeconds(5);
-                        
-                        foreach (var url in endpoints)
-                        {
-                            try
-                            {
-                                var response = await client.GetAsync(url);
-                                
-                                if (response.IsSuccessStatusCode)
-                                {
-                                    var imageData = await response.Content.ReadAsByteArrayAsync();
-                                    
-                                    // Sprawdź czy to rzeczywiście obraz (JPEG zaczyna się od FF D8)
-                                    if (imageData.Length > 2 && imageData[0] == 0xFF && imageData[1] == 0xD8)
-                                    {
-                                        Dispatcher.Invoke(() =>
-                                        {
-                                            if (!cameraActive) return;
-                                            
-                                            var bitmap = new BitmapImage();
-                                            using (var ms = new MemoryStream(imageData))
-                                            {
-                                                bitmap.BeginInit();
-                                                bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                                                bitmap.StreamSource = ms;
-                                                bitmap.EndInit();
-                                                bitmap.Freeze();
-                                            }
-                                            cameraImage.Source = bitmap;
-                                            cameraStatus.Text = "";
-                                        });
-                                        return; // Sukces - wychodzimy
-                                    }
-                                }
-                            }
-                            catch { /* Próbuj następny endpoint */ }
-                        }
-                        
-                        // Żaden endpoint nie zadziałał
                         Dispatcher.Invoke(() =>
                         {
-                            cameraStatus.Text = "Nie można połączyć z kamerą.\nSprawdź IP i hasło.";
+                            if (!cameraActive) return;
+
+                            var bitmap = new BitmapImage();
+                            using (var ms = new MemoryStream(imageData))
+                            {
+                                bitmap.BeginInit();
+                                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                                bitmap.StreamSource = ms;
+                                bitmap.EndInit();
+                                bitmap.Freeze();
+                            }
+                            cameraImage.Source = bitmap;
+                            cameraStatus.Text = "";
                         });
+                        return;
                     }
                 }
+
+                Dispatcher.Invoke(() =>
+                {
+                    cameraStatus.Text = "Nie można połączyć z kamerą.";
+                });
             }
             catch (Exception ex)
             {
@@ -3770,31 +3740,22 @@ namespace Kalendarz1
         {
             try
             {
-                string endpoint = $"http://{CAMERA_IP}/ISAPI/Streaming/channels/102/picture"; // SD dla PiP
+                string url = $"http://{CAMERA_IP}/ISAPI/Streaming/channels/102/picture"; // SD dla PiP
+                var response = await CameraHttpClient.GetAsync(url);
 
-                using (var handler = new HttpClientHandler())
+                if (response.IsSuccessStatusCode)
                 {
-                    handler.Credentials = new System.Net.NetworkCredential(CAMERA_USER, CAMERA_PASS);
-                    using (var client = new HttpClient(handler))
+                    var data = await response.Content.ReadAsByteArrayAsync();
+                    var bitmap = new BitmapImage();
+                    using (var ms = new MemoryStream(data))
                     {
-                        client.Timeout = TimeSpan.FromSeconds(3);
-                        var response = await client.GetAsync(endpoint);
-
-                        if (response.IsSuccessStatusCode)
-                        {
-                            var data = await response.Content.ReadAsByteArrayAsync();
-                            var bitmap = new BitmapImage();
-                            using (var ms = new MemoryStream(data))
-                            {
-                                bitmap.BeginInit();
-                                bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                                bitmap.StreamSource = ms;
-                                bitmap.EndInit();
-                                bitmap.Freeze();
-                            }
-                            pipCameraImage.Source = bitmap;
-                        }
+                        bitmap.BeginInit();
+                        bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                        bitmap.StreamSource = ms;
+                        bitmap.EndInit();
+                        bitmap.Freeze();
                     }
+                    pipCameraImage.Source = bitmap;
                 }
             }
             catch { /* Ignoruj błędy - PiP jest opcjonalne */ }
