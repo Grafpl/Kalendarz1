@@ -8,6 +8,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 using Microsoft.Data.SqlClient;
 
 namespace Kalendarz1.Services
@@ -494,6 +495,18 @@ namespace Kalendarz1.Services
                 var exportPath = _settings.LocalExportPath ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "IRZplus_Export");
                 if (!Directory.Exists(exportPath)) Directory.CreateDirectory(exportPath);
                 File.WriteAllText(Path.Combine(exportPath, $"debug_zurd_{DateTime.Now:yyyyMMdd_HHmmss}.json"), json);
+
+                // DEBUG: Pokaż JSON i zapytaj o potwierdzenie
+                var dialogResult = MessageBox.Show(
+                    json,
+                    "JSON do wysłania - Czy wysłać?",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (dialogResult != DialogResult.Yes)
+                {
+                    return new IRZplusResult { Success = false, Message = "Anulowano przez użytkownika" };
+                }
 
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 var url = _settings.UseTestEnvironment ? API_URL_TEST : API_URL_PROD;
