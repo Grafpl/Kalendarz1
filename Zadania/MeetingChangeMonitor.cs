@@ -89,10 +89,15 @@ namespace Kalendarz1.Zadania
             {
                 var currentMeetings = LoadMeetingsFromDatabase();
                 var changes = new List<MeetingChange>();
+                var now = DateTime.Now;
 
                 // Check for changes in existing meetings
                 foreach (var current in currentMeetings)
                 {
+                    // Pomijaj spotkania, które już minęły
+                    if (current.MeetingDate < now)
+                        continue;
+
                     if (cachedMeetings.TryGetValue(current.Id, out var cached))
                     {
                         // Check for time change
@@ -151,6 +156,10 @@ namespace Kalendarz1.Zadania
                     var currentIds = currentMeetings.Select(m => m.Id).ToHashSet();
                     foreach (var cached in cachedMeetings.Values)
                     {
+                        // Pomijaj spotkania, które już minęły
+                        if (cached.MeetingDate < now)
+                            continue;
+
                         if (!currentIds.Contains(cached.Id) && cached.Status != "Anulowane")
                         {
                             // Check if meeting still exists but user was removed
