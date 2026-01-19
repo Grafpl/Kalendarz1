@@ -123,6 +123,53 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Styl dla przycisków toolbara z animacją hover (jak w Specyfikacjach) -->
+        <Style x:Key="ToolbarButton" TargetType="Button">
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="Margin" Value="2,0"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Trigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                                 To="1.05" Duration="0:0:0.1"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                 To="1.05" Duration="0:0:0.1"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.EnterActions>
+                    <Trigger.ExitActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                                 To="1" Duration="0:0:0.1"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                 To="1" Duration="0:0:0.1"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.ExitActions>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="RenderTransform">
+                        <Setter.Value>
+                            <ScaleTransform ScaleX="0.95" ScaleY="0.95"/>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
 
     <Grid>
@@ -156,91 +203,79 @@
             </Grid>
         </Border>
 
-        <!-- Panel podsumowania -->
-        <Border Grid.Row="1" Background="White" Padding="20" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+        <!-- Toolbar z przyciskami akcji -->
+        <Border Grid.Row="1" Background="#ECEFF1" Padding="8,6" BorderBrush="#CFD8DC" BorderThickness="0,0,0,1" Margin="10,5,10,0">
+            <StackPanel Orientation="Horizontal">
+                <!-- Przyciski akcji po lewej stronie (styl jak w Specyfikacjach) -->
+                <Button Content="Zapisz dane IRZ" Click="BtnSaveIRZFields_Click"
+                        Style="{StaticResource ToolbarButton}" Background="#1976D2"
+                        ToolTip="Zapisz nr.dok.Arimr, przybycie i padniecia do bazy"/>
+                <Button Content="Zapisz lokalna kopie" Click="BtnSaveLocal_Click"
+                        Style="{StaticResource ToolbarButton}" Background="#F57C00"/>
+                <Button x:Name="btnExportDialog" Content="Eksport (XML/CSV)" Click="BtnExportDialog_Click"
+                        Style="{StaticResource ToolbarButton}" Background="#FF5722"
+                        ToolTip="Eksportuj dane do pliku XML lub CSV"/>
+                <Button x:Name="btnSend" Content="Wyslij do IRZplus" Click="BtnSend_Click"
+                        Style="{StaticResource ToolbarButton}" Background="#388E3C"/>
 
-                <StackPanel Grid.Column="0" Orientation="Horizontal">
-                    <StackPanel Margin="0,0,40,0">
-                        <TextBlock Text="Data uboju:" FontSize="12" Foreground="#757575"/>
-                        <TextBlock x:Name="txtDataUboju" Text="-" FontSize="18" FontWeight="Bold" Foreground="#1976D2"/>
-                    </StackPanel>
-                    <StackPanel Margin="0,0,40,0">
-                        <TextBlock Text="Liczba dostawcow:" FontSize="12" Foreground="#757575"/>
-                        <TextBlock x:Name="txtLiczbaDostawcow" Text="0" FontSize="18" FontWeight="Bold" Foreground="#424242"/>
-                    </StackPanel>
-                    <StackPanel Margin="0,0,40,0">
-                        <TextBlock Text="Suma sztuk:" FontSize="12" Foreground="#757575"/>
-                        <TextBlock x:Name="txtSumaSztuk" Text="0" FontSize="18" FontWeight="Bold" Foreground="#424242"/>
-                    </StackPanel>
-                    <StackPanel Margin="0,0,40,0">
-                        <TextBlock Text="Suma wagi netto:" FontSize="12" Foreground="#757575"/>
-                        <TextBlock x:Name="txtSumaWagi" Text="0 kg" FontSize="18" FontWeight="Bold" Foreground="#424242"/>
-                    </StackPanel>
-                    <StackPanel Margin="0,0,40,0">
-                        <TextBlock Text="Suma padlych:" FontSize="12" Foreground="#757575"/>
-                        <TextBlock x:Name="txtSumaPadlych" Text="0" FontSize="18" FontWeight="Bold" Foreground="#D32F2F"/>
-                    </StackPanel>
-                    <StackPanel Margin="0,0,40,0">
-                        <TextBlock Text="KG Do zapl.:" FontSize="12" Foreground="#757575"/>
-                        <TextBlock x:Name="txtSumaKgDoZapl" Text="0 kg" FontSize="18" FontWeight="Bold" Foreground="#1976D2"/>
-                    </StackPanel>
-                    <StackPanel Margin="0,0,40,0">
-                        <TextBlock Text="KG Konfiskat:" FontSize="12" Foreground="#757575"/>
-                        <TextBlock x:Name="txtSumaKgKonfiskat" Text="0 kg" FontSize="18" FontWeight="Bold" Foreground="#FF9800"/>
-                    </StackPanel>
-                    <StackPanel>
-                        <TextBlock Text="KG Padlych:" FontSize="12" Foreground="#757575"/>
-                        <TextBlock x:Name="txtSumaKgPadlych" Text="0 kg" FontSize="18" FontWeight="Bold" Foreground="#D32F2F"/>
-                    </StackPanel>
-                </StackPanel>
+                <Border Width="1" Background="#B0BEC5" Margin="8,2"/>
 
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button Content="Zaznacz wszystkie" Click="BtnSelectAll_Click" Style="{StaticResource SecondaryButtonStyle}"/>
-                    <Button Content="Odznacz wszystkie" Click="BtnDeselectAll_Click" Style="{StaticResource SecondaryButtonStyle}"/>
-                    <Button Content="Odswiez" Click="BtnRefresh_Click" Style="{StaticResource PrimaryButtonStyle}"/>
-                </StackPanel>
-            </Grid>
+                <Button Content="Zaznacz wszystkie" Click="BtnSelectAll_Click"
+                        Style="{StaticResource ToolbarButton}" Background="#607D8B"/>
+                <Button Content="Odznacz wszystkie" Click="BtnDeselectAll_Click"
+                        Style="{StaticResource ToolbarButton}" Background="#607D8B"/>
+                <Button Content="Odswiez" Click="BtnRefresh_Click"
+                        Style="{StaticResource ToolbarButton}" Background="#2196F3"/>
+
+                <Border Width="1" Background="#B0BEC5" Margin="8,2"/>
+
+                <Button Content="Anuluj" Click="BtnCancel_Click"
+                        Style="{StaticResource ToolbarButton}" Background="#757575"/>
+            </StackPanel>
         </Border>
 
         <!-- DataGrid ze specyfikacjami -->
-        <DataGrid x:Name="dgSpecyfikacje" Grid.Row="2"
+        <Border Grid.Row="2" BorderBrush="Black" BorderThickness="2" Margin="10">
+        <DataGrid x:Name="dgSpecyfikacje"
                   AutoGenerateColumns="False"
                   IsReadOnly="False"
                   SelectionMode="Extended"
                   SelectionUnit="FullRow"
                   CanUserSortColumns="True"
-                  GridLinesVisibility="Horizontal"
-                  AlternatingRowBackground="#FAFAFA"
+                  GridLinesVisibility="All"
+                  HorizontalGridLinesBrush="Black"
+                  VerticalGridLinesBrush="Black"
+                  AlternatingRowBackground="#F5F5F5"
                   RowBackground="White"
-                  BorderBrush="#E0E0E0"
                   BorderThickness="0"
-                  Margin="10">
+                  FontSize="12"
+                  RowHeight="28"
+                  ColumnHeaderHeight="32">
 
             <DataGrid.ColumnHeaderStyle>
                 <Style TargetType="DataGridColumnHeader">
-                    <Setter Property="Background" Value="#ECEFF1"/>
-                    <Setter Property="Foreground" Value="#37474F"/>
-                    <Setter Property="FontWeight" Value="SemiBold"/>
-                    <Setter Property="Padding" Value="10,8"/>
-                    <Setter Property="BorderBrush" Value="#CFD8DC"/>
+                    <Setter Property="Background" Value="#37474F"/>
+                    <Setter Property="Foreground" Value="White"/>
+                    <Setter Property="FontWeight" Value="Bold"/>
+                    <Setter Property="FontSize" Value="11"/>
+                    <Setter Property="Padding" Value="6,4"/>
+                    <Setter Property="BorderBrush" Value="Black"/>
                     <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                    <Setter Property="HorizontalContentAlignment" Value="Center"/>
                 </Style>
             </DataGrid.ColumnHeaderStyle>
 
             <DataGrid.CellStyle>
                 <Style TargetType="DataGridCell">
-                    <Setter Property="Padding" Value="8,6"/>
-                    <Setter Property="BorderThickness" Value="0"/>
+                    <Setter Property="Padding" Value="4,2"/>
+                    <Setter Property="BorderBrush" Value="Black"/>
+                    <Setter Property="BorderThickness" Value="0,0,1,0"/>
                     <Setter Property="Template">
                         <Setter.Value>
                             <ControlTemplate TargetType="DataGridCell">
                                 <Border Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
                                         Padding="{TemplateBinding Padding}">
                                     <ContentPresenter VerticalAlignment="Center"/>
                                 </Border>
@@ -249,8 +284,8 @@
                     </Setter>
                     <Style.Triggers>
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter Property="Background" Value="#E3F2FD"/>
-                            <Setter Property="Foreground" Value="#1565C0"/>
+                            <Setter Property="Background" Value="#BBDEFB"/>
+                            <Setter Property="Foreground" Value="Black"/>
                         </Trigger>
                     </Style.Triggers>
                 </Style>
@@ -258,9 +293,9 @@
 
             <DataGrid.Columns>
                 <!-- Kolumna wyboru -->
-                <DataGridCheckBoxColumn Header="" Binding="{Binding Wybrana, UpdateSourceTrigger=PropertyChanged}" Width="35"/>
+                <DataGridCheckBoxColumn Header="" Binding="{Binding Wybrana, UpdateSourceTrigger=PropertyChanged}" Width="30"/>
                 <!-- A: Kolejnosc auta -->
-                <DataGridTextColumn Header="Nr" Binding="{Binding KolejnoscAuta}" Width="40" IsReadOnly="True">
+                <DataGridTextColumn Header="Nr" Binding="{Binding KolejnoscAuta}" Width="30" IsReadOnly="True">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="FontWeight" Value="Bold"/>
@@ -270,11 +305,11 @@
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
                 <!-- B: Hodowca -->
-                <DataGridTextColumn Header="Hodowca" Binding="{Binding Hodowca}" Width="160" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Hodowca" Binding="{Binding Hodowca}" Width="130" IsReadOnly="True"/>
                 <!-- C: Id na produkcji -->
-                <DataGridTextColumn Header="Id Hodowcy" Binding="{Binding IdHodowcy}" Width="80" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Id" Binding="{Binding IdHodowcy}" Width="45" IsReadOnly="True"/>
                 <!-- D: IRZ PLUS - edytowalne z mozliwoscia zapisu do bazy -->
-                <DataGridTemplateColumn Header="IRZ PLUS" Width="180">
+                <DataGridTemplateColumn Header="IRZ PLUS" Width="130">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Grid>
@@ -307,7 +342,7 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
                 <!-- E: Numer Partii z przyciskiem Kopiuj -->
-                <DataGridTemplateColumn Header="Numer Partii" Width="170" IsReadOnly="True">
+                <DataGridTemplateColumn Header="Numer Partii" Width="140" IsReadOnly="True">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Grid>
@@ -344,7 +379,7 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
                 <!-- F: Liczba Sztuk Drobiu (zdatne) -->
-                <DataGridTextColumn Header="Liczba Sztuk" Binding="{Binding LiczbaSztukDrobiu, StringFormat=N0}" Width="90" IsReadOnly="True">
+                <DataGridTextColumn Header="Szt" Binding="{Binding LiczbaSztukDrobiu, StringFormat=N0}" Width="60" IsReadOnly="True">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="FontWeight" Value="Bold"/>
@@ -353,7 +388,7 @@
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
                 <!-- KG Do zapl. (PayWgt) -->
-                <DataGridTextColumn Header="KG Do zapl." Binding="{Binding KgDoZaplaty, StringFormat=N0}" Width="90" IsReadOnly="True">
+                <DataGridTextColumn Header="KG" Binding="{Binding KgDoZaplaty, StringFormat=N0}" Width="70" IsReadOnly="True">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="FontWeight" Value="Bold"/>
@@ -362,8 +397,8 @@
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <!-- KG Konfiskat -->
-                <DataGridTextColumn Header="KG Konfi" Binding="{Binding KgKonfiskat, StringFormat=N0}" Width="80" IsReadOnly="True">
+                <!-- Szt Konfiskat -->
+                <DataGridTextColumn Header="Konf" Binding="{Binding KgKonfiskat, StringFormat=N0}" Width="45" IsReadOnly="True">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -371,8 +406,8 @@
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <!-- KG Padlych -->
-                <DataGridTextColumn Header="KG Padl." Binding="{Binding KgPadlych, StringFormat=N0}" Width="80" IsReadOnly="True">
+                <!-- Szt Padlych -->
+                <DataGridTextColumn Header="Padl" Binding="{Binding KgPadlych, StringFormat=N0}" Width="45" IsReadOnly="True">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -381,13 +416,13 @@
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
                 <!-- G: Typ Zdarzenia -->
-                <DataGridTextColumn Header="Typ Zdarzenia" Binding="{Binding TypZdarzenia}" Width="170" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Typ Zdarzenia" Binding="{Binding TypZdarzenia}" Width="140" IsReadOnly="True"/>
                 <!-- H: Data zdarzenia -->
-                <DataGridTextColumn Header="Data Zdarzenia" Binding="{Binding DataZdarzenia, StringFormat='{}{0:dd-MM-yyyy}'}" Width="100" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Data" Binding="{Binding DataZdarzenia, StringFormat='{}{0:dd-MM-yyyy}'}" Width="80" IsReadOnly="True"/>
                 <!-- I: Kraj Wywozu -->
-                <DataGridTextColumn Header="Kraj" Binding="{Binding KrajWywozu}" Width="50" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Kraj" Binding="{Binding KrajWywozu}" Width="40" IsReadOnly="True"/>
                 <!-- J: Przyjete z dzialalnosci (obliczane) -->
-                <DataGridTextColumn Header="Przyjete z dzialalnosci" Binding="{Binding PrzyjetaZDzialalnosci}" Width="160" IsReadOnly="True">
+                <DataGridTextColumn Header="Przyjete z dzial." Binding="{Binding PrzyjetaZDzialalnosci}" Width="120" IsReadOnly="True">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="Foreground" Value="#388E3C"/>
@@ -395,13 +430,14 @@
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
                 <!-- K: nr.dok.Arimr (edytowalne) -->
-                <DataGridTextColumn Header="nr.dok.Arimr" Binding="{Binding NrDokArimr, UpdateSourceTrigger=PropertyChanged}" Width="120"/>
+                <DataGridTextColumn Header="nr.dok.Arimr" Binding="{Binding NrDokArimr, UpdateSourceTrigger=PropertyChanged}" Width="100"/>
                 <!-- L: przybycie (edytowalne) -->
-                <DataGridTextColumn Header="przybycie" Binding="{Binding Przybycie, UpdateSourceTrigger=PropertyChanged}" Width="120"/>
+                <DataGridTextColumn Header="przybycie" Binding="{Binding Przybycie, UpdateSourceTrigger=PropertyChanged}" Width="80"/>
                 <!-- M: padniecia (edytowalne) -->
-                <DataGridTextColumn Header="padniecia" Binding="{Binding Padniecia, UpdateSourceTrigger=PropertyChanged}" Width="120"/>
+                <DataGridTextColumn Header="padniecia" Binding="{Binding Padniecia, UpdateSourceTrigger=PropertyChanged}" Width="80"/>
             </DataGrid.Columns>
         </DataGrid>
+        </Border>
 
         <!-- Panel walidacji/ostrzezen -->
         <Border x:Name="borderWarnings" Grid.Row="3" Background="#FFF3E0" Padding="15" Margin="10,0,10,10"
@@ -412,27 +448,53 @@
             </StackPanel>
         </Border>
 
-        <!-- Panel akcji -->
-        <Border Grid.Row="4" Background="#ECEFF1" Padding="20,15">
+        <!-- Panel statusu i podsumowania (sumy na dole) -->
+        <Border Grid.Row="4" Background="#ECEFF1" Padding="8,5" BorderBrush="#B0BEC5" BorderThickness="0,1,0,0">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock x:Name="txtStatus" Text="Gotowe do wyslania" VerticalAlignment="Center" FontSize="14" Foreground="#616161"/>
-                    <ProgressBar x:Name="progressBar" Width="200" Height="20" Margin="20,0,0,0" Visibility="Collapsed"/>
+                <!-- Status i progress bar -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock x:Name="txtStatus" Text="Gotowe do wyslania" VerticalAlignment="Center" FontSize="12" Foreground="#616161"/>
+                    <ProgressBar x:Name="progressBar" Width="150" Height="16" Margin="15,0,0,0" Visibility="Collapsed"/>
                 </StackPanel>
 
-                <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <Button Content="Zapisz dane IRZ" Click="BtnSaveIRZFields_Click" Style="{StaticResource PrimaryButtonStyle}" ToolTip="Zapisz nr.dok.Arimr, przybycie i padniecia do bazy"/>
-                    <Button Content="Zapisz lokalna kopie" Click="BtnSaveLocal_Click" Style="{StaticResource WarningButtonStyle}"/>
-                    <Button x:Name="btnExportDialog" Content="Eksport do pliku (XML/CSV)" Click="BtnExportDialog_Click" Style="{StaticResource WarningButtonStyle}" ToolTip="Eksportuj dane do pliku XML lub CSV - do recznego importu w portalu IRZplus gdy API nie dziala"/>
-                    <Button x:Name="btnSend" Content="Wyslij do IRZplus" Click="BtnSend_Click" Style="{StaticResource SendButtonStyle}"/>
-                    <Button Content="Anuluj" Click="BtnCancel_Click" Style="{StaticResource SecondaryButtonStyle}"/>
+                <Border Grid.Column="1" Width="1" Background="#B0BEC5" Margin="15,2"/>
+
+                <!-- Podsumowania (sumy) w kompaktowej formie -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Data:" FontSize="10" Foreground="#757575" VerticalAlignment="Center" Margin="0,0,3,0"/>
+                    <TextBlock x:Name="txtDataUboju" Text="-" FontSize="12" FontWeight="Bold" Foreground="#1976D2" VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                    <TextBlock Text="Dostawcy:" FontSize="10" Foreground="#757575" VerticalAlignment="Center" Margin="0,0,3,0"/>
+                    <TextBlock x:Name="txtLiczbaDostawcow" Text="0" FontSize="12" FontWeight="Bold" Foreground="#424242" VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                    <TextBlock Text="Szt:" FontSize="10" Foreground="#757575" VerticalAlignment="Center" Margin="0,0,3,0"/>
+                    <TextBlock x:Name="txtSumaSztuk" Text="0" FontSize="12" FontWeight="Bold" Foreground="#424242" VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                    <TextBlock Text="Waga:" FontSize="10" Foreground="#757575" VerticalAlignment="Center" Margin="0,0,3,0"/>
+                    <TextBlock x:Name="txtSumaWagi" Text="0 kg" FontSize="12" FontWeight="Bold" Foreground="#424242" VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                    <TextBlock Text="Padle:" FontSize="10" Foreground="#757575" VerticalAlignment="Center" Margin="0,0,3,0"/>
+                    <TextBlock x:Name="txtSumaPadlych" Text="0" FontSize="12" FontWeight="Bold" Foreground="#D32F2F" VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                    <TextBlock Text="KG zapl:" FontSize="10" Foreground="#757575" VerticalAlignment="Center" Margin="0,0,3,0"/>
+                    <TextBlock x:Name="txtSumaKgDoZapl" Text="0" FontSize="12" FontWeight="Bold" Foreground="#1976D2" VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                    <TextBlock Text="Konfi:" FontSize="10" Foreground="#757575" VerticalAlignment="Center" Margin="0,0,3,0"/>
+                    <TextBlock x:Name="txtSumaKgKonfiskat" Text="0" FontSize="12" FontWeight="Bold" Foreground="#FF9800" VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                    <TextBlock Text="Padle szt:" FontSize="10" Foreground="#757575" VerticalAlignment="Center" Margin="0,0,3,0"/>
+                    <TextBlock x:Name="txtSumaKgPadlych" Text="0" FontSize="12" FontWeight="Bold" Foreground="#D32F2F" VerticalAlignment="Center"/>
                 </StackPanel>
             </Grid>
         </Border>
+
+        <!-- Konfetti Canvas (overlay na calym oknie) -->
+        <Canvas x:Name="confettiCanvas" Grid.Row="0" Grid.RowSpan="5" IsHitTestVisible="False"/>
     </Grid>
 </Window>
