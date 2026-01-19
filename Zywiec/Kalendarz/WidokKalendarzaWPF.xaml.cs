@@ -1347,11 +1347,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
             _weekMapOffset = 0;
             GenerateWeekMap();
 
-            // Fade in bez slide
-            var fadeAnimation = new DoubleAnimation(0.5, 1, TimeSpan.FromMilliseconds(300));
-            dgDostawy.BeginAnimation(OpacityProperty, fadeAnimation);
-            if (chkNastepnyTydzien?.IsChecked == true)
-                dgDostawyNastepny.BeginAnimation(OpacityProperty, fadeAnimation);
+            // Bez animacji - szybkie przełączenie
             await LoadDostawyAsync();
         }
 
@@ -1362,52 +1358,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
         /// </summary>
         private async Task AnimateWeekTransition(bool isNextWeek)
         {
-            bool showSecondTable = chkNastepnyTydzien?.IsChecked == true;
-
-            // Upewnij się, że transformacje są ustawione
-            EnsureTransformsInitialized();
-
-            // FAZA 1: Animacja wyjścia
-            var slideOutKey = isNextWeek ? "WeekSlideOutLeftAnimation" : "WeekSlideOutRightAnimation";
-            var slideOutStoryboard = (Storyboard)FindResource(slideOutKey);
-
-            // Klonuj storyboard dla każdej tabeli
-            var slideOut1 = slideOutStoryboard.Clone();
-            Storyboard.SetTarget(slideOut1, dgDostawy);
-
-            // Rozpocznij animację wyjścia
-            var tcs = new System.Threading.Tasks.TaskCompletionSource<bool>();
-            slideOut1.Completed += (s, e) => tcs.TrySetResult(true);
-            slideOut1.Begin();
-
-            if (showSecondTable)
-            {
-                var slideOut2 = slideOutStoryboard.Clone();
-                Storyboard.SetTarget(slideOut2, dgDostawyNastepny);
-                slideOut2.Begin();
-            }
-
-            // Czekaj na zakończenie animacji wyjścia (350ms)
-            await tcs.Task;
-
-            // FAZA 2: Załaduj dane (podczas gdy elementy są niewidoczne)
+            // Bez animacji - szybkie przełączenie
             await LoadDostawyAsync();
-
-            // FAZA 3: Animacja wejścia z nowych danych
-            var slideInKey = isNextWeek ? "WeekSlideInFromRightAnimation" : "WeekSlideInFromLeftAnimation";
-            var slideInStoryboard = (Storyboard)FindResource(slideInKey);
-
-            // Klonuj storyboard dla każdej tabeli
-            var slideIn1 = slideInStoryboard.Clone();
-            Storyboard.SetTarget(slideIn1, dgDostawy);
-            slideIn1.Begin();
-
-            if (showSecondTable)
-            {
-                var slideIn2 = slideInStoryboard.Clone();
-                Storyboard.SetTarget(slideIn2, dgDostawyNastepny);
-                slideIn2.Begin();
-            }
         }
 
         /// <summary>
@@ -1776,10 +1728,11 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 _ = LoadDeliveryDetailsAsync(selected.LP);
                 _ = LoadNotatkiAsync(selected.LP);
 
-                // Aktualizuj nazwę hodowcy w sekcjach Notatki, Wstawienia i Dane dostawy
-                txtHodowcaNotatki.Text = selected.Dostawca ?? "";
-                txtHodowcaWstawienia.Text = selected.Dostawca ?? "";
-                txtHodowcaDaneDostawy.Text = selected.Dostawca ?? "";
+                // Aktualizuj nazwę hodowcy w sekcjach Notatki, Wstawienia i Dane dostawy (z LP)
+                string lpDostawca = $"{selected.LP} - {selected.Dostawca ?? ""}";
+                txtHodowcaNotatki.Text = lpDostawca;
+                txtHodowcaWstawienia.Text = lpDostawca;
+                txtHodowcaDaneDostawy.Text = lpDostawca;
 
                 if (!string.IsNullOrEmpty(selected.LpW))
                 {
@@ -1873,10 +1826,11 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 _ = LoadDeliveryDetailsAsync(selected.LP);
                 _ = LoadNotatkiAsync(selected.LP);
 
-                // Aktualizuj nazwę hodowcy w sekcjach Notatki, Wstawienia i Dane dostawy
-                txtHodowcaNotatki.Text = selected.Dostawca ?? "";
-                txtHodowcaWstawienia.Text = selected.Dostawca ?? "";
-                txtHodowcaDaneDostawy.Text = selected.Dostawca ?? "";
+                // Aktualizuj nazwę hodowcy w sekcjach Notatki, Wstawienia i Dane dostawy (z LP)
+                string lpDostawca = $"{selected.LP} - {selected.Dostawca ?? ""}";
+                txtHodowcaNotatki.Text = lpDostawca;
+                txtHodowcaWstawienia.Text = lpDostawca;
+                txtHodowcaDaneDostawy.Text = lpDostawca;
 
                 if (!string.IsNullOrEmpty(selected.LpW))
                 {
@@ -4239,12 +4193,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         cmd.Parameters.AddWithValue("@Dostawca", cmbDostawca.SelectedItem ?? (object)DBNull.Value);
                         cmd.Parameters.AddWithValue("@Auta", int.TryParse(txtAuta.Text, out int a) ? a : (object)DBNull.Value);
                         cmd.Parameters.AddWithValue("@SztukiDek", int.TryParse(txtSztuki.Text, out int s) ? s : (object)DBNull.Value);
-                        cmd.Parameters.AddWithValue("@WagaDek", decimal.TryParse(txtWagaDek.Text.Replace(",", "."), out decimal w) ? w : (object)DBNull.Value);
+                        cmd.Parameters.AddWithValue("@WagaDek", decimal.TryParse(txtWagaDek.Text.Replace(",", "."), System.Globalization.NumberStyles.Any, CultureInfo.InvariantCulture, out decimal w) ? w : (object)DBNull.Value);
                         cmd.Parameters.AddWithValue("@SztSzuflada", int.TryParse(txtSztNaSzuflade.Text, out int sz) ? sz : (object)DBNull.Value);
                         cmd.Parameters.AddWithValue("@TypUmowy", cmbTypUmowy.SelectedItem ?? (object)DBNull.Value);
                         cmd.Parameters.AddWithValue("@TypCeny", cmbTypCeny.SelectedItem ?? (object)DBNull.Value);
-                        cmd.Parameters.AddWithValue("@Cena", decimal.TryParse(txtCena.Text.Replace(",", "."), out decimal c) ? c : (object)DBNull.Value);
-                        cmd.Parameters.AddWithValue("@Dodatek", decimal.TryParse(txtDodatek.Text.Replace(",", "."), out decimal d) ? d : (object)DBNull.Value);
+                        cmd.Parameters.AddWithValue("@Cena", decimal.TryParse(txtCena.Text.Replace(",", "."), System.Globalization.NumberStyles.Any, CultureInfo.InvariantCulture, out decimal c) ? c : (object)DBNull.Value);
+                        cmd.Parameters.AddWithValue("@Dodatek", decimal.TryParse(txtDodatek.Text.Replace(",", "."), System.Globalization.NumberStyles.Any, CultureInfo.InvariantCulture, out decimal d) ? d : (object)DBNull.Value);
                         cmd.Parameters.AddWithValue("@Bufor", cmbStatus.SelectedItem ?? (object)DBNull.Value);
                         cmd.Parameters.AddWithValue("@DataMod", DateTime.Now);
                         cmd.Parameters.AddWithValue("@KtoMod", UserID ?? (object)DBNull.Value);
@@ -4419,6 +4373,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
             {
                 int wyliczone = sztNaSzuflade * 264; // 264 szuflady w aucie
                 txtWyliczone.Text = wyliczone.ToString();
+
+                // Aktualizuj też sztuki jeśli jest podana ilość aut
+                if (int.TryParse(txtObliczoneAuta.Text, out int auta))
+                {
+                    txtObliczoneSztuki.Text = (wyliczone * auta).ToString();
+                }
             }
         }
 
