@@ -88,6 +88,43 @@ namespace Kalendarz1
         }
 
         /// <summary>
+        /// Zwraca ścieżkę do zapisania avatara na serwerze sieciowym
+        /// </summary>
+        private static string GetNetworkSavePath(string userId)
+        {
+            string[] networkPaths = { NetworkAvatarsPath1, NetworkAvatarsPath2 };
+
+            foreach (var networkPath in networkPaths)
+            {
+                try
+                {
+                    if (!Directory.Exists(networkPath))
+                    {
+                        // Spróbuj utworzyć folder
+                        try
+                        {
+                            Directory.CreateDirectory(networkPath);
+                        }
+                        catch
+                        {
+                            continue;
+                        }
+                    }
+
+                    // Sprawdź czy mamy uprawnienia do zapisu
+                    string testPath = Path.Combine(networkPath, $"{userId}.png");
+                    return testPath;
+                }
+                catch
+                {
+                    continue;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Pobiera avatar użytkownika jako Image (null jeśli nie istnieje)
         /// Zawsze pobiera z serwera sieciowego
         /// </summary>
@@ -130,64 +167,78 @@ namespace Kalendarz1
 
         /// <summary>
         /// Zapisuje avatar dla użytkownika (przeskalowuje do 128x128)
+        /// Zapisuje na serwer sieciowy
         /// </summary>
         public static bool SaveAvatar(string userId, string sourceImagePath)
         {
             try
             {
-                EnsureAvatarsFolderExists();
-
                 using (var originalImage = Image.FromFile(sourceImagePath))
                 {
                     // Przeskaluj do 128x128 (kwadratowy)
                     var resized = ResizeAndCropToSquare(originalImage, 128);
 
-                    string targetPath = GetAvatarPath(userId);
-                    resized.Save(targetPath, ImageFormat.Png);
-                    resized.Dispose();
-                }
+                    // Zapisz na serwerze sieciowym
+                    string networkTargetPath = GetNetworkSavePath(userId);
+                    if (networkTargetPath != null)
+                    {
+                        resized.Save(networkTargetPath, ImageFormat.Png);
+                        resized.Dispose();
+                        return true;
+                    }
 
-                return true;
+                    resized.Dispose();
+                    return false;
+                }
             }
-            catch
+            catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"Błąd zapisywania avatara: {ex.Message}");
                 return false;
             }
         }
 
         /// <summary>
         /// Zapisuje avatar z Image
+        /// Zapisuje na serwer sieciowy
         /// </summary>
         public static bool SaveAvatar(string userId, Image image)
         {
             try
             {
-                EnsureAvatarsFolderExists();
-
                 var resized = ResizeAndCropToSquare(image, 128);
-                string targetPath = GetAvatarPath(userId);
-                resized.Save(targetPath, ImageFormat.Png);
-                resized.Dispose();
 
-                return true;
+                // Zapisz na serwerze sieciowym
+                string networkTargetPath = GetNetworkSavePath(userId);
+                if (networkTargetPath != null)
+                {
+                    resized.Save(networkTargetPath, ImageFormat.Png);
+                    resized.Dispose();
+                    return true;
+                }
+
+                resized.Dispose();
+                return false;
             }
-            catch
+            catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"Błąd zapisywania avatara: {ex.Message}");
                 return false;
             }
         }
 
         /// <summary>
-        /// Usuwa avatar użytkownika
+        /// Usuwa avatar użytkownika z serwera sieciowego
         /// </summary>
         public static bool DeleteAvatar(string userId)
         {
             try
             {
-                string path = GetAvatarPath(userId);
-                if (File.Exists(path))
+                // Usuń z serwera sieciowego
+                string networkPath = GetNetworkAvatarPath(userId);
+                if (networkPath != null && File.Exists(networkPath))
                 {
-                    File.Delete(path);
+                    File.Delete(networkPath);
                 }
                 return true;
             }
