@@ -300,37 +300,114 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Grid Margin="0,4">
+                                <Grid>
+                                    <!-- Separator daty -->
+                                    <Border HorizontalAlignment="Center" Margin="0,16"
+                                            Visibility="{Binding IsDateSeparator, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <Border Background="#1F2C33" CornerRadius="8" Padding="14,6">
+                                            <TextBlock Text="{Binding DateText}" Foreground="{StaticResource TextGray}"
+                                                       FontSize="12" FontWeight="Medium"/>
+                                        </Border>
+                                    </Border>
+
                                     <!-- Wiadomość od innych (z avatarem po lewej) -->
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left"
-                                                Visibility="{Binding IsFromMe, Converter={StaticResource InverseBoolToVisibilityConverter}}">
-                                        <Grid Width="36" Height="36" Margin="0,0,10,0" VerticalAlignment="Bottom">
+                                    <Grid HorizontalAlignment="Left"
+                                          Visibility="{Binding IsFromMe, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                                        <Grid.Style>
+                                            <Style TargetType="Grid">
+                                                <Setter Property="Margin" Value="0,1"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsDateSeparator}" Value="True">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding IsFirstInGroup}" Value="True">
+                                                        <Setter Property="Margin" Value="0,8,0,1"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Grid.Style>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="46"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Avatar (tylko gdy ShowAvatar=true) -->
+                                        <Grid Width="36" Height="36" VerticalAlignment="Bottom" Margin="0,0,10,0"
+                                              Visibility="{Binding ShowAvatar, Converter={StaticResource BoolToVisibilityConverter}}">
                                             <Ellipse>
                                                 <Ellipse.Fill>
                                                     <ImageBrush ImageSource="{Binding SenderAvatar}" Stretch="UniformToFill"/>
                                                 </Ellipse.Fill>
                                             </Ellipse>
                                         </Grid>
-                                        <Border MaxWidth="500" Background="{StaticResource OtherMsgBg}" CornerRadius="0,12,12,12" Padding="14,10">
+
+                                        <Border Grid.Column="1" MaxWidth="500" Background="{StaticResource OtherMsgBg}" Padding="12,8">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="CornerRadius" Value="4,12,12,4"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsFirstInGroup}" Value="True">
+                                                            <Setter Property="CornerRadius" Value="0,12,12,4"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding IsLastInGroup}" Value="True">
+                                                            <Setter Property="CornerRadius" Value="4,12,12,12"/>
+                                                        </DataTrigger>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding IsFirstInGroup}" Value="True"/>
+                                                                <Condition Binding="{Binding IsLastInGroup}" Value="True"/>
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="CornerRadius" Value="0,12,12,12"/>
+                                                        </MultiDataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
                                             <StackPanel>
+                                                <!-- Imię nadawcy tylko dla pierwszej wiadomości w grupie -->
                                                 <TextBlock Text="{Binding SenderName}" Foreground="{StaticResource GreenAccent}"
-                                                           FontSize="13" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                                           FontSize="13" FontWeight="SemiBold" Margin="0,0,0,4"
+                                                           Visibility="{Binding IsFirstInGroup, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                                 <TextBlock Text="{Binding Content}" Foreground="{StaticResource TextWhite}"
                                                            FontSize="15" TextWrapping="Wrap" LineHeight="22"/>
                                                 <TextBlock Text="{Binding FormattedTime}" Foreground="{StaticResource TextGray}"
-                                                           FontSize="11" HorizontalAlignment="Right" Margin="0,6,0,0"/>
+                                                           FontSize="11" HorizontalAlignment="Right" Margin="0,4,0,0"/>
                                             </StackPanel>
                                         </Border>
-                                    </StackPanel>
+                                    </Grid>
 
                                     <!-- Moja wiadomość (po prawej) -->
                                     <Border HorizontalAlignment="Right" MaxWidth="500"
-                                            Background="{StaticResource MyMsgBg}" CornerRadius="12,12,0,12" Padding="14,10"
-                                            Visibility="{Binding IsFromMe, Converter={StaticResource BoolToVisibilityConverter}}">
+                                            Background="{StaticResource MyMsgBg}" Padding="12,8">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Visibility" Value="{Binding IsFromMe, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                                <Setter Property="Margin" Value="0,1"/>
+                                                <Setter Property="CornerRadius" Value="12,4,4,12"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsDateSeparator}" Value="True">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding IsFirstInGroup}" Value="True">
+                                                        <Setter Property="Margin" Value="0,8,0,1"/>
+                                                        <Setter Property="CornerRadius" Value="12,0,4,12"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding IsLastInGroup}" Value="True">
+                                                        <Setter Property="CornerRadius" Value="12,4,12,12"/>
+                                                    </DataTrigger>
+                                                    <MultiDataTrigger>
+                                                        <MultiDataTrigger.Conditions>
+                                                            <Condition Binding="{Binding IsFirstInGroup}" Value="True"/>
+                                                            <Condition Binding="{Binding IsLastInGroup}" Value="True"/>
+                                                        </MultiDataTrigger.Conditions>
+                                                        <Setter Property="CornerRadius" Value="12,0,12,12"/>
+                                                    </MultiDataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
                                         <StackPanel>
                                             <TextBlock Text="{Binding Content}" Foreground="{StaticResource TextWhite}"
                                                        FontSize="15" TextWrapping="Wrap" LineHeight="22"/>
-                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,6,0,0">
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0">
                                                 <TextBlock Text="{Binding FormattedTime}" Foreground="#8CCCBF" FontSize="11"/>
                                                 <TextBlock Text="{Binding ReadStatus}" Margin="6,0,0,0" Foreground="#8CCCBF" FontSize="11"/>
                                             </StackPanel>

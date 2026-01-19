@@ -273,9 +273,40 @@ namespace Kalendarz1.Komunikator.Views
                 var messages = await _chatService.GetConversationAsync(otherUserId);
 
                 _messages.Clear();
+
+                MessageViewModel previousVm = null;
+                DateTime? lastDate = null;
+
                 foreach (var msg in messages)
                 {
-                    _messages.Add(new MessageViewModel(msg, _currentUserId));
+                    // Dodaj separator daty jeśli nowy dzień
+                    if (lastDate == null || msg.SentAt.Date != lastDate.Value.Date)
+                    {
+                        _messages.Add(new MessageViewModel(msg.SentAt.Date, true));
+                        lastDate = msg.SentAt.Date;
+                    }
+
+                    var vm = new MessageViewModel(msg, _currentUserId);
+
+                    // Grupowanie - pokaż avatar tylko dla pierwszej wiadomości w grupie
+                    if (previousVm != null &&
+                        previousVm.SenderId == msg.SenderId &&
+                        !previousVm.IsDateSeparator &&
+                        (msg.SentAt - previousVm.SentAt).TotalMinutes < 5)
+                    {
+                        vm.ShowAvatar = false;
+                        vm.IsFirstInGroup = false;
+                        previousVm.IsLastInGroup = false;
+                    }
+                    else
+                    {
+                        vm.ShowAvatar = !vm.IsFromMe;
+                        vm.IsFirstInGroup = true;
+                    }
+
+                    vm.IsLastInGroup = true;
+                    _messages.Add(vm);
+                    previousVm = vm;
                 }
 
                 // Przewiń na dół
@@ -423,15 +454,43 @@ namespace Kalendarz1.Komunikator.Views
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 
-    public class MessageViewModel
+    public class MessageViewModel : INotifyPropertyChanged
     {
         public string Content { get; set; }
         public string FormattedTime { get; set; }
         public bool IsFromMe { get; set; }
         public string ReadStatus { get; set; }
         public string SenderName { get; set; }
+        public string SenderId { get; set; }
+        public DateTime SentAt { get; set; }
         public BitmapSource SenderAvatar { get; set; }
 
+        // Grupowanie wiadomości
+        public bool ShowAvatar { get; set; } = true;
+        public bool IsFirstInGroup { get; set; } = true;
+        public bool IsLastInGroup { get; set; } = true;
+
+        // Separator daty
+        public bool IsDateSeparator { get; set; }
+        public string DateText { get; set; }
+
+        // Konstruktor dla separatora daty
+        public MessageViewModel(DateTime date, bool isSeparator)
+        {
+            IsDateSeparator = true;
+            SentAt = date;
+
+            if (date.Date == DateTime.Today)
+                DateText = "Dzisiaj";
+            else if (date.Date == DateTime.Today.AddDays(-1))
+                DateText = "Wczoraj";
+            else if (date.Date > DateTime.Today.AddDays(-7))
+                DateText = date.ToString("dddd", new System.Globalization.CultureInfo("pl-PL"));
+            else
+                DateText = date.ToString("d MMMM yyyy", new System.Globalization.CultureInfo("pl-PL"));
+        }
+
+        // Konstruktor dla wiadomości
         public MessageViewModel(ChatMessage message, string currentUserId)
         {
             Content = message.Content;
@@ -439,6 +498,9 @@ namespace Kalendarz1.Komunikator.Views
             IsFromMe = message.SenderId == currentUserId;
             ReadStatus = message.IsRead ? "✓✓" : "✓";
             SenderName = message.SenderName;
+            SenderId = message.SenderId;
+            SentAt = message.SentAt;
+            IsDateSeparator = false;
 
             // Załaduj avatar nadawcy dla wiadomości od innych
             if (!IsFromMe)
@@ -495,6 +557,10 @@ namespace Kalendarz1.Komunikator.Views
 
         [System.Runtime.InteropServices.DllImport("gdi32.dll")]
         private static extern bool DeleteObject(IntPtr hObject);
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string name) =>
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 
     #endregion
