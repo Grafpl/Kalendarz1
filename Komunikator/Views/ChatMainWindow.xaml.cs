@@ -41,10 +41,6 @@ namespace Kalendarz1.Komunikator.Views
             ContactsList.ItemsSource = _contacts;
             MessagesList.ItemsSource = _messages;
 
-            // Dodaj konwertery
-            Resources.Add("BoolToVisibilityConverter", new BoolToVisibilityConverter());
-            Resources.Add("InverseBoolToVisibilityConverter", new InverseBoolToVisibilityConverter());
-
             Loaded += ChatMainWindow_Loaded;
             Closing += ChatMainWindow_Closing;
         }
