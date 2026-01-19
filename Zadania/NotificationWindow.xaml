@@ -306,7 +306,8 @@
                             <ComboBoxItem Content="15 min"/>
                             <ComboBoxItem Content="30 min"/>
                             <ComboBoxItem Content="1 godz"/>
-                            <ComboBoxItem Content="2 godz" IsSelected="True"/>
+                            <ComboBoxItem Content="2 godz"/>
+                            <ComboBoxItem Content="4 godz" IsSelected="True"/>
                         </ComboBox>
                         <Button Content="Odłóż" Style="{StaticResource CompactButton}"
                                 Margin="8,0,0,0" Click="BtnSnooze_Click"/>
