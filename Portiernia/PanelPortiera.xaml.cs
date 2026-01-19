@@ -82,6 +82,7 @@ namespace Kalendarz1
 
         // Tryb kamery - zmienne dla widoku KAMERY
         private DispatcherTimer cameraViewTimer;
+        private DispatcherTimer cameraFpsTimer; // Timer do liczenia FPS
         private bool cameraViewActive = false;
         private DateTime lastCameraFrameTime;
         private int cameraFrameCount = 0;
@@ -2433,6 +2434,13 @@ namespace Kalendarz1
 
             // Timer - SD: 200ms (5 FPS), HD: 100ms (10 FPS)
             int interval = cameraHdMode ? 100 : 200;
+
+            // Zatrzymaj poprzedni timer jeśli istnieje
+            if (cameraViewTimer != null)
+            {
+                cameraViewTimer.Stop();
+            }
+
             cameraViewTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(interval) };
             cameraViewTimer.Tick += async (s, e) => await RefreshCameraViewImage();
             cameraViewTimer.Start();
@@ -2441,25 +2449,27 @@ namespace Kalendarz1
             lblCameraResolution.Text = cameraHdMode ? "1920x1080 (HD)" : "640x480 (SD)";
             cameraViewStatus.Text = "Łączenie z kamerą...";
 
-            // Timer aktualizacji FPS (co sekundę)
-            var fpsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-            fpsTimer.Tick += (s, e) =>
+            // Timer aktualizacji FPS (co sekundę) - tylko jeśli nie działa
+            if (cameraFpsTimer == null)
             {
-                if (!cameraViewActive)
+                cameraFpsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+                cameraFpsTimer.Tick += (s, e) =>
                 {
-                    fpsTimer.Stop();
-                    return;
-                }
-                var elapsed = (DateTime.Now - lastCameraFrameTime).TotalSeconds;
-                if (elapsed > 0)
-                {
-                    int fps = (int)(cameraFrameCount / elapsed);
-                    lblCameraFps.Text = $"{fps} FPS";
-                }
-                cameraFrameCount = 0;
-                lastCameraFrameTime = DateTime.Now;
-            };
-            fpsTimer.Start();
+                    if (!cameraViewActive)
+                    {
+                        return;
+                    }
+                    var elapsed = (DateTime.Now - lastCameraFrameTime).TotalSeconds;
+                    if (elapsed > 0)
+                    {
+                        int fps = (int)(cameraFrameCount / elapsed);
+                        lblCameraFps.Text = $"{fps} FPS";
+                    }
+                    cameraFrameCount = 0;
+                    lastCameraFrameTime = DateTime.Now;
+                };
+                cameraFpsTimer.Start();
+            }
 
             // Pierwsze pobranie od razu
             _ = RefreshCameraViewImage();
@@ -2475,6 +2485,11 @@ namespace Kalendarz1
             {
                 cameraViewTimer.Stop();
                 cameraViewTimer = null;
+            }
+            if (cameraFpsTimer != null)
+            {
+                cameraFpsTimer.Stop();
+                cameraFpsTimer = null;
             }
             lblCameraFps.Text = "-- FPS";
         }
@@ -2568,11 +2583,19 @@ namespace Kalendarz1
             bool wasHd = cameraHdMode;
             cameraHdMode = rbCameraHD.IsChecked == true;
 
-            // Jeśli zmieniono jakość i stream jest aktywny, restartuj
+            // Jeśli zmieniono jakość i stream jest aktywny, tylko zmień interwał (bez restartu)
             if (wasHd != cameraHdMode && cameraViewActive)
             {
-                StopCameraViewStream();
-                StartCameraViewStream();
+                // Nowy interwał: SD=200ms, HD=100ms
+                int newInterval = cameraHdMode ? 100 : 200;
+
+                if (cameraViewTimer != null)
+                {
+                    cameraViewTimer.Interval = TimeSpan.FromMilliseconds(newInterval);
+                }
+
+                // Aktualizuj etykietę rozdzielczości
+                lblCameraResolution.Text = cameraHdMode ? "1920x1080 (HD)" : "640x480 (SD)";
             }
         }
 
