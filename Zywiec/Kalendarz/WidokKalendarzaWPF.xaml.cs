@@ -1818,10 +1818,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
             }
         }
 
-        private List<DataGridRow> _highlightedLpWRows = new List<DataGridRow>();
+        private List<(DataGridRow Row, Storyboard Animation)> _highlightedLpWRows = new List<(DataGridRow, Storyboard)>();
 
         /// <summary>
-        /// Podświetla wszystkie wiersze z tym samym LpW (Lp wstawienia)
+        /// Podświetla wszystkie wiersze z tym samym LpW (Lp wstawienia) - pulsująca pogrubiona czcionka
         /// </summary>
         private void HighlightMatchingLpWRows(string lpW)
         {
@@ -1843,19 +1843,19 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 if (dostawa != null && !dostawa.IsHeaderRow && !dostawa.IsSeparator && dostawa.LpW == lpW)
                 {
                     var row = dg.ItemContainerGenerator.ContainerFromItem(item) as DataGridRow;
-                    if (row != null && row != dg.ItemContainerGenerator.ContainerFromItem(dg.SelectedItem))
+                    if (row != null)
                     {
-                        // Animacja pulsowania dla pasujących wierszy
-                        row.Background = new SolidColorBrush(Color.FromRgb(227, 242, 253)); // Jasnoniebieski
-                        row.BorderBrush = new SolidColorBrush(Color.FromRgb(33, 150, 243)); // Niebieski
-                        row.BorderThickness = new Thickness(2, 1, 2, 1);
-                        _highlightedLpWRows.Add(row);
+                        // Pogrubiona czcionka z pulsującym kolorem
+                        row.FontWeight = FontWeights.Bold;
+                        row.Foreground = new SolidColorBrush(Color.FromRgb(21, 101, 192)); // Niebieski startowy
 
-                        // Uruchom animację pulsowania
+                        // Uruchom animację pulsowania koloru czcionki
                         var pulseStoryboard = (Storyboard)FindResource("LpWMatchPulseAnimation");
                         var clonedStoryboard = pulseStoryboard.Clone();
                         Storyboard.SetTarget(clonedStoryboard, row);
                         clonedStoryboard.Begin();
+
+                        _highlightedLpWRows.Add((row, clonedStoryboard));
                     }
                 }
             }
@@ -1863,12 +1863,15 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         private void ClearLpWHighlights()
         {
-            foreach (var row in _highlightedLpWRows)
+            foreach (var (row, animation) in _highlightedLpWRows)
             {
                 if (row != null)
                 {
-                    row.Background = Brushes.White;
-                    row.BorderThickness = new Thickness(0);
+                    // Zatrzymaj animację
+                    animation?.Stop();
+                    // Przywróć domyślne wartości
+                    row.FontWeight = FontWeights.Normal;
+                    row.Foreground = Brushes.Black;
                 }
             }
             _highlightedLpWRows.Clear();
