@@ -470,23 +470,35 @@
 
                     <!-- Główna zawartość lewego panelu -->
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="40">
-                        <!-- Logo firmy - duże z pulsacją -->
+                        <!-- Logo firmy - duże z pulsacją i efektem poświaty -->
                         <Border x:Name="LeftLogoPanel" Margin="0,0,0,25" HorizontalAlignment="Center"
                                 MouseRightButtonUp="LogoBorder_MouseRightButtonUp" Cursor="Arrow"
                                 RenderTransformOrigin="0.5,0.5">
                             <Border.RenderTransform>
                                 <ScaleTransform x:Name="LogoScaleTransform" ScaleX="1" ScaleY="1"/>
                             </Border.RenderTransform>
+                            <Border.Effect>
+                                <DropShadowEffect x:Name="LogoGlowEffect" ShadowDepth="0" Color="#4CAF50"
+                                                  BlurRadius="5" Opacity="0.8"/>
+                            </Border.Effect>
                             <Border.Triggers>
                                 <EventTrigger RoutedEvent="Loaded">
                                     <BeginStoryboard>
                                         <Storyboard RepeatBehavior="Forever">
+                                            <!-- Animacja skalowania (pulsacja) -->
                                             <DoubleAnimation Storyboard.TargetName="LogoScaleTransform"
                                                            Storyboard.TargetProperty="ScaleX"
                                                            From="1.0" To="1.02" Duration="0:0:3" AutoReverse="True"/>
                                             <DoubleAnimation Storyboard.TargetName="LogoScaleTransform"
                                                            Storyboard.TargetProperty="ScaleY"
                                                            From="1.0" To="1.02" Duration="0:0:3" AutoReverse="True"/>
+                                            <!-- Animacja poświaty (glow) - oddychanie światłem -->
+                                            <DoubleAnimation Storyboard.TargetName="LogoGlowEffect"
+                                                           Storyboard.TargetProperty="BlurRadius"
+                                                           From="5" To="15" Duration="0:0:2" AutoReverse="True"/>
+                                            <DoubleAnimation Storyboard.TargetName="LogoGlowEffect"
+                                                           Storyboard.TargetProperty="Opacity"
+                                                           From="0.6" To="0.9" Duration="0:0:2" AutoReverse="True"/>
                                         </Storyboard>
                                     </BeginStoryboard>
                                 </EventTrigger>
@@ -506,14 +518,15 @@
                             <Run>Zrobię wszystko, co w mojej mocy, aby był dla Was realnym wsparciem.</Run>
                         </TextBlock>
 
-                        <Image Source="pack://application:,,,/logo2white.png" Height="50"
-                               Margin="0,30,0,15" Opacity="0.7" RenderOptions.BitmapScalingMode="Fant"/>
-                        <TextBlock Text="Sergiusz Piórkowski" Foreground="White" FontWeight="Bold"
-                                   TextAlignment="Center" FontSize="15" Margin="0,0,0,0" Opacity="0.8"/>
+                        <!-- Podpis autora wiadomości -->
+                        <TextBlock Foreground="White" FontStyle="Italic"
+                                   TextAlignment="Center" FontSize="14" Margin="0,20,0,0" Opacity="0.85">
+                            <Run>— Sergiusz Piórkowski</Run>
+                        </TextBlock>
                     </StackPanel>
 
                     <!-- Data, godzina i imieniny w lewym dolnym rogu -->
-                    <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="20,0,0,20">
+                    <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="20,0,0,50">
                         <TextBlock x:Name="CurrentTimeText" Text="12:00" FontSize="36" FontWeight="Light"
                                    Foreground="White" Opacity="0.9"/>
                         <TextBlock x:Name="CurrentDateText" Text="Piątek, 17 stycznia 2025" FontSize="14"
@@ -521,6 +534,12 @@
                         <TextBlock x:Name="NameDaysText" Text="Imieniny: Antoni, Jan" FontSize="12"
                                    Foreground="White" Opacity="0.6" Margin="0,5,0,0"/>
                     </StackPanel>
+
+                    <!-- Cytat dnia na samym dole -->
+                    <TextBlock x:Name="QuoteTextBlock" TextWrapping="Wrap" TextAlignment="Center"
+                               VerticalAlignment="Bottom" HorizontalAlignment="Center"
+                               Foreground="White" FontSize="11" FontStyle="Italic" Opacity="0.7"
+                               Margin="20,0,20,15" MaxWidth="450"/>
                 </Grid>
             </Border>
 

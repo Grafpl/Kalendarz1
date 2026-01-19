@@ -1009,7 +1009,8 @@ namespace Kalendarz1.Zadania
                 case 1: snoozeTime = TimeSpan.FromMinutes(30); break;
                 case 2: snoozeTime = TimeSpan.FromHours(1); break;
                 case 3: snoozeTime = TimeSpan.FromHours(2); break;
-                default: snoozeTime = TimeSpan.FromHours(2); break; // Default to 2 hours
+                case 4: snoozeTime = TimeSpan.FromHours(4); break;
+                default: snoozeTime = TimeSpan.FromHours(4); break; // Default to 4 hours
             }
 
             SnoozeRequested?.Invoke(this, snoozeTime);
