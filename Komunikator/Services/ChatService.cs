@@ -10,6 +10,27 @@ using Microsoft.Data.SqlClient;
 namespace Kalendarz1.Komunikator.Services
 {
     /// <summary>
+    /// Event args dla wskaźnika pisania
+    /// </summary>
+    public class TypingEventArgs : EventArgs
+    {
+        public string UserId { get; set; }
+        public string UserName { get; set; }
+        public bool IsTyping { get; set; }
+    }
+
+    /// <summary>
+    /// Event args dla reakcji
+    /// </summary>
+    public class ReactionEventArgs : EventArgs
+    {
+        public int MessageId { get; set; }
+        public string UserId { get; set; }
+        public string Emoji { get; set; }
+        public bool IsAdded { get; set; }
+    }
+
+    /// <summary>
     /// Serwis do obsługi komunikatora firmowego
     /// </summary>
     public class ChatService : IDisposable
@@ -17,11 +38,15 @@ namespace Kalendarz1.Komunikator.Services
         private readonly string _connectionString;
         private readonly string _currentUserId;
         private Timer _pollingTimer;
+        private Timer _typingTimer;
         private DateTime _lastCheckTime = DateTime.MinValue;
         private bool _isDisposed = false;
+        private HashSet<string> _currentlyTyping = new HashSet<string>();
 
         public event EventHandler<List<ChatMessage>> NewMessagesReceived;
         public event EventHandler<ChatUser> UserStatusChanged;
+        public event EventHandler<TypingEventArgs> UserTypingChanged;
+        public event EventHandler<ReactionEventArgs> ReactionReceived;
 
         public ChatService(string currentUserId)
         {
@@ -61,6 +86,31 @@ namespace Kalendarz1.Komunikator.Services
                         LastActivity DATETIME NULL
                     );
                 END;
+
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='ChatReactions' AND xtype='U')
+                BEGIN
+                    CREATE TABLE ChatReactions (
+                        Id INT IDENTITY(1,1) PRIMARY KEY,
+                        MessageId INT NOT NULL,
+                        UserId NVARCHAR(50) NOT NULL,
+                        Emoji NVARCHAR(10) NOT NULL,
+                        CreatedAt DATETIME NOT NULL DEFAULT GETDATE(),
+                        CONSTRAINT FK_ChatReactions_Message FOREIGN KEY (MessageId) REFERENCES ChatMessages(Id),
+                        CONSTRAINT UQ_ChatReactions_User_Message_Emoji UNIQUE (MessageId, UserId, Emoji)
+                    );
+                    CREATE INDEX IX_ChatReactions_MessageId ON ChatReactions(MessageId);
+                END;
+
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='ChatTypingStatus' AND xtype='U')
+                BEGIN
+                    CREATE TABLE ChatTypingStatus (
+                        UserId NVARCHAR(50) NOT NULL,
+                        TargetUserId NVARCHAR(50) NOT NULL,
+                        IsTyping BIT NOT NULL DEFAULT 0,
+                        LastUpdate DATETIME NOT NULL DEFAULT GETDATE(),
+                        PRIMARY KEY (UserId, TargetUserId)
+                    );
+                END;
             ";
 
             try
@@ -91,6 +141,11 @@ namespace Kalendarz1.Komunikator.Services
             _pollingTimer = new Timer(intervalSeconds * 1000);
             _pollingTimer.Elapsed += async (s, e) => await CheckNewMessagesAsync();
             _pollingTimer.Start();
+
+            // Timer dla wskaźnika pisania (częstsze sprawdzanie)
+            _typingTimer = new Timer(1500);
+            _typingTimer.Elapsed += async (s, e) => await CheckTypingStatusAsync();
+            _typingTimer.Start();
         }
 
         /// <summary>
@@ -101,6 +156,11 @@ namespace Kalendarz1.Komunikator.Services
             _pollingTimer?.Stop();
             _pollingTimer?.Dispose();
             _pollingTimer = null;
+
+            _typingTimer?.Stop();
+            _typingTimer?.Dispose();
+            _typingTimer = null;
+
             UpdateUserStatus(false);
         }
 
@@ -348,6 +408,288 @@ namespace Kalendarz1.Komunikator.Services
                 System.Diagnostics.Debug.WriteLine($"MarkMessagesAsRead error: {ex.Message}");
             }
         }
+
+        #region Reactions
+
+        /// <summary>
+        /// Dodaje reakcję do wiadomości
+        /// </summary>
+        public async Task<bool> AddReactionAsync(int messageId, string emoji)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+                    string sql = @"
+                        IF NOT EXISTS (SELECT 1 FROM ChatReactions WHERE MessageId = @MessageId AND UserId = @UserId AND Emoji = @Emoji)
+                        BEGIN
+                            INSERT INTO ChatReactions (MessageId, UserId, Emoji) VALUES (@MessageId, @UserId, @Emoji)
+                        END
+                    ";
+
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@MessageId", messageId);
+                        cmd.Parameters.AddWithValue("@UserId", _currentUserId);
+                        cmd.Parameters.AddWithValue("@Emoji", emoji);
+                        await cmd.ExecuteNonQueryAsync();
+                        return true;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"AddReaction error: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Usuwa reakcję z wiadomości
+        /// </summary>
+        public async Task<bool> RemoveReactionAsync(int messageId, string emoji)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+                    string sql = "DELETE FROM ChatReactions WHERE MessageId = @MessageId AND UserId = @UserId AND Emoji = @Emoji";
+
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@MessageId", messageId);
+                        cmd.Parameters.AddWithValue("@UserId", _currentUserId);
+                        cmd.Parameters.AddWithValue("@Emoji", emoji);
+                        await cmd.ExecuteNonQueryAsync();
+                        return true;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"RemoveReaction error: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Pobiera reakcje dla wiadomości
+        /// </summary>
+        public async Task<List<ChatReaction>> GetReactionsAsync(int messageId)
+        {
+            var reactions = new List<ChatReaction>();
+
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+                    string sql = @"
+                        SELECT r.Id, r.MessageId, r.UserId, o.Name AS UserName, r.Emoji, r.CreatedAt
+                        FROM ChatReactions r
+                        LEFT JOIN operators o ON r.UserId = o.ID
+                        WHERE r.MessageId = @MessageId
+                        ORDER BY r.CreatedAt
+                    ";
+
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@MessageId", messageId);
+
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                reactions.Add(new ChatReaction
+                                {
+                                    Id = reader.GetInt32(0),
+                                    MessageId = reader.GetInt32(1),
+                                    UserId = reader.GetString(2),
+                                    UserName = reader.IsDBNull(3) ? reader.GetString(2) : reader.GetString(3),
+                                    Emoji = reader.GetString(4),
+                                    CreatedAt = reader.GetDateTime(5)
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"GetReactions error: {ex.Message}");
+            }
+
+            return reactions;
+        }
+
+        /// <summary>
+        /// Pobiera reakcje dla wielu wiadomości (optymalizacja)
+        /// </summary>
+        public async Task<Dictionary<int, List<ChatReaction>>> GetReactionsForMessagesAsync(List<int> messageIds)
+        {
+            var result = new Dictionary<int, List<ChatReaction>>();
+            if (messageIds == null || messageIds.Count == 0) return result;
+
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+                    string ids = string.Join(",", messageIds);
+                    string sql = $@"
+                        SELECT r.Id, r.MessageId, r.UserId, o.Name AS UserName, r.Emoji, r.CreatedAt
+                        FROM ChatReactions r
+                        LEFT JOIN operators o ON r.UserId = o.ID
+                        WHERE r.MessageId IN ({ids})
+                        ORDER BY r.MessageId, r.CreatedAt
+                    ";
+
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                var reaction = new ChatReaction
+                                {
+                                    Id = reader.GetInt32(0),
+                                    MessageId = reader.GetInt32(1),
+                                    UserId = reader.GetString(2),
+                                    UserName = reader.IsDBNull(3) ? reader.GetString(2) : reader.GetString(3),
+                                    Emoji = reader.GetString(4),
+                                    CreatedAt = reader.GetDateTime(5)
+                                };
+
+                                if (!result.ContainsKey(reaction.MessageId))
+                                    result[reaction.MessageId] = new List<ChatReaction>();
+
+                                result[reaction.MessageId].Add(reaction);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"GetReactionsForMessages error: {ex.Message}");
+            }
+
+            return result;
+        }
+
+        #endregion
+
+        #region Typing Indicator
+
+        /// <summary>
+        /// Ustawia status pisania
+        /// </summary>
+        public async Task SetTypingStatusAsync(string targetUserId, bool isTyping)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+                    string sql = @"
+                        MERGE ChatTypingStatus AS target
+                        USING (SELECT @UserId AS UserId, @TargetUserId AS TargetUserId) AS source
+                        ON target.UserId = source.UserId AND target.TargetUserId = source.TargetUserId
+                        WHEN MATCHED THEN
+                            UPDATE SET IsTyping = @IsTyping, LastUpdate = GETDATE()
+                        WHEN NOT MATCHED THEN
+                            INSERT (UserId, TargetUserId, IsTyping, LastUpdate)
+                            VALUES (@UserId, @TargetUserId, @IsTyping, GETDATE());
+                    ";
+
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@UserId", _currentUserId);
+                        cmd.Parameters.AddWithValue("@TargetUserId", targetUserId);
+                        cmd.Parameters.AddWithValue("@IsTyping", isTyping);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"SetTypingStatus error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Sprawdza status pisania użytkowników
+        /// </summary>
+        private async Task CheckTypingStatusAsync()
+        {
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+                    // Pobierz użytkowników którzy piszą do nas (ostatnie 5 sekund)
+                    string sql = @"
+                        SELECT t.UserId, o.Name
+                        FROM ChatTypingStatus t
+                        LEFT JOIN operators o ON t.UserId = o.ID
+                        WHERE t.TargetUserId = @CurrentUserId
+                          AND t.IsTyping = 1
+                          AND DATEDIFF(SECOND, t.LastUpdate, GETDATE()) < 5
+                    ";
+
+                    var typingUsers = new HashSet<string>();
+
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@CurrentUserId", _currentUserId);
+
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                var userId = reader.GetString(0);
+                                var userName = reader.IsDBNull(1) ? userId : reader.GetString(1);
+                                typingUsers.Add(userId);
+
+                                // Jeśli użytkownik zaczął pisać
+                                if (!_currentlyTyping.Contains(userId))
+                                {
+                                    UserTypingChanged?.Invoke(this, new TypingEventArgs
+                                    {
+                                        UserId = userId,
+                                        UserName = userName,
+                                        IsTyping = true
+                                    });
+                                }
+                            }
+                        }
+                    }
+
+                    // Sprawdź którzy przestali pisać
+                    foreach (var userId in _currentlyTyping.ToList())
+                    {
+                        if (!typingUsers.Contains(userId))
+                        {
+                            UserTypingChanged?.Invoke(this, new TypingEventArgs
+                            {
+                                UserId = userId,
+                                IsTyping = false
+                            });
+                        }
+                    }
+
+                    _currentlyTyping = typingUsers;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"CheckTypingStatus error: {ex.Message}");
+            }
+        }
+
+        #endregion
 
         /// <summary>
         /// Pobiera listę wszystkich użytkowników z liczbą nieprzeczytanych wiadomości
