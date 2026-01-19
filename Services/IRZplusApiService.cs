@@ -35,7 +35,7 @@ namespace Kalendarz1.Services
         // === STALE DANE RZEZNI ===
         public const string NUMER_PRODUCENTA = "039806095";
         public const string NUMER_RZEZNI = "039806095-001";
-        public const string GATUNEK_KOD = "KU";
+        public const string GATUNEK_KOD = "KURY";
 
         public IRZplusApiService()
         {
