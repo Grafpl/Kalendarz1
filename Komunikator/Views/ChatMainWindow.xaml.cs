@@ -533,7 +533,7 @@ namespace Kalendarz1.Komunikator.Views
             e.Handled = true;
             if (sender is FrameworkElement element && element.DataContext is ContactViewModel contact)
             {
-                ShowAvatarPreview(contact.AvatarSource, contact.Name, contact.IsOnline, contact.OnlineStatus);
+                ShowAvatarPreview(contact.UserId, contact.Name, contact.IsOnline, contact.OnlineStatus);
             }
         }
 
@@ -542,8 +542,7 @@ namespace Kalendarz1.Komunikator.Views
             e.Handled = true;
             if (_selectedUser != null)
             {
-                var avatar = SelectedUserAvatar.ImageSource as BitmapSource;
-                ShowAvatarPreview(avatar, _selectedUser.Name, _selectedUser.IsOnline);
+                ShowAvatarPreview(_selectedUser.UserId, _selectedUser.Name, _selectedUser.IsOnline);
             }
         }
 
@@ -552,15 +551,15 @@ namespace Kalendarz1.Komunikator.Views
             e.Handled = true;
             if (sender is FrameworkElement element && element.DataContext is MessageViewModel message)
             {
-                ShowAvatarPreview(message.SenderAvatar, message.SenderName, false);
+                ShowAvatarPreview(message.SenderId, message.SenderName, false);
             }
         }
 
-        private void ShowAvatarPreview(BitmapSource avatar, string userName, bool isOnline, string status = null)
+        private void ShowAvatarPreview(string userId, string userName, bool isOnline, string status = null)
         {
-            if (avatar != null)
+            if (!string.IsNullOrEmpty(userId))
             {
-                AvatarPreviewWindow.ShowPreview(avatar, userName, isOnline, status);
+                AvatarPreviewWindow.ShowPreview(userId, userName, isOnline, status);
             }
         }
 

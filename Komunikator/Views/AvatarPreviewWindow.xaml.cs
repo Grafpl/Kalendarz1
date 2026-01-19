@@ -9,14 +9,15 @@ namespace Kalendarz1.Komunikator.Views
 {
     public partial class AvatarPreviewWindow : Window
     {
-        public AvatarPreviewWindow(BitmapSource avatar, string userName, bool isOnline, string status = null)
+        private const int HighResSize = 240; // Rozmiar wysokiej jakości avatara
+
+        public AvatarPreviewWindow(string userId, string userName, bool isOnline, string status = null)
         {
             InitializeComponent();
             WindowIconHelper.SetIcon(this);
 
-            // Ustaw avatar
-            if (avatar != null)
-                AvatarImage.ImageSource = avatar;
+            // Załaduj avatar w wysokiej rozdzielczości
+            LoadHighResAvatar(userId, userName);
 
             // Ustaw nazwę
             UserName.Text = userName;
@@ -40,6 +41,65 @@ namespace Kalendarz1.Komunikator.Views
 
             Loaded += AvatarPreviewWindow_Loaded;
         }
+
+        private void LoadHighResAvatar(string userId, string userName)
+        {
+            try
+            {
+                BitmapSource avatar = null;
+
+                // Próbuj załadować avatar użytkownika w wysokiej rozdzielczości
+                if (UserAvatarManager.HasAvatar(userId))
+                {
+                    using (var img = UserAvatarManager.GetAvatarRounded(userId, HighResSize))
+                    {
+                        if (img != null)
+                            avatar = ConvertToBitmapSource(img);
+                    }
+                }
+
+                // Jeśli nie ma avatara, wygeneruj domyślny w wysokiej rozdzielczości
+                if (avatar == null)
+                {
+                    using (var img = UserAvatarManager.GenerateDefaultAvatar(userName, userId, HighResSize))
+                    {
+                        avatar = ConvertToBitmapSource(img);
+                    }
+                }
+
+                if (avatar != null)
+                    AvatarImage.ImageSource = avatar;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error loading high-res avatar: {ex.Message}");
+            }
+        }
+
+        private BitmapSource ConvertToBitmapSource(System.Drawing.Image image)
+        {
+            if (image == null) return null;
+
+            using (var bitmap = new System.Drawing.Bitmap(image))
+            {
+                var hBitmap = bitmap.GetHbitmap();
+                try
+                {
+                    return System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
+                        hBitmap,
+                        IntPtr.Zero,
+                        Int32Rect.Empty,
+                        BitmapSizeOptions.FromEmptyOptions());
+                }
+                finally
+                {
+                    DeleteObject(hBitmap);
+                }
+            }
+        }
+
+        [System.Runtime.InteropServices.DllImport("gdi32.dll")]
+        private static extern bool DeleteObject(IntPtr hObject);
 
         private void AvatarPreviewWindow_Loaded(object sender, RoutedEventArgs e)
         {
@@ -91,9 +151,9 @@ namespace Kalendarz1.Komunikator.Views
         /// <summary>
         /// Statyczna metoda do pokazania podglądu avatara
         /// </summary>
-        public static void ShowPreview(BitmapSource avatar, string userName, bool isOnline, string status = null)
+        public static void ShowPreview(string userId, string userName, bool isOnline, string status = null)
         {
-            var preview = new AvatarPreviewWindow(avatar, userName, isOnline, status);
+            var preview = new AvatarPreviewWindow(userId, userName, isOnline, status);
             preview.Show();
         }
     }
