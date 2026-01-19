@@ -7,23 +7,44 @@ using System.IO;
 namespace Kalendarz1
 {
     /// <summary>
+    /// Typ logo - rozróżnienie między logo na ekranie logowania i logo po zalogowaniu
+    /// </summary>
+    public enum LogoType
+    {
+        /// <summary>Logo wyświetlane na ekranie logowania (Menu1)</summary>
+        Login,
+        /// <summary>Logo wyświetlane po zalogowaniu (Menu)</summary>
+        Company
+    }
+
+    /// <summary>
     /// Manager logo firmy - przechowuje logo jako plik PNG
     /// Logo jest zapisywane w folderze %AppData%/ZPSP/Logo/
     /// Rozwiązanie nr 2: Jeśli logo nie istnieje lokalnie, próbuje pobrać z serwera sieciowego
     /// Może być używane w różnych aplikacjach
+    /// Obsługuje dwa typy logo: Login (przed zalogowaniem) i Company (po zalogowaniu)
     /// </summary>
     public static class CompanyLogoManager
     {
+        // ID admina który może zarządzać logami
+        public const string AdminUserId = "11111";
+
         private static string LogoFolder => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "ZPSP", "Logo");
 
-        private static string LogoPath => Path.Combine(LogoFolder, "company_logo.png");
+        private static string GetLogoFileName(LogoType logoType) =>
+            logoType == LogoType.Login ? "login_logo" : "company_logo";
+
+        private static string GetLocalLogoPath(LogoType logoType) =>
+            Path.Combine(LogoFolder, $"{GetLogoFileName(logoType)}.png");
+
+        // Dla kompatybilności wstecznej
+        private static string LogoPath => GetLocalLogoPath(LogoType.Company);
 
         // Ścieżki sieciowe do logo firmy (rozwiązanie nr 2)
         private static readonly string NetworkLogoPath1 = @"\\192.168.0.170\Install\Prace Graficzne\Logo";
         private static readonly string NetworkLogoPath2 = @"\\192.168.0.171\Install\Prace Graficzne\Logo";
-        private static readonly string NetworkLogoFileName = "company_logo";
 
         /// <summary>
         /// Inicjalizuje folder logo
@@ -42,7 +63,15 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Zwraca ścieżkę do pliku logo
+        /// Sprawdza czy użytkownik może zarządzać logami (tylko admin)
+        /// </summary>
+        public static bool CanManageLogos(string userId)
+        {
+            return userId == AdminUserId;
+        }
+
+        /// <summary>
+        /// Zwraca ścieżkę do pliku logo (kompatybilność wsteczna - logo Company)
         /// </summary>
         public static string GetLogoPath()
         {
@@ -50,22 +79,46 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Sprawdza czy logo firmy jest zapisane (na serwerze sieciowym)
+        /// Zwraca ścieżkę do pliku logo określonego typu
+        /// </summary>
+        public static string GetLogoPath(LogoType logoType)
+        {
+            return GetLocalLogoPath(logoType);
+        }
+
+        /// <summary>
+        /// Sprawdza czy logo firmy jest zapisane (kompatybilność wsteczna - logo Company)
         /// </summary>
         public static bool HasLogo()
         {
-            // Zawsze sprawdzaj na serwerze sieciowym
-            var networkPath = GetNetworkLogoPath();
+            return HasLogo(LogoType.Company);
+        }
+
+        /// <summary>
+        /// Sprawdza czy logo określonego typu jest zapisane (na serwerze sieciowym)
+        /// </summary>
+        public static bool HasLogo(LogoType logoType)
+        {
+            var networkPath = GetNetworkLogoPath(logoType);
             return networkPath != null;
         }
 
         /// <summary>
-        /// Próbuje znaleźć logo na serwerze sieciowym
+        /// Próbuje znaleźć logo na serwerze sieciowym (kompatybilność wsteczna)
         /// </summary>
         private static string GetNetworkLogoPath()
         {
+            return GetNetworkLogoPath(LogoType.Company);
+        }
+
+        /// <summary>
+        /// Próbuje znaleźć logo określonego typu na serwerze sieciowym
+        /// </summary>
+        private static string GetNetworkLogoPath(LogoType logoType)
+        {
             string[] extensions = { ".png", ".jpg", ".jpeg", ".bmp" };
             string[] networkPaths = { NetworkLogoPath1, NetworkLogoPath2 };
+            string logoFileName = GetLogoFileName(logoType);
 
             foreach (var networkPath in networkPaths)
             {
@@ -76,7 +129,7 @@ namespace Kalendarz1
 
                     foreach (var ext in extensions)
                     {
-                        string logoPath = Path.Combine(networkPath, $"{NetworkLogoFileName}{ext}");
+                        string logoPath = Path.Combine(networkPath, $"{logoFileName}{ext}");
                         if (File.Exists(logoPath))
                             return logoPath;
                     }
@@ -92,22 +145,27 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Pobiera logo firmy jako Image (null jeśli nie istnieje)
-        /// Zawsze pobiera z serwera sieciowego
+        /// Pobiera logo firmy jako Image (kompatybilność wsteczna - logo Company)
         /// </summary>
         public static Image GetLogo()
         {
-            // Zawsze pobieraj z serwera sieciowego
-            string networkPath = GetNetworkLogoPath();
+            return GetLogo(LogoType.Company);
+        }
+
+        /// <summary>
+        /// Pobiera logo określonego typu jako Image (null jeśli nie istnieje)
+        /// Zawsze pobiera z serwera sieciowego
+        /// </summary>
+        public static Image GetLogo(LogoType logoType)
+        {
+            string networkPath = GetNetworkLogoPath(logoType);
             if (networkPath != null)
             {
                 try
                 {
-                    // Wczytaj cały plik do pamięci, żeby nie blokować pliku sieciowego
                     byte[] imageData = File.ReadAllBytes(networkPath);
                     using (var ms = new MemoryStream(imageData))
                     {
-                        // Utwórz kopię obrazu, która nie zależy od strumienia
                         using (var tempImage = Image.FromStream(ms))
                         {
                             return new Bitmap(tempImage);
@@ -121,11 +179,19 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Pobiera logo przeskalowane do podanego rozmiaru (zachowuje proporcje)
+        /// Pobiera logo przeskalowane do podanego rozmiaru (kompatybilność wsteczna - logo Company)
         /// </summary>
         public static Image GetLogoScaled(int maxWidth, int maxHeight)
         {
-            var logo = GetLogo();
+            return GetLogoScaled(LogoType.Company, maxWidth, maxHeight);
+        }
+
+        /// <summary>
+        /// Pobiera logo określonego typu przeskalowane do podanego rozmiaru (zachowuje proporcje)
+        /// </summary>
+        public static Image GetLogoScaled(LogoType logoType, int maxWidth, int maxHeight)
+        {
+            var logo = GetLogo(logoType);
             if (logo == null) return null;
 
             try
@@ -139,15 +205,23 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Zapisuje logo firmy z pliku - zapisuje na serwer sieciowy
+        /// Zapisuje logo firmy z pliku (kompatybilność wsteczna - logo Company)
         /// </summary>
         public static bool SaveLogo(string sourceImagePath)
+        {
+            return SaveLogo(LogoType.Company, sourceImagePath);
+        }
+
+        /// <summary>
+        /// Zapisuje logo określonego typu z pliku - zapisuje na serwer sieciowy
+        /// </summary>
+        public static bool SaveLogo(LogoType logoType, string sourceImagePath)
         {
             try
             {
                 using (var originalImage = Image.FromFile(sourceImagePath))
                 {
-                    return SaveLogo(originalImage);
+                    return SaveLogo(logoType, originalImage);
                 }
             }
             catch
@@ -157,16 +231,24 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Zapisuje logo z Image - zapisuje na serwer sieciowy
+        /// Zapisuje logo z Image (kompatybilność wsteczna - logo Company)
         /// </summary>
         public static bool SaveLogo(Image image)
+        {
+            return SaveLogo(LogoType.Company, image);
+        }
+
+        /// <summary>
+        /// Zapisuje logo określonego typu z Image - zapisuje na serwer sieciowy
+        /// </summary>
+        public static bool SaveLogo(LogoType logoType, Image image)
         {
             try
             {
                 var resized = ScaleImage(image, 512, 512);
                 bool savedToNetwork = false;
+                string logoFileName = GetLogoFileName(logoType);
 
-                // Próbuj zapisać na serwer sieciowy
                 string[] networkPaths = { NetworkLogoPath1, NetworkLogoPath2 };
 
                 foreach (var networkPath in networkPaths)
@@ -181,17 +263,17 @@ namespace Kalendarz1
                             }
                             catch
                             {
-                                continue; // Nie można utworzyć folderu, spróbuj następny serwer
+                                continue;
                             }
                         }
 
-                        string targetPath = Path.Combine(networkPath, $"{NetworkLogoFileName}.png");
+                        string targetPath = Path.Combine(networkPath, $"{logoFileName}.png");
 
                         // Usuń stare pliki logo z innymi rozszerzeniami
                         string[] extensions = { ".png", ".jpg", ".jpeg", ".bmp" };
                         foreach (var ext in extensions)
                         {
-                            string oldPath = Path.Combine(networkPath, $"{NetworkLogoFileName}{ext}");
+                            string oldPath = Path.Combine(networkPath, $"{logoFileName}{ext}");
                             if (File.Exists(oldPath) && ext != ".png")
                             {
                                 try { File.Delete(oldPath); } catch { }
@@ -200,11 +282,11 @@ namespace Kalendarz1
 
                         resized.Save(targetPath, ImageFormat.Png);
                         savedToNetwork = true;
-                        break; // Zapisano pomyślnie, nie próbuj na drugim serwerze
+                        break;
                     }
                     catch
                     {
-                        continue; // Spróbuj następny serwer
+                        continue;
                     }
                 }
 
@@ -212,7 +294,7 @@ namespace Kalendarz1
                 try
                 {
                     EnsureLogoFolderExists();
-                    resized.Save(LogoPath, ImageFormat.Png);
+                    resized.Save(GetLocalLogoPath(logoType), ImageFormat.Png);
                 }
                 catch { }
 
@@ -227,15 +309,49 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Usuwa logo firmy
+        /// Usuwa logo firmy (kompatybilność wsteczna - logo Company)
         /// </summary>
         public static bool DeleteLogo()
         {
+            return DeleteLogo(LogoType.Company);
+        }
+
+        /// <summary>
+        /// Usuwa logo określonego typu
+        /// </summary>
+        public static bool DeleteLogo(LogoType logoType)
+        {
             try
             {
-                if (File.Exists(LogoPath))
+                string logoFileName = GetLogoFileName(logoType);
+                string[] extensions = { ".png", ".jpg", ".jpeg", ".bmp" };
+                string[] networkPaths = { NetworkLogoPath1, NetworkLogoPath2 };
+
+                // Usuń z serwerów sieciowych
+                foreach (var networkPath in networkPaths)
                 {
-                    File.Delete(LogoPath);
+                    try
+                    {
+                        if (!Directory.Exists(networkPath))
+                            continue;
+
+                        foreach (var ext in extensions)
+                        {
+                            string logoPath = Path.Combine(networkPath, $"{logoFileName}{ext}");
+                            if (File.Exists(logoPath))
+                            {
+                                try { File.Delete(logoPath); } catch { }
+                            }
+                        }
+                    }
+                    catch { }
+                }
+
+                // Usuń lokalną kopię
+                string localPath = GetLocalLogoPath(logoType);
+                if (File.Exists(localPath))
+                {
+                    File.Delete(localPath);
                 }
                 return true;
             }

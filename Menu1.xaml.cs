@@ -55,9 +55,10 @@ namespace Kalendarz1
         {
             try
             {
-                if (CompanyLogoManager.HasLogo())
+                // Używamy logo typu Login na ekranie logowania
+                if (CompanyLogoManager.HasLogo(LogoType.Login))
                 {
-                    using (var logo = CompanyLogoManager.GetLogo())
+                    using (var logo = CompanyLogoManager.GetLogo(LogoType.Login))
                     {
                         if (logo != null)
                         {
@@ -373,28 +374,37 @@ namespace Kalendarz1
         {
             // Sprawdź czy wpisany identyfikator to admin
             string currentInput = PasswordBox.Password;
-            if (currentInput != "11111")
+            if (!CompanyLogoManager.CanManageLogos(currentInput))
             {
                 return; // Tylko admin może importować logo
             }
 
             var contextMenu = new System.Windows.Controls.ContextMenu();
 
-            var importItem = new System.Windows.Controls.MenuItem { Header = "Importuj logo firmy" };
-            importItem.Click += (s, args) =>
+            // === LOGO EKRANU LOGOWANIA (Login) ===
+            var loginLogoHeader = new System.Windows.Controls.MenuItem
+            {
+                Header = "Logo ekranu logowania",
+                IsEnabled = false,
+                FontWeight = FontWeights.Bold
+            };
+            contextMenu.Items.Add(loginLogoHeader);
+
+            var importLoginLogoItem = new System.Windows.Controls.MenuItem { Header = "Importuj logo logowania" };
+            importLoginLogoItem.Click += (s, args) =>
             {
                 var openFileDialog = new OpenFileDialog
                 {
-                    Title = "Wybierz logo firmy",
+                    Title = "Wybierz logo ekranu logowania",
                     Filter = "Pliki graficzne|*.png;*.jpg;*.jpeg;*.bmp;*.gif|Wszystkie pliki|*.*"
                 };
 
                 if (openFileDialog.ShowDialog() == true)
                 {
-                    if (CompanyLogoManager.SaveLogo(openFileDialog.FileName))
+                    if (CompanyLogoManager.SaveLogo(LogoType.Login, openFileDialog.FileName))
                     {
                         LoadCompanyLogo();
-                        MessageBox.Show("Logo firmy zostało zaktualizowane!", "Sukces",
+                        MessageBox.Show("Logo ekranu logowania zostało zaktualizowane!", "Sukces",
                             MessageBoxButton.OK, MessageBoxImage.Information);
                     }
                     else
@@ -405,20 +415,67 @@ namespace Kalendarz1
                 }
             };
 
-            var deleteItem = new System.Windows.Controls.MenuItem { Header = "Usuń logo" };
-            deleteItem.Click += (s, args) =>
+            var deleteLoginLogoItem = new System.Windows.Controls.MenuItem { Header = "Usuń logo logowania" };
+            deleteLoginLogoItem.Click += (s, args) =>
             {
-                if (MessageBox.Show("Czy na pewno chcesz usunąć logo firmy?", "Potwierdzenie",
+                if (MessageBox.Show("Czy na pewno chcesz usunąć logo ekranu logowania?", "Potwierdzenie",
                     MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
                 {
-                    CompanyLogoManager.DeleteLogo();
+                    CompanyLogoManager.DeleteLogo(LogoType.Login);
                     LoadCompanyLogo();
                 }
             };
 
-            contextMenu.Items.Add(importItem);
+            contextMenu.Items.Add(importLoginLogoItem);
+            contextMenu.Items.Add(deleteLoginLogoItem);
+
             contextMenu.Items.Add(new System.Windows.Controls.Separator());
-            contextMenu.Items.Add(deleteItem);
+
+            // === LOGO PO ZALOGOWANIU (Company) ===
+            var companyLogoHeader = new System.Windows.Controls.MenuItem
+            {
+                Header = "Logo po zalogowaniu",
+                IsEnabled = false,
+                FontWeight = FontWeights.Bold
+            };
+            contextMenu.Items.Add(companyLogoHeader);
+
+            var importCompanyLogoItem = new System.Windows.Controls.MenuItem { Header = "Importuj logo menu" };
+            importCompanyLogoItem.Click += (s, args) =>
+            {
+                var openFileDialog = new OpenFileDialog
+                {
+                    Title = "Wybierz logo menu (po zalogowaniu)",
+                    Filter = "Pliki graficzne|*.png;*.jpg;*.jpeg;*.bmp;*.gif|Wszystkie pliki|*.*"
+                };
+
+                if (openFileDialog.ShowDialog() == true)
+                {
+                    if (CompanyLogoManager.SaveLogo(LogoType.Company, openFileDialog.FileName))
+                    {
+                        MessageBox.Show("Logo menu zostało zaktualizowane!", "Sukces",
+                            MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        MessageBox.Show("Nie udało się zapisać logo.", "Błąd",
+                            MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+            };
+
+            var deleteCompanyLogoItem = new System.Windows.Controls.MenuItem { Header = "Usuń logo menu" };
+            deleteCompanyLogoItem.Click += (s, args) =>
+            {
+                if (MessageBox.Show("Czy na pewno chcesz usunąć logo menu?", "Potwierdzenie",
+                    MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                {
+                    CompanyLogoManager.DeleteLogo(LogoType.Company);
+                }
+            };
+
+            contextMenu.Items.Add(importCompanyLogoItem);
+            contextMenu.Items.Add(deleteCompanyLogoItem);
 
             contextMenu.IsOpen = true;
         }
