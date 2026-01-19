@@ -544,8 +544,8 @@
 
                                 <!-- SEKCJA: Przesuwanie daty -->
                                 <MenuItem Header="📅 ZMIANA DATY" IsEnabled="False" FontWeight="Bold" FontSize="10" Foreground="#6B7280"/>
-                                <MenuItem Header="▲ Przesuń +1 dzień (później)" Click="BtnDateUp_Click" InputGestureText="+"/>
-                                <MenuItem Header="▼ Przesuń -1 dzień (wcześniej)" Click="BtnDateDown_Click" InputGestureText="-"/>
+                                <MenuItem Header="▲ Przesuń -1 dzień (wcześniej)" Click="BtnDateDown_Click" InputGestureText="-"/>
+                                <MenuItem Header="▼ Przesuń +1 dzień (później)" Click="BtnDateUp_Click" InputGestureText="+"/>
                                 <Separator/>
 
                                 <!-- SEKCJA: Potwierdzenia -->
@@ -840,8 +840,8 @@
 
                                 <!-- SEKCJA: Przesuwanie daty -->
                                 <MenuItem Header="📅 ZMIANA DATY" IsEnabled="False" FontWeight="Bold" FontSize="10" Foreground="#6B7280"/>
-                                <MenuItem Header="▲ Przesuń +1 dzień (później)" Click="BtnDateUp_Click" InputGestureText="+"/>
-                                <MenuItem Header="▼ Przesuń -1 dzień (wcześniej)" Click="BtnDateDown_Click" InputGestureText="-"/>
+                                <MenuItem Header="▲ Przesuń -1 dzień (wcześniej)" Click="BtnDateDown_Click" InputGestureText="-"/>
+                                <MenuItem Header="▼ Przesuń +1 dzień (później)" Click="BtnDateUp_Click" InputGestureText="+"/>
                                 <Separator/>
 
                                 <!-- SEKCJA: Potwierdzenia -->
@@ -1185,7 +1185,7 @@
                         <!-- Grupa nawigacji daty -->
                         <Border Background="#F8FAFC" CornerRadius="6" Padding="2" Margin="0,0,8,0" BorderBrush="#E2E8F0" BorderThickness="1">
                             <StackPanel Orientation="Horizontal">
-                                <Button Content="▲" Click="BtnDateUp_Click" ToolTip="Dzień w górę" Width="28" Height="28" FontSize="10">
+                                <Button Content="▲" Click="BtnDateDown_Click" ToolTip="Przesuń -1 dzień (wcześniej)" Width="28" Height="28" FontSize="10">
                                     <Button.Style>
                                         <Style TargetType="Button">
                                             <Setter Property="Background" Value="Transparent"/>
@@ -1208,7 +1208,7 @@
                                         </Style>
                                     </Button.Style>
                                 </Button>
-                                <Button Content="▼" Click="BtnDateDown_Click" ToolTip="Dzień w dół" Width="28" Height="28" FontSize="10">
+                                <Button Content="▼" Click="BtnDateUp_Click" ToolTip="Przesuń +1 dzień (później)" Width="28" Height="28" FontSize="10">
                                     <Button.Style>
                                         <Style TargetType="Button">
                                             <Setter Property="Background" Value="Transparent"/>
@@ -1376,7 +1376,7 @@
                     <!-- Strzałki do zmiany dnia dostawy -->
                     <Border Grid.Column="1" Background="#F0FDF4" CornerRadius="6" Padding="2" Margin="6,0,0,0" BorderBrush="#86EFAC" BorderThickness="1" ToolTip="Zmień datę zaznaczonej dostawy">
                         <StackPanel Orientation="Horizontal">
-                            <Button Click="BtnDateUp_Click" ToolTip="Przesuń +1 dzień (później)" Width="26" Height="26">
+                            <Button Click="BtnDateDown_Click" ToolTip="Przesuń -1 dzień (wcześniej)" Width="26" Height="26">
                                 <TextBlock Text="▲" FontSize="10" FontWeight="Bold" Foreground="#16A34A"/>
                                 <Button.Style>
                                     <Style TargetType="Button">
@@ -1400,7 +1400,7 @@
                                     </Style>
                                 </Button.Style>
                             </Button>
-                            <Button Click="BtnDateDown_Click" ToolTip="Przesuń -1 dzień (wcześniej)" Width="26" Height="26">
+                            <Button Click="BtnDateUp_Click" ToolTip="Przesuń +1 dzień (później)" Width="26" Height="26">
                                 <TextBlock Text="▼" FontSize="10" FontWeight="Bold" Foreground="#16A34A"/>
                                 <Button.Style>
                                     <Style TargetType="Button">
