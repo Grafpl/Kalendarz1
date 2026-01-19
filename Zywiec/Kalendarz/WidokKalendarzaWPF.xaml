@@ -535,14 +535,41 @@
                                   RenderTransformOrigin="0.5,0.5"
                                   SelectionChanged="DgDostawy_SelectionChanged" MouseDoubleClick="DgDostawy_MouseDoubleClick" LoadingRow="DgDostawy_LoadingRow">
                         <DataGrid.ContextMenu>
-                            <ContextMenu>
-                                <MenuItem Header="➕ Nowa dostawa na ten dzień" Click="MenuItemNowaDostawaZDaty_Click" FontWeight="SemiBold"/>
+                            <ContextMenu Closed="DgDostawy_ContextMenuClosed">
+                                <!-- SEKCJA: Operacje na dostawie -->
+                                <MenuItem Header="📦 DOSTAWA" IsEnabled="False" FontWeight="Bold" FontSize="10" Foreground="#6B7280"/>
+                                <MenuItem Header="➕ Nowa dostawa na ten dzień" Click="MenuItemNowaDostawaZDaty_Click" FontWeight="SemiBold" InputGestureText="Ctrl+N"/>
+                                <MenuItem Header="📋 Duplikuj dostawę" Click="BtnDuplikuj_Click" InputGestureText="Ctrl+D"/>
                                 <Separator/>
-                                <MenuItem Header="📋 Duplikuj dostawę" Click="BtnDuplikuj_Click"/>
-                                <MenuItem Header="▲ Przesuń o dzień w górę" Click="BtnDateUp_Click"/>
-                                <MenuItem Header="▼ Przesuń o dzień w dół" Click="BtnDateDown_Click"/>
+
+                                <!-- SEKCJA: Przesuwanie daty -->
+                                <MenuItem Header="📅 ZMIANA DATY" IsEnabled="False" FontWeight="Bold" FontSize="10" Foreground="#6B7280"/>
+                                <MenuItem Header="▲ Przesuń -1 dzień (wcześniej)" Click="BtnDateDown_Click" InputGestureText="-"/>
+                                <MenuItem Header="▼ Przesuń +1 dzień (później)" Click="BtnDateUp_Click" InputGestureText="+"/>
                                 <Separator/>
-                                <MenuItem Header="🗑 Usuń dostawę" Click="BtnUsun_Click" Foreground="#E74C3C"/>
+
+                                <!-- SEKCJA: Potwierdzenia -->
+                                <MenuItem Header="✅ POTWIERDZENIA" IsEnabled="False" FontWeight="Bold" FontSize="10" Foreground="#6B7280"/>
+                                <MenuItem Header="✅ Potwierdź WAGĘ" Click="MenuPotwierdzWage_Click" InputGestureText="Ctrl+W"/>
+                                <MenuItem Header="✅ Potwierdź SZTUKI" Click="MenuPotwierdzSztuki_Click" InputGestureText="Ctrl+S"/>
+                                <MenuItem Header="❌ Cofnij potwierdzenie WAGI" Click="MenuCofnijWage_Click"/>
+                                <MenuItem Header="❌ Cofnij potwierdzenie SZTUK" Click="MenuCofnijSztuki_Click"/>
+                                <Separator/>
+
+                                <!-- SEKCJA: Widoki i raporty -->
+                                <MenuItem Header="📊 WIDOKI" IsEnabled="False" FontWeight="Bold" FontSize="10" Foreground="#6B7280"/>
+                                <MenuItem Header="⚖️ Pokaż wagi" Click="MenuPokazWagi_Click" InputGestureText="F2"/>
+                                <MenuItem Header="🚛 Pokaż dostawy" Click="MenuPokazDostawy_Click" InputGestureText="F3"/>
+                                <MenuItem Header="💰 Pokaż ceny" Click="MenuPokazCeny_Click" InputGestureText="F4"/>
+                                <MenuItem Header="💵 Dodaj cenę" Click="MenuDodajCene_Click" InputGestureText="Ctrl+P"/>
+                                <MenuItem Header="🐣 Pokaż pasze/pisklęta" Click="MenuPokazPaszePiskleta_Click" InputGestureText="F5"/>
+                                <MenuItem Header="🍗 Pokaż tuszkę" Click="MenuPokazTuszke_Click" InputGestureText="F6"/>
+                                <MenuItem Header="📋 Pokaż avilog" Click="MenuPokazAvilog_Click" InputGestureText="F7"/>
+                                <MenuItem Header="📈 Pokaż plan sprzedaży" Click="MenuPokazPlanSprzedazy_Click" InputGestureText="F8"/>
+                                <Separator/>
+
+                                <!-- SEKCJA: Usuwanie -->
+                                <MenuItem Header="🗑 Usuń dostawę" Click="BtnUsun_Click" Foreground="#E74C3C" InputGestureText="Del"/>
                             </ContextMenu>
                         </DataGrid.ContextMenu>
                         <DataGrid.RenderTransform>
@@ -804,14 +831,41 @@
                               RenderTransformOrigin="0.5,0.5"
                               SelectionChanged="DgDostawyNastepny_SelectionChanged" MouseDoubleClick="DgDostawy_MouseDoubleClick">
                         <DataGrid.ContextMenu>
-                            <ContextMenu>
-                                <MenuItem Header="➕ Nowa dostawa na ten dzień" Click="MenuItemNowaDostawaZDaty_Click" FontWeight="SemiBold"/>
+                            <ContextMenu Closed="DgDostawy_ContextMenuClosed">
+                                <!-- SEKCJA: Operacje na dostawie -->
+                                <MenuItem Header="📦 DOSTAWA" IsEnabled="False" FontWeight="Bold" FontSize="10" Foreground="#6B7280"/>
+                                <MenuItem Header="➕ Nowa dostawa na ten dzień" Click="MenuItemNowaDostawaZDaty_Click" FontWeight="SemiBold" InputGestureText="Ctrl+N"/>
+                                <MenuItem Header="📋 Duplikuj dostawę" Click="BtnDuplikuj_Click" InputGestureText="Ctrl+D"/>
                                 <Separator/>
-                                <MenuItem Header="📋 Duplikuj dostawę" Click="BtnDuplikuj_Click"/>
-                                <MenuItem Header="▲ Przesuń o dzień w górę" Click="BtnDateUp_Click"/>
-                                <MenuItem Header="▼ Przesuń o dzień w dół" Click="BtnDateDown_Click"/>
+
+                                <!-- SEKCJA: Przesuwanie daty -->
+                                <MenuItem Header="📅 ZMIANA DATY" IsEnabled="False" FontWeight="Bold" FontSize="10" Foreground="#6B7280"/>
+                                <MenuItem Header="▲ Przesuń -1 dzień (wcześniej)" Click="BtnDateDown_Click" InputGestureText="-"/>
+                                <MenuItem Header="▼ Przesuń +1 dzień (później)" Click="BtnDateUp_Click" InputGestureText="+"/>
                                 <Separator/>
-                                <MenuItem Header="🗑 Usuń dostawę" Click="BtnUsun_Click" Foreground="#E74C3C"/>
+
+                                <!-- SEKCJA: Potwierdzenia -->
+                                <MenuItem Header="✅ POTWIERDZENIA" IsEnabled="False" FontWeight="Bold" FontSize="10" Foreground="#6B7280"/>
+                                <MenuItem Header="✅ Potwierdź WAGĘ" Click="MenuPotwierdzWage_Click" InputGestureText="Ctrl+W"/>
+                                <MenuItem Header="✅ Potwierdź SZTUKI" Click="MenuPotwierdzSztuki_Click" InputGestureText="Ctrl+S"/>
+                                <MenuItem Header="❌ Cofnij potwierdzenie WAGI" Click="MenuCofnijWage_Click"/>
+                                <MenuItem Header="❌ Cofnij potwierdzenie SZTUK" Click="MenuCofnijSztuki_Click"/>
+                                <Separator/>
+
+                                <!-- SEKCJA: Widoki i raporty -->
+                                <MenuItem Header="📊 WIDOKI" IsEnabled="False" FontWeight="Bold" FontSize="10" Foreground="#6B7280"/>
+                                <MenuItem Header="⚖️ Pokaż wagi" Click="MenuPokazWagi_Click" InputGestureText="F2"/>
+                                <MenuItem Header="🚛 Pokaż dostawy" Click="MenuPokazDostawy_Click" InputGestureText="F3"/>
+                                <MenuItem Header="💰 Pokaż ceny" Click="MenuPokazCeny_Click" InputGestureText="F4"/>
+                                <MenuItem Header="💵 Dodaj cenę" Click="MenuDodajCene_Click" InputGestureText="Ctrl+P"/>
+                                <MenuItem Header="🐣 Pokaż pasze/pisklęta" Click="MenuPokazPaszePiskleta_Click" InputGestureText="F5"/>
+                                <MenuItem Header="🍗 Pokaż tuszkę" Click="MenuPokazTuszke_Click" InputGestureText="F6"/>
+                                <MenuItem Header="📋 Pokaż avilog" Click="MenuPokazAvilog_Click" InputGestureText="F7"/>
+                                <MenuItem Header="📈 Pokaż plan sprzedaży" Click="MenuPokazPlanSprzedazy_Click" InputGestureText="F8"/>
+                                <Separator/>
+
+                                <!-- SEKCJA: Usuwanie -->
+                                <MenuItem Header="🗑 Usuń dostawę" Click="BtnUsun_Click" Foreground="#E74C3C" InputGestureText="Del"/>
                             </ContextMenu>
                         </DataGrid.ContextMenu>
                         <DataGrid.RenderTransform>
@@ -1131,7 +1185,7 @@
                         <!-- Grupa nawigacji daty -->
                         <Border Background="#F8FAFC" CornerRadius="6" Padding="2" Margin="0,0,8,0" BorderBrush="#E2E8F0" BorderThickness="1">
                             <StackPanel Orientation="Horizontal">
-                                <Button Content="▲" Click="BtnDateUp_Click" ToolTip="Dzień w górę" Width="28" Height="28" FontSize="10">
+                                <Button Content="▲" Click="BtnDateDown_Click" ToolTip="Przesuń -1 dzień (wcześniej)" Width="28" Height="28" FontSize="10">
                                     <Button.Style>
                                         <Style TargetType="Button">
                                             <Setter Property="Background" Value="Transparent"/>
@@ -1154,7 +1208,7 @@
                                         </Style>
                                     </Button.Style>
                                 </Button>
-                                <Button Content="▼" Click="BtnDateDown_Click" ToolTip="Dzień w dół" Width="28" Height="28" FontSize="10">
+                                <Button Content="▼" Click="BtnDateUp_Click" ToolTip="Przesuń +1 dzień (później)" Width="28" Height="28" FontSize="10">
                                     <Button.Style>
                                         <Style TargetType="Button">
                                             <Setter Property="Background" Value="Transparent"/>
@@ -1283,6 +1337,7 @@
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
@@ -1318,8 +1373,62 @@
                         </Border.ContextMenu>
                     </Border>
 
+                    <!-- Strzałki do zmiany dnia dostawy -->
+                    <Border Grid.Column="1" Background="#F0FDF4" CornerRadius="6" Padding="2" Margin="6,0,0,0" BorderBrush="#86EFAC" BorderThickness="1" ToolTip="Zmień datę zaznaczonej dostawy">
+                        <StackPanel Orientation="Horizontal">
+                            <Button Click="BtnDateDown_Click" ToolTip="Przesuń -1 dzień (wcześniej)" Width="26" Height="26">
+                                <TextBlock Text="▲" FontSize="10" FontWeight="Bold" Foreground="#16A34A"/>
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Background" Value="Transparent"/>
+                                        <Setter Property="BorderThickness" Value="0"/>
+                                        <Setter Property="Cursor" Value="Hand"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="{TemplateBinding Background}" CornerRadius="4">
+                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#BBF7D0"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                            <Button Click="BtnDateUp_Click" ToolTip="Przesuń +1 dzień (później)" Width="26" Height="26">
+                                <TextBlock Text="▼" FontSize="10" FontWeight="Bold" Foreground="#16A34A"/>
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Background" Value="Transparent"/>
+                                        <Setter Property="BorderThickness" Value="0"/>
+                                        <Setter Property="Cursor" Value="Hand"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="{TemplateBinding Background}" CornerRadius="4">
+                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#BBF7D0"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+
                     <!-- Wyszukiwarka -->
-                    <Border Grid.Column="1" Background="#F8FAFC" CornerRadius="6" Padding="8,4" Margin="10,0,0,0" BorderBrush="#E2E8F0" BorderThickness="1">
+                    <Border Grid.Column="2" Background="#F8FAFC" CornerRadius="6" Padding="8,4" Margin="10,0,0,0" BorderBrush="#E2E8F0" BorderThickness="1">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
@@ -1686,13 +1795,13 @@
                                                 </Grid.ColumnDefinitions>
                                                 <Border x:Name="borderPotwWaga" Grid.Column="0" Background="#FEE2E2" CornerRadius="4" Padding="6,3" Margin="0,0,4,0" ToolTip="Potwierdzenie wagi">
                                                     <StackPanel Orientation="Horizontal">
-                                                        <CheckBox x:Name="chkPotwWaga" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                        <CheckBox x:Name="chkPotwWaga" VerticalAlignment="Center" Margin="0,0,4,0" Click="ChkPotwWaga_Click"/>
                                                         <TextBlock Text="⚖️ Waga" FontSize="8" VerticalAlignment="Center" Foreground="#DC2626"/>
                                                     </StackPanel>
                                                 </Border>
                                                 <Border x:Name="borderPotwSztuki" Grid.Column="1" Background="#FEE2E2" CornerRadius="4" Padding="6,3" Margin="0,0,4,0" ToolTip="Potwierdzenie sztuk">
                                                     <StackPanel Orientation="Horizontal">
-                                                        <CheckBox x:Name="chkPotwSztuki" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                        <CheckBox x:Name="chkPotwSztuki" VerticalAlignment="Center" Margin="0,0,4,0" Click="ChkPotwSztuki_Click"/>
                                                         <TextBlock Text="🐔 Szt." FontSize="8" VerticalAlignment="Center" Foreground="#DC2626"/>
                                                     </StackPanel>
                                                 </Border>
@@ -2100,16 +2209,7 @@
                                 </StackPanel>
                             </ScrollViewer>
 
-                            <!-- Context Menu (zachowane dla kompatybilności) -->
-                            <Grid.ContextMenu>
-                                <ContextMenu>
-                                    <MenuItem Header="✅ Potwierdź WAGĘ" Click="MenuPotwierdzWage_Click" FontWeight="Bold"/>
-                                    <MenuItem Header="✅ Potwierdź SZTUKI" Click="MenuPotwierdzSztuki_Click" FontWeight="Bold"/>
-                                    <Separator/>
-                                    <MenuItem Header="❌ Cofnij potwierdzenie WAGI" Click="MenuCofnijWage_Click"/>
-                                    <MenuItem Header="❌ Cofnij potwierdzenie SZTUK" Click="MenuCofnijSztuki_Click"/>
-                                </ContextMenu>
-                            </Grid.ContextMenu>
+                            <!-- Potwierdzenia wag/sztuk są teraz dostępne w menu kontekstowym tablic dostaw (dgDostawy/dgDostawyNastepny) -->
                         </Grid>
                     </TabItem>
 
@@ -2340,40 +2440,81 @@
                     <!-- TAB: PARTIE BIEŻĄCE -->
                     <TabItem Header="Partie">
                         <Grid Margin="4">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
-                            <Border Grid.Row="0" Background="#388E3C" Padding="8,4" CornerRadius="4,4,0,0">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="Partie bieżące" Foreground="White" FontWeight="SemiBold" FontSize="11" VerticalAlignment="Center"/>
-                                    <DatePicker x:Name="dpPartieData" SelectedDate="{x:Static sys:DateTime.Today}" SelectedDateChanged="DpPartieData_SelectedDateChanged"
-                                                Margin="10,0,0,0" Width="100" FontSize="9" Background="White" BorderThickness="0"
-                                                VerticalAlignment="Center"/>
-                                    <TextBlock x:Name="txtPartieSuma" Text="" Foreground="#C8E6C9" FontSize="10" Margin="20,0,0,0" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </Border>
-                            <DataGrid x:Name="dgPartie" Grid.Row="1" Style="{StaticResource SmallDataGridStyle}" CellEditEnding="DgPartie_CellFormatting">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Nr" Binding="{Binding Partia}" Width="35"/>
-                                    <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="100"/>
-                                    <DataGridTextColumn Header="Śr." Binding="{Binding SredniaDisplay}" Width="55"/>
-                                    <DataGridTextColumn Header="Żywiec" Binding="{Binding ZywiecDisplay}" Width="55"/>
-                                    <DataGridTextColumn Header="Różn." Binding="{Binding RoznicaDisplay}" Width="55"/>
-                                    <DataGridTextColumn Header="Skrz." Binding="{Binding SkrzydlaDisplay}" Width="45"/>
-                                    <DataGridTextColumn Header="Nogi" Binding="{Binding NogiDisplay}" Width="45"/>
-                                    <DataGridTextColumn Header="Oparz." Binding="{Binding OparzeniaDisplay}" Width="45"/>
-                                    <DataGridTextColumn Header="Kl.B" Binding="{Binding KlasaBDisplay}" Width="45"/>
-                                    <DataGridTextColumn Header="Przek." Binding="{Binding PrzekarmienieDisplay}" Width="50"/>
-                                    <DataGridHyperlinkColumn Header="Zdjęcia" Binding="{Binding ZdjeciaLink}" Width="60">
-                                        <DataGridHyperlinkColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <EventSetter Event="Hyperlink.Click" Handler="Hyperlink_Click"/>
-                                            </Style>
-                                        </DataGridHyperlinkColumn.ElementStyle>
-                                    </DataGridHyperlinkColumn>
-                                </DataGrid.Columns>
-                            </DataGrid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Partie bieżące (lewa strona) -->
+                            <Grid Grid.Column="0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <Border Grid.Row="0" Background="#388E3C" Padding="8,4" CornerRadius="4,4,0,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Partie bieżące" Foreground="White" FontWeight="SemiBold" FontSize="11" VerticalAlignment="Center"/>
+                                        <DatePicker x:Name="dpPartieData" SelectedDate="{x:Static sys:DateTime.Today}" SelectedDateChanged="DpPartieData_SelectedDateChanged"
+                                                    Margin="10,0,0,0" Width="100" FontSize="9" Background="White" BorderThickness="0"
+                                                    VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="txtPartieSuma" Text="" Foreground="#C8E6C9" FontSize="10" Margin="20,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                                <DataGrid x:Name="dgPartie" Grid.Row="1" Style="{StaticResource SmallDataGridStyle}" CellEditEnding="DgPartie_CellFormatting">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Nr" Binding="{Binding Partia}" Width="35"/>
+                                        <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="100"/>
+                                        <DataGridTextColumn Header="Śr." Binding="{Binding SredniaDisplay}" Width="55"/>
+                                        <DataGridTextColumn Header="Żywiec" Binding="{Binding ZywiecDisplay}" Width="55"/>
+                                        <DataGridTextColumn Header="Różn." Binding="{Binding RoznicaDisplay}" Width="55"/>
+                                        <DataGridTextColumn Header="Skrz." Binding="{Binding SkrzydlaDisplay}" Width="45"/>
+                                        <DataGridTextColumn Header="Nogi" Binding="{Binding NogiDisplay}" Width="45"/>
+                                        <DataGridTextColumn Header="Oparz." Binding="{Binding OparzeniaDisplay}" Width="45"/>
+                                        <DataGridTextColumn Header="Kl.B" Binding="{Binding KlasaBDisplay}" Width="45"/>
+                                        <DataGridTextColumn Header="Przek." Binding="{Binding PrzekarmienieDisplay}" Width="50"/>
+                                        <DataGridHyperlinkColumn Header="Zdjęcia" Binding="{Binding ZdjeciaLink}" Width="60">
+                                            <DataGridHyperlinkColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <EventSetter Event="Hyperlink.Click" Handler="Hyperlink_Click"/>
+                                                </Style>
+                                            </DataGridHyperlinkColumn.ElementStyle>
+                                        </DataGridHyperlinkColumn>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Grid>
+
+                            <!-- Pojemność tuszek (prawa strona) -->
+                            <Grid Grid.Column="1" Margin="4,0,0,0" Width="100">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <Border Grid.Row="0" Background="#1565C0" Padding="8,4" CornerRadius="4,4,0,0">
+                                    <TextBlock Text="Poj. tuszki" Foreground="White" FontWeight="SemiBold" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </Border>
+                                <DataGrid x:Name="dgPojemnoscTuszki" Grid.Row="1" Style="{StaticResource SmallDataGridStyle}"
+                                          AutoGenerateColumns="False" IsReadOnly="True" RowHeaderWidth="0"
+                                          CanUserAddRows="False" CanUserDeleteRows="False">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Poj" Binding="{Binding Pojemnosc}" Width="40">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="TextAlignment" Value="Center"/>
+                                                    <Setter Property="FontSize" Value="9"/>
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="Palety" Binding="{Binding Palety}" Width="50">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="TextAlignment" Value="Center"/>
+                                                    <Setter Property="FontSize" Value="9"/>
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Grid>
                         </Grid>
                     </TabItem>
                 </TabControl>
