@@ -4,6 +4,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
+using Kalendarz1;
 
 namespace Kalendarz.Zywiec.WidokSpecyfikacji
 {
