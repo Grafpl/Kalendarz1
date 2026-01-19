@@ -109,6 +109,18 @@
             </Setter>
         </Style>
 
+        <Style x:Key="SkeletonEllipse" TargetType="Ellipse">
+            <Setter Property="Fill">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="#1F2C33" Offset="0"/>
+                        <GradientStop Color="#2A3942" Offset="0.5"/>
+                        <GradientStop Color="#1F2C33" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Ciemny ScrollBar -->
         <Style x:Key="DarkScrollBar" TargetType="ScrollBar">
             <Setter Property="Background" Value="Transparent"/>
@@ -323,7 +335,7 @@
                                 <ColumnDefinition Width="50"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <Ellipse Width="48" Height="48" Style="{StaticResource SkeletonBorder}"/>
+                            <Ellipse Width="48" Height="48" Style="{StaticResource SkeletonEllipse}"/>
                             <StackPanel Grid.Column="1" Margin="14,8,0,0">
                                 <Border Height="14" Width="120" CornerRadius="4" Style="{StaticResource SkeletonBorder}" HorizontalAlignment="Left"/>
                                 <Border Height="10" Width="180" CornerRadius="4" Style="{StaticResource SkeletonBorder}" HorizontalAlignment="Left" Margin="0,8,0,0"/>
@@ -337,7 +349,7 @@
                                 <ColumnDefinition Width="50"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <Ellipse Width="48" Height="48" Style="{StaticResource SkeletonBorder}"/>
+                            <Ellipse Width="48" Height="48" Style="{StaticResource SkeletonEllipse}"/>
                             <StackPanel Grid.Column="1" Margin="14,8,0,0">
                                 <Border Height="14" Width="100" CornerRadius="4" Style="{StaticResource SkeletonBorder}" HorizontalAlignment="Left"/>
                                 <Border Height="10" Width="150" CornerRadius="4" Style="{StaticResource SkeletonBorder}" HorizontalAlignment="Left" Margin="0,8,0,0"/>
@@ -351,7 +363,7 @@
                                 <ColumnDefinition Width="50"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <Ellipse Width="48" Height="48" Style="{StaticResource SkeletonBorder}"/>
+                            <Ellipse Width="48" Height="48" Style="{StaticResource SkeletonEllipse}"/>
                             <StackPanel Grid.Column="1" Margin="14,8,0,0">
                                 <Border Height="14" Width="140" CornerRadius="4" Style="{StaticResource SkeletonBorder}" HorizontalAlignment="Left"/>
                                 <Border Height="10" Width="200" CornerRadius="4" Style="{StaticResource SkeletonBorder}" HorizontalAlignment="Left" Margin="0,8,0,0"/>
@@ -365,7 +377,7 @@
                                 <ColumnDefinition Width="50"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <Ellipse Width="48" Height="48" Style="{StaticResource SkeletonBorder}"/>
+                            <Ellipse Width="48" Height="48" Style="{StaticResource SkeletonEllipse}"/>
                             <StackPanel Grid.Column="1" Margin="14,8,0,0">
                                 <Border Height="14" Width="110" CornerRadius="4" Style="{StaticResource SkeletonBorder}" HorizontalAlignment="Left"/>
                                 <Border Height="10" Width="170" CornerRadius="4" Style="{StaticResource SkeletonBorder}" HorizontalAlignment="Left" Margin="0,8,0,0"/>
