@@ -139,23 +139,16 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Zapisuje logo firmy z pliku
+        /// Zapisuje logo firmy z pliku - zapisuje na serwer sieciowy
         /// </summary>
         public static bool SaveLogo(string sourceImagePath)
         {
             try
             {
-                EnsureLogoFolderExists();
-
                 using (var originalImage = Image.FromFile(sourceImagePath))
                 {
-                    // Zapisz w oryginalnym rozmiarze (max 512px)
-                    var resized = ScaleImage(originalImage, 512, 512);
-                    resized.Save(LogoPath, ImageFormat.Png);
-                    resized.Dispose();
+                    return SaveLogo(originalImage);
                 }
-
-                return true;
             }
             catch
             {
@@ -164,19 +157,68 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Zapisuje logo z Image
+        /// Zapisuje logo z Image - zapisuje na serwer sieciowy
         /// </summary>
         public static bool SaveLogo(Image image)
         {
             try
             {
-                EnsureLogoFolderExists();
-
                 var resized = ScaleImage(image, 512, 512);
-                resized.Save(LogoPath, ImageFormat.Png);
+                bool savedToNetwork = false;
+
+                // Próbuj zapisać na serwer sieciowy
+                string[] networkPaths = { NetworkLogoPath1, NetworkLogoPath2 };
+
+                foreach (var networkPath in networkPaths)
+                {
+                    try
+                    {
+                        if (!Directory.Exists(networkPath))
+                        {
+                            try
+                            {
+                                Directory.CreateDirectory(networkPath);
+                            }
+                            catch
+                            {
+                                continue; // Nie można utworzyć folderu, spróbuj następny serwer
+                            }
+                        }
+
+                        string targetPath = Path.Combine(networkPath, $"{NetworkLogoFileName}.png");
+
+                        // Usuń stare pliki logo z innymi rozszerzeniami
+                        string[] extensions = { ".png", ".jpg", ".jpeg", ".bmp" };
+                        foreach (var ext in extensions)
+                        {
+                            string oldPath = Path.Combine(networkPath, $"{NetworkLogoFileName}{ext}");
+                            if (File.Exists(oldPath) && ext != ".png")
+                            {
+                                try { File.Delete(oldPath); } catch { }
+                            }
+                        }
+
+                        resized.Save(targetPath, ImageFormat.Png);
+                        savedToNetwork = true;
+                        break; // Zapisano pomyślnie, nie próbuj na drugim serwerze
+                    }
+                    catch
+                    {
+                        continue; // Spróbuj następny serwer
+                    }
+                }
+
+                // Zapisz też lokalnie jako backup
+                try
+                {
+                    EnsureLogoFolderExists();
+                    resized.Save(LogoPath, ImageFormat.Png);
+                }
+                catch { }
+
                 resized.Dispose();
 
-                return true;
+                return savedToNetwork;
             }
             catch
             {
