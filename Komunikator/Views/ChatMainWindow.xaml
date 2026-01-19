@@ -73,22 +73,57 @@
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FontSize" Value="16"/>
-            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="Padding" Value="6,4"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#2A3942"/>
+                                <Setter TargetName="bd" Property="Background" Value="#FFE082"/>
                                 <Setter Property="RenderTransform">
                                     <Setter.Value>
-                                        <ScaleTransform ScaleX="1.2" ScaleY="1.2"/>
+                                        <ScaleTransform ScaleX="1.15" ScaleY="1.15"/>
                                     </Setter.Value>
                                 </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Styl przycisku dodawania reakcji (żółty +) -->
+        <Style x:Key="AddReactionButton" TargetType="Button">
+            <Setter Property="Background" Value="#FFC107"/>
+            <Setter Property="Foreground" Value="#000000"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Opacity" Value="0"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <ScaleTransform ScaleX="0.8" ScaleY="0.8"/>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="14"
+                                BorderBrush="#FFD54F" BorderThickness="2">
+                            <TextBlock Text="😊" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#FFCA28"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#FFE082"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -595,7 +630,7 @@
                                         </Border>
 
                                         <!-- Wiadomość od innych -->
-                                        <Grid HorizontalAlignment="Left" MaxWidth="500">
+                                        <Grid x:Name="ReceivedMessageContainer" HorizontalAlignment="Left" MaxWidth="540">
                                             <Grid.Style>
                                                 <Style TargetType="Grid">
                                                     <Setter Property="Visibility" Value="Collapsed"/>
@@ -617,6 +652,7 @@
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="40"/>
                                                 <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
 
                                             <Grid Width="32" Height="32" VerticalAlignment="Bottom" Margin="0,0,8,0"
@@ -676,20 +712,29 @@
                                                     </Grid>
                                                 </StackPanel>
                                             </Border>
+
+                                            <!-- Przycisk reakcji (pojawia się na hover) -->
+                                            <Button Grid.Column="2" Tag="{Binding}" Click="AddReaction_Click"
+                                                    VerticalAlignment="Center" Margin="6,0,0,0">
+                                                <Button.Style>
+                                                    <Style TargetType="Button" BasedOn="{StaticResource AddReactionButton}">
+                                                        <Setter Property="Opacity" Value="0"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Grid}}" Value="True">
+                                                                <Setter Property="Opacity" Value="1"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
                                         </Grid>
 
                                         <!-- Moja wiadomość -->
-                                        <Border HorizontalAlignment="Right" MaxWidth="500" Background="#005C4B" Padding="10,8"
-                                                Tag="{Binding}" MouseRightButtonUp="Message_RightClick">
-                                            <Border.RenderTransform>
-                                                <ScaleTransform ScaleX="1" ScaleY="1"/>
-                                            </Border.RenderTransform>
-                                            <Border.Style>
-                                                <Style TargetType="Border">
+                                        <Grid HorizontalAlignment="Right" MaxWidth="540">
+                                            <Grid.Style>
+                                                <Style TargetType="Grid">
                                                     <Setter Property="Visibility" Value="Collapsed"/>
                                                     <Setter Property="Margin" Value="0,1"/>
-                                                    <Setter Property="CornerRadius" Value="8"/>
-                                                    <Setter Property="RenderTransformOrigin" Value="1,1"/>
                                                     <Style.Triggers>
                                                         <MultiDataTrigger>
                                                             <MultiDataTrigger.Conditions>
@@ -700,45 +745,81 @@
                                                         </MultiDataTrigger>
                                                         <DataTrigger Binding="{Binding IsFirstInGroup}" Value="True">
                                                             <Setter Property="Margin" Value="0,8,0,1"/>
-                                                            <Setter Property="CornerRadius" Value="8,0,8,8"/>
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
-                                            </Border.Style>
-                                            <StackPanel>
-                                                <TextBlock Text="{Binding Content}" Foreground="#E9EDEF"
-                                                           FontSize="14" TextWrapping="Wrap"/>
-                                                <Grid Margin="0,4,0,0">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <!-- Reakcje -->
-                                                    <ItemsControl ItemsSource="{Binding Reactions}" Grid.Column="0">
-                                                        <ItemsControl.ItemsPanel>
-                                                            <ItemsPanelTemplate>
-                                                                <StackPanel Orientation="Horizontal"/>
-                                                            </ItemsPanelTemplate>
-                                                        </ItemsControl.ItemsPanel>
-                                                        <ItemsControl.ItemTemplate>
-                                                            <DataTemplate>
-                                                                <Border Background="#004D40" CornerRadius="10" Padding="4,2" Margin="0,0,4,0">
-                                                                    <StackPanel Orientation="Horizontal">
-                                                                        <TextBlock Text="{Binding Emoji}" FontSize="12"/>
-                                                                        <TextBlock Text="{Binding Count}" Foreground="#7EBFAD" FontSize="10" Margin="2,0,0,0"
-                                                                                   Visibility="{Binding ShowCount, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                                                                    </StackPanel>
-                                                                </Border>
-                                                            </DataTemplate>
-                                                        </ItemsControl.ItemTemplate>
-                                                    </ItemsControl>
-                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                                                        <TextBlock Text="{Binding FormattedTime}" Foreground="#7EBFAD" FontSize="11"/>
-                                                        <TextBlock Text="{Binding ReadStatus}" Margin="4,0,0,0" Foreground="#53BDEB" FontSize="11"/>
-                                                    </StackPanel>
-                                                </Grid>
-                                            </StackPanel>
-                                        </Border>
+                                            </Grid.Style>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Przycisk reakcji (pojawia się na hover) - po lewej stronie -->
+                                            <Button Grid.Column="0" Tag="{Binding}" Click="AddReaction_Click"
+                                                    VerticalAlignment="Center" Margin="0,0,6,0">
+                                                <Button.Style>
+                                                    <Style TargetType="Button" BasedOn="{StaticResource AddReactionButton}">
+                                                        <Setter Property="Opacity" Value="0"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Grid}}" Value="True">
+                                                                <Setter Property="Opacity" Value="1"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+
+                                            <Border Grid.Column="1" Background="#005C4B" Padding="10,8"
+                                                    Tag="{Binding}" MouseRightButtonUp="Message_RightClick">
+                                                <Border.RenderTransform>
+                                                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                                                </Border.RenderTransform>
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="CornerRadius" Value="8"/>
+                                                        <Setter Property="RenderTransformOrigin" Value="1,1"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsFirstInGroup}" Value="True">
+                                                                <Setter Property="CornerRadius" Value="8,0,8,8"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Content}" Foreground="#E9EDEF"
+                                                               FontSize="14" TextWrapping="Wrap"/>
+                                                    <Grid Margin="0,4,0,0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <!-- Reakcje -->
+                                                        <ItemsControl ItemsSource="{Binding Reactions}" Grid.Column="0">
+                                                            <ItemsControl.ItemsPanel>
+                                                                <ItemsPanelTemplate>
+                                                                    <StackPanel Orientation="Horizontal"/>
+                                                                </ItemsPanelTemplate>
+                                                            </ItemsControl.ItemsPanel>
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <Border Background="#004D40" CornerRadius="10" Padding="4,2" Margin="0,0,4,0">
+                                                                        <StackPanel Orientation="Horizontal">
+                                                                            <TextBlock Text="{Binding Emoji}" FontSize="12"/>
+                                                                            <TextBlock Text="{Binding Count}" Foreground="#7EBFAD" FontSize="10" Margin="2,0,0,0"
+                                                                                       Visibility="{Binding ShowCount, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                                                        </StackPanel>
+                                                                    </Border>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                                            <TextBlock Text="{Binding FormattedTime}" Foreground="#7EBFAD" FontSize="11"/>
+                                                            <TextBlock Text="{Binding ReadStatus}" Margin="4,0,0,0" Foreground="#53BDEB" FontSize="11"/>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </StackPanel>
+                                            </Border>
+                                        </Grid>
                                     </Grid>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>

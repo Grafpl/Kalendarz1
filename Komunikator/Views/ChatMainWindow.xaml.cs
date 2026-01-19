@@ -627,6 +627,14 @@ namespace Kalendarz1.Komunikator.Views
             }
         }
 
+        private void AddReaction_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is MessageViewModel message && !message.IsDateSeparator)
+            {
+                ShowReactionPicker(btn, message);
+            }
+        }
+
         private void ShowReactionPicker(FrameworkElement targetElement, MessageViewModel message)
         {
             var popup = new System.Windows.Controls.Primitives.Popup
@@ -637,11 +645,21 @@ namespace Kalendarz1.Komunikator.Views
                 AllowsTransparency = true
             };
 
+            // Żółty panel z emoji
             var border = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(32, 44, 51)), // #202C33
-                CornerRadius = new CornerRadius(20),
-                Padding = new Thickness(8, 4, 8, 4)
+                Background = new SolidColorBrush(Color.FromRgb(255, 193, 7)), // #FFC107 - żółty
+                CornerRadius = new CornerRadius(24),
+                Padding = new Thickness(10, 6, 10, 6),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(255, 213, 79)), // #FFD54F
+                BorderThickness = new Thickness(2),
+                Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    BlurRadius = 12,
+                    ShadowDepth = 4,
+                    Opacity = 0.3,
+                    Color = Colors.Black
+                }
             };
 
             var panel = new StackPanel { Orientation = Orientation.Horizontal };
