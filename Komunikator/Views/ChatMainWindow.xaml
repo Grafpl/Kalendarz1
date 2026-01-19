@@ -68,22 +68,24 @@
                            From="0.3" To="1" Duration="0:0:0.4" BeginTime="0:0:0.3" AutoReverse="True"/>
         </Storyboard>
 
-        <!-- Styl przycisku reakcji -->
+        <!-- Styl przycisku reakcji w żółtym pickerze -->
         <Style x:Key="ReactionButton" TargetType="Button">
-            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Background" Value="#FFD54F"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FontSize" Value="20"/>
-            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="FontSize" Value="22"/>
+            <Setter Property="Width" Value="38"/>
+            <Setter Property="Height" Value="38"/>
+            <Setter Property="Margin" Value="2"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="19">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#FFE082"/>
+                                <Setter TargetName="bd" Property="Background" Value="#FFEB3B"/>
                                 <Setter Property="RenderTransform">
                                     <Setter.Value>
                                         <ScaleTransform ScaleX="1.15" ScaleY="1.15"/>
