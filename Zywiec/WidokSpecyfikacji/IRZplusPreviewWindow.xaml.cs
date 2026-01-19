@@ -119,8 +119,13 @@ namespace Kalendarz1
 
             // KG Do zaplaty, Szt Konfiskat, Szt Padlych
             txtSumaKgDoZapl.Text = wybrane.Sum(s => s.KgDoZaplaty).ToString("N0") + " kg";
-            txtSumaKgKonfiskat.Text = wybrane.Sum(s => s.KgKonfiskat).ToString("N0") + " szt";
-            txtSumaKgPadlych.Text = wybrane.Sum(s => s.KgPadlych).ToString("N0") + " szt";
+            var sumaKonfiskat = wybrane.Sum(s => s.KgKonfiskat);
+            var sumaPadlych = wybrane.Sum(s => s.KgPadlych);
+            txtSumaKgKonfiskat.Text = sumaKonfiskat.ToString("N0") + " szt";
+            txtSumaKgPadlych.Text = sumaPadlych.ToString("N0") + " szt";
+
+            // Suma padlych i konfiskat
+            txtSumaPadleKonfiskaty.Text = (sumaKonfiskat + sumaPadlych).ToString("N0") + " szt";
 
             btnSend.IsEnabled = wybrane.Count > 0;
         }

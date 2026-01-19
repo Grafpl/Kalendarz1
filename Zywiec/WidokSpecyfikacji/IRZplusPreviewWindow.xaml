@@ -489,7 +489,10 @@
                     <TextBlock x:Name="txtSumaKgKonfiskat" Text="0" FontSize="12" FontWeight="Bold" Foreground="#FF9800" VerticalAlignment="Center" Margin="0,0,12,0"/>
 
                     <TextBlock Text="Padle szt:" FontSize="10" Foreground="#757575" VerticalAlignment="Center" Margin="0,0,3,0"/>
-                    <TextBlock x:Name="txtSumaKgPadlych" Text="0" FontSize="12" FontWeight="Bold" Foreground="#D32F2F" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="txtSumaKgPadlych" Text="0" FontSize="12" FontWeight="Bold" Foreground="#D32F2F" VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                    <TextBlock Text="Padle+Konf:" FontSize="10" Foreground="#757575" VerticalAlignment="Center" Margin="0,0,3,0"/>
+                    <TextBlock x:Name="txtSumaPadleKonfiskaty" Text="0" FontSize="12" FontWeight="Bold" Foreground="#9C27B0" VerticalAlignment="Center"/>
                 </StackPanel>
             </Grid>
         </Border>
