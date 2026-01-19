@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Historia Zmian - Audyt Systemu"
         Height="700" Width="1200"
+        WindowState="Maximized"
         WindowStartupLocation="CenterScreen"
         Background="#ECEFF1"
         FontFamily="Segoe UI">
@@ -248,26 +249,26 @@
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
-                    <DataGridTemplateColumn Header="Stara wartość" Width="120">
+                    <DataGridTemplateColumn Header="Stara wartość" Width="Auto">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <Border Background="#FFEBEE" CornerRadius="3" Margin="2" Padding="4,2"
                                         ToolTip="{Binding StaraWartosc}">
                                     <TextBlock Text="{Binding StaraWartosc}"
                                                Foreground="#C62828" FontWeight="SemiBold"
-                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                               VerticalAlignment="Center"/>
                                 </Border>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
-                    <DataGridTemplateColumn Header="Nowa wartość" Width="120">
+                    <DataGridTemplateColumn Header="Nowa wartość" Width="Auto">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <Border Background="#E8F5E9" CornerRadius="3" Margin="2" Padding="4,2"
                                         ToolTip="{Binding NowaWartosc}">
                                     <TextBlock Text="{Binding NowaWartosc}"
                                                Foreground="#2E7D32" FontWeight="SemiBold"
-                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                               VerticalAlignment="Center"/>
                                 </Border>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
