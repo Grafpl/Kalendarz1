@@ -437,6 +437,9 @@
                             ToolTip="Eksportuj dane do pliku XML lub CSV"/>
                     <Button x:Name="btnSend" Content="Wyslij do IRZplus" Click="BtnSend_Click"
                             Style="{StaticResource ToolbarButton}" Background="#388E3C"/>
+                    <Button x:Name="btnSendApi" Content="Wyslij przez API" Click="BtnSendApi_Click"
+                            Style="{StaticResource ToolbarButton}" Background="#2196F3"
+                            ToolTip="Wyslij zgloszenie ZURD bezposrednio przez API IRZplus"/>
 
                     <Border Width="1" Background="#B0BEC5" Margin="8,2"/>
 

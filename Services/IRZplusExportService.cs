@@ -171,7 +171,7 @@ namespace Kalendarz1.Services
 
                     csv.AppendLine(string.Join(";", new[]
                     {
-                        "",                                           // Kol 1: Numer identyfikacyjny (puste)
+                        zgloszenie.NumerPartiiUboju,                  // Kol 1: Numer partii uboju (np. 26011601)
                         poz.LiczbaSztuk.ToString(),                   // Kol 2: Liczba sztuk
                         masaStr,                                      // Kol 3: Masa (liczba calkowita)
                         "ZURDUR",                                     // Kol 4: Typ zdarzenia
@@ -450,7 +450,7 @@ namespace Kalendarz1.Services
 
                 csv.AppendLine(string.Join(";", new[]
                 {
-                    "",                                 // Kol 1: Numer identyfikacyjny (puste)
+                    numerPartiiUboju,                   // Kol 1: Numer partii uboju (np. 26011601)
                     liczbaSztuk.ToString(),             // Kol 2: Liczba sztuk
                     masaStr,                            // Kol 3: Masa (liczba calkowita)
                     "ZURDUR",                           // Kol 4: Typ zdarzenia
@@ -629,6 +629,9 @@ namespace Kalendarz1.Services
                     // Normalizuj numer siedliska
                     var numerSiedliska = NormalizujNumerSiedliska(transport.PrzyjeteZDzialalnosci);
 
+                    // Generuj numer partii uboju (format: yyMMddNN)
+                    var numerPartiiUboju = ZgloszenieZURD.GenerujNumerPartiiUboju(dataUboju, kolejnosc);
+
                     // Buduj CSV (format ARiMR 13 kolumn)
                     var csv = new StringBuilder();
                     var dataZdarzeniaStr = dataUboju.ToString("yyyy-MM-dd");
@@ -636,7 +639,7 @@ namespace Kalendarz1.Services
 
                     csv.AppendLine(string.Join(";", new[]
                     {
-                        "",                                           // Kol 1: Numer identyfikacyjny (puste)
+                        numerPartiiUboju,                             // Kol 1: Numer partii uboju (np. 26011601)
                         transport.LiczbaSztuk.ToString(),             // Kol 2: Liczba sztuk
                         masaStr,                                      // Kol 3: Masa
                         "ZURDUR",                                     // Kol 4: Typ zdarzenia
@@ -700,7 +703,7 @@ namespace Kalendarz1.Services
 
                     csv.AppendLine(string.Join(";", new[]
                     {
-                        "",                                           // Kol 1: Numer identyfikacyjny (puste)
+                        zgloszenie.NumerPartiiUboju,                  // Kol 1: Numer partii uboju (np. 26011601)
                         poz.LiczbaSztuk.ToString(),                   // Kol 2: Liczba sztuk
                         masaStr,                                      // Kol 3: Masa
                         "ZURDUR",                                     // Kol 4: Typ zdarzenia
@@ -1589,7 +1592,7 @@ namespace Kalendarz1.Services
 
                 csv.AppendLine(string.Join(";", new[]
                 {
-                    "",                                           // Kol 1: Numer identyfikacyjny (puste)
+                    zgloszenie.NumerPartiiUboju,                  // Kol 1: Numer partii uboju (np. 26011601)
                     poz.LiczbaSztuk.ToString(),                   // Kol 2: Liczba sztuk
                     masaStr,                                      // Kol 3: Masa
                     "ZURDUR",                                     // Kol 4: Typ zdarzenia

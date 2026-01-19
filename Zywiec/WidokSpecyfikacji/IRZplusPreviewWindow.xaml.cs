@@ -25,6 +25,7 @@ namespace Kalendarz1
     public partial class IRZplusPreviewWindow : Window, INotifyPropertyChanged
     {
         private readonly IRZplusService _service;
+        private readonly IRZplusApiService _apiService;
         private readonly string _connectionString;
         private readonly DateTime _dataUboju;
         private ObservableCollection<SpecyfikacjaDoIRZplusViewModel> _specyfikacje;
@@ -44,6 +45,7 @@ namespace Kalendarz1
             _connectionString = connectionString;
             _dataUboju = dataUboju;
             _service = new IRZplusService();
+            _apiService = new IRZplusApiService();
             _specyfikacje = new ObservableCollection<SpecyfikacjaDoIRZplusViewModel>();
 
             dgSpecyfikacje.ItemsSource = _specyfikacje;
@@ -228,6 +230,116 @@ namespace Kalendarz1
                 return;
 
             await SendToIRZplusAsync(wybrane);
+        }
+
+        /// <summary>
+        /// Wysyla zgloszenie ZURD bezposrednio przez API IRZplus
+        /// </summary>
+        private async void BtnSendApi_Click(object sender, RoutedEventArgs e)
+        {
+            var wybrane = _specyfikacje.Where(s => s.Wybrana).ToList();
+            if (wybrane.Count == 0)
+            {
+                MessageBox.Show("Zaznacz przynajmniej jedna specyfikacje.", "Uwaga",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Pobierz dane logowania z ustawien
+            var settings = _service.GetSettings();
+            if (string.IsNullOrEmpty(settings.Username) || string.IsNullOrEmpty(settings.Password))
+            {
+                MessageBox.Show("Uzupelnij dane logowania w Ustawieniach (Username i Password).", "Brak danych logowania",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var envText = "PRODUKCJA";
+            var confirmResult = MessageBox.Show(
+                $"Czy na pewno chcesz wyslac zgloszenie ZURD przez API?\n\n" +
+                $"Srodowisko: {envText}\n" +
+                $"Data uboju: {_dataUboju:dd.MM.yyyy}\n" +
+                $"Liczba pozycji: {wybrane.Count}\n" +
+                $"Suma sztuk: {wybrane.Sum(s => s.LiczbaSztukDrobiu):N0}",
+                "Potwierdzenie wysylki API",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (confirmResult != MessageBoxResult.Yes)
+                return;
+
+            try
+            {
+                btnSendApi.IsEnabled = false;
+                txtStatus.Text = "Logowanie do API IRZplus...";
+                progressBar.Visibility = Visibility.Visible;
+                progressBar.IsIndeterminate = true;
+
+                // Autoryzacja
+                var authResult = await _apiService.AuthenticateAsync(settings.Username, settings.Password);
+                if (!authResult.Success)
+                {
+                    MessageBox.Show($"Blad logowania:\n{authResult.Message}", "Blad",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    txtStatus.Text = "Blad logowania";
+                    return;
+                }
+
+                txtStatus.Text = "Wysylanie zgloszenia ZURD...";
+
+                // Przygotuj numer partii uboju (format: yyMMddNN gdzie NN = numer sekwencyjny)
+                var numerPartii = _dataUboju.ToString("yyMMdd") + "01";
+
+                // Przygotuj pozycje
+                var pozycje = wybrane.Select((spec, idx) => new PozycjaZURDApi
+                {
+                    Lp = idx + 1,
+                    NumerIdenPartiiDrobiu = numerPartii,
+                    LiczbaDrobiu = spec.LiczbaSztukDrobiu,
+                    MasaDrobiu = spec.WagaNetto,
+                    TypZdarzenia = new KodValueApi { Kod = "UR" },
+                    DataZdarzenia = spec.DataZdarzenia.ToString("yyyy-MM-dd"),
+                    DataKupnaWwozu = spec.DataZdarzenia.ToString("yyyy-MM-dd"),
+                    PrzyjeteZDzialalnosci = spec.IRZPlus,
+                    UbojRytualny = false
+                }).ToList();
+
+                // Utworz i wyslij dyspozycje
+                var dyspozycja = _apiService.UtworzDyspozycje(numerPartii, pozycje);
+                var result = await _apiService.WyslijZURDAsync(dyspozycja);
+
+                if (result.Success)
+                {
+                    WysylkaZakonczona = true;
+                    NumerZgloszenia = result.NumerZgloszenia;
+
+                    MessageBox.Show(
+                        $"ZGLOSZENIE WYSLANE POMYSLNIE!\n\n" +
+                        $"Numer zgloszenia: {result.NumerZgloszenia}\n" +
+                        $"Pozycji: {pozycje.Count}\n" +
+                        $"Suma sztuk: {pozycje.Sum(p => p.LiczbaDrobiu):N0}",
+                        "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                    txtStatus.Text = $"Wyslano przez API: {result.NumerZgloszenia}";
+                }
+                else
+                {
+                    MessageBox.Show($"Blad wysylania:\n{result.Message}", "Blad",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    txtStatus.Text = "Blad wysylania przez API";
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Wyjatek:\n{ex.Message}", "Blad",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                txtStatus.Text = "Wyjatek";
+            }
+            finally
+            {
+                btnSendApi.IsEnabled = true;
+                progressBar.Visibility = Visibility.Collapsed;
+            }
         }
 
         private async Task SendToIRZplusAsync(List<SpecyfikacjaDoIRZplusViewModel> wybrane)
@@ -788,6 +900,7 @@ namespace Kalendarz1
         {
             base.OnClosed(e);
             _service?.Dispose();
+            _apiService?.Dispose();
         }
     }
 

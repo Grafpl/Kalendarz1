@@ -105,6 +105,51 @@ namespace Kalendarz1
             }
         }
 
+        /// <summary>
+        /// Testuje polaczenie z API IRZplus przez OAuth2
+        /// </summary>
+        private async void BtnTestApi_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(txtUsername.Text) || string.IsNullOrEmpty(txtPassword.Password))
+            {
+                txtApiStatus.Text = "Uzupelnij login i haslo";
+                txtApiStatus.Foreground = Brushes.Red;
+                return;
+            }
+
+            btnTestApi.IsEnabled = false;
+            txtApiStatus.Text = "Testowanie API...";
+            txtApiStatus.Foreground = Brushes.Gray;
+
+            try
+            {
+                using (var apiService = new IRZplusApiService())
+                {
+                    var result = await apiService.AuthenticateAsync(txtUsername.Text, txtPassword.Password);
+
+                    if (result.Success)
+                    {
+                        txtApiStatus.Text = "Polaczenie API OK! Token uzyskany.";
+                        txtApiStatus.Foreground = Brushes.Green;
+                    }
+                    else
+                    {
+                        txtApiStatus.Text = $"Blad: {result.Message}";
+                        txtApiStatus.Foreground = Brushes.Red;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                txtApiStatus.Text = $"Wyjatek: {ex.Message}";
+                txtApiStatus.Foreground = Brushes.Red;
+            }
+            finally
+            {
+                btnTestApi.IsEnabled = true;
+            }
+        }
+
         private void BtnSave_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrWhiteSpace(txtNumerUbojni.Text))
