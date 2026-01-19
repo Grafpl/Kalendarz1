@@ -907,34 +907,16 @@ namespace Kalendarz1
                 btnSend.IsEnabled = false;
                 txtStatus.Text = "Wysylanie do IRZplus...";
                 progressBar.Visibility = Visibility.Visible;
-                progressBar.IsIndeterminate = true;
+                progressBar.IsIndeterminate = false;
+                progressBar.Maximum = wybrane.Count;
+                progressBar.Value = 0;
 
-                // Konwertuj na model
-                var specyfikacje = wybrane.Select(vm => new SpecyfikacjaDoIRZplus
-                {
-                    Id = vm.Id,
-                    Hodowca = vm.Hodowca,
-                    IdHodowcy = vm.IdHodowcy,
-                    IRZPlus = vm.IRZPlus,
-                    NumerPartii = vm.NumerPartii,
-                    LiczbaSztukDrobiu = vm.LiczbaSztukDrobiu,
-                    TypZdarzenia = vm.TypZdarzenia,
-                    DataZdarzenia = vm.DataZdarzenia,
-                    KrajWywozu = vm.KrajWywozu,
-                    NrDokArimr = vm.NrDokArimr,
-                    Przybycie = vm.Przybycie,
-                    Padniecia = vm.Padniecia,
-                    SztukiWszystkie = vm.SztukiWszystkie,
-                    SztukiPadle = vm.SztukiPadle,
-                    SztukiKonfiskaty = vm.SztukiKonfiskaty,
-                    WagaNetto = vm.WagaNetto,
-                    Wybrana = true
-                }).ToList();
+                // Wysylaj KAZDA POZYCJE OSOBNO - sekwencyjnie
+                int successCount = 0;
+                int errorCount = 0;
+                var errors = new List<string>();
+                var successResults = new List<(string Hodowca, IRZplusResult Result)>();
 
-                var zgloszenie = _service.ConvertToZgloszenie(specyfikacje);
-                var sendResult = await _service.SendZgloszenieAsync(zgloszenie);
-
-                // Logowanie do bazy
                 string userId = App.UserID ?? Environment.UserName;
                 string userName = userId;
                 try
@@ -944,38 +926,112 @@ namespace Kalendarz1
                 }
                 catch { }
 
-                await _service.LogToDatabase(_connectionString, zgloszenie, sendResult, userId, userName);
-
-                if (sendResult.Success)
+                for (int i = 0; i < wybrane.Count; i++)
                 {
-                    WysylkaZakonczona = true;
-                    NumerZgloszenia = sendResult.NumerZgloszenia;
+                    var vm = wybrane[i];
+                    progressBar.Value = i + 1;
+                    txtStatus.Text = $"Wysylanie {i + 1}/{wybrane.Count}: {vm.Hodowca}...";
 
-                    var message = $"Zgloszenie zostalo wyslane pomyslnie!\n\n";
-                    if (!string.IsNullOrEmpty(sendResult.NumerZgloszenia))
-                        message += $"Numer zgloszenia: {sendResult.NumerZgloszenia}\n";
-
-                    if (sendResult.Warnings.Count > 0)
+                    // Konwertuj pojedyncza specyfikacje
+                    var spec = new SpecyfikacjaDoIRZplus
                     {
-                        message += $"\nOstrzezenia:\n{string.Join("\n", sendResult.Warnings)}";
+                        Id = vm.Id,
+                        Hodowca = vm.Hodowca,
+                        IdHodowcy = vm.IdHodowcy,
+                        IRZPlus = vm.IRZPlus,
+                        NumerPartii = vm.NumerPartii,
+                        LiczbaSztukDrobiu = vm.LiczbaSztukDrobiu,
+                        TypZdarzenia = vm.TypZdarzenia,
+                        DataZdarzenia = vm.DataZdarzenia,
+                        KrajWywozu = vm.KrajWywozu,
+                        NrDokArimr = vm.NrDokArimr,
+                        Przybycie = vm.Przybycie,
+                        Padniecia = vm.Padniecia,
+                        SztukiWszystkie = vm.SztukiWszystkie,
+                        SztukiPadle = vm.SztukiPadle,
+                        SztukiKonfiskaty = vm.SztukiKonfiskaty,
+                        WagaNetto = vm.WagaNetto,
+                        Wybrana = true
+                    };
+
+                    // Utworz zgloszenie dla pojedynczego dostawcy
+                    var zgloszenie = _service.ConvertToZgloszenie(new List<SpecyfikacjaDoIRZplus> { spec });
+                    var sendResult = await _service.SendZgloszenieAsync(zgloszenie);
+
+                    // Logowanie do bazy
+                    await _service.LogToDatabase(_connectionString, zgloszenie, sendResult, userId, userName);
+
+                    if (sendResult.Success)
+                    {
+                        successCount++;
+                        successResults.Add((vm.Hodowca, sendResult));
+
+                        // Pokaz okno sukcesu dla kazdego dostawcy z mozliwoscia kopiowania
+                        var apiResult = new ApiResult
+                        {
+                            Success = true,
+                            NumerZgloszenia = sendResult.NumerZgloszenia,
+                            NumerDokumentu = sendResult.NumerZgloszenia,
+                            Message = sendResult.Message,
+                            ResponseJson = sendResult.ResponseData
+                        };
+                        ShowSuccessDialog(apiResult, vm.Hodowca);
+                    }
+                    else
+                    {
+                        errorCount++;
+                        errors.Add($"{vm.Hodowca}: {sendResult.Message}");
+
+                        // Pokaz blad ale kontynuuj wysylanie pozostalych
+                        var continueResult = MessageBox.Show(
+                            $"Blad wysylania dla: {vm.Hodowca}\n\n{sendResult.Message}\n\nCzy kontynuowac wysylanie pozostalych?",
+                            "Blad wysylania",
+                            MessageBoxButton.YesNo,
+                            MessageBoxImage.Warning);
+
+                        if (continueResult != MessageBoxResult.Yes)
+                            break;
                     }
 
-                    MessageBox.Show(message, "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
-                    txtStatus.Text = $"Wyslano pomyslnie: {sendResult.NumerZgloszenia}";
+                    // Krotka pauza miedzy requestami
+                    await Task.Delay(500);
+                }
 
+                // Podsumowanie
+                WysylkaZakonczona = successCount > 0;
+                if (successResults.Any())
+                {
+                    NumerZgloszenia = successResults.Last().Result.NumerZgloszenia;
+                }
+
+                var summary = $"Wyslano: {successCount}/{wybrane.Count}";
+                if (errorCount > 0)
+                {
+                    summary += $"\nBledy: {errorCount}";
+                }
+                txtStatus.Text = summary;
+
+                // Pokaz podsumowanie
+                var summaryMsg = $"PODSUMOWANIE WYSYLKI\n\n" +
+                    $"Wyslano pomyslnie: {successCount}\n" +
+                    $"Bledy: {errorCount}\n";
+
+                if (errors.Any())
+                {
+                    summaryMsg += $"\nBLEDY:\n{string.Join("\n", errors.Take(5))}";
+                    if (errors.Count > 5)
+                        summaryMsg += $"\n... i {errors.Count - 5} wiecej";
+                }
+
+                MessageBox.Show(summaryMsg,
+                    successCount == wybrane.Count ? "Wysylka zakonczona" : "Wysylka zakonczona z bledami",
+                    MessageBoxButton.OK,
+                    successCount == wybrane.Count ? MessageBoxImage.Information : MessageBoxImage.Warning);
+
+                if (successCount == wybrane.Count)
+                {
                     DialogResult = true;
                     Close();
-                }
-                else
-                {
-                    var errorMessage = $"Blad wysylania:\n{sendResult.Message}";
-                    if (sendResult.Errors.Count > 0)
-                    {
-                        errorMessage += $"\n\nSzczegoly:\n{string.Join("\n", sendResult.Errors)}";
-                    }
-
-                    MessageBox.Show(errorMessage, "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
-                    txtStatus.Text = "Blad wysylania";
                 }
             }
             catch (Exception ex)
