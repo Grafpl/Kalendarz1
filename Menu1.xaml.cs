@@ -203,21 +203,7 @@ namespace Kalendarz1
             {
                 string[] extensions = { ".png", ".jpg", ".jpeg", ".bmp" };
 
-                // Najpierw sprawdź lokalny cache avatarów
-                string avatarDir = System.IO.Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "ZPSP", "Avatars");
-
-                foreach (var ext in extensions)
-                {
-                    string avatarPath = System.IO.Path.Combine(avatarDir, $"{userId}{ext}");
-                    if (File.Exists(avatarPath))
-                    {
-                        return LoadAvatarFromPath(avatarPath);
-                    }
-                }
-
-                // Rozwiązanie nr 2: Sprawdź na serwerze sieciowym
+                // Zawsze pobieraj z serwera sieciowego
                 string[] networkPaths = { NetworkAvatarsPath1, NetworkAvatarsPath2 };
                 foreach (var networkPath in networkPaths)
                 {

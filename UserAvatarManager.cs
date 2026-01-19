@@ -46,15 +46,11 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Sprawdza czy użytkownik ma zapisany avatar (lokalnie lub na serwerze sieciowym)
+        /// Sprawdza czy użytkownik ma zapisany avatar (na serwerze sieciowym)
         /// </summary>
         public static bool HasAvatar(string userId)
         {
-            // Najpierw sprawdź lokalnie
-            if (File.Exists(GetAvatarPath(userId)))
-                return true;
-
-            // Rozwiązanie nr 2: Sprawdź na serwerze sieciowym
+            // Zawsze sprawdzaj na serwerze sieciowym
             var networkPath = GetNetworkAvatarPath(userId);
             return networkPath != null;
         }
@@ -93,25 +89,11 @@ namespace Kalendarz1
 
         /// <summary>
         /// Pobiera avatar użytkownika jako Image (null jeśli nie istnieje)
-        /// Najpierw sprawdza lokalnie, potem na serwerze sieciowym (rozwiązanie nr 2)
+        /// Zawsze pobiera z serwera sieciowego
         /// </summary>
         public static Image GetAvatar(string userId)
         {
-            // Najpierw sprawdź lokalnie
-            string localPath = GetAvatarPath(userId);
-            if (File.Exists(localPath))
-            {
-                try
-                {
-                    using (var fs = new FileStream(localPath, FileMode.Open, FileAccess.Read))
-                    {
-                        return Image.FromStream(fs);
-                    }
-                }
-                catch { }
-            }
-
-            // Rozwiązanie nr 2: Pobierz z serwera sieciowego
+            // Zawsze pobieraj z serwera sieciowego
             string networkPath = GetNetworkAvatarPath(userId);
             if (networkPath != null)
             {

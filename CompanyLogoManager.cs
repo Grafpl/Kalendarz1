@@ -50,15 +50,11 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Sprawdza czy logo firmy jest zapisane (lokalnie lub na serwerze sieciowym)
+        /// Sprawdza czy logo firmy jest zapisane (na serwerze sieciowym)
         /// </summary>
         public static bool HasLogo()
         {
-            // Najpierw sprawdź lokalnie
-            if (File.Exists(LogoPath))
-                return true;
-
-            // Rozwiązanie nr 2: Sprawdź na serwerze sieciowym
+            // Zawsze sprawdzaj na serwerze sieciowym
             var networkPath = GetNetworkLogoPath();
             return networkPath != null;
         }
@@ -97,24 +93,11 @@ namespace Kalendarz1
 
         /// <summary>
         /// Pobiera logo firmy jako Image (null jeśli nie istnieje)
-        /// Najpierw sprawdza lokalnie, potem na serwerze sieciowym (rozwiązanie nr 2)
+        /// Zawsze pobiera z serwera sieciowego
         /// </summary>
         public static Image GetLogo()
         {
-            // Najpierw sprawdź lokalnie
-            if (File.Exists(LogoPath))
-            {
-                try
-                {
-                    using (var fs = new FileStream(LogoPath, FileMode.Open, FileAccess.Read))
-                    {
-                        return Image.FromStream(fs);
-                    }
-                }
-                catch { }
-            }
-
-            // Rozwiązanie nr 2: Pobierz z serwera sieciowego
+            // Zawsze pobieraj z serwera sieciowego
             string networkPath = GetNetworkLogoPath();
             if (networkPath != null)
             {
