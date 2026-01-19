@@ -27,6 +27,7 @@ namespace Kalendarz1
         private string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private string connectionHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
         private Dictionary<string, bool> userPermissions = new Dictionary<string, bool>();
+        private Dictionary<string, object> _openWindows = new Dictionary<string, object>();
         private bool isAdmin = false;
         private Panel sidePanel;
         private TableLayoutPanel mainLayout;
@@ -1472,6 +1473,31 @@ namespace Kalendarz1
             {
                 try
                 {
+                    // Sprawdź czy okno dla tego modułu jest już otwarte
+                    if (_openWindows.TryGetValue(config.ModuleName, out var existingWindow))
+                    {
+                        // Okno jest już otwarte - aktywuj je
+                        if (existingWindow is System.Windows.Window wpfExisting)
+                        {
+                            if (wpfExisting.WindowState == System.Windows.WindowState.Minimized)
+                            {
+                                wpfExisting.WindowState = System.Windows.WindowState.Normal;
+                            }
+                            wpfExisting.Activate();
+                            wpfExisting.Focus();
+                        }
+                        else if (existingWindow is System.Windows.Forms.Form winFormExisting)
+                        {
+                            if (winFormExisting.WindowState == FormWindowState.Minimized)
+                            {
+                                winFormExisting.WindowState = FormWindowState.Normal;
+                            }
+                            winFormExisting.Activate();
+                            winFormExisting.Focus();
+                        }
+                        return;
+                    }
+
                     if (config.FormFactory != null)
                     {
                         var formularz = config.FormFactory();
@@ -1485,7 +1511,14 @@ namespace Kalendarz1
                             {
                                 wpfWindow.Icon = wpfIcon;
                             }
-                            wpfWindow.ShowDialog();
+
+                            // Zapisz okno w słowniku i usuń gdy zostanie zamknięte
+                            string moduleName = config.ModuleName;
+                            _openWindows[moduleName] = wpfWindow;
+                            wpfWindow.Closed += (s, args) => _openWindows.Remove(moduleName);
+
+                            // Użyj Show() zamiast ShowDialog() aby nie blokować menu
+                            wpfWindow.Show();
                         }
                         else if (formularz is System.Windows.Forms.Form winForm)
                         {
@@ -1496,6 +1529,12 @@ namespace Kalendarz1
                             {
                                 winForm.Icon = winIcon;
                             }
+
+                            // Zapisz okno w słowniku i usuń gdy zostanie zamknięte
+                            string moduleName = config.ModuleName;
+                            _openWindows[moduleName] = winForm;
+                            winForm.FormClosed += (s, args) => _openWindows.Remove(moduleName);
+
                             winForm.Show();
                         }
                         else if (formularz != null)
