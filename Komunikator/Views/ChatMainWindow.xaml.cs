@@ -244,9 +244,22 @@ namespace Kalendarz1.Komunikator.Views
             // Ustaw nagłówek
             SelectedUserName.Text = contact.Name;
             SelectedUserStatus.Text = contact.IsOnline ? "Online" : contact.OnlineStatus;
-            SelectedUserOnlineIndicator.Fill = contact.IsOnline
-                ? (Brush)FindResource("OnlineBrush")
-                : (Brush)FindResource("OfflineBrush");
+
+            // Ustaw efekty online
+            if (contact.IsOnline)
+            {
+                SelectedUserGlow.Opacity = 0.3;
+                SelectedUserBorder.Stroke = (Brush)FindResource("OnlineBrush");
+                SelectedUserDot.Fill = (Brush)FindResource("OnlineBrush");
+                SelectedUserStatus.Foreground = (Brush)FindResource("OnlineBrush");
+            }
+            else
+            {
+                SelectedUserGlow.Opacity = 0;
+                SelectedUserBorder.Stroke = Brushes.Transparent;
+                SelectedUserDot.Fill = (Brush)FindResource("OfflineBrush");
+                SelectedUserStatus.Foreground = (Brush)FindResource("OfflineBrush");
+            }
 
             // Załaduj avatar
             if (contact.AvatarSource != null)

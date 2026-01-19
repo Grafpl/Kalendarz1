@@ -23,17 +23,62 @@
         <SolidColorBrush x:Key="TextWhite" Color="#E9EDEF"/>
         <SolidColorBrush x:Key="TextGray" Color="#8696A0"/>
         <SolidColorBrush x:Key="HoverBg" Color="#2A3942"/>
-        <SolidColorBrush x:Key="SelectedBg" Color="#2A3942"/>
         <SolidColorBrush x:Key="OnlineBrush" Color="#25D366"/>
         <SolidColorBrush x:Key="OfflineBrush" Color="#8696A0"/>
-        <SolidColorBrush x:Key="ChatBg" Color="#0B141A"/>
+
+        <!-- Ciemny ScrollBar -->
+        <Style x:Key="DarkScrollBar" TargetType="ScrollBar">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Width" Value="8"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Grid>
+                            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                <Track.Thumb>
+                                    <Thumb Background="#3D4E56" BorderThickness="0">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Border Background="#3D4E56" CornerRadius="4" Margin="1"/>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DarkScrollViewer" TargetType="ScrollViewer">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollViewer">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ScrollContentPresenter Grid.Column="0"/>
+                            <ScrollBar x:Name="PART_VerticalScrollBar" Grid.Column="1"
+                                       Style="{StaticResource DarkScrollBar}"
+                                       Value="{TemplateBinding VerticalOffset}"
+                                       Maximum="{TemplateBinding ScrollableHeight}"
+                                       ViewportSize="{TemplateBinding ViewportHeight}"
+                                       Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
         <!-- Style -->
         <Style x:Key="ChatInput" TargetType="TextBox">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{StaticResource TextWhite}"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="Padding" Value="14,12"/>
             <Setter Property="FontSize" Value="15"/>
             <Setter Property="CaretBrush" Value="White"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
@@ -43,18 +88,21 @@
             <Setter Property="Background" Value="{StaticResource GreenAccent}"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Width" Value="48"/>
-            <Setter Property="Height" Value="48"/>
+            <Setter Property="Width" Value="50"/>
+            <Setter Property="Height" Value="50"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" CornerRadius="24">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="25">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#008069"/>
+                                <Setter TargetName="bd" Property="Background" Value="#008069"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#006B5A"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -68,18 +116,27 @@
             <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
             <Setter Property="VirtualizingStackPanel.IsVirtualizing" Value="True"/>
             <Setter Property="VirtualizingStackPanel.VirtualizationMode" Value="Recycling"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBox">
+                        <ScrollViewer Style="{StaticResource DarkScrollViewer}" Padding="0">
+                            <ItemsPresenter/>
+                        </ScrollViewer>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <Style x:Key="ContactItem" TargetType="ListBoxItem">
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
-                        <Border x:Name="Bd" Padding="10,12" Background="Transparent" Cursor="Hand">
+                        <Border x:Name="Bd" Padding="12,10" Background="Transparent" Cursor="Hand">
                             <ContentPresenter/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource HoverBg}"/>
+                                <Setter TargetName="Bd" Property="Background" Value="#2A3942"/>
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="Bd" Property="Background" Value="#2A3942"/>
@@ -107,7 +164,7 @@
                 </Grid.RowDefinitions>
 
                 <!-- Header użytkownika -->
-                <Border Grid.Row="0" Background="{StaticResource HeaderBg}" Padding="12,0">
+                <Border Grid.Row="0" Background="{StaticResource HeaderBg}" Padding="14,0">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
@@ -115,8 +172,14 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <Grid Width="44" Height="44">
-                            <Ellipse>
+                        <!-- Avatar z zieloną poświatą -->
+                        <Grid Width="46" Height="46">
+                            <Ellipse Width="46" Height="46" Fill="#25D366" Opacity="0.3">
+                                <Ellipse.Effect>
+                                    <BlurEffect Radius="8"/>
+                                </Ellipse.Effect>
+                            </Ellipse>
+                            <Ellipse Width="44" Height="44" Stroke="#25D366" StrokeThickness="2">
                                 <Ellipse.Fill>
                                     <ImageBrush x:Name="CurrentUserAvatar" Stretch="UniformToFill"/>
                                 </Ellipse.Fill>
@@ -125,30 +188,33 @@
 
                         <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0">
                             <TextBlock x:Name="CurrentUserName" Text="..."
-                                       Foreground="{StaticResource TextWhite}" FontSize="16" FontWeight="Medium"/>
-                            <TextBlock Text="Online" Foreground="{StaticResource GreenAccent}" FontSize="12"/>
+                                       Foreground="{StaticResource TextWhite}" FontSize="15" FontWeight="Medium"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                <Ellipse Width="8" Height="8" Fill="#25D366" Margin="0,0,6,0"/>
+                                <TextBlock Text="Online" Foreground="#25D366" FontSize="12"/>
+                            </StackPanel>
                         </StackPanel>
 
                         <Border x:Name="TotalUnreadBadge" Grid.Column="2"
-                                Background="{StaticResource GreenAccent}" CornerRadius="11"
-                                Padding="8,4" Visibility="Collapsed" VerticalAlignment="Center">
+                                Background="{StaticResource GreenAccent}" CornerRadius="12"
+                                Padding="10,4" Visibility="Collapsed" VerticalAlignment="Center">
                             <TextBlock x:Name="TotalUnreadCount" Text="0" Foreground="White" FontSize="12" FontWeight="Bold"/>
                         </Border>
                     </Grid>
                 </Border>
 
                 <!-- Wyszukiwarka -->
-                <Border Grid.Row="1" Padding="10,8" Background="{StaticResource SidebarBg}">
-                    <Border Background="{StaticResource InputBg}" CornerRadius="8" Height="36">
+                <Border Grid.Row="1" Padding="10,6" Background="{StaticResource SidebarBg}">
+                    <Border Background="#2A3942" CornerRadius="8" Height="38">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="🔍" FontSize="13" VerticalAlignment="Center" Margin="12,0,8,0" Foreground="{StaticResource TextGray}"/>
+                            <TextBlock Text="🔍" FontSize="14" VerticalAlignment="Center" Margin="14,0,10,0" Foreground="#8696A0"/>
                             <TextBox x:Name="SearchBox" Grid.Column="1" Style="{StaticResource ChatInput}"
-                                     FontSize="14" Padding="0,0,12,0" TextChanged="SearchBox_TextChanged"/>
-                            <TextBlock Grid.Column="1" Text="Szukaj" Foreground="{StaticResource TextGray}"
+                                     FontSize="14" Padding="0,0,14,0" TextChanged="SearchBox_TextChanged"/>
+                            <TextBlock Grid.Column="1" Text="Szukaj" Foreground="#8696A0"
                                        VerticalAlignment="Center" IsHitTestVisible="False" FontSize="14">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
@@ -172,44 +238,89 @@
                          SelectionChanged="ContactsList_SelectionChanged">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <Grid Height="50">
+                            <Grid Height="54">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
+                                <!-- Avatar z efektem online -->
                                 <Grid Width="50" Height="50">
-                                    <Ellipse>
+                                    <!-- Zielona poświata gdy online -->
+                                    <Ellipse Width="50" Height="50" Opacity="0.25">
+                                        <Ellipse.Style>
+                                            <Style TargetType="Ellipse">
+                                                <Setter Property="Fill" Value="Transparent"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsOnline}" Value="True">
+                                                        <Setter Property="Fill" Value="#25D366"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Ellipse.Style>
+                                        <Ellipse.Effect>
+                                            <BlurEffect Radius="6"/>
+                                        </Ellipse.Effect>
+                                    </Ellipse>
+                                    <!-- Avatar -->
+                                    <Ellipse Width="48" Height="48">
+                                        <Ellipse.Style>
+                                            <Style TargetType="Ellipse">
+                                                <Setter Property="Stroke" Value="Transparent"/>
+                                                <Setter Property="StrokeThickness" Value="2"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsOnline}" Value="True">
+                                                        <Setter Property="Stroke" Value="#25D366"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Ellipse.Style>
                                         <Ellipse.Fill>
                                             <ImageBrush ImageSource="{Binding AvatarSource}" Stretch="UniformToFill"/>
                                         </Ellipse.Fill>
                                     </Ellipse>
+                                    <!-- Zielona kropka online -->
+                                    <Ellipse Width="14" Height="14" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                             Stroke="#111B21" StrokeThickness="2"
+                                             Visibility="{Binding IsOnline, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <Ellipse.Fill>
+                                            <RadialGradientBrush>
+                                                <GradientStop Color="#4ADE80" Offset="0"/>
+                                                <GradientStop Color="#25D366" Offset="1"/>
+                                            </RadialGradientBrush>
+                                        </Ellipse.Fill>
+                                    </Ellipse>
                                 </Grid>
 
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0">
-                                    <TextBlock Text="{Binding Name}" Foreground="{StaticResource TextWhite}"
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="14,0,0,0">
+                                    <TextBlock Text="{Binding Name}" Foreground="#E9EDEF"
                                                FontSize="16" TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Text="{Binding LastMessage}" Foreground="{StaticResource TextGray}"
-                                               FontSize="13" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                                    <TextBlock Text="{Binding LastMessage}" Foreground="#8696A0"
+                                               FontSize="13" TextTrimming="CharacterEllipsis" Margin="0,3,0,0"/>
                                 </StackPanel>
 
-                                <StackPanel Grid.Column="2" VerticalAlignment="Top" Margin="0,4,0,0">
+                                <StackPanel Grid.Column="2" VerticalAlignment="Top" Margin="0,6,0,0">
                                     <TextBlock Text="{Binding FormattedLastMessageTime}" FontSize="12" HorizontalAlignment="Right">
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock">
-                                                <Setter Property="Foreground" Value="{StaticResource TextGray}"/>
+                                                <Setter Property="Foreground" Value="#8696A0"/>
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding HasUnread}" Value="True">
-                                                        <Setter Property="Foreground" Value="{StaticResource GreenAccent}"/>
+                                                        <Setter Property="Foreground" Value="#25D366"/>
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
                                         </TextBlock.Style>
                                     </TextBlock>
-                                    <Border Background="{StaticResource GreenAccent}" CornerRadius="10"
-                                            Padding="6,2" Margin="0,6,0,0" HorizontalAlignment="Right"
+                                    <Border CornerRadius="11" Padding="7,3" Margin="0,6,0,0" HorizontalAlignment="Right"
                                             Visibility="{Binding HasUnread, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <Border.Background>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                <GradientStop Color="#25D366" Offset="0"/>
+                                                <GradientStop Color="#00A884" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </Border.Background>
                                         <TextBlock Text="{Binding UnreadCount}" Foreground="White" FontSize="11" FontWeight="Bold"/>
                                     </Border>
                                 </StackPanel>
@@ -225,13 +336,13 @@
             <!-- Placeholder -->
             <Grid x:Name="NoConversationPanel" Background="#0B141A">
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                    <Border Background="#1F2C33" CornerRadius="50" Width="100" Height="100" Margin="0,0,0,20">
+                    <Border Background="#1F2C33" CornerRadius="50" Width="100" Height="100" Margin="0,0,0,24">
                         <TextBlock Text="💬" FontSize="44" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
-                    <TextBlock Text="Komunikator Firmowy" FontSize="28" FontWeight="Light"
-                               Foreground="{StaticResource TextWhite}" HorizontalAlignment="Center"/>
-                    <TextBlock Text="Wysyłaj i odbieraj wiadomości" Foreground="{StaticResource TextGray}"
-                               FontSize="14" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                    <TextBlock Text="Komunikator Firmowy" FontSize="32" FontWeight="Light"
+                               Foreground="#E9EDEF" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Wysyłaj i odbieraj wiadomości od współpracowników" Foreground="#8696A0"
+                               FontSize="14" HorizontalAlignment="Center" Margin="0,10,0,0"/>
                 </StackPanel>
             </Grid>
 
@@ -251,46 +362,35 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
-                        <Grid Width="44" Height="44">
-                            <Ellipse>
+                        <Grid Width="46" Height="46">
+                            <Ellipse x:Name="SelectedUserGlow" Width="46" Height="46" Fill="#25D366" Opacity="0">
+                                <Ellipse.Effect>
+                                    <BlurEffect Radius="8"/>
+                                </Ellipse.Effect>
+                            </Ellipse>
+                            <Ellipse x:Name="SelectedUserBorder" Width="44" Height="44" Stroke="Transparent" StrokeThickness="2">
                                 <Ellipse.Fill>
                                     <ImageBrush x:Name="SelectedUserAvatar" Stretch="UniformToFill"/>
                                 </Ellipse.Fill>
                             </Ellipse>
                         </Grid>
 
-                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0">
-                            <TextBlock x:Name="SelectedUserName" Foreground="{StaticResource TextWhite}"
-                                       FontSize="16" FontWeight="Medium"/>
-                            <TextBlock x:Name="SelectedUserStatus" Foreground="{StaticResource TextGray}" FontSize="13"/>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="14,0,0,0">
+                            <TextBlock x:Name="SelectedUserName" Foreground="#E9EDEF" FontSize="16" FontWeight="Medium"/>
+                            <StackPanel x:Name="SelectedUserStatusPanel" Orientation="Horizontal" Margin="0,2,0,0">
+                                <Ellipse x:Name="SelectedUserDot" Width="8" Height="8" Fill="#8696A0" Margin="0,0,6,0"/>
+                                <TextBlock x:Name="SelectedUserStatus" Foreground="#8696A0" FontSize="12"/>
+                            </StackPanel>
                         </StackPanel>
 
                         <Ellipse x:Name="SelectedUserOnlineIndicator" Width="0" Height="0" Visibility="Collapsed"/>
                     </Grid>
                 </Border>
 
-                <!-- Wiadomości z tłem WhatsApp -->
+                <!-- Wiadomości -->
                 <Border Grid.Row="1" Background="#0B141A">
-                    <Border.Style>
-                        <Style TargetType="Border">
-                            <Setter Property="Background">
-                                <Setter.Value>
-                                    <DrawingBrush TileMode="Tile" Viewport="0,0,100,100" ViewportUnits="Absolute">
-                                        <DrawingBrush.Drawing>
-                                            <GeometryDrawing Brush="#0D1418">
-                                                <GeometryDrawing.Geometry>
-                                                    <RectangleGeometry Rect="0,0,100,100"/>
-                                                </GeometryDrawing.Geometry>
-                                            </GeometryDrawing>
-                                        </DrawingBrush.Drawing>
-                                    </DrawingBrush>
-                                </Setter.Value>
-                            </Setter>
-                        </Style>
-                    </Border.Style>
-
-                    <ScrollViewer x:Name="MessagesScrollViewer" VerticalScrollBarVisibility="Auto">
-                        <ItemsControl x:Name="MessagesList" Margin="60,10"
+                    <ScrollViewer x:Name="MessagesScrollViewer" Style="{StaticResource DarkScrollViewer}">
+                        <ItemsControl x:Name="MessagesList" Margin="60,16"
                                       VirtualizingStackPanel.IsVirtualizing="True"
                                       VirtualizingStackPanel.VirtualizationMode="Recycling">
                             <ItemsControl.ItemsPanel>
@@ -301,37 +401,52 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Grid>
-                                        <!-- Separator daty -->
-                                        <Border HorizontalAlignment="Center" Margin="0,12"
-                                                Visibility="{Binding IsDateSeparator, Converter={StaticResource BoolToVisibilityConverter}}">
-                                            <Border Background="#1D282F" CornerRadius="8" Padding="12,6">
-                                                <TextBlock Text="{Binding DateText}" Foreground="#8696A0"
-                                                           FontSize="12"/>
+                                        <!-- Separator daty - tylko gdy IsDateSeparator i ma DateText -->
+                                        <Border HorizontalAlignment="Center" Margin="0,16">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding IsDateSeparator}" Value="True"/>
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </MultiDataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <Border Background="#182229" CornerRadius="8" Padding="12,6">
+                                                <TextBlock Text="{Binding DateText}" Foreground="#8696A0" FontSize="12"/>
                                             </Border>
                                         </Border>
 
                                         <!-- Wiadomość od innych -->
-                                        <Grid HorizontalAlignment="Left" MaxWidth="520"
-                                              Visibility="{Binding IsFromMe, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                                        <Grid HorizontalAlignment="Left" MaxWidth="500">
                                             <Grid.Style>
                                                 <Style TargetType="Grid">
-                                                    <Setter Property="Margin" Value="0,1,0,1"/>
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Setter Property="Margin" Value="0,1"/>
                                                     <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsDateSeparator}" Value="True">
-                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                        </DataTrigger>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding IsFromMe}" Value="False"/>
+                                                                <Condition Binding="{Binding IsDateSeparator}" Value="False"/>
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </MultiDataTrigger>
                                                         <DataTrigger Binding="{Binding IsFirstInGroup}" Value="True">
-                                                            <Setter Property="Margin" Value="0,6,0,1"/>
+                                                            <Setter Property="Margin" Value="0,8,0,1"/>
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
                                             </Grid.Style>
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="42"/>
+                                                <ColumnDefinition Width="40"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
 
-                                            <Grid Width="32" Height="32" VerticalAlignment="Bottom" Margin="0,0,6,0"
+                                            <Grid Width="32" Height="32" VerticalAlignment="Bottom" Margin="0,0,8,0"
                                                   Visibility="{Binding ShowAvatar, Converter={StaticResource BoolToVisibilityConverter}}">
                                                 <Ellipse>
                                                     <Ellipse.Fill>
@@ -340,7 +455,7 @@
                                                 </Ellipse>
                                             </Grid>
 
-                                            <Border Grid.Column="1" Background="#202C33" Padding="9,6,9,6">
+                                            <Border Grid.Column="1" Background="#202C33" Padding="10,8">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
                                                         <Setter Property="CornerRadius" Value="8"/>
@@ -351,50 +466,45 @@
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
-                                                <Grid>
-                                                    <Grid.RowDefinitions>
-                                                        <RowDefinition Height="Auto"/>
-                                                        <RowDefinition Height="Auto"/>
-                                                    </Grid.RowDefinitions>
+                                                <StackPanel>
                                                     <TextBlock Text="{Binding Content}" Foreground="#E9EDEF"
-                                                               FontSize="14" TextWrapping="Wrap" Margin="0,0,50,0"/>
-                                                    <TextBlock Grid.Row="1" Text="{Binding FormattedTime}"
-                                                               Foreground="#8696A0" FontSize="11"
-                                                               HorizontalAlignment="Right" Margin="0,2,0,0"/>
-                                                </Grid>
+                                                               FontSize="14" TextWrapping="Wrap"/>
+                                                    <TextBlock Text="{Binding FormattedTime}" Foreground="#8696A0"
+                                                               FontSize="11" HorizontalAlignment="Right" Margin="0,4,0,0"/>
+                                                </StackPanel>
                                             </Border>
                                         </Grid>
 
                                         <!-- Moja wiadomość -->
-                                        <Border HorizontalAlignment="Right" MaxWidth="520" Background="#005C4B" Padding="9,6,9,6">
+                                        <Border HorizontalAlignment="Right" MaxWidth="500" Background="#005C4B" Padding="10,8">
                                             <Border.Style>
                                                 <Style TargetType="Border">
-                                                    <Setter Property="Visibility" Value="{Binding IsFromMe, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                                                    <Setter Property="Margin" Value="0,1,0,1"/>
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Setter Property="Margin" Value="0,1"/>
                                                     <Setter Property="CornerRadius" Value="8"/>
                                                     <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsDateSeparator}" Value="True">
-                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                        </DataTrigger>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding IsFromMe}" Value="True"/>
+                                                                <Condition Binding="{Binding IsDateSeparator}" Value="False"/>
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </MultiDataTrigger>
                                                         <DataTrigger Binding="{Binding IsFirstInGroup}" Value="True">
-                                                            <Setter Property="Margin" Value="0,6,0,1"/>
+                                                            <Setter Property="Margin" Value="0,8,0,1"/>
                                                             <Setter Property="CornerRadius" Value="8,0,8,8"/>
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
                                             </Border.Style>
-                                            <Grid>
-                                                <Grid.RowDefinitions>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                </Grid.RowDefinitions>
+                                            <StackPanel>
                                                 <TextBlock Text="{Binding Content}" Foreground="#E9EDEF"
-                                                           FontSize="14" TextWrapping="Wrap" Margin="0,0,55,0"/>
-                                                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,2,0,0">
+                                                           FontSize="14" TextWrapping="Wrap"/>
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0">
                                                     <TextBlock Text="{Binding FormattedTime}" Foreground="#7EBFAD" FontSize="11"/>
                                                     <TextBlock Text="{Binding ReadStatus}" Margin="4,0,0,0" Foreground="#53BDEB" FontSize="11"/>
                                                 </StackPanel>
-                                            </Grid>
+                                            </StackPanel>
                                         </Border>
                                     </Grid>
                                 </DataTemplate>
@@ -404,17 +514,18 @@
                 </Border>
 
                 <!-- Input -->
-                <Border Grid.Row="2" Background="{StaticResource HeaderBg}" Padding="12,10">
+                <Border Grid.Row="2" Background="{StaticResource HeaderBg}" Padding="14,10">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <Border Background="{StaticResource InputBg}" CornerRadius="8" Margin="0,0,10,0">
+                        <Border Background="#2A3942" CornerRadius="24" Margin="0,0,12,0">
                             <TextBox x:Name="MessageInput" Style="{StaticResource ChatInput}"
                                      AcceptsReturn="False" TextWrapping="Wrap" MaxHeight="100"
-                                     VerticalScrollBarVisibility="Auto" KeyDown="MessageInput_KeyDown"/>
+                                     VerticalScrollBarVisibility="Auto" KeyDown="MessageInput_KeyDown"
+                                     Padding="20,12"/>
                         </Border>
 
                         <Button Grid.Column="1" Style="{StaticResource SendBtn}" Click="SendButton_Click">
