@@ -1558,8 +1558,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
         {
             if (!IsLoaded) return;
 
-            if (colCena != null && chkPokazCeny != null)
-                colCena.Visibility = chkPokazCeny.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            // Ustaw widoczność kolumny ceny dla obu tabel
+            var showCena = chkPokazCeny?.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            if (colCena != null)
+                colCena.Visibility = showCena;
+            if (colCenaNastepny != null)
+                colCenaNastepny.Visibility = showCena;
 
             await LoadDostawyAsync();
         }
@@ -1634,8 +1638,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
             if (menuChkPokazCeny != null && chkPokazCeny != null)
                 chkPokazCeny.IsChecked = menuChkPokazCeny.IsChecked;
 
-            if (colCena != null && chkPokazCeny != null)
-                colCena.Visibility = chkPokazCeny.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            // Ustaw widoczność kolumny ceny dla obu tabel
+            var showCena = chkPokazCeny?.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            if (colCena != null)
+                colCena.Visibility = showCena;
+            if (colCenaNastepny != null)
+                colCenaNastepny.Visibility = showCena;
 
             await LoadDostawyAsync();
         }
@@ -1738,6 +1746,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 {
                     cmbLpWstawienia.SelectedItem = selected.LpW;
                     _ = LoadWstawieniaAsync(selected.LpW);
+                    // Podświetl wiersze z tym samym LpW
+                    HighlightMatchingLpWRows(selected.LpW);
+                }
+                else
+                {
+                    ClearLpWHighlights();
                 }
 
                 // Podświetl nagłówek dnia
@@ -1746,6 +1760,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
             else
             {
                 ClearDayHeaderHighlight();
+                ClearLpWHighlights();
             }
 
             // Aktualizuj status bar z informacją o zaznaczeniu
@@ -1803,6 +1818,62 @@ namespace Kalendarz1.Zywiec.Kalendarz
             }
         }
 
+        private List<DataGridRow> _highlightedLpWRows = new List<DataGridRow>();
+
+        /// <summary>
+        /// Podświetla wszystkie wiersze z tym samym LpW (Lp wstawienia)
+        /// </summary>
+        private void HighlightMatchingLpWRows(string lpW)
+        {
+            // Najpierw wyczyść poprzednie podświetlenia
+            ClearLpWHighlights();
+
+            if (string.IsNullOrEmpty(lpW)) return;
+
+            // Podświetl w obu tabelach
+            HighlightLpWInDataGrid(dgDostawy, lpW);
+            HighlightLpWInDataGrid(dgDostawyNastepny, lpW);
+        }
+
+        private void HighlightLpWInDataGrid(DataGrid dg, string lpW)
+        {
+            foreach (var item in dg.Items)
+            {
+                var dostawa = item as DostawaModel;
+                if (dostawa != null && !dostawa.IsHeaderRow && !dostawa.IsSeparator && dostawa.LpW == lpW)
+                {
+                    var row = dg.ItemContainerGenerator.ContainerFromItem(item) as DataGridRow;
+                    if (row != null && row != dg.ItemContainerGenerator.ContainerFromItem(dg.SelectedItem))
+                    {
+                        // Animacja pulsowania dla pasujących wierszy
+                        row.Background = new SolidColorBrush(Color.FromRgb(227, 242, 253)); // Jasnoniebieski
+                        row.BorderBrush = new SolidColorBrush(Color.FromRgb(33, 150, 243)); // Niebieski
+                        row.BorderThickness = new Thickness(2, 1, 2, 1);
+                        _highlightedLpWRows.Add(row);
+
+                        // Uruchom animację pulsowania
+                        var pulseStoryboard = (Storyboard)FindResource("LpWMatchPulseAnimation");
+                        var clonedStoryboard = pulseStoryboard.Clone();
+                        Storyboard.SetTarget(clonedStoryboard, row);
+                        clonedStoryboard.Begin();
+                    }
+                }
+            }
+        }
+
+        private void ClearLpWHighlights()
+        {
+            foreach (var row in _highlightedLpWRows)
+            {
+                if (row != null)
+                {
+                    row.Background = Brushes.White;
+                    row.BorderThickness = new Thickness(0);
+                }
+            }
+            _highlightedLpWRows.Clear();
+        }
+
         private void DgDostawyNastepny_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             // Wyczyść pola kalkulatora transportu przy zmianie zaznaczenia
@@ -1836,6 +1907,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 {
                     cmbLpWstawienia.SelectedItem = selected.LpW;
                     _ = LoadWstawieniaAsync(selected.LpW);
+                    // Podświetl wiersze z tym samym LpW
+                    HighlightMatchingLpWRows(selected.LpW);
+                }
+                else
+                {
+                    ClearLpWHighlights();
                 }
 
                 // Podświetl nagłówek dnia
@@ -1844,6 +1921,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
             else
             {
                 ClearDayHeaderHighlight();
+                ClearLpWHighlights();
             }
         }
 
@@ -3887,6 +3965,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
         /// <summary>
         /// Rozpoczyna tryb symulacji - tworzy kopię danych i zmienia UI
         /// </summary>
+        private Storyboard _simulationPulseStoryboard1;
+        private Storyboard _simulationPulseStoryboard2;
+        private Storyboard _simulationButtonPulseStoryboard;
+
         private void StartSimulationMode()
         {
             _isSimulationMode = true;
@@ -3906,18 +3988,37 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 .Select(d => CloneDostawaModel(d))
                 .ToList();
 
-            // Zmień wygląd UI - tryb symulacji aktywny
-            borderSimulation.Background = new SolidColorBrush(Color.FromRgb(254, 243, 199)); // Żółte tło
-            borderSimulation.BorderBrush = new SolidColorBrush(Color.FromRgb(251, 191, 36)); // Pomarańczowa ramka
-            txtSimulationIcon.Text = "🔬";
+            // Zmień wygląd UI - tryb symulacji aktywny (czerwony motyw)
+            borderSimulation.Background = new SolidColorBrush(Color.FromRgb(254, 226, 226)); // Czerwone tło
+            borderSimulation.BorderBrush = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Czerwona ramka
+            txtSimulationIcon.Text = "🔴";
             txtSimulationText.Text = "SYMULACJA";
             txtSimulationText.FontWeight = FontWeights.Bold;
-            txtSimulationText.Foreground = new SolidColorBrush(Color.FromRgb(180, 83, 9));
+            txtSimulationText.Foreground = new SolidColorBrush(Color.FromRgb(185, 28, 28));
+
+            // Ustaw czerwoną ramkę na tabelach i uruchom pulsowanie
+            borderDostawy.BorderBrush = new SolidColorBrush(Color.FromRgb(229, 57, 53));
+            borderDostawy.BorderThickness = new Thickness(3);
+            borderNastepnyTydzien.BorderBrush = new SolidColorBrush(Color.FromRgb(229, 57, 53));
+            borderNastepnyTydzien.BorderThickness = new Thickness(3);
+
+            // Uruchom animację pulsowania tabel
+            _simulationPulseStoryboard1 = (Storyboard)FindResource("SimulationPulseAnimation");
+            _simulationPulseStoryboard2 = _simulationPulseStoryboard1.Clone();
+            Storyboard.SetTarget(_simulationPulseStoryboard1, borderDostawy);
+            Storyboard.SetTarget(_simulationPulseStoryboard2, borderNastepnyTydzien);
+            _simulationPulseStoryboard1.Begin();
+            _simulationPulseStoryboard2.Begin();
+
+            // Uruchom animację pulsowania przycisku
+            _simulationButtonPulseStoryboard = (Storyboard)FindResource("SimulationButtonPulseAnimation");
+            Storyboard.SetTarget(_simulationButtonPulseStoryboard, borderSimulation);
+            _simulationButtonPulseStoryboard.Begin();
 
             // Dodaj pasek informacyjny na górze
             ShowSimulationBanner(true);
 
-            ShowToast("🧪 Tryb symulacji WŁĄCZONY - zmiany nie będą zapisywane!", ToastType.Info);
+            ShowToast("🔴 Tryb symulacji WŁĄCZONY - zmiany nie będą zapisywane!", ToastType.Info);
         }
 
         /// <summary>
@@ -3935,16 +4036,27 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
             _isSimulationMode = false;
 
+            // Zatrzymaj animacje pulsowania
+            _simulationPulseStoryboard1?.Stop();
+            _simulationPulseStoryboard2?.Stop();
+            _simulationButtonPulseStoryboard?.Stop();
+
             // Przywróć oryginalne dane z kopii
             RestoreFromBackup();
 
-            // Przywróć wygląd UI
+            // Przywróć wygląd UI przycisku
             borderSimulation.Background = new SolidColorBrush(Color.FromRgb(248, 250, 252));
             borderSimulation.BorderBrush = new SolidColorBrush(Color.FromRgb(226, 232, 240));
             txtSimulationIcon.Text = "🧪";
             txtSimulationText.Text = "Symulacja";
             txtSimulationText.FontWeight = FontWeights.Normal;
             txtSimulationText.Foreground = Brushes.Black;
+
+            // Przywróć oryginalne ramki tabel
+            borderDostawy.BorderBrush = new SolidColorBrush(Color.FromRgb(221, 221, 221));
+            borderDostawy.BorderThickness = new Thickness(1);
+            borderNastepnyTydzien.BorderBrush = new SolidColorBrush(Color.FromRgb(52, 152, 219));
+            borderNastepnyTydzien.BorderThickness = new Thickness(2);
 
             // Ukryj pasek informacyjny
             ShowSimulationBanner(false);
