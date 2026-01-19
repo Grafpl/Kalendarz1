@@ -71,9 +71,10 @@ namespace Kalendarz1
             _ocenaId = ocenaId;
             
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             LoadData();
         }
-        
+
         private void InitializeComponent()
         {
             this.Text = "📋 Ocena Dostawcy Żywca - System Jakości";

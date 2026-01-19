@@ -25,6 +25,7 @@ namespace Kalendarz1.Reklamacje
             userId = user;
 
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             // Sprawdz uprawnienia
             SprawdzUprawnieniaJakosc();

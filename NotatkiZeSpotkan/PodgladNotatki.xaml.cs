@@ -20,6 +20,7 @@ namespace Kalendarz1.NotatkiZeSpotkan
             _notatkaID = notatkaID;
 
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             LoadNotatka();
         }
 

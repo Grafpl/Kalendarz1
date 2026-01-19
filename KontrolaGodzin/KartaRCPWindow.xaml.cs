@@ -18,6 +18,7 @@ namespace Kalendarz1.KontrolaGodzin
         public KartaRCPWindow(List<RejestracjaModel> dane, List<PracownikModel> pracownicy)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _dane = dane;
             _pracownicy = pracownicy ?? new List<PracownikModel>();
 

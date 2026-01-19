@@ -17,6 +17,7 @@ namespace Kalendarz1
         public HistoriaOcenWindow(string dostawcaId)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _dostawcaId = dostawcaId;
             
             LoadHistory();

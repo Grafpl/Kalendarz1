@@ -23,6 +23,7 @@ namespace Kalendarz1
         public KonfiguracjaPodrobow(string connString, string connStringHandel)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             connectionString = connString;
             connectionStringHandel = connStringHandel;
 

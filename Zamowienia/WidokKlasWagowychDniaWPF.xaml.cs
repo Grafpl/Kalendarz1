@@ -41,6 +41,7 @@ namespace Kalendarz.WPF
             _prognoza = prognoza ?? new Dictionary<int, int>();
 
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             txtDataProdukcji.Text = $"Data produkcji: {_dataProdukcji:dd.MM.yyyy (dddd)}";
             dataGrid.ItemsSource = Klienci;

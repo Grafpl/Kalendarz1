@@ -11,6 +11,7 @@ namespace Kalendarz1.PrzypomnieniePlatnosci
         public WyborWersjiPrzypomnienieWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
         }
 
         private void BorderLagodna_Click(object sender, MouseButtonEventArgs e)

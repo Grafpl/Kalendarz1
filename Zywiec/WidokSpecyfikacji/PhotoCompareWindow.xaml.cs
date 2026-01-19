@@ -26,6 +26,7 @@ namespace Kalendarz.Zywiec.WidokSpecyfikacji
         public PhotoCompareWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
         }
 
         public PhotoCompareWindow(string taraPath, string bruttoPath, string title = null) : this()

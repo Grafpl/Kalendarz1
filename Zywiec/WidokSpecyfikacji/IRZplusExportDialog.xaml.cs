@@ -21,6 +21,7 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
         public IRZplusExportDialog(ZgloszenieZURD zgloszenie)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             _exportService = new IRZplusExportService();
             _zgloszenie = zgloszenie ?? throw new ArgumentNullException(nameof(zgloszenie));

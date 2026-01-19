@@ -18,6 +18,7 @@ namespace Kalendarz1.Spotkania.Views
         public FirefliesDiagnostyka(string apiKey)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _apiKey = apiKey;
             _httpClient = new HttpClient();
             _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");

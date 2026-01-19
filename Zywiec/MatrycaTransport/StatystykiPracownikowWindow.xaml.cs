@@ -27,6 +27,7 @@ namespace Kalendarz1
         public StatystykiPracownikowWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             // Domyślny zakres - ten miesiąc
             SetThisMonth();

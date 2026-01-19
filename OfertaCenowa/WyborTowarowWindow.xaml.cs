@@ -15,6 +15,7 @@ namespace Kalendarz1.OfertaCenowa
         public WyborTowarowWindow(List<TowarOferta> dostepneTowary)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             WybraneTowary = new List<TowarOferta>();
 
             _towary = new ObservableCollection<TowarWybor>(

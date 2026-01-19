@@ -31,6 +31,7 @@ namespace Kalendarz1.KontrolaGodzin
         public KontrolaGodzinWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)

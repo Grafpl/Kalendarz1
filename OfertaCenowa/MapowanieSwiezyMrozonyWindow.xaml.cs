@@ -75,10 +75,11 @@ namespace Kalendarz1.OfertaCenowa
         public event PropertyChangedEventHandler? PropertyChanged;
 
         public MapowanieSwiezyMrozonyWindow(
-            IEnumerable<TowarOferta> towarySwiezy, 
+            IEnumerable<TowarOferta> towarySwiezy,
             IEnumerable<TowarOferta> towaryMrozone)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             DataContext = this;
 
             _plikMapowan = Path.Combine(

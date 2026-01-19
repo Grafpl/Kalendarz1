@@ -16,6 +16,7 @@ namespace Kalendarz1.Opakowania.Views
         public SzczegolyKontrahentaWindow(SaldoKontrahenta kontrahent, DateTime dataDo, string userId)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _viewModel = new SzczegolyKontrahentaViewModel(kontrahent, dataDo, userId);
             _viewModel.RequestOpenPotwierdzenieDialog = OtworzDialogPotwierdzenia;
             DataContext = _viewModel;
@@ -27,6 +28,7 @@ namespace Kalendarz1.Opakowania.Views
         public SzczegolyKontrahentaWindow(SaldoKontrahentaOpakowania kontrahent, DateTime dataDo, string userId)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             // Konwertuj na SaldoKontrahenta
             var saldo = new SaldoKontrahenta

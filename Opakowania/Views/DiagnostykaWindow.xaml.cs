@@ -15,6 +15,7 @@ namespace Kalendarz1.Opakowania.Views
         public DiagnostykaWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             OdswiezRaport();
         }
 

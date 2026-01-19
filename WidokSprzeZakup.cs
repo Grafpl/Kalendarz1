@@ -21,6 +21,7 @@ namespace Kalendarz1
         public WidokSprzeZakup()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             // Oblicz pierwszy dzień poprzedniego miesiąca
             DateTime today = DateTime.Today;
             DateTime firstDayOfPreviousMonth = new DateTime(today.Year, today.Month, 1).AddMonths(-1);

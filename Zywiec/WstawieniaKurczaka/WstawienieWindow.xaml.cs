@@ -36,6 +36,7 @@ namespace Kalendarz1
         public WstawienieWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)

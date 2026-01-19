@@ -28,6 +28,7 @@ namespace Kalendarz1
         public WidokWszystkichDostaw()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             InitializeUI();
             LoadDataInitial();
         }

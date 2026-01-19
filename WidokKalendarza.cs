@@ -51,6 +51,7 @@ namespace Kalendarz1
         public WidokKalendarza()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             // Harmonogram ankiety 14:30
             SetupSurvey14h30();
 

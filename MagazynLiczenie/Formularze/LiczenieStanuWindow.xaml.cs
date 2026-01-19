@@ -20,6 +20,7 @@ namespace Kalendarz1.MagazynLiczenie.Formularze
         public LiczenieStanuWindow(string connLibra, string connHandel, string uzytkownik)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             _repozytorium = new LiczenieRepozytorium(connLibra, connHandel);
             _uzytkownik = uzytkownik;

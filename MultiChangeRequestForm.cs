@@ -35,6 +35,7 @@ namespace Kalendarz1
             _allowedFields = allowedFields;
 
             BuildUi();
+            WindowIconHelper.SetIcon(this);
         }
 
         private void BuildUi()

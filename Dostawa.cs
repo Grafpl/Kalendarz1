@@ -23,6 +23,7 @@ namespace Kalendarz1
         {
             this.Load += Dostawa_Load;
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             FillComboBox();
             SetupComboBox2();
         }

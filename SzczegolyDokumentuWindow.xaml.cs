@@ -19,6 +19,7 @@ namespace Kalendarz1
         public SzczegolyDokumentuWindow(string connString, int dokId, string numerDok)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             connectionString = connString;
             idDokumentu = dokId;
             numerDokumentu = numerDok;

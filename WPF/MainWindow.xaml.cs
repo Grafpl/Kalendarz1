@@ -114,6 +114,7 @@ namespace Kalendarz1.WPF
         public MainWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             Loaded += MainWindow_Loaded;
         }
         private void ApplyResponsiveLayout()

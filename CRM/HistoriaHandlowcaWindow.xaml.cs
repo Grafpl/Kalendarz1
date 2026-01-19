@@ -25,6 +25,7 @@ namespace Kalendarz1.CRM
         public HistoriaHandlowcaWindow(string connStr, DataRowView rankingRow, bool wszystkie = false)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             connectionString = connStr;
             wszystkieDni = wszystkie;
 

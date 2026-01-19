@@ -119,6 +119,7 @@ namespace Kalendarz1.OfertaCenowa
         public MarzeWindow(List<TowarOfertaWiersz> towary)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             DataContext = this;
 
             foreach (var towar in towary)

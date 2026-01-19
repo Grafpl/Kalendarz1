@@ -40,6 +40,7 @@ namespace Kalendarz1
             userName = uname;
 
             InitializeComponents();
+            WindowIconHelper.SetIcon(this);
             LoadData();
         }
 

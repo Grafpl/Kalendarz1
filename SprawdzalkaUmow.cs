@@ -21,6 +21,7 @@ namespace Kalendarz1
         public SprawdzalkaUmow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             ApplyCustomStyles();
 
             dgvContracts.CurrentCellDirtyStateChanged += DataGridViewKalendarz_CurrentCellDirtyStateChanged;

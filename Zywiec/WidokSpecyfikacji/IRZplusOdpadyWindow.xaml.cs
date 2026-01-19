@@ -22,6 +22,7 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
         public IRZplusOdpadyWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             _service = new IRZplusService();
             _odpady = new ObservableCollection<OdpadDoIRZplus>();

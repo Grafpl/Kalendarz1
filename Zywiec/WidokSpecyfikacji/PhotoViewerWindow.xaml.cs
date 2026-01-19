@@ -25,6 +25,7 @@ namespace Kalendarz.Zywiec.WidokSpecyfikacji
         public PhotoViewerWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
         }
 
         public PhotoViewerWindow(string photoPath, string title = null) : this()

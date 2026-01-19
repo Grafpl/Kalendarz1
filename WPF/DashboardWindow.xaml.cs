@@ -142,6 +142,7 @@ namespace Kalendarz1.WPF
         public DashboardWindow(string connLibra, string connHandel, DateTime? initialDate = null, bool openPanelJola = false)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _connLibra = connLibra;
             _connHandel = connHandel;
             _selectedDate = initialDate ?? GetDefaultDate();

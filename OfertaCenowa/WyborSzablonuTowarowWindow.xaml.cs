@@ -21,6 +21,7 @@ namespace Kalendarz1.OfertaCenowa
         public WyborSzablonuTowarowWindow(ObservableCollection<TowarOferta> dostepneTowary)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _dostepneTowary = dostepneTowary;
             WczytajSzablony();
         }

@@ -20,6 +20,7 @@ namespace Kalendarz1.OfertaCenowa
         public OfertyDashboardWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             // Domyślnie: ten miesiąc
             UstawOkres("miesiac");

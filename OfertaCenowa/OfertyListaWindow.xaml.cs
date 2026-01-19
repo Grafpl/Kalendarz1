@@ -28,6 +28,7 @@ namespace Kalendarz1.OfertaCenowa
         public OfertyListaWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             dgOferty.ItemsSource = _filtrowaneOferty;
             Loaded += OfertyListaWindow_Loaded;
         }

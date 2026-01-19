@@ -16,6 +16,7 @@ namespace Kalendarz1.WPF
         public PrintPreviewByClientWindow(DataTable orders, DateTime selectedDate, Dictionary<int, string> productCache)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _document = CreateDocument(orders, selectedDate, productCache);
             documentViewer.Document = _document;
         }

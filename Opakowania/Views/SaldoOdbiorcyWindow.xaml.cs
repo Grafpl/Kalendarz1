@@ -32,6 +32,7 @@ namespace Kalendarz1.Opakowania.Views
         public SaldoOdbiorcyWindow(int kontrahentId, string kontrahentNazwa, string userId)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             _viewModel = new SaldoOdbiorcyViewModel(kontrahentId, kontrahentNazwa, userId);
             DataContext = _viewModel;

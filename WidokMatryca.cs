@@ -39,6 +39,7 @@ namespace Kalendarz1
         public WidokMatrycaNowy()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             InitializeCustomUI();
             DisplayData();
             UpdateStatistics();

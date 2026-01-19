@@ -17,6 +17,7 @@ namespace Kalendarz1.PrzypomnieniePlatnosci
         public PlanSplatyWindow(decimal kwotaDlugu, string nazwaKontrahenta, DaneKontrahenta daneKontrahenta, List<DokumentPlatnosci> dokumenty)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             _kwotaDlugu = kwotaDlugu;
             _nazwaKontrahenta = nazwaKontrahenta;

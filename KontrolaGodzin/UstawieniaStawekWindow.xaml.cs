@@ -21,6 +21,7 @@ namespace Kalendarz1.KontrolaGodzin
         public UstawieniaStawekWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             Stawki = new ObservableCollection<StawkaModel>();
             UstawieniaZus = new UstawieniaZUS();
             

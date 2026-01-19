@@ -52,6 +52,7 @@ namespace Kalendarz1
         public WidokCenWszystkich()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             InitializeUI();
         }
 

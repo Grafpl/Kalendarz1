@@ -23,6 +23,7 @@ namespace Kalendarz1.Transport
         {
             _connectionString = connectionString;
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             SetupUI();
 
             // Ustaw dzisiejszą datę i załaduj kursy

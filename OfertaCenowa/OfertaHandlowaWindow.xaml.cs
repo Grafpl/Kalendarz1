@@ -268,6 +268,7 @@ namespace Kalendarz1.OfertaCenowa
         public OfertaHandlowaWindow(KlientOferta? klient, string userId)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             DataContext = this;
             _userId = userId;
 

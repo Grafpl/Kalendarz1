@@ -15,6 +15,7 @@ namespace Kalendarz1
         public KonfiguracjaWydajnosci(string connString)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             connectionString = connString;
             konfiguracje = new ObservableCollection<KonfiguracjaWydajnosciModel>();
 

@@ -125,6 +125,7 @@ namespace Kalendarz1
         public WidokZamowienia(string userId, int? idZamowienia = null)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             if (LicenseManager.UsageMode == LicenseUsageMode.Designtime) return;
 
             UserID = userId;

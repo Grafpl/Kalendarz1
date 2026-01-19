@@ -23,6 +23,7 @@ namespace Kalendarz1.Opakowania.Views
         public SaldaMainWindow(string userId)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             // Dodaj converter
             Resources.Add("BoolToVisibility", new BooleanToVisibilityConverter());

@@ -8,6 +8,7 @@ namespace Kalendarz1.Opakowania.Views
         public DashboardZarzadczyWindow(string userId)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             DataContext = new DashboardZarzadczyViewModel(userId);
         }
 

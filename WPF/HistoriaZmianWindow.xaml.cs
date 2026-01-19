@@ -21,6 +21,7 @@ namespace Kalendarz1.WPF
         public HistoriaZmianWindow(string connLibra, string connHandel, string userId = "")
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _connLibra = connLibra;
             _connHandel = connHandel;
             _userId = userId;

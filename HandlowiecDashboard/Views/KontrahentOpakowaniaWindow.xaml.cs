@@ -16,6 +16,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
         public KontrahentOpakowaniaWindow(string kontrahent, string connectionString)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _kontrahent = kontrahent;
             _connectionString = connectionString;
 

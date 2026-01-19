@@ -26,6 +26,7 @@ namespace Kalendarz1.KontrolaGodzin
         public ZarzadzanieKartamiWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             Loaded += (s, e) => LoadData();
         }
 

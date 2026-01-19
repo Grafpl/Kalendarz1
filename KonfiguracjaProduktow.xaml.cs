@@ -23,6 +23,7 @@ namespace Kalendarz1
         public KonfiguracjaProduktow(string connString, string connStringHandel, Dictionary<string, decimal> konfig)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             connectionString = connString;
             connectionStringHandel = connStringHandel;
             konfiguracjaProcentow = konfig;

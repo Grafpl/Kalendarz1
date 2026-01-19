@@ -19,6 +19,7 @@ namespace Kalendarz1.PrzypomnieniePlatnosci
             string sciezkaPDF, WersjaPrzypomnienia wersja, int liczbaDni)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             _nazwaKontrahenta = nazwaKontrahenta;
             _sciezkaPDF = sciezkaPDF;

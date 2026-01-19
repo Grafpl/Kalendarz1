@@ -297,6 +297,7 @@ namespace Kalendarz1.Transport.Formularze
             UserID = uzytkownik;
 
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             dtpData.Value = data ?? DateTime.Today;
 
             InitializeAutoUpdateTimer();

@@ -10,6 +10,7 @@ namespace Kalendarz1.Opakowania.Views
         public SaldaSzczegolyWindow(SaldoKontrahenta kontrahent, DateTime dataDo, string userId)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             var viewModel = new SaldaSzczegolyViewModel(kontrahent, dataDo, userId);
             viewModel.CloseRequested += () => Close();

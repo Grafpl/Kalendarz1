@@ -27,6 +27,7 @@ namespace Kalendarz1
         public ObliczenieAut(string sztukiNaSzufladeValue, string iloscAutValue, string iloscSztukValue)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             // Przypisz wartości do właściwości
             sztukiNaSzuflade = sztukiNaSzufladeValue;

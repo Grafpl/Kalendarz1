@@ -44,6 +44,7 @@ namespace Kalendarz1
         public MagazynPanel()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             this.DataContext = this;
             InitializeAsync();
             KeyDown += MagazynPanel_KeyDown;

@@ -128,6 +128,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
         public WidokKalendarzaWPF()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             dgDostawy.ItemsSource = _dostawy;
             dgDostawyNastepny.ItemsSource = _dostawyNastepnyTydzien;

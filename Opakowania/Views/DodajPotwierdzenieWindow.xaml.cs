@@ -23,6 +23,7 @@ namespace Kalendarz1.Opakowania.Views
             string userId)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             _viewModel = new DodajPotwierdzenieViewModel(
                 kontrahentId,
@@ -51,6 +52,7 @@ namespace Kalendarz1.Opakowania.Views
             string userId)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             // Znajdź typ opakowania po kodzie
             var typOpakowania = Array.Find(TypOpakowania.WszystkieTypy, t => t.Kod == kodOpakowania)

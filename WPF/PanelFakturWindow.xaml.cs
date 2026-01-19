@@ -43,6 +43,7 @@ namespace Kalendarz1.WPF
         public PanelFakturWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             DataContext = this;
             Loaded += PanelFakturWindow_Loaded;
         }

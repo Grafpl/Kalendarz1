@@ -11,6 +11,7 @@ namespace Kalendarz1.WPF
         public NoteWindow(string currentNote = "")
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             txtNote.Text = currentNote;
             txtNote.Focus();
         }

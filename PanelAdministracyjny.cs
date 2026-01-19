@@ -21,6 +21,7 @@ namespace Kalendarz1
         {
             connectionString = connString;
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
         }
 
         private void InitializeComponent()

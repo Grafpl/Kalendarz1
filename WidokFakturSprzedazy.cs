@@ -60,6 +60,7 @@ namespace Kalendarz1
         public WidokFakturSprzedazy()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             UserID = "11111";
             ApplyModernTheme();
             this.Resize += WidokFakturSprzedazy_Resize;

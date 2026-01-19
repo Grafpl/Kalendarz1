@@ -9,6 +9,7 @@ namespace Kalendarz1.WPF
         public PrintOptionsWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
         }
 
         private void BtnPrint_Click(object sender, RoutedEventArgs e)

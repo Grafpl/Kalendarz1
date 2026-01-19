@@ -22,6 +22,7 @@ namespace Kalendarz1
         public MainWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             InitializeApp();
         }
 

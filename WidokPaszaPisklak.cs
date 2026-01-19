@@ -31,6 +31,7 @@ namespace Kalendarz1
         public WidokPaszaPisklak()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             BuildPolishedGrid();
             WireEvents();
 

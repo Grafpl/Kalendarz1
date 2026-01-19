@@ -56,6 +56,7 @@ namespace Kalendarz1
             KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape) this.Close(); };
 
             BuildUi();
+            WindowIconHelper.SetIcon(this);
             Load += OnLoadAsync;
         }
 

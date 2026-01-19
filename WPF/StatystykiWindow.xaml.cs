@@ -21,6 +21,7 @@ namespace Kalendarz1.WPF
         public StatystykiWindow(string connLibra, string connHandel)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _connLibra = connLibra;
             _connHandel = connHandel;
 

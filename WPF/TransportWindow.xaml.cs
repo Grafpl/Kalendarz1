@@ -43,6 +43,7 @@ namespace Kalendarz1.WPF
         public TransportWindow(string connLibra, string connHandel, string connTransport, DateTime? initialDate = null)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _connLibra = connLibra;
             _connHandel = connHandel;
             _connTransport = connTransport;

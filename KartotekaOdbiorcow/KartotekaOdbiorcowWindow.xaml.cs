@@ -20,6 +20,7 @@ namespace Kalendarz1
         public KartotekaOdbiorcowWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             UserID = App.UserID;
 
             Loaded += KartotekaOdbiorcowWindow_Loaded;

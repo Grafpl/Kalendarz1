@@ -27,7 +27,8 @@ namespace Kalendarz1
         public SzczegółyPracownika(string pracownik, DateTime dataOd, DateTime dataDo)
         {
             InitializeComponent();
-            
+            WindowIconHelper.SetIcon(this);
+
             nazwaPracownika = pracownik;
             startDate = dataOd;
             endDate = dataDo;

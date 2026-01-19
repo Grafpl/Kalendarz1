@@ -41,6 +41,7 @@ namespace Kalendarz1
         public IRZplusPreviewWindow(string connectionString, DateTime dataUboju)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             _connectionString = connectionString;
             _dataUboju = dataUboju;

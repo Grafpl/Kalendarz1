@@ -24,6 +24,7 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
             string customerName, DateTime dataUboju)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             _connectionString = connectionString;
             _customerGID = customerGID;

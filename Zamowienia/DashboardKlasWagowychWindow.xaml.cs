@@ -54,6 +54,7 @@ namespace Kalendarz1
         public DashboardKlasWagowychWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             for (int i = 5; i <= 12; i++)
             {

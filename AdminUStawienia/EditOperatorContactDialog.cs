@@ -26,6 +26,7 @@ namespace Kalendarz1
             operatorId = opId;
             operatorName = opName;
             InitializeComponents();
+            WindowIconHelper.SetIcon(this);
             LoadCurrentData();
         }
 

@@ -34,6 +34,7 @@ namespace Kalendarz1
         public Wstawienie()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             FillComboBox();
             TextBox[] textBoxesSumy = { sztuki1, sztuki2, sztuki3, sztuki4, sztuki5, sztukiSuma, SztukiUpadki, sztukiRoznica };
         }

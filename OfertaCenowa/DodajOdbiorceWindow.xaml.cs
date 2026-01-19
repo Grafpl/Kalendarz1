@@ -43,6 +43,7 @@ namespace Kalendarz1.OfertaCenowa
         public DodajOdbiorceWindow(string connectionString, string operatorID)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             _connectionString = connectionString;
             _operatorID = operatorID;

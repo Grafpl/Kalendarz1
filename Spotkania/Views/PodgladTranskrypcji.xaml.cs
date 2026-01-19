@@ -17,6 +17,7 @@ namespace Kalendarz1.Spotkania.Views
         public PodgladTranskrypcji(long transkrypcjaID)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _transkrypcjaID = transkrypcjaID;
             _firefliesService = new FirefliesService();
 

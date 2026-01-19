@@ -22,6 +22,7 @@ namespace Kalendarz1
         public SzczegolyDrukowaniaSpecki(DateTime data)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             // Ustaw wartość DateTimePicker na tej formie (opcjonalne)
             dateTimePicker1.Value = data;

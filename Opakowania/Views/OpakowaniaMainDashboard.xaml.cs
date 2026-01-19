@@ -26,6 +26,7 @@ namespace Kalendarz1.Opakowania.Views
         public OpakowaniaMainDashboard(string userId)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _viewModel = new DashboardViewModel(userId);
             DataContext = _viewModel;
 

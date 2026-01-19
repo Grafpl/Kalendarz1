@@ -30,9 +30,10 @@ namespace Kalendarz1
             _dostawcaNazwa = dostawcaNazwa;
             
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             LoadHistory();
         }
-        
+
         private void InitializeComponent()
         {
             this.Text = "📜 Historia Ocen Dostawcy";

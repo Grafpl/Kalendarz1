@@ -20,6 +20,7 @@ namespace Kalendarz1.KontrolaGodzin
         public PrzypisKartyWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             Loaded += (s, e) => LoadData();
         }
 

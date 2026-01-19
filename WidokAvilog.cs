@@ -31,6 +31,7 @@ namespace Kalendarz1
         public WidokAvilog()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             zapytaniasql.UzupelnijComboBoxHodowcami3(Dostawca); ; zapytaniasql.UzupelnijComboBoxHodowcami3(RealDostawca);
             zapytaniasql.UzupelnijComboBoxCiagnikami(Auto); zapytaniasql.UzupelnijComboBoxNaczepami(Naczepa); zapytaniasql.UzupelnijComboBoxKierowcami(Kierowca);
             // Tablica zawierająca wszystkie kontrolki

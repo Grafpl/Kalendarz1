@@ -16,6 +16,7 @@ namespace Kalendarz1.Opakowania.Views
         public SaldaWszystkichOpakowanWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             _viewModel = new SaldaWszystkichOpakowanViewModel(App.UserID);
             DataContext = _viewModel;

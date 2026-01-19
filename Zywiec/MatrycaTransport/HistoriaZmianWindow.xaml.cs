@@ -22,6 +22,7 @@ namespace Kalendarz1
         public HistoriaZmianWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             // Ustaw domyslne daty
             dpDateFrom.SelectedDate = DateTime.Today;

@@ -9,6 +9,7 @@ namespace Kalendarz1.OfertaCenowa
         public WprowadzOdbiorceRecznieWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             txtNazwa.Focus();
         }
 

@@ -42,6 +42,7 @@ namespace Kalendarz1.CRM
         public MapaCRMWindow(string connString, string opID)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             connectionString = connString;
             operatorID = opID;
             this.WindowState = WindowState.Maximized;

@@ -17,6 +17,7 @@ namespace Kalendarz1
             connectionString = connString;
             operatorID = opID;
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
         }
 
         private void InitializeComponent()

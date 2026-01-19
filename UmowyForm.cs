@@ -45,6 +45,7 @@ namespace Kalendarz1
             _initialIdLibra = initialIdLibra;
 
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             // listy wyboru
             zapytaniasql.UzupelnijComboBoxHodowcami3(comboBoxDostawca);

@@ -196,6 +196,7 @@ namespace Kalendarz1
             _towaryKatalog = towaryKatalog;
 
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _ = ZaladujDaneAsync();
         }
 

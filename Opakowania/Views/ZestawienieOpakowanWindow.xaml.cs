@@ -25,6 +25,7 @@ namespace Kalendarz1.Opakowania.Views
         public ZestawienieOpakowanWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             // Pobierz UserID z aplikacji
             string userId = App.UserID ?? "11111"; // Domyślnie admin dla testów

@@ -19,6 +19,7 @@ namespace Kalendarz1
         public WidokCena()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             SetupStatus();
 
             // Ustawienie początkowej wartości TypCeny na jakiś domyślny element

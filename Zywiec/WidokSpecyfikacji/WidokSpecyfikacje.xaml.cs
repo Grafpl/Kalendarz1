@@ -137,6 +137,7 @@ namespace Kalendarz1
         public WidokSpecyfikacje()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             // Przenieś kartę Rozliczenia na koniec (po Płachta)
             ReorderTabs();

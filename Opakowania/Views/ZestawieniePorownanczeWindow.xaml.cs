@@ -8,6 +8,7 @@ namespace Kalendarz1.Opakowania.Views
         public ZestawieniePorownanczeWindow(string userId)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             DataContext = new ZestawieniePorownanczeViewModel(userId);
         }
 

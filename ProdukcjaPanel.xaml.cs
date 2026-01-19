@@ -71,6 +71,7 @@ namespace Kalendarz1
         public ProdukcjaPanel()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             this.DataContext = this;
             InitializeAsync();
             KeyDown += ProdukcjaPanel_KeyDown;

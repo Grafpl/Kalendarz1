@@ -20,6 +20,7 @@ namespace Kalendarz1.Zadania
         public ZadaniaWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             operatorId = App.UserID;
             LoadTasks();
         }

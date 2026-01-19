@@ -11,6 +11,7 @@ namespace Kalendarz1.Opakowania.Views
         public DashboardPotwierdzeniWindow(string userId)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             _viewModel = new DashboardPotwierdzeniViewModel(userId, this);
             DataContext = _viewModel;

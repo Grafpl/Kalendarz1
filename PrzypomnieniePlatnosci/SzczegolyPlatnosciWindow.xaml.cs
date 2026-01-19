@@ -20,6 +20,7 @@ namespace Kalendarz1
         public SzczegolyPlatnosciWindow(string connString, string kontrahent)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             connectionString = connString;
             nazwaKontrahenta = kontrahent;
 

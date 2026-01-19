@@ -62,6 +62,7 @@ namespace Kalendarz1
             nazwaTowaru = twNazwa ?? "Wszystkie towary";
 
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             ConfigureForm();
             LoadData();
         }

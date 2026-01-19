@@ -33,6 +33,7 @@ namespace Kalendarz1.Reklamacje
         public FormReklamacjaWindow(string connStringHandel, int dokId, int kontrId, string nrDok, string nazwaKontr, string user)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             connectionStringHandel = connStringHandel;
             idDokumentu = dokId;

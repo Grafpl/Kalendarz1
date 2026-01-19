@@ -54,6 +54,7 @@ namespace Kalendarz1
         public EurChartWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             DataContext = this;
 
             YFormatter = value => value.ToString("F4") + " PLN";

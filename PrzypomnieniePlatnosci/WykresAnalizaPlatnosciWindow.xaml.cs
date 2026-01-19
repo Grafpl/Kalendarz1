@@ -25,6 +25,7 @@ namespace Kalendarz1
         public WykresAnalizaPlatnosciWindow(string connString, string kontrahent)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             if (string.IsNullOrEmpty(connString))
             {

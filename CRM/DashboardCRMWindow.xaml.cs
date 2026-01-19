@@ -31,6 +31,7 @@ namespace Kalendarz1.CRM
         {
             connectionString = connString;
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             InicjalizujKombo();
             Loaded += (s, e) => { isLoaded = true; WczytajDane(); };
             SizeChanged += (s, e) => { if (isLoaded) AktualizujSzerokoscSlupkow(); };

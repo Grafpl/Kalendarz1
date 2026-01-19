@@ -11,6 +11,7 @@ namespace Kalendarz1.KontrolaGodzin
         public EdycjaStawkiWindow(StawkaModel stawka)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             dpOdDaty.SelectedDate = DateTime.Today;
 

@@ -20,6 +20,7 @@ namespace Kalendarz1.CRM
         public WyborBranzyDialog(string connString)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             connectionString = connString;
             Loaded += WyborBranzyDialog_Loaded;
         }

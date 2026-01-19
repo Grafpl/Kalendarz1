@@ -31,6 +31,7 @@ namespace Kalendarz1.Zywiec.RaportyStatystyki
         public RaportyStatystykiWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             LoadDostawcy();
             InitializeDatePickers();
             InitializeYearComboBoxes();

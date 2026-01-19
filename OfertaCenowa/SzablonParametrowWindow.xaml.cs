@@ -15,6 +15,7 @@ namespace Kalendarz1.OfertaCenowa
         public SzablonParametrowWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _manager = new SzablonyManager();
             _szablony = new ObservableCollection<SzablonParametrow>();
             

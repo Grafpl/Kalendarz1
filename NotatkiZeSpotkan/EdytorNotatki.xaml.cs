@@ -34,6 +34,7 @@ namespace Kalendarz1.NotatkiZeSpotkan
             _trybEdycji = false;
 
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             InitializeNewNotatka();
         }
 
@@ -46,6 +47,7 @@ namespace Kalendarz1.NotatkiZeSpotkan
             _trybEdycji = true;
 
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             LoadNotatkaDoEdycji();
         }
 

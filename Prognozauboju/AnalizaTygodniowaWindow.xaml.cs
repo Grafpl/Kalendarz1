@@ -22,6 +22,7 @@ namespace Kalendarz1.AnalizaTygodniowa
         public AnalizaTygodniowaWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             dpDataOd.SelectedDate = DateTime.Today.AddDays(-((int)DateTime.Today.DayOfWeek + 6) % 7).AddDays(-7);
             dpDataDo.SelectedDate = DateTime.Today.AddDays(-((int)DateTime.Today.DayOfWeek + 6) % 7).AddDays(-1);
             WczytajTowary();

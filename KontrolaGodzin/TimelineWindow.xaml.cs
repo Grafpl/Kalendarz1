@@ -16,6 +16,7 @@ namespace Kalendarz1.KontrolaGodzin
         public TimelineWindow(List<RejestracjaModel> dane)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _dane = dane;
             _wybranaData = DateTime.Today;
             dpData.SelectedDate = _wybranaData;

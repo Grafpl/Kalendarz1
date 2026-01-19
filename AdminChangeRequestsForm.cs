@@ -23,6 +23,7 @@ namespace Kalendarz1
             _appUser = string.IsNullOrWhiteSpace(appUser) ? Environment.UserName : appUser;
 
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             ApplyModernStyling(); // Apply new visual style
             HookEvents();
             ZaladujNaglowki();

@@ -11,6 +11,7 @@ namespace Kalendarz1
         public LoginForm()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
         }
 
         // Właściwość publiczna zwracająca tekst z UsernameTextBox

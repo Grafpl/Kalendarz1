@@ -19,6 +19,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
         public KontrahentPlatnosciWindow(string kontrahent, string handlowiec)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _kontrahent = kontrahent;
             _handlowiec = handlowiec;
             txtKontrahentNazwa.Text = kontrahent;

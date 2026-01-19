@@ -25,6 +25,7 @@ namespace Kalendarz1
         public OcenaDostawcyWindow(string dostawcaId, string userId, int? ocenaId = null)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             _dostawcaId = dostawcaId;
             _userId = userId;

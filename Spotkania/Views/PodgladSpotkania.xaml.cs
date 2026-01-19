@@ -21,6 +21,7 @@ namespace Kalendarz1.Spotkania.Views
         public PodgladSpotkania(string userID, long spotkaniID)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _userID = userID;
             _spotkaniID = spotkaniID;
 

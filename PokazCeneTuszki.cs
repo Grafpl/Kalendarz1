@@ -14,6 +14,7 @@ namespace Kalendarz1
         public PokazCeneTuszki()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             // Dodanie zdarzeń TextChanged dla TextBox1 i TextBox2
 
             dateTimePicker1.Value = DateTime.Now; // Ustaw datę na dzisiejszą

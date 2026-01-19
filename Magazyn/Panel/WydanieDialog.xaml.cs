@@ -21,6 +21,7 @@ namespace Kalendarz1
         public WydanieDialog(string klientNazwa, List<(int TowarId, string Nazwa, decimal Zamowiono)> pozycje)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _klientNazwa = klientNazwa;
 
             // Załaduj pozycje

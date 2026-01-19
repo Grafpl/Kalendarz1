@@ -17,6 +17,7 @@ namespace Kalendarz1.WPF
         public CyclicOrdersWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             dpStartDate.SelectedDate = DateTime.Today.AddDays(1);
             dpEndDate.SelectedDate = DateTime.Today.AddDays(7);

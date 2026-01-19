@@ -51,6 +51,7 @@ namespace Kalendarz1.OfertaCenowa
         public SzablonTowarowWindow(ObservableCollection<TowarOferta> dostepneTowary)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             DataContext = this;
 
             _dostepneTowary = dostepneTowary;

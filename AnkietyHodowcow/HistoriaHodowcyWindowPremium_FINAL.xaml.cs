@@ -22,6 +22,7 @@ namespace Kalendarz1.AnkietyHodowcow
         public HistoriaHodowcyWindowPremium(string connectionString, string dostawca)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
             _dostawca = dostawca ?? throw new ArgumentNullException(nameof(dostawca));

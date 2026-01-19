@@ -41,6 +41,7 @@ namespace Kalendarz1
         public PanelLekarza()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             dostawy = new ObservableCollection<DostawaLekarza>();
             listDostawy.ItemsSource = dostawy;
         }

@@ -667,6 +667,7 @@ namespace Kalendarz1
         public WidokZamowieniaPodsumowanie()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             Load += WidokZamowieniaPodsumowanie_Load;
 
             // Dodanie menu kontekstowego do gridu zamówień

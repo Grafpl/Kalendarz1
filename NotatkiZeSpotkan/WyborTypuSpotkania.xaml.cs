@@ -9,6 +9,7 @@ namespace Kalendarz1.NotatkiZeSpotkan
         public WyborTypuSpotkania()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
         }
 
         private void BtnZespol_Click(object sender, RoutedEventArgs e)

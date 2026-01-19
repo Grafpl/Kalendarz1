@@ -242,6 +242,7 @@ namespace Kalendarz1
         public PokazKrojenieMrozenie()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             TuszkaWydajnosc.Text = "100";
             SumaWydajnosc.Text = "100";

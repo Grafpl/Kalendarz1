@@ -18,6 +18,7 @@ namespace Kalendarz1.WPF
         public MultipleDatePickerWindow(string title)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             Title = title;
 
             dpStartDate.SelectedDate = DateTime.Today.AddDays(1);

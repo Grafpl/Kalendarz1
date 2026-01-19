@@ -78,6 +78,7 @@ namespace Kalendarz1
             connectionString = connString;
             operatorID = opID;
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             WczytajPKD();
         }
 

@@ -47,6 +47,7 @@ namespace Kalendarz1
             for (int i = 5; i <= 12; i++) _sumaZajete[i] = 0;
             
             InitializeUI();
+            WindowIconHelper.SetIcon(this);
             _ = LoadDataAsync();
         }
 

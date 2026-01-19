@@ -56,6 +56,7 @@ namespace Kalendarz1
             domyslniHandlowcy = zaznaczeniHandlowcy ?? new List<string>();
 
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             InitializeServices();
             LoadMapSettings();
         }

@@ -15,6 +15,7 @@ namespace Kalendarz1.Opakowania.Views
         public ListaOpakowanWindow(string kodOpakowania, string nazwaOpakowania, DateTime dataDo, string userId)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _viewModel = new ListaOpakowanViewModel(kodOpakowania, nazwaOpakowania, dataDo, userId);
             DataContext = _viewModel;
         }

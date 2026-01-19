@@ -11,6 +11,7 @@ namespace Kalendarz1.CRM
         public PanelManageraWindow(string c)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             connStr = c;
             dpOd.SelectedDate = DateTime.Today.AddDays(-30);
             dpDo.SelectedDate = DateTime.Today;

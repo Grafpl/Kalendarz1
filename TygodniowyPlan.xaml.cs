@@ -47,6 +47,7 @@ namespace Kalendarz1
         public TygodniowyPlan()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             aktualnyTydzien = DateTime.Today;
             konfiguracjaProduktow = new Dictionary<string, decimal>();
             aktualneDane = new List<PlanDziennyModel>();

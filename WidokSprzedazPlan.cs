@@ -28,6 +28,7 @@ namespace Kalendarz1
         public WidokSprzedazPlan()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             DisplayData();
         }
         private void DisplayData()

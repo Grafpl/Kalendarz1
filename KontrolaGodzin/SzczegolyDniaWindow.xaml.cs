@@ -10,7 +10,8 @@ namespace Kalendarz1.KontrolaGodzin
         public SzczegolyDniaWindow(string pracownik, string dzial, DateTime data, List<RejestracjaModel> rejestracje)
         {
             InitializeComponent();
-            
+            WindowIconHelper.SetIcon(this);
+
             // Nagłówek
             txtPracownik.Text = pracownik;
             txtDzial.Text = dzial;

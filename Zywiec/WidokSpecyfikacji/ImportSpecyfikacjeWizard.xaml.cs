@@ -61,6 +61,7 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
         public ImportSpecyfikacjeWizard()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             DataContext = this;
             LoadDostawcyFromDatabase();
         }

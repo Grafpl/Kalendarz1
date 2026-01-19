@@ -11,6 +11,7 @@ namespace Kalendarz1.OfertaCenowa
         public WyborSzablonuWindow(List<object> szablony, string tytul)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             txtTytul.Text = tytul;
             lstSzablony.ItemsSource = szablony;
         }

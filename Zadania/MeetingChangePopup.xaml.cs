@@ -26,6 +26,7 @@ namespace Kalendarz1.Zadania
         public MeetingChangePopup()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             changes = new List<MeetingChange>();
             Loaded += MeetingChangePopup_Loaded;
         }

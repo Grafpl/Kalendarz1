@@ -100,6 +100,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
         public AnalizaPrzychoduWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             DataContext = this;
 
             YFormatter = value => value.ToString("N0") + " kg";

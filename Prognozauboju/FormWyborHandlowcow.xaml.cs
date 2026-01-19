@@ -20,6 +20,7 @@ namespace Kalendarz1.PrognozyUboju
         public FormWyborHandlowcow(string connString, List<string> aktualnieZaznaczeni)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             connectionString = connString;
             WybraniHandlowcy = new List<string>();
 

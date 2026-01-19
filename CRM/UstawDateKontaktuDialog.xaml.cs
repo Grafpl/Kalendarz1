@@ -11,6 +11,7 @@ namespace Kalendarz1.CRM
         public UstawDateKontaktuDialog(string nazwaKlienta)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             txtNazwaKlienta.Text = nazwaKlienta;
             calendar.SelectedDate = DateTime.Today.AddDays(1);
             AktualizujWybranaData(DateTime.Today.AddDays(1));

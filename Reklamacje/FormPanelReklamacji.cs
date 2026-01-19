@@ -33,6 +33,7 @@ namespace Kalendarz1
             userId = user;
 
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             WczytajReklamacje();
         }
 

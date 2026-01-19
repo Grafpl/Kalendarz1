@@ -55,10 +55,11 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
         /// <param name="defaultDate">Data uboju</param>
         /// <param name="prefillHodowcaId">ID hodowcy do wypełnienia (CustomerGID)</param>
         /// <param name="ustawieniaZrodlowe">Ustawienia cenowe do skopiowania po zapisie</param>
-        public NowaSpecyfikacjaWindow(string connString, DateTime? defaultDate, 
+        public NowaSpecyfikacjaWindow(string connString, DateTime? defaultDate,
             string prefillHodowcaId, DuplikatUstawienia ustawieniaZrodlowe)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             connectionString = connString;
             _prefillHodowcaId = prefillHodowcaId;
             _sourceUstawienia = ustawieniaZrodlowe;

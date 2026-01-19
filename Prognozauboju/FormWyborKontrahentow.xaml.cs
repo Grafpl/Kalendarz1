@@ -20,6 +20,7 @@ namespace Kalendarz1.PrognozyUboju
         public FormWyborKontrahentow(string connString, List<int> aktualnieZaznaczeni)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             connectionString = connString;
             WybraniKontrahenci = new List<int>();
 

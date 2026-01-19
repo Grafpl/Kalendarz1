@@ -25,6 +25,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
         public HistoriaZmianWindow(string connectionString, string userId = null)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _connectionString = connectionString;
             _userId = userId;
             _filterByLP = null;
@@ -47,6 +48,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
         public HistoriaZmianWindow(string connectionString, string userId, string filterLP, string hodowcaName)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _connectionString = connectionString;
             _userId = userId;
             _filterByLP = filterLP;

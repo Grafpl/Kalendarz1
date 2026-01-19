@@ -55,6 +55,7 @@ namespace Kalendarz1
         public Mroznia()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             SetupEvents();
             LoadInitialData();
         }

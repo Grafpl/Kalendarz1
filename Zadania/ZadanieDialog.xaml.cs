@@ -23,6 +23,7 @@ namespace Kalendarz1.Zadania
         public ZadanieDialog(string connString, string opId, ZadanieViewModel task = null)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             connectionString = connString;
             operatorId = opId;
             existingTask = task;

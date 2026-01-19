@@ -37,6 +37,7 @@ namespace Kalendarz1.Transport.Formularze
         public PojazdyForm()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
         }
 
         protected override void OnLoad(EventArgs e)

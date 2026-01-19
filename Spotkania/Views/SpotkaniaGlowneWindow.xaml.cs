@@ -24,6 +24,7 @@ namespace Kalendarz1.Spotkania.Views
         public SpotkaniaGlowneWindow(string userID)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _userID = userID;
 
             // Inicjalizacja serwisów

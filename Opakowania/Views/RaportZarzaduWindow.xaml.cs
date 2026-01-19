@@ -11,6 +11,7 @@ namespace Kalendarz1.Opakowania.Views
         public RaportZarzaduWindow(string userId)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _viewModel = new RaportZarzaduViewModel(userId);
             DataContext = _viewModel;
         }

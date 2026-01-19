@@ -242,6 +242,7 @@ namespace Kalendarz1
             if (istniejacy != null) Rozklad = istniejacy.Clone();
             for (int i = 5; i <= 12; i++) { _prognozaPojemnikow[i] = 0; _zajetePojemnikow[i] = 0; }
             InitializeUI();
+            WindowIconHelper.SetIcon(this);
             _ = LoadDaneAsync();
         }
 

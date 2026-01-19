@@ -22,6 +22,7 @@ namespace Kalendarz1.OfertaCenowa
         public EdycjaKontaktuWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             Loaded += EdycjaKontaktuWindow_Loaded;
         }
 

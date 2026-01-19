@@ -10,6 +10,7 @@ namespace Kalendarz1.WPF
         public PrzyczynaAnulowaniaDialog(string odbiorca, decimal ilosc)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             txtOdbiorca.Text = odbiorca;
             txtIlosc.Text = $"{ilosc:N0} kg";
             CzyAnulowano = false;

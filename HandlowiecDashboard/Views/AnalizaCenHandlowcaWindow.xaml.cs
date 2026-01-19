@@ -26,6 +26,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
         public AnalizaCenHandlowcaWindow(string handlowiec, int rok, int miesiac)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _handlowiec = handlowiec;
             txtHandlowiecNazwa.Text = handlowiec;
             Loaded += async (s, e) => await InitializeAsync(rok, miesiac);

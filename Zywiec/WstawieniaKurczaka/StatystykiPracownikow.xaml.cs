@@ -100,6 +100,7 @@ namespace Kalendarz1
         public StatystykiPracownikow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             // Domyślnie załaduj bieżący miesiąc
             FilterButton_Click(btnMiesiac, null);
         }

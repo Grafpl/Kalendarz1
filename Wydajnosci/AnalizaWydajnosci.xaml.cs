@@ -26,6 +26,7 @@ namespace Kalendarz1
         public AnalizaWydajnosciKrojenia(string connStringHandel)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             connectionStringHandel = connStringHandel;
 
             analizaDzienna = new ObservableCollection<AnalizaDziennaModel>();

@@ -17,6 +17,7 @@ namespace Kalendarz1.NotatkiZeSpotkan
         public NotatkirGlownyWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             Loaded += Window_Loaded;
         }
 

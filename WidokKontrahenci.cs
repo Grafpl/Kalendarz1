@@ -40,6 +40,7 @@ namespace Kalendarz1
         public WidokKontrahenci()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             // Ulepszony wygląd okna
             this.Font = new Font("Segoe UI", 10f);

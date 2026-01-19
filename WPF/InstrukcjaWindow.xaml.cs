@@ -7,6 +7,7 @@ namespace Kalendarz1.WPF
         public InstrukcjaWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
         }
 
         private void BtnZamknij_Click(object sender, RoutedEventArgs e)

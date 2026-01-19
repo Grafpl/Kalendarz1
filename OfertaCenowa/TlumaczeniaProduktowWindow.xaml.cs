@@ -20,6 +20,7 @@ namespace Kalendarz1.OfertaCenowa
         public TlumaczeniaProduktowWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             dgTlumaczenia.ItemsSource = Tlumaczenia;
             LoadDataAsync();
         }

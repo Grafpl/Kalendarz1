@@ -515,6 +515,7 @@ namespace Kalendarz1
         public AdminPermissionsForm()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             InitializeCustomComponents();
             UserHandlowcyManager.CreateTableIfNotExists();
             LoadUsers();

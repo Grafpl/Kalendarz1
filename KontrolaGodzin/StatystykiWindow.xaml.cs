@@ -17,6 +17,7 @@ namespace Kalendarz1.KontrolaGodzin
         public StatystykiWindow(List<RejestracjaModel> dane)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _dane = dane;
             
             // Inicjalizuj combo

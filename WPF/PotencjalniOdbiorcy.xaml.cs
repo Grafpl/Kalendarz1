@@ -32,6 +32,7 @@ namespace Kalendarz1.WPF
             decimal plan, decimal fakt, decimal zamowienia, decimal bilans, DateTime dataReferencja)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             _connectionString = connectionString;
             _produktId = produktId;

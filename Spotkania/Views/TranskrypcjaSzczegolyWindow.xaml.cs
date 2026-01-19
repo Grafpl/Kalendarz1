@@ -45,6 +45,7 @@ namespace Kalendarz1.Spotkania.Views
         public TranskrypcjaSzczegolyWindow(string firefliesId, long transkrypcjaId = 0)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _firefliesService = new FirefliesService();
             _firefliesId = firefliesId;
             _transkrypcjaId = transkrypcjaId;

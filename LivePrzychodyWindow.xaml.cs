@@ -25,6 +25,7 @@ namespace Kalendarz1
             _calcPack = calcPack;
 
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             Loaded += async (s, e) => await RefreshDataAsync();
             StartTimer();
         }

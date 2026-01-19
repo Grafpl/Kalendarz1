@@ -27,6 +27,7 @@ namespace Kalendarz1.CRM
         public CRMWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             Loaded += CRMWindow_Loaded;
         }
 

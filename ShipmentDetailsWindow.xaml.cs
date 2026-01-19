@@ -20,6 +20,7 @@ namespace Kalendarz1
             _date = date.Date;
 
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             lblTitle.Text = $"Wydania bez zamówienia – KH {_clientId}";
             dgvData.ItemsSource = _details;
 

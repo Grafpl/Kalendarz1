@@ -44,6 +44,7 @@ namespace Kalendarz1.Transport
         public TransportStatystykiForm()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             this.Load += async (s, e) => await LoadAllStatisticsAsync();
         }
 

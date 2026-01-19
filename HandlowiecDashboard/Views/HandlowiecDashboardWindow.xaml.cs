@@ -62,6 +62,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
         public HandlowiecDashboardWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             // Formatery z separatorem tysiecy
             ZlFormatter = val => $"{val:N0} zl";

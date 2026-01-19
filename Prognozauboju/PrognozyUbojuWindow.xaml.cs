@@ -29,6 +29,7 @@ namespace Kalendarz1.PrognozyUboju
         public PrognozyUbojuWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             currentUserId = App.UserID;
 
             if (txtUserInfo != null)

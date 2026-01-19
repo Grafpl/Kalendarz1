@@ -59,6 +59,7 @@ namespace Kalendarz1
             operatorID = opID;
 
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             StworzKontrolki();
 
             webBrowser.DocumentCompleted += (s, e) =>

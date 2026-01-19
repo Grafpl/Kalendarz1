@@ -20,6 +20,7 @@ namespace Kalendarz1
         public SzczegolyDnia(string connString, DateTime data, WydajnoscModel wyd, Dictionary<string, decimal> konfig)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             connectionString = connString;
             dataWybrana = data;
             wydajnosc = wyd;

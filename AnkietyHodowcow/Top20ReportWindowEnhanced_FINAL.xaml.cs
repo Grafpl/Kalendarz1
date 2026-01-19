@@ -22,6 +22,7 @@ namespace Kalendarz1.AnkietyHodowcow
         public Top20ReportWindowEnhanced(string connectionString)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
             DateTextBlock.Text = $"Wygenerowano: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
             // Ładuj logo

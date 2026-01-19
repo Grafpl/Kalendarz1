@@ -25,6 +25,7 @@ namespace Kalendarz1
         public Platnosci()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             connectionString = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True;Connection Timeout=30";
 

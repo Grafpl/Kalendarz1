@@ -23,6 +23,7 @@ namespace Kalendarz1.OfertaCenowa
         public SzablonOdbiorcowWindow(string operatorId)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _szablonyManager = new SzablonyManager();
             _operatorId = operatorId;
 

@@ -14,6 +14,7 @@ namespace Kalendarz1
         public IRZplusSettingsWindow(IRZplusService service)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _service = service;
             LoadSettings();
         }

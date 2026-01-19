@@ -89,6 +89,7 @@ namespace Kalendarz1.Transport
             _userId = userId;
 
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             InitializeMap();
         }
 

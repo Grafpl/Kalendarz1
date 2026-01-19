@@ -17,6 +17,7 @@ namespace Kalendarz1.OfertaCenowa
         public OfertaSzczegolyWindow(OfertaSzczegoly oferta)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             _oferta = oferta;
             WypelnijDane();

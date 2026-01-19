@@ -37,6 +37,7 @@ namespace Kalendarz1
         public ImportExcelWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             parser = new AvilogExcelParser();
             importData = new ObservableCollection<ImportExcelRow>();
 

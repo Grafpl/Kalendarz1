@@ -44,6 +44,7 @@ namespace Kalendarz1.Zadania
         public NotificationWindow(string userId)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             operatorId = userId;
             Loaded += NotificationWindow_Loaded;
             Closed += NotificationWindow_Closed;

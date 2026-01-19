@@ -18,6 +18,7 @@ namespace Kalendarz1
         {
             _connectionString = connectionString;
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             ZaladujHandlowcow();
         }
 

@@ -25,6 +25,7 @@ namespace Kalendarz1
             this.userName = userName;
 
             InitializeForm();
+            WindowIconHelper.SetIcon(this);
             CacheAvatar();
             SetupTimers();
         }

@@ -18,6 +18,7 @@ namespace Kalendarz1.Spotkania.Views
         public NotyfikacjeWindow(string userID)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _userID = userID;
             _notyfikacjeService = NotyfikacjeManager.GetInstance(userID);
 

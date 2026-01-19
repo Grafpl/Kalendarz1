@@ -14,6 +14,7 @@ namespace Kalendarz1.CRM
         public KanbanWindow(string c, string op)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             connStr = c;
             opID = op;
             Wczytaj();

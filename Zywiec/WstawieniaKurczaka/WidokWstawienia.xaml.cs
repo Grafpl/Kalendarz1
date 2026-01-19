@@ -33,6 +33,7 @@ namespace Kalendarz1
         public WidokWstawienia()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             LoadLogo();
             InitializeData();
             SetupEventHandlers();

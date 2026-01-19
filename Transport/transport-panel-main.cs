@@ -90,6 +90,7 @@ namespace Kalendarz1.Transport.Formularze
             _wypelnienia = new Dictionary<long, WynikPakowania>();
 
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             this.Load += async (s, e) =>
             {

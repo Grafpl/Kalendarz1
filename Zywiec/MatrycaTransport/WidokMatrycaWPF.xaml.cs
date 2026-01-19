@@ -39,6 +39,7 @@ namespace Kalendarz1
         public WidokMatrycaWPF()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             matrycaData = new ObservableCollection<MatrycaRow>();
             harmonogramDostawy = new ObservableCollection<HarmonogramDostawaItem>();
             dataGridMatryca.ItemsSource = matrycaData;

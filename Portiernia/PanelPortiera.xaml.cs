@@ -157,6 +157,7 @@ namespace Kalendarz1
         public PanelPortiera()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             System.Threading.Thread.CurrentThread.CurrentCulture = new CultureInfo("pl-PL");
             System.Threading.Thread.CurrentThread.CurrentUICulture = new CultureInfo("pl-PL");
             DataContext = this;

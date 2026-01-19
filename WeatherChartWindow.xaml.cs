@@ -54,6 +54,7 @@ namespace Kalendarz1
         public WeatherChartWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             DataContext = this;
 
             YFormatter = value => $"{value:0}°C";

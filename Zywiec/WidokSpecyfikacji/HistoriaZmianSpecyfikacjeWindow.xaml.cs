@@ -24,6 +24,7 @@ namespace Kalendarz1
         public HistoriaZmianSpecyfikacjeWindow(string connectionString)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _connectionString = connectionString;
             _allChanges = new ObservableCollection<ChangeLogItem>();
 

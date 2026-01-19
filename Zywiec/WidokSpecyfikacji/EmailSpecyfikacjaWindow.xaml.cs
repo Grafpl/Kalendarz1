@@ -26,6 +26,7 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
             string sciezkaPDF)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             _nazwaDostawcy = nazwaDostawcy;
             _dataUboju = dataUboju;

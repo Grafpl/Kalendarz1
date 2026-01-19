@@ -25,6 +25,7 @@ namespace Kalendarz1
         public WidokWaga()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             InitializeForm();
 
             _searchTimer = new System.Windows.Forms.Timer();

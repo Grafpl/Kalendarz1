@@ -26,6 +26,7 @@ namespace Kalendarz1.Spotkania.Views
         public EdytorSpotkania(string userID, long? spotkaniID = null)
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _userID = userID;
             _spotkaniID = spotkaniID;
             _isEditing = spotkaniID.HasValue;

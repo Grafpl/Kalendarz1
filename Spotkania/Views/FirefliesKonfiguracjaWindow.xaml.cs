@@ -15,6 +15,7 @@ namespace Kalendarz1.Spotkania.Views
         public FirefliesKonfiguracjaWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
             _firefliesService = new FirefliesService();
 
             Loaded += async (s, e) => await LoadDataAsync();

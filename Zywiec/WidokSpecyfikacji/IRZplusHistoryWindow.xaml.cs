@@ -16,6 +16,7 @@ namespace Kalendarz1
         public IRZplusHistoryWindow()
         {
             InitializeComponent();
+            WindowIconHelper.SetIcon(this);
 
             _service = new IRZplusService();
             _allHistory = new List<IRZplusLocalHistory>();
