@@ -295,7 +295,7 @@ namespace Kalendarz1
                 int successCount = 0;
                 int errorCount = 0;
                 var errors = new List<string>();
-                var successResults = new List<(string Hodowca, ApiResult Result)>();
+                var assignments = new List<(string Hodowca, string NumerDokumentu, int Id)>();
 
                 for (int i = 0; i < wybrane.Count; i++)
                 {
@@ -330,10 +330,16 @@ namespace Kalendarz1
                     if (result.Success)
                     {
                         successCount++;
-                        successResults.Add((spec.Hodowca, result));
+                        var numerDokumentu = result.NumerDokumentu ?? result.NumerZgloszenia ?? "N/A";
 
-                        // Pokaz okno sukcesu dla kazdego dostawcy
-                        ShowSuccessDialog(result, spec.Hodowca);
+                        // Zapisz numer dokumentu do bazy danych
+                        await _service.SaveNrDokArimrAsync(_connectionString, spec.Id, numerDokumentu);
+
+                        // Zaktualizuj lokalnie ViewModel
+                        spec.NrDokArimr = numerDokumentu;
+
+                        // Dodaj do listy przypisan
+                        assignments.Add((spec.Hodowca, numerDokumentu, spec.Id));
                     }
                     else
                     {
@@ -357,9 +363,9 @@ namespace Kalendarz1
 
                 // Podsumowanie
                 WysylkaZakonczona = successCount > 0;
-                if (successResults.Any())
+                if (assignments.Any())
                 {
-                    NumerZgloszenia = successResults.Last().Result.NumerZgloszenia;
+                    NumerZgloszenia = assignments.Last().NumerDokumentu;
                 }
 
                 var summary = $"Wyslano: {successCount}/{wybrane.Count}";
@@ -369,22 +375,8 @@ namespace Kalendarz1
                 }
                 txtStatus.Text = summary;
 
-                // Pokaz podsumowanie
-                var summaryMsg = $"PODSUMOWANIE WYSYLKI\n\n" +
-                    $"Wyslano pomyslnie: {successCount}\n" +
-                    $"Bledy: {errorCount}\n";
-
-                if (errors.Any())
-                {
-                    summaryMsg += $"\nBLEDY:\n{string.Join("\n", errors.Take(5))}";
-                    if (errors.Count > 5)
-                        summaryMsg += $"\n... i {errors.Count - 5} wiecej";
-                }
-
-                MessageBox.Show(summaryMsg,
-                    successCount == wybrane.Count ? "Wysylka zakonczona" : "Wysylka zakonczona z bledami",
-                    MessageBoxButton.OK,
-                    successCount == wybrane.Count ? MessageBoxImage.Information : MessageBoxImage.Warning);
+                // Pokaz podsumowanie z przypisaniami
+                ShowAssignmentsSummary(assignments, errors, successCount, wybrane.Count);
             }
             catch (Exception ex)
             {
@@ -915,7 +907,7 @@ namespace Kalendarz1
                 int successCount = 0;
                 int errorCount = 0;
                 var errors = new List<string>();
-                var successResults = new List<(string Hodowca, IRZplusResult Result)>();
+                var assignments = new List<(string Hodowca, string NumerDokumentu, int Id)>();
 
                 string userId = App.UserID ?? Environment.UserName;
                 string userName = userId;
@@ -964,18 +956,16 @@ namespace Kalendarz1
                     if (sendResult.Success)
                     {
                         successCount++;
-                        successResults.Add((vm.Hodowca, sendResult));
+                        var numerDokumentu = sendResult.NumerZgloszenia ?? "N/A";
 
-                        // Pokaz okno sukcesu dla kazdego dostawcy z mozliwoscia kopiowania
-                        var apiResult = new ApiResult
-                        {
-                            Success = true,
-                            NumerZgloszenia = sendResult.NumerZgloszenia,
-                            NumerDokumentu = sendResult.NumerZgloszenia,
-                            Message = sendResult.Message,
-                            ResponseJson = sendResult.ResponseData
-                        };
-                        ShowSuccessDialog(apiResult, vm.Hodowca);
+                        // Zapisz numer dokumentu do bazy danych
+                        await _service.SaveNrDokArimrAsync(_connectionString, vm.Id, numerDokumentu);
+
+                        // Zaktualizuj lokalnie ViewModel
+                        vm.NrDokArimr = numerDokumentu;
+
+                        // Dodaj do listy przypisan
+                        assignments.Add((vm.Hodowca, numerDokumentu, vm.Id));
                     }
                     else
                     {
@@ -999,9 +989,9 @@ namespace Kalendarz1
 
                 // Podsumowanie
                 WysylkaZakonczona = successCount > 0;
-                if (successResults.Any())
+                if (assignments.Any())
                 {
-                    NumerZgloszenia = successResults.Last().Result.NumerZgloszenia;
+                    NumerZgloszenia = assignments.Last().NumerDokumentu;
                 }
 
                 var summary = $"Wyslano: {successCount}/{wybrane.Count}";
@@ -1011,22 +1001,8 @@ namespace Kalendarz1
                 }
                 txtStatus.Text = summary;
 
-                // Pokaz podsumowanie
-                var summaryMsg = $"PODSUMOWANIE WYSYLKI\n\n" +
-                    $"Wyslano pomyslnie: {successCount}\n" +
-                    $"Bledy: {errorCount}\n";
-
-                if (errors.Any())
-                {
-                    summaryMsg += $"\nBLEDY:\n{string.Join("\n", errors.Take(5))}";
-                    if (errors.Count > 5)
-                        summaryMsg += $"\n... i {errors.Count - 5} wiecej";
-                }
-
-                MessageBox.Show(summaryMsg,
-                    successCount == wybrane.Count ? "Wysylka zakonczona" : "Wysylka zakonczona z bledami",
-                    MessageBoxButton.OK,
-                    successCount == wybrane.Count ? MessageBoxImage.Information : MessageBoxImage.Warning);
+                // Pokaz podsumowanie z przypisaniami
+                ShowAssignmentsSummary(assignments, errors, successCount, wybrane.Count);
 
                 if (successCount == wybrane.Count)
                 {
@@ -1045,6 +1021,251 @@ namespace Kalendarz1
                 btnSend.IsEnabled = true;
                 progressBar.Visibility = Visibility.Collapsed;
             }
+        }
+
+        /// <summary>
+        /// Pokazuje okno podsumowania z lista przypisan numerow dokumentow do hodowcow
+        /// </summary>
+        private void ShowAssignmentsSummary(List<(string Hodowca, string NumerDokumentu, int Id)> assignments, List<string> errors, int successCount, int totalCount)
+        {
+            var window = new Window
+            {
+                Title = "Podsumowanie wysylki IRZplus",
+                Width = 700,
+                Height = 550,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Background = new SolidColorBrush(Color.FromRgb(245, 245, 245))
+            };
+
+            var mainGrid = new Grid();
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            // Naglowek
+            var headerBorder = new Border
+            {
+                Background = new SolidColorBrush(successCount == totalCount
+                    ? Color.FromRgb(76, 175, 80)   // zielony - wszystko OK
+                    : Color.FromRgb(255, 152, 0)), // pomaranczowy - sa bledy
+                Padding = new Thickness(15, 12, 15, 12)
+            };
+
+            var headerStack = new StackPanel();
+            var headerText = new TextBlock
+            {
+                Text = successCount == totalCount
+                    ? "WYSYLKA ZAKONCZONA POMYSLNIE"
+                    : "WYSYLKA ZAKONCZONA Z BLEDAMI",
+                FontSize = 16,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White
+            };
+            headerStack.Children.Add(headerText);
+
+            var statsText = new TextBlock
+            {
+                Text = $"Wyslano: {successCount} z {totalCount} | Data uboju: {_dataUboju:dd.MM.yyyy}",
+                FontSize = 12,
+                Foreground = Brushes.White,
+                Margin = new Thickness(0, 5, 0, 0)
+            };
+            headerStack.Children.Add(statsText);
+
+            headerBorder.Child = headerStack;
+            Grid.SetRow(headerBorder, 0);
+            mainGrid.Children.Add(headerBorder);
+
+            // TabControl z zakladkami
+            var tabControl = new TabControl { Margin = new Thickness(10) };
+
+            // Tab 1: Lista przypisan
+            var tab1 = new TabItem { Header = $"Przypisane numery ({assignments.Count})" };
+            var scroll1 = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            var assignmentsPanel = new StackPanel { Margin = new Thickness(10) };
+
+            if (assignments.Any())
+            {
+                // Naglowki kolumn
+                var headerGrid = new Grid { Margin = new Thickness(0, 0, 0, 10) };
+                headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
+                headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(200) });
+
+                var col1 = new TextBlock { Text = "Lp.", FontWeight = FontWeights.Bold, Foreground = Brushes.Gray };
+                var col2 = new TextBlock { Text = "Hodowca", FontWeight = FontWeights.Bold, Foreground = Brushes.Gray };
+                var col3 = new TextBlock { Text = "Numer dokumentu ARIMR", FontWeight = FontWeights.Bold, Foreground = Brushes.Gray };
+                Grid.SetColumn(col1, 0);
+                Grid.SetColumn(col2, 1);
+                Grid.SetColumn(col3, 2);
+                headerGrid.Children.Add(col1);
+                headerGrid.Children.Add(col2);
+                headerGrid.Children.Add(col3);
+                assignmentsPanel.Children.Add(headerGrid);
+
+                // Separator
+                assignmentsPanel.Children.Add(new Border
+                {
+                    Height = 1,
+                    Background = Brushes.LightGray,
+                    Margin = new Thickness(0, 0, 0, 10)
+                });
+
+                // Lista przypisan
+                int lp = 1;
+                foreach (var (hodowca, numerDokumentu, id) in assignments)
+                {
+                    var rowGrid = new Grid { Margin = new Thickness(0, 3, 0, 3) };
+                    rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
+                    rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(200) });
+
+                    var lpText = new TextBlock
+                    {
+                        Text = $"{lp}.",
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Foreground = Brushes.Gray
+                    };
+                    var hodowcaText = new TextBlock
+                    {
+                        Text = hodowca,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        TextTrimming = TextTrimming.CharacterEllipsis
+                    };
+                    var numerText = new TextBlock
+                    {
+                        Text = numerDokumentu,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        FontWeight = FontWeights.SemiBold,
+                        Foreground = new SolidColorBrush(Color.FromRgb(30, 144, 255))
+                    };
+
+                    Grid.SetColumn(lpText, 0);
+                    Grid.SetColumn(hodowcaText, 1);
+                    Grid.SetColumn(numerText, 2);
+                    rowGrid.Children.Add(lpText);
+                    rowGrid.Children.Add(hodowcaText);
+                    rowGrid.Children.Add(numerText);
+
+                    assignmentsPanel.Children.Add(rowGrid);
+                    lp++;
+                }
+            }
+            else
+            {
+                assignmentsPanel.Children.Add(new TextBlock
+                {
+                    Text = "Brak pomyslnie wyslanych zgloszen.",
+                    FontStyle = FontStyles.Italic,
+                    Foreground = Brushes.Gray
+                });
+            }
+
+            scroll1.Content = assignmentsPanel;
+            tab1.Content = scroll1;
+            tabControl.Items.Add(tab1);
+
+            // Tab 2: Bledy (jesli sa)
+            if (errors.Any())
+            {
+                var tab2 = new TabItem { Header = $"Bledy ({errors.Count})" };
+                var scroll2 = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+                var errorsPanel = new StackPanel { Margin = new Thickness(10) };
+
+                foreach (var error in errors)
+                {
+                    var errorBorder = new Border
+                    {
+                        Background = new SolidColorBrush(Color.FromRgb(255, 235, 238)),
+                        BorderBrush = new SolidColorBrush(Color.FromRgb(244, 67, 54)),
+                        BorderThickness = new Thickness(1),
+                        Padding = new Thickness(10),
+                        Margin = new Thickness(0, 0, 0, 5),
+                        CornerRadius = new CornerRadius(4)
+                    };
+                    errorBorder.Child = new TextBlock
+                    {
+                        Text = error,
+                        TextWrapping = TextWrapping.Wrap,
+                        Foreground = new SolidColorBrush(Color.FromRgb(183, 28, 28))
+                    };
+                    errorsPanel.Children.Add(errorBorder);
+                }
+
+                scroll2.Content = errorsPanel;
+                tab2.Content = scroll2;
+                tabControl.Items.Add(tab2);
+            }
+
+            Grid.SetRow(tabControl, 1);
+            mainGrid.Children.Add(tabControl);
+
+            // Panel przyciskow
+            var buttonPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(10)
+            };
+
+            // Przycisk kopiowania listy
+            var btnCopy = new Button
+            {
+                Content = "Kopiuj liste",
+                Padding = new Thickness(15, 8, 15, 8),
+                Margin = new Thickness(5),
+                Background = new SolidColorBrush(Color.FromRgb(25, 118, 210)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            btnCopy.Click += (s, ev) =>
+            {
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"PODSUMOWANIE WYSYLKI IRZplus - {_dataUboju:dd.MM.yyyy}");
+                sb.AppendLine($"Wyslano: {successCount} z {totalCount}");
+                sb.AppendLine();
+                sb.AppendLine("PRZYPISANE NUMERY DOKUMENTOW:");
+                sb.AppendLine("----------------------------");
+                int lp = 1;
+                foreach (var (hodowca, numerDokumentu, id) in assignments)
+                {
+                    sb.AppendLine($"{lp}. {hodowca} -> {numerDokumentu}");
+                    lp++;
+                }
+                if (errors.Any())
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("BLEDY:");
+                    foreach (var error in errors)
+                        sb.AppendLine($"  - {error}");
+                }
+                System.Windows.Clipboard.SetText(sb.ToString());
+                btnCopy.Content = "Skopiowano!";
+                btnCopy.Background = new SolidColorBrush(Color.FromRgb(76, 175, 80));
+            };
+            buttonPanel.Children.Add(btnCopy);
+
+            // Przycisk zamkniecia
+            var btnClose = new Button
+            {
+                Content = "Zamknij",
+                Padding = new Thickness(15, 8, 15, 8),
+                Margin = new Thickness(5),
+                Background = new SolidColorBrush(Color.FromRgb(117, 117, 117)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            btnClose.Click += (s, ev) => window.Close();
+            buttonPanel.Children.Add(btnClose);
+
+            Grid.SetRow(buttonPanel, 2);
+            mainGrid.Children.Add(buttonPanel);
+
+            window.Content = mainGrid;
+            window.ShowDialog();
         }
 
         private void BtnSaveLocal_Click(object sender, RoutedEventArgs e)

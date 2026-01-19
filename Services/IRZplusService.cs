@@ -283,6 +283,33 @@ namespace Kalendarz1.Services
             }
         }
 
+        /// <summary>
+        /// Zapisuje tylko numer dokumentu ARIMR do bazy danych
+        /// </summary>
+        public async Task<bool> SaveNrDokArimrAsync(string connectionString, int farmerCalcId, string nrDokArimr)
+        {
+            try
+            {
+                using var conn = new SqlConnection(connectionString);
+                await conn.OpenAsync();
+
+                var sql = @"UPDATE dbo.FarmerCalc
+                    SET NrDokArimr = @NrDokArimr
+                    WHERE ID = @Id";
+
+                using var cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@Id", farmerCalcId);
+                cmd.Parameters.AddWithValue("@NrDokArimr", (object)nrDokArimr ?? DBNull.Value);
+
+                await cmd.ExecuteNonQueryAsync();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         public async Task<IRZplusResult> WyslijZgloszenieAsync(ZgloszenieZbiorczeRequest request)
         {
             try
