@@ -3661,6 +3661,32 @@ namespace Kalendarz1.Zywiec.Kalendarz
             }
         }
 
+        /// <summary>
+        /// Pokaż historię zmian dla wybranego LP (menu kontekstowe)
+        /// </summary>
+        private void MenuPokazHistorieLP_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Pobierz zaznaczoną dostawę
+                var selected = dgDostawy.SelectedItem as DostawaModel ?? dgDostawyNastepny.SelectedItem as DostawaModel;
+
+                if (selected == null || selected.IsHeaderRow || selected.IsSeparator)
+                {
+                    ShowToast("Wybierz dostawę, aby zobaczyć historię zmian", ToastType.Warning);
+                    return;
+                }
+
+                // Otwórz okno historii z filtrem LP i nazwą hodowcy (pełny ekran)
+                var historiaWindow = new HistoriaZmianWindow(ConnectionString, UserID, selected.LP, selected.Dostawca);
+                historiaWindow.Show();
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd otwierania historii: {ex.Message}", ToastType.Error);
+            }
+        }
+
         // Dodanie aktywności do bazy danych
         private async void DodajAktywnosc(int typLicznika)
         {

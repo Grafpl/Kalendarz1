@@ -566,6 +566,7 @@
                                 <MenuItem Header="🍗 Pokaż tuszkę" Click="MenuPokazTuszke_Click" InputGestureText="F6"/>
                                 <MenuItem Header="📋 Pokaż avilog" Click="MenuPokazAvilog_Click" InputGestureText="F7"/>
                                 <MenuItem Header="📈 Pokaż plan sprzedaży" Click="MenuPokazPlanSprzedazy_Click" InputGestureText="F8"/>
+                                <MenuItem Header="📜 Historia zmian dostawy" Click="MenuPokazHistorieLP_Click" InputGestureText="Ctrl+H"/>
                                 <Separator/>
 
                                 <!-- SEKCJA: Usuwanie -->
@@ -862,6 +863,7 @@
                                 <MenuItem Header="🍗 Pokaż tuszkę" Click="MenuPokazTuszke_Click" InputGestureText="F6"/>
                                 <MenuItem Header="📋 Pokaż avilog" Click="MenuPokazAvilog_Click" InputGestureText="F7"/>
                                 <MenuItem Header="📈 Pokaż plan sprzedaży" Click="MenuPokazPlanSprzedazy_Click" InputGestureText="F8"/>
+                                <MenuItem Header="📜 Historia zmian dostawy" Click="MenuPokazHistorieLP_Click" InputGestureText="Ctrl+H"/>
                                 <Separator/>
 
                                 <!-- SEKCJA: Usuwanie -->

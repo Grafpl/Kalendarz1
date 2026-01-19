@@ -102,8 +102,14 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel>
-                    <TextBlock Text="Historia Zmian" FontSize="20" FontWeight="Bold" Foreground="White"/>
-                    <TextBlock Text="Przeglądaj wszystkie zmiany dokonane w systemie dostaw" FontSize="12" Foreground="#B0BEC5"/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Historia Zmian" FontSize="20" FontWeight="Bold" Foreground="White"/>
+                        <TextBlock x:Name="txtFilteredLP" FontSize="20" FontWeight="Bold" Foreground="#81C784" Margin="10,0,0,0"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Przeglądaj wszystkie zmiany dokonane w systemie dostaw" FontSize="12" Foreground="#B0BEC5"/>
+                        <TextBlock x:Name="txtFilteredHodowca" FontSize="12" Foreground="#A5D6A7" Margin="10,0,0,0" FontWeight="SemiBold"/>
+                    </StackPanel>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="Ostatnie odświeżenie: " Foreground="#B0BEC5" VerticalAlignment="Center"/>
