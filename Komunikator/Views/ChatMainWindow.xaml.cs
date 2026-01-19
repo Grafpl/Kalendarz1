@@ -75,7 +75,7 @@ namespace Kalendarz1.Komunikator.Views
                 BitmapSource avatar = null;
                 if (UserAvatarManager.HasAvatar(_currentUserId))
                 {
-                    using (var img = UserAvatarManager.GetAvatarRounded(_currentUserId, 50))
+                    using (var img = UserAvatarManager.GetAvatarRounded(_currentUserId, 52))
                     {
                         if (img != null)
                             avatar = ConvertToBitmapSource(img);
@@ -84,7 +84,7 @@ namespace Kalendarz1.Komunikator.Views
 
                 if (avatar == null)
                 {
-                    using (var img = UserAvatarManager.GenerateDefaultAvatar(_currentUserName, _currentUserId, 50))
+                    using (var img = UserAvatarManager.GenerateDefaultAvatar(_currentUserName, _currentUserId, 52))
                     {
                         avatar = ConvertToBitmapSource(img);
                     }
@@ -413,7 +413,7 @@ namespace Kalendarz1.Komunikator.Views
         {
             try
             {
-                AvatarSource = user.GetAvatarBitmap(48);
+                AvatarSource = user.GetAvatarBitmap(54);
             }
             catch { }
         }
@@ -429,6 +429,8 @@ namespace Kalendarz1.Komunikator.Views
         public string FormattedTime { get; set; }
         public bool IsFromMe { get; set; }
         public string ReadStatus { get; set; }
+        public string SenderName { get; set; }
+        public BitmapSource SenderAvatar { get; set; }
 
         public MessageViewModel(ChatMessage message, string currentUserId)
         {
@@ -436,7 +438,63 @@ namespace Kalendarz1.Komunikator.Views
             FormattedTime = message.SentAt.ToString("HH:mm");
             IsFromMe = message.SenderId == currentUserId;
             ReadStatus = message.IsRead ? "✓✓" : "✓";
+            SenderName = message.SenderName;
+
+            // Załaduj avatar nadawcy dla wiadomości od innych
+            if (!IsFromMe)
+            {
+                LoadSenderAvatar(message.SenderId, message.SenderName);
+            }
         }
+
+        private void LoadSenderAvatar(string senderId, string senderName)
+        {
+            try
+            {
+                if (UserAvatarManager.HasAvatar(senderId))
+                {
+                    using (var img = UserAvatarManager.GetAvatarRounded(senderId, 36))
+                    {
+                        if (img != null)
+                        {
+                            SenderAvatar = ConvertToBitmapSource(img);
+                            return;
+                        }
+                    }
+                }
+
+                using (var img = UserAvatarManager.GenerateDefaultAvatar(senderName, senderId, 36))
+                {
+                    SenderAvatar = ConvertToBitmapSource(img);
+                }
+            }
+            catch { }
+        }
+
+        private BitmapSource ConvertToBitmapSource(System.Drawing.Image image)
+        {
+            if (image == null) return null;
+
+            using (var bitmap = new System.Drawing.Bitmap(image))
+            {
+                var hBitmap = bitmap.GetHbitmap();
+                try
+                {
+                    return System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
+                        hBitmap,
+                        IntPtr.Zero,
+                        Int32Rect.Empty,
+                        BitmapSizeOptions.FromEmptyOptions());
+                }
+                finally
+                {
+                    DeleteObject(hBitmap);
+                }
+            }
+        }
+
+        [System.Runtime.InteropServices.DllImport("gdi32.dll")]
+        private static extern bool DeleteObject(IntPtr hObject);
     }
 
     #endregion

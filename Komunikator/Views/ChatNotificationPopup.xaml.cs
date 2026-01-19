@@ -49,7 +49,7 @@ namespace Kalendarz1.Komunikator.Views
                 BitmapSource avatar = null;
                 if (UserAvatarManager.HasAvatar(_message.SenderId))
                 {
-                    using (var img = UserAvatarManager.GetAvatarRounded(_message.SenderId, 44))
+                    using (var img = UserAvatarManager.GetAvatarRounded(_message.SenderId, 48))
                     {
                         if (img != null)
                             avatar = ConvertToBitmapSource(img);
@@ -58,7 +58,7 @@ namespace Kalendarz1.Komunikator.Views
 
                 if (avatar == null)
                 {
-                    using (var img = UserAvatarManager.GenerateDefaultAvatar(_message.SenderName, _message.SenderId, 44))
+                    using (var img = UserAvatarManager.GenerateDefaultAvatar(_message.SenderName, _message.SenderId, 48))
                     {
                         avatar = ConvertToBitmapSource(img);
                     }

@@ -1500,7 +1500,7 @@ namespace Kalendarz1
                     Size = new Size(26, 26),
                     Location = new Point(tile.Width - 38, 8),
                     ForeColor = Color.White,
-                    BackColor = Color.FromArgb(239, 68, 68), // Czerwony
+                    BackColor = Color.FromArgb(0, 168, 132), // Zielony WhatsApp
                     TextAlign = ContentAlignment.MiddleCenter,
                     Visible = false,
                     Cursor = Cursors.Hand
