@@ -301,6 +301,10 @@ namespace Kalendarz1
             { "NotificationWindow", new IconConfig("🔔", Color.FromArgb(255, 193, 7)) },
             { "MeetingChangePopup", new IconConfig("🔔", Color.FromArgb(255, 193, 7)) },
 
+            // ========== KOMUNIKATOR FIRMOWY (Fioletowy) ==========
+            { "ChatMainWindow", new IconConfig("💬", Color.FromArgb(124, 58, 237)) },
+            { "ChatNotificationPopup", new IconConfig("💬", Color.FromArgb(124, 58, 237)) },
+
             // ========== WYKRESY I ANALIZY ==========
             { "EurChartWindow", new IconConfig("💶", Color.FromArgb(76, 175, 80)) },
             { "WeatherChartWindow", new IconConfig("🌤️", Color.FromArgb(33, 150, 243)) },

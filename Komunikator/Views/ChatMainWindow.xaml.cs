@@ -1,0 +1,496 @@
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using Kalendarz1.Komunikator.Models;
+using Kalendarz1.Komunikator.Services;
+
+namespace Kalendarz1.Komunikator.Views
+{
+    /// <summary>
+    /// Główne okno komunikatora firmowego
+    /// </summary>
+    public partial class ChatMainWindow : Window
+    {
+        private readonly string _currentUserId;
+        private readonly string _currentUserName;
+        private ChatService _chatService;
+        private ChatUser _selectedUser;
+        private ObservableCollection<ContactViewModel> _contacts;
+        private ObservableCollection<MessageViewModel> _messages;
+
+        public ChatMainWindow(string userId, string userName = null)
+        {
+            InitializeComponent();
+            WindowIconHelper.SetIcon(this);
+
+            _currentUserId = userId;
+            _currentUserName = userName ?? userId;
+
+            _contacts = new ObservableCollection<ContactViewModel>();
+            _messages = new ObservableCollection<MessageViewModel>();
+
+            ContactsList.ItemsSource = _contacts;
+            MessagesList.ItemsSource = _messages;
+
+            // Dodaj konwertery
+            Resources.Add("BoolToVisibilityConverter", new BoolToVisibilityConverter());
+            Resources.Add("InverseBoolToVisibilityConverter", new InverseBoolToVisibilityConverter());
+
+            Loaded += ChatMainWindow_Loaded;
+            Closing += ChatMainWindow_Closing;
+        }
+
+        private async void ChatMainWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            // Ustaw avatar i nazwę aktualnego użytkownika
+            CurrentUserName.Text = _currentUserName;
+            LoadCurrentUserAvatar();
+
+            // Inicjalizuj serwis
+            _chatService = new ChatService(_currentUserId);
+            await _chatService.InitializeDatabaseAsync();
+
+            // Rozpocznij nasłuchiwanie
+            _chatService.NewMessagesReceived += OnNewMessagesReceived;
+            _chatService.StartPolling(3);
+
+            // Załaduj kontakty
+            await LoadContactsAsync();
+        }
+
+        private void ChatMainWindow_Closing(object sender, CancelEventArgs e)
+        {
+            _chatService?.Dispose();
+        }
+
+        private void LoadCurrentUserAvatar()
+        {
+            try
+            {
+                BitmapSource avatar = null;
+                if (UserAvatarManager.HasAvatar(_currentUserId))
+                {
+                    using (var img = UserAvatarManager.GetAvatarRounded(_currentUserId, 48))
+                    {
+                        if (img != null)
+                            avatar = ConvertToBitmapSource(img);
+                    }
+                }
+
+                if (avatar == null)
+                {
+                    using (var img = UserAvatarManager.GenerateDefaultAvatar(_currentUserName, _currentUserId, 48))
+                    {
+                        avatar = ConvertToBitmapSource(img);
+                    }
+                }
+
+                if (avatar != null)
+                    CurrentUserAvatar.ImageSource = avatar;
+            }
+            catch { }
+        }
+
+        private async Task LoadContactsAsync()
+        {
+            try
+            {
+                var users = await _chatService.GetAllUsersAsync();
+
+                Dispatcher.Invoke(() =>
+                {
+                    _contacts.Clear();
+                    foreach (var user in users)
+                    {
+                        _contacts.Add(new ContactViewModel(user, _currentUserId));
+                    }
+
+                    UpdateTotalUnreadBadge();
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"LoadContacts error: {ex.Message}");
+            }
+        }
+
+        private void UpdateTotalUnreadBadge()
+        {
+            var total = _contacts.Sum(c => c.UnreadCount);
+            if (total > 0)
+            {
+                TotalUnreadCount.Text = total > 99 ? "99+" : total.ToString();
+                TotalUnreadBadge.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                TotalUnreadBadge.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void OnNewMessagesReceived(object sender, List<ChatMessage> messages)
+        {
+            Dispatcher.Invoke(async () =>
+            {
+                // Odśwież listę kontaktów
+                await LoadContactsAsync();
+
+                // Jeśli jest aktywna rozmowa, dodaj nowe wiadomości
+                if (_selectedUser != null)
+                {
+                    var relevantMessages = messages.Where(m =>
+                        m.SenderId == _selectedUser.UserId || m.ReceiverId == _selectedUser.UserId).ToList();
+
+                    if (relevantMessages.Any())
+                    {
+                        foreach (var msg in relevantMessages)
+                        {
+                            _messages.Add(new MessageViewModel(msg, _currentUserId));
+                        }
+
+                        // Oznacz jako przeczytane
+                        await _chatService.MarkMessagesAsReadAsync(_selectedUser.UserId);
+
+                        // Przewiń na dół
+                        ScrollToBottom();
+                    }
+                }
+
+                // Pokaż powiadomienie dla wiadomości spoza aktywnej rozmowy
+                var otherMessages = _selectedUser != null
+                    ? messages.Where(m => m.SenderId != _selectedUser.UserId).ToList()
+                    : messages;
+
+                foreach (var msg in otherMessages)
+                {
+                    ShowNotification(msg);
+                }
+            });
+        }
+
+        private void ShowNotification(ChatMessage message)
+        {
+            try
+            {
+                var popup = new ChatNotificationPopup(message);
+                popup.MessageClicked += (s, e) =>
+                {
+                    // Znajdź kontakt i otwórz rozmowę
+                    var contact = _contacts.FirstOrDefault(c => c.UserId == message.SenderId);
+                    if (contact != null)
+                    {
+                        SelectContact(contact);
+                    }
+
+                    // Przywróć okno na wierzch
+                    this.WindowState = WindowState.Normal;
+                    this.Activate();
+                    this.Focus();
+                };
+                popup.Show();
+            }
+            catch { }
+        }
+
+        private async void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            var searchText = SearchBox.Text?.Trim();
+
+            if (string.IsNullOrEmpty(searchText))
+            {
+                await LoadContactsAsync();
+                return;
+            }
+
+            try
+            {
+                var users = await _chatService.SearchUsersAsync(searchText);
+
+                _contacts.Clear();
+                foreach (var user in users)
+                {
+                    _contacts.Add(new ContactViewModel(user, _currentUserId));
+                }
+            }
+            catch { }
+        }
+
+        private void Contact_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is FrameworkElement element && element.DataContext is ContactViewModel contact)
+            {
+                SelectContact(contact);
+            }
+        }
+
+        private async void SelectContact(ContactViewModel contact)
+        {
+            _selectedUser = new ChatUser
+            {
+                UserId = contact.UserId,
+                Name = contact.Name,
+                IsOnline = contact.IsOnline
+            };
+
+            // Pokaż panel rozmowy
+            NoConversationPanel.Visibility = Visibility.Collapsed;
+            ConversationPanel.Visibility = Visibility.Visible;
+
+            // Ustaw nagłówek
+            SelectedUserName.Text = contact.Name;
+            SelectedUserStatus.Text = contact.IsOnline ? "Online" : contact.OnlineStatus;
+            SelectedUserOnlineIndicator.Fill = contact.IsOnline
+                ? (Brush)FindResource("OnlineBrush")
+                : (Brush)FindResource("OfflineBrush");
+
+            // Załaduj avatar
+            if (contact.AvatarSource != null)
+                SelectedUserAvatar.ImageSource = contact.AvatarSource;
+
+            // Załaduj historię rozmowy
+            await LoadConversationAsync(contact.UserId);
+
+            // Oznacz jako przeczytane
+            await _chatService.MarkMessagesAsReadAsync(contact.UserId);
+
+            // Odśwież kontakty (aby zaktualizować badge)
+            contact.UnreadCount = 0;
+            UpdateTotalUnreadBadge();
+
+            // Skup się na polu wprowadzania
+            MessageInput.Focus();
+        }
+
+        private async Task LoadConversationAsync(string otherUserId)
+        {
+            try
+            {
+                var messages = await _chatService.GetConversationAsync(otherUserId);
+
+                _messages.Clear();
+                foreach (var msg in messages)
+                {
+                    _messages.Add(new MessageViewModel(msg, _currentUserId));
+                }
+
+                // Przewiń na dół
+                ScrollToBottom();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"LoadConversation error: {ex.Message}");
+            }
+        }
+
+        private void Contact_MouseEnter(object sender, MouseEventArgs e)
+        {
+            if (sender is Border border)
+            {
+                border.Background = (Brush)FindResource("HoverBrush");
+            }
+        }
+
+        private void Contact_MouseLeave(object sender, MouseEventArgs e)
+        {
+            if (sender is Border border)
+            {
+                border.Background = Brushes.Transparent;
+            }
+        }
+
+        private async void SendButton_Click(object sender, RoutedEventArgs e)
+        {
+            await SendMessageAsync();
+        }
+
+        private async void MessageInput_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter && !Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
+            {
+                e.Handled = true;
+                await SendMessageAsync();
+            }
+        }
+
+        private async Task SendMessageAsync()
+        {
+            if (_selectedUser == null) return;
+
+            var content = MessageInput.Text?.Trim();
+            if (string.IsNullOrEmpty(content)) return;
+
+            MessageInput.Text = "";
+
+            var success = await _chatService.SendMessageAsync(_selectedUser.UserId, content);
+            if (success)
+            {
+                // Dodaj wiadomość do listy
+                var msg = new ChatMessage
+                {
+                    SenderId = _currentUserId,
+                    SenderName = _currentUserName,
+                    ReceiverId = _selectedUser.UserId,
+                    ReceiverName = _selectedUser.Name,
+                    Content = content,
+                    SentAt = DateTime.Now,
+                    Type = MessageType.Text
+                };
+
+                _messages.Add(new MessageViewModel(msg, _currentUserId));
+                ScrollToBottom();
+
+                // Odśwież kontakty (aby zaktualizować ostatnią wiadomość)
+                await LoadContactsAsync();
+            }
+        }
+
+        private void ScrollToBottom()
+        {
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                MessagesScrollViewer.ScrollToEnd();
+            }), System.Windows.Threading.DispatcherPriority.Background);
+        }
+
+        private BitmapSource ConvertToBitmapSource(System.Drawing.Image image)
+        {
+            if (image == null) return null;
+
+            using (var bitmap = new System.Drawing.Bitmap(image))
+            {
+                var hBitmap = bitmap.GetHbitmap();
+                try
+                {
+                    return System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
+                        hBitmap,
+                        IntPtr.Zero,
+                        Int32Rect.Empty,
+                        BitmapSizeOptions.FromEmptyOptions());
+                }
+                finally
+                {
+                    DeleteObject(hBitmap);
+                }
+            }
+        }
+
+        [System.Runtime.InteropServices.DllImport("gdi32.dll")]
+        private static extern bool DeleteObject(IntPtr hObject);
+    }
+
+    #region ViewModels
+
+    public class ContactViewModel : INotifyPropertyChanged
+    {
+        private int _unreadCount;
+
+        public string UserId { get; set; }
+        public string Name { get; set; }
+        public bool IsOnline { get; set; }
+        public string OnlineStatus { get; set; }
+        public string LastMessage { get; set; }
+        public string FormattedLastMessageTime { get; set; }
+        public BitmapSource AvatarSource { get; set; }
+
+        public int UnreadCount
+        {
+            get => _unreadCount;
+            set
+            {
+                _unreadCount = value;
+                OnPropertyChanged(nameof(UnreadCount));
+                OnPropertyChanged(nameof(HasUnread));
+            }
+        }
+
+        public bool HasUnread => UnreadCount > 0;
+
+        public ContactViewModel(ChatUser user, string currentUserId)
+        {
+            UserId = user.UserId;
+            Name = user.Name;
+            IsOnline = user.IsOnline;
+            OnlineStatus = user.OnlineStatus;
+            UnreadCount = user.UnreadCount;
+            LastMessage = user.LastMessage;
+            FormattedLastMessageTime = user.FormattedLastMessageTime;
+
+            // Załaduj avatar
+            LoadAvatar(user);
+        }
+
+        private void LoadAvatar(ChatUser user)
+        {
+            try
+            {
+                AvatarSource = user.GetAvatarBitmap(48);
+            }
+            catch { }
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string name) =>
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    }
+
+    public class MessageViewModel
+    {
+        public string Content { get; set; }
+        public string FormattedTime { get; set; }
+        public bool IsFromMe { get; set; }
+        public string ReadStatus { get; set; }
+
+        public MessageViewModel(ChatMessage message, string currentUserId)
+        {
+            Content = message.Content;
+            FormattedTime = message.SentAt.ToString("HH:mm");
+            IsFromMe = message.SenderId == currentUserId;
+            ReadStatus = message.IsRead ? "✓✓" : "✓";
+        }
+    }
+
+    #endregion
+
+    #region Converters
+
+    public class BoolToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (value is bool boolValue)
+                return boolValue ? Visibility.Visible : Visibility.Collapsed;
+            return Visibility.Collapsed;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public class InverseBoolToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (value is bool boolValue)
+                return boolValue ? Visibility.Collapsed : Visibility.Visible;
+            return Visibility.Visible;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    #endregion
+}

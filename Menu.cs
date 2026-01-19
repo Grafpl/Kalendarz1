@@ -908,7 +908,8 @@ namespace Kalendarz1
                 [40] = "PanelLekarza",
                 [41] = "KontrolaGodzin",
                 [42] = "CentrumSpotkan",
-                [43] = "PanelPaniJola"
+                [43] = "PanelPaniJola",
+                [44] = "KomunikatorFirmowy"
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
@@ -998,7 +999,7 @@ namespace Kalendarz1
                 "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "UstalanieTranportu",
 
                 // FINANSE I ZARZĄDZANIE
-                "DaneFinansowe", "CentrumSpotkan", "NotatkiZeSpotkan", "PanelPaniJola",
+                "DaneFinansowe", "CentrumSpotkan", "NotatkiZeSpotkan", "KomunikatorFirmowy", "PanelPaniJola",
 
                 // KADRY I HR
                 "KontrolaGodzin",
@@ -1324,7 +1325,12 @@ namespace Kalendarz1
                     new MenuItemConfig("NotatkiZeSpotkan", "Notatki Służbowe",
                         "Rejestr notatek ze spotkań biznesowych, ustaleń i zadań do wykonania",
                         Color.FromArgb(38, 50, 56), // Ciemny szaroniebieski #263238
-                        () => new Kalendarz1.NotatkiZeSpotkan.NotatkirGlownyWindow(App.UserID), "📝", "Notatki")
+                        () => new Kalendarz1.NotatkiZeSpotkan.NotatkirGlownyWindow(App.UserID), "📝", "Notatki"),
+
+                    new MenuItemConfig("KomunikatorFirmowy", "Komunikator Firmowy",
+                        "Wewnętrzny czat firmowy z powiadomieniami i avatarami pracowników",
+                        Color.FromArgb(124, 58, 237), // Fioletowy #7C3AED
+                        () => new Kalendarz1.Komunikator.Views.ChatMainWindow(App.UserID, App.UserFullName), "💬", "Komunikator")
                 },
 
                 // ═══════════════════════════════════════════════════════════════════════════

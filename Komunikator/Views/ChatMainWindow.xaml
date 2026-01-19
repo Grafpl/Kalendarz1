@@ -1,0 +1,375 @@
+<Window x:Class="Kalendarz1.Komunikator.Views.ChatMainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Komunikator Firmowy" Height="700" Width="1000"
+        MinHeight="500" MinWidth="800"
+        WindowStartupLocation="CenterScreen"
+        Background="#1E1E2E">
+
+    <Window.Resources>
+        <!-- Kolory -->
+        <SolidColorBrush x:Key="PrimaryBrush" Color="#7C3AED"/>
+        <SolidColorBrush x:Key="PrimaryDarkBrush" Color="#6D28D9"/>
+        <SolidColorBrush x:Key="BackgroundBrush" Color="#1E1E2E"/>
+        <SolidColorBrush x:Key="SidebarBrush" Color="#252536"/>
+        <SolidColorBrush x:Key="CardBrush" Color="#2D2D44"/>
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#A0A0B0"/>
+        <SolidColorBrush x:Key="OnlineBrush" Color="#22C55E"/>
+        <SolidColorBrush x:Key="OfflineBrush" Color="#6B7280"/>
+        <SolidColorBrush x:Key="UnreadBrush" Color="#EF4444"/>
+        <SolidColorBrush x:Key="MyMessageBrush" Color="#7C3AED"/>
+        <SolidColorBrush x:Key="OtherMessageBrush" Color="#3F3F5A"/>
+        <SolidColorBrush x:Key="InputBrush" Color="#3F3F5A"/>
+        <SolidColorBrush x:Key="HoverBrush" Color="#3D3D56"/>
+
+        <!-- Style dla ScrollBar -->
+        <Style TargetType="ScrollBar">
+            <Setter Property="Width" Value="8"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+
+        <!-- Style dla TextBox -->
+        <Style x:Key="SearchTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Background" Value="{StaticResource CardBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="CaretBrush" Value="White"/>
+        </Style>
+
+        <!-- Style dla przycisku -->
+        <Style x:Key="SendButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource PrimaryBrush}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="20,12"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{StaticResource PrimaryDarkBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#5B21B6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="320" MinWidth="280"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Panel boczny z listą kontaktów -->
+        <Border Grid.Column="0" Background="{StaticResource SidebarBrush}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Nagłówek -->
+                <Border Grid.Row="0" Padding="16" Background="{StaticResource CardBrush}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Avatar aktualnego użytkownika -->
+                        <Grid Grid.Column="0" Width="48" Height="48" Margin="0,0,12,0">
+                            <Ellipse>
+                                <Ellipse.Fill>
+                                    <ImageBrush x:Name="CurrentUserAvatar" Stretch="UniformToFill"/>
+                                </Ellipse.Fill>
+                            </Ellipse>
+                            <Ellipse Width="14" Height="14" Fill="{StaticResource OnlineBrush}"
+                                     HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                     Stroke="{StaticResource CardBrush}" StrokeThickness="2"/>
+                        </Grid>
+
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock x:Name="CurrentUserName" Text="Ładowanie..."
+                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                       FontSize="16" FontWeight="SemiBold"/>
+                            <TextBlock Text="Online" Foreground="{StaticResource OnlineBrush}" FontSize="12"/>
+                        </StackPanel>
+
+                        <!-- Liczba nieprzeczytanych -->
+                        <Border x:Name="TotalUnreadBadge" Grid.Column="2"
+                                Background="{StaticResource UnreadBrush}"
+                                CornerRadius="12" Padding="8,4" Visibility="Collapsed"
+                                VerticalAlignment="Center">
+                            <TextBlock x:Name="TotalUnreadCount" Text="0"
+                                       Foreground="White" FontSize="12" FontWeight="Bold"/>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- Wyszukiwarka -->
+                <Border Grid.Row="1" Padding="16,12">
+                    <Border Background="{StaticResource CardBrush}" CornerRadius="8">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="🔍" FontSize="16"
+                                       VerticalAlignment="Center" Margin="12,0,8,0"
+                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBox x:Name="SearchBox" Grid.Column="1"
+                                     Style="{StaticResource SearchTextBoxStyle}"
+                                     Background="Transparent"
+                                     TextChanged="SearchBox_TextChanged">
+                                <TextBox.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="8"/>
+                                    </Style>
+                                </TextBox.Resources>
+                            </TextBox>
+                            <TextBlock Grid.Column="1" Text="Szukaj pracownika..."
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       VerticalAlignment="Center" Margin="12,0"
+                                       IsHitTestVisible="False" FontSize="14"
+                                       Visibility="{Binding Text.Length, ElementName=SearchBox, Converter={StaticResource InverseBoolToVisibilityConverter}, FallbackValue=Visible}">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Text.Length, ElementName=SearchBox}" Value="0">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
+                    </Border>
+                </Border>
+
+                <!-- Lista kontaktów -->
+                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl x:Name="ContactsList">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border x:Name="ContactItem" Padding="16,12" Cursor="Hand"
+                                        Background="Transparent"
+                                        MouseLeftButtonUp="Contact_Click"
+                                        MouseEnter="Contact_MouseEnter"
+                                        MouseLeave="Contact_MouseLeave">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Avatar -->
+                                        <Grid Grid.Column="0" Width="48" Height="48" Margin="0,0,12,0">
+                                            <Ellipse>
+                                                <Ellipse.Fill>
+                                                    <ImageBrush ImageSource="{Binding AvatarSource}" Stretch="UniformToFill"/>
+                                                </Ellipse.Fill>
+                                            </Ellipse>
+                                            <Ellipse Width="12" Height="12"
+                                                     HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                                     Stroke="{StaticResource SidebarBrush}" StrokeThickness="2">
+                                                <Ellipse.Style>
+                                                    <Style TargetType="Ellipse">
+                                                        <Setter Property="Fill" Value="{StaticResource OfflineBrush}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsOnline}" Value="True">
+                                                                <Setter Property="Fill" Value="{StaticResource OnlineBrush}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Ellipse.Style>
+                                            </Ellipse>
+                                        </Grid>
+
+                                        <!-- Nazwa i ostatnia wiadomość -->
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Name}"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                                       FontSize="14" FontWeight="SemiBold"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding LastMessage}"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                       FontSize="12" TextTrimming="CharacterEllipsis"
+                                                       MaxWidth="180"/>
+                                        </StackPanel>
+
+                                        <!-- Czas i badge -->
+                                        <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                            <TextBlock Text="{Binding FormattedLastMessageTime}"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                       FontSize="11" HorizontalAlignment="Right"/>
+                                            <Border Background="{StaticResource UnreadBrush}"
+                                                    CornerRadius="10" Padding="6,2" Margin="0,4,0,0"
+                                                    HorizontalAlignment="Right"
+                                                    Visibility="{Binding HasUnread, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
+                                                <TextBlock Text="{Binding UnreadCount}"
+                                                           Foreground="White" FontSize="11" FontWeight="Bold"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
+        <!-- Panel rozmowy -->
+        <Grid Grid.Column="1" Background="{StaticResource BackgroundBrush}">
+            <!-- Placeholder gdy nie wybrano rozmowy -->
+            <StackPanel x:Name="NoConversationPanel" VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="💬" FontSize="64" HorizontalAlignment="Center" Margin="0,0,0,16"/>
+                <TextBlock Text="Wybierz rozmowę" FontSize="24" FontWeight="SemiBold"
+                           Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center"/>
+                <TextBlock Text="Kliknij na kontakt aby rozpocząć rozmowę"
+                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="14"
+                           HorizontalAlignment="Center" Margin="0,8,0,0"/>
+            </StackPanel>
+
+            <!-- Panel rozmowy (ukryty domyślnie) -->
+            <Grid x:Name="ConversationPanel" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Nagłówek rozmowy -->
+                <Border Grid.Row="0" Background="{StaticResource CardBrush}" Padding="16">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Grid Grid.Column="0" Width="44" Height="44" Margin="0,0,12,0">
+                            <Ellipse>
+                                <Ellipse.Fill>
+                                    <ImageBrush x:Name="SelectedUserAvatar" Stretch="UniformToFill"/>
+                                </Ellipse.Fill>
+                            </Ellipse>
+                            <Ellipse x:Name="SelectedUserOnlineIndicator" Width="12" Height="12"
+                                     HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                     Fill="{StaticResource OfflineBrush}"
+                                     Stroke="{StaticResource CardBrush}" StrokeThickness="2"/>
+                        </Grid>
+
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock x:Name="SelectedUserName" Text=""
+                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                       FontSize="16" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="SelectedUserStatus" Text=""
+                                       Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Lista wiadomości -->
+                <ScrollViewer x:Name="MessagesScrollViewer" Grid.Row="1"
+                              VerticalScrollBarVisibility="Auto" Padding="16">
+                    <ItemsControl x:Name="MessagesList">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,4">
+                                    <!-- Wiadomość od innych -->
+                                    <Border HorizontalAlignment="Left" MaxWidth="500"
+                                            Background="{StaticResource OtherMessageBrush}"
+                                            CornerRadius="16,16,16,4" Padding="14,10"
+                                            Visibility="{Binding IsFromMe, Converter={StaticResource InverseBoolToVisibilityConverter}, FallbackValue=Visible}">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Content}"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                                       FontSize="14" TextWrapping="Wrap"/>
+                                            <TextBlock Text="{Binding FormattedTime}"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                       FontSize="10" HorizontalAlignment="Right" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Moje wiadomości -->
+                                    <Border HorizontalAlignment="Right" MaxWidth="500"
+                                            Background="{StaticResource MyMessageBrush}"
+                                            CornerRadius="16,16,4,16" Padding="14,10"
+                                            Visibility="{Binding IsFromMe, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Content}"
+                                                       Foreground="White"
+                                                       FontSize="14" TextWrapping="Wrap"/>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0">
+                                                <TextBlock Text="{Binding FormattedTime}"
+                                                           Foreground="#D0D0E0" FontSize="10"/>
+                                                <TextBlock Text="{Binding ReadStatus}" Margin="6,0,0,0"
+                                                           Foreground="#D0D0E0" FontSize="10"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+
+                <!-- Pole wprowadzania wiadomości -->
+                <Border Grid.Row="2" Background="{StaticResource CardBrush}" Padding="16">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0" Background="{StaticResource InputBrush}"
+                                CornerRadius="12" Margin="0,0,12,0">
+                            <TextBox x:Name="MessageInput"
+                                     Background="Transparent"
+                                     Foreground="{StaticResource TextPrimaryBrush}"
+                                     BorderThickness="0"
+                                     Padding="16,12"
+                                     FontSize="14"
+                                     CaretBrush="White"
+                                     AcceptsReturn="True"
+                                     TextWrapping="Wrap"
+                                     MaxHeight="120"
+                                     VerticalScrollBarVisibility="Auto"
+                                     KeyDown="MessageInput_KeyDown">
+                                <TextBox.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="12"/>
+                                    </Style>
+                                </TextBox.Resources>
+                            </TextBox>
+                        </Border>
+
+                        <Button Grid.Column="1" Content="Wyślij"
+                                Style="{StaticResource SendButtonStyle}"
+                                Click="SendButton_Click"/>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>
