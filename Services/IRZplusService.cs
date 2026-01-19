@@ -340,7 +340,8 @@ namespace Kalendarz1.Services
 
                 if (response.IsSuccessStatusCode)
                 {
-                    return new IRZplusResult { Success = true, Message = "Wysłano pomyślnie!", ResponseData = responseBody };
+                    var numerZgloszenia = TryGetNumerZgloszenia(responseBody);
+                    return new IRZplusResult { Success = true, Message = "Wysłano pomyślnie!", NumerZgloszenia = numerZgloszenia, ResponseData = responseBody };
                 }
                 else
                 {
