@@ -1845,9 +1845,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     var row = dg.ItemContainerGenerator.ContainerFromItem(item) as DataGridRow;
                     if (row != null)
                     {
-                        // Pogrubiona, większa czcionka z pulsującym kolorem
+                        // Pogrubiona czcionka z pulsującym kolorem
                         row.FontWeight = FontWeights.Bold;
-                        row.FontSize = 13;
                         row.Foreground = new SolidColorBrush(Color.FromRgb(21, 101, 192)); // Niebieski startowy
 
                         // Uruchom animację pulsowania koloru czcionki

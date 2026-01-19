@@ -109,8 +109,6 @@
         <Storyboard x:Key="LpWMatchPulseAnimation" RepeatBehavior="Forever">
             <ColorAnimation Storyboard.TargetProperty="(DataGridRow.Foreground).(SolidColorBrush.Color)"
                             From="#1565C0" To="#E91E63" Duration="0:0:0.6" AutoReverse="True"/>
-            <DoubleAnimation Storyboard.TargetProperty="(DataGridRow.FontSize)"
-                            From="13" To="14" Duration="0:0:0.6" AutoReverse="True"/>
         </Storyboard>
 
         <!-- Storyboard: Pulsowanie dla niedawnych notatek (3 dni) -->
@@ -660,39 +658,13 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="📉 Ub" Width="42" IsReadOnly="True">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding RoznicaDniDisplay}" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="Foreground" Value="Black"/>
-                                                        <Setter Property="FontWeight" Value="Normal"/>
-                                                        <Style.Triggers>
-                                                            <!-- Pulsowanie czerwone gdy nie potwierdzono wagi LUB sztuk -->
-                                                            <MultiDataTrigger>
-                                                                <MultiDataTrigger.Conditions>
-                                                                    <Condition Binding="{Binding IsHeaderRow}" Value="False"/>
-                                                                    <Condition Binding="{Binding PotwWaga}" Value="False"/>
-                                                                </MultiDataTrigger.Conditions>
-                                                                <Setter Property="Foreground" Value="#D32F2F"/>
-                                                                <Setter Property="FontWeight" Value="Bold"/>
-                                                            </MultiDataTrigger>
-                                                            <MultiDataTrigger>
-                                                                <MultiDataTrigger.Conditions>
-                                                                    <Condition Binding="{Binding IsHeaderRow}" Value="False"/>
-                                                                    <Condition Binding="{Binding PotwSztuki}" Value="False"/>
-                                                                </MultiDataTrigger.Conditions>
-                                                                <Setter Property="Foreground" Value="#D32F2F"/>
-                                                                <Setter Property="FontWeight" Value="Bold"/>
-                                                            </MultiDataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="📉 Ub" Width="42" Binding="{Binding RoznicaDniDisplay}" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
                                 <DataGridTemplateColumn Header="📊 Typ" Width="45" IsReadOnly="True">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
@@ -985,39 +957,13 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTemplateColumn Header="📉 Ub" Width="42" IsReadOnly="True">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding RoznicaDniDisplay}" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="Black"/>
-                                                    <Setter Property="FontWeight" Value="Normal"/>
-                                                    <Style.Triggers>
-                                                        <!-- Pulsowanie czerwone gdy nie potwierdzono wagi LUB sztuk -->
-                                                        <MultiDataTrigger>
-                                                            <MultiDataTrigger.Conditions>
-                                                                <Condition Binding="{Binding IsHeaderRow}" Value="False"/>
-                                                                <Condition Binding="{Binding PotwWaga}" Value="False"/>
-                                                            </MultiDataTrigger.Conditions>
-                                                            <Setter Property="Foreground" Value="#D32F2F"/>
-                                                            <Setter Property="FontWeight" Value="Bold"/>
-                                                        </MultiDataTrigger>
-                                                        <MultiDataTrigger>
-                                                            <MultiDataTrigger.Conditions>
-                                                                <Condition Binding="{Binding IsHeaderRow}" Value="False"/>
-                                                                <Condition Binding="{Binding PotwSztuki}" Value="False"/>
-                                                            </MultiDataTrigger.Conditions>
-                                                            <Setter Property="Foreground" Value="#D32F2F"/>
-                                                            <Setter Property="FontWeight" Value="Bold"/>
-                                                        </MultiDataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="📉 Ub" Width="42" Binding="{Binding RoznicaDniDisplay}" IsReadOnly="True">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
                             <DataGridTemplateColumn Header="📊 Typ" Width="45" IsReadOnly="True">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
