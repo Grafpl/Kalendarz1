@@ -352,7 +352,7 @@
 
                         <Border Background="{StaticResource InputBg}" CornerRadius="10" Margin="0,0,14,0">
                             <TextBox x:Name="MessageInput" Style="{StaticResource ChatInput}"
-                                     AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="120"
+                                     AcceptsReturn="False" TextWrapping="Wrap" MaxHeight="120"
                                      VerticalScrollBarVisibility="Auto" KeyDown="MessageInput_KeyDown"/>
                         </Border>
 
