@@ -8,10 +8,17 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
+using System.Windows.Shapes;
+using System.Windows.Threading;
 using Microsoft.Data.SqlClient;
 using Kalendarz1.Services;
 using Kalendarz1.Models.IRZplus;
 using Kalendarz1.Zywiec.WidokSpecyfikacji;
+
+// Alias to resolve ambiguity between System.IO.Path and System.Windows.Shapes.Path
+using Path = System.IO.Path;
 
 namespace Kalendarz1
 {
@@ -21,6 +28,9 @@ namespace Kalendarz1
         private readonly string _connectionString;
         private readonly DateTime _dataUboju;
         private ObservableCollection<SpecyfikacjaDoIRZplusViewModel> _specyfikacje;
+        private bool _hadWarnings = false;
+        private bool _confettiShown = false;
+        private readonly Random _random = new Random();
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -107,10 +117,10 @@ namespace Kalendarz1
             txtSumaWagi.Text = wybrane.Sum(s => s.WagaNetto).ToString("N2") + " kg";
             txtSumaPadlych.Text = wybrane.Sum(s => s.SztukiPadle).ToString("N0");
 
-            // KG - Do zaplaty, Konfiskat, Padlych
+            // KG Do zaplaty, Szt Konfiskat, Szt Padlych
             txtSumaKgDoZapl.Text = wybrane.Sum(s => s.KgDoZaplaty).ToString("N0") + " kg";
-            txtSumaKgKonfiskat.Text = wybrane.Sum(s => s.KgKonfiskat).ToString("N0") + " kg";
-            txtSumaKgPadlych.Text = wybrane.Sum(s => s.KgPadlych).ToString("N0") + " kg";
+            txtSumaKgKonfiskat.Text = wybrane.Sum(s => s.KgKonfiskat).ToString("N0") + " szt";
+            txtSumaKgPadlych.Text = wybrane.Sum(s => s.KgPadlych).ToString("N0") + " szt";
 
             btnSend.IsEnabled = wybrane.Count > 0;
         }
@@ -138,10 +148,19 @@ namespace Kalendarz1
                 if (warnings.Count > 10)
                     txtWarnings.Text += $"\n... i {warnings.Count - 10} innych ostrzezen";
                 borderWarnings.Visibility = Visibility.Visible;
+                _hadWarnings = true;
             }
             else
             {
                 borderWarnings.Visibility = Visibility.Collapsed;
+
+                // Pokaz konfetti gdy wszystkie wiersze zostaly poprawnie wprowadzone
+                // (tylko jesli wczesniej byly ostrzezenia i sa jakies wybrane wiersze)
+                if (_hadWarnings && _specyfikacje.Any(s => s.Wybrana) && !_confettiShown)
+                {
+                    ShowConfetti();
+                    txtStatus.Text = "Wszystkie dane wprowadzone poprawnie!";
+                }
             }
         }
 
@@ -556,7 +575,7 @@ namespace Kalendarz1
 
                 if (dialog.ShowDialog() == true && dialog.Sukces)
                 {
-                    txtStatus.Text = $"Wyeksportowano do: {System.IO.Path.GetFileName(dialog.WyeksportowanyPlik)}";
+                    txtStatus.Text = $"Wyeksportowano do: {Path.GetFileName(dialog.WyeksportowanyPlik)}";
                 }
             }
             catch (Exception ex)
@@ -745,6 +764,168 @@ namespace Kalendarz1
                 MessageBox.Show($"Blad kopiowania:\n{ex.Message}", "Blad",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        /// <summary>
+        /// Pokazuje animacje konfetti gdy wszystkie wiersze zostaly poprawnie wprowadzone
+        /// </summary>
+        private void ShowConfetti()
+        {
+            if (_confettiShown) return;
+            _confettiShown = true;
+
+            var colors = new[]
+            {
+                Color.FromRgb(255, 107, 107),  // czerwony
+                Color.FromRgb(78, 205, 196),   // turkusowy
+                Color.FromRgb(255, 230, 109),  // zolty
+                Color.FromRgb(170, 111, 255),  // fioletowy
+                Color.FromRgb(46, 213, 115),   // zielony
+                Color.FromRgb(255, 159, 67),   // pomaranczowy
+                Color.FromRgb(116, 185, 255),  // niebieski
+                Color.FromRgb(255, 121, 198),  // rozowy
+            };
+
+            int confettiCount = 150;
+            double windowWidth = ActualWidth > 0 ? ActualWidth : 1200;
+            double windowHeight = ActualHeight > 0 ? ActualHeight : 700;
+
+            for (int i = 0; i < confettiCount; i++)
+            {
+                var color = colors[_random.Next(colors.Length)];
+                var shape = CreateConfettiPiece(color);
+
+                double startX = _random.NextDouble() * windowWidth;
+                double startY = -20 - _random.NextDouble() * 100;
+
+                Canvas.SetLeft(shape, startX);
+                Canvas.SetTop(shape, startY);
+                confettiCanvas.Children.Add(shape);
+
+                AnimateConfettiPiece(shape, startX, startY, windowWidth, windowHeight, i * 20);
+            }
+
+            // Usun konfetti po 5 sekundach
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+            timer.Tick += (s, e) =>
+            {
+                timer.Stop();
+                confettiCanvas.Children.Clear();
+            };
+            timer.Start();
+        }
+
+        private Shape CreateConfettiPiece(Color color)
+        {
+            int shapeType = _random.Next(3);
+
+            if (shapeType == 0)
+            {
+                // Prostokat
+                return new Rectangle
+                {
+                    Width = 8 + _random.NextDouble() * 6,
+                    Height = 12 + _random.NextDouble() * 8,
+                    Fill = new SolidColorBrush(color),
+                    RenderTransformOrigin = new Point(0.5, 0.5),
+                    RenderTransform = new RotateTransform(_random.NextDouble() * 360)
+                };
+            }
+            else if (shapeType == 1)
+            {
+                // Kolo
+                double size = 6 + _random.NextDouble() * 6;
+                return new Ellipse
+                {
+                    Width = size,
+                    Height = size,
+                    Fill = new SolidColorBrush(color)
+                };
+            }
+            else
+            {
+                // Trojkat (jako Polygon)
+                double size = 10 + _random.NextDouble() * 6;
+                return new Polygon
+                {
+                    Points = new PointCollection
+                    {
+                        new Point(size / 2, 0),
+                        new Point(size, size),
+                        new Point(0, size)
+                    },
+                    Fill = new SolidColorBrush(color),
+                    RenderTransformOrigin = new Point(0.5, 0.5),
+                    RenderTransform = new RotateTransform(_random.NextDouble() * 360)
+                };
+            }
+        }
+
+        private void AnimateConfettiPiece(Shape shape, double startX, double startY, double windowWidth, double windowHeight, int delayMs)
+        {
+            var storyboard = new Storyboard();
+
+            // Animacja Y (spadanie)
+            double endY = windowHeight + 50;
+            double duration = 2.5 + _random.NextDouble() * 2;
+            var fallAnimation = new DoubleAnimation
+            {
+                From = startY,
+                To = endY,
+                Duration = TimeSpan.FromSeconds(duration),
+                BeginTime = TimeSpan.FromMilliseconds(delayMs),
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
+            };
+            Storyboard.SetTarget(fallAnimation, shape);
+            Storyboard.SetTargetProperty(fallAnimation, new PropertyPath("(Canvas.Top)"));
+            storyboard.Children.Add(fallAnimation);
+
+            // Animacja X (lekkie wahanie na boki)
+            double swayAmount = 30 + _random.NextDouble() * 50;
+            double swayDirection = _random.Next(2) == 0 ? 1 : -1;
+            var swayAnimation = new DoubleAnimationUsingKeyFrames
+            {
+                BeginTime = TimeSpan.FromMilliseconds(delayMs)
+            };
+            swayAnimation.KeyFrames.Add(new LinearDoubleKeyFrame(startX, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+            swayAnimation.KeyFrames.Add(new LinearDoubleKeyFrame(startX + swayAmount * swayDirection, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(duration * 0.25))));
+            swayAnimation.KeyFrames.Add(new LinearDoubleKeyFrame(startX - swayAmount * swayDirection * 0.5, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(duration * 0.5))));
+            swayAnimation.KeyFrames.Add(new LinearDoubleKeyFrame(startX + swayAmount * swayDirection * 0.3, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(duration * 0.75))));
+            swayAnimation.KeyFrames.Add(new LinearDoubleKeyFrame(startX, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(duration))));
+            Storyboard.SetTarget(swayAnimation, shape);
+            Storyboard.SetTargetProperty(swayAnimation, new PropertyPath("(Canvas.Left)"));
+            storyboard.Children.Add(swayAnimation);
+
+            // Animacja rotacji
+            if (shape.RenderTransform is RotateTransform rotateTransform)
+            {
+                double rotations = 1 + _random.NextDouble() * 3;
+                double rotateDirection = _random.Next(2) == 0 ? 1 : -1;
+                var rotateAnimation = new DoubleAnimation
+                {
+                    From = rotateTransform.Angle,
+                    To = rotateTransform.Angle + 360 * rotations * rotateDirection,
+                    Duration = TimeSpan.FromSeconds(duration),
+                    BeginTime = TimeSpan.FromMilliseconds(delayMs)
+                };
+                Storyboard.SetTarget(rotateAnimation, shape);
+                Storyboard.SetTargetProperty(rotateAnimation, new PropertyPath("(Shape.RenderTransform).(RotateTransform.Angle)"));
+                storyboard.Children.Add(rotateAnimation);
+            }
+
+            // Animacja przezroczystosci (zanikanie pod koniec)
+            var fadeAnimation = new DoubleAnimation
+            {
+                From = 1,
+                To = 0,
+                Duration = TimeSpan.FromSeconds(0.5),
+                BeginTime = TimeSpan.FromMilliseconds(delayMs) + TimeSpan.FromSeconds(duration - 0.5)
+            };
+            Storyboard.SetTarget(fadeAnimation, shape);
+            Storyboard.SetTargetProperty(fadeAnimation, new PropertyPath("Opacity"));
+            storyboard.Children.Add(fadeAnimation);
+
+            storyboard.Begin();
         }
 
         protected override void OnClosed(EventArgs e)

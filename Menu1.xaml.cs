@@ -193,29 +193,38 @@ namespace Kalendarz1
             return container;
         }
 
+        // Ścieżki sieciowe do avatarów (rozwiązanie nr 2)
+        private static readonly string NetworkAvatarsPath1 = @"\\192.168.0.170\Install\Prace Graficzne\Avatary";
+        private static readonly string NetworkAvatarsPath2 = @"\\192.168.0.171\Install\Prace Graficzne\Avatary";
+
         private ImageBrush LoadUserAvatar(string userId)
         {
             try
             {
-                // Sprawdź lokalny cache avatarów
-                string avatarDir = System.IO.Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "ZPSP", "Avatars");
-
                 string[] extensions = { ".png", ".jpg", ".jpeg", ".bmp" };
-                foreach (var ext in extensions)
-                {
-                    string avatarPath = System.IO.Path.Combine(avatarDir, $"{userId}{ext}");
-                    if (File.Exists(avatarPath))
-                    {
-                        var bitmap = new BitmapImage();
-                        bitmap.BeginInit();
-                        bitmap.UriSource = new Uri(avatarPath);
-                        bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                        bitmap.EndInit();
-                        bitmap.Freeze();
 
-                        return new ImageBrush(bitmap) { Stretch = Stretch.UniformToFill };
+                // Zawsze pobieraj z serwera sieciowego
+                string[] networkPaths = { NetworkAvatarsPath1, NetworkAvatarsPath2 };
+                foreach (var networkPath in networkPaths)
+                {
+                    try
+                    {
+                        if (!Directory.Exists(networkPath))
+                            continue;
+
+                        foreach (var ext in extensions)
+                        {
+                            string avatarPath = System.IO.Path.Combine(networkPath, $"{userId}{ext}");
+                            if (File.Exists(avatarPath))
+                            {
+                                return LoadAvatarFromPath(avatarPath);
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // Serwer niedostępny, spróbuj następny
+                        continue;
                     }
                 }
 
@@ -225,6 +234,18 @@ namespace Kalendarz1
             {
                 return null;
             }
+        }
+
+        private ImageBrush LoadAvatarFromPath(string avatarPath)
+        {
+            var bitmap = new BitmapImage();
+            bitmap.BeginInit();
+            bitmap.UriSource = new Uri(avatarPath);
+            bitmap.CacheOption = BitmapCacheOption.OnLoad;
+            bitmap.EndInit();
+            bitmap.Freeze();
+
+            return new ImageBrush(bitmap) { Stretch = Stretch.UniformToFill };
         }
 
         private Brush CreateInitialsAvatar(string userName)

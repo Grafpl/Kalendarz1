@@ -199,11 +199,8 @@ namespace Kalendarz1.Services
                 // Konfiskaty suma = CH + NW + ZM
                 int konfiskatySuma = declI3 + declI4 + declI5;
 
-                // KgKonfiskat = konfiskaty * średnia waga
-                decimal kgKonfiskat = Math.Round(konfiskatySuma * sredniaWaga, 0);
-
-                // KgPadlych = padłe * średnia waga
-                decimal kgPadlych = Math.Round(declI2 * sredniaWaga, 0);
+                // Zdatne = LumQnt - CH - NW - ZM (bez padłych)
+                int zdatne = lumQnt - declI3 - declI4 - declI5;
 
                 result.Add(new SpecyfikacjaDoIRZplus
                 {
@@ -212,15 +209,15 @@ namespace Kalendarz1.Services
                     IdHodowcy = reader["CustomerGID"]?.ToString()?.Trim() ?? "",
                     IRZPlus = reader["IRZPlus"]?.ToString()?.Trim() ?? "",
                     NumerPartii = reader["PartiaNumber"]?.ToString()?.Trim() ?? "",
-                    LiczbaSztukDrobiu = lumQnt - declI2,
+                    LiczbaSztukDrobiu = zdatne,  // Zdatne = LumQnt - Padle - Konfiskaty
                     DataZdarzenia = reader.GetDateTime(reader.GetOrdinal("CalcDate")),
                     SztukiWszystkie = lumQnt,
                     SztukiPadle = declI2,
                     SztukiKonfiskaty = konfiskatySuma,
                     WagaNetto = payWgt,
                     KgDoZaplaty = payWgt,
-                    KgKonfiskat = kgKonfiskat,
-                    KgPadlych = kgPadlych,
+                    KgKonfiskat = konfiskatySuma,  // Teraz to SZTUKI konfiskat, nie kg
+                    KgPadlych = declI2,  // Teraz to SZTUKI padłych, nie kg
                     // Pola edytowalne - pobierz z bazy jeśli istnieją
                     NrDokArimr = reader["NrDokArimr"]?.ToString() ?? "",
                     Przybycie = reader["Przybycie"]?.ToString() ?? "",

@@ -111,7 +111,11 @@
         </Style>
 
         <Style x:Key="DataGridRowHoverStyle" TargetType="DataGridRow">
-            <Setter Property="Background" Value="White"/>
+            <Setter Property="Background">
+                <Setter.Value>
+                    <SolidColorBrush Color="White"/>
+                </Setter.Value>
+            </Setter>
             <Setter Property="Foreground" Value="Black"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -126,10 +130,17 @@
                     <Setter Property="BorderBrush" Value="#1976D2"/>
                     <Setter Property="Background" Value="#E8F4FD"/>
                 </DataTrigger>
-                <!-- 2. Zaznaczenie - pogrubienie czcionki, bez zmiany tła -->
+                <!-- 2. Zaznaczenie - z animacją highlight -->
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="FontWeight" Value="Bold"/>
-                    <Setter Property="Background" Value="Transparent"/>
+                    <Trigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <ColorAnimation Storyboard.TargetProperty="(DataGridRow.Background).(SolidColorBrush.Color)"
+                                                From="#90CAF9" To="White" Duration="0:0:0.4"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.EnterActions>
                 </Trigger>
                 <!-- 3. Hover + Zaznaczenie -->
                 <MultiTrigger>
@@ -280,6 +291,116 @@
             <Setter Property="Background" Value="#607D8B"/>
         </Style>
 
+        <!-- Styl przycisku z progress spinnerem -->
+        <Style x:Key="ProgressButton" TargetType="Button">
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.15" BlurRadius="8"/>
+                            </Border.Effect>
+                            <Grid>
+                                <!-- Normalny content -->
+                                <ContentPresenter x:Name="content" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <!-- Spinner (ukryty domyślnie) -->
+                                <StackPanel x:Name="spinnerPanel" Orientation="Horizontal" HorizontalAlignment="Center" Visibility="Collapsed">
+                                    <Border Width="16" Height="16" Margin="0,0,8,0" RenderTransformOrigin="0.5,0.5">
+                                        <Border.RenderTransform>
+                                            <RotateTransform x:Name="spinnerRotate"/>
+                                        </Border.RenderTransform>
+                                        <Ellipse Stroke="White" StrokeThickness="2" StrokeDashArray="3,2"/>
+                                    </Border>
+                                    <TextBlock x:Name="spinnerText" Text="Przetwarzanie..." Foreground="White" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect ShadowDepth="3" Color="#000000" Opacity="0.25" BlurRadius="12"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="content" Property="Visibility" Value="Collapsed"/>
+                                <Setter TargetName="spinnerPanel" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="border" Property="Opacity" Value="0.8"/>
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard x:Name="spinStoryboard">
+                                        <Storyboard RepeatBehavior="Forever">
+                                            <DoubleAnimation Storyboard.TargetName="spinnerRotate"
+                                                             Storyboard.TargetProperty="Angle"
+                                                             From="0" To="360" Duration="0:0:1"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <StopStoryboard BeginStoryboardName="spinStoryboard"/>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Styl dla przycisków toolbara z animacją hover -->
+        <Style x:Key="ToolbarButton" TargetType="Button">
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="Margin" Value="2,0"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Trigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                                 To="1.05" Duration="0:0:0.1"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                 To="1.05" Duration="0:0:0.1"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.EnterActions>
+                    <Trigger.ExitActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                                 To="1" Duration="0:0:0.1"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                 To="1" Duration="0:0:0.1"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.ExitActions>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="RenderTransform">
+                        <Setter.Value>
+                            <ScaleTransform ScaleX="0.95" ScaleY="0.95"/>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
         <!-- Styl pulsującej komórki dla wartości wymagających uwagi -->
         <Style x:Key="PulsingCellStyle" TargetType="Border">
             <Setter Property="Background" Value="#FFCDD2"/>
@@ -306,26 +427,14 @@
 
         <!-- Loading Skeleton styl dla animacji ładowania -->
         <Style x:Key="SkeletonStyle" TargetType="Border">
-            <Setter Property="Background">
-                <Setter.Value>
-                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                        <GradientStop Color="#EEEEEE" Offset="0"/>
-                        <GradientStop Color="#E0E0E0" Offset="0.5"/>
-                        <GradientStop Color="#EEEEEE" Offset="1"/>
-                    </LinearGradientBrush>
-                </Setter.Value>
-            </Setter>
+            <Setter Property="Background" Value="#E0E0E0"/>
             <Setter Property="CornerRadius" Value="4"/>
             <Style.Triggers>
                 <EventTrigger RoutedEvent="Loaded">
                     <BeginStoryboard>
                         <Storyboard RepeatBehavior="Forever">
-                            <DoubleAnimation Storyboard.TargetProperty="(Border.Background).(LinearGradientBrush.GradientStops)[0].Offset"
-                                             From="-1" To="2" Duration="0:0:1.5"/>
-                            <DoubleAnimation Storyboard.TargetProperty="(Border.Background).(LinearGradientBrush.GradientStops)[1].Offset"
-                                             From="-0.5" To="2.5" Duration="0:0:1.5"/>
-                            <DoubleAnimation Storyboard.TargetProperty="(Border.Background).(LinearGradientBrush.GradientStops)[2].Offset"
-                                             From="0" To="3" Duration="0:0:1.5"/>
+                            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                             From="0.5" To="1" Duration="0:0:0.8" AutoReverse="True"/>
                         </Storyboard>
                     </BeginStoryboard>
                 </EventTrigger>
@@ -950,11 +1059,20 @@
                 </Style>
             </TabControl.Resources>
 
-            <TabItem Header="📋 Specyfikacje">
+            <TabItem Header="🐔 Specyfikacje">
                 <Border Background="White" CornerRadius="0,10,10,10">
                     <Border.Effect>
                         <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="15"/>
                     </Border.Effect>
+                    <Border.Triggers>
+                        <EventTrigger RoutedEvent="Border.Loaded">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.3"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Border.Triggers>
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -979,60 +1097,51 @@
                                 <Button x:Name="btnApplyAllToSupplier" Click="ToolBar_ApplyAllToSupplier"
                                         Content="Zastosuj WSZYSTKO do dostawcy"
                                         ToolTip="Zastosuj wszystkie ustawienia cenowe do wierszy tego samego dostawcy (Ctrl+Shift+A)"
-                                        Padding="10,4" Margin="0,0,5,0" Background="#FF9800" Foreground="White"
-                                        BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
+                                        Style="{StaticResource ToolbarButton}" Background="#FF9800"/>
 
                                 <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
 
                                 <Button x:Name="buttonBon" Click="ButtonBon_Click"
                                         Content="AVILOG" ToolTip="Wczytaj dane z AVILOG"
-                                        Padding="10,4" Margin="5,0,2,0" Background="#3498DB" Foreground="White"
-                                        BorderThickness="0" Cursor="Hand"/>
+                                        Style="{StaticResource ToolbarButton}" Background="#3498DB"/>
                                 <Button x:Name="btnLoadData" Click="BtnLoadData_Click"
                                         Content="LUMEL" ToolTip="Wczytaj dane z LUMEL"
-                                        Padding="10,4" Margin="2,0,5,0" Background="#9B59B6" Foreground="White"
-                                        BorderThickness="0" Cursor="Hand"/>
+                                        Style="{StaticResource ToolbarButton}" Background="#9B59B6"/>
 
                                 <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
 
                                 <!-- Przycisk Dodaj specyfikację -->
                                 <Button x:Name="btnDodajSpecyfikacje" Click="BtnDodajSpecyfikacje_Click"
-                                        Content="➕ Dodaj specyfikację" 
+                                        Content="➕ Dodaj specyfikację"
                                         ToolTip="Otwórz kreator nowej specyfikacji&#x0a;Shift+klik = szybkie dodanie pustego wiersza"
-                                        Padding="10,4" Margin="2,0,5,0" Background="#2E7D32" Foreground="White"
-                                        BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
+                                        Style="{StaticResource ToolbarButton}" Background="#2E7D32"/>
 
                                 <!-- === NOWY PRZYCISK IMPORT Z EXCEL === -->
                                 <Button x:Name="btnImportExcel" Click="BtnImportExcel_Click"
                                         Content="📥 Import Excel" ToolTip="Importuj specyfikacje z pliku Excel/LibreOffice (kreator)"
-                                        Padding="10,4" Margin="2,0,5,0" Background="#FF5722" Foreground="White"
-                                        BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
+                                        Style="{StaticResource ToolbarButton}" Background="#FF5722"/>
 
                                 <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
 
                                 <!-- Przycisk Otwórz folder -->
                                 <Button x:Name="btnOtworzFolder" Click="BtnOtworzFolder_Click"
                                         Content="📁 Otwórz folder" ToolTip="Otwórz folder z plikami specyfikacji"
-                                        Padding="10,4" Margin="2,0,2,0" Background="#5D4037" Foreground="White"
-                                        BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
+                                        Style="{StaticResource ToolbarButton}" Background="#5D4037"/>
 
                                 <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
 
                                 <!-- PRZYCISK PDF -->
                                 <Button x:Name="btnGenerujPdf" Click="Button1_Click"
                                         Content="📄 PDF" ToolTip="Generuj PDF dla wybranego dostawcy (prawy przycisk myszy dla więcej opcji)"
-                                        Padding="12,4" Margin="2,0,2,0" Background="#E53935" Foreground="White"
-                                        BorderThickness="0" Cursor="Hand" FontWeight="Bold" FontSize="12"/>
+                                        Style="{StaticResource ProgressButton}" Background="#E53935" Padding="12,4"/>
                                 <Button x:Name="btnGenerujPdfAll" Click="BtnPrintAll_Click"
                                         Content="📄 Wszystkie PDF" ToolTip="Generuj PDF dla wszystkich dostawców"
-                                        Padding="10,4" Margin="2,0,2,0" Background="#C62828" Foreground="White"
-                                        BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
+                                        Style="{StaticResource ProgressButton}" Background="#C62828" Padding="10,4" Margin="2,0"/>
 
                                 <!-- Przycisk Wyślij email -->
                                 <Button x:Name="btnWyslijEmail" Click="BtnWyslijEmail_Click"
                                         Content="📧 Wyślij email" ToolTip="Wyślij specyfikację emailem"
-                                        Padding="10,4" Margin="2,0,5,0" Background="#1976D2" Foreground="White"
-                                        BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
+                                        Style="{StaticResource ProgressButton}" Background="#1976D2" Padding="10,4" Margin="2,0"/>
 
                                 <!-- Checkboxy kolumn: Opas, Kl.B, Dodatek, Pośrednik -->
                                 <Border Background="#F5F5F5" CornerRadius="4" Padding="5,2" Margin="5,0">
@@ -2085,6 +2194,15 @@
                     <Border.Effect>
                         <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="15"/>
                     </Border.Effect>
+                    <Border.Triggers>
+                        <EventTrigger RoutedEvent="Border.Loaded">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.3"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Border.Triggers>
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -2640,414 +2758,21 @@
                 </Border>
             </TabItem>
 
-            <!-- === KARTA ROZLICZENIA === -->
-            <TabItem Header="💰 Rozliczenia">
-                <Border Background="White" CornerRadius="8" Margin="5" Padding="10">
-                    <Border.Effect>
-                        <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.08" BlurRadius="10"/>
-                    </Border.Effect>
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-
-                        <!-- Nagłówek -->
-                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
-                            <TextBlock Text="Rozliczenia dostaw" FontSize="18" FontWeight="Bold" Foreground="#2C3E50" VerticalAlignment="Center"/>
-                            <Border Width="1" Background="#E0E0E0" Margin="15,2"/>
-                            <!-- Checkbox grupowania -->
-                            <CheckBox x:Name="chkGroupBySupplierRozliczenia" Content="Grupuj wg dostawcy"
-                                      VerticalAlignment="Center" FontSize="11" Foreground="#455A64"
-                                      Checked="ChkGroupBySupplierRozliczenia_Changed" Unchecked="ChkGroupBySupplierRozliczenia_Changed"/>
-                        </StackPanel>
-
-                        <!-- Toolbar zatwierdzania z podwójną kontrolą -->
-                        <Border Grid.Row="1" Background="#F5F5F5" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="8,6" Margin="0,0,0,10">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-
-                                <!-- Pierwsza kontrola (wprowadzający) -->
-                                <Border Grid.Column="0" Background="#E3F2FD" CornerRadius="5" Padding="10,5" Margin="0,0,10,0">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="1. Wprowadzenie:" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#1565C0" Margin="0,0,8,0"/>
-                                        <Button x:Name="btnZatwierdzDzien" Content="✓ Wybrane"
-                                                Padding="8,3" Margin="0,0,5,0" Background="#27AE60" Foreground="White"
-                                                BorderThickness="0" Cursor="Hand" Click="BtnZatwierdzDzien_Click" FontSize="11"
-                                                ToolTip="Wprowadź wybrany wiersz"/>
-                                        <Button x:Name="btnZatwierdzWszystko" Content="✓✓ Wszystko"
-                                                Padding="8,3" Margin="0,0,5,0" Background="#1B5E20" Foreground="White"
-                                                BorderThickness="0" Cursor="Hand" Click="BtnZatwierdzWszystko_Click" FontSize="11"
-                                                ToolTip="Wprowadź wszystkie niezatwierdzone wiersze"/>
-                                        <Button x:Name="btnCofnijZatwierdzenie" Content="✗"
-                                                Padding="8,3" Background="#E74C3C" Foreground="White"
-                                                BorderThickness="0" Cursor="Hand" Click="BtnCofnijZatwierdzenie_Click" FontSize="11"
-                                                ToolTip="Cofnij zatwierdzenie wprowadzenia"/>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- Druga kontrola (weryfikujący) -->
-                                <Border Grid.Column="1" Background="#FFF3E0" CornerRadius="5" Padding="10,5" Margin="0,0,10,0">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="2. Weryfikacja:" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#E65100" Margin="0,0,8,0"/>
-                                        <Button x:Name="btnWeryfikujDzien" Content="✓ Wybrane"
-                                                Padding="8,3" Margin="0,0,5,0" Background="#FF9800" Foreground="White"
-                                                BorderThickness="0" Cursor="Hand" Click="BtnWeryfikujDzien_Click" FontSize="11"
-                                                ToolTip="Weryfikuj wybrany wiersz"/>
-                                        <Button x:Name="btnWeryfikujWszystko" Content="✓✓ Wszystko"
-                                                Padding="8,3" Margin="0,0,5,0" Background="#E65100" Foreground="White"
-                                                BorderThickness="0" Cursor="Hand" Click="BtnWeryfikujWszystko_Click" FontSize="11"
-                                                ToolTip="Weryfikuj wszystkie wprowadzone wiersze"/>
-                                        <Button x:Name="btnCofnijWeryfikacje" Content="✗"
-                                                Padding="8,3" Background="#F57C00" Foreground="White"
-                                                BorderThickness="0" Cursor="Hand" Click="BtnCofnijWeryfikacje_Click" FontSize="11"
-                                                ToolTip="Cofnij weryfikację"/>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- Status blokady -->
-                                <Border Grid.Column="3" Background="#ECEFF1" CornerRadius="5" Padding="8,5">
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                        <TextBlock Text="🔒" FontSize="14" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                        <TextBlock x:Name="lblStatusBlokadyRozliczenia" Text="Wiersze zweryfikowane są zablokowane do edycji"
-                                                   VerticalAlignment="Center" FontStyle="Italic" Foreground="#546E7A" FontSize="11"/>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- Eksport -->
-                                <Button Grid.Column="4" x:Name="btnExportSymfonia" Content="📤 Eksport do Symfonii"
-                                        Padding="10,4" Margin="10,0,0,0" Background="#9B59B6" Foreground="White"
-                                        BorderThickness="0" Cursor="Hand" Click="BtnExportSymfonia_Click"/>
-                            </Grid>
-                        </Border>
-
-                        <!-- DataGrid rozliczeń -->
-                        <DataGrid Grid.Row="2" x:Name="dataGridRozliczenia"
-                                  AutoGenerateColumns="False"
-                                  CanUserAddRows="False"
-                                  CanUserDeleteRows="False"
-                                  IsReadOnly="True"
-                                  SelectionMode="Extended"
-                                  SelectionUnit="FullRow"
-                                  RowHeight="28"
-                                  AlternatingRowBackground="#F8F9FA"
-                                  GridLinesVisibility="Horizontal"
-                                  HorizontalGridLinesBrush="#E0E0E0"
-                                  BorderThickness="1"
-                                  BorderBrush="#BDBDBD">
-                            <!-- Styl wiersza z obsługą separatora grupy dostawcy -->
-                            <DataGrid.RowStyle>
-                                <Style TargetType="DataGridRow">
-                                    <Setter Property="Background" Value="White"/>
-                                    <Style.Triggers>
-                                        <!-- Alternating rows -->
-                                        <Trigger Property="AlternationIndex" Value="1">
-                                            <Setter Property="Background" Value="#F8F9FA"/>
-                                        </Trigger>
-                                        <!-- Separator grupy dostawcy - grubsza górna linia -->
-                                        <DataTrigger Binding="{Binding IsFirstInGroup}" Value="True">
-                                            <Setter Property="BorderThickness" Value="0,3,0,0"/>
-                                            <Setter Property="BorderBrush" Value="#4CAF50"/>
-                                            <Setter Property="Background" Value="#E8F5E9"/>
-                                        </DataTrigger>
-                                        <!-- Hover -->
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#E3F2FD"/>
-                                        </Trigger>
-                                        <!-- Selection -->
-                                        <Trigger Property="IsSelected" Value="True">
-                                            <Setter Property="Background" Value="#BBDEFB"/>
-                                            <Setter Property="Foreground" Value="#1A237E"/>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </DataGrid.RowStyle>
-                            <DataGrid.Columns>
-                                <!-- Dane podstawowe -->
-                                <DataGridTextColumn Header="LP" Binding="{Binding Nr}" Width="35">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="HorizontalAlignment" Value="Center"/>
-                                            <Setter Property="FontWeight" Value="Bold"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                                <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="160"/>
-
-                                <!-- Ilości -->
-                                <DataGridTextColumn Header="Szt.Dek" Binding="{Binding SztukiDek, StringFormat={}{0:N0}}" Width="65">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="HorizontalAlignment" Value="Right"/>
-                                            <Setter Property="Padding" Value="0,0,8,0"/>
-                                            <Setter Property="Foreground" Value="#E65100"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                                <DataGridTextColumn Header="KG Netto" Binding="{Binding NettoKg, StringFormat={}{0:N0}}" Width="70">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="HorizontalAlignment" Value="Right"/>
-                                            <Setter Property="Padding" Value="0,0,8,0"/>
-                                            <Setter Property="Foreground" Value="#1565C0"/>
-                                            <Setter Property="FontWeight" Value="SemiBold"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-
-                                <!-- Separator wizualny - Ceny -->
-                                <DataGridTextColumn Header="Cena" Binding="{Binding Cena, StringFormat={}{0:N2}}" Width="60">
-                                    <DataGridTextColumn.HeaderStyle>
-                                        <Style TargetType="DataGridColumnHeader">
-                                            <Setter Property="Background" Value="#BBDEFB"/>
-                                            <Setter Property="Foreground" Value="#1565C0"/>
-                                            <Setter Property="FontWeight" Value="Bold"/>
-                                            <Setter Property="HorizontalContentAlignment" Value="Center"/>
-                                            <Setter Property="Padding" Value="5,3"/>
-                                        </Style>
-                                    </DataGridTextColumn.HeaderStyle>
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="HorizontalAlignment" Value="Right"/>
-                                            <Setter Property="Foreground" Value="#1565C0"/>
-                                            <Setter Property="FontWeight" Value="Bold"/>
-                                            <Setter Property="Padding" Value="0,0,5,0"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                                <DataGridTextColumn Header="Dod." Binding="{Binding Dodatek, StringFormat={}{0:N2}}" Width="50" ToolTipService.ToolTip="Dodatek do ceny">
-                                    <DataGridTextColumn.HeaderStyle>
-                                        <Style TargetType="DataGridColumnHeader">
-                                            <Setter Property="Background" Value="#C8E6C9"/>
-                                            <Setter Property="Foreground" Value="#2E7D32"/>
-                                            <Setter Property="FontWeight" Value="Bold"/>
-                                            <Setter Property="HorizontalContentAlignment" Value="Center"/>
-                                            <Setter Property="Padding" Value="5,3"/>
-                                        </Style>
-                                    </DataGridTextColumn.HeaderStyle>
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="HorizontalAlignment" Value="Right"/>
-                                            <Setter Property="Foreground" Value="#2E7D32"/>
-                                            <Setter Property="Padding" Value="0,0,5,0"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                                <DataGridTextColumn Header="Typ" Binding="{Binding TypCeny}" Width="75">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="HorizontalAlignment" Value="Center"/>
-                                            <Setter Property="FontSize" Value="10"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                                <DataGridTextColumn Header="Termin" Binding="{Binding TerminDni}" Width="50" ToolTipService.ToolTip="Termin płatności (dni)">
-                                    <DataGridTextColumn.HeaderStyle>
-                                        <Style TargetType="DataGridColumnHeader">
-                                            <Setter Property="Background" Value="#FFF3E0"/>
-                                            <Setter Property="Foreground" Value="#E65100"/>
-                                            <Setter Property="FontWeight" Value="Bold"/>
-                                            <Setter Property="HorizontalContentAlignment" Value="Center"/>
-                                            <Setter Property="Padding" Value="5,3"/>
-                                        </Style>
-                                    </DataGridTextColumn.HeaderStyle>
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="HorizontalAlignment" Value="Center"/>
-                                            <Setter Property="FontWeight" Value="SemiBold"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-
-                                <!-- Wartość końcowa -->
-                                <DataGridTextColumn Header="WARTOŚĆ" Binding="{Binding Wartosc, StringFormat={}{0:N2}}" Width="95">
-                                    <DataGridTextColumn.HeaderStyle>
-                                        <Style TargetType="DataGridColumnHeader">
-                                            <Setter Property="Background" Value="#2E7D32"/>
-                                            <Setter Property="Foreground" Value="White"/>
-                                            <Setter Property="FontWeight" Value="Bold"/>
-                                            <Setter Property="HorizontalContentAlignment" Value="Center"/>
-                                            <Setter Property="Padding" Value="5,3"/>
-                                        </Style>
-                                    </DataGridTextColumn.HeaderStyle>
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="HorizontalAlignment" Value="Right"/>
-                                            <Setter Property="Foreground" Value="#2E7D32"/>
-                                            <Setter Property="FontWeight" Value="Bold"/>
-                                            <Setter Property="Padding" Value="0,0,8,0"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-
-                                <!-- Checkboxy statusów -->
-                                <DataGridCheckBoxColumn Header="Symf" Binding="{Binding Symfonia}" Width="45" ToolTipService.ToolTip="Przeniesione do Symfonii"/>
-                                <DataGridCheckBoxColumn Header="ARiMR" Binding="{Binding ARIMR}" Width="50"/>
-                                <!-- Status wprowadzenia (1. kontrola) -->
-                                <DataGridTemplateColumn Header="Wprowadzenie" Width="90">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <Border Padding="4,2" CornerRadius="3" HorizontalAlignment="Center">
-                                                <Border.Style>
-                                                    <Style TargetType="Border">
-                                                        <Setter Property="Background" Value="#FFEBEE"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Zatwierdzony}" Value="True">
-                                                                <Setter Property="Background" Value="#E8F5E9"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Border.Style>
-                                                <TextBlock HorizontalAlignment="Center" FontSize="10">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Text" Value="⏳ Oczekuje"/>
-                                                            <Setter Property="Foreground" Value="#C62828"/>
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding Zatwierdzony}" Value="True">
-                                                                    <Setter Property="Text" Value="✓ Wprowadzono"/>
-                                                                    <Setter Property="Foreground" Value="#2E7D32"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                            </Border>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="Wprowadził" Binding="{Binding ZatwierdzonePrzez}" Width="80">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="FontSize" Value="10"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-
-                                <!-- Status weryfikacji (2. kontrola) -->
-                                <DataGridTemplateColumn Header="Weryfikacja" Width="90">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <Border Padding="4,2" CornerRadius="3" HorizontalAlignment="Center">
-                                                <Border.Style>
-                                                    <Style TargetType="Border">
-                                                        <Setter Property="Background" Value="#FFF3E0"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Zweryfikowany}" Value="True">
-                                                                <Setter Property="Background" Value="#E3F2FD"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Border.Style>
-                                                <TextBlock HorizontalAlignment="Center" FontSize="10">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Text" Value="⏳ Oczekuje"/>
-                                                            <Setter Property="Foreground" Value="#E65100"/>
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding Zweryfikowany}" Value="True">
-                                                                    <Setter Property="Text" Value="✓ Zweryfikowano"/>
-                                                                    <Setter Property="Foreground" Value="#1565C0"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                            </Border>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="Zweryfikował" Binding="{Binding ZweryfikowanePrzez}" Width="80">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="FontSize" Value="10"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-
-                                <!-- Status końcowy (blokada) -->
-                                <DataGridTemplateColumn Header="🔒" Width="35">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock HorizontalAlignment="Center" FontSize="14" ToolTip="Wiersz zablokowany - podwójnie zatwierdzony">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="Text" Value=""/>
-                                                        <Style.Triggers>
-                                                            <MultiDataTrigger>
-                                                                <MultiDataTrigger.Conditions>
-                                                                    <Condition Binding="{Binding Zatwierdzony}" Value="True"/>
-                                                                    <Condition Binding="{Binding Zweryfikowany}" Value="True"/>
-                                                                </MultiDataTrigger.Conditions>
-                                                                <Setter Property="Text" Value="🔒"/>
-                                                            </MultiDataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-
-                                <!-- Kopia kolumny Dostawca na końcu - szeroka -->
-                                <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="*" IsReadOnly="True">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="VerticalAlignment" Value="Center"/>
-                                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-                                            <Setter Property="Padding" Value="4,0"/>
-                                            <Setter Property="Background" Value="#E8F5E9"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                    <DataGridTextColumn.CellStyle>
-                                        <Style TargetType="DataGridCell">
-                                            <Setter Property="Background" Value="#E8F5E9"/>
-                                            <Setter Property="BorderThickness" Value="0"/>
-                                        </Style>
-                                    </DataGridTextColumn.CellStyle>
-                                </DataGridTextColumn>
-                            </DataGrid.Columns>
-                        </DataGrid>
-
-                        <!-- Podsumowanie -->
-                        <Border Grid.Row="3" Background="#ECEFF1" Padding="10" Margin="0,10,0,0" CornerRadius="5">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-
-                                <!-- Statystyki tekstowe -->
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="Suma wierszy: " FontWeight="SemiBold"/>
-                                    <TextBlock x:Name="lblRozliczeniaSumaWierszy" Text="0" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,20,0"/>
-                                    <TextBlock Text="Suma sztuk: " FontWeight="SemiBold"/>
-                                    <TextBlock x:Name="lblRozliczeniaSumaSztuk" Text="0" FontWeight="Bold" Foreground="#E65100" Margin="0,0,20,0"/>
-                                    <TextBlock Text="Suma KG: " FontWeight="SemiBold"/>
-                                    <TextBlock x:Name="lblRozliczeniaSumaKg" Text="0" FontWeight="Bold" Foreground="#1565C0" Margin="0,0,20,0"/>
-                                    <TextBlock Text="Suma wartość: " FontWeight="SemiBold"/>
-                                    <TextBlock x:Name="lblRozliczeniaSumaWartosc" Text="0,00" FontWeight="Bold" Foreground="#2E7D32"/>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-                    </Grid>
-                </Border>
-            </TabItem>
-
             <!-- === KARTA PŁACHTA (Panel Lekarza) === -->
             <TabItem Header="👨‍⚕️ Płachta">
                 <Border Background="White" CornerRadius="10" Margin="10" Padding="15">
                     <Border.Effect>
                         <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="15"/>
                     </Border.Effect>
+                    <Border.Triggers>
+                        <EventTrigger RoutedEvent="Border.Loaded">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.3"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Border.Triggers>
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -3419,6 +3144,15 @@
                     <Border.Effect>
                         <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="15"/>
                     </Border.Effect>
+                    <Border.Triggers>
+                        <EventTrigger RoutedEvent="Border.Loaded">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.3"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Border.Triggers>
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -3853,6 +3587,1096 @@
                             </DataGrid>
                         </Border>
 
+                    </Grid>
+                </Border>
+            </TabItem>
+
+            <!-- === KARTA IRZPLUS === -->
+            <TabItem Header="📋 IRZplus" x:Name="tabIRZplus">
+                <TabItem.Resources>
+                    <!-- Storyboard dla pulsującego efektu -->
+                    <Storyboard x:Key="PulseAnimation" RepeatBehavior="Forever">
+                        <DoubleAnimation Storyboard.TargetProperty="(UIElement.Opacity)"
+                                         From="1" To="0.7" Duration="0:0:0.8" AutoReverse="True"/>
+                    </Storyboard>
+
+                    <!-- Storyboard dla efektu świecenia -->
+                    <Storyboard x:Key="GlowAnimation" RepeatBehavior="Forever">
+                        <DoubleAnimation Storyboard.TargetProperty="(Effect).(DropShadowEffect.BlurRadius)"
+                                         From="5" To="15" Duration="0:0:1" AutoReverse="True"/>
+                    </Storyboard>
+
+                    <!-- Style dla nowoczesnych przycisków z animacjami -->
+                    <Style x:Key="ModernButton" TargetType="Button">
+                        <Setter Property="FontSize" Value="13"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+                        <Setter Property="Padding" Value="16,10"/>
+                        <Setter Property="Margin" Value="4,0"/>
+                        <Setter Property="Cursor" Value="Hand"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                        <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+                        <Setter Property="RenderTransform">
+                            <Setter.Value>
+                                <ScaleTransform ScaleX="1" ScaleY="1"/>
+                            </Setter.Value>
+                        </Setter>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="border" Background="{TemplateBinding Background}"
+                                            CornerRadius="8" Padding="{TemplateBinding Padding}"
+                                            BorderThickness="{TemplateBinding BorderThickness}" BorderBrush="{TemplateBinding BorderBrush}"
+                                            RenderTransformOrigin="0.5,0.5">
+                                        <Border.RenderTransform>
+                                            <ScaleTransform x:Name="borderScale" ScaleX="1" ScaleY="1"/>
+                                        </Border.RenderTransform>
+                                        <Border.Effect>
+                                            <DropShadowEffect x:Name="shadow" ShadowDepth="2" Color="#000000" Opacity="0.2" BlurRadius="6"/>
+                                        </Border.Effect>
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Trigger.EnterActions>
+                                                <BeginStoryboard>
+                                                    <Storyboard>
+                                                        <DoubleAnimation Storyboard.TargetName="borderScale" Storyboard.TargetProperty="ScaleX"
+                                                                         To="1.05" Duration="0:0:0.15"/>
+                                                        <DoubleAnimation Storyboard.TargetName="borderScale" Storyboard.TargetProperty="ScaleY"
+                                                                         To="1.05" Duration="0:0:0.15"/>
+                                                        <DoubleAnimation Storyboard.TargetName="shadow" Storyboard.TargetProperty="BlurRadius"
+                                                                         To="12" Duration="0:0:0.15"/>
+                                                        <DoubleAnimation Storyboard.TargetName="shadow" Storyboard.TargetProperty="ShadowDepth"
+                                                                         To="4" Duration="0:0:0.15"/>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </Trigger.EnterActions>
+                                            <Trigger.ExitActions>
+                                                <BeginStoryboard>
+                                                    <Storyboard>
+                                                        <DoubleAnimation Storyboard.TargetName="borderScale" Storyboard.TargetProperty="ScaleX"
+                                                                         To="1" Duration="0:0:0.15"/>
+                                                        <DoubleAnimation Storyboard.TargetName="borderScale" Storyboard.TargetProperty="ScaleY"
+                                                                         To="1" Duration="0:0:0.15"/>
+                                                        <DoubleAnimation Storyboard.TargetName="shadow" Storyboard.TargetProperty="BlurRadius"
+                                                                         To="6" Duration="0:0:0.15"/>
+                                                        <DoubleAnimation Storyboard.TargetName="shadow" Storyboard.TargetProperty="ShadowDepth"
+                                                                         To="2" Duration="0:0:0.15"/>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </Trigger.ExitActions>
+                                        </Trigger>
+                                        <Trigger Property="IsPressed" Value="True">
+                                            <Trigger.EnterActions>
+                                                <BeginStoryboard>
+                                                    <Storyboard>
+                                                        <DoubleAnimation Storyboard.TargetName="borderScale" Storyboard.TargetProperty="ScaleX"
+                                                                         To="0.95" Duration="0:0:0.05"/>
+                                                        <DoubleAnimation Storyboard.TargetName="borderScale" Storyboard.TargetProperty="ScaleY"
+                                                                         To="0.95" Duration="0:0:0.05"/>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </Trigger.EnterActions>
+                                            <Trigger.ExitActions>
+                                                <BeginStoryboard>
+                                                    <Storyboard>
+                                                        <DoubleAnimation Storyboard.TargetName="borderScale" Storyboard.TargetProperty="ScaleX"
+                                                                         To="1.05" Duration="0:0:0.1"/>
+                                                        <DoubleAnimation Storyboard.TargetName="borderScale" Storyboard.TargetProperty="ScaleY"
+                                                                         To="1.05" Duration="0:0:0.1"/>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </Trigger.ExitActions>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+
+                    <Style x:Key="SmallModernButton" TargetType="Button" BasedOn="{StaticResource ModernButton}">
+                        <Setter Property="FontSize" Value="12"/>
+                        <Setter Property="Padding" Value="12,8"/>
+                    </Style>
+
+                    <!-- Style dla przycisków akcji z gradientem i animacją -->
+                    <Style x:Key="ActionButton" TargetType="Button">
+                        <Setter Property="FontSize" Value="14"/>
+                        <Setter Property="FontWeight" Value="Bold"/>
+                        <Setter Property="Padding" Value="20,12"/>
+                        <Setter Property="Margin" Value="6,0"/>
+                        <Setter Property="Cursor" Value="Hand"/>
+                        <Setter Property="Foreground" Value="White"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="border" CornerRadius="10" Padding="{TemplateBinding Padding}"
+                                            RenderTransformOrigin="0.5,0.5">
+                                        <Border.Background>
+                                            <LinearGradientBrush x:Name="gradientBrush" StartPoint="0,0" EndPoint="1,1">
+                                                <GradientStop x:Name="gradStop1" Color="#4CAF50" Offset="0"/>
+                                                <GradientStop x:Name="gradStop2" Color="#2E7D32" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </Border.Background>
+                                        <Border.RenderTransform>
+                                            <ScaleTransform x:Name="borderScale" ScaleX="1" ScaleY="1"/>
+                                        </Border.RenderTransform>
+                                        <Border.Effect>
+                                            <DropShadowEffect x:Name="shadow" ShadowDepth="3" Color="#2E7D32" Opacity="0.4" BlurRadius="10"/>
+                                        </Border.Effect>
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Trigger.EnterActions>
+                                                <BeginStoryboard>
+                                                    <Storyboard>
+                                                        <DoubleAnimation Storyboard.TargetName="borderScale" Storyboard.TargetProperty="ScaleX"
+                                                                         To="1.08" Duration="0:0:0.2"/>
+                                                        <DoubleAnimation Storyboard.TargetName="borderScale" Storyboard.TargetProperty="ScaleY"
+                                                                         To="1.08" Duration="0:0:0.2"/>
+                                                        <DoubleAnimation Storyboard.TargetName="shadow" Storyboard.TargetProperty="BlurRadius"
+                                                                         To="20" Duration="0:0:0.2"/>
+                                                        <ColorAnimation Storyboard.TargetName="gradStop1" Storyboard.TargetProperty="Color"
+                                                                        To="#66BB6A" Duration="0:0:0.2"/>
+                                                        <ColorAnimation Storyboard.TargetName="gradStop2" Storyboard.TargetProperty="Color"
+                                                                        To="#43A047" Duration="0:0:0.2"/>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </Trigger.EnterActions>
+                                            <Trigger.ExitActions>
+                                                <BeginStoryboard>
+                                                    <Storyboard>
+                                                        <DoubleAnimation Storyboard.TargetName="borderScale" Storyboard.TargetProperty="ScaleX"
+                                                                         To="1" Duration="0:0:0.2"/>
+                                                        <DoubleAnimation Storyboard.TargetName="borderScale" Storyboard.TargetProperty="ScaleY"
+                                                                         To="1" Duration="0:0:0.2"/>
+                                                        <DoubleAnimation Storyboard.TargetName="shadow" Storyboard.TargetProperty="BlurRadius"
+                                                                         To="10" Duration="0:0:0.2"/>
+                                                        <ColorAnimation Storyboard.TargetName="gradStop1" Storyboard.TargetProperty="Color"
+                                                                        To="#4CAF50" Duration="0:0:0.2"/>
+                                                        <ColorAnimation Storyboard.TargetName="gradStop2" Storyboard.TargetProperty="Color"
+                                                                        To="#2E7D32" Duration="0:0:0.2"/>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </Trigger.ExitActions>
+                                        </Trigger>
+                                        <Trigger Property="IsPressed" Value="True">
+                                            <Trigger.EnterActions>
+                                                <BeginStoryboard>
+                                                    <Storyboard>
+                                                        <DoubleAnimation Storyboard.TargetName="borderScale" Storyboard.TargetProperty="ScaleX"
+                                                                         To="0.92" Duration="0:0:0.05"/>
+                                                        <DoubleAnimation Storyboard.TargetName="borderScale" Storyboard.TargetProperty="ScaleY"
+                                                                         To="0.92" Duration="0:0:0.05"/>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </Trigger.EnterActions>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+
+                    <!-- Styl dla wierszy DataGrid (bez animacji kolorów - powodowały błąd z zamrożonymi pędzlami) -->
+                    <Style x:Key="IRZplusDataGridRowStyle" TargetType="DataGridRow">
+                        <Setter Property="Background" Value="White"/>
+                        <Setter Property="BorderBrush" Value="Transparent"/>
+                        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#E3F2FD"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="#BBDEFB"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                    <Condition Property="IsSelected" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter Property="Background" Value="#90CAF9"/>
+                            </MultiTrigger>
+                        </Style.Triggers>
+                    </Style>
+
+                    <!-- Styl dla wartości z efektem świecenia przy hover -->
+                    <Style x:Key="GlowingValueStyle" TargetType="TextBlock">
+                        <Setter Property="FontSize" Value="22"/>
+                        <Setter Property="FontWeight" Value="Bold"/>
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect ShadowDepth="0" Color="#1976D2" Opacity="0.8" BlurRadius="10"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+
+                    <!-- Style dla kart statystyk z animacją -->
+                    <Style x:Key="StatCard" TargetType="Border">
+                        <Setter Property="CornerRadius" Value="8"/>
+                        <Setter Property="Padding" Value="16,12"/>
+                        <Setter Property="Margin" Value="0,0,12,6"/>
+                        <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+                        <Setter Property="RenderTransform">
+                            <Setter.Value>
+                                <ScaleTransform ScaleX="1" ScaleY="1"/>
+                            </Setter.Value>
+                        </Setter>
+                        <Setter Property="Effect">
+                            <Setter.Value>
+                                <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.1" BlurRadius="5"/>
+                            </Setter.Value>
+                        </Setter>
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                                             To="1.05" Duration="0:0:0.15"/>
+                                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                             To="1.05" Duration="0:0:0.15"/>
+                                            <DoubleAnimation Storyboard.TargetProperty="(Effect).(DropShadowEffect.BlurRadius)"
+                                                             To="12" Duration="0:0:0.15"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                                             To="1" Duration="0:0:0.15"/>
+                                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                             To="1" Duration="0:0:0.15"/>
+                                            <DoubleAnimation Storyboard.TargetProperty="(Effect).(DropShadowEffect.BlurRadius)"
+                                                             To="5" Duration="0:0:0.15"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </TabItem.Resources>
+
+                <Border Background="#FAFAFA" CornerRadius="10" Margin="8" Padding="0">
+                    <Border.Effect>
+                        <DropShadowEffect ShadowDepth="3" Color="#000000" Opacity="0.15" BlurRadius="20"/>
+                    </Border.Effect>
+                    <Border.Triggers>
+                        <EventTrigger RoutedEvent="Border.Loaded">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.3"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Border.Triggers>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Loading indicator -->
+                        <Border x:Name="borderIRZplusLoading" Grid.Row="0" Grid.RowSpan="4" Background="#90FFFFFF"
+                                Visibility="Collapsed" CornerRadius="10" Panel.ZIndex="100">
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <ProgressBar IsIndeterminate="True" Width="200" Height="6" Margin="0,0,0,12"/>
+                                <TextBlock Text="Ładowanie danych IRZplus..." FontSize="14" Foreground="#546E7A" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Panel podsumowania IRZplus -->
+                        <Border Grid.Row="0" Background="White" Padding="16,12" Margin="12,12,12,0" CornerRadius="8">
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.08" BlurRadius="6"/>
+                            </Border.Effect>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Statystyki z animacjami -->
+                                <WrapPanel Grid.Column="0" Orientation="Horizontal">
+                                    <Border Style="{StaticResource StatCard}" Background="#E3F2FD">
+                                        <StackPanel>
+                                            <TextBlock Text="📊 Dostawcy" FontSize="12" Foreground="#1565C0" FontWeight="SemiBold"/>
+                                            <TextBlock x:Name="txtIRZplusLiczbaDostawcow" Text="0" FontSize="22" FontWeight="Bold" Foreground="#0D47A1"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource StatCard}" Background="#E8F5E9">
+                                        <StackPanel>
+                                            <TextBlock Text="🐔 Suma sztuk" FontSize="12" Foreground="#2E7D32" FontWeight="SemiBold"/>
+                                            <TextBlock x:Name="txtIRZplusSumaSztuk" Text="0" FontSize="22" FontWeight="Bold" Foreground="#1B5E20"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource StatCard}" Background="#E3F2FD">
+                                        <StackPanel>
+                                            <TextBlock Text="⚖ Waga netto" FontSize="12" Foreground="#1565C0" FontWeight="SemiBold"/>
+                                            <TextBlock x:Name="txtIRZplusSumaWagi" Text="0 kg" FontSize="22" FontWeight="Bold" Foreground="#0D47A1"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource StatCard}" Background="#FFEBEE">
+                                        <StackPanel>
+                                            <TextBlock Text="💀 Padłe szt" FontSize="12" Foreground="#C62828" FontWeight="SemiBold"/>
+                                            <TextBlock x:Name="txtIRZplusSumaPadlych" Text="0" FontSize="22" FontWeight="Bold" Foreground="#B71C1C"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource StatCard}" Background="#FFF3E0" Margin="0,0,0,6">
+                                        <StackPanel>
+                                            <TextBlock Text="⚠ Konfiskaty szt" FontSize="12" Foreground="#E65100" FontWeight="SemiBold"/>
+                                            <TextBlock x:Name="txtIRZplusSumaKonfiskat" Text="0" FontSize="22" FontWeight="Bold" Foreground="#BF360C"/>
+                                        </StackPanel>
+                                    </Border>
+                                </WrapPanel>
+
+                                <!-- Przyciski zaznaczania i ustawienia -->
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Border x:Name="borderIRZplusEnv" Background="#FF9800" CornerRadius="6" Padding="10,6" Margin="0,0,8,0">
+                                        <TextBlock x:Name="txtIRZplusEnvironment" Text="TESTOWE" FontSize="11" FontWeight="Bold" Foreground="White"/>
+                                    </Border>
+                                    <Button Content="⚙" Click="BtnIRZplusSettings_Click" ToolTip="Ustawienia IRZplus"
+                                            Style="{StaticResource SmallModernButton}" Background="#546E7A" Foreground="White" Padding="10,6"/>
+                                    <Button Content="✓ Zaznacz" Click="BtnIRZplusSelectAll_Click" ToolTip="Zaznacz wszystkie"
+                                            Style="{StaticResource SmallModernButton}" Background="#78909C" Foreground="White"/>
+                                    <Button Content="✗ Odznacz" Click="BtnIRZplusDeselectAll_Click" ToolTip="Odznacz wszystkie"
+                                            Style="{StaticResource SmallModernButton}" Background="#78909C" Foreground="White"/>
+                                    <Button Content="🔄 Odśwież" Click="BtnIRZplusRefresh_Click" ToolTip="Odśwież dane"
+                                            Style="{StaticResource SmallModernButton}" Background="#1976D2" Foreground="White"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- DataGrid IRZplus -->
+                        <Border Grid.Row="1" BorderBrush="#263238" BorderThickness="2" Margin="12,12,12,0" CornerRadius="6">
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.1" BlurRadius="6"/>
+                            </Border.Effect>
+                            <DataGrid x:Name="dgIRZplus"
+                                      AutoGenerateColumns="False"
+                                      IsReadOnly="False"
+                                      SelectionMode="Extended"
+                                      SelectionUnit="FullRow"
+                                      CanUserSortColumns="True"
+                                      GridLinesVisibility="All"
+                                      HorizontalGridLinesBrush="#90A4AE"
+                                      VerticalGridLinesBrush="#90A4AE"
+                                      AlternatingRowBackground="#F8F9FA"
+                                      RowBackground="White"
+                                      BorderThickness="0"
+                                      FontSize="13"
+                                      RowHeight="36"
+                                      ColumnHeaderHeight="40"
+                                      RowStyle="{StaticResource IRZplusDataGridRowStyle}"
+                                      CellEditEnding="DgIRZplus_CellEditEnding">
+
+                                <DataGrid.ColumnHeaderStyle>
+                                    <Style TargetType="DataGridColumnHeader">
+                                        <Setter Property="Background" Value="#263238"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="FontSize" Value="13"/>
+                                        <Setter Property="Padding" Value="10,8"/>
+                                        <Setter Property="BorderBrush" Value="#37474F"/>
+                                        <Setter Property="BorderThickness" Value="0,0,1,0"/>
+                                        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                        <Setter Property="Cursor" Value="Hand"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#37474F"/>
+                                            </Trigger>
+                                            <Trigger Property="SortDirection" Value="Ascending">
+                                                <Setter Property="Background" Value="#1565C0"/>
+                                            </Trigger>
+                                            <Trigger Property="SortDirection" Value="Descending">
+                                                <Setter Property="Background" Value="#1565C0"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGrid.ColumnHeaderStyle>
+
+                                <DataGrid.CellStyle>
+                                    <Style TargetType="DataGridCell">
+                                        <Setter Property="Padding" Value="8,6"/>
+                                        <Setter Property="BorderBrush" Value="#B0BEC5"/>
+                                        <Setter Property="BorderThickness" Value="0,0,1,0"/>
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter Property="Background" Value="#BBDEFB"/>
+                                                <Setter Property="Foreground" Value="Black"/>
+                                            </Trigger>
+                                            <Trigger Property="IsEditing" Value="True">
+                                                <Setter Property="Background" Value="#FFF9C4"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGrid.CellStyle>
+
+                                <DataGrid.Columns>
+                                    <DataGridCheckBoxColumn Header="✓" Binding="{Binding Wybrana, UpdateSourceTrigger=PropertyChanged}" Width="45"/>
+                                    <DataGridTextColumn Header="Nr" Binding="{Binding KolejnoscAuta}" Width="50" IsReadOnly="True">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="FontSize" Value="15"/>
+                                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="Foreground" Value="#1565C0"/>
+                                                <Setter Property="Padding" Value="8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Hodowca" Binding="{Binding Hodowca}" Width="180" IsReadOnly="True">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="Padding" Value="10,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Id" Binding="{Binding IdHodowcy}" Width="60" IsReadOnly="True">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                                <Setter Property="Padding" Value="8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="IRZ PLUS" Binding="{Binding IRZPlus, UpdateSourceTrigger=PropertyChanged}" Width="140">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="FontSize" Value="14"/>
+                                                <Setter Property="Foreground" Value="#0D47A1"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="Padding" Value="10,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                        <DataGridTextColumn.EditingElementStyle>
+                                            <Style TargetType="TextBox">
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="FontSize" Value="14"/>
+                                                <Setter Property="Foreground" Value="#0D47A1"/>
+                                                <Setter Property="Padding" Value="6"/>
+                                            </Style>
+                                        </DataGridTextColumn.EditingElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTemplateColumn Header="Numer Partii" Width="190" IsReadOnly="True">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{Binding NumerPartii}" VerticalAlignment="Center" Margin="10,0,4,0" FontSize="13"/>
+                                                    <Button Grid.Column="1" Content="📋" Click="BtnIRZplusKopiujPartie_Click" Tag="{Binding NumerPartii}"
+                                                            Background="#E3F2FD" Foreground="#1976D2" FontSize="14" Padding="8,4" Margin="2,0" Cursor="Hand" ToolTip="Kopiuj numer partii"
+                                                            BorderThickness="1" BorderBrush="#1976D2"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTextColumn Header="Sztuki" Binding="{Binding LiczbaSztukDrobiu, StringFormat=N0}" Width="90" IsReadOnly="True">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="FontSize" Value="15"/>
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="Margin" Value="0,0,12,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="KG" Binding="{Binding KgDoZaplaty, StringFormat=N0}" Width="90" IsReadOnly="True">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="FontSize" Value="15"/>
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="Foreground" Value="#1565C0"/>
+                                                <Setter Property="Margin" Value="0,0,12,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Konf" Binding="{Binding KgKonfiskat, StringFormat=N0}" Width="75" IsReadOnly="True">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="Foreground" Value="#D32F2F"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="FontSize" Value="15"/>
+                                                <Setter Property="Margin" Value="0,0,12,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Padł" Binding="{Binding KgPadlych, StringFormat=N0}" Width="75" IsReadOnly="True">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="Foreground" Value="#D32F2F"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="FontSize" Value="15"/>
+                                                <Setter Property="Margin" Value="0,0,12,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Data" Binding="{Binding DataZdarzenia, StringFormat='{}{0:dd-MM-yyyy}'}" Width="110" IsReadOnly="True">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                                <Setter Property="Padding" Value="8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Przyjęte z dział." Binding="{Binding PrzyjetaZDzialalnosci}" Width="140" IsReadOnly="True">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="#2E7D32"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="Padding" Value="8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <!-- EDYTOWALNE KOLUMNY - żółte tło przy edycji -->
+                                    <DataGridTextColumn Header="nr.dok.Arimr" Binding="{Binding NrDokArimr, UpdateSourceTrigger=PropertyChanged}" Width="140">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Background" Value="#E8F5E9"/>
+                                                <Setter Property="Padding" Value="10,4"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                        <DataGridTextColumn.EditingElementStyle>
+                                            <Style TargetType="TextBox">
+                                                <Setter Property="Background" Value="#FFF9C4"/>
+                                                <Setter Property="FontSize" Value="14"/>
+                                                <Setter Property="Padding" Value="8"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                            </Style>
+                                        </DataGridTextColumn.EditingElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="przybycie" Binding="{Binding Przybycie, UpdateSourceTrigger=PropertyChanged}" Width="110">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Background" Value="#E8F5E9"/>
+                                                <Setter Property="Padding" Value="10,4"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                        <DataGridTextColumn.EditingElementStyle>
+                                            <Style TargetType="TextBox">
+                                                <Setter Property="Background" Value="#FFF9C4"/>
+                                                <Setter Property="FontSize" Value="14"/>
+                                                <Setter Property="Padding" Value="8"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                            </Style>
+                                        </DataGridTextColumn.EditingElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="padnięcia" Binding="{Binding Padniecia, UpdateSourceTrigger=PropertyChanged}" Width="110">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Background" Value="#E8F5E9"/>
+                                                <Setter Property="Padding" Value="10,4"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                        <DataGridTextColumn.EditingElementStyle>
+                                            <Style TargetType="TextBox">
+                                                <Setter Property="Background" Value="#FFF9C4"/>
+                                                <Setter Property="FontSize" Value="14"/>
+                                                <Setter Property="Padding" Value="8"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                            </Style>
+                                        </DataGridTextColumn.EditingElementStyle>
+                                    </DataGridTextColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
+
+                        <!-- Panel ostrzeżeń IRZplus -->
+                        <Border x:Name="borderIRZplusWarnings" Grid.Row="2" Background="#FFF8E1" Padding="14,10" Margin="12,10,12,0"
+                                BorderBrush="#FFB300" BorderThickness="2" CornerRadius="8" Visibility="Collapsed">
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="1" Color="#FF8F00" Opacity="0.15" BlurRadius="4"/>
+                            </Border.Effect>
+                            <StackPanel>
+                                <TextBlock Text="⚠ Ostrzeżenia:" FontWeight="Bold" Foreground="#E65100" FontSize="13" Margin="0,0,0,4"/>
+                                <TextBlock x:Name="txtIRZplusWarnings" TextWrapping="Wrap" Foreground="#BF360C" FontSize="12"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Panel akcji IRZplus -->
+                        <Border Grid.Row="3" Padding="16,14" Margin="12,12,12,12" CornerRadius="8">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                    <GradientStop Color="#ECEFF1" Offset="0"/>
+                                    <GradientStop Color="#CFD8DC" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.1" BlurRadius="6"/>
+                            </Border.Effect>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock x:Name="txtIRZplusStatus" Text="Gotowe do wysłania" VerticalAlignment="Center" FontSize="14" Foreground="#455A64" FontWeight="SemiBold"/>
+                                    <ProgressBar x:Name="progressBarIRZplus" Width="180" Height="8" Margin="20,0,0,0" Visibility="Collapsed">
+                                        <ProgressBar.Foreground>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                <GradientStop Color="#1976D2" Offset="0"/>
+                                                <GradientStop Color="#42A5F5" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </ProgressBar.Foreground>
+                                    </ProgressBar>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                    <Button Content="📁 Zapisz kopię" Click="BtnIRZplusSaveLocal_Click"
+                                            Style="{StaticResource ModernButton}" Background="#607D8B" Foreground="White"/>
+                                    <Button x:Name="btnIRZplusExport" Content="📤 Eksport CSV/XML" Click="BtnIRZplusExportDialog_Click"
+                                            Style="{StaticResource ProgressButton}" Background="#FF9800"
+                                            ToolTip="Eksportuj dane do pliku CSV lub XML"/>
+                                    <Button x:Name="btnIRZplusSend" Content="🚀 Wyślij do IRZplus" Click="BtnIRZplusSend_Click"
+                                            Style="{StaticResource ProgressButton}" Background="#2E7D32" FontWeight="Bold"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </Border>
+            </TabItem>
+
+            <!-- === KARTA ROZLICZENIA === -->
+            <TabItem Header="💰 Rozliczenia">
+                <Border Background="White" CornerRadius="8" Margin="5" Padding="10">
+                    <Border.Effect>
+                        <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.08" BlurRadius="10"/>
+                    </Border.Effect>
+                    <Border.Triggers>
+                        <EventTrigger RoutedEvent="Border.Loaded">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.3"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Border.Triggers>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Nagłówek -->
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                            <TextBlock Text="Rozliczenia dostaw" FontSize="18" FontWeight="Bold" Foreground="#2C3E50" VerticalAlignment="Center"/>
+                            <Border Width="1" Background="#E0E0E0" Margin="15,2"/>
+                            <!-- Checkbox grupowania -->
+                            <CheckBox x:Name="chkGroupBySupplierRozliczenia" Content="Grupuj wg dostawcy"
+                                      VerticalAlignment="Center" FontSize="11" Foreground="#455A64"
+                                      Checked="ChkGroupBySupplierRozliczenia_Changed" Unchecked="ChkGroupBySupplierRozliczenia_Changed"/>
+                        </StackPanel>
+
+                        <!-- Toolbar zatwierdzania z podwójną kontrolą -->
+                        <Border Grid.Row="1" Background="#F5F5F5" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="8,6" Margin="0,0,0,10">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Pierwsza kontrola (wprowadzający) -->
+                                <Border Grid.Column="0" Background="#E3F2FD" CornerRadius="5" Padding="10,5" Margin="0,0,10,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="1. Wprowadzenie:" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#1565C0" Margin="0,0,8,0"/>
+                                        <Button x:Name="btnZatwierdzDzien" Content="✓ Wybrane"
+                                                Padding="8,3" Margin="0,0,5,0" Background="#27AE60" Foreground="White"
+                                                BorderThickness="0" Cursor="Hand" Click="BtnZatwierdzDzien_Click" FontSize="11"
+                                                ToolTip="Wprowadź wybrany wiersz"/>
+                                        <Button x:Name="btnZatwierdzWszystko" Content="✓✓ Wszystko"
+                                                Padding="8,3" Margin="0,0,5,0" Background="#1B5E20" Foreground="White"
+                                                BorderThickness="0" Cursor="Hand" Click="BtnZatwierdzWszystko_Click" FontSize="11"
+                                                ToolTip="Wprowadź wszystkie niezatwierdzone wiersze"/>
+                                        <Button x:Name="btnCofnijZatwierdzenie" Content="✗"
+                                                Padding="8,3" Background="#E74C3C" Foreground="White"
+                                                BorderThickness="0" Cursor="Hand" Click="BtnCofnijZatwierdzenie_Click" FontSize="11"
+                                                ToolTip="Cofnij zatwierdzenie wprowadzenia"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Druga kontrola (weryfikujący) -->
+                                <Border Grid.Column="1" Background="#FFF3E0" CornerRadius="5" Padding="10,5" Margin="0,0,10,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="2. Weryfikacja:" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#E65100" Margin="0,0,8,0"/>
+                                        <Button x:Name="btnWeryfikujDzien" Content="✓ Wybrane"
+                                                Padding="8,3" Margin="0,0,5,0" Background="#FF9800" Foreground="White"
+                                                BorderThickness="0" Cursor="Hand" Click="BtnWeryfikujDzien_Click" FontSize="11"
+                                                ToolTip="Weryfikuj wybrany wiersz"/>
+                                        <Button x:Name="btnWeryfikujWszystko" Content="✓✓ Wszystko"
+                                                Padding="8,3" Margin="0,0,5,0" Background="#E65100" Foreground="White"
+                                                BorderThickness="0" Cursor="Hand" Click="BtnWeryfikujWszystko_Click" FontSize="11"
+                                                ToolTip="Weryfikuj wszystkie wprowadzone wiersze"/>
+                                        <Button x:Name="btnCofnijWeryfikacje" Content="✗"
+                                                Padding="8,3" Background="#F57C00" Foreground="White"
+                                                BorderThickness="0" Cursor="Hand" Click="BtnCofnijWeryfikacje_Click" FontSize="11"
+                                                ToolTip="Cofnij weryfikację"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Status blokady -->
+                                <Border Grid.Column="3" Background="#ECEFF1" CornerRadius="5" Padding="8,5">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock Text="🔒" FontSize="14" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <TextBlock x:Name="lblStatusBlokadyRozliczenia" Text="Wiersze zweryfikowane są zablokowane do edycji"
+                                                   VerticalAlignment="Center" FontStyle="Italic" Foreground="#546E7A" FontSize="11"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Eksport -->
+                                <Button Grid.Column="4" x:Name="btnExportSymfonia" Content="📤 Eksport do Symfonii"
+                                        Padding="10,4" Margin="10,0,0,0" Background="#9B59B6" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand" Click="BtnExportSymfonia_Click"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- DataGrid rozliczeń -->
+                        <DataGrid Grid.Row="2" x:Name="dataGridRozliczenia"
+                                  AutoGenerateColumns="False"
+                                  CanUserAddRows="False"
+                                  CanUserDeleteRows="False"
+                                  IsReadOnly="True"
+                                  SelectionMode="Extended"
+                                  SelectionUnit="FullRow"
+                                  RowHeight="28"
+                                  AlternatingRowBackground="#F8F9FA"
+                                  GridLinesVisibility="Horizontal"
+                                  HorizontalGridLinesBrush="#E0E0E0"
+                                  BorderThickness="1"
+                                  BorderBrush="#BDBDBD">
+                            <!-- Styl wiersza z obsługą separatora grupy dostawcy -->
+                            <DataGrid.RowStyle>
+                                <Style TargetType="DataGridRow">
+                                    <Setter Property="Background" Value="White"/>
+                                    <Style.Triggers>
+                                        <!-- Alternating rows -->
+                                        <Trigger Property="AlternationIndex" Value="1">
+                                            <Setter Property="Background" Value="#F8F9FA"/>
+                                        </Trigger>
+                                        <!-- Separator grupy dostawcy - grubsza górna linia -->
+                                        <DataTrigger Binding="{Binding IsFirstInGroup}" Value="True">
+                                            <Setter Property="BorderThickness" Value="0,3,0,0"/>
+                                            <Setter Property="BorderBrush" Value="#4CAF50"/>
+                                            <Setter Property="Background" Value="#E8F5E9"/>
+                                        </DataTrigger>
+                                        <!-- Hover -->
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#E3F2FD"/>
+                                        </Trigger>
+                                        <!-- Selection -->
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Background" Value="#BBDEFB"/>
+                                            <Setter Property="Foreground" Value="#1A237E"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGrid.RowStyle>
+                            <DataGrid.Columns>
+                                <!-- Dane podstawowe -->
+                                <DataGridTextColumn Header="LP" Binding="{Binding Nr}" Width="35">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="160"/>
+
+                                <!-- Ilości -->
+                                <DataGridTextColumn Header="Szt.Dek" Binding="{Binding SztukiDek, StringFormat={}{0:N0}}" Width="65">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Padding" Value="0,0,8,0"/>
+                                            <Setter Property="Foreground" Value="#E65100"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="KG Netto" Binding="{Binding NettoKg, StringFormat={}{0:N0}}" Width="70">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Padding" Value="0,0,8,0"/>
+                                            <Setter Property="Foreground" Value="#1565C0"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Separator wizualny - Ceny -->
+                                <DataGridTextColumn Header="Cena" Binding="{Binding Cena, StringFormat={}{0:N2}}" Width="60">
+                                    <DataGridTextColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader">
+                                            <Setter Property="Background" Value="#BBDEFB"/>
+                                            <Setter Property="Foreground" Value="#1565C0"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                            <Setter Property="Padding" Value="5,3"/>
+                                        </Style>
+                                    </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Foreground" Value="#1565C0"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="Padding" Value="0,0,5,0"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Dod." Binding="{Binding Dodatek, StringFormat={}{0:N2}}" Width="50" ToolTipService.ToolTip="Dodatek do ceny">
+                                    <DataGridTextColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader">
+                                            <Setter Property="Background" Value="#C8E6C9"/>
+                                            <Setter Property="Foreground" Value="#2E7D32"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                            <Setter Property="Padding" Value="5,3"/>
+                                        </Style>
+                                    </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Foreground" Value="#2E7D32"/>
+                                            <Setter Property="Padding" Value="0,0,5,0"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Typ" Binding="{Binding TypCeny}" Width="75">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="FontSize" Value="10"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Termin" Binding="{Binding TerminDni}" Width="50" ToolTipService.ToolTip="Termin płatności (dni)">
+                                    <DataGridTextColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader">
+                                            <Setter Property="Background" Value="#FFF3E0"/>
+                                            <Setter Property="Foreground" Value="#E65100"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                            <Setter Property="Padding" Value="5,3"/>
+                                        </Style>
+                                    </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Wartość końcowa -->
+                                <DataGridTextColumn Header="WARTOŚĆ" Binding="{Binding Wartosc, StringFormat={}{0:N2}}" Width="95">
+                                    <DataGridTextColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader">
+                                            <Setter Property="Background" Value="#2E7D32"/>
+                                            <Setter Property="Foreground" Value="White"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                            <Setter Property="Padding" Value="5,3"/>
+                                        </Style>
+                                    </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Foreground" Value="#2E7D32"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="Padding" Value="0,0,8,0"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Checkboxy statusów -->
+                                <DataGridCheckBoxColumn Header="Symf" Binding="{Binding Symfonia}" Width="45" ToolTipService.ToolTip="Przeniesione do Symfonii"/>
+                                <DataGridCheckBoxColumn Header="ARiMR" Binding="{Binding ARIMR}" Width="50"/>
+                                <!-- Status wprowadzenia (1. kontrola) -->
+                                <DataGridTemplateColumn Header="Wprowadzenie" Width="90">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Padding="4,2" CornerRadius="3" HorizontalAlignment="Center">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="#FFEBEE"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Zatwierdzony}" Value="True">
+                                                                <Setter Property="Background" Value="#E8F5E9"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock HorizontalAlignment="Center" FontSize="10">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Text" Value="⏳ Oczekuje"/>
+                                                            <Setter Property="Foreground" Value="#C62828"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Zatwierdzony}" Value="True">
+                                                                    <Setter Property="Text" Value="✓ Wprowadzono"/>
+                                                                    <Setter Property="Foreground" Value="#2E7D32"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="Wprowadził" Binding="{Binding ZatwierdzonePrzez}" Width="80">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="FontSize" Value="10"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Status weryfikacji (2. kontrola) -->
+                                <DataGridTemplateColumn Header="Weryfikacja" Width="90">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Padding="4,2" CornerRadius="3" HorizontalAlignment="Center">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="#FFF3E0"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Zweryfikowany}" Value="True">
+                                                                <Setter Property="Background" Value="#E3F2FD"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock HorizontalAlignment="Center" FontSize="10">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Text" Value="⏳ Oczekuje"/>
+                                                            <Setter Property="Foreground" Value="#E65100"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Zweryfikowany}" Value="True">
+                                                                    <Setter Property="Text" Value="✓ Zweryfikowano"/>
+                                                                    <Setter Property="Foreground" Value="#1565C0"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="Zweryfikował" Binding="{Binding ZweryfikowanePrzez}" Width="80">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="FontSize" Value="10"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Status końcowy (blokada) -->
+                                <DataGridTemplateColumn Header="🔒" Width="35">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock HorizontalAlignment="Center" FontSize="14" ToolTip="Wiersz zablokowany - podwójnie zatwierdzony">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Text" Value=""/>
+                                                        <Style.Triggers>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding Zatwierdzony}" Value="True"/>
+                                                                    <Condition Binding="{Binding Zweryfikowany}" Value="True"/>
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter Property="Text" Value="🔒"/>
+                                                            </MultiDataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <!-- Kopia kolumny Dostawca na końcu - szeroka -->
+                                <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="*" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                            <Setter Property="Padding" Value="4,0"/>
+                                            <Setter Property="Background" Value="#E8F5E9"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                    <DataGridTextColumn.CellStyle>
+                                        <Style TargetType="DataGridCell">
+                                            <Setter Property="Background" Value="#E8F5E9"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                        </Style>
+                                    </DataGridTextColumn.CellStyle>
+                                </DataGridTextColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <!-- Podsumowanie -->
+                        <Border Grid.Row="3" Background="#ECEFF1" Padding="10" Margin="0,10,0,0" CornerRadius="5">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Statystyki tekstowe -->
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="Suma wierszy: " FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="lblRozliczeniaSumaWierszy" Text="0" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,20,0"/>
+                                    <TextBlock Text="Suma sztuk: " FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="lblRozliczeniaSumaSztuk" Text="0" FontWeight="Bold" Foreground="#E65100" Margin="0,0,20,0"/>
+                                    <TextBlock Text="Suma KG: " FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="lblRozliczeniaSumaKg" Text="0" FontWeight="Bold" Foreground="#1565C0" Margin="0,0,20,0"/>
+                                    <TextBlock Text="Suma wartość: " FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="lblRozliczeniaSumaWartosc" Text="0,00" FontWeight="Bold" Foreground="#2E7D32"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
                     </Grid>
                 </Border>
             </TabItem>
