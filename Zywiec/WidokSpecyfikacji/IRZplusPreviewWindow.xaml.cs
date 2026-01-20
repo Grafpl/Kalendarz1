@@ -303,13 +303,13 @@ namespace Kalendarz1
                     progressBar.Value = i + 1;
                     txtStatus.Text = $"Wysylanie {i + 1}/{wybrane.Count}: {spec.Hodowca}...";
 
-                    // POPRAWKA: Numer partii uboju dla calego zgloszenia (format: yyMMddNN)
-                    // Ten numer jest uzywany jako identyfikator zgloszenia w systemie ARIMR
-                    var numerPartiiUboju = _dataUboju.ToString("yyMMdd") + (i + 1).ToString("00");
+                    // POPRAWKA: numerPartiiUboju = wartosc z kolumny "Numer Partii" (spec.NumerPartii)
+                    // To jest numer identyfikacyjny partii uboju z danych specyfikacji np. "72826019001"
+                    var numerPartiiUboju = spec.NumerPartii;
 
-                    // POPRAWKA: NumerIdenPartiiDrobiu MUSI byc z danych specyfikacji (np. "31826015003")
-                    // To jest numer identyfikacyjny partii drobiu hodowcy - NIE generowany!
-                    var numerPartiiDrobiu = spec.NumerPartii;
+                    // POPRAWKA: NumerIdenPartiiDrobiu = STALA wartosc numeru rzezni "039806095-001"
+                    // To pole ZAWSZE ma byc numerem rzezni!
+                    var numerRzezniStala = IRZplusApiService.NUMER_RZEZNI;
 
                     // Przygotuj pojedyncza pozycje dla tego dostawcy
                     var pozycje = new List<PozycjaZURDApi>
@@ -317,8 +317,8 @@ namespace Kalendarz1
                         new PozycjaZURDApi
                         {
                             Lp = 1,
-                            // POPRAWKA: Uzyj numeru partii z danych specyfikacji, nie wygenerowanego!
-                            NumerIdenPartiiDrobiu = numerPartiiDrobiu,
+                            // POPRAWKA: NumerIdenPartiiDrobiu = ZAWSZE numer rzezni!
+                            NumerIdenPartiiDrobiu = numerRzezniStala,
                             LiczbaDrobiu = spec.LiczbaSztukDrobiu,
                             MasaDrobiu = spec.WagaNetto,
                             TypZdarzenia = new KodValueApi { Kod = "ZURDUR" },
@@ -425,18 +425,18 @@ namespace Kalendarz1
             {
                 var spec = wybrane[i];
 
-                // Numer partii uboju dla calego zgloszenia (format: yyMMddNN)
-                var numerPartiiUboju = _dataUboju.ToString("yyMMdd") + (i + 1).ToString("00");
+                // POPRAWKA: numerPartiiUboju = wartosc z kolumny "Numer Partii" (spec.NumerPartii)
+                var numerPartiiUboju = spec.NumerPartii;
 
-                // POPRAWKA: NumerIdenPartiiDrobiu z danych specyfikacji (np. "31826015003")
-                var numerPartiiDrobiu = spec.NumerPartii;
+                // POPRAWKA: NumerIdenPartiiDrobiu = STALA wartosc numeru rzezni
+                var numerRzezniStala = IRZplusApiService.NUMER_RZEZNI;
 
                 // Dodaj do listy podgladu
                 previewItems.Add(new ApiPreviewItem
                 {
                     Lp = i + 1,
                     Hodowca = spec.Hodowca,
-                    NumerIdenPartiiDrobiu = numerPartiiDrobiu,
+                    NumerIdenPartiiDrobiu = numerRzezniStala,
                     LiczbaDrobiu = spec.LiczbaSztukDrobiu,
                     MasaDrobiu = spec.WagaNetto,
                     TypZdarzenia = "ZURDUR",
@@ -452,7 +452,7 @@ namespace Kalendarz1
                     new PozycjaZURDApi
                     {
                         Lp = 1,
-                        NumerIdenPartiiDrobiu = numerPartiiDrobiu,
+                        NumerIdenPartiiDrobiu = numerRzezniStala,
                         LiczbaDrobiu = spec.LiczbaSztukDrobiu,
                         MasaDrobiu = spec.WagaNetto,
                         TypZdarzenia = new KodValueApi { Kod = "ZURDUR" },
@@ -529,18 +529,18 @@ namespace Kalendarz1
                     progressBar.Value = i + 1;
                     txtStatus.Text = $"Wysylanie {i + 1}/{wybrane.Count}: {spec.Hodowca}...";
 
-                    // Numer partii uboju dla calego zgloszenia
-                    var numerPartiiUboju = _dataUboju.ToString("yyMMdd") + (i + 1).ToString("00");
+                    // POPRAWKA: numerPartiiUboju = wartosc z kolumny "Numer Partii" (spec.NumerPartii)
+                    var numerPartiiUboju = spec.NumerPartii;
 
-                    // POPRAWKA: NumerIdenPartiiDrobiu z danych specyfikacji
-                    var numerPartiiDrobiu = spec.NumerPartii;
+                    // POPRAWKA: NumerIdenPartiiDrobiu = STALA wartosc numeru rzezni
+                    var numerRzezniStala = IRZplusApiService.NUMER_RZEZNI;
 
                     var pozycje = new List<PozycjaZURDApi>
                     {
                         new PozycjaZURDApi
                         {
                             Lp = 1,
-                            NumerIdenPartiiDrobiu = numerPartiiDrobiu,
+                            NumerIdenPartiiDrobiu = numerRzezniStala,
                             LiczbaDrobiu = spec.LiczbaSztukDrobiu,
                             MasaDrobiu = spec.WagaNetto,
                             TypZdarzenia = new KodValueApi { Kod = "ZURDUR" },
