@@ -1731,6 +1731,7 @@ namespace Kalendarz1
                 new ModuleInfo("CentrumSpotkan", "Centrum Spotkań", "Rejestr spotkań i wizyt", "Finanse i Zarządzanie", "📆"),
                 new ModuleInfo("NotatkiZeSpotkan", "Notatki Służbowe", "Notatki ze spotkań biznesowych", "Finanse i Zarządzanie", "📝"),
                 new ModuleInfo("KontrolaGodzin", "Kontrola Czasu Pracy", "Monitoring czasu pracy pracowników", "Finanse i Zarządzanie", "⏰"),
+                new ModuleInfo("KomunikatorFirmowy", "Komunikator Firmowy", "Wewnętrzny czat między pracownikami", "Finanse i Zarządzanie", "💬"),
 
                 // ═══════════════════════════════════════════════════════════════════════
                 // ADMINISTRACJA SYSTEMU - Czerwony
@@ -1790,7 +1791,8 @@ namespace Kalendarz1
                 [40] = "PanelLekarza",
                 [41] = "KontrolaGodzin",
                 [42] = "CentrumSpotkan",
-                [43] = "PanelPaniJola"
+                [43] = "PanelPaniJola",
+                [44] = "KomunikatorFirmowy"
             };
         }
 

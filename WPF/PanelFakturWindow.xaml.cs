@@ -7,10 +7,12 @@ using System.Data;
 using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace Kalendarz1.WPF
 {
@@ -234,68 +236,26 @@ namespace Kalendarz1.WPF
 
         private void GenerateProductButtons()
         {
-            pnlProductButtons.Children.Clear();
+            // Wypełnij ComboBox produktami
+            cmbProduct.Items.Clear();
 
-            // Przycisk "Wszystkie"
-            var btnAll = new Button
-            {
-                Content = "Wszystkie",
-                Margin = new Thickness(2),
-                Padding = new Thickness(10, 5, 10, 5),
-                FontSize = 11,
-                Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
-                Foreground = Brushes.White,
-                BorderThickness = new Thickness(0),
-                Cursor = System.Windows.Input.Cursors.Hand,
-                Tag = (int?)null
-            };
-            btnAll.Click += ProductButton_Click;
-            pnlProductButtons.Children.Add(btnAll);
+            // Dodaj opcję "Wszystkie"
+            cmbProduct.Items.Add(new ComboBoxItem { Content = "Wszystkie", Tag = (int?)null });
 
             foreach (var product in _productsCache.OrderBy(x => x.Value))
             {
-                var btn = new Button
-                {
-                    Content = product.Value,
-                    Margin = new Thickness(2),
-                    Padding = new Thickness(10, 5, 10, 5),
-                    FontSize = 11,
-                    Background = new SolidColorBrush(Color.FromRgb(236, 240, 241)),
-                    Foreground = Brushes.Black,
-                    BorderThickness = new Thickness(1),
-                    BorderBrush = new SolidColorBrush(Color.FromRgb(189, 195, 199)),
-                    Cursor = System.Windows.Input.Cursors.Hand,
-                    Tag = product.Key
-                };
-                btn.Click += ProductButton_Click;
-                pnlProductButtons.Children.Add(btn);
+                cmbProduct.Items.Add(new ComboBoxItem { Content = product.Value, Tag = product.Key });
             }
+
+            // Ustaw domyślnie "Wszystkie"
+            cmbProduct.SelectedIndex = 0;
         }
 
-        private async void ProductButton_Click(object sender, RoutedEventArgs e)
+        private async void CmbProduct_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (sender is Button btn)
+            if (cmbProduct.SelectedItem is ComboBoxItem item)
             {
-                // Reset wszystkich przycisków
-                foreach (var child in pnlProductButtons.Children.OfType<Button>())
-                {
-                    if (child.Tag == null)
-                    {
-                        child.Background = new SolidColorBrush(Color.FromRgb(52, 152, 219));
-                        child.Foreground = Brushes.White;
-                    }
-                    else
-                    {
-                        child.Background = new SolidColorBrush(Color.FromRgb(236, 240, 241));
-                        child.Foreground = Brushes.Black;
-                    }
-                }
-
-                // Podświetl wybrany
-                btn.Background = new SolidColorBrush(Color.FromRgb(46, 204, 113));
-                btn.Foreground = Brushes.White;
-
-                _selectedProductId = btn.Tag as int?;
+                _selectedProductId = item.Tag as int?;
                 await RefreshDataAsync();
             }
         }
@@ -729,7 +689,7 @@ namespace Kalendarz1.WPF
             {
                 Header = "Ilość",
                 Binding = new System.Windows.Data.Binding("Ilosc") { StringFormat = "N2" },
-                Width = new DataGridLength(70),
+                Width = new DataGridLength(100),
                 ElementStyle = rightStyle
             });
 
@@ -893,6 +853,31 @@ namespace Kalendarz1.WPF
             catch { }
         }
 
+        #region Avatar Helpers
+
+        [DllImport("gdi32.dll")]
+        private static extern bool DeleteObject(IntPtr hObject);
+
+        private static BitmapSource ConvertToBitmapSource(System.Drawing.Image image)
+        {
+            if (image == null) return null;
+            using (var bitmap = new System.Drawing.Bitmap(image))
+            {
+                var hBitmap = bitmap.GetHbitmap();
+                try
+                {
+                    return System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
+                        hBitmap, IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+                }
+                finally
+                {
+                    DeleteObject(hBitmap);
+                }
+            }
+        }
+
+        #endregion
+
         #region Data Classes
 
         public class ZamowienieInfo
@@ -951,13 +936,27 @@ namespace Kalendarz1.WPF
             {
                 get
                 {
-                    if (Info.CzyZmodyfikowaneDlaFaktur) return Brushes.OrangeRed;
+                    if (Info.CzyZmodyfikowaneDlaFaktur) return new SolidColorBrush(Color.FromRgb(230, 81, 0)); // Pomarańczowy
                     if (Info.CzyZafakturowane) return new SolidColorBrush(Color.FromRgb(46, 125, 50)); // Zielony
                     if (Info.Status == "Wydano") return new SolidColorBrush(Color.FromRgb(2, 119, 189)); // Niebieski
                     if (Info.Status == "Zrealizowane") return new SolidColorBrush(Color.FromRgb(56, 142, 60)); // Zielony
                     if (Info.Status == "W realizacji") return new SolidColorBrush(Color.FromRgb(25, 118, 210)); // Niebieski
                     if (Info.Status == "Nowe") return new SolidColorBrush(Color.FromRgb(245, 124, 0)); // Pomarańczowy
-                    return Brushes.Black;
+                    return new SolidColorBrush(Color.FromRgb(84, 110, 122));
+                }
+            }
+
+            public Brush StatusBackground
+            {
+                get
+                {
+                    if (Info.CzyZmodyfikowaneDlaFaktur) return new SolidColorBrush(Color.FromRgb(255, 243, 224)); // #FFF3E0
+                    if (Info.CzyZafakturowane) return new SolidColorBrush(Color.FromRgb(200, 230, 201)); // #C8E6C9
+                    if (Info.Status == "Wydano") return new SolidColorBrush(Color.FromRgb(225, 245, 254)); // #E1F5FE
+                    if (Info.Status == "Zrealizowane") return new SolidColorBrush(Color.FromRgb(232, 245, 233)); // #E8F5E9
+                    if (Info.Status == "W realizacji") return new SolidColorBrush(Color.FromRgb(227, 242, 253)); // #E3F2FD
+                    if (Info.Status == "Nowe") return new SolidColorBrush(Color.FromRgb(255, 248, 225)); // #FFF8E1
+                    return new SolidColorBrush(Color.FromRgb(236, 239, 241)); // #ECEFF1
                 }
             }
 
@@ -980,6 +979,40 @@ namespace Kalendarz1.WPF
 
             // Kto zmienił - imię i nazwisko
             public string KtoZmienil => Info.ModyfikowalPrzez ?? "";
+
+            // Avatar osoby która zmieniła
+            private BitmapSource _ktoZmienilAvatar;
+            private bool _avatarLoaded;
+            public BitmapSource KtoZmienilAvatar
+            {
+                get
+                {
+                    if (!_avatarLoaded && !string.IsNullOrEmpty(Info.ModyfikowalPrzez))
+                    {
+                        _avatarLoaded = true;
+                        try
+                        {
+                            // Próbuj załadować avatar używając nazwy jako ID
+                            var avatarId = Info.ModyfikowalPrzez.Replace(" ", "");
+                            if (UserAvatarManager.HasAvatar(avatarId))
+                            {
+                                using var img = UserAvatarManager.GetAvatarRounded(avatarId, 24);
+                                if (img != null)
+                                    _ktoZmienilAvatar = ConvertToBitmapSource(img);
+                            }
+
+                            // Jeśli nie znaleziono, wygeneruj domyślny z inicjałami
+                            if (_ktoZmienilAvatar == null)
+                            {
+                                using var img = UserAvatarManager.GenerateDefaultAvatar(Info.ModyfikowalPrzez, avatarId, 24);
+                                _ktoZmienilAvatar = ConvertToBitmapSource(img);
+                            }
+                        }
+                        catch { }
+                    }
+                    return _ktoZmienilAvatar;
+                }
+            }
 
             // Czy wszystkie towary mają ceny - ✓ lub ✗
             public string CenaDisplay => Info.CzyMaCeny ? "✓" : "✗";

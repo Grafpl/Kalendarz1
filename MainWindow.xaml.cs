@@ -4,10 +4,14 @@ using System.Data;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Microsoft.Data.SqlClient;
 using Kalendarz1.Zadania;
+using Kalendarz1.Komunikator.Views;
+using Kalendarz1.Komunikator.Services;
 
 namespace Kalendarz1
 {
@@ -18,12 +22,18 @@ namespace Kalendarz1
         private bool isAdmin = false;
         private DispatcherTimer clockTimer;
         private DispatcherTimer notificationTimer;
+        private DispatcherTimer chatUnreadTimer;
+        private ChatService _chatService;
+        private ChatMainWindow _chatWindow;
+        private Border _unreadBadge;
+        private TextBlock _unreadCountText;
 
         public MainWindow()
         {
             InitializeComponent();
             WindowIconHelper.SetIcon(this);
             InitializeApp();
+            InitializeChat();
         }
 
         private void InitializeApp()
@@ -394,10 +404,172 @@ namespace Kalendarz1
             ShowNotificationWindow();
         }
 
+        #region Chat / Komunikator
+
+        private void InitializeChat()
+        {
+            try
+            {
+                // Załaduj avatar użytkownika
+                LoadUserAvatar();
+
+                // Inicjalizuj serwis czatu
+                _chatService = new ChatService(App.UserID);
+
+                // Znajdź elementy badge'a w template (po załadowaniu)
+                Loaded += (s, e) =>
+                {
+                    var template = ChatButton.Template;
+                    _unreadBadge = template.FindName("UnreadBadge", ChatButton) as Border;
+                    _unreadCountText = template.FindName("UnreadCountText", ChatButton) as TextBlock;
+
+                    // Sprawdź nieprzeczytane wiadomości
+                    UpdateUnreadBadge();
+                };
+
+                // Timer do sprawdzania nieprzeczytanych wiadomości co 10 sekund
+                chatUnreadTimer = new DispatcherTimer
+                {
+                    Interval = TimeSpan.FromSeconds(10)
+                };
+                chatUnreadTimer.Tick += async (s, e) => await UpdateUnreadBadge();
+                chatUnreadTimer.Start();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"InitializeChat error: {ex.Message}");
+            }
+        }
+
+        private void LoadUserAvatar()
+        {
+            try
+            {
+                if (UserAvatarManager.HasAvatar(App.UserID))
+                {
+                    using (var img = UserAvatarManager.GetAvatarRounded(App.UserID, 38))
+                    {
+                        if (img != null)
+                        {
+                            var bitmap = new System.Drawing.Bitmap(img);
+                            var hBitmap = bitmap.GetHbitmap();
+                            try
+                            {
+                                var bitmapSource = System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
+                                    hBitmap, IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+                                UserAvatarBrush.ImageSource = bitmapSource;
+                            }
+                            finally
+                            {
+                                DeleteObject(hBitmap);
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    // Wygeneruj domyślny avatar
+                    using (var img = UserAvatarManager.GenerateDefaultAvatar(App.UserFullName ?? App.UserID, App.UserID, 38))
+                    {
+                        var bitmap = new System.Drawing.Bitmap(img);
+                        var hBitmap = bitmap.GetHbitmap();
+                        try
+                        {
+                            var bitmapSource = System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
+                                hBitmap, IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+                            UserAvatarBrush.ImageSource = bitmapSource;
+                        }
+                        finally
+                        {
+                            DeleteObject(hBitmap);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"LoadUserAvatar error: {ex.Message}");
+            }
+        }
+
+        [System.Runtime.InteropServices.DllImport("gdi32.dll")]
+        private static extern bool DeleteObject(IntPtr hObject);
+
+        private async System.Threading.Tasks.Task UpdateUnreadBadge()
+        {
+            try
+            {
+                if (_chatService == null) return;
+
+                int totalUnread = await _chatService.GetTotalUnreadCountAsync();
+
+                Dispatcher.Invoke(() =>
+                {
+                    if (_unreadBadge != null && _unreadCountText != null)
+                    {
+                        if (totalUnread > 0)
+                        {
+                            _unreadCountText.Text = totalUnread > 99 ? "99+" : totalUnread.ToString();
+                            _unreadBadge.Visibility = Visibility.Visible;
+                        }
+                        else
+                        {
+                            _unreadBadge.Visibility = Visibility.Collapsed;
+                        }
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"UpdateUnreadBadge error: {ex.Message}");
+            }
+        }
+
+        private void ChatButton_Click(object sender, RoutedEventArgs e)
+        {
+            OpenChatWindow();
+        }
+
+        private void UserAvatar_Click(object sender, MouseButtonEventArgs e)
+        {
+            OpenChatWindow();
+        }
+
+        private void OpenChatWindow()
+        {
+            try
+            {
+                // Jeśli okno już istnieje i jest otwarte, aktywuj je
+                if (_chatWindow != null && _chatWindow.IsLoaded)
+                {
+                    _chatWindow.Activate();
+                    if (_chatWindow.WindowState == WindowState.Minimized)
+                        _chatWindow.WindowState = WindowState.Normal;
+                    return;
+                }
+
+                // Otwórz nowe okno czatu
+                _chatWindow = new ChatMainWindow(App.UserID, App.UserFullName);
+                _chatWindow.Closed += (s, args) => _chatWindow = null;
+                _chatWindow.Show();
+
+                // Odśwież badge po otwarciu
+                _ = UpdateUnreadBadge();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd otwierania komunikatora: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        #endregion
+
         protected override void OnClosed(EventArgs e)
         {
             base.OnClosed(e);
             clockTimer?.Stop();
+            chatUnreadTimer?.Stop();
+            _chatWindow?.Close();
         }
     }
 

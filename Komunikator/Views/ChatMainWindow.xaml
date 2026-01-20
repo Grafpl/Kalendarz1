@@ -2,71 +2,276 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:Kalendarz1.Komunikator.Views"
-        Title="Komunikator Firmowy" Height="700" Width="1000"
-        MinHeight="500" MinWidth="800"
+        Title="Komunikator Firmowy" Height="750" Width="1100"
+        MinHeight="550" MinWidth="900"
         WindowStartupLocation="CenterScreen"
-        Background="#1E1E2E">
+        Background="#0B141A">
+
+    <!-- Taskbar badge -->
+    <Window.TaskbarItemInfo>
+        <TaskbarItemInfo x:Name="TaskbarInfo"/>
+    </Window.TaskbarItemInfo>
 
     <Window.Resources>
-        <!-- Konwertery -->
         <local:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
         <local:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
 
-        <!-- Kolory -->
-        <SolidColorBrush x:Key="PrimaryBrush" Color="#7C3AED"/>
-        <SolidColorBrush x:Key="PrimaryDarkBrush" Color="#6D28D9"/>
-        <SolidColorBrush x:Key="BackgroundBrush" Color="#1E1E2E"/>
-        <SolidColorBrush x:Key="SidebarBrush" Color="#252536"/>
-        <SolidColorBrush x:Key="CardBrush" Color="#2D2D44"/>
-        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#FFFFFF"/>
-        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#A0A0B0"/>
-        <SolidColorBrush x:Key="OnlineBrush" Color="#22C55E"/>
-        <SolidColorBrush x:Key="OfflineBrush" Color="#6B7280"/>
-        <SolidColorBrush x:Key="UnreadBrush" Color="#EF4444"/>
-        <SolidColorBrush x:Key="MyMessageBrush" Color="#7C3AED"/>
-        <SolidColorBrush x:Key="OtherMessageBrush" Color="#3F3F5A"/>
-        <SolidColorBrush x:Key="InputBrush" Color="#3F3F5A"/>
-        <SolidColorBrush x:Key="HoverBrush" Color="#3D3D56"/>
+        <!-- Kolory WhatsApp -->
+        <SolidColorBrush x:Key="BgDark" Color="#0B141A"/>
+        <SolidColorBrush x:Key="SidebarBg" Color="#111B21"/>
+        <SolidColorBrush x:Key="HeaderBg" Color="#202C33"/>
+        <SolidColorBrush x:Key="InputBg" Color="#2A3942"/>
+        <SolidColorBrush x:Key="MyMsgBg" Color="#005C4B"/>
+        <SolidColorBrush x:Key="OtherMsgBg" Color="#202C33"/>
+        <SolidColorBrush x:Key="GreenAccent" Color="#00A884"/>
+        <SolidColorBrush x:Key="GreenLight" Color="#25D366"/>
+        <SolidColorBrush x:Key="TextWhite" Color="#E9EDEF"/>
+        <SolidColorBrush x:Key="TextGray" Color="#8696A0"/>
+        <SolidColorBrush x:Key="HoverBg" Color="#2A3942"/>
+        <SolidColorBrush x:Key="OnlineBrush" Color="#25D366"/>
+        <SolidColorBrush x:Key="OfflineBrush" Color="#8696A0"/>
 
-        <!-- Style dla ScrollBar -->
-        <Style TargetType="ScrollBar">
-            <Setter Property="Width" Value="8"/>
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
+        <!-- Animacje wiadomości -->
+        <Storyboard x:Key="MessageFadeIn">
+            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.3"/>
+            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                           From="20" To="0" Duration="0:0:0.3">
+                <DoubleAnimation.EasingFunction>
+                    <CubicEase EasingMode="EaseOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
 
-        <!-- Style dla TextBox -->
-        <Style x:Key="SearchTextBoxStyle" TargetType="TextBox">
-            <Setter Property="Background" Value="{StaticResource CardBrush}"/>
-            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+        <Storyboard x:Key="MessageSendAnimation">
+            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0.5" To="1" Duration="0:0:0.2"/>
+            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                           From="0.95" To="1" Duration="0:0:0.2">
+                <DoubleAnimation.EasingFunction>
+                    <BackEase EasingMode="EaseOut" Amplitude="0.3"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                           From="0.95" To="1" Duration="0:0:0.2">
+                <DoubleAnimation.EasingFunction>
+                    <BackEase EasingMode="EaseOut" Amplitude="0.3"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+
+        <!-- Animacja pisania (3 kropki) -->
+        <Storyboard x:Key="TypingAnimation" RepeatBehavior="Forever">
+            <DoubleAnimation Storyboard.TargetName="Dot1" Storyboard.TargetProperty="Opacity"
+                           From="0.3" To="1" Duration="0:0:0.4" AutoReverse="True"/>
+            <DoubleAnimation Storyboard.TargetName="Dot2" Storyboard.TargetProperty="Opacity"
+                           From="0.3" To="1" Duration="0:0:0.4" BeginTime="0:0:0.15" AutoReverse="True"/>
+            <DoubleAnimation Storyboard.TargetName="Dot3" Storyboard.TargetProperty="Opacity"
+                           From="0.3" To="1" Duration="0:0:0.4" BeginTime="0:0:0.3" AutoReverse="True"/>
+        </Storyboard>
+
+        <!-- Styl przycisku reakcji w żółtym pickerze -->
+        <Style x:Key="ReactionButton" TargetType="Button">
+            <Setter Property="Background" Value="#FFD54F"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="12,10"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="CaretBrush" Value="White"/>
-        </Style>
-
-        <!-- Style dla przycisku -->
-        <Style x:Key="SendButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="{StaticResource PrimaryBrush}"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="20,12"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="22"/>
+            <Setter Property="Width" Value="38"/>
+            <Setter Property="Height" Value="38"/>
+            <Setter Property="Margin" Value="2"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                CornerRadius="8"
-                                Padding="{TemplateBinding Padding}">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="19">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="{StaticResource PrimaryDarkBrush}"/>
+                                <Setter TargetName="bd" Property="Background" Value="#FFEB3B"/>
+                                <Setter Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="1.15" ScaleY="1.15"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Styl przycisku dodawania reakcji (żółty +) -->
+        <Style x:Key="AddReactionButton" TargetType="Button">
+            <Setter Property="Background" Value="#FFC107"/>
+            <Setter Property="Foreground" Value="#000000"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Opacity" Value="0"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <ScaleTransform ScaleX="0.8" ScaleY="0.8"/>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="14"
+                                BorderBrush="#FFD54F" BorderThickness="2">
+                            <TextBlock Text="😊" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#FFCA28"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#FFE082"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Skeleton loading style -->
+        <Style x:Key="SkeletonBorder" TargetType="Border">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="#1F2C33" Offset="0"/>
+                        <GradientStop Color="#2A3942" Offset="0.5"/>
+                        <GradientStop Color="#1F2C33" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SkeletonEllipse" TargetType="Ellipse">
+            <Setter Property="Fill">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="#1F2C33" Offset="0"/>
+                        <GradientStop Color="#2A3942" Offset="0.5"/>
+                        <GradientStop Color="#1F2C33" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Ciemny ScrollBar -->
+        <Style x:Key="DarkScrollBar" TargetType="ScrollBar">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Width" Value="8"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Grid>
+                            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                <Track.Thumb>
+                                    <Thumb Background="#3D4E56" BorderThickness="0">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Border Background="#3D4E56" CornerRadius="4" Margin="1"/>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DarkScrollViewer" TargetType="ScrollViewer">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollViewer">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ScrollContentPresenter Grid.Column="0"/>
+                            <ScrollBar x:Name="PART_VerticalScrollBar" Grid.Column="1"
+                                       Style="{StaticResource DarkScrollBar}"
+                                       Value="{TemplateBinding VerticalOffset}"
+                                       Maximum="{TemplateBinding ScrollableHeight}"
+                                       ViewportSize="{TemplateBinding ViewportHeight}"
+                                       Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Style -->
+        <Style x:Key="ChatInput" TargetType="TextBox">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource TextWhite}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="CaretBrush" Value="White"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="SendBtn" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource GreenAccent}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Width" Value="50"/>
+            <Setter Property="Height" Value="50"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="25">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#008069"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="#5B21B6"/>
+                                <Setter TargetName="bd" Property="Background" Value="#006B5A"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ContactList" TargetType="ListBox">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+            <Setter Property="VirtualizingStackPanel.IsVirtualizing" Value="True"/>
+            <Setter Property="VirtualizingStackPanel.VirtualizationMode" Value="Recycling"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBox">
+                        <ScrollViewer Style="{StaticResource DarkScrollViewer}" Padding="0">
+                            <ItemsPresenter/>
+                        </ScrollViewer>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ContactItem" TargetType="ListBoxItem">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd" Padding="12,10" Background="Transparent" Cursor="Hand">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#2A3942"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#2A3942"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -77,21 +282,21 @@
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="320" MinWidth="280"/>
+            <ColumnDefinition Width="360"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <!-- Panel boczny z listą kontaktów -->
-        <Border Grid.Column="0" Background="{StaticResource SidebarBrush}">
+        <!-- PANEL KONTAKTÓW -->
+        <Border Grid.Column="0" Background="{StaticResource SidebarBg}">
             <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="60"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <!-- Nagłówek -->
-                <Border Grid.Row="0" Padding="16" Background="{StaticResource CardBrush}">
+                <!-- Header użytkownika -->
+                <Border Grid.Row="0" Background="{StaticResource HeaderBg}" Padding="14,0">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
@@ -99,70 +304,58 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <!-- Avatar aktualnego użytkownika -->
-                        <Grid Grid.Column="0" Width="48" Height="48" Margin="0,0,12,0">
-                            <Ellipse>
+                        <!-- Avatar z zieloną poświatą -->
+                        <Grid Width="46" Height="46">
+                            <Ellipse Width="46" Height="46" Fill="#25D366" Opacity="0.3">
+                                <Ellipse.Effect>
+                                    <BlurEffect Radius="8"/>
+                                </Ellipse.Effect>
+                            </Ellipse>
+                            <Ellipse Width="44" Height="44" Stroke="#25D366" StrokeThickness="2">
                                 <Ellipse.Fill>
                                     <ImageBrush x:Name="CurrentUserAvatar" Stretch="UniformToFill"/>
                                 </Ellipse.Fill>
                             </Ellipse>
-                            <Ellipse Width="14" Height="14" Fill="{StaticResource OnlineBrush}"
-                                     HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                                     Stroke="{StaticResource CardBrush}" StrokeThickness="2"/>
                         </Grid>
 
-                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                            <TextBlock x:Name="CurrentUserName" Text="Ładowanie..."
-                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                       FontSize="16" FontWeight="SemiBold"/>
-                            <TextBlock Text="Online" Foreground="{StaticResource OnlineBrush}" FontSize="12"/>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0">
+                            <TextBlock x:Name="CurrentUserName" Text="..."
+                                       Foreground="{StaticResource TextWhite}" FontSize="15" FontWeight="Medium"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                <Ellipse Width="8" Height="8" Fill="#25D366" Margin="0,0,6,0"/>
+                                <TextBlock Text="Online" Foreground="#25D366" FontSize="12"/>
+                            </StackPanel>
                         </StackPanel>
 
-                        <!-- Liczba nieprzeczytanych -->
                         <Border x:Name="TotalUnreadBadge" Grid.Column="2"
-                                Background="{StaticResource UnreadBrush}"
-                                CornerRadius="12" Padding="8,4" Visibility="Collapsed"
-                                VerticalAlignment="Center">
-                            <TextBlock x:Name="TotalUnreadCount" Text="0"
-                                       Foreground="White" FontSize="12" FontWeight="Bold"/>
+                                Background="{StaticResource GreenAccent}" CornerRadius="12"
+                                Padding="10,4" Visibility="Collapsed" VerticalAlignment="Center">
+                            <TextBlock x:Name="TotalUnreadCount" Text="0" Foreground="White" FontSize="12" FontWeight="Bold"/>
                         </Border>
                     </Grid>
                 </Border>
 
                 <!-- Wyszukiwarka -->
-                <Border Grid.Row="1" Padding="16,12">
-                    <Border Background="{StaticResource CardBrush}" CornerRadius="8">
+                <Border Grid.Row="1" Padding="10,6" Background="{StaticResource SidebarBg}">
+                    <Border Background="#2A3942" CornerRadius="8" Height="38">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="🔍" FontSize="16"
-                                       VerticalAlignment="Center" Margin="12,0,8,0"
-                                       Foreground="{StaticResource TextSecondaryBrush}"/>
-                            <TextBox x:Name="SearchBox" Grid.Column="1"
-                                     Style="{StaticResource SearchTextBoxStyle}"
-                                     Background="Transparent"
-                                     TextChanged="SearchBox_TextChanged">
-                                <TextBox.Resources>
-                                    <Style TargetType="Border">
-                                        <Setter Property="CornerRadius" Value="8"/>
-                                    </Style>
-                                </TextBox.Resources>
-                            </TextBox>
-                            <TextBlock Grid.Column="1" Text="Szukaj pracownika..."
-                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                       VerticalAlignment="Center" Margin="12,0"
-                                       IsHitTestVisible="False" FontSize="14"
-                                       Visibility="{Binding Text.Length, ElementName=SearchBox, Converter={StaticResource InverseBoolToVisibilityConverter}, FallbackValue=Visible}">
+                            <TextBlock Text="🔍" FontSize="14" VerticalAlignment="Center" Margin="14,0,10,0" Foreground="#8696A0"/>
+                            <TextBox x:Name="SearchBox" Grid.Column="1" Style="{StaticResource ChatInput}"
+                                     FontSize="14" Padding="0,0,14,0" TextChanged="SearchBox_TextChanged"/>
+                            <TextBlock Grid.Column="1" Text="Szukaj" Foreground="#8696A0"
+                                       VerticalAlignment="Center" IsHitTestVisible="False" FontSize="14">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding Text.Length, ElementName=SearchBox}" Value="0">
                                                 <Setter Property="Visibility" Value="Visible"/>
                                             </DataTrigger>
                                         </Style.Triggers>
-                                        <Setter Property="Visibility" Value="Collapsed"/>
                                     </Style>
                                 </TextBlock.Style>
                             </TextBlock>
@@ -170,208 +363,494 @@
                     </Border>
                 </Border>
 
+                <!-- Skeleton Loading dla kontaktów -->
+                <StackPanel x:Name="ContactsSkeletonPanel" Grid.Row="2" Visibility="Collapsed">
+                    <!-- Skeleton item 1 -->
+                    <Border Padding="12,10">
+                        <Grid Height="54">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="50"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Ellipse Width="48" Height="48" Style="{StaticResource SkeletonEllipse}"/>
+                            <StackPanel Grid.Column="1" Margin="14,8,0,0">
+                                <Border Height="14" Width="120" CornerRadius="4" Style="{StaticResource SkeletonBorder}" HorizontalAlignment="Left"/>
+                                <Border Height="10" Width="180" CornerRadius="4" Style="{StaticResource SkeletonBorder}" HorizontalAlignment="Left" Margin="0,8,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                    <!-- Skeleton item 2 -->
+                    <Border Padding="12,10">
+                        <Grid Height="54">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="50"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Ellipse Width="48" Height="48" Style="{StaticResource SkeletonEllipse}"/>
+                            <StackPanel Grid.Column="1" Margin="14,8,0,0">
+                                <Border Height="14" Width="100" CornerRadius="4" Style="{StaticResource SkeletonBorder}" HorizontalAlignment="Left"/>
+                                <Border Height="10" Width="150" CornerRadius="4" Style="{StaticResource SkeletonBorder}" HorizontalAlignment="Left" Margin="0,8,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                    <!-- Skeleton item 3 -->
+                    <Border Padding="12,10">
+                        <Grid Height="54">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="50"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Ellipse Width="48" Height="48" Style="{StaticResource SkeletonEllipse}"/>
+                            <StackPanel Grid.Column="1" Margin="14,8,0,0">
+                                <Border Height="14" Width="140" CornerRadius="4" Style="{StaticResource SkeletonBorder}" HorizontalAlignment="Left"/>
+                                <Border Height="10" Width="200" CornerRadius="4" Style="{StaticResource SkeletonBorder}" HorizontalAlignment="Left" Margin="0,8,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                    <!-- Skeleton item 4 -->
+                    <Border Padding="12,10">
+                        <Grid Height="54">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="50"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Ellipse Width="48" Height="48" Style="{StaticResource SkeletonEllipse}"/>
+                            <StackPanel Grid.Column="1" Margin="14,8,0,0">
+                                <Border Height="14" Width="110" CornerRadius="4" Style="{StaticResource SkeletonBorder}" HorizontalAlignment="Left"/>
+                                <Border Height="10" Width="170" CornerRadius="4" Style="{StaticResource SkeletonBorder}" HorizontalAlignment="Left" Margin="0,8,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+
                 <!-- Lista kontaktów -->
-                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
-                    <ItemsControl x:Name="ContactsList">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border x:Name="ContactItem" Padding="16,12" Cursor="Hand"
-                                        Background="Transparent"
-                                        MouseLeftButtonUp="Contact_Click"
-                                        MouseEnter="Contact_MouseEnter"
-                                        MouseLeave="Contact_MouseLeave">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
+                <ListBox x:Name="ContactsList" Grid.Row="2"
+                         Style="{StaticResource ContactList}"
+                         ItemContainerStyle="{StaticResource ContactItem}"
+                         SelectionChanged="ContactsList_SelectionChanged">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Height="54">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
 
-                                        <!-- Avatar -->
-                                        <Grid Grid.Column="0" Width="48" Height="48" Margin="0,0,12,0">
-                                            <Ellipse>
-                                                <Ellipse.Fill>
-                                                    <ImageBrush ImageSource="{Binding AvatarSource}" Stretch="UniformToFill"/>
-                                                </Ellipse.Fill>
-                                            </Ellipse>
-                                            <Ellipse Width="12" Height="12"
-                                                     HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                                                     Stroke="{StaticResource SidebarBrush}" StrokeThickness="2">
-                                                <Ellipse.Style>
-                                                    <Style TargetType="Ellipse">
-                                                        <Setter Property="Fill" Value="{StaticResource OfflineBrush}"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsOnline}" Value="True">
-                                                                <Setter Property="Fill" Value="{StaticResource OnlineBrush}"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Ellipse.Style>
-                                            </Ellipse>
-                                        </Grid>
+                                <!-- Avatar z efektem online -->
+                                <Grid Width="50" Height="50" Cursor="Hand"
+                                      MouseLeftButtonUp="ContactAvatar_Click">
+                                    <!-- Zielona poświata gdy online -->
+                                    <Ellipse Width="50" Height="50" Opacity="0.25">
+                                        <Ellipse.Style>
+                                            <Style TargetType="Ellipse">
+                                                <Setter Property="Fill" Value="Transparent"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsOnline}" Value="True">
+                                                        <Setter Property="Fill" Value="#25D366"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Ellipse.Style>
+                                        <Ellipse.Effect>
+                                            <BlurEffect Radius="6"/>
+                                        </Ellipse.Effect>
+                                    </Ellipse>
+                                    <!-- Avatar -->
+                                    <Ellipse Width="48" Height="48">
+                                        <Ellipse.Style>
+                                            <Style TargetType="Ellipse">
+                                                <Setter Property="Stroke" Value="Transparent"/>
+                                                <Setter Property="StrokeThickness" Value="2"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsOnline}" Value="True">
+                                                        <Setter Property="Stroke" Value="#25D366"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Ellipse.Style>
+                                        <Ellipse.Fill>
+                                            <ImageBrush ImageSource="{Binding AvatarSource}" Stretch="UniformToFill"/>
+                                        </Ellipse.Fill>
+                                    </Ellipse>
+                                    <!-- Zielona kropka online -->
+                                    <Ellipse Width="14" Height="14" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                             Stroke="#111B21" StrokeThickness="2"
+                                             Visibility="{Binding IsOnline, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <Ellipse.Fill>
+                                            <RadialGradientBrush>
+                                                <GradientStop Color="#4ADE80" Offset="0"/>
+                                                <GradientStop Color="#25D366" Offset="1"/>
+                                            </RadialGradientBrush>
+                                        </Ellipse.Fill>
+                                    </Ellipse>
+                                </Grid>
 
-                                        <!-- Nazwa i ostatnia wiadomość -->
-                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding Name}"
-                                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                                       FontSize="14" FontWeight="SemiBold"
-                                                       TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Text="{Binding LastMessage}"
-                                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                                       FontSize="12" TextTrimming="CharacterEllipsis"
-                                                       MaxWidth="180"/>
-                                        </StackPanel>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="14,0,0,0">
+                                    <TextBlock Text="{Binding Name}" Foreground="#E9EDEF"
+                                               FontSize="16" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{Binding LastMessage}" Foreground="#8696A0"
+                                               FontSize="13" TextTrimming="CharacterEllipsis" Margin="0,3,0,0"/>
+                                </StackPanel>
 
-                                        <!-- Czas i badge -->
-                                        <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
-                                            <TextBlock Text="{Binding FormattedLastMessageTime}"
-                                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                                       FontSize="11" HorizontalAlignment="Right"/>
-                                            <Border Background="{StaticResource UnreadBrush}"
-                                                    CornerRadius="10" Padding="6,2" Margin="0,4,0,0"
-                                                    HorizontalAlignment="Right"
-                                                    Visibility="{Binding HasUnread, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
-                                                <TextBlock Text="{Binding UnreadCount}"
-                                                           Foreground="White" FontSize="11" FontWeight="Bold"/>
-                                            </Border>
-                                        </StackPanel>
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
+                                <StackPanel Grid.Column="2" VerticalAlignment="Top" Margin="0,6,0,0">
+                                    <TextBlock Text="{Binding FormattedLastMessageTime}" FontSize="12" HorizontalAlignment="Right">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="#8696A0"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding HasUnread}" Value="True">
+                                                        <Setter Property="Foreground" Value="#25D366"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <Border CornerRadius="11" Padding="7,3" Margin="0,6,0,0" HorizontalAlignment="Right"
+                                            Visibility="{Binding HasUnread, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <Border.Background>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                <GradientStop Color="#25D366" Offset="0"/>
+                                                <GradientStop Color="#00A884" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </Border.Background>
+                                        <TextBlock Text="{Binding UnreadCount}" Foreground="White" FontSize="11" FontWeight="Bold"/>
+                                    </Border>
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
             </Grid>
         </Border>
 
-        <!-- Panel rozmowy -->
-        <Grid Grid.Column="1" Background="{StaticResource BackgroundBrush}">
-            <!-- Placeholder gdy nie wybrano rozmowy -->
-            <StackPanel x:Name="NoConversationPanel" VerticalAlignment="Center" HorizontalAlignment="Center">
-                <TextBlock Text="💬" FontSize="64" HorizontalAlignment="Center" Margin="0,0,0,16"/>
-                <TextBlock Text="Wybierz rozmowę" FontSize="24" FontWeight="SemiBold"
-                           Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center"/>
-                <TextBlock Text="Kliknij na kontakt aby rozpocząć rozmowę"
-                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="14"
-                           HorizontalAlignment="Center" Margin="0,8,0,0"/>
-            </StackPanel>
+        <!-- PANEL ROZMOWY -->
+        <Grid Grid.Column="1">
+            <!-- Placeholder -->
+            <Grid x:Name="NoConversationPanel" Background="#0B141A">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <Border Background="#1F2C33" CornerRadius="50" Width="100" Height="100" Margin="0,0,0,24">
+                        <TextBlock Text="💬" FontSize="44" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Text="Komunikator Firmowy" FontSize="32" FontWeight="Light"
+                               Foreground="#E9EDEF" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Wysyłaj i odbieraj wiadomości od współpracowników" Foreground="#8696A0"
+                               FontSize="14" HorizontalAlignment="Center" Margin="0,10,0,0"/>
+                </StackPanel>
+            </Grid>
 
-            <!-- Panel rozmowy (ukryty domyślnie) -->
+            <!-- Aktywna rozmowa -->
             <Grid x:Name="ConversationPanel" Visibility="Collapsed">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="60"/>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <!-- Nagłówek rozmowy -->
-                <Border Grid.Row="0" Background="{StaticResource CardBrush}" Padding="16">
+                <!-- Header rozmowy -->
+                <Border Grid.Row="0" Background="{StaticResource HeaderBg}" Padding="16,0">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
-                        <Grid Grid.Column="0" Width="44" Height="44" Margin="0,0,12,0">
-                            <Ellipse>
+                        <Grid Width="46" Height="46" Cursor="Hand"
+                              MouseLeftButtonUp="SelectedUserAvatar_Click">
+                            <Ellipse x:Name="SelectedUserGlow" Width="46" Height="46" Fill="#25D366" Opacity="0">
+                                <Ellipse.Effect>
+                                    <BlurEffect Radius="8"/>
+                                </Ellipse.Effect>
+                            </Ellipse>
+                            <Ellipse x:Name="SelectedUserBorder" Width="44" Height="44" Stroke="Transparent" StrokeThickness="2">
                                 <Ellipse.Fill>
                                     <ImageBrush x:Name="SelectedUserAvatar" Stretch="UniformToFill"/>
                                 </Ellipse.Fill>
                             </Ellipse>
-                            <Ellipse x:Name="SelectedUserOnlineIndicator" Width="12" Height="12"
-                                     HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                                     Fill="{StaticResource OfflineBrush}"
-                                     Stroke="{StaticResource CardBrush}" StrokeThickness="2"/>
                         </Grid>
 
-                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                            <TextBlock x:Name="SelectedUserName" Text=""
-                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                       FontSize="16" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="SelectedUserStatus" Text=""
-                                       Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="14,0,0,0">
+                            <TextBlock x:Name="SelectedUserName" Foreground="#E9EDEF" FontSize="16" FontWeight="Medium"/>
+                            <StackPanel x:Name="SelectedUserStatusPanel" Orientation="Horizontal" Margin="0,2,0,0">
+                                <Ellipse x:Name="SelectedUserDot" Width="8" Height="8" Fill="#8696A0" Margin="0,0,6,0"/>
+                                <TextBlock x:Name="SelectedUserStatus" Foreground="#8696A0" FontSize="12"/>
+                            </StackPanel>
                         </StackPanel>
+
+                        <Ellipse x:Name="SelectedUserOnlineIndicator" Width="0" Height="0" Visibility="Collapsed"/>
                     </Grid>
                 </Border>
 
-                <!-- Lista wiadomości -->
-                <ScrollViewer x:Name="MessagesScrollViewer" Grid.Row="1"
-                              VerticalScrollBarVisibility="Auto" Padding="16">
-                    <ItemsControl x:Name="MessagesList">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Grid Margin="0,4">
-                                    <!-- Wiadomość od innych -->
-                                    <Border HorizontalAlignment="Left" MaxWidth="500"
-                                            Background="{StaticResource OtherMessageBrush}"
-                                            CornerRadius="16,16,16,4" Padding="14,10"
-                                            Visibility="{Binding IsFromMe, Converter={StaticResource InverseBoolToVisibilityConverter}, FallbackValue=Visible}">
-                                        <StackPanel>
-                                            <TextBlock Text="{Binding Content}"
-                                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                                       FontSize="14" TextWrapping="Wrap"/>
-                                            <TextBlock Text="{Binding FormattedTime}"
-                                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                                       FontSize="10" HorizontalAlignment="Right" Margin="0,4,0,0"/>
-                                        </StackPanel>
-                                    </Border>
+                <!-- Typing indicator -->
+                <Border x:Name="TypingIndicator" Grid.Row="0" VerticalAlignment="Bottom" HorizontalAlignment="Left"
+                        Margin="76,0,0,4" Visibility="Collapsed">
+                    <Border Background="#1A2E35" CornerRadius="10" Padding="10,4">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="TypingUserName" Text="" Foreground="#25D366" FontSize="12" Margin="0,0,4,0"/>
+                            <TextBlock Text="pisze" Foreground="#8696A0" FontSize="12"/>
+                            <StackPanel Orientation="Horizontal" Margin="4,0,0,0" VerticalAlignment="Center">
+                                <Ellipse x:Name="Dot1" Width="4" Height="4" Fill="#8696A0" Margin="1,0"/>
+                                <Ellipse x:Name="Dot2" Width="4" Height="4" Fill="#8696A0" Margin="1,0"/>
+                                <Ellipse x:Name="Dot3" Width="4" Height="4" Fill="#8696A0" Margin="1,0"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </Border>
 
-                                    <!-- Moje wiadomości -->
-                                    <Border HorizontalAlignment="Right" MaxWidth="500"
-                                            Background="{StaticResource MyMessageBrush}"
-                                            CornerRadius="16,16,4,16" Padding="14,10"
-                                            Visibility="{Binding IsFromMe, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
-                                        <StackPanel>
-                                            <TextBlock Text="{Binding Content}"
-                                                       Foreground="White"
-                                                       FontSize="14" TextWrapping="Wrap"/>
-                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0">
-                                                <TextBlock Text="{Binding FormattedTime}"
-                                                           Foreground="#D0D0E0" FontSize="10"/>
-                                                <TextBlock Text="{Binding ReadStatus}" Margin="6,0,0,0"
-                                                           Foreground="#D0D0E0" FontSize="10"/>
-                                            </StackPanel>
-                                        </StackPanel>
-                                    </Border>
-                                </Grid>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
+                <!-- Wiadomości -->
+                <Border Grid.Row="1" Background="#0B141A">
+                    <ScrollViewer x:Name="MessagesScrollViewer" Style="{StaticResource DarkScrollViewer}">
+                        <ItemsControl x:Name="MessagesList" Margin="60,16"
+                                      VirtualizingStackPanel.IsVirtualizing="True"
+                                      VirtualizingStackPanel.VirtualizationMode="Recycling">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <VirtualizingStackPanel/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid>
+                                        <!-- Separator daty - tylko gdy IsDateSeparator i ma DateText -->
+                                        <Border HorizontalAlignment="Center" Margin="0,16">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding IsDateSeparator}" Value="True"/>
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </MultiDataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <Border Background="#182229" CornerRadius="8" Padding="12,6">
+                                                <TextBlock Text="{Binding DateText}" Foreground="#8696A0" FontSize="12"/>
+                                            </Border>
+                                        </Border>
 
-                <!-- Pole wprowadzania wiadomości -->
-                <Border Grid.Row="2" Background="{StaticResource CardBrush}" Padding="16">
+                                        <!-- Wiadomość od innych -->
+                                        <Grid x:Name="ReceivedMessageContainer" HorizontalAlignment="Left" MaxWidth="540">
+                                            <Grid.Style>
+                                                <Style TargetType="Grid">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Setter Property="Margin" Value="0,1"/>
+                                                    <Style.Triggers>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding IsFromMe}" Value="False"/>
+                                                                <Condition Binding="{Binding IsDateSeparator}" Value="False"/>
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </MultiDataTrigger>
+                                                        <DataTrigger Binding="{Binding IsFirstInGroup}" Value="True">
+                                                            <Setter Property="Margin" Value="0,8,0,1"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Grid.Style>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="40"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <Grid Width="32" Height="32" VerticalAlignment="Bottom" Margin="0,0,8,0"
+                                                  Visibility="{Binding ShowAvatar, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                  Cursor="Hand" MouseLeftButtonUp="MessageAvatar_Click">
+                                                <Ellipse>
+                                                    <Ellipse.Fill>
+                                                        <ImageBrush ImageSource="{Binding SenderAvatar}" Stretch="UniformToFill"/>
+                                                    </Ellipse.Fill>
+                                                </Ellipse>
+                                            </Grid>
+
+                                            <Border Grid.Column="1" Background="#202C33" Padding="10,8" Tag="{Binding}"
+                                                    MouseRightButtonUp="Message_RightClick">
+                                                <Border.RenderTransform>
+                                                    <TranslateTransform/>
+                                                </Border.RenderTransform>
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="CornerRadius" Value="8"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsFirstInGroup}" Value="True">
+                                                                <Setter Property="CornerRadius" Value="0,8,8,8"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Content}" Foreground="#E9EDEF"
+                                                               FontSize="14" TextWrapping="Wrap"/>
+                                                    <Grid Margin="0,4,0,0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <!-- Reakcje -->
+                                                        <ItemsControl ItemsSource="{Binding Reactions}" Grid.Column="0">
+                                                            <ItemsControl.ItemsPanel>
+                                                                <ItemsPanelTemplate>
+                                                                    <StackPanel Orientation="Horizontal"/>
+                                                                </ItemsPanelTemplate>
+                                                            </ItemsControl.ItemsPanel>
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <Border Background="#FFD54F" CornerRadius="12" Padding="6,3" Margin="0,0,4,0"
+                                                                            BorderBrush="#FFC107" BorderThickness="1">
+                                                                        <StackPanel Orientation="Horizontal">
+                                                                            <TextBlock Text="{Binding Emoji}" FontSize="14"/>
+                                                                            <TextBlock Text="{Binding Count}" Foreground="#5D4037" FontSize="11"
+                                                                                       FontWeight="SemiBold" Margin="3,0,0,0"
+                                                                                       Visibility="{Binding ShowCount, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                                                        </StackPanel>
+                                                                    </Border>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                        <TextBlock Grid.Column="1" Text="{Binding FormattedTime}" Foreground="#8696A0"
+                                                                   FontSize="11" HorizontalAlignment="Right"/>
+                                                    </Grid>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <!-- Przycisk reakcji (pojawia się na hover) -->
+                                            <Button Grid.Column="2" Tag="{Binding}" Click="AddReaction_Click"
+                                                    VerticalAlignment="Center" Margin="6,0,0,0">
+                                                <Button.Style>
+                                                    <Style TargetType="Button" BasedOn="{StaticResource AddReactionButton}">
+                                                        <Setter Property="Opacity" Value="0"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Grid}}" Value="True">
+                                                                <Setter Property="Opacity" Value="1"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+                                        </Grid>
+
+                                        <!-- Moja wiadomość -->
+                                        <Grid HorizontalAlignment="Right" MaxWidth="540">
+                                            <Grid.Style>
+                                                <Style TargetType="Grid">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Setter Property="Margin" Value="0,1"/>
+                                                    <Style.Triggers>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding IsFromMe}" Value="True"/>
+                                                                <Condition Binding="{Binding IsDateSeparator}" Value="False"/>
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </MultiDataTrigger>
+                                                        <DataTrigger Binding="{Binding IsFirstInGroup}" Value="True">
+                                                            <Setter Property="Margin" Value="0,8,0,1"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Grid.Style>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Przycisk reakcji (pojawia się na hover) - po lewej stronie -->
+                                            <Button Grid.Column="0" Tag="{Binding}" Click="AddReaction_Click"
+                                                    VerticalAlignment="Center" Margin="0,0,6,0">
+                                                <Button.Style>
+                                                    <Style TargetType="Button" BasedOn="{StaticResource AddReactionButton}">
+                                                        <Setter Property="Opacity" Value="0"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Grid}}" Value="True">
+                                                                <Setter Property="Opacity" Value="1"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+
+                                            <Border Grid.Column="1" Background="#005C4B" Padding="10,8"
+                                                    Tag="{Binding}" MouseRightButtonUp="Message_RightClick">
+                                                <Border.RenderTransform>
+                                                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                                                </Border.RenderTransform>
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="CornerRadius" Value="8"/>
+                                                        <Setter Property="RenderTransformOrigin" Value="1,1"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsFirstInGroup}" Value="True">
+                                                                <Setter Property="CornerRadius" Value="8,0,8,8"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Content}" Foreground="#E9EDEF"
+                                                               FontSize="14" TextWrapping="Wrap"/>
+                                                    <Grid Margin="0,4,0,0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <!-- Reakcje -->
+                                                        <ItemsControl ItemsSource="{Binding Reactions}" Grid.Column="0">
+                                                            <ItemsControl.ItemsPanel>
+                                                                <ItemsPanelTemplate>
+                                                                    <StackPanel Orientation="Horizontal"/>
+                                                                </ItemsPanelTemplate>
+                                                            </ItemsControl.ItemsPanel>
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <Border Background="#FFD54F" CornerRadius="12" Padding="6,3" Margin="0,0,4,0"
+                                                                            BorderBrush="#FFC107" BorderThickness="1">
+                                                                        <StackPanel Orientation="Horizontal">
+                                                                            <TextBlock Text="{Binding Emoji}" FontSize="14"/>
+                                                                            <TextBlock Text="{Binding Count}" Foreground="#5D4037" FontSize="11"
+                                                                                       FontWeight="SemiBold" Margin="3,0,0,0"
+                                                                                       Visibility="{Binding ShowCount, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                                                        </StackPanel>
+                                                                    </Border>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                                            <TextBlock Text="{Binding FormattedTime}" Foreground="#7EBFAD" FontSize="11"/>
+                                                            <TextBlock Text="{Binding ReadStatus}" Margin="4,0,0,0" Foreground="#53BDEB" FontSize="11"/>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </StackPanel>
+                                            </Border>
+                                        </Grid>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Border>
+
+                <!-- Input -->
+                <Border Grid.Row="2" Background="{StaticResource HeaderBg}" Padding="14,10">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <Border Grid.Column="0" Background="{StaticResource InputBrush}"
-                                CornerRadius="12" Margin="0,0,12,0">
-                            <TextBox x:Name="MessageInput"
-                                     Background="Transparent"
-                                     Foreground="{StaticResource TextPrimaryBrush}"
-                                     BorderThickness="0"
-                                     Padding="16,12"
-                                     FontSize="14"
-                                     CaretBrush="White"
-                                     AcceptsReturn="True"
-                                     TextWrapping="Wrap"
-                                     MaxHeight="120"
-                                     VerticalScrollBarVisibility="Auto"
-                                     KeyDown="MessageInput_KeyDown">
-                                <TextBox.Resources>
-                                    <Style TargetType="Border">
-                                        <Setter Property="CornerRadius" Value="12"/>
-                                    </Style>
-                                </TextBox.Resources>
-                            </TextBox>
+                        <Border Background="#2A3942" CornerRadius="24" Margin="0,0,12,0">
+                            <TextBox x:Name="MessageInput" Style="{StaticResource ChatInput}"
+                                     AcceptsReturn="False" TextWrapping="Wrap" MaxHeight="100"
+                                     VerticalScrollBarVisibility="Auto" KeyDown="MessageInput_KeyDown"
+                                     Padding="20,12"/>
                         </Border>
 
-                        <Button Grid.Column="1" Content="Wyślij"
-                                Style="{StaticResource SendButtonStyle}"
-                                Click="SendButton_Click"/>
+                        <Button Grid.Column="1" Style="{StaticResource SendBtn}" Click="SendButton_Click">
+                            <TextBlock Text="➤" FontSize="20" Margin="2,0,0,0"/>
+                        </Button>
                     </Grid>
                 </Border>
             </Grid>
