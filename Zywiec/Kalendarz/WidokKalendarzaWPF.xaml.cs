@@ -1987,6 +1987,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
                                     chkPotwWaga.IsChecked = r["PotwWaga"] != DBNull.Value && Convert.ToBoolean(r["PotwWaga"]);
                                     chkPotwSztuki.IsChecked = r["PotwSztuki"] != DBNull.Value && Convert.ToBoolean(r["PotwSztuki"]);
+                                    borderPotwWaga.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(chkPotwWaga.IsChecked == true ? "#C8E6C9" : "#FFCDD2"));
+                                    borderPotwSztuki.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(chkPotwSztuki.IsChecked == true ? "#C8E6C9" : "#FFCDD2"));
                                     txtKtoWaga.Text = r["KtoWagaName"]?.ToString();
                                     txtKtoSztuki.Text = r["KtoSztukiName"]?.ToString();
 
@@ -2864,6 +2866,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
                                 chkPotwWaga.IsChecked = r["PotwWaga"] != DBNull.Value && Convert.ToBoolean(r["PotwWaga"]);
                                 chkPotwSztuki.IsChecked = r["PotwSztuki"] != DBNull.Value && Convert.ToBoolean(r["PotwSztuki"]);
+                                borderPotwWaga.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(chkPotwWaga.IsChecked == true ? "#C8E6C9" : "#FFCDD2"));
+                                borderPotwSztuki.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(chkPotwSztuki.IsChecked == true ? "#C8E6C9" : "#FFCDD2"));
                                 txtKtoWaga.Text = r["KtoWagaName"]?.ToString();
                                 txtKtoSztuki.Text = r["KtoSztukiName"]?.ToString();
 
