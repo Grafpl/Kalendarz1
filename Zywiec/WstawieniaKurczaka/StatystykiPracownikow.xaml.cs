@@ -479,7 +479,7 @@ namespace Kalendarz1
                     string userId = stat.UserID;
                     Task.Run(() =>
                     {
-                        var avatarBitmap = UserAvatarManager.LoadAvatarImage(userId);
+                        var avatarBitmap = UserAvatarManager.GetAvatar(userId);
                         if (avatarBitmap != null)
                         {
                             Application.Current.Dispatcher.Invoke(() =>
@@ -492,11 +492,11 @@ namespace Kalendarz1
             }
         }
 
-        private ImageSource ConvertToImageSource(System.Drawing.Bitmap bitmap)
+        private ImageSource ConvertToImageSource(System.Drawing.Image image)
         {
             using (var memory = new MemoryStream())
             {
-                bitmap.Save(memory, System.Drawing.Imaging.ImageFormat.Png);
+                image.Save(memory, System.Drawing.Imaging.ImageFormat.Png);
                 memory.Position = 0;
                 var bitmapImage = new BitmapImage();
                 bitmapImage.BeginInit();
@@ -673,7 +673,7 @@ namespace Kalendarz1
                     string userId = detail.KtoStworzylID;
                     Task.Run(() =>
                     {
-                        var avatarBitmap = UserAvatarManager.LoadAvatarImage(userId);
+                        var avatarBitmap = UserAvatarManager.GetAvatar(userId);
                         if (avatarBitmap != null)
                         {
                             Application.Current.Dispatcher.Invoke(() =>
@@ -690,7 +690,7 @@ namespace Kalendarz1
                     string userId = detail.KtoPotwierdziłID;
                     Task.Run(() =>
                     {
-                        var avatarBitmap = UserAvatarManager.LoadAvatarImage(userId);
+                        var avatarBitmap = UserAvatarManager.GetAvatar(userId);
                         if (avatarBitmap != null)
                         {
                             Application.Current.Dispatcher.Invoke(() =>

@@ -5,7 +5,9 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Data;
 using System.Globalization;
+using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -1215,11 +1217,11 @@ namespace Kalendarz1
             return null;
         }
 
-        private ImageSource ConvertToImageSource(System.Drawing.Bitmap bitmap)
+        private ImageSource ConvertToImageSource(System.Drawing.Image image)
         {
-            using (var memory = new System.IO.MemoryStream())
+            using (var memory = new MemoryStream())
             {
-                bitmap.Save(memory, System.Drawing.Imaging.ImageFormat.Png);
+                image.Save(memory, System.Drawing.Imaging.ImageFormat.Png);
                 memory.Position = 0;
 
                 var bitmapImage = new BitmapImage();
@@ -1560,7 +1562,7 @@ namespace Kalendarz1
         {
             Task.Run(() =>
             {
-                var avatarBitmap = UserAvatarManager.LoadAvatarImage(odbiorcaId);
+                var avatarBitmap = UserAvatarManager.GetAvatar(odbiorcaId);
                 if (avatarBitmap != null)
                 {
                     Application.Current.Dispatcher.Invoke(() =>
