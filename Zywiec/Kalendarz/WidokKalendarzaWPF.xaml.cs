@@ -1994,15 +1994,15 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
                                     // Info
                                     txtDataStwo.Text = r["DataUtw"] != DBNull.Value ? Convert.ToDateTime(r["DataUtw"]).ToString("yyyy-MM-dd HH:mm") : "";
-                                    txtKtoStwo.Text = r["KtoStwoName"]?.ToString();
+                                    SetAvatar(avatarStwo, txtAvatarStwo, txtKtoStwo, r["KtoStwoName"]?.ToString());
                                     txtDataMod.Text = r["DataMod"] != DBNull.Value ? Convert.ToDateTime(r["DataMod"]).ToString("yyyy-MM-dd HH:mm") : "";
-                                    txtKtoMod.Text = r["KtoModName"]?.ToString();
+                                    SetAvatar(avatarMod, txtAvatarMod, txtKtoMod, r["KtoModName"]?.ToString());
 
                                     // Info potwierdzenia wagi i sztuk
                                     txtDataPotwWaga.Text = r["KiedyWaga"] != DBNull.Value ? Convert.ToDateTime(r["KiedyWaga"]).ToString("yyyy-MM-dd HH:mm") : "";
-                                    txtKtoPotwWaga.Text = r["KtoWagaName"]?.ToString() ?? "";
+                                    SetAvatar(avatarPotwWaga, txtAvatarPotwWaga, txtKtoPotwWaga, r["KtoWagaName"]?.ToString());
                                     txtDataPotwSztuki.Text = r["KiedySztuki"] != DBNull.Value ? Convert.ToDateTime(r["KiedySztuki"]).ToString("yyyy-MM-dd HH:mm") : "";
-                                    txtKtoPotwSztuki.Text = r["KtoSztukiName"]?.ToString() ?? "";
+                                    SetAvatar(avatarPotwSztuki, txtAvatarPotwSztuki, txtKtoPotwSztuki, r["KtoSztukiName"]?.ToString());
 
                                     // Transport
                                     txtSztNaSzufladeCalc.Text = r["SztSzuflada"]?.ToString();
@@ -2873,15 +2873,15 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
                                 // Info
                                 txtDataStwo.Text = r["DataUtw"] != DBNull.Value ? Convert.ToDateTime(r["DataUtw"]).ToString("yyyy-MM-dd HH:mm") : "";
-                                txtKtoStwo.Text = r["KtoStwoName"]?.ToString();
+                                SetAvatar(avatarStwo, txtAvatarStwo, txtKtoStwo, r["KtoStwoName"]?.ToString());
                                 txtDataMod.Text = r["DataMod"] != DBNull.Value ? Convert.ToDateTime(r["DataMod"]).ToString("yyyy-MM-dd HH:mm") : "";
-                                txtKtoMod.Text = r["KtoModName"]?.ToString();
+                                SetAvatar(avatarMod, txtAvatarMod, txtKtoMod, r["KtoModName"]?.ToString());
 
                                 // Info potwierdzenia wagi i sztuk
                                 txtDataPotwWaga.Text = r["KiedyWaga"] != DBNull.Value ? Convert.ToDateTime(r["KiedyWaga"]).ToString("yyyy-MM-dd HH:mm") : "";
-                                txtKtoPotwWaga.Text = r["KtoWagaName"]?.ToString() ?? "";
+                                SetAvatar(avatarPotwWaga, txtAvatarPotwWaga, txtKtoPotwWaga, r["KtoWagaName"]?.ToString());
                                 txtDataPotwSztuki.Text = r["KiedySztuki"] != DBNull.Value ? Convert.ToDateTime(r["KiedySztuki"]).ToString("yyyy-MM-dd HH:mm") : "";
-                                txtKtoPotwSztuki.Text = r["KtoSztukiName"]?.ToString() ?? "";
+                                SetAvatar(avatarPotwSztuki, txtAvatarPotwSztuki, txtKtoPotwSztuki, r["KtoSztukiName"]?.ToString());
 
                                 // Transport
                                 txtSztNaSzufladeCalc.Text = r["SztSzuflada"]?.ToString();
@@ -3278,7 +3278,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 borderPotwWaga.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C8E6C9"));
                 txtKtoWaga.Text = $"({UserName})";
                 txtDataPotwWaga.Text = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
-                txtKtoPotwWaga.Text = UserName;
+                SetAvatar(avatarPotwWaga, txtAvatarPotwWaga, txtKtoPotwWaga, UserName);
                 dgDostawy.Items.Refresh();
                 dgDostawyNastepny.Items.Refresh();
                 ShowToast("✅ Waga potwierdzona!", ToastType.Success);
@@ -3340,7 +3340,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 borderPotwSztuki.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C8E6C9"));
                 txtKtoSztuki.Text = $"({UserName})";
                 txtDataPotwSztuki.Text = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
-                txtKtoPotwSztuki.Text = UserName;
+                SetAvatar(avatarPotwSztuki, txtAvatarPotwSztuki, txtKtoPotwSztuki, UserName);
                 dgDostawy.Items.Refresh();
                 dgDostawyNastepny.Items.Refresh();
                 ShowToast("✅ Sztuki potwierdzone!", ToastType.Success);
@@ -3401,7 +3401,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 borderPotwWaga.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCDD2"));
                 txtKtoWaga.Text = "";
                 txtDataPotwWaga.Text = "";
-                txtKtoPotwWaga.Text = "";
+                SetAvatar(avatarPotwWaga, txtAvatarPotwWaga, txtKtoPotwWaga, null);
                 dgDostawy.Items.Refresh();
                 dgDostawyNastepny.Items.Refresh();
                 ShowToast("↩️ Cofnięto potwierdzenie wagi", ToastType.Info);
@@ -3462,7 +3462,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 borderPotwSztuki.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCDD2"));
                 txtKtoSztuki.Text = "";
                 txtDataPotwSztuki.Text = "";
-                txtKtoPotwSztuki.Text = "";
+                SetAvatar(avatarPotwSztuki, txtAvatarPotwSztuki, txtKtoPotwSztuki, null);
                 dgDostawy.Items.Refresh();
                 dgDostawyNastepny.Items.Refresh();
                 ShowToast("↩️ Cofnięto potwierdzenie sztuk", ToastType.Info);
@@ -3785,7 +3785,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     borderPotwWaga.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C8E6C9"));
                     txtKtoWaga.Text = $"({UserName})";
                     txtDataPotwWaga.Text = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
-                    txtKtoPotwWaga.Text = UserName;
+                    SetAvatar(avatarPotwWaga, txtAvatarPotwWaga, txtKtoPotwWaga, UserName);
                     ShowToast("✅ Waga potwierdzona!", ToastType.Success);
 
                     // Audit log
@@ -3801,7 +3801,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     borderPotwWaga.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCDD2"));
                     txtKtoWaga.Text = "";
                     txtDataPotwWaga.Text = "";
-                    txtKtoPotwWaga.Text = "";
+                    SetAvatar(avatarPotwWaga, txtAvatarPotwWaga, txtKtoPotwWaga, null);
                     ShowToast("↩️ Cofnięto potwierdzenie wagi", ToastType.Info);
 
                     // Audit log
@@ -3881,7 +3881,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     borderPotwSztuki.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C8E6C9"));
                     txtKtoSztuki.Text = $"({UserName})";
                     txtDataPotwSztuki.Text = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
-                    txtKtoPotwSztuki.Text = UserName;
+                    SetAvatar(avatarPotwSztuki, txtAvatarPotwSztuki, txtKtoPotwSztuki, UserName);
                     ShowToast("✅ Sztuki potwierdzone!", ToastType.Success);
 
                     // Audit log
@@ -3897,7 +3897,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     borderPotwSztuki.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCDD2"));
                     txtKtoSztuki.Text = "";
                     txtDataPotwSztuki.Text = "";
-                    txtKtoPotwSztuki.Text = "";
+                    SetAvatar(avatarPotwSztuki, txtAvatarPotwSztuki, txtKtoPotwSztuki, null);
                     ShowToast("↩️ Cofnięto potwierdzenie sztuk", ToastType.Info);
 
                     // Audit log
@@ -5596,6 +5596,34 @@ namespace Kalendarz1.Zywiec.Kalendarz
             {
                 ShowToast($"Błąd: {ex.Message}", ToastType.Error);
             }
+        }
+
+        #endregion
+
+        #region Helpers
+
+        private string GetInitials(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return "";
+
+            var parts = name.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length >= 2)
+            {
+                return $"{char.ToUpper(parts[0][0])}{char.ToUpper(parts[1][0])}";
+            }
+            else if (parts.Length == 1 && parts[0].Length >= 2)
+            {
+                return $"{char.ToUpper(parts[0][0])}{char.ToUpper(parts[0][1])}";
+            }
+            return parts.Length > 0 ? parts[0].Substring(0, 1).ToUpper() : "";
+        }
+
+        private void SetAvatar(Border avatarBorder, TextBlock avatarText, TextBlock nameText, string name)
+        {
+            string initials = GetInitials(name);
+            avatarText.Text = initials;
+            nameText.Text = name ?? "";
+            avatarBorder.Visibility = string.IsNullOrEmpty(name) ? Visibility.Collapsed : Visibility.Visible;
         }
 
         #endregion

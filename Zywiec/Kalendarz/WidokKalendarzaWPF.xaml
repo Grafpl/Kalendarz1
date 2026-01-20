@@ -2529,27 +2529,43 @@
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0">
                         <TextBlock Text="Utworzono:" Style="{StaticResource FormLabelStyle}"/>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock x:Name="txtDataStwo" FontSize="10"/>
-                            <TextBlock x:Name="txtKtoStwo" FontSize="10" Margin="8,0,0,0" Foreground="#7F8C8D"/>
+                        <TextBlock x:Name="txtDataStwo" FontSize="10"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                            <Border x:Name="avatarStwo" Width="18" Height="18" CornerRadius="9" Background="#3B82F6" VerticalAlignment="Center">
+                                <TextBlock x:Name="txtAvatarStwo" FontSize="8" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock x:Name="txtKtoStwo" FontSize="9" Margin="4,0,0,0" Foreground="#7F8C8D" VerticalAlignment="Center"/>
                         </StackPanel>
                     </StackPanel>
                     <StackPanel Grid.Column="1">
                         <TextBlock Text="Modyfikowano:" Style="{StaticResource FormLabelStyle}"/>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock x:Name="txtDataMod" FontSize="10"/>
-                            <TextBlock x:Name="txtKtoMod" FontSize="10" Margin="8,0,0,0" Foreground="#7F8C8D"/>
+                        <TextBlock x:Name="txtDataMod" FontSize="10"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                            <Border x:Name="avatarMod" Width="18" Height="18" CornerRadius="9" Background="#8B5CF6" VerticalAlignment="Center">
+                                <TextBlock x:Name="txtAvatarMod" FontSize="8" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock x:Name="txtKtoMod" FontSize="9" Margin="4,0,0,0" Foreground="#7F8C8D" VerticalAlignment="Center"/>
                         </StackPanel>
                     </StackPanel>
                     <StackPanel Grid.Column="2">
                         <TextBlock Text="Potw. waga:" Style="{StaticResource FormLabelStyle}" Foreground="#388E3C"/>
                         <TextBlock x:Name="txtDataPotwWaga" FontSize="10"/>
-                        <TextBlock x:Name="txtKtoPotwWaga" FontSize="10" Foreground="#7F8C8D"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                            <Border x:Name="avatarPotwWaga" Width="18" Height="18" CornerRadius="9" Background="#22C55E" VerticalAlignment="Center">
+                                <TextBlock x:Name="txtAvatarPotwWaga" FontSize="8" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock x:Name="txtKtoPotwWaga" FontSize="9" Margin="4,0,0,0" Foreground="#7F8C8D" VerticalAlignment="Center"/>
+                        </StackPanel>
                     </StackPanel>
                     <StackPanel Grid.Column="3">
                         <TextBlock Text="Potw. sztuki:" Style="{StaticResource FormLabelStyle}" Foreground="#1565C0"/>
                         <TextBlock x:Name="txtDataPotwSztuki" FontSize="10"/>
-                        <TextBlock x:Name="txtKtoPotwSztuki" FontSize="10" Foreground="#7F8C8D"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                            <Border x:Name="avatarPotwSztuki" Width="18" Height="18" CornerRadius="9" Background="#3B82F6" VerticalAlignment="Center">
+                                <TextBlock x:Name="txtAvatarPotwSztuki" FontSize="8" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock x:Name="txtKtoPotwSztuki" FontSize="9" Margin="4,0,0,0" Foreground="#7F8C8D" VerticalAlignment="Center"/>
+                        </StackPanel>
                     </StackPanel>
                 </Grid>
             </Border>
