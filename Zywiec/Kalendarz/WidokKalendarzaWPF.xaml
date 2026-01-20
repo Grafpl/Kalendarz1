@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        xmlns:local="clr-namespace:Kalendarz1.Zywiec.Kalendarz"
         mc:Ignorable="d"
         Title="Dostawy"
         Height="1000" Width="1920"
@@ -16,6 +17,7 @@
     <Window.Resources>
         <!-- ==================== KONWERTERY ==================== -->
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <local:InitialsConverter x:Key="InitialsConverter"/>
 
         <!-- ==================== ANIMACJE ==================== -->
 
@@ -1937,18 +1939,28 @@
                                                 <TextBlock Text=" - " FontSize="11" Foreground="#64748B" Margin="4,0,0,0"/>
                                                 <TextBlock x:Name="txtHodowcaNotatki" FontWeight="Bold" FontSize="11" Foreground="#166534"/>
                                             </StackPanel>
-                                            <DataGrid x:Name="dgNotatkiKarta" MaxHeight="150" FontSize="11" IsReadOnly="True" AutoGenerateColumns="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="1" BorderBrush="#E2E8F0" Background="#FAFAFA" RowHeight="28">
+                                            <DataGrid x:Name="dgNotatkiKarta" MaxHeight="150" FontSize="11" IsReadOnly="True" AutoGenerateColumns="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="1" BorderBrush="#E2E8F0" Background="#FAFAFA" RowHeight="28" LoadingRow="DgNotatki_LoadingRow">
                                                 <DataGrid.Columns>
                                                     <DataGridTextColumn Header="📅 Data" Binding="{Binding DataUtworzenia, StringFormat=dd.MM ddd HH:mm}" Width="110">
                                                         <DataGridTextColumn.ElementStyle>
                                                             <Style TargetType="TextBlock"><Setter Property="Padding" Value="4,2"/></Style>
                                                         </DataGridTextColumn.ElementStyle>
                                                     </DataGridTextColumn>
-                                                    <DataGridTextColumn Header="👤" Binding="{Binding KtoDodal}" Width="50">
-                                                        <DataGridTextColumn.ElementStyle>
-                                                            <Style TargetType="TextBlock"><Setter Property="Padding" Value="4,2"/><Setter Property="Foreground" Value="#64748B"/></Style>
-                                                        </DataGridTextColumn.ElementStyle>
-                                                    </DataGridTextColumn>
+                                                    <DataGridTemplateColumn Header="👤" Width="60">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <StackPanel Orientation="Horizontal" Margin="2">
+                                                                    <Grid Width="20" Height="20">
+                                                                        <Border x:Name="avatarBorder" Width="20" Height="20" CornerRadius="10" Background="#3B82F6">
+                                                                            <TextBlock Text="{Binding KtoDodal, Converter={StaticResource InitialsConverter}}" FontSize="8" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                        </Border>
+                                                                        <Ellipse x:Name="avatarImage" Width="20" Height="20" Visibility="Collapsed"/>
+                                                                    </Grid>
+                                                                    <TextBlock Text="{Binding KtoDodal}" FontSize="9" Foreground="#64748B" VerticalAlignment="Center" Margin="4,0,0,0" MaxWidth="80" TextTrimming="CharacterEllipsis"/>
+                                                                </StackPanel>
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                    </DataGridTemplateColumn>
                                                     <DataGridTextColumn Header="📝 Treść notatki" Binding="{Binding Tresc}" Width="*">
                                                         <DataGridTextColumn.ElementStyle>
                                                             <Style TargetType="TextBlock">
@@ -2386,10 +2398,24 @@
                                 </Grid>
                             </GroupBox>
 
-                            <DataGrid x:Name="dgNotatki" Grid.Row="1" Style="{StaticResource SmallDataGridStyle}" Margin="0,4,0,0">
+                            <DataGrid x:Name="dgNotatki" Grid.Row="1" Style="{StaticResource SmallDataGridStyle}" Margin="0,4,0,0" LoadingRow="DgNotatki_LoadingRow">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Data" Binding="{Binding DataUtworzenia, StringFormat=MM-dd HH:mm}" Width="85"/>
-                                    <DataGridTextColumn Header="Kto" Binding="{Binding KtoDodal}" Width="60"/>
+                                    <DataGridTemplateColumn Header="Kto" Width="70">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal" Margin="2">
+                                                    <Grid Width="18" Height="18">
+                                                        <Border x:Name="avatarBorder" Width="18" Height="18" CornerRadius="9" Background="#3B82F6">
+                                                            <TextBlock Text="{Binding KtoDodal, Converter={StaticResource InitialsConverter}}" FontSize="7" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <Ellipse x:Name="avatarImage" Width="18" Height="18" Visibility="Collapsed"/>
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding KtoDodal}" FontSize="9" Foreground="#64748B" VerticalAlignment="Center" Margin="3,0,0,0" MaxWidth="60" TextTrimming="CharacterEllipsis"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
                                     <DataGridTextColumn Header="Treść" Binding="{Binding Tresc}" Width="*">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">

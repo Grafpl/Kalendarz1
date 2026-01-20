@@ -908,7 +908,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
                     await conn.OpenAsync(_cts.Token);
-                    string sql = @"SELECT N.DataUtworzenia, O.Name AS KtoDodal, N.Tresc
+                    string sql = @"SELECT N.DataUtworzenia, N.KtoStworzyl, O.Name AS KtoDodal, N.Tresc
                                    FROM [LibraNet].[dbo].[Notatki] N
                                    LEFT JOIN [LibraNet].[dbo].[operators] O ON N.KtoStworzyl = O.ID
                                    WHERE N.IndeksID = @Lp ORDER BY N.DataUtworzenia DESC";
@@ -924,6 +924,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                 {
                                     DataUtworzenia = Convert.ToDateTime(reader["DataUtworzenia"]),
                                     KtoDodal = reader["KtoDodal"]?.ToString(),
+                                    KtoDodal_ID = reader["KtoStworzyl"]?.ToString(),
                                     Tresc = reader["Tresc"]?.ToString()
                                 });
                             }
@@ -958,7 +959,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
                     await conn.OpenAsync(_cts.Token);
-                    string sql = @"SELECT TOP 20 N.DataUtworzenia, FORMAT(H.DataOdbioru, 'MM-dd ddd') AS DataOdbioru,
+                    string sql = @"SELECT TOP 20 N.DataUtworzenia, N.KtoStworzyl, FORMAT(H.DataOdbioru, 'MM-dd ddd') AS DataOdbioru,
                                    H.Dostawca, N.Tresc, O.Name AS KtoDodal
                                    FROM [LibraNet].[dbo].[Notatki] N
                                    LEFT JOIN [LibraNet].[dbo].[operators] O ON N.KtoStworzyl = O.ID
@@ -976,7 +977,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                 DataOdbioru = reader["DataOdbioru"]?.ToString(),
                                 Dostawca = reader["Dostawca"]?.ToString(),
                                 Tresc = reader["Tresc"]?.ToString(),
-                                KtoDodal = reader["KtoDodal"]?.ToString()
+                                KtoDodal = reader["KtoDodal"]?.ToString(),
+                                KtoDodal_ID = reader["KtoStworzyl"]?.ToString()
                             });
                         }
                     }
@@ -996,6 +998,59 @@ namespace Kalendarz1.Zywiec.Kalendarz
         private void LoadOstatnieNotatki()
         {
             _ = LoadOstatnieNotatkiAsync();
+        }
+
+        // Event handler dla ładowania avatarów w notatkach
+        private void DgNotatki_LoadingRow(object sender, DataGridRowEventArgs e)
+        {
+            if (e.Row.DataContext is NotatkaModel notatka && !string.IsNullOrEmpty(notatka.KtoDodal_ID))
+            {
+                // Znajdź elementy avatara w wierszu
+                e.Row.Loaded += (s, args) =>
+                {
+                    try
+                    {
+                        var presenter = FindVisualChild<System.Windows.Controls.Primitives.DataGridCellsPresenter>(e.Row);
+                        if (presenter == null) return;
+
+                        // Znajdź wszystkie Ellipse i Border w wierszu
+                        var avatarImage = FindVisualChild<Ellipse>(e.Row, "avatarImage");
+                        var avatarBorder = FindVisualChild<Border>(e.Row, "avatarBorder");
+
+                        if (avatarImage != null && avatarBorder != null && UserAvatarManager.HasAvatar(notatka.KtoDodal_ID))
+                        {
+                            using (var avatar = UserAvatarManager.GetAvatarRounded(notatka.KtoDodal_ID, 40))
+                            {
+                                if (avatar != null)
+                                {
+                                    var brush = new ImageBrush(ConvertToImageSource(avatar));
+                                    brush.Stretch = Stretch.UniformToFill;
+                                    avatarImage.Fill = brush;
+                                    avatarImage.Visibility = Visibility.Visible;
+                                    avatarBorder.Visibility = Visibility.Collapsed;
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+                };
+            }
+        }
+
+        private T FindVisualChild<T>(DependencyObject parent, string name = null) where T : DependencyObject
+        {
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T typedChild)
+                {
+                    if (name == null || (child is FrameworkElement fe && fe.Name == name))
+                        return typedChild;
+                }
+                var result = FindVisualChild<T>(child, name);
+                if (result != null) return result;
+            }
+            return null;
         }
 
         #endregion
@@ -6305,6 +6360,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
         public string DataOdbioru { get; set; }
         public string Dostawca { get; set; }
         public string KtoDodal { get; set; }
+        public string KtoDodal_ID { get; set; }
         public string Tresc { get; set; }
     }
 
@@ -6318,4 +6374,30 @@ namespace Kalendarz1.Zywiec.Kalendarz
     }
 
     #endregion
+
+    /// <summary>
+    /// Konwerter do wyświetlania inicjałów z imienia i nazwiska
+    /// </summary>
+    public class InitialsConverter : System.Windows.Data.IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is string name && !string.IsNullOrWhiteSpace(name))
+            {
+                var parts = name.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 2)
+                    return $"{char.ToUpper(parts[0][0])}{char.ToUpper(parts[1][0])}";
+                else if (parts.Length == 1 && parts[0].Length >= 2)
+                    return $"{char.ToUpper(parts[0][0])}{char.ToUpper(parts[0][1])}";
+                else if (parts.Length == 1)
+                    return parts[0].Substring(0, 1).ToUpper();
+            }
+            return "";
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
 }
