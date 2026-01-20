@@ -5816,7 +5816,24 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         private void ShowToast(string message, ToastType type = ToastType.Info)
         {
-            _toastQueue.Enqueue(new ToastMessage { Message = message, Type = type });
+            // Dla sukcesów automatycznie dodaj avatar aktualnego użytkownika
+            if (type == ToastType.Success)
+            {
+                ShowToastWithAvatar(message, type, UserID, UserName);
+            }
+            else
+            {
+                _toastQueue.Enqueue(new ToastMessage { Message = message, Type = type });
+                if (!_isShowingToast)
+                {
+                    _ = ProcessToastQueueAsync();
+                }
+            }
+        }
+
+        private void ShowToastWithAvatar(string message, ToastType type, string userId, string userName)
+        {
+            _toastQueue.Enqueue(new ToastMessage { Message = message, Type = type, UserId = userId, UserName = userName });
             if (!_isShowingToast)
             {
                 _ = ProcessToastQueueAsync();
@@ -5866,6 +5883,54 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
                 txtToastMessage.Text = icon + toast.Message;
                 toastBorder.Visibility = Visibility.Visible;
+
+                // Obsługa avatara
+                if (!string.IsNullOrEmpty(toast.UserId) && toastAvatarGrid != null)
+                {
+                    toastAvatarGrid.Visibility = Visibility.Visible;
+
+                    // Ustaw kolor inicjałów zgodny z kolorem toasta
+                    var bgColor = (toastBorder.Background as SolidColorBrush)?.Color ?? Colors.Gray;
+                    toastAvatarInitials.Foreground = new SolidColorBrush(bgColor);
+
+                    // Ustaw inicjały
+                    string initials = "";
+                    if (!string.IsNullOrEmpty(toast.UserName))
+                    {
+                        var parts = toast.UserName.Split(' ');
+                        if (parts.Length >= 2)
+                            initials = $"{parts[0][0]}{parts[1][0]}".ToUpper();
+                        else if (parts.Length == 1 && parts[0].Length >= 2)
+                            initials = parts[0].Substring(0, 2).ToUpper();
+                    }
+                    toastAvatarInitials.Text = initials;
+                    toastAvatarBorder.Visibility = Visibility.Visible;
+                    toastAvatarImage.Visibility = Visibility.Collapsed;
+
+                    // Spróbuj załadować prawdziwy avatar
+                    try
+                    {
+                        if (UserAvatarManager.HasAvatar(toast.UserId))
+                        {
+                            using (var avatar = UserAvatarManager.GetAvatarRounded(toast.UserId, 56))
+                            {
+                                if (avatar != null)
+                                {
+                                    var brush = new ImageBrush(ConvertToImageSource(avatar));
+                                    brush.Stretch = Stretch.UniformToFill;
+                                    toastAvatarImage.Fill = brush;
+                                    toastAvatarImage.Visibility = Visibility.Visible;
+                                    toastAvatarBorder.Visibility = Visibility.Collapsed;
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+                }
+                else if (toastAvatarGrid != null)
+                {
+                    toastAvatarGrid.Visibility = Visibility.Collapsed;
+                }
 
                 // Animacja wejścia - slide z góry + fade
                 var translateTransform = new TranslateTransform(0, -30);
@@ -6269,6 +6334,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
     {
         public string Message { get; set; }
         public ToastType Type { get; set; }
+        public string UserId { get; set; }
+        public string UserName { get; set; }
     }
 
     public class RelayCommand : ICommand

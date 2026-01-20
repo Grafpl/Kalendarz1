@@ -546,7 +546,16 @@
         <Border x:Name="toastBorder" Style="{StaticResource ToastBorderStyle}"
                 Background="#4CAF50" Visibility="Collapsed" Panel.ZIndex="1000"
                 Grid.ColumnSpan="2">
-            <TextBlock x:Name="txtToastMessage" Text="" Foreground="White" FontSize="13" FontWeight="SemiBold"/>
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <!-- Avatar w toaście (opcjonalny) -->
+                <Grid x:Name="toastAvatarGrid" Width="28" Height="28" Margin="0,0,10,0" Visibility="Collapsed">
+                    <Border x:Name="toastAvatarBorder" Width="28" Height="28" CornerRadius="14" Background="#FFFFFF">
+                        <TextBlock x:Name="toastAvatarInitials" Text="" FontSize="11" FontWeight="Bold" Foreground="#4CAF50" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <Ellipse x:Name="toastAvatarImage" Width="28" Height="28" Visibility="Collapsed"/>
+                </Grid>
+                <TextBlock x:Name="txtToastMessage" Text="" Foreground="White" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            </StackPanel>
         </Border>
 
         <!-- ==================== LEWA STRONA - TABELE DOSTAW ==================== -->
