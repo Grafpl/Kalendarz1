@@ -309,28 +309,28 @@
                         </DataGrid.RowStyle>
                         <DataGrid.Columns>
                             <!-- Odbiorca -->
-                            <DataGridTemplateColumn Header="Odbiorca" Width="*" MinWidth="120">
+                            <DataGridTemplateColumn Header="Odbiorca" Width="*" MinWidth="100">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding Klient}" Foreground="{Binding KlientColor}"
-                                                   FontWeight="SemiBold" FontSize="12"
+                                                   FontWeight="SemiBold" FontSize="11"
                                                    VerticalAlignment="Center" TextWrapping="Wrap"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
                             <!-- Handlowiec -->
-                            <DataGridTemplateColumn Header="Handl." Width="70">
+                            <DataGridTemplateColumn Header="Handl." Width="60">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock Text="{Binding Handlowiec}" FontSize="12" Foreground="#546E7A"
+                                        <TextBlock Text="{Binding Handlowiec}" FontSize="11" Foreground="#546E7A"
                                                    VerticalAlignment="Center"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
                             <!-- Ilość -->
-                            <DataGridTemplateColumn Header="Ilość" Width="70">
+                            <DataGridTemplateColumn Header="Ilość" Width="60">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding TotalIlosc, StringFormat=N0}"
@@ -345,7 +345,7 @@
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding CenaDisplay}" Foreground="{Binding CenaColor}"
-                                                   FontWeight="Bold" FontSize="15"
+                                                   FontWeight="Bold" FontSize="14"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
@@ -365,41 +365,41 @@
                             </DataGridTemplateColumn>
 
                             <!-- Ost. Zmiana -->
-                            <DataGridTemplateColumn Header="Zmiana" Width="95">
+                            <DataGridTemplateColumn Header="Zmiana" Width="85">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding OstatniaZmiana}" Foreground="{Binding ZmianaColor}"
-                                                   FontWeight="SemiBold" FontSize="11"
+                                                   FontWeight="SemiBold" FontSize="10"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
                             <!-- Kto zmienił -->
-                            <DataGridTemplateColumn Header="Kto" Width="90">
+                            <DataGridTemplateColumn Header="Kto" Width="80">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock Text="{Binding KtoZmienil}" FontSize="11" Foreground="#546E7A"
+                                        <TextBlock Text="{Binding KtoZmienil}" FontSize="10" Foreground="#546E7A"
                                                    VerticalAlignment="Center" TextWrapping="Wrap"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
                             <!-- Wyjazd -->
-                            <DataGridTemplateColumn Header="Wyjazd" Width="90">
+                            <DataGridTemplateColumn Header="Wyjazd" Width="110">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock Text="{Binding GodzWyjazdu}" FontSize="13" Foreground="#1565C0" FontWeight="SemiBold"
+                                        <TextBlock Text="{Binding GodzWyjazdu}" FontSize="14" Foreground="#1565C0" FontWeight="Bold"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
                             <!-- Kierowca -->
-                            <DataGridTemplateColumn Header="Kierowca" Width="110">
+                            <DataGridTemplateColumn Header="Kierowca" Width="140">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock Text="{Binding Kierowca}" FontSize="12" Foreground="#546E7A"
+                                        <TextBlock Text="{Binding Kierowca}" FontSize="13" Foreground="#263238" FontWeight="Medium"
                                                    VerticalAlignment="Center" TextWrapping="Wrap"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
@@ -416,18 +416,12 @@
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <!-- Nagłówek -->
-                <Border Grid.Row="0" Background="#1565C0" Padding="16,14" CornerRadius="8,8,0,0">
-                    <TextBlock Text="Szczegóły zamówienia" FontSize="16" FontWeight="SemiBold" Foreground="White"/>
-                </Border>
-
-                <!-- Info o odbiorcy -->
-                <Border Grid.Row="1" Padding="16,14" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Background="#FAFAFA">
+                <!-- Nagłówek z info o odbiorcy - połączone -->
+                <Border Grid.Row="0" Background="#1565C0" Padding="14,10" CornerRadius="8,8,0,0">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -436,28 +430,26 @@
 
                         <StackPanel Grid.Column="0">
                             <TextBlock x:Name="txtOdbiorca" Text="Wybierz zamówienie..."
-                                       FontSize="16" FontWeight="Bold" Foreground="#263238"/>
-                            <TextBlock x:Name="txtHandlowiec" Text="" FontSize="13" Foreground="#78909C" Margin="0,4,0,0"/>
-                            <TextBlock x:Name="txtDataZamowienia" Text="" FontSize="13" Foreground="#78909C"/>
+                                       FontSize="15" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock x:Name="txtHandlowiec" Text="" FontSize="11" Foreground="#B3E5FC" Margin="0,2,0,0"/>
+                            <TextBlock x:Name="txtDataZamowienia" Text="" FontSize="11" Foreground="#B3E5FC"/>
                         </StackPanel>
 
                         <!-- Info o transporcie -->
-                        <Border Grid.Column="1" Background="#E3F2FD" CornerRadius="8" Padding="14,10"
+                        <Border Grid.Column="1" Background="#0D47A1" CornerRadius="6" Padding="10,6"
                                 x:Name="borderTransport" Visibility="Collapsed">
                             <StackPanel>
-                                <Border Background="#1565C0" CornerRadius="4" Padding="10,4" HorizontalAlignment="Center" Margin="0,0,0,8">
-                                    <TextBlock Text="TRANSPORT" FontSize="10" FontWeight="Bold" Foreground="White"/>
-                                </Border>
-                                <TextBlock x:Name="txtGodzWyjazdu" Text="" FontSize="14" FontWeight="Bold" Foreground="#1565C0"/>
-                                <TextBlock x:Name="txtKierowca" Text="" FontSize="12" Foreground="#263238" Margin="0,2,0,0"/>
-                                <TextBlock x:Name="txtPojazd" Text="" FontSize="11" Foreground="#78909C"/>
+                                <TextBlock Text="TRANSPORT" FontSize="9" FontWeight="Bold" Foreground="#90CAF9" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                                <TextBlock x:Name="txtGodzWyjazdu" Text="" FontSize="13" FontWeight="Bold" Foreground="White"/>
+                                <TextBlock x:Name="txtKierowca" Text="" FontSize="11" Foreground="#E3F2FD"/>
+                                <TextBlock x:Name="txtPojazd" Text="" FontSize="10" Foreground="#90CAF9"/>
                             </StackPanel>
                         </Border>
                     </Grid>
                 </Border>
 
                 <!-- Lista produktów -->
-                <DataGrid x:Name="dgDetails" Grid.Row="2"
+                <DataGrid x:Name="dgDetails" Grid.Row="1"
                           Style="{StaticResource ProDataGridStyle}"
                           ColumnHeaderStyle="{StaticResource ProColumnHeaderStyle}"
                           CellStyle="{StaticResource ProCellStyle}"
@@ -466,7 +458,7 @@
                 </DataGrid>
 
                 <!-- Panel akcji -->
-                <Border Grid.Row="3" Background="#FAFAFA" Padding="16" CornerRadius="0,0,8,8"
+                <Border Grid.Row="2" Background="#FAFAFA" Padding="16" CornerRadius="0,0,8,8"
                         BorderBrush="#E0E0E0" BorderThickness="0,1,0,0">
                     <StackPanel>
                         <!-- Panel powiadomienia o zmianie -->
