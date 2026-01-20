@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        xmlns:local="clr-namespace:Kalendarz1.Zywiec.Kalendarz"
         mc:Ignorable="d"
         Title="Dostawy"
         Height="1000" Width="1920"
@@ -16,6 +17,7 @@
     <Window.Resources>
         <!-- ==================== KONWERTERY ==================== -->
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <local:InitialsConverter x:Key="InitialsConverter"/>
 
         <!-- ==================== ANIMACJE ==================== -->
 
@@ -544,7 +546,16 @@
         <Border x:Name="toastBorder" Style="{StaticResource ToastBorderStyle}"
                 Background="#4CAF50" Visibility="Collapsed" Panel.ZIndex="1000"
                 Grid.ColumnSpan="2">
-            <TextBlock x:Name="txtToastMessage" Text="" Foreground="White" FontSize="13" FontWeight="SemiBold"/>
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <!-- Avatar w toaście (opcjonalny) -->
+                <Grid x:Name="toastAvatarGrid" Width="28" Height="28" Margin="0,0,10,0" Visibility="Collapsed">
+                    <Border x:Name="toastAvatarBorder" Width="28" Height="28" CornerRadius="14" Background="#FFFFFF">
+                        <TextBlock x:Name="toastAvatarInitials" Text="" FontSize="11" FontWeight="Bold" Foreground="#4CAF50" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <Ellipse x:Name="toastAvatarImage" Width="28" Height="28" Visibility="Collapsed"/>
+                </Grid>
+                <TextBlock x:Name="txtToastMessage" Text="" Foreground="White" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            </StackPanel>
         </Border>
 
         <!-- ==================== LEWA STRONA - TABELE DOSTAW ==================== -->
@@ -580,6 +591,12 @@
                                 <MenuItem Header="✅ Potwierdź SZTUKI" Click="MenuPotwierdzSztuki_Click" InputGestureText="Ctrl+S"/>
                                 <MenuItem Header="❌ Cofnij potwierdzenie WAGI" Click="MenuCofnijWage_Click"/>
                                 <MenuItem Header="❌ Cofnij potwierdzenie SZTUK" Click="MenuCofnijSztuki_Click"/>
+                                <Separator/>
+
+                                <!-- SEKCJA: Status dostawy -->
+                                <MenuItem Header="🔄 STATUS DOSTAWY" IsEnabled="False" FontWeight="Bold" FontSize="10" Foreground="#6B7280"/>
+                                <MenuItem Header="✅ Potwierdź dostawę" Click="MenuPotwierdzDostawe_Click" Foreground="#16A34A" FontWeight="SemiBold"/>
+                                <MenuItem Header="❌ Anuluj dostawę" Click="MenuAnulujDostawe_Click" Foreground="#DC2626" FontWeight="SemiBold"/>
                                 <Separator/>
 
                                 <!-- SEKCJA: Widoki i raporty -->
@@ -630,9 +647,15 @@
                                                     <Style TargetType="Border">
                                                         <Setter Property="Background" Value="Transparent"/>
                                                         <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
-                                                                <Setter Property="Background" Value="Transparent"/>
-                                                            </DataTrigger>
+                                                            <!-- Białe tło gdy sztuki nie potwierdzone -->
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding IsHeaderRow}" Value="False"/>
+                                                                    <Condition Binding="{Binding IsSeparator}" Value="False"/>
+                                                                    <Condition Binding="{Binding PotwSztuki}" Value="False"/>
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter Property="Background" Value="White"/>
+                                                            </MultiDataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
@@ -649,9 +672,15 @@
                                                     <Style TargetType="Border">
                                                         <Setter Property="Background" Value="Transparent"/>
                                                         <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
-                                                                <Setter Property="Background" Value="Transparent"/>
-                                                            </DataTrigger>
+                                                            <!-- Białe tło gdy waga nie potwierdzona -->
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding IsHeaderRow}" Value="False"/>
+                                                                    <Condition Binding="{Binding IsSeparator}" Value="False"/>
+                                                                    <Condition Binding="{Binding PotwWaga}" Value="False"/>
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter Property="Background" Value="White"/>
+                                                            </MultiDataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
@@ -773,6 +802,29 @@
                                                         </Style>
                                                     </TextBlock.Style>
                                                 </TextBlock>
+                                                <!-- Avatar autora notatki -->
+                                                <Grid Width="16" Height="16" Margin="0,0,3,0" VerticalAlignment="Center">
+                                                    <Grid.Style>
+                                                        <Style TargetType="Grid">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Uwagi}" Value="{x:Null}">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Uwagi}" Value="">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Grid.Style>
+                                                    <Border x:Name="avatarUwagiBorder" Width="16" Height="16" CornerRadius="8" Background="#6366F1">
+                                                        <TextBlock Text="{Binding UwagiAutorName, Converter={StaticResource InitialsConverter}}" FontSize="7" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <Ellipse x:Name="avatarUwagiImage" Width="16" Height="16" Visibility="Collapsed"/>
+                                                </Grid>
                                                 <!-- Dla normalnych wierszy - pokaż uwagi -->
                                                 <TextBlock Text="{Binding Uwagi}" TextTrimming="CharacterEllipsis"
                                                            ToolTip="{Binding Uwagi}" FontSize="10">
@@ -881,6 +933,12 @@
                                 <MenuItem Header="❌ Cofnij potwierdzenie SZTUK" Click="MenuCofnijSztuki_Click"/>
                                 <Separator/>
 
+                                <!-- SEKCJA: Status dostawy -->
+                                <MenuItem Header="🔄 STATUS DOSTAWY" IsEnabled="False" FontWeight="Bold" FontSize="10" Foreground="#6B7280"/>
+                                <MenuItem Header="✅ Potwierdź dostawę" Click="MenuPotwierdzDostawe_Click" Foreground="#16A34A" FontWeight="SemiBold"/>
+                                <MenuItem Header="❌ Anuluj dostawę" Click="MenuAnulujDostawe_Click" Foreground="#DC2626" FontWeight="SemiBold"/>
+                                <Separator/>
+
                                 <!-- SEKCJA: Widoki i raporty -->
                                 <MenuItem Header="📊 WIDOKI" IsEnabled="False" FontWeight="Bold" FontSize="10" Foreground="#6B7280"/>
                                 <MenuItem Header="⚖️ Pokaż wagi" Click="MenuPokazWagi_Click" InputGestureText="F2"/>
@@ -929,9 +987,15 @@
                                                 <Style TargetType="Border">
                                                     <Setter Property="Background" Value="Transparent"/>
                                                     <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
-                                                            <Setter Property="Background" Value="Transparent"/>
-                                                        </DataTrigger>
+                                                        <!-- Białe tło gdy sztuki nie potwierdzone -->
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding IsHeaderRow}" Value="False"/>
+                                                                <Condition Binding="{Binding IsSeparator}" Value="False"/>
+                                                                <Condition Binding="{Binding PotwSztuki}" Value="False"/>
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="Background" Value="White"/>
+                                                        </MultiDataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
                                             </Border.Style>
@@ -948,9 +1012,15 @@
                                                 <Style TargetType="Border">
                                                     <Setter Property="Background" Value="Transparent"/>
                                                     <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
-                                                            <Setter Property="Background" Value="Transparent"/>
-                                                        </DataTrigger>
+                                                        <!-- Białe tło gdy waga nie potwierdzona -->
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding IsHeaderRow}" Value="False"/>
+                                                                <Condition Binding="{Binding IsSeparator}" Value="False"/>
+                                                                <Condition Binding="{Binding PotwWaga}" Value="False"/>
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="Background" Value="White"/>
+                                                        </MultiDataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
                                             </Border.Style>
@@ -1070,6 +1140,29 @@
                                                     </Style>
                                                 </TextBlock.Style>
                                             </TextBlock>
+                                            <!-- Avatar autora notatki -->
+                                            <Grid Width="16" Height="16" Margin="0,0,3,0" VerticalAlignment="Center">
+                                                <Grid.Style>
+                                                    <Style TargetType="Grid">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Uwagi}" Value="{x:Null}">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Uwagi}" Value="">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Grid.Style>
+                                                <Border x:Name="avatarUwagiBorder2" Width="16" Height="16" CornerRadius="8" Background="#6366F1">
+                                                    <TextBlock Text="{Binding UwagiAutorName, Converter={StaticResource InitialsConverter}}" FontSize="7" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <Ellipse x:Name="avatarUwagiImage2" Width="16" Height="16" Visibility="Collapsed"/>
+                                            </Grid>
                                             <!-- Dla normalnych wierszy - pokaż uwagi -->
                                             <TextBlock Text="{Binding Uwagi}" TextTrimming="CharacterEllipsis"
                                                        ToolTip="{Binding Uwagi}" FontSize="10">
@@ -1901,18 +1994,33 @@
                                                 <TextBlock Text=" - " FontSize="11" Foreground="#64748B" Margin="4,0,0,0"/>
                                                 <TextBlock x:Name="txtHodowcaNotatki" FontWeight="Bold" FontSize="11" Foreground="#166534"/>
                                             </StackPanel>
-                                            <DataGrid x:Name="dgNotatkiKarta" MaxHeight="150" FontSize="11" IsReadOnly="True" AutoGenerateColumns="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="1" BorderBrush="#E2E8F0" Background="#FAFAFA" RowHeight="28">
+                                            <DataGrid x:Name="dgNotatkiKarta" MaxHeight="150" FontSize="11" IsReadOnly="True" AutoGenerateColumns="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="1" BorderBrush="#E2E8F0" Background="#FAFAFA" LoadingRow="DgNotatki_LoadingRow">
+                                                <DataGrid.RowStyle>
+                                                    <Style TargetType="DataGridRow">
+                                                        <Setter Property="MinHeight" Value="24"/>
+                                                    </Style>
+                                                </DataGrid.RowStyle>
                                                 <DataGrid.Columns>
-                                                    <DataGridTextColumn Header="📅 Data" Binding="{Binding DataUtworzenia, StringFormat=dd.MM ddd HH:mm}" Width="110">
+                                                    <DataGridTextColumn Header="📅 Data" Binding="{Binding DataUtworzenia, StringFormat=dd.MM ddd HH:mm}" Width="Auto">
                                                         <DataGridTextColumn.ElementStyle>
-                                                            <Style TargetType="TextBlock"><Setter Property="Padding" Value="4,2"/></Style>
+                                                            <Style TargetType="TextBlock"><Setter Property="Padding" Value="4,2"/><Setter Property="FontSize" Value="10"/></Style>
                                                         </DataGridTextColumn.ElementStyle>
                                                     </DataGridTextColumn>
-                                                    <DataGridTextColumn Header="👤" Binding="{Binding KtoDodal}" Width="50">
-                                                        <DataGridTextColumn.ElementStyle>
-                                                            <Style TargetType="TextBlock"><Setter Property="Padding" Value="4,2"/><Setter Property="Foreground" Value="#64748B"/></Style>
-                                                        </DataGridTextColumn.ElementStyle>
-                                                    </DataGridTextColumn>
+                                                    <DataGridTemplateColumn Header="👤" Width="Auto">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <StackPanel Orientation="Horizontal" Margin="2,0">
+                                                                    <Grid Width="18" Height="18">
+                                                                        <Border x:Name="avatarBorder" Width="18" Height="18" CornerRadius="9" Background="#3B82F6">
+                                                                            <TextBlock Text="{Binding KtoDodal, Converter={StaticResource InitialsConverter}}" FontSize="7" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                        </Border>
+                                                                        <Ellipse x:Name="avatarImage" Width="18" Height="18" Visibility="Collapsed"/>
+                                                                    </Grid>
+                                                                    <TextBlock Text="{Binding KtoDodal}" FontSize="8" Foreground="#64748B" VerticalAlignment="Center" Margin="3,0,0,0"/>
+                                                                </StackPanel>
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                    </DataGridTemplateColumn>
                                                     <DataGridTextColumn Header="📝 Treść notatki" Binding="{Binding Tresc}" Width="*">
                                                         <DataGridTextColumn.ElementStyle>
                                                             <Style TargetType="TextBlock">
@@ -2330,50 +2438,123 @@
                         </ScrollViewer>
                     </TabItem>
 
-                    <!-- TAB: NOTATKI -->
-                    <TabItem Header="Notatki">
+                    <!-- TAB: ZMIANY DOSTAWY -->
+                    <TabItem Header="Zmiany Dostawy">
                         <Grid Margin="8">
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="1*"/>
+                                <RowDefinition Height="5"/>
+                                <RowDefinition Height="2*"/>
                             </Grid.RowDefinitions>
 
-                            <GroupBox Grid.Row="0" Header="Nowa notatka" Style="{StaticResource ModernGroupBoxStyle}">
+                            <!-- GÓRNA CZĘŚĆ - NOTATKI (mniejsza) -->
+                            <Border Grid.Row="0" Background="White" CornerRadius="4" Padding="4" BorderBrush="#E2E8F0" BorderThickness="1">
                                 <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBox x:Name="txtNowaNotatka" Grid.Column="0" Style="{StaticResource FormTextBoxStyle}" Height="50" TextWrapping="Wrap" AcceptsReturn="True"/>
-                                    <Button Grid.Column="1" Content="➕" Style="{StaticResource MainButtonStyle}" Click="BtnDodajNotatke_Click" Width="40" VerticalAlignment="Stretch" Margin="4,2,2,2"/>
-                                </Grid>
-                            </GroupBox>
-
-                            <DataGrid x:Name="dgNotatki" Grid.Row="1" Style="{StaticResource SmallDataGridStyle}" Margin="0,4,0,0">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Data" Binding="{Binding DataUtworzenia, StringFormat=MM-dd HH:mm}" Width="85"/>
-                                    <DataGridTextColumn Header="Kto" Binding="{Binding KtoDodal}" Width="60"/>
-                                    <DataGridTextColumn Header="Treść" Binding="{Binding Tresc}" Width="*">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="TextWrapping" Value="Wrap"/>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Text="📝 NOTATKI DOSTAWY" FontWeight="Bold" FontSize="10" Foreground="#1E293B" Margin="2,0,0,4"/>
+                                    <DataGrid Grid.Row="1" x:Name="dgNotatki" Style="{StaticResource SmallDataGridStyle}" LoadingRow="DgNotatki_LoadingRow">
+                                        <DataGrid.RowStyle>
+                                            <Style TargetType="DataGridRow">
+                                                <Setter Property="MinHeight" Value="28"/>
                                             </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                </DataGrid.Columns>
-                            </DataGrid>
+                                        </DataGrid.RowStyle>
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Data" Binding="{Binding DataUtworzenia, StringFormat=dd.MM HH:mm}" Width="Auto">
+                                                <DataGridTextColumn.ElementStyle>
+                                                    <Style TargetType="TextBlock"><Setter Property="FontSize" Value="10"/><Setter Property="Padding" Value="2"/></Style>
+                                                </DataGridTextColumn.ElementStyle>
+                                            </DataGridTextColumn>
+                                            <DataGridTemplateColumn Header="Kto" Width="Auto">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Horizontal" Margin="2,0">
+                                                            <Grid Width="20" Height="20">
+                                                                <Border x:Name="avatarBorder" Width="20" Height="20" CornerRadius="10" Background="#3B82F6">
+                                                                    <TextBlock Text="{Binding KtoDodal, Converter={StaticResource InitialsConverter}}" FontSize="8" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                </Border>
+                                                                <Ellipse x:Name="avatarImage" Width="20" Height="20" Visibility="Collapsed"/>
+                                                            </Grid>
+                                                            <TextBlock Text="{Binding KtoDodal}" FontSize="9" Foreground="#64748B" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTextColumn Header="Treść" Binding="{Binding Tresc}" Width="*">
+                                                <DataGridTextColumn.ElementStyle>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="TextWrapping" Value="Wrap"/>
+                                                        <Setter Property="Padding" Value="2"/>
+                                                    </Style>
+                                                </DataGridTextColumn.ElementStyle>
+                                            </DataGridTextColumn>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Grid>
+                            </Border>
 
-                            <GroupBox Grid.Row="2" Header="Ostatnie notatki (wszystkie)" Style="{StaticResource ModernGroupBoxStyle}" Margin="0,4,0,0" MaxHeight="150">
-                                <DataGrid x:Name="dgOstatnieNotatki" Style="{StaticResource SmallDataGridStyle}">
-                                    <DataGrid.Columns>
-                                        <DataGridTextColumn Header="Data" Binding="{Binding DataUtworzenia, StringFormat=MM-dd HH:mm}" Width="75"/>
-                                        <DataGridTextColumn Header="Odbiór" Binding="{Binding DataOdbioru}" Width="70"/>
-                                        <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="90"/>
-                                        <DataGridTextColumn Header="Treść" Binding="{Binding Tresc}" Width="*"/>
-                                    </DataGrid.Columns>
-                                </DataGrid>
-                            </GroupBox>
+                            <!-- SEPARATOR -->
+                            <GridSplitter Grid.Row="1" Height="5" HorizontalAlignment="Stretch" Background="#E2E8F0" Cursor="SizeNS"/>
+
+                            <!-- DOLNA CZĘŚĆ - HISTORIA ZMIAN (większa) -->
+                            <Border Grid.Row="2" Background="White" CornerRadius="4" Padding="4" BorderBrush="#E2E8F0" BorderThickness="1">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Text="📜 HISTORIA ZMIAN DOSTAWY" FontWeight="Bold" FontSize="10" Foreground="#1E293B" Margin="2,0,0,4"/>
+                                    <DataGrid Grid.Row="1" x:Name="dgHistoriaZmianDostawy" Style="{StaticResource SmallDataGridStyle}" IsReadOnly="True" AutoGenerateColumns="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal" LoadingRow="DgHistoriaZmianDostawy_LoadingRow">
+                                        <DataGrid.RowStyle>
+                                            <Style TargetType="DataGridRow">
+                                                <Setter Property="MinHeight" Value="32"/>
+                                            </Style>
+                                        </DataGrid.RowStyle>
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Kiedy" Binding="{Binding DataZmiany, StringFormat=dd.MM HH:mm}" Width="Auto">
+                                                <DataGridTextColumn.ElementStyle>
+                                                    <Style TargetType="TextBlock"><Setter Property="FontSize" Value="10"/><Setter Property="Padding" Value="2"/><Setter Property="VerticalAlignment" Value="Center"/></Style>
+                                                </DataGridTextColumn.ElementStyle>
+                                            </DataGridTextColumn>
+                                            <DataGridTemplateColumn Header="Kto" Width="Auto">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Horizontal" Margin="2,0">
+                                                            <Grid Width="22" Height="22">
+                                                                <Border x:Name="avatarZmianaBorder" Width="22" Height="22" CornerRadius="11" Background="#6366F1">
+                                                                    <TextBlock Text="{Binding UserName, Converter={StaticResource InitialsConverter}}" FontSize="8" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                </Border>
+                                                                <Ellipse x:Name="avatarZmianaImage" Width="22" Height="22" Visibility="Collapsed"/>
+                                                            </Grid>
+                                                            <TextBlock Text="{Binding UserName}" FontSize="9" Foreground="#64748B" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTemplateColumn Header="Stara wartość" Width="Auto">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <Border Background="#FFEBEE" CornerRadius="3" Margin="1" Padding="4,2">
+                                                            <TextBlock Text="{Binding StaraWartosc}" Foreground="#C62828" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="100"/>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTemplateColumn Header="Nowa wartość" Width="*">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <Border Background="#E8F5E9" CornerRadius="3" Margin="1" Padding="4,2">
+                                                            <TextBlock Text="{Binding NowaWartosc}" Foreground="#2E7D32" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Grid>
+                            </Border>
                         </Grid>
                     </TabItem>
 
@@ -2397,79 +2578,6 @@
 
                             <Button Grid.Row="1" Content="📊 Pokaż historię" Style="{StaticResource ActionButtonStyle}" Click="BtnPokazHistorie_Click" Margin="0,4,0,0" HorizontalAlignment="Center"/>
                         </Grid>
-                    </TabItem>
-
-                    <!-- TAB: STATYSTYKI -->
-                    <TabItem Header="Statystyki">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <StackPanel Margin="8">
-                                <GroupBox Header="Statystyki tygodniowe (ostatnie 7 dni)" Style="{StaticResource ModernGroupBoxStyle}">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                        </Grid.RowDefinitions>
-
-                                        <StackPanel Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center" Margin="4">
-                                            <TextBlock Text="Dostawy" Style="{StaticResource FormLabelStyle}" HorizontalAlignment="Center"/>
-                                            <TextBlock x:Name="txtStatTotal" Text="0" FontSize="24" FontWeight="Bold" Foreground="#2C3E50" HorizontalAlignment="Center"/>
-                                        </StackPanel>
-
-                                        <StackPanel Grid.Row="0" Grid.Column="1" HorizontalAlignment="Center" Margin="4">
-                                            <TextBlock Text="Auta" Style="{StaticResource FormLabelStyle}" HorizontalAlignment="Center"/>
-                                            <TextBlock x:Name="txtStatAuta" Text="0" FontSize="24" FontWeight="Bold" Foreground="#3498DB" HorizontalAlignment="Center"/>
-                                        </StackPanel>
-
-                                        <StackPanel Grid.Row="0" Grid.Column="2" HorizontalAlignment="Center" Margin="4">
-                                            <TextBlock Text="Sztuki" Style="{StaticResource FormLabelStyle}" HorizontalAlignment="Center"/>
-                                            <TextBlock x:Name="txtStatSztuki" Text="0" FontSize="24" FontWeight="Bold" Foreground="#27AE60" HorizontalAlignment="Center"/>
-                                        </StackPanel>
-
-                                        <StackPanel Grid.Row="1" Grid.Column="0" HorizontalAlignment="Center" Margin="4">
-                                            <TextBlock Text="Śr. waga" Style="{StaticResource FormLabelStyle}" HorizontalAlignment="Center"/>
-                                            <TextBlock x:Name="txtStatAvgWaga" Text="0.00 kg" FontSize="18" FontWeight="SemiBold" Foreground="#8E44AD" HorizontalAlignment="Center"/>
-                                        </StackPanel>
-
-                                        <StackPanel Grid.Row="1" Grid.Column="1" HorizontalAlignment="Center" Margin="4">
-                                            <TextBlock Text="Potwierdzone" Style="{StaticResource FormLabelStyle}" HorizontalAlignment="Center"/>
-                                            <TextBlock x:Name="txtStatPotwierdzone" Text="0" FontSize="18" FontWeight="SemiBold" Foreground="#27AE60" HorizontalAlignment="Center"/>
-                                        </StackPanel>
-
-                                        <StackPanel Grid.Row="1" Grid.Column="2" HorizontalAlignment="Center" Margin="4">
-                                            <TextBlock Text="Anulowane" Style="{StaticResource FormLabelStyle}" HorizontalAlignment="Center"/>
-                                            <TextBlock x:Name="txtStatAnulowane" Text="0" FontSize="18" FontWeight="SemiBold" Foreground="#E74C3C" HorizontalAlignment="Center"/>
-                                        </StackPanel>
-                                    </Grid>
-                                </GroupBox>
-
-                                <GroupBox Header="Skróty klawiszowe" Style="{StaticResource ModernGroupBoxStyle}" Margin="0,8,0,0">
-                                    <StackPanel>
-                                        <TextBlock Text="Ctrl+D - Duplikuj dostawę" FontSize="10" Margin="2"/>
-                                        <TextBlock Text="Ctrl+N - Nowa dostawa" FontSize="10" Margin="2"/>
-                                        <TextBlock Text="Ctrl+S - Zapisz zmiany" FontSize="10" Margin="2"/>
-                                        <TextBlock Text="Ctrl+R / F5 - Odśwież dane" FontSize="10" Margin="2"/>
-                                        <TextBlock Text="Ctrl+A - Zaznacz wszystko" FontSize="10" Margin="2"/>
-                                        <TextBlock Text="Delete - Usuń dostawę" FontSize="10" Margin="2"/>
-                                        <TextBlock Text="+/- - Przesuń datę o dzień" FontSize="10" Margin="2"/>
-                                        <TextBlock Text="Escape - Anuluj zaznaczenie" FontSize="10" Margin="2"/>
-                                    </StackPanel>
-                                </GroupBox>
-
-                                <GroupBox Header="Funkcje" Style="{StaticResource ModernGroupBoxStyle}" Margin="0,8,0,0">
-                                    <StackPanel>
-                                        <TextBlock Text="• Przeciągnij i upuść - przenieś dostawę między dniami" FontSize="10" Margin="2" TextWrapping="Wrap"/>
-                                        <TextBlock Text="• Prawy przycisk myszy - menu kontekstowe" FontSize="10" Margin="2" TextWrapping="Wrap"/>
-                                        <TextBlock Text="• Ctrl+klik - zaznacz wiele dostaw" FontSize="10" Margin="2" TextWrapping="Wrap"/>
-                                        <TextBlock Text="• Auto-odświeżanie co 10 minut" FontSize="10" Margin="2" TextWrapping="Wrap"/>
-                                    </StackPanel>
-                                </GroupBox>
-                            </StackPanel>
-                        </ScrollViewer>
                     </TabItem>
 
                     <!-- TAB: PARTIE BIEŻĄCE -->
@@ -2561,19 +2669,75 @@
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0">
                         <TextBlock Text="Utworzono:" Style="{StaticResource FormLabelStyle}"/>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock x:Name="txtDataStwo" FontSize="10"/>
-                            <TextBlock x:Name="txtKtoStwo" FontSize="10" Margin="8,0,0,0" Foreground="#7F8C8D"/>
+                        <TextBlock x:Name="txtDataStwo" FontSize="10"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                            <Grid Width="18" Height="18" VerticalAlignment="Center">
+                                <Border x:Name="avatarStwo" Width="18" Height="18" CornerRadius="9" Background="#3B82F6">
+                                    <TextBlock x:Name="txtAvatarStwo" FontSize="8" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <Ellipse x:Name="imgAvatarStwo" Width="18" Height="18" Visibility="Collapsed">
+                                    <Ellipse.Fill>
+                                        <ImageBrush x:Name="imgAvatarStwoBrush" Stretch="UniformToFill"/>
+                                    </Ellipse.Fill>
+                                </Ellipse>
+                            </Grid>
+                            <TextBlock x:Name="txtKtoStwo" FontSize="9" Margin="4,0,0,0" Foreground="#7F8C8D" VerticalAlignment="Center"/>
                         </StackPanel>
                     </StackPanel>
                     <StackPanel Grid.Column="1">
                         <TextBlock Text="Modyfikowano:" Style="{StaticResource FormLabelStyle}"/>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock x:Name="txtDataMod" FontSize="10"/>
-                            <TextBlock x:Name="txtKtoMod" FontSize="10" Margin="8,0,0,0" Foreground="#7F8C8D"/>
+                        <TextBlock x:Name="txtDataMod" FontSize="10"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                            <Grid Width="18" Height="18" VerticalAlignment="Center">
+                                <Border x:Name="avatarMod" Width="18" Height="18" CornerRadius="9" Background="#8B5CF6">
+                                    <TextBlock x:Name="txtAvatarMod" FontSize="8" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <Ellipse x:Name="imgAvatarMod" Width="18" Height="18" Visibility="Collapsed">
+                                    <Ellipse.Fill>
+                                        <ImageBrush x:Name="imgAvatarModBrush" Stretch="UniformToFill"/>
+                                    </Ellipse.Fill>
+                                </Ellipse>
+                            </Grid>
+                            <TextBlock x:Name="txtKtoMod" FontSize="9" Margin="4,0,0,0" Foreground="#7F8C8D" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Potw. waga:" Style="{StaticResource FormLabelStyle}" Foreground="#388E3C"/>
+                        <TextBlock x:Name="txtDataPotwWaga" FontSize="10"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                            <Grid Width="18" Height="18" VerticalAlignment="Center">
+                                <Border x:Name="avatarPotwWaga" Width="18" Height="18" CornerRadius="9" Background="#22C55E">
+                                    <TextBlock x:Name="txtAvatarPotwWaga" FontSize="8" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <Ellipse x:Name="imgAvatarPotwWaga" Width="18" Height="18" Visibility="Collapsed">
+                                    <Ellipse.Fill>
+                                        <ImageBrush x:Name="imgAvatarPotwWagaBrush" Stretch="UniformToFill"/>
+                                    </Ellipse.Fill>
+                                </Ellipse>
+                            </Grid>
+                            <TextBlock x:Name="txtKtoPotwWaga" FontSize="9" Margin="4,0,0,0" Foreground="#7F8C8D" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <StackPanel Grid.Column="3">
+                        <TextBlock Text="Potw. sztuki:" Style="{StaticResource FormLabelStyle}" Foreground="#1565C0"/>
+                        <TextBlock x:Name="txtDataPotwSztuki" FontSize="10"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                            <Grid Width="18" Height="18" VerticalAlignment="Center">
+                                <Border x:Name="avatarPotwSztuki" Width="18" Height="18" CornerRadius="9" Background="#3B82F6">
+                                    <TextBlock x:Name="txtAvatarPotwSztuki" FontSize="8" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <Ellipse x:Name="imgAvatarPotwSztuki" Width="18" Height="18" Visibility="Collapsed">
+                                    <Ellipse.Fill>
+                                        <ImageBrush x:Name="imgAvatarPotwSztukiBrush" Stretch="UniformToFill"/>
+                                    </Ellipse.Fill>
+                                </Ellipse>
+                            </Grid>
+                            <TextBlock x:Name="txtKtoPotwSztuki" FontSize="9" Margin="4,0,0,0" Foreground="#7F8C8D" VerticalAlignment="Center"/>
                         </StackPanel>
                     </StackPanel>
                 </Grid>
