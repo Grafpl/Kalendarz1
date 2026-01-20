@@ -3435,6 +3435,237 @@ namespace Kalendarz1.Zywiec.Kalendarz
             }
         }
 
+        // Menu kontekstowe - Potwierdź dostawę (zmień status na Potwierdzony)
+        private async void MenuPotwierdzDostawe_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_selectedLP))
+            {
+                ShowToast("Wybierz dostawę", ToastType.Warning);
+                return;
+            }
+
+            var dostawa = _dostawy.FirstOrDefault(d => d.LP == _selectedLP) ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == _selectedLP);
+            if (dostawa == null) return;
+
+            string oldStatus = dostawa.Bufor;
+
+            // TRYB SYMULACJI - tylko zmiana w pamięci
+            if (_isSimulationMode)
+            {
+                dostawa.Bufor = "Potwierdzony";
+                cmbStatus.SelectedItem = "Potwierdzony";
+                RefreshDostawyView();
+                ShowToast("✅ Dostawa potwierdzona (symulacja)", ToastType.Info);
+                return;
+            }
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync(_cts.Token);
+                    string sql = "UPDATE HarmonogramDostaw SET bufor = 'Potwierdzony' WHERE Lp = @Lp";
+                    using (SqlCommand cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Lp", _selectedLP);
+                        await cmd.ExecuteNonQueryAsync(_cts.Token);
+                    }
+                }
+
+                dostawa.Bufor = "Potwierdzony";
+                cmbStatus.SelectedItem = "Potwierdzony";
+                RefreshDostawyView();
+                ShowToast("✅ Dostawa potwierdzona", ToastType.Success);
+
+                // Audit log
+                if (_auditService != null)
+                {
+                    await _auditService.LogFieldChangeAsync("HarmonogramDostaw", _selectedLP,
+                        AuditChangeSource.ContextMenu, "bufor", oldStatus, "Potwierdzony",
+                        new AuditContextInfo { Dostawca = dostawa.Dostawca, DataOdbioru = dostawa.DataOdbioru }, _cts.Token);
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd: {ex.Message}", ToastType.Error);
+            }
+        }
+
+        // Menu kontekstowe - Anuluj dostawę (z pytaniem o wszystkie dostawy z tego wstawienia)
+        private async void MenuAnulujDostawe_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_selectedLP))
+            {
+                ShowToast("Wybierz dostawę", ToastType.Warning);
+                return;
+            }
+
+            var dostawa = _dostawy.FirstOrDefault(d => d.LP == _selectedLP) ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == _selectedLP);
+            if (dostawa == null) return;
+
+            // Sprawdź czy dostawa ma LpW (numer wstawienia)
+            if (!string.IsNullOrEmpty(dostawa.LpW))
+            {
+                // Pobierz wszystkie dostawy z tego samego wstawienia
+                var dostawyZWstawienia = await GetDostawyByLpWAsync(dostawa.LpW);
+
+                if (dostawyZWstawienia.Count > 1)
+                {
+                    // Pokaż okno dialogowe z listą dostaw
+                    var dialog = new AnulujWstawienieDialog(dostawyZWstawienia, dostawa.Dostawca);
+                    dialog.Owner = Window.GetWindow(this);
+
+                    if (dialog.ShowDialog() == true)
+                    {
+                        // Anuluj wszystkie dostawy z tego wstawienia
+                        await AnulujWszystkieDostawyZWstawieniaAsync(dostawa.LpW, dostawyZWstawienia);
+                    }
+                    else if (dialog.AnulujTylkoJedna)
+                    {
+                        // Anuluj tylko wybraną dostawę
+                        await AnulujPojedynczaDostaweAsync(dostawa);
+                    }
+                    return;
+                }
+            }
+
+            // Jeśli nie ma LpW lub jest tylko jedna dostawa - anuluj tylko tę jedną
+            await AnulujPojedynczaDostaweAsync(dostawa);
+        }
+
+        private async Task<List<(string LP, DateTime DataOdbioru, int Auta, double SztukiDek, double WagaDek, string Bufor, string Dostawca)>> GetDostawyByLpWAsync(string lpW)
+        {
+            var result = new List<(string LP, DateTime DataOdbioru, int Auta, double SztukiDek, double WagaDek, string Bufor, string Dostawca)>();
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync(_cts.Token);
+                    string sql = "SELECT LP, DataOdbioru, Auta, SztukiDek, WagaDek, bufor, Dostawca FROM HarmonogramDostaw WHERE LpW = @LpW AND bufor != 'Anulowany' ORDER BY DataOdbioru";
+                    using (SqlCommand cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@LpW", lpW);
+                        using (SqlDataReader reader = await cmd.ExecuteReaderAsync(_cts.Token))
+                        {
+                            while (await reader.ReadAsync(_cts.Token))
+                            {
+                                result.Add((
+                                    reader["LP"].ToString(),
+                                    Convert.ToDateTime(reader["DataOdbioru"]),
+                                    reader["Auta"] != DBNull.Value ? Convert.ToInt32(reader["Auta"]) : 0,
+                                    reader["SztukiDek"] != DBNull.Value ? Convert.ToDouble(reader["SztukiDek"]) : 0,
+                                    reader["WagaDek"] != DBNull.Value ? Convert.ToDouble(reader["WagaDek"]) : 0,
+                                    reader["bufor"]?.ToString() ?? "",
+                                    reader["Dostawca"]?.ToString() ?? ""
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd pobierania dostaw: {ex.Message}", ToastType.Error);
+            }
+
+            return result;
+        }
+
+        private async Task AnulujWszystkieDostawyZWstawieniaAsync(string lpW, List<(string LP, DateTime DataOdbioru, int Auta, double SztukiDek, double WagaDek, string Bufor, string Dostawca)> dostawy)
+        {
+            // TRYB SYMULACJI
+            if (_isSimulationMode)
+            {
+                foreach (var d in dostawy)
+                {
+                    var dostawa = _dostawy.FirstOrDefault(x => x.LP == d.LP) ?? _dostawyNastepnyTydzien.FirstOrDefault(x => x.LP == d.LP);
+                    if (dostawa != null) dostawa.Bufor = "Anulowany";
+                }
+                RefreshDostawyView();
+                ShowToast($"❌ Anulowano {dostawy.Count} dostaw z wstawienia (symulacja)", ToastType.Info);
+                return;
+            }
+
+            try
+            {
+                int count = 0;
+                using (SqlConnection conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync(_cts.Token);
+                    foreach (var d in dostawy)
+                    {
+                        using (SqlCommand cmd = new SqlCommand("UPDATE HarmonogramDostaw SET bufor = 'Anulowany' WHERE LP = @LP", conn))
+                        {
+                            cmd.Parameters.AddWithValue("@LP", d.LP);
+                            count += await cmd.ExecuteNonQueryAsync(_cts.Token);
+                        }
+                    }
+                }
+
+                // Audit log
+                if (_auditService != null)
+                {
+                    var lps = dostawy.Select(d => d.LP).ToList();
+                    await _auditService.LogBulkOperationAsync("HarmonogramDostaw", lps,
+                        AuditChangeSource.BulkCancel, "bufor", "Anulowany", null, _cts.Token);
+                }
+
+                ShowToast($"❌ Anulowano {count} dostaw z wstawienia", ToastType.Success);
+                await LoadDostawyAsync();
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd: {ex.Message}", ToastType.Error);
+            }
+        }
+
+        private async Task AnulujPojedynczaDostaweAsync(DostawaModel dostawa)
+        {
+            string oldStatus = dostawa.Bufor;
+
+            // TRYB SYMULACJI
+            if (_isSimulationMode)
+            {
+                dostawa.Bufor = "Anulowany";
+                cmbStatus.SelectedItem = "Anulowany";
+                RefreshDostawyView();
+                ShowToast("❌ Dostawa anulowana (symulacja)", ToastType.Info);
+                return;
+            }
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync(_cts.Token);
+                    string sql = "UPDATE HarmonogramDostaw SET bufor = 'Anulowany' WHERE Lp = @Lp";
+                    using (SqlCommand cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Lp", dostawa.LP);
+                        await cmd.ExecuteNonQueryAsync(_cts.Token);
+                    }
+                }
+
+                dostawa.Bufor = "Anulowany";
+                cmbStatus.SelectedItem = "Anulowany";
+                RefreshDostawyView();
+                ShowToast("❌ Dostawa anulowana", ToastType.Success);
+
+                // Audit log
+                if (_auditService != null)
+                {
+                    await _auditService.LogFieldChangeAsync("HarmonogramDostaw", dostawa.LP,
+                        AuditChangeSource.ContextMenu, "bufor", oldStatus, "Anulowany",
+                        new AuditContextInfo { Dostawca = dostawa.Dostawca, DataOdbioru = dostawa.DataOdbioru }, _cts.Token);
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd: {ex.Message}", ToastType.Error);
+            }
+        }
+
         // Checkbox bezpośredni - Potwierdzenie WAGI (kliknięcie w checkbox)
         private async void ChkPotwWaga_Click(object sender, RoutedEventArgs e)
         {

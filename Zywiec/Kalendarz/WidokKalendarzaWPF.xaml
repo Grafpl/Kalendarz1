@@ -582,6 +582,12 @@
                                 <MenuItem Header="❌ Cofnij potwierdzenie SZTUK" Click="MenuCofnijSztuki_Click"/>
                                 <Separator/>
 
+                                <!-- SEKCJA: Status dostawy -->
+                                <MenuItem Header="🔄 STATUS DOSTAWY" IsEnabled="False" FontWeight="Bold" FontSize="10" Foreground="#6B7280"/>
+                                <MenuItem Header="✅ Potwierdź dostawę" Click="MenuPotwierdzDostawe_Click" Foreground="#16A34A" FontWeight="SemiBold"/>
+                                <MenuItem Header="❌ Anuluj dostawę" Click="MenuAnulujDostawe_Click" Foreground="#DC2626" FontWeight="SemiBold"/>
+                                <Separator/>
+
                                 <!-- SEKCJA: Widoki i raporty -->
                                 <MenuItem Header="📊 WIDOKI" IsEnabled="False" FontWeight="Bold" FontSize="10" Foreground="#6B7280"/>
                                 <MenuItem Header="⚖️ Pokaż wagi" Click="MenuPokazWagi_Click" InputGestureText="F2"/>
@@ -879,6 +885,12 @@
                                 <MenuItem Header="✅ Potwierdź SZTUKI" Click="MenuPotwierdzSztuki_Click" InputGestureText="Ctrl+S"/>
                                 <MenuItem Header="❌ Cofnij potwierdzenie WAGI" Click="MenuCofnijWage_Click"/>
                                 <MenuItem Header="❌ Cofnij potwierdzenie SZTUK" Click="MenuCofnijSztuki_Click"/>
+                                <Separator/>
+
+                                <!-- SEKCJA: Status dostawy -->
+                                <MenuItem Header="🔄 STATUS DOSTAWY" IsEnabled="False" FontWeight="Bold" FontSize="10" Foreground="#6B7280"/>
+                                <MenuItem Header="✅ Potwierdź dostawę" Click="MenuPotwierdzDostawe_Click" Foreground="#16A34A" FontWeight="SemiBold"/>
+                                <MenuItem Header="❌ Anuluj dostawę" Click="MenuAnulujDostawe_Click" Foreground="#DC2626" FontWeight="SemiBold"/>
                                 <Separator/>
 
                                 <!-- SEKCJA: Widoki i raporty -->
