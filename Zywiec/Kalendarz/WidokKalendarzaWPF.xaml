@@ -2497,7 +2497,7 @@
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
                                     <TextBlock Grid.Row="0" Text="📜 HISTORIA ZMIAN DOSTAWY" FontWeight="Bold" FontSize="10" Foreground="#1E293B" Margin="2,0,0,4"/>
-                                    <DataGrid Grid.Row="1" x:Name="dgHistoriaZmianDostawy" Style="{StaticResource SmallDataGridStyle}" IsReadOnly="True" AutoGenerateColumns="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal">
+                                    <DataGrid Grid.Row="1" x:Name="dgHistoriaZmianDostawy" Style="{StaticResource SmallDataGridStyle}" IsReadOnly="True" AutoGenerateColumns="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal" LoadingRow="DgHistoriaZmianDostawy_LoadingRow">
                                         <DataGrid.RowStyle>
                                             <Style TargetType="DataGridRow">
                                                 <Setter Property="MinHeight" Value="32"/>

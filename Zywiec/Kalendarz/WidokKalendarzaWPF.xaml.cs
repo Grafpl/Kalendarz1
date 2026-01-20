@@ -1102,6 +1102,38 @@ namespace Kalendarz1.Zywiec.Kalendarz
             }
         }
 
+        // Event handler dla ładowania avatarów w historii zmian
+        private void DgHistoriaZmianDostawy_LoadingRow(object sender, DataGridRowEventArgs e)
+        {
+            if (e.Row.DataContext is ZmianaDostawyModel zmiana && !string.IsNullOrEmpty(zmiana.UserID))
+            {
+                e.Row.Loaded += (s, args) =>
+                {
+                    try
+                    {
+                        var avatarImage = FindVisualChild<Ellipse>(e.Row, "avatarZmianaImage");
+                        var avatarBorder = FindVisualChild<Border>(e.Row, "avatarZmianaBorder");
+
+                        if (avatarImage != null && avatarBorder != null && UserAvatarManager.HasAvatar(zmiana.UserID))
+                        {
+                            using (var avatar = UserAvatarManager.GetAvatarRounded(zmiana.UserID, 44))
+                            {
+                                if (avatar != null)
+                                {
+                                    var brush = new ImageBrush(ConvertToImageSource(avatar));
+                                    brush.Stretch = Stretch.UniformToFill;
+                                    avatarImage.Fill = brush;
+                                    avatarImage.Visibility = Visibility.Visible;
+                                    avatarBorder.Visibility = Visibility.Collapsed;
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+                };
+            }
+        }
+
         private T FindVisualChild<T>(DependencyObject parent, string name = null) where T : DependencyObject
         {
             for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
