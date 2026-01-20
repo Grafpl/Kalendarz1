@@ -567,7 +567,7 @@ namespace Kalendarz1
             canvas.Children.Add(centerCircle);
         }
 
-        private Path CreatePieSlice(double centerX, double centerY, double radius, double startAngle, double angle, Brush fill)
+        private System.Windows.Shapes.Path CreatePieSlice(double centerX, double centerY, double radius, double startAngle, double angle, Brush fill)
         {
             double startAngleRad = startAngle * Math.PI / 180;
             double endAngleRad = (startAngle + angle) * Math.PI / 180;
@@ -596,7 +596,7 @@ namespace Kalendarz1
             var geometry = new PathGeometry();
             geometry.Figures.Add(figure);
 
-            return new Path
+            return new System.Windows.Shapes.Path
             {
                 Data = geometry,
                 Fill = fill,
