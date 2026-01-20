@@ -909,13 +909,27 @@ namespace Kalendarz1.WPF
             {
                 get
                 {
-                    if (Info.CzyZmodyfikowaneDlaFaktur) return Brushes.OrangeRed;
+                    if (Info.CzyZmodyfikowaneDlaFaktur) return new SolidColorBrush(Color.FromRgb(230, 81, 0)); // Pomarańczowy
                     if (Info.CzyZafakturowane) return new SolidColorBrush(Color.FromRgb(46, 125, 50)); // Zielony
                     if (Info.Status == "Wydano") return new SolidColorBrush(Color.FromRgb(2, 119, 189)); // Niebieski
                     if (Info.Status == "Zrealizowane") return new SolidColorBrush(Color.FromRgb(56, 142, 60)); // Zielony
                     if (Info.Status == "W realizacji") return new SolidColorBrush(Color.FromRgb(25, 118, 210)); // Niebieski
                     if (Info.Status == "Nowe") return new SolidColorBrush(Color.FromRgb(245, 124, 0)); // Pomarańczowy
-                    return Brushes.Black;
+                    return new SolidColorBrush(Color.FromRgb(84, 110, 122));
+                }
+            }
+
+            public Brush StatusBackground
+            {
+                get
+                {
+                    if (Info.CzyZmodyfikowaneDlaFaktur) return new SolidColorBrush(Color.FromRgb(255, 243, 224)); // #FFF3E0
+                    if (Info.CzyZafakturowane) return new SolidColorBrush(Color.FromRgb(200, 230, 201)); // #C8E6C9
+                    if (Info.Status == "Wydano") return new SolidColorBrush(Color.FromRgb(225, 245, 254)); // #E1F5FE
+                    if (Info.Status == "Zrealizowane") return new SolidColorBrush(Color.FromRgb(232, 245, 233)); // #E8F5E9
+                    if (Info.Status == "W realizacji") return new SolidColorBrush(Color.FromRgb(227, 242, 253)); // #E3F2FD
+                    if (Info.Status == "Nowe") return new SolidColorBrush(Color.FromRgb(255, 248, 225)); // #FFF8E1
+                    return new SolidColorBrush(Color.FromRgb(236, 239, 241)); // #ECEFF1
                 }
             }
 
