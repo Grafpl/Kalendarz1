@@ -42,6 +42,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
         private ObservableCollection<DostawaModel> _wstawienia = new ObservableCollection<DostawaModel>();
         private ObservableCollection<NotatkaModel> _notatki = new ObservableCollection<NotatkaModel>();
         private ObservableCollection<NotatkaModel> _ostatnieNotatki = new ObservableCollection<NotatkaModel>();
+        private ObservableCollection<ZmianaDostawyModel> _zmianyDostawy = new ObservableCollection<ZmianaDostawyModel>();
         private ObservableCollection<RankingModel> _ranking = new ObservableCollection<RankingModel>();
 
         private DateTime _selectedDate = DateTime.Today;
@@ -135,7 +136,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
             dgPartie.ItemsSource = _partie;
             dgWstawienia.ItemsSource = _wstawienia;
             dgNotatki.ItemsSource = _notatki;
-            dgOstatnieNotatki.ItemsSource = _ostatnieNotatki;
+            dgHistoriaZmianDostawy.ItemsSource = _zmianyDostawy;
             dgRanking.ItemsSource = _ranking;
 
             SetupComboBoxes();
@@ -1004,6 +1005,66 @@ namespace Kalendarz1.Zywiec.Kalendarz
             _ = LoadOstatnieNotatkiAsync();
         }
 
+        private async Task LoadZmianyDostawyAsync(string lpDostawa)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(lpDostawa))
+                {
+                    await Dispatcher.InvokeAsync(() => _zmianyDostawy.Clear());
+                    return;
+                }
+
+                var tempList = new List<ZmianaDostawyModel>();
+
+                using (SqlConnection conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync(_cts.Token);
+
+                    // Sprawdź czy tabela istnieje
+                    using (var checkCmd = new SqlCommand(
+                        "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'AuditLog_Dostawy'", conn))
+                    {
+                        var exists = (int)await checkCmd.ExecuteScalarAsync(_cts.Token);
+                        if (exists == 0) return;
+                    }
+
+                    string sql = @"SELECT TOP 50 DataZmiany, UserID, UserName, NazwaPola, StaraWartosc, NowaWartosc
+                                   FROM AuditLog_Dostawy
+                                   WHERE RekordID = @lp
+                                   ORDER BY DataZmiany DESC";
+
+                    using (SqlCommand cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@lp", lpDostawa);
+                        using (SqlDataReader reader = await cmd.ExecuteReaderAsync(_cts.Token))
+                        {
+                            while (await reader.ReadAsync(_cts.Token))
+                            {
+                                tempList.Add(new ZmianaDostawyModel
+                                {
+                                    DataZmiany = reader.GetDateTime(reader.GetOrdinal("DataZmiany")),
+                                    UserID = reader.IsDBNull(reader.GetOrdinal("UserID")) ? "" : reader.GetString(reader.GetOrdinal("UserID")),
+                                    UserName = reader.IsDBNull(reader.GetOrdinal("UserName")) ? "" : reader.GetString(reader.GetOrdinal("UserName")),
+                                    NazwaPola = reader.IsDBNull(reader.GetOrdinal("NazwaPola")) ? "" : reader.GetString(reader.GetOrdinal("NazwaPola")),
+                                    StaraWartosc = reader.IsDBNull(reader.GetOrdinal("StaraWartosc")) ? "" : reader.GetString(reader.GetOrdinal("StaraWartosc")),
+                                    NowaWartosc = reader.IsDBNull(reader.GetOrdinal("NowaWartosc")) ? "" : reader.GetString(reader.GetOrdinal("NowaWartosc"))
+                                });
+                            }
+                        }
+                    }
+                }
+
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    _zmianyDostawy.Clear();
+                    foreach (var z in tempList)
+                        _zmianyDostawy.Add(z);
+                });
+            }
+            catch { }
+        }
+
         // Event handler dla ładowania avatarów w notatkach
         private void DgNotatki_LoadingRow(object sender, DataGridRowEventArgs e)
         {
@@ -1795,6 +1856,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 _selectedLP = selected.LP;
                 _ = LoadDeliveryDetailsAsync(selected.LP);
                 _ = LoadNotatkiAsync(selected.LP);
+                _ = LoadZmianyDostawyAsync(selected.LP);
 
                 // Aktualizuj nazwę hodowcy w sekcjach Notatki, Wstawienia i Dane dostawy (z LP)
                 string lpDostawca = $"{selected.LP} - {selected.Dostawca ?? ""}";
@@ -1960,6 +2022,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 _selectedLP = selected.LP;
                 _ = LoadDeliveryDetailsAsync(selected.LP);
                 _ = LoadNotatkiAsync(selected.LP);
+                _ = LoadZmianyDostawyAsync(selected.LP);
 
                 // Aktualizuj nazwę hodowcy w sekcjach Notatki, Wstawienia i Dane dostawy (z LP)
                 string lpDostawca = $"{selected.LP} - {selected.Dostawca ?? ""}";
@@ -6398,6 +6461,16 @@ namespace Kalendarz1.Zywiec.Kalendarz
         public string KtoDodal { get; set; }
         public string KtoDodal_ID { get; set; }
         public string Tresc { get; set; }
+    }
+
+    public class ZmianaDostawyModel
+    {
+        public DateTime DataZmiany { get; set; }
+        public string UserID { get; set; }
+        public string UserName { get; set; }
+        public string NazwaPola { get; set; }
+        public string StaraWartosc { get; set; }
+        public string NowaWartosc { get; set; }
     }
 
     public class RankingModel
