@@ -2453,42 +2453,38 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     return;
                 }
 
-                if (MessageBox.Show("Czy na pewno chcesz dodać tę notatkę?", "Potwierdzenie",
-                    MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                try
                 {
-                    try
+                    using (SqlConnection conn = new SqlConnection(ConnectionString))
                     {
-                        using (SqlConnection conn = new SqlConnection(ConnectionString))
+                        await conn.OpenAsync();
+                        string sql = "INSERT INTO Notatki (IndeksID, TypID, Tresc, KtoStworzyl, DataUtworzenia) VALUES (@lp, 1, @tresc, @kto, GETDATE())";
+                        using (SqlCommand cmd = new SqlCommand(sql, conn))
                         {
-                            await conn.OpenAsync();
-                            string sql = "INSERT INTO Notatki (IndeksID, TypID, Tresc, KtoStworzyl, DataUtworzenia) VALUES (@lp, 1, @tresc, @kto, GETDATE())";
-                            using (SqlCommand cmd = new SqlCommand(sql, conn))
-                            {
-                                cmd.Parameters.AddWithValue("@lp", lp);
-                                cmd.Parameters.AddWithValue("@tresc", noteText);
-                                cmd.Parameters.AddWithValue("@kto", UserID ?? "0");
-                                await cmd.ExecuteNonQueryAsync();
-                            }
+                            cmd.Parameters.AddWithValue("@lp", lp);
+                            cmd.Parameters.AddWithValue("@tresc", noteText);
+                            cmd.Parameters.AddWithValue("@kto", UserID ?? "0");
+                            await cmd.ExecuteNonQueryAsync();
                         }
-
-                        // AUDIT LOG - logowanie dodania notatki
-                        if (_auditService != null)
-                        {
-                            await _auditService.LogNoteAddedAsync(lp, noteText, AuditChangeSource.DoubleClick_Uwagi,
-                                cancellationToken: _cts.Token);
-                        }
-
-                        dialog.Close();
-                        ShowToast("Notatka dodana", ToastType.Success);
-                        await LoadNotatkiAsync(lp);
-                        await LoadOstatnieNotatkiAsync();
-                        // Odśwież tabele dostaw
-                        await LoadDostawyAsync();
                     }
-                    catch (Exception ex)
+
+                    // AUDIT LOG - logowanie dodania notatki
+                    if (_auditService != null)
                     {
-                        ShowToast($"Błąd: {ex.Message}", ToastType.Error);
+                        await _auditService.LogNoteAddedAsync(lp, noteText, AuditChangeSource.DoubleClick_Uwagi,
+                            cancellationToken: _cts.Token);
                     }
+
+                    dialog.Close();
+                    ShowToast("Notatka dodana", ToastType.Success);
+                    await LoadNotatkiAsync(lp);
+                    await LoadZmianyDostawyAsync(lp);
+                    // Odśwież tabele dostaw
+                    await LoadDostawyAsync();
+                }
+                catch (Exception ex)
+                {
+                    ShowToast($"Błąd: {ex.Message}", ToastType.Error);
                 }
             };
 
