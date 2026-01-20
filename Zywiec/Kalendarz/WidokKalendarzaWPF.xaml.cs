@@ -1999,14 +1999,14 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                     // Info potwierdzenia wagi i sztuk
                                     try
                                     {
-                                        txtDataPotwWaga.Text = r["DataPotwWaga"] != DBNull.Value ? Convert.ToDateTime(r["DataPotwWaga"]).ToString("yyyy-MM-dd HH:mm") : "";
+                                        txtDataPotwWaga.Text = r["KiedyWaga"] != DBNull.Value ? Convert.ToDateTime(r["KiedyWaga"]).ToString("yyyy-MM-dd HH:mm") : "";
                                         txtKtoPotwWaga.Text = r["KtoWagaName"]?.ToString();
-                                        txtDataPotwSztuki.Text = r["DataPotwSztuki"] != DBNull.Value ? Convert.ToDateTime(r["DataPotwSztuki"]).ToString("yyyy-MM-dd HH:mm") : "";
+                                        txtDataPotwSztuki.Text = r["KiedySztuki"] != DBNull.Value ? Convert.ToDateTime(r["KiedySztuki"]).ToString("yyyy-MM-dd HH:mm") : "";
                                         txtKtoPotwSztuki.Text = r["KtoSztukiName"]?.ToString();
                                     }
                                     catch
                                     {
-                                        // Kolumny DataPotwWaga/DataPotwSztuki mogą nie istnieć
+                                        // Kolumny KiedyWaga/KiedySztuki mogą nie istnieć
                                         txtDataPotwWaga.Text = "";
                                         txtKtoPotwWaga.Text = r["KtoWagaName"]?.ToString();
                                         txtDataPotwSztuki.Text = "";
@@ -2887,14 +2887,14 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                 // Info potwierdzenia wagi i sztuk
                                 try
                                 {
-                                    txtDataPotwWaga.Text = r["DataPotwWaga"] != DBNull.Value ? Convert.ToDateTime(r["DataPotwWaga"]).ToString("yyyy-MM-dd HH:mm") : "";
+                                    txtDataPotwWaga.Text = r["KiedyWaga"] != DBNull.Value ? Convert.ToDateTime(r["KiedyWaga"]).ToString("yyyy-MM-dd HH:mm") : "";
                                     txtKtoPotwWaga.Text = r["KtoWagaName"]?.ToString();
-                                    txtDataPotwSztuki.Text = r["DataPotwSztuki"] != DBNull.Value ? Convert.ToDateTime(r["DataPotwSztuki"]).ToString("yyyy-MM-dd HH:mm") : "";
+                                    txtDataPotwSztuki.Text = r["KiedySztuki"] != DBNull.Value ? Convert.ToDateTime(r["KiedySztuki"]).ToString("yyyy-MM-dd HH:mm") : "";
                                     txtKtoPotwSztuki.Text = r["KtoSztukiName"]?.ToString();
                                 }
                                 catch
                                 {
-                                    // Kolumny DataPotwWaga/DataPotwSztuki mogą nie istnieć
+                                    // Kolumny KiedyWaga/KiedySztuki mogą nie istnieć
                                     txtDataPotwWaga.Text = "";
                                     txtKtoPotwWaga.Text = r["KtoWagaName"]?.ToString();
                                     txtDataPotwSztuki.Text = "";
