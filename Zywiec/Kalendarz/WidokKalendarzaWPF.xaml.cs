@@ -1936,7 +1936,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
                     await conn.OpenAsync(_cts.Token);
-                    string sql = @"SELECT HD.*, D.Address, D.PostalCode, D.City, D.Distance, D.Phone1, D.Phone2, D.Phone3,
+                    string sql = @"SELECT HD.*, HD.KiedyWaga, HD.KiedySztuki, D.Address, D.PostalCode, D.City, D.Distance, D.Phone1, D.Phone2, D.Phone3,
                                    D.Info1, D.Info2, D.Info3, D.Email, D.TypOsobowosci, D.TypOsobowosci2,
                                    O1.Name as KtoStwoName, O2.Name as KtoModName, O3.Name as KtoWagaName, O4.Name as KtoSztukiName
                                    FROM HarmonogramDostaw HD
@@ -1997,21 +1997,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                     txtKtoMod.Text = r["KtoModName"]?.ToString();
 
                                     // Info potwierdzenia wagi i sztuk
-                                    try
-                                    {
-                                        txtDataPotwWaga.Text = r["KiedyWaga"] != DBNull.Value ? Convert.ToDateTime(r["KiedyWaga"]).ToString("yyyy-MM-dd HH:mm") : "";
-                                        txtKtoPotwWaga.Text = r["KtoWagaName"]?.ToString();
-                                        txtDataPotwSztuki.Text = r["KiedySztuki"] != DBNull.Value ? Convert.ToDateTime(r["KiedySztuki"]).ToString("yyyy-MM-dd HH:mm") : "";
-                                        txtKtoPotwSztuki.Text = r["KtoSztukiName"]?.ToString();
-                                    }
-                                    catch
-                                    {
-                                        // Kolumny KiedyWaga/KiedySztuki mogą nie istnieć
-                                        txtDataPotwWaga.Text = "";
-                                        txtKtoPotwWaga.Text = r["KtoWagaName"]?.ToString();
-                                        txtDataPotwSztuki.Text = "";
-                                        txtKtoPotwSztuki.Text = r["KtoSztukiName"]?.ToString();
-                                    }
+                                    txtDataPotwWaga.Text = r["KiedyWaga"] != DBNull.Value ? Convert.ToDateTime(r["KiedyWaga"]).ToString("yyyy-MM-dd HH:mm") : "";
+                                    txtKtoPotwWaga.Text = r["KtoWagaName"]?.ToString() ?? "";
+                                    txtDataPotwSztuki.Text = r["KiedySztuki"] != DBNull.Value ? Convert.ToDateTime(r["KiedySztuki"]).ToString("yyyy-MM-dd HH:mm") : "";
+                                    txtKtoPotwSztuki.Text = r["KtoSztukiName"]?.ToString() ?? "";
 
                                     // Transport
                                     txtSztNaSzufladeCalc.Text = r["SztSzuflada"]?.ToString();
@@ -2826,7 +2815,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
                     conn.Open();
-                    string sql = @"SELECT HD.*, D.Address, D.PostalCode, D.City, D.Distance, D.Phone1, D.Phone2, D.Phone3,
+                    string sql = @"SELECT HD.*, HD.KiedyWaga, HD.KiedySztuki, D.Address, D.PostalCode, D.City, D.Distance, D.Phone1, D.Phone2, D.Phone3,
                                    D.Info1, D.Info2, D.Info3, D.Email, D.TypOsobowosci, D.TypOsobowosci2,
                                    O1.Name as KtoStwoName, O2.Name as KtoModName, O3.Name as KtoWagaName, O4.Name as KtoSztukiName
                                    FROM HarmonogramDostaw HD
@@ -2885,21 +2874,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                 txtKtoMod.Text = r["KtoModName"]?.ToString();
 
                                 // Info potwierdzenia wagi i sztuk
-                                try
-                                {
-                                    txtDataPotwWaga.Text = r["KiedyWaga"] != DBNull.Value ? Convert.ToDateTime(r["KiedyWaga"]).ToString("yyyy-MM-dd HH:mm") : "";
-                                    txtKtoPotwWaga.Text = r["KtoWagaName"]?.ToString();
-                                    txtDataPotwSztuki.Text = r["KiedySztuki"] != DBNull.Value ? Convert.ToDateTime(r["KiedySztuki"]).ToString("yyyy-MM-dd HH:mm") : "";
-                                    txtKtoPotwSztuki.Text = r["KtoSztukiName"]?.ToString();
-                                }
-                                catch
-                                {
-                                    // Kolumny KiedyWaga/KiedySztuki mogą nie istnieć
-                                    txtDataPotwWaga.Text = "";
-                                    txtKtoPotwWaga.Text = r["KtoWagaName"]?.ToString();
-                                    txtDataPotwSztuki.Text = "";
-                                    txtKtoPotwSztuki.Text = r["KtoSztukiName"]?.ToString();
-                                }
+                                txtDataPotwWaga.Text = r["KiedyWaga"] != DBNull.Value ? Convert.ToDateTime(r["KiedyWaga"]).ToString("yyyy-MM-dd HH:mm") : "";
+                                txtKtoPotwWaga.Text = r["KtoWagaName"]?.ToString() ?? "";
+                                txtDataPotwSztuki.Text = r["KiedySztuki"] != DBNull.Value ? Convert.ToDateTime(r["KiedySztuki"]).ToString("yyyy-MM-dd HH:mm") : "";
+                                txtKtoPotwSztuki.Text = r["KtoSztukiName"]?.ToString() ?? "";
 
                                 // Transport
                                 txtSztNaSzufladeCalc.Text = r["SztSzuflada"]?.ToString();
