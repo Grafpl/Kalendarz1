@@ -2429,8 +2429,8 @@
                         </ScrollViewer>
                     </TabItem>
 
-                    <!-- TAB: NOTATKI -->
-                    <TabItem Header="Notatki">
+                    <!-- TAB: ZMIANY DOSTAWY -->
+                    <TabItem Header="Zmiany Dostawy">
                         <Grid Margin="8">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="1*"/>
