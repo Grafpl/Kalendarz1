@@ -414,7 +414,7 @@ namespace Kalendarz1
                 LoadUserAvatar();
 
                 // Inicjalizuj serwis czatu
-                _chatService = new ChatService(connectionString, App.UserID, App.UserFullName ?? App.UserID);
+                _chatService = new ChatService(App.UserID);
 
                 // Znajdź elementy badge'a w template (po załadowaniu)
                 Loaded += (s, e) =>
@@ -549,7 +549,7 @@ namespace Kalendarz1
                 }
 
                 // Otwórz nowe okno czatu
-                _chatWindow = new ChatMainWindow();
+                _chatWindow = new ChatMainWindow(App.UserID, App.UserFullName);
                 _chatWindow.Closed += (s, args) => _chatWindow = null;
                 _chatWindow.Show();
 
