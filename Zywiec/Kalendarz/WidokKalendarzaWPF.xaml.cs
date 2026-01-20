@@ -5181,7 +5181,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
             if (partia != null && !string.IsNullOrEmpty(partia.FolderPath))
             {
                 string photosRoot = ConfigurationManager.AppSettings["PhotosRoot"] ?? @"\\192.168.0.170\Install\QC_Foto";
-                string fullPath = Path.Combine(photosRoot, partia.FolderPath.Replace('/', '\\'));
+                string fullPath = System.IO.Path.Combine(photosRoot, partia.FolderPath.Replace('/', '\\'));
 
                 if (Directory.Exists(fullPath))
                 {
