@@ -2524,6 +2524,8 @@
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0">
                         <TextBlock Text="Utworzono:" Style="{StaticResource FormLabelStyle}"/>
@@ -2537,6 +2539,20 @@
                         <StackPanel Orientation="Horizontal">
                             <TextBlock x:Name="txtDataMod" FontSize="10"/>
                             <TextBlock x:Name="txtKtoMod" FontSize="10" Margin="8,0,0,0" Foreground="#7F8C8D"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Potw. waga:" Style="{StaticResource FormLabelStyle}" Foreground="#388E3C"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="txtDataPotwWaga" FontSize="10"/>
+                            <TextBlock x:Name="txtKtoPotwWaga" FontSize="10" Margin="8,0,0,0" Foreground="#7F8C8D"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <StackPanel Grid.Column="3">
+                        <TextBlock Text="Potw. sztuki:" Style="{StaticResource FormLabelStyle}" Foreground="#1565C0"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="txtDataPotwSztuki" FontSize="10"/>
+                            <TextBlock x:Name="txtKtoPotwSztuki" FontSize="10" Margin="8,0,0,0" Foreground="#7F8C8D"/>
                         </StackPanel>
                     </StackPanel>
                 </Grid>

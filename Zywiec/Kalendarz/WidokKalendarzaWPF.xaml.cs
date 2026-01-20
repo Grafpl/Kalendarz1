@@ -1996,6 +1996,23 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                     txtDataMod.Text = r["DataMod"] != DBNull.Value ? Convert.ToDateTime(r["DataMod"]).ToString("yyyy-MM-dd HH:mm") : "";
                                     txtKtoMod.Text = r["KtoModName"]?.ToString();
 
+                                    // Info potwierdzenia wagi i sztuk
+                                    try
+                                    {
+                                        txtDataPotwWaga.Text = r["DataPotwWaga"] != DBNull.Value ? Convert.ToDateTime(r["DataPotwWaga"]).ToString("yyyy-MM-dd HH:mm") : "";
+                                        txtKtoPotwWaga.Text = r["KtoWagaName"]?.ToString();
+                                        txtDataPotwSztuki.Text = r["DataPotwSztuki"] != DBNull.Value ? Convert.ToDateTime(r["DataPotwSztuki"]).ToString("yyyy-MM-dd HH:mm") : "";
+                                        txtKtoPotwSztuki.Text = r["KtoSztukiName"]?.ToString();
+                                    }
+                                    catch
+                                    {
+                                        // Kolumny DataPotwWaga/DataPotwSztuki mogą nie istnieć
+                                        txtDataPotwWaga.Text = "";
+                                        txtKtoPotwWaga.Text = r["KtoWagaName"]?.ToString();
+                                        txtDataPotwSztuki.Text = "";
+                                        txtKtoPotwSztuki.Text = r["KtoSztukiName"]?.ToString();
+                                    }
+
                                     // Transport
                                     txtSztNaSzufladeCalc.Text = r["SztSzuflada"]?.ToString();
 
@@ -2866,6 +2883,23 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                 txtKtoStwo.Text = r["KtoStwoName"]?.ToString();
                                 txtDataMod.Text = r["DataMod"] != DBNull.Value ? Convert.ToDateTime(r["DataMod"]).ToString("yyyy-MM-dd HH:mm") : "";
                                 txtKtoMod.Text = r["KtoModName"]?.ToString();
+
+                                // Info potwierdzenia wagi i sztuk
+                                try
+                                {
+                                    txtDataPotwWaga.Text = r["DataPotwWaga"] != DBNull.Value ? Convert.ToDateTime(r["DataPotwWaga"]).ToString("yyyy-MM-dd HH:mm") : "";
+                                    txtKtoPotwWaga.Text = r["KtoWagaName"]?.ToString();
+                                    txtDataPotwSztuki.Text = r["DataPotwSztuki"] != DBNull.Value ? Convert.ToDateTime(r["DataPotwSztuki"]).ToString("yyyy-MM-dd HH:mm") : "";
+                                    txtKtoPotwSztuki.Text = r["KtoSztukiName"]?.ToString();
+                                }
+                                catch
+                                {
+                                    // Kolumny DataPotwWaga/DataPotwSztuki mogą nie istnieć
+                                    txtDataPotwWaga.Text = "";
+                                    txtKtoPotwWaga.Text = r["KtoWagaName"]?.ToString();
+                                    txtDataPotwSztuki.Text = "";
+                                    txtKtoPotwSztuki.Text = r["KtoSztukiName"]?.ToString();
+                                }
 
                                 // Transport
                                 txtSztNaSzufladeCalc.Text = r["SztSzuflada"]?.ToString();
