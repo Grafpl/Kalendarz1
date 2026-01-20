@@ -390,12 +390,19 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <!-- Kto zmienił -->
-                            <DataGridTemplateColumn Header="Kto" Width="80">
+                            <!-- Kto zmienił z avatarem -->
+                            <DataGridTemplateColumn Header="Kto" Width="110">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock Text="{Binding KtoZmienil}" FontSize="10" Foreground="#546E7A"
-                                                   VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Ellipse Width="22" Height="22" Margin="0,0,5,0">
+                                                <Ellipse.Fill>
+                                                    <ImageBrush ImageSource="{Binding KtoZmienilAvatar}" Stretch="UniformToFill"/>
+                                                </Ellipse.Fill>
+                                            </Ellipse>
+                                            <TextBlock Text="{Binding KtoZmienil}" FontSize="10" Foreground="#546E7A"
+                                                       VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="75"/>
+                                        </StackPanel>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>

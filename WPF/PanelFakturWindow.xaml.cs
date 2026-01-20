@@ -7,10 +7,12 @@ using System.Data;
 using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace Kalendarz1.WPF
 {
@@ -851,6 +853,31 @@ namespace Kalendarz1.WPF
             catch { }
         }
 
+        #region Avatar Helpers
+
+        [DllImport("gdi32.dll")]
+        private static extern bool DeleteObject(IntPtr hObject);
+
+        private static BitmapSource ConvertToBitmapSource(System.Drawing.Image image)
+        {
+            if (image == null) return null;
+            using (var bitmap = new System.Drawing.Bitmap(image))
+            {
+                var hBitmap = bitmap.GetHbitmap();
+                try
+                {
+                    return System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
+                        hBitmap, IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+                }
+                finally
+                {
+                    DeleteObject(hBitmap);
+                }
+            }
+        }
+
+        #endregion
+
         #region Data Classes
 
         public class ZamowienieInfo
@@ -952,6 +979,40 @@ namespace Kalendarz1.WPF
 
             // Kto zmienił - imię i nazwisko
             public string KtoZmienil => Info.ModyfikowalPrzez ?? "";
+
+            // Avatar osoby która zmieniła
+            private BitmapSource _ktoZmienilAvatar;
+            private bool _avatarLoaded;
+            public BitmapSource KtoZmienilAvatar
+            {
+                get
+                {
+                    if (!_avatarLoaded && !string.IsNullOrEmpty(Info.ModyfikowalPrzez))
+                    {
+                        _avatarLoaded = true;
+                        try
+                        {
+                            // Próbuj załadować avatar używając nazwy jako ID
+                            var avatarId = Info.ModyfikowalPrzez.Replace(" ", "");
+                            if (UserAvatarManager.HasAvatar(avatarId))
+                            {
+                                using var img = UserAvatarManager.GetAvatarRounded(avatarId, 24);
+                                if (img != null)
+                                    _ktoZmienilAvatar = ConvertToBitmapSource(img);
+                            }
+
+                            // Jeśli nie znaleziono, wygeneruj domyślny z inicjałami
+                            if (_ktoZmienilAvatar == null)
+                            {
+                                using var img = UserAvatarManager.GenerateDefaultAvatar(Info.ModyfikowalPrzez, avatarId, 24);
+                                _ktoZmienilAvatar = ConvertToBitmapSource(img);
+                            }
+                        }
+                        catch { }
+                    }
+                    return _ktoZmienilAvatar;
+                }
+            }
 
             // Czy wszystkie towary mają ceny - ✓ lub ✗
             public string CenaDisplay => Info.CzyMaCeny ? "✓" : "✗";
