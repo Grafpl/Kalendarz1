@@ -21,6 +21,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
         private readonly string _filterByLP;
         private readonly string _hodowcaName;
         private ObservableCollection<AuditLogDisplayModel> _auditLogs = new ObservableCollection<AuditLogDisplayModel>();
+        private ObservableCollection<NotatkaHistoryModel> _notatki = new ObservableCollection<NotatkaHistoryModel>();
 
         public HistoriaZmianWindow(string connectionString, string userId = null)
         {
@@ -31,6 +32,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
             _hodowcaName = null;
 
             dgAuditLog.ItemsSource = _auditLogs;
+            dgNotatki.ItemsSource = _notatki;
             dpDateFrom.SelectedDate = DateTime.Today.AddDays(-7);
             dpDateTo.SelectedDate = DateTime.Today;
 
@@ -73,11 +75,16 @@ namespace Kalendarz1.Zywiec.Kalendarz
             dpDateTo.SelectedDate = DateTime.Today;
 
             dgAuditLog.ItemsSource = _auditLogs;
+            dgNotatki.ItemsSource = _notatki;
 
             Loaded += async (s, e) =>
             {
                 await LoadUsersAsync();
                 await LoadAuditLogAsync();
+                if (!string.IsNullOrEmpty(_filterByLP))
+                {
+                    await LoadNotatkiAsync();
+                }
             };
         }
 
@@ -252,6 +259,63 @@ namespace Kalendarz1.Zywiec.Kalendarz
             return 0;
         }
 
+        private async Task LoadNotatkiAsync()
+        {
+            _notatki.Clear();
+
+            if (string.IsNullOrEmpty(_filterByLP))
+            {
+                txtNotatkiCount.Text = "";
+                return;
+            }
+
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+
+                    // Pobierz notatki dla danego LP (IndeksID)
+                    string sql = @"
+                        SELECT N.ID, N.Tresc, N.DataUtworzenia, N.DataModyfikacji,
+                               N.KtoStworzyl, N.KtoZmodyfikowal,
+                               O1.Name AS KtoDodal, O2.Name AS KtoZmienil
+                        FROM Notatki N
+                        LEFT JOIN operators O1 ON N.KtoStworzyl = O1.ID
+                        LEFT JOIN operators O2 ON N.KtoZmodyfikowal = O2.ID
+                        WHERE N.IndeksID = @lp
+                        ORDER BY N.DataUtworzenia DESC";
+
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@lp", _filterByLP);
+
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                _notatki.Add(new NotatkaHistoryModel
+                                {
+                                    ID = reader.GetInt32(reader.GetOrdinal("ID")),
+                                    Tresc = reader.IsDBNull(reader.GetOrdinal("Tresc")) ? "" : reader.GetString(reader.GetOrdinal("Tresc")),
+                                    DataUtworzenia = reader.IsDBNull(reader.GetOrdinal("DataUtworzenia")) ? (DateTime?)null : reader.GetDateTime(reader.GetOrdinal("DataUtworzenia")),
+                                    DataModyfikacji = reader.IsDBNull(reader.GetOrdinal("DataModyfikacji")) ? (DateTime?)null : reader.GetDateTime(reader.GetOrdinal("DataModyfikacji")),
+                                    KtoDodal = reader.IsDBNull(reader.GetOrdinal("KtoDodal")) ? "" : reader.GetString(reader.GetOrdinal("KtoDodal")),
+                                    KtoZmienil = reader.IsDBNull(reader.GetOrdinal("KtoZmienil")) ? "" : reader.GetString(reader.GetOrdinal("KtoZmienil"))
+                                });
+                            }
+                        }
+                    }
+                }
+
+                txtNotatkiCount.Text = $"({_notatki.Count} notatek)";
+            }
+            catch (Exception ex)
+            {
+                txtNotatkiCount.Text = $"Błąd: {ex.Message}";
+            }
+        }
+
         #endregion
 
         #region Obsługa zdarzeń
@@ -406,6 +470,19 @@ namespace Kalendarz1.Zywiec.Kalendarz
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string name = null) =>
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    }
+
+    /// <summary>
+    /// Model do wyświetlania notatek w DataGrid
+    /// </summary>
+    public class NotatkaHistoryModel
+    {
+        public int ID { get; set; }
+        public string Tresc { get; set; }
+        public DateTime? DataUtworzenia { get; set; }
+        public DateTime? DataModyfikacji { get; set; }
+        public string KtoDodal { get; set; }
+        public string KtoZmienil { get; set; }
     }
 
     #endregion
