@@ -4,19 +4,46 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Data;
+using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using Kalendarz1.Zywiec.Kalendarz;
 
 namespace Kalendarz1
 {
     public class PracownikStat : INotifyPropertyChanged
     {
         public string NazwaPracownika { get; set; }
+        public string UserID { get; set; }
         public int LiczbaAkcji { get; set; }
-        
+
+        private ImageSource _avatarSource;
+        public ImageSource AvatarSource
+        {
+            get => _avatarSource;
+            set
+            {
+                _avatarSource = value;
+                OnPropertyChanged(nameof(AvatarSource));
+            }
+        }
+
+        public string Initials => GetInitials(NazwaPracownika);
+
+        private string GetInitials(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return "?";
+            var parts = name.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length >= 2)
+                return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+            return name.Length >= 2 ? name.Substring(0, 2).ToUpper() : name.ToUpper();
+        }
+
         private double _procent;
         public double Procent
         {
@@ -60,17 +87,59 @@ namespace Kalendarz1
         }
     }
 
-    public class WstawienieDetails
+    public class WstawienieDetails : INotifyPropertyChanged
     {
         public int Lp { get; set; }
         public string Dostawca { get; set; }
         public DateTime? DataWstawienia { get; set; }
         public int? IloscWstawienia { get; set; }
         public string KtoStworzyl { get; set; }
+        public string KtoStworzylID { get; set; }
         public DateTime? DataUtw { get; set; }
         public string Status { get; set; }
         public string KtoPotwierdził { get; set; }
+        public string KtoPotwierdziłID { get; set; }
         public DateTime? DataConf { get; set; }
+
+        private ImageSource _avatarStworzyl;
+        public ImageSource AvatarStworzyl
+        {
+            get => _avatarStworzyl;
+            set
+            {
+                _avatarStworzyl = value;
+                OnPropertyChanged(nameof(AvatarStworzyl));
+            }
+        }
+
+        private ImageSource _avatarPotwierdził;
+        public ImageSource AvatarPotwierdził
+        {
+            get => _avatarPotwierdził;
+            set
+            {
+                _avatarPotwierdził = value;
+                OnPropertyChanged(nameof(AvatarPotwierdził));
+            }
+        }
+
+        public string InitialsStworzyl => GetInitials(KtoStworzyl);
+        public string InitialsPotwierdził => GetInitials(KtoPotwierdził);
+
+        private string GetInitials(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name) || name == "-") return "?";
+            var parts = name.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length >= 2)
+                return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+            return name.Length >= 2 ? name.Substring(0, 2).ToUpper() : name.ToUpper();
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected virtual void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
     }
 
     public partial class StatystykiPracownikow : Window
@@ -337,21 +406,25 @@ namespace Kalendarz1
             {
                 case "Stworzone":
                     query = @"
-                        SELECT ISNULL(o.Name, 'Nieznany') AS UserName, COUNT(*) AS TotalCount
+                        SELECT ISNULL(o.Name, 'Nieznany') AS UserName,
+                               CAST(w.KtoStwo AS VARCHAR(20)) AS UserID,
+                               COUNT(*) AS TotalCount
                         FROM dbo.WstawieniaKurczakow w
                         LEFT JOIN dbo.operators o ON w.KtoStwo = o.ID
                         WHERE w.DataUtw >= @StartDate AND w.DataUtw < @EndDate AND w.KtoStwo IS NOT NULL
-                        GROUP BY o.Name
+                        GROUP BY o.Name, w.KtoStwo
                         ORDER BY TotalCount DESC";
                     break;
-                    
+
                 case "Potwierdzone":
                     query = @"
-                        SELECT ISNULL(o.Name, 'Nieznany') AS UserName, COUNT(*) AS TotalCount
+                        SELECT ISNULL(o.Name, 'Nieznany') AS UserName,
+                               CAST(w.KtoConf AS VARCHAR(20)) AS UserID,
+                               COUNT(*) AS TotalCount
                         FROM dbo.WstawieniaKurczakow w
                         LEFT JOIN dbo.operators o ON w.KtoConf = o.ID
                         WHERE w.isConf = 1 AND w.DataConf >= @StartDate AND w.DataConf < @EndDate AND w.KtoConf IS NOT NULL
-                        GROUP BY o.Name
+                        GROUP BY o.Name, w.KtoConf
                         ORDER BY TotalCount DESC";
                     break;
             }
@@ -370,6 +443,7 @@ namespace Kalendarz1
                         stats.Add(new PracownikStat
                         {
                             NazwaPracownika = reader["UserName"].ToString(),
+                            UserID = reader["UserID"]?.ToString(),
                             LiczbaAkcji = Convert.ToInt32(reader["TotalCount"])
                         });
                     }
@@ -390,7 +464,48 @@ namespace Kalendarz1
                 }
             }
 
+            // Load avatars asynchronously
+            LoadAvatarsForStats(stats);
+
             return stats;
+        }
+
+        private void LoadAvatarsForStats(ObservableCollection<PracownikStat> stats)
+        {
+            foreach (var stat in stats)
+            {
+                if (!string.IsNullOrEmpty(stat.UserID))
+                {
+                    string userId = stat.UserID;
+                    Task.Run(() =>
+                    {
+                        var avatarBitmap = UserAvatarManager.LoadAvatarImage(userId);
+                        if (avatarBitmap != null)
+                        {
+                            Application.Current.Dispatcher.Invoke(() =>
+                            {
+                                stat.AvatarSource = ConvertToImageSource(avatarBitmap);
+                            });
+                        }
+                    });
+                }
+            }
+        }
+
+        private ImageSource ConvertToImageSource(System.Drawing.Bitmap bitmap)
+        {
+            using (var memory = new MemoryStream())
+            {
+                bitmap.Save(memory, System.Drawing.Imaging.ImageFormat.Png);
+                memory.Position = 0;
+                var bitmapImage = new BitmapImage();
+                bitmapImage.BeginInit();
+                bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
+                bitmapImage.StreamSource = memory;
+                bitmapImage.EndInit();
+                bitmapImage.Freeze();
+                return bitmapImage;
+            }
         }
 
         private Color GetColorForUser(string userName)
@@ -493,15 +608,17 @@ namespace Kalendarz1
         private void LoadDetailsTable()
         {
             string query = @"
-                SELECT 
+                SELECT
                     w.Lp,
                     w.Dostawca,
                     w.DataWstawienia,
                     w.IloscWstawienia,
                     os.Name as KtoStworzyl,
+                    CAST(w.KtoStwo AS VARCHAR(20)) as KtoStworzylID,
                     w.DataUtw,
                     CASE WHEN w.isConf = 1 THEN 'Potwierdzone' ELSE 'Oczekujące' END as Status,
                     oc.Name as KtoPotwierdził,
+                    CAST(w.KtoConf AS VARCHAR(20)) as KtoPotwierdziłID,
                     w.DataConf
                 FROM dbo.WstawieniaKurczakow w
                 LEFT JOIN dbo.operators os ON w.KtoStwo = os.ID
@@ -529,9 +646,11 @@ namespace Kalendarz1
                             DataWstawienia = reader["DataWstawienia"] as DateTime?,
                             IloscWstawienia = reader["IloscWstawienia"] as int?,
                             KtoStworzyl = reader["KtoStworzyl"]?.ToString() ?? "Nieznany",
+                            KtoStworzylID = reader["KtoStworzylID"]?.ToString(),
                             DataUtw = reader["DataUtw"] as DateTime?,
                             Status = reader["Status"]?.ToString() ?? "",
                             KtoPotwierdził = reader["KtoPotwierdził"]?.ToString() ?? "-",
+                            KtoPotwierdziłID = reader["KtoPotwierdziłID"]?.ToString(),
                             DataConf = reader["DataConf"] as DateTime?
                         });
                     }
@@ -539,6 +658,49 @@ namespace Kalendarz1
             }
 
             dgSzczegoly.ItemsSource = details;
+
+            // Load avatars for details
+            LoadAvatarsForDetails(details);
+        }
+
+        private void LoadAvatarsForDetails(List<WstawienieDetails> details)
+        {
+            foreach (var detail in details)
+            {
+                // Load avatar for creator
+                if (!string.IsNullOrEmpty(detail.KtoStworzylID))
+                {
+                    string userId = detail.KtoStworzylID;
+                    Task.Run(() =>
+                    {
+                        var avatarBitmap = UserAvatarManager.LoadAvatarImage(userId);
+                        if (avatarBitmap != null)
+                        {
+                            Application.Current.Dispatcher.Invoke(() =>
+                            {
+                                detail.AvatarStworzyl = ConvertToImageSource(avatarBitmap);
+                            });
+                        }
+                    });
+                }
+
+                // Load avatar for confirmer
+                if (!string.IsNullOrEmpty(detail.KtoPotwierdziłID))
+                {
+                    string userId = detail.KtoPotwierdziłID;
+                    Task.Run(() =>
+                    {
+                        var avatarBitmap = UserAvatarManager.LoadAvatarImage(userId);
+                        if (avatarBitmap != null)
+                        {
+                            Application.Current.Dispatcher.Invoke(() =>
+                            {
+                                detail.AvatarPotwierdził = ConvertToImageSource(avatarBitmap);
+                            });
+                        }
+                    });
+                }
+            }
         }
 
         private void BtnPracownikDetails_Click(object sender, RoutedEventArgs e)

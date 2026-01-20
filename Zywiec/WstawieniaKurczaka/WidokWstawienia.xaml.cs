@@ -12,6 +12,9 @@ using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Imaging;
+using System.Windows.Shapes;
+using Kalendarz1.Zywiec.Kalendarz;
 
 namespace Kalendarz1
 {
@@ -919,6 +922,7 @@ namespace Kalendarz1
                        W.IloscWstawienia, W.TypUmowy,
                        ISNULL(W.TypCeny, '-') AS TypCeny,
                        ISNULL(O.Name, '-') AS KtoStwo,
+                       CAST(W.KtoStwo AS VARCHAR(20)) AS KtoStwoID,
                        CONVERT(varchar, W.DataUtw, 120) AS DataUtw,
                        W.[isCheck],
                        W.[isConf]
@@ -1024,13 +1028,63 @@ namespace Kalendarz1
             typCenyColumn.CellTemplate = cellTemplate;
             dataGridWstawienia.Columns.Add(typCenyColumn);
 
-            // Kolumna "Kto"
-            dataGridWstawienia.Columns.Add(new DataGridTextColumn
+            // Kolumna "Kto" z avatarem
+            var ktoColumn = new DataGridTemplateColumn
             {
                 Header = "Kto",
-                Binding = new System.Windows.Data.Binding("KtoStwo"),
-                Width = 60
-            });
+                Width = 90
+            };
+
+            var ktoCellTemplate = new DataTemplate();
+            var stackFactory = new FrameworkElementFactory(typeof(StackPanel));
+            stackFactory.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+            stackFactory.SetValue(StackPanel.MarginProperty, new Thickness(2, 0, 2, 0));
+
+            // Avatar Grid
+            var gridFactory = new FrameworkElementFactory(typeof(Grid));
+            gridFactory.SetValue(Grid.WidthProperty, 20.0);
+            gridFactory.SetValue(Grid.HeightProperty, 20.0);
+            gridFactory.SetValue(Grid.MarginProperty, new Thickness(0, 0, 4, 0));
+
+            // Border z inicjałami (fallback)
+            var borderFactory = new FrameworkElementFactory(typeof(Border));
+            borderFactory.SetValue(Border.WidthProperty, 20.0);
+            borderFactory.SetValue(Border.HeightProperty, 20.0);
+            borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(10));
+            borderFactory.SetValue(Border.BackgroundProperty, new SolidColorBrush(Color.FromRgb(92, 138, 58))); // #5C8A3A
+            borderFactory.SetValue(FrameworkElement.NameProperty, "avatarBorderWstawienia");
+
+            var initialsFactory = new FrameworkElementFactory(typeof(TextBlock));
+            initialsFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("KtoStwo") { Converter = new InitialsConverter() });
+            initialsFactory.SetValue(TextBlock.FontSizeProperty, 8.0);
+            initialsFactory.SetValue(TextBlock.FontWeightProperty, FontWeights.Bold);
+            initialsFactory.SetValue(TextBlock.ForegroundProperty, Brushes.White);
+            initialsFactory.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            initialsFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            borderFactory.AppendChild(initialsFactory);
+            gridFactory.AppendChild(borderFactory);
+
+            // Ellipse dla obrazka avatara
+            var ellipseFactory = new FrameworkElementFactory(typeof(Ellipse));
+            ellipseFactory.SetValue(Ellipse.WidthProperty, 20.0);
+            ellipseFactory.SetValue(Ellipse.HeightProperty, 20.0);
+            ellipseFactory.SetValue(Ellipse.VisibilityProperty, Visibility.Collapsed);
+            ellipseFactory.SetValue(FrameworkElement.NameProperty, "avatarImageWstawienia");
+            gridFactory.AppendChild(ellipseFactory);
+
+            stackFactory.AppendChild(gridFactory);
+
+            // TextBlock z nazwiskiem
+            var nameFactory = new FrameworkElementFactory(typeof(TextBlock));
+            nameFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("KtoStwo"));
+            nameFactory.SetValue(TextBlock.FontSizeProperty, 9.0);
+            nameFactory.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(100, 116, 139))); // #64748B
+            nameFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            stackFactory.AppendChild(nameFactory);
+
+            ktoCellTemplate.VisualTree = stackFactory;
+            ktoColumn.CellTemplate = ktoCellTemplate;
+            dataGridWstawienia.Columns.Add(ktoColumn);
 
             // Kolumna Data i Godzina Utworzenia
             dataGridWstawienia.Columns.Add(new DataGridTextColumn
@@ -1096,8 +1150,87 @@ namespace Kalendarz1
                         // Brak dostaw - domyślny kolor (biały)
                         e.Row.Background = new SolidColorBrush(Colors.White);
                     }
+
+                    // Ładowanie avatara
+                    string ktoStwoID = row["KtoStwoID"]?.ToString();
+                    if (!string.IsNullOrEmpty(ktoStwoID))
+                    {
+                        e.Row.Loaded += (rowSender, rowArgs) =>
+                        {
+                            try
+                            {
+                                LoadAvatarForRow(e.Row, ktoStwoID, "avatarImageWstawienia", "avatarBorderWstawienia");
+                            }
+                            catch { }
+                        };
+                    }
                 }
             };
+        }
+
+        private void LoadAvatarForRow(DataGridRow row, string userId, string imageName, string borderName)
+        {
+            if (string.IsNullOrEmpty(userId)) return;
+
+            try
+            {
+                if (UserAvatarManager.HasAvatar(userId))
+                {
+                    var avatarImage = FindVisualChild<Ellipse>(row, imageName);
+                    var avatarBorder = FindVisualChild<Border>(row, borderName);
+
+                    if (avatarImage != null && avatarBorder != null)
+                    {
+                        using (var avatar = UserAvatarManager.GetAvatarRounded(userId, 40))
+                        {
+                            if (avatar != null)
+                            {
+                                var brush = new ImageBrush(ConvertToImageSource(avatar));
+                                brush.Stretch = Stretch.UniformToFill;
+                                avatarImage.Fill = brush;
+                                avatarImage.Visibility = Visibility.Visible;
+                                avatarBorder.Visibility = Visibility.Collapsed;
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private T FindVisualChild<T>(DependencyObject parent, string name = null) where T : DependencyObject
+        {
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T typedChild)
+                {
+                    if (name == null || (child is FrameworkElement fe && fe.Name == name))
+                        return typedChild;
+                }
+
+                var found = FindVisualChild<T>(child, name);
+                if (found != null) return found;
+            }
+            return null;
+        }
+
+        private ImageSource ConvertToImageSource(System.Drawing.Bitmap bitmap)
+        {
+            using (var memory = new System.IO.MemoryStream())
+            {
+                bitmap.Save(memory, System.Drawing.Imaging.ImageFormat.Png);
+                memory.Position = 0;
+
+                var bitmapImage = new BitmapImage();
+                bitmapImage.BeginInit();
+                bitmapImage.StreamSource = memory;
+                bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
+                bitmapImage.EndInit();
+                bitmapImage.Freeze();
+
+                return bitmapImage;
+            }
         }
 
         private enum DeliveryStatus
@@ -1270,6 +1403,7 @@ namespace Kalendarz1
                     ch.ContactID,
                     ch.Dostawca,
                     ISNULL(o.Name, ch.UserID) AS UserName,
+                    CAST(ch.UserID AS VARCHAR(20)) AS UserID,
                     ch.SnoozedUntil,
                     ch.Reason,
                     ch.CreatedAt
@@ -1311,12 +1445,57 @@ namespace Kalendarz1
                 Width = new DataGridLength(1.2, DataGridLengthUnitType.Star)
             });
 
-            dataGridHistoria.Columns.Add(new DataGridTextColumn
+            // User column with avatar
+            var userTemplateColumn = new DataGridTemplateColumn
             {
                 Header = "User",
-                Binding = new System.Windows.Data.Binding("UserName"),
-                Width = 50
+                Width = 40
+            };
+
+            var userTemplate = new DataTemplate();
+            var gridFactory = new FrameworkElementFactory(typeof(Grid));
+            gridFactory.SetValue(Grid.WidthProperty, 32.0);
+            gridFactory.SetValue(Grid.HeightProperty, 32.0);
+            gridFactory.SetValue(Grid.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            gridFactory.SetValue(Grid.VerticalAlignmentProperty, VerticalAlignment.Center);
+            gridFactory.SetValue(Grid.MarginProperty, new Thickness(2));
+
+            // Background border with initials
+            var borderFactory = new FrameworkElementFactory(typeof(Border));
+            borderFactory.SetValue(Border.WidthProperty, 32.0);
+            borderFactory.SetValue(Border.HeightProperty, 32.0);
+            borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(16));
+            borderFactory.SetValue(Border.BackgroundProperty, new SolidColorBrush(Color.FromRgb(99, 102, 241)));
+            borderFactory.SetValue(Border.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            borderFactory.SetValue(Border.VerticalAlignmentProperty, VerticalAlignment.Center);
+
+            var initialsTextFactory = new FrameworkElementFactory(typeof(TextBlock));
+            initialsTextFactory.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            initialsTextFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            initialsTextFactory.SetValue(TextBlock.ForegroundProperty, Brushes.White);
+            initialsTextFactory.SetValue(TextBlock.FontSizeProperty, 11.0);
+            initialsTextFactory.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
+            initialsTextFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("UserName")
+            {
+                Converter = new InitialsConverter()
             });
+
+            borderFactory.AppendChild(initialsTextFactory);
+            gridFactory.AppendChild(borderFactory);
+
+            // Ellipse for photo (initially hidden, will be shown if photo loads)
+            var ellipseFactory = new FrameworkElementFactory(typeof(Ellipse));
+            ellipseFactory.SetValue(Ellipse.WidthProperty, 32.0);
+            ellipseFactory.SetValue(Ellipse.HeightProperty, 32.0);
+            ellipseFactory.SetValue(Ellipse.VisibilityProperty, Visibility.Collapsed);
+            ellipseFactory.SetValue(Ellipse.NameProperty, "avatarEllipse");
+
+            gridFactory.AppendChild(ellipseFactory);
+
+            userTemplate.VisualTree = gridFactory;
+            userTemplateColumn.CellTemplate = userTemplate;
+
+            dataGridHistoria.Columns.Add(userTemplateColumn);
 
             dataGridHistoria.Columns.Add(new DataGridTextColumn
             {
@@ -1360,7 +1539,60 @@ namespace Kalendarz1
 
             // Podwójne kliknięcie - tworzenie nowego wstawienia
             dataGridHistoria.MouseDoubleClick += DataGridHistoria_MouseDoubleClick;
+
+            // Event for loading avatars
+            dataGridHistoria.LoadingRow += DataGridHistoria_LoadingRow;
         }
+
+        private void DataGridHistoria_LoadingRow(object sender, DataGridRowEventArgs e)
+        {
+            if (e.Row.DataContext is DataRowView rowView)
+            {
+                string userId = rowView["UserID"]?.ToString();
+                if (!string.IsNullOrEmpty(userId))
+                {
+                    LoadAvatarForHistoriaRow(e.Row, userId);
+                }
+            }
+        }
+
+        private void LoadAvatarForHistoriaRow(DataGridRow row, string odbiorcaId)
+        {
+            Task.Run(() =>
+            {
+                var avatarBitmap = UserAvatarManager.LoadAvatarImage(odbiorcaId);
+                if (avatarBitmap != null)
+                {
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        try
+                        {
+                            var presenter = FindVisualChild<DataGridCellsPresenter>(row);
+                            if (presenter != null)
+                            {
+                                // User column is at index 1
+                                var cell = presenter.ItemContainerGenerator.ContainerFromIndex(1) as DataGridCell;
+                                if (cell != null)
+                                {
+                                    var ellipse = FindVisualChild<Ellipse>(cell);
+                                    if (ellipse != null && ellipse.Name == "avatarEllipse")
+                                    {
+                                        var imageSource = ConvertToImageSource(avatarBitmap);
+                                        if (imageSource != null)
+                                        {
+                                            ellipse.Fill = new ImageBrush(imageSource) { Stretch = Stretch.UniformToFill };
+                                            ellipse.Visibility = Visibility.Visible;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        catch { }
+                    });
+                }
+            });
+        }
+
         private void MenuDodajTelefonDoPotwierdzenia_Click(object sender, RoutedEventArgs e)
         {
             if (dataGridDoPotwierdzenia.SelectedItem == null)
@@ -4298,6 +4530,33 @@ namespace Kalendarz1
 
             mainBorder.Child = grid;
             Content = mainBorder;
+        }
+    }
+
+    /// <summary>
+    /// Konwerter tekstu na inicjały (dla avatarów)
+    /// </summary>
+    public class InitialsConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value == null) return "";
+            string name = value.ToString();
+            if (string.IsNullOrWhiteSpace(name) || name == "-") return "";
+
+            var parts = name.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length >= 2)
+                return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+            else if (parts.Length == 1 && parts[0].Length >= 2)
+                return parts[0].Substring(0, 2).ToUpper();
+            else if (parts.Length == 1 && parts[0].Length == 1)
+                return parts[0].ToUpper();
+            return "";
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
         }
     }
 }
