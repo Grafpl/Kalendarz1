@@ -179,61 +179,62 @@
                         </Button.Template>
                     </Button>
 
-                    <!-- Przycisk Komunikatora z Badge -->
-                    <Button x:Name="ChatButton" Click="ChatButton_Click"
-                            Background="Transparent" BorderThickness="0" Cursor="Hand"
-                            Margin="0,0,20,0" ToolTip="Otwórz Komunikator">
-                        <Button.Template>
-                            <ControlTemplate TargetType="Button">
-                                <Grid>
-                                    <Border x:Name="chatBorder" Background="#4B732F" CornerRadius="8" Padding="12,8">
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="💬" FontSize="14" VerticalAlignment="Center"/>
-                                            <TextBlock Text="Komunikator" Foreground="White" FontSize="12"
-                                                       FontWeight="SemiBold" Margin="6,0,0,0" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </Border>
-                                    <!-- Badge z liczbą nieprzeczytanych -->
-                                    <Border x:Name="UnreadBadge" Background="#E74C3C" CornerRadius="10"
-                                            MinWidth="20" Height="20" Padding="5,0"
-                                            HorizontalAlignment="Right" VerticalAlignment="Top"
-                                            Margin="0,-8,-8,0" Visibility="Collapsed">
-                                        <TextBlock x:Name="UnreadCountText" Text="0" Foreground="White"
-                                                   FontSize="11" FontWeight="Bold"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Border>
-                                </Grid>
-                                <ControlTemplate.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="chatBorder" Property="Background" Value="#3A5C24"/>
-                                    </Trigger>
-                                </ControlTemplate.Triggers>
-                            </ControlTemplate>
-                        </Button.Template>
-                    </Button>
-
                     <TextBlock x:Name="TimeLabel"
                               FontSize="11"
                               Foreground="{StaticResource PrimaryLightBrush}"
                               VerticalAlignment="Center"
                               Margin="0,0,20,0"/>
 
-                    <!-- Avatar użytkownika z przyciskiem czatu -->
-                    <Grid Margin="0,0,10,0">
-                        <Ellipse x:Name="UserAvatarEllipse" Width="38" Height="38" Cursor="Hand"
-                                 MouseLeftButtonUp="UserAvatar_Click">
-                            <Ellipse.Fill>
-                                <ImageBrush x:Name="UserAvatarBrush" Stretch="UniformToFill"/>
-                            </Ellipse.Fill>
-                        </Ellipse>
-                        <Ellipse Width="38" Height="38" Stroke="#25D366" StrokeThickness="2" IsHitTestVisible="False"/>
-                    </Grid>
+                    <!-- Avatar użytkownika z przyciskiem czatu obok -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- Avatar -->
+                        <Grid Margin="0,0,8,0">
+                            <Ellipse x:Name="UserAvatarEllipse" Width="38" Height="38" Cursor="Hand"
+                                     MouseLeftButtonUp="UserAvatar_Click">
+                                <Ellipse.Fill>
+                                    <ImageBrush x:Name="UserAvatarBrush" Stretch="UniformToFill"/>
+                                </Ellipse.Fill>
+                            </Ellipse>
+                            <Ellipse Width="38" Height="38" Stroke="#25D366" StrokeThickness="2" IsHitTestVisible="False"/>
+                        </Grid>
 
-                    <TextBlock x:Name="UserLabel"
-                              FontSize="12"
-                              FontWeight="Bold"
-                              Foreground="White"
-                              VerticalAlignment="Center"/>
+                        <!-- Przycisk czatu z badge -->
+                        <Button x:Name="ChatButton" Click="ChatButton_Click"
+                                Background="Transparent" BorderThickness="0" Cursor="Hand"
+                                ToolTip="Otwórz Komunikator" Margin="0,0,12,0">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Grid Width="36" Height="36">
+                                        <!-- Tło przycisku -->
+                                        <Ellipse x:Name="chatBg" Fill="#4B732F"/>
+                                        <!-- Ikona czatu -->
+                                        <TextBlock Text="💬" FontSize="16"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        <!-- Badge z liczbą nieprzeczytanych -->
+                                        <Border x:Name="UnreadBadge" Background="#E74C3C" CornerRadius="9"
+                                                MinWidth="18" Height="18" Padding="4,0"
+                                                HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                Margin="0,-4,-4,0" Visibility="Collapsed">
+                                            <TextBlock x:Name="UnreadCountText" Text="0" Foreground="White"
+                                                       FontSize="10" FontWeight="Bold"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </Grid>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="chatBg" Property="Fill" Value="#3A5C24"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+
+                        <TextBlock x:Name="UserLabel"
+                                  FontSize="12"
+                                  FontWeight="Bold"
+                                  Foreground="White"
+                                  VerticalAlignment="Center"/>
+                    </StackPanel>
                 </StackPanel>
             </Grid>
         </Border>
