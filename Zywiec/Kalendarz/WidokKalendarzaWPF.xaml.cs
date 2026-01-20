@@ -3454,7 +3454,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
             {
                 dostawa.Bufor = "Potwierdzony";
                 cmbStatus.SelectedItem = "Potwierdzony";
-                RefreshDostawyView();
+                dgDostawy.Items.Refresh();
+                dgDostawyNastepny.Items.Refresh();
                 ShowToast("✅ Dostawa potwierdzona (symulacja)", ToastType.Info);
                 return;
             }
@@ -3474,7 +3475,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
                 dostawa.Bufor = "Potwierdzony";
                 cmbStatus.SelectedItem = "Potwierdzony";
-                RefreshDostawyView();
+                dgDostawy.Items.Refresh();
+                dgDostawyNastepny.Items.Refresh();
                 ShowToast("✅ Dostawa potwierdzona", ToastType.Success);
 
                 // Audit log
@@ -3640,7 +3642,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
             {
                 dostawa.Bufor = "Anulowany";
                 cmbStatus.SelectedItem = "Anulowany";
-                RefreshDostawyView();
+                dgDostawy.Items.Refresh();
+                dgDostawyNastepny.Items.Refresh();
                 ShowToast("❌ Dostawa anulowana (symulacja)", ToastType.Info);
                 return;
             }
@@ -3660,7 +3663,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
                 dostawa.Bufor = "Anulowany";
                 cmbStatus.SelectedItem = "Anulowany";
-                RefreshDostawyView();
+                dgDostawy.Items.Refresh();
+                dgDostawyNastepny.Items.Refresh();
                 ShowToast("❌ Dostawa anulowana", ToastType.Success);
 
                 // Audit log
