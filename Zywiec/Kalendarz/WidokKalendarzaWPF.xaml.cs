@@ -3481,7 +3481,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 if (_auditService != null)
                 {
                     await _auditService.LogFieldChangeAsync("HarmonogramDostaw", _selectedLP,
-                        AuditChangeSource.ContextMenu, "bufor", oldStatus, "Potwierdzony",
+                        AuditChangeSource.ContextMenu_Potwierdz, "bufor", oldStatus, "Potwierdzony",
                         new AuditContextInfo { Dostawca = dostawa.Dostawca, DataOdbioru = dostawa.DataOdbioru }, _cts.Token);
                 }
             }
@@ -3511,16 +3511,27 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
                 if (dostawyZWstawienia.Count > 1)
                 {
-                    // Pokaż okno dialogowe z listą dostaw
-                    var dialog = new AnulujWstawienieDialog(dostawyZWstawienia, dostawa.Dostawca);
-                    dialog.Owner = Window.GetWindow(this);
+                    // Zbuduj listę dostaw do wyświetlenia
+                    var listaInfo = string.Join("\n", dostawyZWstawienia.Select(d =>
+                        $"  • {d.DataOdbioru:dd.MM.yyyy} - {d.Auta} aut, {d.SztukiDek:N0} szt, {d.WagaDek:N2} kg"));
 
-                    if (dialog.ShowDialog() == true)
+                    var result = MessageBox.Show(
+                        $"Czy chcesz anulować WSZYSTKIE dostawy z tego wstawienia?\n\n" +
+                        $"Hodowca: {dostawa.Dostawca}\n" +
+                        $"Znaleziono {dostawyZWstawienia.Count} dostaw:\n{listaInfo}\n\n" +
+                        $"TAK = Anuluj wszystkie ({dostawyZWstawienia.Count} dostaw)\n" +
+                        $"NIE = Anuluj tylko wybraną dostawę\n" +
+                        $"ANULUJ = Nie rób nic",
+                        "Anulowanie dostaw z wstawienia",
+                        MessageBoxButton.YesNoCancel,
+                        MessageBoxImage.Question);
+
+                    if (result == MessageBoxResult.Yes)
                     {
                         // Anuluj wszystkie dostawy z tego wstawienia
                         await AnulujWszystkieDostawyZWstawieniaAsync(dostawa.LpW, dostawyZWstawienia);
                     }
-                    else if (dialog.AnulujTylkoJedna)
+                    else if (result == MessageBoxResult.No)
                     {
                         // Anuluj tylko wybraną dostawę
                         await AnulujPojedynczaDostaweAsync(dostawa);
@@ -3656,7 +3667,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 if (_auditService != null)
                 {
                     await _auditService.LogFieldChangeAsync("HarmonogramDostaw", dostawa.LP,
-                        AuditChangeSource.ContextMenu, "bufor", oldStatus, "Anulowany",
+                        AuditChangeSource.ContextMenu_Anuluj, "bufor", oldStatus, "Anulowany",
                         new AuditContextInfo { Dostawca = dostawa.Dostawca, DataOdbioru = dostawa.DataOdbioru }, _cts.Token);
                 }
             }
