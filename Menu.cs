@@ -8,6 +8,7 @@ using Kalendarz1.Zywiec.RaportyStatystyki;
 using Kalendarz1.Spotkania.Views;
 using Kalendarz1.Zadania;
 using Kalendarz1.Komunikator.Services;
+using Kalendarz1.Komunikator.Views;
 using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
@@ -160,6 +161,36 @@ namespace Kalendarz1
             else
             {
                 _chatBadgeLabel.Visible = false;
+            }
+        }
+
+        private ChatMainWindow _chatWindow;
+
+        private void OpenChatWindow()
+        {
+            try
+            {
+                // Jeśli okno już istnieje i jest otwarte, aktywuj je
+                if (_chatWindow != null && _chatWindow.IsLoaded)
+                {
+                    _chatWindow.Activate();
+                    if (_chatWindow.WindowState == System.Windows.WindowState.Minimized)
+                        _chatWindow.WindowState = System.Windows.WindowState.Normal;
+                    return;
+                }
+
+                // Otwórz nowe okno czatu
+                _chatWindow = new ChatMainWindow(App.UserID, App.UserFullName);
+                _chatWindow.Closed += (s, args) => _chatWindow = null;
+                _chatWindow.Show();
+
+                // Odśwież badge
+                UpdateChatBadge();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd otwierania komunikatora: {ex.Message}", "Błąd",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -432,6 +463,76 @@ namespace Kalendarz1
             // Kliknięcie na avatar - powiększenie
             avatarPanel.Click += (s, e) => ShowEnlargedAvatar(odbiorcaId, userName);
             headerPanel.Controls.Add(avatarPanel);
+
+            // ========== PRZYCISK CZATU Z BADGE ==========
+            var chatButtonSize = 32;
+            var chatButtonX = (panelWidth - avatarSize) / 2 + avatarSize - 10; // Prawy róg avatara
+            var chatButtonY = 20 + avatarSize - chatButtonSize + 5; // Dolny róg avatara
+
+            var chatButton = new Panel
+            {
+                Size = new Size(chatButtonSize, chatButtonSize),
+                Location = new Point(chatButtonX, chatButtonY),
+                BackColor = Color.FromArgb(76, 175, 80),
+                Cursor = Cursors.Hand
+            };
+
+            chatButton.Paint += (s, e) =>
+            {
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                // Okrągły kształt
+                using (var path = new GraphicsPath())
+                {
+                    path.AddEllipse(0, 0, chatButtonSize - 1, chatButtonSize - 1);
+                    chatButton.Region = new Region(path);
+                }
+                // Ikona czatu (💬)
+                using (var font = new Font("Segoe UI Emoji", 14))
+                using (var brush = new SolidBrush(Color.White))
+                {
+                    var text = "💬";
+                    var textSize = e.Graphics.MeasureString(text, font);
+                    var x = (chatButtonSize - textSize.Width) / 2;
+                    var y = (chatButtonSize - textSize.Height) / 2;
+                    e.Graphics.DrawString(text, font, brush, x, y);
+                }
+            };
+
+            chatButton.MouseEnter += (s, e) => chatButton.BackColor = Color.FromArgb(56, 142, 60);
+            chatButton.MouseLeave += (s, e) => chatButton.BackColor = Color.FromArgb(76, 175, 80);
+            chatButton.Click += (s, e) => OpenChatWindow();
+            headerPanel.Controls.Add(chatButton);
+            chatButton.BringToFront();
+
+            // Badge z liczbą nieprzeczytanych wiadomości
+            var sidebarChatBadge = new Label
+            {
+                Font = new Font("Segoe UI", 7, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(231, 76, 60), // Czerwony
+                Size = new Size(18, 18),
+                Location = new Point(chatButtonX + chatButtonSize - 12, chatButtonY - 4),
+                TextAlign = ContentAlignment.MiddleCenter,
+                Visible = false,
+                Cursor = Cursors.Hand
+            };
+
+            sidebarChatBadge.Paint += (s, e) =>
+            {
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                using (var path = new GraphicsPath())
+                {
+                    path.AddEllipse(0, 0, sidebarChatBadge.Width - 1, sidebarChatBadge.Height - 1);
+                    sidebarChatBadge.Region = new Region(path);
+                }
+            };
+
+            sidebarChatBadge.Click += (s, e) => OpenChatWindow();
+            headerPanel.Controls.Add(sidebarChatBadge);
+            sidebarChatBadge.BringToFront();
+
+            // Przypisz do pola klasy dla aktualizacji
+            _chatBadgeLabel = sidebarChatBadge;
 
             // Nazwa użytkownika - wycentrowana
             var nameLabel = new Label
@@ -1519,7 +1620,7 @@ namespace Kalendarz1
 
                 tile.Controls.Add(badgeLabel);
                 badgeLabel.BringToFront();
-                _chatBadgeLabel = badgeLabel;
+                // Badge na kafelku - aktualizowany osobno przez _chatBadgeLabel przy avatarze
             }
 
             // Podłącz ikonę do efektu bounce
