@@ -1,7 +1,11 @@
 using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace Kalendarz1
 {
@@ -27,7 +31,7 @@ namespace Kalendarz1
         public SzczegółyPracownika(string pracownik, DateTime dataOd, DateTime dataDo)
         {
             InitializeComponent();
-            
+
             nazwaPracownika = pracownik;
             startDate = dataOd;
             endDate = dataDo;
@@ -35,7 +39,84 @@ namespace Kalendarz1
             txtNazwaPracownika.Text = $"Szczegoly: {pracownik}";
             txtOkres.Text = $"Okres: {dataOd:dd.MM.yyyy} - {dataDo.AddDays(-1):dd.MM.yyyy}";
 
+            // Set initials
+            txtAvatarInitials.Text = GetInitials(pracownik);
+
+            // Load avatar
+            LoadAvatarAsync(pracownik);
+
             LoadData();
+        }
+
+        private string GetInitials(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return "?";
+            var parts = name.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length >= 2)
+                return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+            return name.Length >= 2 ? name.Substring(0, 2).ToUpper() : name.ToUpper();
+        }
+
+        private void LoadAvatarAsync(string pracownikName)
+        {
+            Task.Run(() =>
+            {
+                // Get user ID from database
+                string userId = GetUserIdByName(pracownikName);
+                if (!string.IsNullOrEmpty(userId))
+                {
+                    var avatar = UserAvatarManager.GetAvatar(userId);
+                    if (avatar != null)
+                    {
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            var imageSource = ConvertToImageSource(avatar);
+                            if (imageSource != null)
+                            {
+                                avatarEllipse.Fill = new ImageBrush(imageSource) { Stretch = Stretch.UniformToFill };
+                                avatarEllipse.Visibility = Visibility.Visible;
+                            }
+                        });
+                    }
+                }
+            });
+        }
+
+        private string GetUserIdByName(string name)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    using (var cmd = new SqlCommand("SELECT CAST(ID AS VARCHAR(20)) FROM dbo.operators WHERE Name = @Name", connection))
+                    {
+                        cmd.Parameters.AddWithValue("@Name", name);
+                        var result = cmd.ExecuteScalar();
+                        return result?.ToString();
+                    }
+                }
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private ImageSource ConvertToImageSource(System.Drawing.Image image)
+        {
+            using (var memory = new MemoryStream())
+            {
+                image.Save(memory, System.Drawing.Imaging.ImageFormat.Png);
+                memory.Position = 0;
+                var bitmapImage = new BitmapImage();
+                bitmapImage.BeginInit();
+                bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
+                bitmapImage.StreamSource = memory;
+                bitmapImage.EndInit();
+                bitmapImage.Freeze();
+                return bitmapImage;
+            }
         }
 
         private void LoadData()

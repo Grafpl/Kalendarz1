@@ -680,11 +680,11 @@
                         </StackPanel>
 
                         <Border Grid.Row="1" BorderBrush="#9B59B6" BorderThickness="2" CornerRadius="10" ClipToBounds="True">
-                            <DataGrid x:Name="dataGridHistoria" 
+                            <DataGrid x:Name="dataGridHistoria"
                                       Style="{StaticResource ModernDataGrid}"
                                       ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
                                       CellStyle="{StaticResource DataGridCellStyle}"
-                                      RowHeight="24" FontSize="9"/>
+                                      RowHeight="38" FontSize="12"/>
                         </Border>
                     </Grid>
                 </Border>

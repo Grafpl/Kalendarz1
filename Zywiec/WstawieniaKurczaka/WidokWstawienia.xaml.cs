@@ -1445,7 +1445,7 @@ namespace Kalendarz1
             {
                 Header = "Hodowca",
                 Binding = new System.Windows.Data.Binding("Dostawca"),
-                Width = new DataGridLength(1.2, DataGridLengthUnitType.Star)
+                Width = new DataGridLength(0.8, DataGridLengthUnitType.Star)
             });
 
             // User column with avatar
@@ -1514,7 +1514,7 @@ namespace Kalendarz1
             {
                 Header = "Notatka",
                 Binding = new System.Windows.Data.Binding("Reason"),
-                Width = new DataGridLength(1.2, DataGridLengthUnitType.Star)
+                Width = new DataGridLength(2.0, DataGridLengthUnitType.Star)
             });
 
             dataGridHistoria.Columns.Add(new DataGridTextColumn

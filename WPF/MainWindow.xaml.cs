@@ -17,6 +17,7 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Shapes;
 using Kalendarz1;
 using Kalendarz1.Services;
 
@@ -2723,6 +2724,7 @@ namespace Kalendarz1.WPF
             _dtOrders.Columns.Add("TerminOdbioru", typeof(string));
             _dtOrders.Columns.Add("DataUboju", typeof(DateTime));
             _dtOrders.Columns.Add("UtworzonePrzez", typeof(string));
+            _dtOrders.Columns.Add("UtworzonePrzezID", typeof(string));
             _dtOrders.Columns.Add("Status", typeof(string));
             _dtOrders.Columns.Add("MaNotatke", typeof(bool));
             _dtOrders.Columns.Add("MaFolie", typeof(bool));
@@ -3210,6 +3212,7 @@ ORDER BY zm.Id";
                 newRow["TerminOdbioru"] = pickupTerm;
                 newRow["DataUboju"] = slaughterDate.HasValue ? (object)slaughterDate.Value.Date : DBNull.Value;
                 newRow["UtworzonePrzez"] = createdBy;
+                newRow["UtworzonePrzezID"] = userId.ToString();
                 newRow["Status"] = status;
                 newRow["MaNotatke"] = hasNote;
                 newRow["MaFolie"] = hasFoil;
@@ -3273,6 +3276,7 @@ ORDER BY zm.Id";
 
                 row["DataUboju"] = DBNull.Value;
                 row["UtworzonePrzez"] = "";
+                row["UtworzonePrzezID"] = "";
                 row["Status"] = "Wydanie bez zamówienia";
                 row["MaNotatke"] = false;
                 row["MaFolie"] = false;
@@ -3741,7 +3745,7 @@ ORDER BY zm.Id";
             // 7. Średnia cena - wartość średniej ważonej ceny produktów (rozmiar M)
             var sredniaCenaStyle = new Style(typeof(TextBlock));
             sredniaCenaStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
-            sredniaCenaStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(100, 100, 100))));
+            sredniaCenaStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty, Brushes.Black));
 
             dgOrders.Columns.Add(new DataGridTextColumn
             {
@@ -3751,13 +3755,68 @@ ORDER BY zm.Id";
                 ElementStyle = sredniaCenaStyle
             });
 
-            // 8. Utworzone przez (rozmiar M)
-            dgOrders.Columns.Add(new DataGridTextColumn
+            // 8. Utworzone przez (rozmiar M) - z avatarem
+            var utworzonoColumn = new DataGridTemplateColumn
             {
                 Header = "Utworzono",
-                Binding = new System.Windows.Data.Binding("UtworzonePrzez"),
-                Width = new DataGridLength(120)
+                Width = new DataGridLength(140)
+            };
+
+            var utworzonoTemplate = new DataTemplate();
+            var stackPanelFactory = new FrameworkElementFactory(typeof(StackPanel));
+            stackPanelFactory.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+            stackPanelFactory.SetValue(StackPanel.VerticalAlignmentProperty, VerticalAlignment.Center);
+            stackPanelFactory.SetValue(StackPanel.MarginProperty, new Thickness(2));
+
+            // Avatar Grid
+            var avatarGridFactory = new FrameworkElementFactory(typeof(Grid));
+            avatarGridFactory.SetValue(Grid.WidthProperty, 24.0);
+            avatarGridFactory.SetValue(Grid.HeightProperty, 24.0);
+            avatarGridFactory.SetValue(Grid.MarginProperty, new Thickness(0, 0, 6, 0));
+
+            // Avatar border with initials
+            var avatarBorderFactory = new FrameworkElementFactory(typeof(Border));
+            avatarBorderFactory.SetValue(Border.WidthProperty, 24.0);
+            avatarBorderFactory.SetValue(Border.HeightProperty, 24.0);
+            avatarBorderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(12));
+            avatarBorderFactory.SetValue(Border.BackgroundProperty, new SolidColorBrush(Color.FromRgb(66, 165, 245)));
+
+            var initialsFactory = new FrameworkElementFactory(typeof(TextBlock));
+            initialsFactory.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            initialsFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            initialsFactory.SetValue(TextBlock.ForegroundProperty, Brushes.White);
+            initialsFactory.SetValue(TextBlock.FontSizeProperty, 9.0);
+            initialsFactory.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
+            initialsFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("UtworzonePrzez")
+            {
+                Converter = new UtworzoneInitialsConverter()
             });
+
+            avatarBorderFactory.AppendChild(initialsFactory);
+            avatarGridFactory.AppendChild(avatarBorderFactory);
+
+            // Ellipse for photo
+            var ellipseFactory = new FrameworkElementFactory(typeof(Ellipse));
+            ellipseFactory.SetValue(Ellipse.WidthProperty, 24.0);
+            ellipseFactory.SetValue(Ellipse.HeightProperty, 24.0);
+            ellipseFactory.SetValue(Ellipse.VisibilityProperty, Visibility.Collapsed);
+            ellipseFactory.SetValue(Ellipse.NameProperty, "avatarEllipse");
+
+            avatarGridFactory.AppendChild(ellipseFactory);
+            stackPanelFactory.AppendChild(avatarGridFactory);
+
+            // Text
+            var textFactory = new FrameworkElementFactory(typeof(TextBlock));
+            textFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            textFactory.SetValue(TextBlock.FontSizeProperty, 11.0);
+            textFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("UtworzonePrzez"));
+
+            stackPanelFactory.AppendChild(textFactory);
+
+            utworzonoTemplate.VisualTree = stackPanelFactory;
+            utworzonoColumn.CellTemplate = utworzonoTemplate;
+
+            dgOrders.Columns.Add(utworzonoColumn);
 
             // 9. Termin (rozmiar M)
             dgOrders.Columns.Add(new DataGridTextColumn
@@ -3933,6 +3992,83 @@ ORDER BY zm.Id";
                     e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 100, 100));
                     e.Row.Foreground = Brushes.White;
                 }
+
+                // Load avatar for Utworzono column
+                var userId = rowView.Row.Field<string>("UtworzonePrzezID");
+                if (!string.IsNullOrEmpty(userId))
+                {
+                    LoadAvatarForOrderRow(e.Row, userId);
+                }
+            }
+        }
+
+        private void LoadAvatarForOrderRow(DataGridRow row, string userId)
+        {
+            Task.Run(() =>
+            {
+                var avatar = UserAvatarManager.GetAvatar(userId);
+                if (avatar != null)
+                {
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        try
+                        {
+                            var presenter = FindVisualChild<DataGridCellsPresenter>(row);
+                            if (presenter != null)
+                            {
+                                // Utworzono column is at index 7
+                                var cell = presenter.ItemContainerGenerator.ContainerFromIndex(7) as DataGridCell;
+                                if (cell != null)
+                                {
+                                    var ellipse = FindVisualChild<Ellipse>(cell);
+                                    if (ellipse != null && ellipse.Name == "avatarEllipse")
+                                    {
+                                        var imageSource = ConvertToImageSource(avatar);
+                                        if (imageSource != null)
+                                        {
+                                            ellipse.Fill = new ImageBrush(imageSource) { Stretch = Stretch.UniformToFill };
+                                            ellipse.Visibility = Visibility.Visible;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        catch { }
+                    });
+                }
+            });
+        }
+
+        private T FindVisualChild<T>(DependencyObject parent, string name = null) where T : DependencyObject
+        {
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T typedChild)
+                {
+                    if (name == null || (child is FrameworkElement fe && fe.Name == name))
+                        return typedChild;
+                }
+
+                var found = FindVisualChild<T>(child, name);
+                if (found != null) return found;
+            }
+            return null;
+        }
+
+        private ImageSource ConvertToImageSource(System.Drawing.Image image)
+        {
+            using (var memory = new System.IO.MemoryStream())
+            {
+                image.Save(memory, System.Drawing.Imaging.ImageFormat.Png);
+                memory.Position = 0;
+                var bitmapImage = new BitmapImage();
+                bitmapImage.BeginInit();
+                bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
+                bitmapImage.StreamSource = memory;
+                bitmapImage.EndInit();
+                bitmapImage.Freeze();
+                return bitmapImage;
             }
         }
         private Color GetColorForSalesman(string salesman)
@@ -6348,6 +6484,29 @@ ORDER BY zm.Id";
             public int Palety { get; set; }
             public int Pojemniki { get; set; }
             public string Uwagi { get; set; } = "";
+        }
+
+        public class UtworzoneInitialsConverter : IValueConverter
+        {
+            public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+            {
+                if (value == null) return "?";
+                string text = value.ToString();
+                // Extract initials from text like "Sty 12 (Ania)" - get first letter of name in parentheses
+                int parenStart = text.IndexOf('(');
+                int parenEnd = text.IndexOf(')');
+                if (parenStart >= 0 && parenEnd > parenStart)
+                {
+                    string name = text.Substring(parenStart + 1, parenEnd - parenStart - 1);
+                    return name.Length >= 1 ? name.Substring(0, 1).ToUpper() : "?";
+                }
+                return text.Length >= 1 ? text.Substring(0, 1).ToUpper() : "?";
+            }
+
+            public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            {
+                throw new NotImplementedException();
+            }
         }
 
         public class StrikethroughConverter : IMultiValueConverter
