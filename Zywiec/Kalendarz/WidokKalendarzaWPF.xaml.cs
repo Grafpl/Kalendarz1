@@ -5882,53 +5882,6 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         #region Statistics Panel
 
-        private async Task LoadStatisticsAsync()
-        {
-            try
-            {
-                using (SqlConnection conn = new SqlConnection(ConnectionString))
-                {
-                    await conn.OpenAsync(_cts.Token);
-
-                    // Statystyki tygodniowe
-                    string sql = @"
-                        SELECT
-                            COUNT(*) as TotalDeliveries,
-                            SUM(Auta) as TotalAuta,
-                            SUM(SztukiDek) as TotalSztuki,
-                            AVG(WagaDek) as AvgWaga,
-                            SUM(CASE WHEN bufor = 'Potwierdzony' THEN 1 ELSE 0 END) as Potwierdzone,
-                            SUM(CASE WHEN bufor = 'Anulowany' THEN 1 ELSE 0 END) as Anulowane
-                        FROM HarmonogramDostaw
-                        WHERE DataOdbioru >= DATEADD(day, -7, GETDATE())";
-
-                    using (SqlCommand cmd = new SqlCommand(sql, conn))
-                    using (SqlDataReader reader = await cmd.ExecuteReaderAsync(_cts.Token))
-                    {
-                        if (await reader.ReadAsync(_cts.Token))
-                        {
-                            await Dispatcher.InvokeAsync(() =>
-                            {
-                                if (txtStatTotal != null)
-                                    txtStatTotal.Text = reader["TotalDeliveries"]?.ToString() ?? "0";
-                                if (txtStatAuta != null)
-                                    txtStatAuta.Text = reader["TotalAuta"]?.ToString() ?? "0";
-                                if (txtStatSztuki != null)
-                                    txtStatSztuki.Text = $"{Convert.ToDouble(reader["TotalSztuki"] ?? 0):#,0}";
-                                if (txtStatAvgWaga != null)
-                                    txtStatAvgWaga.Text = $"{Convert.ToDecimal(reader["AvgWaga"] ?? 0):F2} kg";
-                                if (txtStatPotwierdzone != null)
-                                    txtStatPotwierdzone.Text = reader["Potwierdzone"]?.ToString() ?? "0";
-                                if (txtStatAnulowane != null)
-                                    txtStatAnulowane.Text = reader["Anulowane"]?.ToString() ?? "0";
-                            });
-                        }
-                    }
-                }
-            }
-            catch { }
-        }
-
         #endregion
 
         #region Pomocnicze
