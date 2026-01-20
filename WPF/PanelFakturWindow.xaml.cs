@@ -687,7 +687,7 @@ namespace Kalendarz1.WPF
             {
                 Header = "Ilość",
                 Binding = new System.Windows.Data.Binding("Ilosc") { StringFormat = "N2" },
-                Width = new DataGridLength(70),
+                Width = new DataGridLength(100),
                 ElementStyle = rightStyle
             });
 

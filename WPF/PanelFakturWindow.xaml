@@ -152,6 +152,21 @@
                 </Style.Triggers>
             </Style>
 
+            <!-- Kompaktowy styl wierszy dla szczegółów -->
+            <Style x:Key="CompactRowStyle" TargetType="DataGridRow">
+                <Setter Property="Margin" Value="0"/>
+                <Setter Property="MinHeight" Value="32"/>
+                <Setter Property="FontSize" Value="12"/>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="#E3F2FD"/>
+                    </Trigger>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Background" Value="#BBDEFB"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
             <!-- Styl przycisków dni -->
             <Style x:Key="DayButtonStyle" TargetType="Button">
                 <Setter Property="MinWidth" Value="52"/>
@@ -453,34 +468,32 @@
                           Style="{StaticResource ProDataGridStyle}"
                           ColumnHeaderStyle="{StaticResource ProColumnHeaderStyle}"
                           CellStyle="{StaticResource ProCellStyle}"
-                          RowStyle="{StaticResource ProRowStyle}"
-                          Margin="8">
+                          RowStyle="{StaticResource CompactRowStyle}"
+                          Margin="6">
                 </DataGrid>
 
                 <!-- Panel akcji -->
-                <Border Grid.Row="2" Background="#FAFAFA" Padding="16" CornerRadius="0,0,8,8"
+                <Border Grid.Row="2" Background="#FAFAFA" Padding="12,10" CornerRadius="0,0,8,8"
                         BorderBrush="#E0E0E0" BorderThickness="0,1,0,0">
                     <StackPanel>
-                        <!-- Panel powiadomienia o zmianie -->
-                        <Border x:Name="borderZmiana" Background="#FFF3E0" CornerRadius="8" Padding="16" Margin="0,0,0,12"
+                        <!-- Panel powiadomienia o zmianie - kompaktowy -->
+                        <Border x:Name="borderZmiana" Background="#FFF3E0" CornerRadius="6" Padding="10,8" Margin="0,0,0,10"
                                 BorderBrush="#FFB74D" BorderThickness="2" Visibility="Collapsed">
                             <StackPanel>
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
-                                    <TextBlock Text="⚠" FontSize="20" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="#E65100"/>
-                                    <TextBlock Text="ZMIANA W ZAMÓWIENIU" FontSize="14" FontWeight="Bold" Foreground="#E65100" VerticalAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,6">
+                                    <TextBlock Text="⚠" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="#E65100"/>
+                                    <TextBlock Text="ZMIANA W ZAMÓWIENIU" FontSize="11" FontWeight="Bold" Foreground="#E65100" VerticalAlignment="Center"/>
                                 </StackPanel>
-                                <TextBlock x:Name="txtZmianaInfo" Text="Zamówienie zostało zmodyfikowane."
-                                           FontSize="12" Foreground="#5D4037" TextAlignment="Center" TextWrapping="Wrap" Margin="0,0,0,8"/>
 
-                                <!-- Lista zmian -->
-                                <Border Background="#FFFBF0" CornerRadius="6" Padding="10" Margin="0,0,0,12" MaxHeight="140">
+                                <!-- Lista zmian - kompaktowa -->
+                                <Border Background="#FFFBF0" CornerRadius="4" Padding="8" Margin="0,0,0,8" MaxHeight="100">
                                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                                         <ItemsControl x:Name="icZmianyList">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <StackPanel Orientation="Horizontal" Margin="0,3">
-                                                        <TextBlock Text="•" FontWeight="Bold" Foreground="#E65100" Margin="0,0,8,0" FontSize="14"/>
-                                                        <TextBlock Text="{Binding}" FontSize="12" Foreground="#5D4037" TextWrapping="Wrap"/>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,1">
+                                                        <TextBlock Text="•" FontWeight="Bold" Foreground="#E65100" Margin="0,0,4,0" FontSize="10"/>
+                                                        <TextBlock Text="{Binding}" FontSize="10" Foreground="#5D4037" TextWrapping="Wrap"/>
                                                     </StackPanel>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
@@ -490,28 +503,36 @@
 
                                 <Button x:Name="btnAcceptChange" Content="✓ Przyjmuję zmianę"
                                         Style="{StaticResource SuccessButtonStyle}"
-                                        Height="44" FontSize="14"
+                                        Height="34" FontSize="12"
                                         Click="BtnAcceptChange_Click"/>
                             </StackPanel>
                         </Border>
 
-                        <TextBlock x:Name="txtInvoiceStatus" Text="Wybierz zamówienie z listy"
-                                   FontSize="12" Foreground="#78909C" TextAlignment="Center" Margin="0,0,0,12"
-                                   TextWrapping="Wrap"/>
+                        <!-- Ukryty TextBlock dla zgodności -->
+                        <TextBlock x:Name="txtInvoiceStatus" Visibility="Collapsed"/>
+                        <TextBlock x:Name="txtZmianaInfo" Visibility="Collapsed"/>
 
-                        <Button x:Name="btnMarkFakturowane" Content="Oznacz jako zafakturowane"
-                                Style="{StaticResource ActionButtonStyle}"
-                                Height="46" Margin="0,0,0,10" FontSize="14"
-                                Click="BtnMarkFakturowane_Click"
-                                IsEnabled="False"/>
+                        <!-- Przyciski w jednej linii -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
 
-                        <Button x:Name="btnCofnijFakturowanie" Content="Cofnij fakturowanie"
-                                Style="{StaticResource ActionButtonStyle}"
-                                Background="#EF6C00"
-                                Height="46" FontSize="14"
-                                Click="BtnCofnijFakturowanie_Click"
-                                IsEnabled="False"
-                                ToolTip="Cofnij status zafakturowane"/>
+                            <Button x:Name="btnMarkFakturowane" Grid.Column="0" Content="Zafakturowane"
+                                    Style="{StaticResource ActionButtonStyle}"
+                                    Height="40" Margin="0,0,4,0" FontSize="12"
+                                    Click="BtnMarkFakturowane_Click"
+                                    IsEnabled="False"/>
+
+                            <Button x:Name="btnCofnijFakturowanie" Grid.Column="1" Content="Cofnij"
+                                    Style="{StaticResource ActionButtonStyle}"
+                                    Background="#EF6C00"
+                                    Height="40" Margin="4,0,0,0" FontSize="12"
+                                    Click="BtnCofnijFakturowanie_Click"
+                                    IsEnabled="False"
+                                    ToolTip="Cofnij status zafakturowane"/>
+                        </Grid>
                     </StackPanel>
                 </Border>
             </Grid>
