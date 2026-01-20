@@ -2868,6 +2868,36 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     e.Row.Background = (SolidColorBrush)FindResource("StatusDoWykupieniaBrush");
                     break;
             }
+
+            // Ładowanie avatara autora notatki (Uwagi)
+            if (!string.IsNullOrEmpty(dostawa.UwagiAutorID))
+            {
+                e.Row.Loaded += (s, args) =>
+                {
+                    try
+                    {
+                        // Szukaj avatara dla obu DataGridów (avatarUwagiImage i avatarUwagiImage2)
+                        var avatarImage = FindVisualChild<Ellipse>(e.Row, "avatarUwagiImage") ?? FindVisualChild<Ellipse>(e.Row, "avatarUwagiImage2");
+                        var avatarBorder = FindVisualChild<Border>(e.Row, "avatarUwagiBorder") ?? FindVisualChild<Border>(e.Row, "avatarUwagiBorder2");
+
+                        if (avatarImage != null && avatarBorder != null && UserAvatarManager.HasAvatar(dostawa.UwagiAutorID))
+                        {
+                            using (var avatar = UserAvatarManager.GetAvatarRounded(dostawa.UwagiAutorID, 32))
+                            {
+                                if (avatar != null)
+                                {
+                                    var brush = new ImageBrush(ConvertToImageSource(avatar));
+                                    brush.Stretch = Stretch.UniformToFill;
+                                    avatarImage.Fill = brush;
+                                    avatarImage.Visibility = Visibility.Visible;
+                                    avatarBorder.Visibility = Visibility.Collapsed;
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+                };
+            }
         }
 
         private void LoadDeliveryDetails(string lp)
