@@ -304,8 +304,13 @@ namespace Kalendarz1
                     progressBar.Value = i + 1;
                     txtStatus.Text = $"Wysylanie {i + 1}/{wybrane.Count}: {spec.Hodowca}...";
 
-                    // Przygotuj numer partii uboju (format: yyMMddNN gdzie NN = numer sekwencyjny dla kazdego dostawcy)
-                    var numerPartii = _dataUboju.ToString("yyMMdd") + (i + 1).ToString("00");
+                    // POPRAWKA: numerPartiiUboju = wartosc z kolumny "Numer Partii" (spec.NumerPartii)
+                    // To jest numer identyfikacyjny partii uboju z danych specyfikacji np. "72826019001"
+                    var numerPartiiUboju = spec.NumerPartii;
+
+                    // POPRAWKA: NumerIdenPartiiDrobiu = STALA wartosc numeru rzezni "039806095-001"
+                    // To pole ZAWSZE ma byc numerem rzezni!
+                    var numerRzezniStala = IRZplusApiService.NUMER_RZEZNI;
 
                     // Przygotuj pojedyncza pozycje dla tego dostawcy
                     var pozycje = new List<PozycjaZURDApi>
@@ -313,7 +318,8 @@ namespace Kalendarz1
                         new PozycjaZURDApi
                         {
                             Lp = 1,
-                            NumerIdenPartiiDrobiu = numerPartii,
+                            // POPRAWKA: NumerIdenPartiiDrobiu = ZAWSZE numer rzezni!
+                            NumerIdenPartiiDrobiu = numerRzezniStala,
                             LiczbaDrobiu = spec.LiczbaSztukDrobiu,
                             MasaDrobiu = spec.WagaNetto,
                             TypZdarzenia = new KodValueApi { Kod = "ZURDUR" },
@@ -324,8 +330,8 @@ namespace Kalendarz1
                         }
                     };
 
-                    // Utworz i wyslij dyspozycje
-                    var dyspozycja = _apiService.UtworzDyspozycje(numerPartii, pozycje);
+                    // Utworz i wyslij dyspozycje - numerPartiiUboju to identyfikator zgloszenia
+                    var dyspozycja = _apiService.UtworzDyspozycje(numerPartiiUboju, pozycje);
                     var result = await _apiService.WyslijZURDAsync(dyspozycja);
 
                     if (result.Success)
@@ -392,6 +398,228 @@ namespace Kalendarz1
             finally
             {
                 btnSendApi.IsEnabled = true;
+                progressBar.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        /// <summary>
+        /// Pokazuje okno podgladu danych przed wyslaniem do API
+        /// Pozwala uzytkownikowi zobaczyc dokladnie jakie dane zostana wyslane
+        /// </summary>
+        private void BtnPreviewApi_Click(object sender, RoutedEventArgs e)
+        {
+            var wybrane = _specyfikacje.Where(s => s.Wybrana).ToList();
+            if (wybrane.Count == 0)
+            {
+                MessageBox.Show("Zaznacz przynajmniej jedna specyfikacje.", "Uwaga",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var settings = _service.GetSettings();
+
+            // Przygotuj dane do podgladu
+            var previewItems = new List<ApiPreviewItem>();
+            var dyspozycje = new List<DyspozycjaZURDApi>();
+
+            for (int i = 0; i < wybrane.Count; i++)
+            {
+                var spec = wybrane[i];
+
+                // POPRAWKA: numerPartiiUboju = wartosc z kolumny "Numer Partii" (spec.NumerPartii)
+                var numerPartiiUboju = spec.NumerPartii;
+
+                // POPRAWKA: NumerIdenPartiiDrobiu = STALA wartosc numeru rzezni
+                var numerRzezniStala = IRZplusApiService.NUMER_RZEZNI;
+
+                // Dodaj do listy podgladu
+                previewItems.Add(new ApiPreviewItem
+                {
+                    Lp = i + 1,
+                    Hodowca = spec.Hodowca,
+                    NumerIdenPartiiDrobiu = numerRzezniStala,
+                    LiczbaDrobiu = spec.LiczbaSztukDrobiu,
+                    MasaDrobiu = spec.WagaNetto,
+                    TypZdarzenia = "ZURDUR",
+                    DataZdarzenia = spec.DataZdarzenia.ToString("yyyy-MM-dd"),
+                    DataKupnaWwozu = spec.DataZdarzenia.ToString("yyyy-MM-dd"),
+                    PrzyjeteZDzialalnosci = spec.IRZPlus,
+                    UbojRytualny = false
+                });
+
+                // Przygotuj dyspozycje API
+                var pozycje = new List<PozycjaZURDApi>
+                {
+                    new PozycjaZURDApi
+                    {
+                        Lp = 1,
+                        NumerIdenPartiiDrobiu = numerRzezniStala,
+                        LiczbaDrobiu = spec.LiczbaSztukDrobiu,
+                        MasaDrobiu = spec.WagaNetto,
+                        TypZdarzenia = new KodValueApi { Kod = "ZURDUR" },
+                        DataZdarzenia = spec.DataZdarzenia.ToString("yyyy-MM-dd"),
+                        DataKupnaWwozu = spec.DataZdarzenia.ToString("yyyy-MM-dd"),
+                        PrzyjeteZDzialalnosci = spec.IRZPlus,
+                        UbojRytualny = false
+                    }
+                };
+
+                var dyspozycja = _apiService.UtworzDyspozycje(numerPartiiUboju, pozycje);
+                dyspozycje.Add(dyspozycja);
+            }
+
+            // Pokaz okno podgladu
+            var previewWindow = new IRZplusPreviewBeforeSendWindow(
+                previewItems,
+                dyspozycje,
+                settings.UseTestEnvironment,
+                _dataUboju);
+            previewWindow.Owner = this;
+
+            if (previewWindow.ShowDialog() == true && previewWindow.ConfirmedSend)
+            {
+                // Uzytkownik potwierdzil - wyslij dane
+                SendApiDataAsync(wybrane);
+            }
+        }
+
+        /// <summary>
+        /// Wysyla dane do API po potwierdzeniu w oknie podgladu
+        /// </summary>
+        private async void SendApiDataAsync(List<SpecyfikacjaDoIRZplusViewModel> wybrane)
+        {
+            var settings = _service.GetSettings();
+            if (string.IsNullOrEmpty(settings.Username) || string.IsNullOrEmpty(settings.Password))
+            {
+                MessageBox.Show("Uzupelnij dane logowania w Ustawieniach (Username i Password).", "Brak danych logowania",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                btnSendApi.IsEnabled = false;
+                btnPreviewApi.IsEnabled = false;
+                txtStatus.Text = "Logowanie do API IRZplus...";
+                progressBar.Visibility = Visibility.Visible;
+                progressBar.IsIndeterminate = false;
+                progressBar.Maximum = wybrane.Count;
+                progressBar.Value = 0;
+
+                // Ustaw srodowisko
+                _apiService.SetTestEnvironment(settings.UseTestEnvironment);
+
+                // Autoryzacja
+                var authResult = await _apiService.AuthenticateAsync(settings.Username, settings.Password);
+                if (!authResult.Success)
+                {
+                    ShowApiResultWindow(authResult, null);
+                    txtStatus.Text = "Blad logowania";
+                    return;
+                }
+
+                // Wysylaj KAZDA POZYCJE OSOBNO
+                int successCount = 0;
+                int errorCount = 0;
+                var errors = new List<string>();
+                var assignments = new List<(string Hodowca, string NumerDokumentu, int Id)>();
+
+                for (int i = 0; i < wybrane.Count; i++)
+                {
+                    var spec = wybrane[i];
+                    progressBar.Value = i + 1;
+                    txtStatus.Text = $"Wysylanie {i + 1}/{wybrane.Count}: {spec.Hodowca}...";
+
+                    // POPRAWKA: numerPartiiUboju = wartosc z kolumny "Numer Partii" (spec.NumerPartii)
+                    var numerPartiiUboju = spec.NumerPartii;
+
+                    // POPRAWKA: NumerIdenPartiiDrobiu = STALA wartosc numeru rzezni
+                    var numerRzezniStala = IRZplusApiService.NUMER_RZEZNI;
+
+                    var pozycje = new List<PozycjaZURDApi>
+                    {
+                        new PozycjaZURDApi
+                        {
+                            Lp = 1,
+                            NumerIdenPartiiDrobiu = numerRzezniStala,
+                            LiczbaDrobiu = spec.LiczbaSztukDrobiu,
+                            MasaDrobiu = spec.WagaNetto,
+                            TypZdarzenia = new KodValueApi { Kod = "ZURDUR" },
+                            DataZdarzenia = spec.DataZdarzenia.ToString("yyyy-MM-dd"),
+                            DataKupnaWwozu = spec.DataZdarzenia.ToString("yyyy-MM-dd"),
+                            PrzyjeteZDzialalnosci = spec.IRZPlus,
+                            UbojRytualny = false
+                        }
+                    };
+
+                    var dyspozycja = _apiService.UtworzDyspozycje(numerPartiiUboju, pozycje);
+                    var result = await _apiService.WyslijZURDAsync(dyspozycja);
+
+                    if (result.Success)
+                    {
+                        successCount++;
+                        var numerDokumentu = result.NumerDokumentu ?? result.NumerZgloszenia ?? "N/A";
+
+                        // Zapisz numer dokumentu do bazy danych
+                        await _service.SaveNrDokArimrAsync(_connectionString, spec.Id, numerDokumentu);
+
+                        // Zaktualizuj lokalnie ViewModel
+                        spec.NrDokArimr = numerDokumentu;
+
+                        // Dodaj do listy przypisan
+                        assignments.Add((spec.Hodowca, numerDokumentu, spec.Id));
+                    }
+                    else
+                    {
+                        errorCount++;
+                        errors.Add($"{spec.Hodowca}: {result.Message}");
+
+                        // Pokaz blad ale kontynuuj wysylanie pozostalych
+                        var continueResult = MessageBox.Show(
+                            $"Blad wysylania dla: {spec.Hodowca}\n\n{result.Message}\n\nCzy kontynuowac wysylanie pozostalych?",
+                            "Blad wysylania",
+                            MessageBoxButton.YesNo,
+                            MessageBoxImage.Warning);
+
+                        if (continueResult != MessageBoxResult.Yes)
+                            break;
+                    }
+
+                    // Krotka pauza miedzy requestami
+                    await System.Threading.Tasks.Task.Delay(500);
+                }
+
+                // Podsumowanie
+                WysylkaZakonczona = successCount > 0;
+                if (assignments.Any())
+                {
+                    NumerZgloszenia = assignments.Last().NumerDokumentu;
+                }
+
+                var summary = $"Wyslano: {successCount}/{wybrane.Count}";
+                if (errorCount > 0)
+                {
+                    summary += $"\nBledy: {errorCount}";
+                }
+                txtStatus.Text = summary;
+
+                // Pokaz podsumowanie z przypisaniami
+                ShowAssignmentsSummary(assignments, errors, successCount, wybrane.Count);
+            }
+            catch (Exception ex)
+            {
+                var errorResult = new ApiResult
+                {
+                    Success = false,
+                    Message = $"WYJATEK: {ex.Message}\n\n{ex.StackTrace}"
+                };
+                ShowApiResultWindow(errorResult, null);
+                txtStatus.Text = "Wyjatek";
+            }
+            finally
+            {
+                btnSendApi.IsEnabled = true;
+                btnPreviewApi.IsEnabled = true;
                 progressBar.Visibility = Visibility.Collapsed;
             }
         }
