@@ -487,6 +487,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                     Cena = reader["Cena"] != DBNull.Value ? Convert.ToDecimal(reader["Cena"]) : 0,
                                     Distance = reader["Distance"] != DBNull.Value ? Convert.ToInt32(reader["Distance"]) : 0,
                                     Uwagi = reader["UWAGI"]?.ToString(),
+                                    UwagiAutorID = reader["UwagiAutorID"]?.ToString(),
+                                    UwagiAutorName = reader["UwagiAutorName"]?.ToString(),
                                     DataNotatki = reader["DataNotatki"] != DBNull.Value ? Convert.ToDateTime(reader["DataNotatki"]) : (DateTime?)null,
                                     IsConfirmed = reader["bufor"]?.ToString() == "Potwierdzony",
                                     IsWstawienieConfirmed = reader["isConf"] != DBNull.Value && Convert.ToBoolean(reader["isConf"]),
@@ -673,6 +675,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     HD.LP, HD.DataOdbioru, HD.Dostawca, HD.Auta, HD.SztukiDek, HD.WagaDek, HD.bufor,
                     HD.TypCeny, HD.Cena, WK.DataWstawienia, D.Distance, HD.Ubytek, HD.LpW,
                     (SELECT TOP 1 N.Tresc FROM Notatki N WHERE N.IndeksID = HD.Lp ORDER BY N.DataUtworzenia DESC) AS UWAGI,
+                    (SELECT TOP 1 N.KtoStworzyl FROM Notatki N WHERE N.IndeksID = HD.Lp ORDER BY N.DataUtworzenia DESC) AS UwagiAutorID,
+                    (SELECT TOP 1 O.Name FROM Notatki N LEFT JOIN operators O ON N.KtoStworzyl = O.ID WHERE N.IndeksID = HD.Lp ORDER BY N.DataUtworzenia DESC) AS UwagiAutorName,
                     (SELECT TOP 1 N.DataUtworzenia FROM Notatki N WHERE N.IndeksID = HD.Lp ORDER BY N.DataUtworzenia DESC) AS DataNotatki,
                     HD.PotwWaga, HD.PotwSztuki, WK.isConf,
                     CASE WHEN HD.bufor = 'Potwierdzony' THEN 1 WHEN HD.bufor = 'B.Kontr.' THEN 2
@@ -6234,6 +6238,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
         public decimal Cena { get; set; }
         public int Distance { get; set; }
         public string Uwagi { get; set; }
+        public string UwagiAutorID { get; set; }
+        public string UwagiAutorName { get; set; }
         public DateTime? DataNotatki { get; set; }
         public int? RoznicaDni { get; set; }
         public string LpW { get; set; }

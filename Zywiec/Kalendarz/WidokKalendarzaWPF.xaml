@@ -793,6 +793,29 @@
                                                         </Style>
                                                     </TextBlock.Style>
                                                 </TextBlock>
+                                                <!-- Avatar autora notatki -->
+                                                <Grid Width="16" Height="16" Margin="0,0,3,0" VerticalAlignment="Center">
+                                                    <Grid.Style>
+                                                        <Style TargetType="Grid">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Uwagi}" Value="{x:Null}">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Uwagi}" Value="">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Grid.Style>
+                                                    <Border x:Name="avatarUwagiBorder" Width="16" Height="16" CornerRadius="8" Background="#6366F1">
+                                                        <TextBlock Text="{Binding UwagiAutorName, Converter={StaticResource InitialsConverter}}" FontSize="7" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <Ellipse x:Name="avatarUwagiImage" Width="16" Height="16" Visibility="Collapsed"/>
+                                                </Grid>
                                                 <!-- Dla normalnych wierszy - pokaż uwagi -->
                                                 <TextBlock Text="{Binding Uwagi}" TextTrimming="CharacterEllipsis"
                                                            ToolTip="{Binding Uwagi}" FontSize="10">
@@ -1108,6 +1131,29 @@
                                                     </Style>
                                                 </TextBlock.Style>
                                             </TextBlock>
+                                            <!-- Avatar autora notatki -->
+                                            <Grid Width="16" Height="16" Margin="0,0,3,0" VerticalAlignment="Center">
+                                                <Grid.Style>
+                                                    <Style TargetType="Grid">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Uwagi}" Value="{x:Null}">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Uwagi}" Value="">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Grid.Style>
+                                                <Border x:Name="avatarUwagiBorder2" Width="16" Height="16" CornerRadius="8" Background="#6366F1">
+                                                    <TextBlock Text="{Binding UwagiAutorName, Converter={StaticResource InitialsConverter}}" FontSize="7" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <Ellipse x:Name="avatarUwagiImage2" Width="16" Height="16" Visibility="Collapsed"/>
+                                            </Grid>
                                             <!-- Dla normalnych wierszy - pokaż uwagi -->
                                             <TextBlock Text="{Binding Uwagi}" TextTrimming="CharacterEllipsis"
                                                        ToolTip="{Binding Uwagi}" FontSize="10">
