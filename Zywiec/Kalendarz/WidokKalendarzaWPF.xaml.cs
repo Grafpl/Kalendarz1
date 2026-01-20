@@ -3260,10 +3260,11 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
                     await conn.OpenAsync(_cts.Token);
-                    string sql = "UPDATE HarmonogramDostaw SET PotwWaga = 1 WHERE Lp = @Lp";
+                    string sql = "UPDATE HarmonogramDostaw SET PotwWaga = 1, KiedyWaga = GETDATE(), KtoWaga = @KtoWaga WHERE Lp = @Lp";
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@Lp", _selectedLP);
+                        cmd.Parameters.AddWithValue("@KtoWaga", UserID ?? "0");
                         await cmd.ExecuteNonQueryAsync(_cts.Token);
                     }
                 }
@@ -3272,6 +3273,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 chkPotwWaga.IsChecked = true;
                 borderPotwWaga.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C8E6C9"));
                 txtKtoWaga.Text = $"({UserName})";
+                txtDataPotwWaga.Text = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+                txtKtoPotwWaga.Text = UserName;
                 dgDostawy.Items.Refresh();
                 dgDostawyNastepny.Items.Refresh();
                 ShowToast("✅ Waga potwierdzona!", ToastType.Success);
@@ -3319,10 +3322,11 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
                     await conn.OpenAsync(_cts.Token);
-                    string sql = "UPDATE HarmonogramDostaw SET PotwSztuki = 1 WHERE Lp = @Lp";
+                    string sql = "UPDATE HarmonogramDostaw SET PotwSztuki = 1, KiedySztuki = GETDATE(), KtoSztuki = @KtoSztuki WHERE Lp = @Lp";
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@Lp", _selectedLP);
+                        cmd.Parameters.AddWithValue("@KtoSztuki", UserID ?? "0");
                         await cmd.ExecuteNonQueryAsync(_cts.Token);
                     }
                 }
@@ -3331,6 +3335,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 chkPotwSztuki.IsChecked = true;
                 borderPotwSztuki.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C8E6C9"));
                 txtKtoSztuki.Text = $"({UserName})";
+                txtDataPotwSztuki.Text = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+                txtKtoPotwSztuki.Text = UserName;
                 dgDostawy.Items.Refresh();
                 dgDostawyNastepny.Items.Refresh();
                 ShowToast("✅ Sztuki potwierdzone!", ToastType.Success);
@@ -3378,7 +3384,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
                     await conn.OpenAsync(_cts.Token);
-                    string sql = "UPDATE HarmonogramDostaw SET PotwWaga = 0 WHERE Lp = @Lp";
+                    string sql = "UPDATE HarmonogramDostaw SET PotwWaga = 0, KiedyWaga = NULL, KtoWaga = NULL WHERE Lp = @Lp";
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@Lp", _selectedLP);
@@ -3390,6 +3396,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 chkPotwWaga.IsChecked = false;
                 borderPotwWaga.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCDD2"));
                 txtKtoWaga.Text = "";
+                txtDataPotwWaga.Text = "";
+                txtKtoPotwWaga.Text = "";
                 dgDostawy.Items.Refresh();
                 dgDostawyNastepny.Items.Refresh();
                 ShowToast("↩️ Cofnięto potwierdzenie wagi", ToastType.Info);
@@ -3437,7 +3445,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
                     await conn.OpenAsync(_cts.Token);
-                    string sql = "UPDATE HarmonogramDostaw SET PotwSztuki = 0 WHERE Lp = @Lp";
+                    string sql = "UPDATE HarmonogramDostaw SET PotwSztuki = 0, KiedySztuki = NULL, KtoSztuki = NULL WHERE Lp = @Lp";
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@Lp", _selectedLP);
@@ -3449,6 +3457,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 chkPotwSztuki.IsChecked = false;
                 borderPotwSztuki.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCDD2"));
                 txtKtoSztuki.Text = "";
+                txtDataPotwSztuki.Text = "";
+                txtKtoPotwSztuki.Text = "";
                 dgDostawy.Items.Refresh();
                 dgDostawyNastepny.Items.Refresh();
                 ShowToast("↩️ Cofnięto potwierdzenie sztuk", ToastType.Info);
@@ -3754,11 +3764,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 {
                     await conn.OpenAsync(_cts.Token);
                     string sql = isChecked
-                        ? "UPDATE HarmonogramDostaw SET PotwWaga = 1 WHERE Lp = @Lp"
-                        : "UPDATE HarmonogramDostaw SET PotwWaga = 0 WHERE Lp = @Lp";
+                        ? "UPDATE HarmonogramDostaw SET PotwWaga = 1, KiedyWaga = GETDATE(), KtoWaga = @KtoWaga WHERE Lp = @Lp"
+                        : "UPDATE HarmonogramDostaw SET PotwWaga = 0, KiedyWaga = NULL, KtoWaga = NULL WHERE Lp = @Lp";
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@Lp", _selectedLP);
+                        if (isChecked) cmd.Parameters.AddWithValue("@KtoWaga", UserID ?? "0");
                         await cmd.ExecuteNonQueryAsync(_cts.Token);
                     }
                 }
@@ -3769,6 +3780,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 {
                     borderPotwWaga.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C8E6C9"));
                     txtKtoWaga.Text = $"({UserName})";
+                    txtDataPotwWaga.Text = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+                    txtKtoPotwWaga.Text = UserName;
                     ShowToast("✅ Waga potwierdzona!", ToastType.Success);
 
                     // Audit log
@@ -3783,6 +3796,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 {
                     borderPotwWaga.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCDD2"));
                     txtKtoWaga.Text = "";
+                    txtDataPotwWaga.Text = "";
+                    txtKtoPotwWaga.Text = "";
                     ShowToast("↩️ Cofnięto potwierdzenie wagi", ToastType.Info);
 
                     // Audit log
@@ -3845,11 +3860,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 {
                     await conn.OpenAsync(_cts.Token);
                     string sql = isChecked
-                        ? "UPDATE HarmonogramDostaw SET PotwSztuki = 1 WHERE Lp = @Lp"
-                        : "UPDATE HarmonogramDostaw SET PotwSztuki = 0 WHERE Lp = @Lp";
+                        ? "UPDATE HarmonogramDostaw SET PotwSztuki = 1, KiedySztuki = GETDATE(), KtoSztuki = @KtoSztuki WHERE Lp = @Lp"
+                        : "UPDATE HarmonogramDostaw SET PotwSztuki = 0, KiedySztuki = NULL, KtoSztuki = NULL WHERE Lp = @Lp";
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@Lp", _selectedLP);
+                        if (isChecked) cmd.Parameters.AddWithValue("@KtoSztuki", UserID ?? "0");
                         await cmd.ExecuteNonQueryAsync(_cts.Token);
                     }
                 }
@@ -3860,6 +3876,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 {
                     borderPotwSztuki.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C8E6C9"));
                     txtKtoSztuki.Text = $"({UserName})";
+                    txtDataPotwSztuki.Text = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+                    txtKtoPotwSztuki.Text = UserName;
                     ShowToast("✅ Sztuki potwierdzone!", ToastType.Success);
 
                     // Audit log
@@ -3874,6 +3892,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 {
                     borderPotwSztuki.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCDD2"));
                     txtKtoSztuki.Text = "";
+                    txtDataPotwSztuki.Text = "";
+                    txtKtoPotwSztuki.Text = "";
                     ShowToast("↩️ Cofnięto potwierdzenie sztuk", ToastType.Info);
 
                     // Audit log
