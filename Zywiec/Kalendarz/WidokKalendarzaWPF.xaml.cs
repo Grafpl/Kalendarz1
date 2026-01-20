@@ -3237,6 +3237,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 chkPotwWaga.IsChecked = true;
                 borderPotwWaga.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C8E6C9"));
                 txtKtoWaga.Text = $"({UserName})";
+                dgDostawy.Items.Refresh();
+                dgDostawyNastepny.Items.Refresh();
                 ShowToast("📝 Waga potwierdzona (symulacja)", ToastType.Info);
                 return;
             }
@@ -3254,9 +3256,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     }
                 }
 
+                if (dostawa != null) dostawa.PotwWaga = true;
                 chkPotwWaga.IsChecked = true;
                 borderPotwWaga.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C8E6C9"));
                 txtKtoWaga.Text = $"({UserName})";
+                dgDostawy.Items.Refresh();
+                dgDostawyNastepny.Items.Refresh();
                 ShowToast("✅ Waga potwierdzona!", ToastType.Success);
 
                 // Audit log
@@ -3291,6 +3296,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 chkPotwSztuki.IsChecked = true;
                 borderPotwSztuki.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C8E6C9"));
                 txtKtoSztuki.Text = $"({UserName})";
+                dgDostawy.Items.Refresh();
+                dgDostawyNastepny.Items.Refresh();
                 ShowToast("📝 Sztuki potwierdzone (symulacja)", ToastType.Info);
                 return;
             }
@@ -3308,9 +3315,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     }
                 }
 
+                if (dostawa != null) dostawa.PotwSztuki = true;
                 chkPotwSztuki.IsChecked = true;
                 borderPotwSztuki.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C8E6C9"));
                 txtKtoSztuki.Text = $"({UserName})";
+                dgDostawy.Items.Refresh();
+                dgDostawyNastepny.Items.Refresh();
                 ShowToast("✅ Sztuki potwierdzone!", ToastType.Success);
 
                 // Audit log
@@ -3345,6 +3355,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 chkPotwWaga.IsChecked = false;
                 borderPotwWaga.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCDD2"));
                 txtKtoWaga.Text = "";
+                dgDostawy.Items.Refresh();
+                dgDostawyNastepny.Items.Refresh();
                 ShowToast("📝 Cofnięto potwierdzenie wagi (symulacja)", ToastType.Info);
                 return;
             }
@@ -3362,9 +3374,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     }
                 }
 
+                if (dostawa != null) dostawa.PotwWaga = false;
                 chkPotwWaga.IsChecked = false;
                 borderPotwWaga.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCDD2"));
                 txtKtoWaga.Text = "";
+                dgDostawy.Items.Refresh();
+                dgDostawyNastepny.Items.Refresh();
                 ShowToast("↩️ Cofnięto potwierdzenie wagi", ToastType.Info);
 
                 // Audit log
@@ -3399,6 +3414,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 chkPotwSztuki.IsChecked = false;
                 borderPotwSztuki.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCDD2"));
                 txtKtoSztuki.Text = "";
+                dgDostawy.Items.Refresh();
+                dgDostawyNastepny.Items.Refresh();
                 ShowToast("📝 Cofnięto potwierdzenie sztuk (symulacja)", ToastType.Info);
                 return;
             }
@@ -3416,9 +3433,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     }
                 }
 
+                if (dostawa != null) dostawa.PotwSztuki = false;
                 chkPotwSztuki.IsChecked = false;
                 borderPotwSztuki.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCDD2"));
                 txtKtoSztuki.Text = "";
+                dgDostawy.Items.Refresh();
+                dgDostawyNastepny.Items.Refresh();
                 ShowToast("↩️ Cofnięto potwierdzenie sztuk", ToastType.Info);
 
                 // Audit log
@@ -3711,6 +3731,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     txtKtoWaga.Text = "";
                     ShowToast("📝 Cofnięto potwierdzenie wagi (symulacja)", ToastType.Info);
                 }
+                dgDostawy.Items.Refresh();
+                dgDostawyNastepny.Items.Refresh();
                 return;
             }
 
@@ -3759,6 +3781,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                             new AuditContextInfo { Dostawca = dostawa?.Dostawca, DataOdbioru = dostawa?.DataOdbioru }, _cts.Token);
                     }
                 }
+                dgDostawy.Items.Refresh();
+                dgDostawyNastepny.Items.Refresh();
             }
             catch (Exception ex)
             {
@@ -3798,6 +3822,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     txtKtoSztuki.Text = "";
                     ShowToast("📝 Cofnięto potwierdzenie sztuk (symulacja)", ToastType.Info);
                 }
+                dgDostawy.Items.Refresh();
+                dgDostawyNastepny.Items.Refresh();
                 return;
             }
 
@@ -3846,6 +3872,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                             new AuditContextInfo { Dostawca = dostawa?.Dostawca, DataOdbioru = dostawa?.DataOdbioru }, _cts.Token);
                     }
                 }
+                dgDostawy.Items.Refresh();
+                dgDostawyNastepny.Items.Refresh();
             }
             catch (Exception ex)
             {
