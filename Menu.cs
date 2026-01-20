@@ -93,6 +93,8 @@ namespace Kalendarz1
             }
         }
 
+        private int _nextNotificationInterval = 15 * 60 * 1000; // Domyślnie 15 minut
+
         private void TaskNotificationTimer_Tick(object sender, EventArgs e)
         {
             taskNotificationTimer.Stop();
@@ -106,16 +108,28 @@ namespace Kalendarz1
                     var zadaniaWindow = new ZadaniaWindow();
                     zadaniaWindow.Show();
                 };
+                notificationWindow.SnoozeRequested += (s, snoozeTime) =>
+                {
+                    // Ustaw następny interwał na czas odroczenia
+                    _nextNotificationInterval = (int)snoozeTime.TotalMilliseconds;
+                };
+                notificationWindow.Closed += (s, args) =>
+                {
+                    // Po zamknięciu okna ustaw timer
+                    taskNotificationTimer.Interval = _nextNotificationInterval;
+                    taskNotificationTimer.Start();
+                    // Resetuj interwał do domyślnego na następny raz
+                    _nextNotificationInterval = 15 * 60 * 1000;
+                };
                 notificationWindow.Show();
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Notification error: {ex.Message}");
+                // W przypadku błędu, uruchom timer z domyślnym interwałem
+                taskNotificationTimer.Interval = 15 * 60 * 1000;
+                taskNotificationTimer.Start();
             }
-
-            // Ustaw timer na 15 minut
-            taskNotificationTimer.Interval = 15 * 60 * 1000; // 15 minut
-            taskNotificationTimer.Start();
         }
 
         private void StartChatBadgeTimer()

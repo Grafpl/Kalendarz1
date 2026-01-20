@@ -233,6 +233,11 @@ namespace Kalendarz1.Zadania
                             var durationMin = reader.IsDBNull(3) ? 60 : reader.GetInt32(3);
                             var now = DateTime.Now;
                             var endTime = meetingDate.AddMinutes(durationMin);
+
+                            // Pomijaj spotkania które już się zakończyły
+                            if (endTime < now)
+                                continue;
+
                             var minutesToMeeting = (int)(meetingDate - now).TotalMinutes;
                             var isLive = now >= meetingDate && now <= endTime;
 
@@ -996,6 +1001,8 @@ namespace Kalendarz1.Zadania
 
         private void BtnClose_Click(object sender, RoutedEventArgs e)
         {
+            // Zamknięcie okna opóźnia pojawienie się o 4 godziny
+            SnoozeRequested?.Invoke(this, TimeSpan.FromHours(4));
             Close();
         }
 
