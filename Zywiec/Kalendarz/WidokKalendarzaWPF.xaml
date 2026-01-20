@@ -2531,9 +2531,16 @@
                         <TextBlock Text="Utworzono:" Style="{StaticResource FormLabelStyle}"/>
                         <TextBlock x:Name="txtDataStwo" FontSize="10"/>
                         <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                            <Border x:Name="avatarStwo" Width="18" Height="18" CornerRadius="9" Background="#3B82F6" VerticalAlignment="Center">
-                                <TextBlock x:Name="txtAvatarStwo" FontSize="8" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
+                            <Grid Width="18" Height="18" VerticalAlignment="Center">
+                                <Border x:Name="avatarStwo" Width="18" Height="18" CornerRadius="9" Background="#3B82F6">
+                                    <TextBlock x:Name="txtAvatarStwo" FontSize="8" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <Ellipse x:Name="imgAvatarStwo" Width="18" Height="18" Visibility="Collapsed">
+                                    <Ellipse.Fill>
+                                        <ImageBrush x:Name="imgAvatarStwoBrush" Stretch="UniformToFill"/>
+                                    </Ellipse.Fill>
+                                </Ellipse>
+                            </Grid>
                             <TextBlock x:Name="txtKtoStwo" FontSize="9" Margin="4,0,0,0" Foreground="#7F8C8D" VerticalAlignment="Center"/>
                         </StackPanel>
                     </StackPanel>
@@ -2541,9 +2548,16 @@
                         <TextBlock Text="Modyfikowano:" Style="{StaticResource FormLabelStyle}"/>
                         <TextBlock x:Name="txtDataMod" FontSize="10"/>
                         <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                            <Border x:Name="avatarMod" Width="18" Height="18" CornerRadius="9" Background="#8B5CF6" VerticalAlignment="Center">
-                                <TextBlock x:Name="txtAvatarMod" FontSize="8" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
+                            <Grid Width="18" Height="18" VerticalAlignment="Center">
+                                <Border x:Name="avatarMod" Width="18" Height="18" CornerRadius="9" Background="#8B5CF6">
+                                    <TextBlock x:Name="txtAvatarMod" FontSize="8" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <Ellipse x:Name="imgAvatarMod" Width="18" Height="18" Visibility="Collapsed">
+                                    <Ellipse.Fill>
+                                        <ImageBrush x:Name="imgAvatarModBrush" Stretch="UniformToFill"/>
+                                    </Ellipse.Fill>
+                                </Ellipse>
+                            </Grid>
                             <TextBlock x:Name="txtKtoMod" FontSize="9" Margin="4,0,0,0" Foreground="#7F8C8D" VerticalAlignment="Center"/>
                         </StackPanel>
                     </StackPanel>
@@ -2551,9 +2565,16 @@
                         <TextBlock Text="Potw. waga:" Style="{StaticResource FormLabelStyle}" Foreground="#388E3C"/>
                         <TextBlock x:Name="txtDataPotwWaga" FontSize="10"/>
                         <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                            <Border x:Name="avatarPotwWaga" Width="18" Height="18" CornerRadius="9" Background="#22C55E" VerticalAlignment="Center">
-                                <TextBlock x:Name="txtAvatarPotwWaga" FontSize="8" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
+                            <Grid Width="18" Height="18" VerticalAlignment="Center">
+                                <Border x:Name="avatarPotwWaga" Width="18" Height="18" CornerRadius="9" Background="#22C55E">
+                                    <TextBlock x:Name="txtAvatarPotwWaga" FontSize="8" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <Ellipse x:Name="imgAvatarPotwWaga" Width="18" Height="18" Visibility="Collapsed">
+                                    <Ellipse.Fill>
+                                        <ImageBrush x:Name="imgAvatarPotwWagaBrush" Stretch="UniformToFill"/>
+                                    </Ellipse.Fill>
+                                </Ellipse>
+                            </Grid>
                             <TextBlock x:Name="txtKtoPotwWaga" FontSize="9" Margin="4,0,0,0" Foreground="#7F8C8D" VerticalAlignment="Center"/>
                         </StackPanel>
                     </StackPanel>
@@ -2561,9 +2582,16 @@
                         <TextBlock Text="Potw. sztuki:" Style="{StaticResource FormLabelStyle}" Foreground="#1565C0"/>
                         <TextBlock x:Name="txtDataPotwSztuki" FontSize="10"/>
                         <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                            <Border x:Name="avatarPotwSztuki" Width="18" Height="18" CornerRadius="9" Background="#3B82F6" VerticalAlignment="Center">
-                                <TextBlock x:Name="txtAvatarPotwSztuki" FontSize="8" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
+                            <Grid Width="18" Height="18" VerticalAlignment="Center">
+                                <Border x:Name="avatarPotwSztuki" Width="18" Height="18" CornerRadius="9" Background="#3B82F6">
+                                    <TextBlock x:Name="txtAvatarPotwSztuki" FontSize="8" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <Ellipse x:Name="imgAvatarPotwSztuki" Width="18" Height="18" Visibility="Collapsed">
+                                    <Ellipse.Fill>
+                                        <ImageBrush x:Name="imgAvatarPotwSztukiBrush" Stretch="UniformToFill"/>
+                                    </Ellipse.Fill>
+                                </Ellipse>
+                            </Grid>
                             <TextBlock x:Name="txtKtoPotwSztuki" FontSize="9" Margin="4,0,0,0" Foreground="#7F8C8D" VerticalAlignment="Center"/>
                         </StackPanel>
                     </StackPanel>
