@@ -67,37 +67,39 @@
                 <Setter Property="SelectionMode" Value="Single"/>
                 <Setter Property="SelectionUnit" Value="FullRow"/>
                 <Setter Property="GridLinesVisibility" Value="Horizontal"/>
-                <Setter Property="HorizontalGridLinesBrush" Value="#E8E8E8"/>
-                <Setter Property="Background" Value="#FAFAFA"/>
+                <Setter Property="HorizontalGridLinesBrush" Value="#D0D0D0"/>
+                <Setter Property="Background" Value="White"/>
                 <Setter Property="BorderBrush" Value="#D0D0D0"/>
                 <Setter Property="BorderThickness" Value="0"/>
-                <Setter Property="RowHeight" Value="38"/>
-                <Setter Property="FontSize" Value="12"/>
-                <Setter Property="AlternatingRowBackground" Value="#F5F7FA"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="AlternatingRowBackground" Value="#F8FAFC"/>
                 <Setter Property="RowBackground" Value="White"/>
                 <Setter Property="HeadersVisibility" Value="Column"/>
                 <Setter Property="CanUserResizeRows" Value="False"/>
+                <Setter Property="CanUserResizeColumns" Value="True"/>
             </Style>
 
             <Style x:Key="ModernDataGridColumnHeaderStyle" TargetType="DataGridColumnHeader">
-                <Setter Property="Background" Value="#2C3E50"/>
+                <Setter Property="Background" Value="#1976D2"/>
                 <Setter Property="Foreground" Value="White"/>
-                <Setter Property="FontWeight" Value="SemiBold"/>
-                <Setter Property="FontSize" Value="11"/>
-                <Setter Property="Height" Value="38"/>
-                <Setter Property="Padding" Value="10,0"/>
-                <Setter Property="BorderBrush" Value="#34495E"/>
+                <Setter Property="FontWeight" Value="Bold"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="MinHeight" Value="42"/>
+                <Setter Property="Padding" Value="10,8"/>
+                <Setter Property="BorderBrush" Value="#1565C0"/>
                 <Setter Property="BorderThickness" Value="0,0,1,0"/>
                 <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
             </Style>
 
             <Style x:Key="ModernDataGridCellStyle" TargetType="DataGridCell">
-                <Setter Property="Padding" Value="8,0"/>
+                <Setter Property="Padding" Value="8,6"/>
                 <Setter Property="BorderThickness" Value="0"/>
                 <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
                 <Style.Triggers>
                     <Trigger Property="IsSelected" Value="True">
-                        <Setter Property="Background" Value="#E3F2FD"/>
+                        <Setter Property="Background" Value="#BBDEFB"/>
                         <Setter Property="Foreground" Value="#1565C0"/>
                     </Trigger>
                 </Style.Triggers>
@@ -105,12 +107,13 @@
 
             <Style x:Key="ModernDataGridRowStyle" TargetType="DataGridRow">
                 <Setter Property="Margin" Value="0"/>
+                <Setter Property="MinHeight" Value="40"/>
                 <Style.Triggers>
                     <Trigger Property="IsMouseOver" Value="True">
-                        <Setter Property="Background" Value="#EEF5FF"/>
+                        <Setter Property="Background" Value="#E3F2FD"/>
                     </Trigger>
                     <Trigger Property="IsSelected" Value="True">
-                        <Setter Property="Background" Value="#E3F2FD"/>
+                        <Setter Property="Background" Value="#BBDEFB"/>
                     </Trigger>
                 </Style.Triggers>
             </Style>
@@ -144,69 +147,57 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- NAGŁÓWEK - responsywny -->
-        <Border Grid.Row="0" Background="#1976D2" Padding="12,8">
+        <!-- KOMPAKTOWY PASEK NAWIGACJI - wszystko w jednym wierszu -->
+        <Border Grid.Row="0" Background="#1976D2" Padding="8,6">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <WrapPanel Grid.Column="0" VerticalAlignment="Center">
-                    <TextBlock Text="Panel Faktur" FontSize="20" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
-                    <TextBlock Text=" - Zamówienia Klientów" FontSize="14" Foreground="#B3E5FC" VerticalAlignment="Center" Margin="5,0,0,0"/>
-                </WrapPanel>
-
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button x:Name="btnRefresh" Content="Odśwież" Style="{StaticResource ActionButtonStyle}"
-                            Background="#0288D1" Click="BtnRefresh_Click"/>
-                </StackPanel>
-            </Grid>
-        </Border>
-
-        <!-- PASEK NAWIGACJI DNI -->
-        <Border Grid.Row="1" Background="White" Padding="10,8" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
-            <Grid>
-                <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- Nawigacja tygodniowa -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal">
-                    <Button x:Name="btnPrevWeek" Content="◄" MinWidth="30" Height="32" Margin="0,0,5,0"
-                            Click="BtnPrevWeek_Click" ToolTip="Poprzedni tydzień" Padding="8,0"/>
-                    <Button x:Name="btnNextWeek" Content="►" MinWidth="30" Height="32" Margin="0,0,10,0"
-                            Click="BtnNextWeek_Click" ToolTip="Następny tydzień" Padding="8,0"/>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="btnPrevWeek" Content="◀" MinWidth="36" Height="36" Margin="0,0,4,0"
+                            Click="BtnPrevWeek_Click" ToolTip="Poprzedni tydzień"
+                            Background="#1565C0" Foreground="White" FontSize="14" FontWeight="Bold"
+                            BorderThickness="0" Cursor="Hand"/>
+                    <Button x:Name="btnNextWeek" Content="▶" MinWidth="36" Height="36" Margin="0,0,12,0"
+                            Click="BtnNextWeek_Click" ToolTip="Następny tydzień"
+                            Background="#1565C0" Foreground="White" FontSize="14" FontWeight="Bold"
+                            BorderThickness="0" Cursor="Hand"/>
                 </StackPanel>
 
-                <!-- Przyciski dni - z przewijaniem gdy brak miejsca -->
+                <!-- Przyciski dni -->
                 <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
-                              Margin="0,0,10,0">
+                              MaxWidth="600">
                     <StackPanel x:Name="panelDays" Orientation="Horizontal" HorizontalAlignment="Left"/>
                 </ScrollViewer>
 
-                <!-- Filtry - zawijają się gdy brak miejsca -->
-                <WrapPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal" Margin="0,2">
-                        <TextBlock Text="Szukaj:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                        <TextBox x:Name="txtSearch" MinWidth="100" MaxWidth="150" Height="28" VerticalContentAlignment="Center"
-                                 TextChanged="TxtSearch_TextChanged"/>
-                    </StackPanel>
-                    <CheckBox x:Name="chkShowFakturowane" Content="Pokaż zafakturowane"
-                              VerticalAlignment="Center" Margin="15,2,0,2"
+                <!-- Szukaj i filtry -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="15,0,0,0">
+                    <TextBlock Text="Szukaj:" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="White" FontSize="13"/>
+                    <TextBox x:Name="txtSearch" Width="140" Height="32" VerticalContentAlignment="Center" FontSize="13"
+                             TextChanged="TxtSearch_TextChanged" Padding="8,0"/>
+                    <CheckBox x:Name="chkShowFakturowane" Content="Zafakturowane"
+                              VerticalAlignment="Center" Margin="15,0,0,0" Foreground="White" FontSize="12"
                               Checked="ChkShowFakturowane_Changed" Unchecked="ChkShowFakturowane_Changed"/>
-                </WrapPanel>
+                </StackPanel>
+
+                <!-- Odśwież -->
+                <Button x:Name="btnRefresh" Grid.Column="3" Content="🔄 Odśwież"
+                        Background="#0D47A1" Foreground="White" FontSize="13" FontWeight="Bold"
+                        MinWidth="100" Height="36" Margin="15,0,0,0" BorderThickness="0" Cursor="Hand"
+                        Click="BtnRefresh_Click"/>
             </Grid>
         </Border>
 
         <!-- PASEK FILTROWANIA PO TOWARZE -->
-        <Border Grid.Row="2" Background="#F8F9FA" Padding="10,6" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
+        <Border Grid.Row="1" Background="#F8F9FA" Padding="6,4" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -222,7 +213,7 @@
         </Border>
 
         <!-- ZAWARTOŚĆ - dwie kolumny (responsywne) -->
-        <Grid Grid.Row="3">
+        <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="2*" MinWidth="500"/>
                 <ColumnDefinition Width="*" MinWidth="350" MaxWidth="550"/>
@@ -253,31 +244,28 @@
                         </Grid>
                     </Border>
 
-                    <!-- Legenda statusów - responsywna z zawijaniem -->
-                    <Border Grid.Row="1" Background="White" Padding="8,5" BorderBrush="#E8E8E8" BorderThickness="0,0,0,1">
-                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-                            <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="Status:" FontSize="11" FontWeight="Medium" Foreground="#5D6D7E" VerticalAlignment="Center" Margin="0,2,8,2"/>
-                                <Border Background="#FFF8E1" CornerRadius="10" Padding="6,2" Margin="0,2,4,2" BorderBrush="#FFE082" BorderThickness="1" ToolTip="Nowe zlecenie na produkcję">
-                                    <TextBlock Text="Nowe" FontSize="10" Foreground="#F57C00" FontWeight="Medium"/>
-                                </Border>
-                                <Border Background="#E3F2FD" CornerRadius="10" Padding="6,2" Margin="0,2,4,2" BorderBrush="#90CAF9" BorderThickness="1" ToolTip="W trakcie realizacji przez produkcję">
-                                    <TextBlock Text="W realizacji" FontSize="10" Foreground="#1976D2" FontWeight="Medium"/>
-                                </Border>
-                                <Border Background="#E8F5E9" CornerRadius="10" Padding="6,2" Margin="0,2,4,2" BorderBrush="#A5D6A7" BorderThickness="1" ToolTip="Zrealizowane przez produkcję">
-                                    <TextBlock Text="Zrealizowane" FontSize="10" Foreground="#388E3C" FontWeight="Medium"/>
-                                </Border>
-                                <Border Background="#E1F5FE" CornerRadius="10" Padding="6,2" Margin="0,2,4,2" BorderBrush="#81D4FA" BorderThickness="1" ToolTip="Wydane z magazynu (Panel Magazyniera)">
-                                    <TextBlock Text="Wydano" FontSize="10" Foreground="#0277BD" FontWeight="Medium"/>
-                                </Border>
-                                <Border Background="#C8E6C9" CornerRadius="10" Padding="6,2" Margin="0,2,4,2" BorderBrush="#81C784" BorderThickness="1" ToolTip="Zafakturowane - gotowe">
-                                    <TextBlock Text="Zafakturowane" FontSize="10" Foreground="#2E7D32" FontWeight="Medium" FontStyle="Italic"/>
-                                </Border>
-                                <Border Background="#FFF3E0" CornerRadius="10" Padding="6,2" Margin="0,2,4,2" BorderBrush="#FFB74D" BorderThickness="2" ToolTip="Zamówienie zostało zmodyfikowane - wymaga zatwierdzenia">
-                                    <TextBlock Text="⚠ Zmiana" FontSize="10" Foreground="#E65100" FontWeight="Bold"/>
-                                </Border>
-                            </WrapPanel>
-                        </ScrollViewer>
+                    <!-- Kompaktowa legenda statusów -->
+                    <Border Grid.Row="1" Background="#FAFAFA" Padding="6,3" BorderBrush="#E8E8E8" BorderThickness="0,0,0,1">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Border Background="#FFF8E1" CornerRadius="3" Padding="5,1" Margin="0,0,3,0" ToolTip="Nowe zlecenie">
+                                <TextBlock Text="Nowe" FontSize="9" Foreground="#F57C00" FontWeight="SemiBold"/>
+                            </Border>
+                            <Border Background="#E3F2FD" CornerRadius="3" Padding="5,1" Margin="0,0,3,0" ToolTip="W realizacji">
+                                <TextBlock Text="Realiz." FontSize="9" Foreground="#1976D2" FontWeight="SemiBold"/>
+                            </Border>
+                            <Border Background="#E8F5E9" CornerRadius="3" Padding="5,1" Margin="0,0,3,0" ToolTip="Zrealizowane">
+                                <TextBlock Text="Zreal." FontSize="9" Foreground="#388E3C" FontWeight="SemiBold"/>
+                            </Border>
+                            <Border Background="#E1F5FE" CornerRadius="3" Padding="5,1" Margin="0,0,3,0" ToolTip="Wydane z magazynu">
+                                <TextBlock Text="Wydano" FontSize="9" Foreground="#0277BD" FontWeight="SemiBold"/>
+                            </Border>
+                            <Border Background="#C8E6C9" CornerRadius="3" Padding="5,1" Margin="0,0,3,0" ToolTip="Zafakturowane">
+                                <TextBlock Text="Fakt." FontSize="9" Foreground="#2E7D32" FontWeight="SemiBold"/>
+                            </Border>
+                            <Border Background="#FFF3E0" CornerRadius="3" Padding="5,1" BorderBrush="#FFB74D" BorderThickness="1" ToolTip="Zmiana w zamówieniu">
+                                <TextBlock Text="⚠Zmiana" FontSize="9" Foreground="#E65100" FontWeight="Bold"/>
+                            </Border>
+                        </StackPanel>
                     </Border>
 
                     <DataGrid x:Name="dgOrders" Grid.Row="2" Style="{StaticResource ModernDataGridStyle}"
@@ -296,11 +284,18 @@
                             <DataGridTemplateColumn Header="Odbiorca" Width="*" MinWidth="150">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock Text="{Binding Klient}" Foreground="{Binding KlientColor}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="5,0" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding Klient}" Foreground="{Binding KlientColor}" FontWeight="SemiBold"
+                                                   VerticalAlignment="Center" Margin="5,3" TextWrapping="Wrap"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="Auto" MinWidth="80"/>
+                            <DataGridTemplateColumn Header="Handlowiec" Width="Auto" MinWidth="80">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Handlowiec}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="5,3"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                             <DataGridTextColumn Header="Ilość [kg]" Binding="{Binding TotalIlosc, StringFormat=N0}" Width="Auto" MinWidth="70">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
@@ -343,7 +338,13 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
                             <!-- Kto zmienił - imię i nazwisko -->
-                            <DataGridTextColumn Header="Kto zmienił" Binding="{Binding KtoZmienil}" Width="Auto" MinWidth="90"/>
+                            <DataGridTemplateColumn Header="Kto zmienił" Width="Auto" MinWidth="90">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding KtoZmienil}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="5,3"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                             <!-- Kolumny transportowe -->
                             <DataGridTextColumn Header="Wyjazd" Binding="{Binding GodzWyjazdu}" Width="Auto" MinWidth="80">
                                 <DataGridTextColumn.ElementStyle>
@@ -352,7 +353,13 @@
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Kierowca" Binding="{Binding Kierowca}" Width="Auto" MinWidth="90"/>
+                            <DataGridTemplateColumn Header="Kierowca" Width="Auto" MinWidth="100">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Kierowca}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="5,3"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>
