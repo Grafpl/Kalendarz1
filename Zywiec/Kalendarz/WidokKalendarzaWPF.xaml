@@ -636,9 +636,15 @@
                                                     <Style TargetType="Border">
                                                         <Setter Property="Background" Value="Transparent"/>
                                                         <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
-                                                                <Setter Property="Background" Value="Transparent"/>
-                                                            </DataTrigger>
+                                                            <!-- Białe tło gdy sztuki nie potwierdzone -->
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding IsHeaderRow}" Value="False"/>
+                                                                    <Condition Binding="{Binding IsSeparator}" Value="False"/>
+                                                                    <Condition Binding="{Binding PotwSztuki}" Value="False"/>
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter Property="Background" Value="White"/>
+                                                            </MultiDataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
@@ -655,9 +661,15 @@
                                                     <Style TargetType="Border">
                                                         <Setter Property="Background" Value="Transparent"/>
                                                         <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
-                                                                <Setter Property="Background" Value="Transparent"/>
-                                                            </DataTrigger>
+                                                            <!-- Białe tło gdy waga nie potwierdzona -->
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding IsHeaderRow}" Value="False"/>
+                                                                    <Condition Binding="{Binding IsSeparator}" Value="False"/>
+                                                                    <Condition Binding="{Binding PotwWaga}" Value="False"/>
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter Property="Background" Value="White"/>
+                                                            </MultiDataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
@@ -941,9 +953,15 @@
                                                 <Style TargetType="Border">
                                                     <Setter Property="Background" Value="Transparent"/>
                                                     <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
-                                                            <Setter Property="Background" Value="Transparent"/>
-                                                        </DataTrigger>
+                                                        <!-- Białe tło gdy sztuki nie potwierdzone -->
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding IsHeaderRow}" Value="False"/>
+                                                                <Condition Binding="{Binding IsSeparator}" Value="False"/>
+                                                                <Condition Binding="{Binding PotwSztuki}" Value="False"/>
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="Background" Value="White"/>
+                                                        </MultiDataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
                                             </Border.Style>
@@ -960,9 +978,15 @@
                                                 <Style TargetType="Border">
                                                     <Setter Property="Background" Value="Transparent"/>
                                                     <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsHeaderRow}" Value="True">
-                                                            <Setter Property="Background" Value="Transparent"/>
-                                                        </DataTrigger>
+                                                        <!-- Białe tło gdy waga nie potwierdzona -->
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding IsHeaderRow}" Value="False"/>
+                                                                <Condition Binding="{Binding IsSeparator}" Value="False"/>
+                                                                <Condition Binding="{Binding PotwWaga}" Value="False"/>
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="Background" Value="White"/>
+                                                        </MultiDataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
                                             </Border.Style>
