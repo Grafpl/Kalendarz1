@@ -7709,6 +7709,9 @@ namespace Kalendarz1
         {
             try
             {
+                // Lista rekordów PDF do sprawdzenia
+                var pdfRecords = new List<(string IdsString, string PdfPath)>();
+
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
@@ -7728,20 +7731,34 @@ namespace Kalendarz1
                         {
                             while (reader.Read())
                             {
-                                string idsString = reader.GetString(0);
-                                string pdfPath = reader.GetString(1);
-
-                                // Sprawdź czy plik istnieje
-                                bool fileExists = File.Exists(pdfPath);
-
-                                var idsList = idsString.Split(',').Select(s => int.TryParse(s, out int id) ? id : 0).Where(id => id > 0).ToList();
-                                foreach (var row in specyfikacjeData.Where(r => idsList.Contains(r.ID)))
-                                {
-                                    row.HasPdf = fileExists;
-                                    row.PdfPath = pdfPath;
-                                }
+                                pdfRecords.Add((reader.GetString(0), reader.GetString(1)));
                             }
                         }
+                    }
+                }
+
+                if (pdfRecords.Count == 0) return;
+
+                // Pobierz unikalne ścieżki PDF i sprawdź ich istnienie równolegle
+                var uniquePaths = pdfRecords.Select(r => r.PdfPath).Distinct().ToList();
+                var pathExistsDict = new System.Collections.Concurrent.ConcurrentDictionary<string, bool>();
+
+                // Sprawdź pliki równolegle (znacznie szybsze dla dysków sieciowych)
+                System.Threading.Tasks.Parallel.ForEach(uniquePaths, new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = 8 }, path =>
+                {
+                    pathExistsDict[path] = File.Exists(path);
+                });
+
+                // Teraz przypisz statusy do wierszy (szybkie - tylko operacje w pamięci)
+                foreach (var record in pdfRecords)
+                {
+                    bool fileExists = pathExistsDict.TryGetValue(record.PdfPath, out bool exists) && exists;
+                    var idsList = record.IdsString.Split(',').Select(s => int.TryParse(s, out int id) ? id : 0).Where(id => id > 0).ToList();
+
+                    foreach (var row in specyfikacjeData.Where(r => idsList.Contains(r.ID)))
+                    {
+                        row.HasPdf = fileExists;
+                        row.PdfPath = record.PdfPath;
                     }
                 }
             }
