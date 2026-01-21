@@ -1,7 +1,11 @@
 using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace Kalendarz1
 {
@@ -15,6 +19,13 @@ namespace Kalendarz1
         public string Status { get; set; }
         public string KtoStworzyl { get; set; }
         public DateTime? DataConf { get; set; }
+
+        // Avatar properties for the creator
+        public string KtoStworzylId { get; set; }
+        public Brush AvatarBackground { get; set; } = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#5C8A3A"));
+        public string AvatarInitials { get; set; } = "?";
+        public Visibility AvatarImageVisibility { get; set; } = Visibility.Collapsed;
+        public ImageSource AvatarImageSource { get; set; }
     }
 
     public partial class SzczegółyPracownika : Window
@@ -27,7 +38,10 @@ namespace Kalendarz1
         public SzczegółyPracownika(string pracownik, DateTime dataOd, DateTime dataDo)
         {
             InitializeComponent();
+<<<<<<< HEAD
             WindowIconHelper.SetIcon(this);
+=======
+>>>>>>> Zywiec-avatary
 
             nazwaPracownika = pracownik;
             startDate = dataOd;
@@ -36,7 +50,84 @@ namespace Kalendarz1
             txtNazwaPracownika.Text = $"Szczegoly: {pracownik}";
             txtOkres.Text = $"Okres: {dataOd:dd.MM.yyyy} - {dataDo.AddDays(-1):dd.MM.yyyy}";
 
+            // Set initials
+            txtAvatarInitials.Text = GetInitials(pracownik);
+
+            // Load avatar
+            LoadAvatarAsync(pracownik);
+
             LoadData();
+        }
+
+        private string GetInitials(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return "?";
+            var parts = name.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length >= 2)
+                return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+            return name.Length >= 2 ? name.Substring(0, 2).ToUpper() : name.ToUpper();
+        }
+
+        private void LoadAvatarAsync(string pracownikName)
+        {
+            Task.Run(() =>
+            {
+                // Get user ID from database
+                string userId = GetUserIdByName(pracownikName);
+                if (!string.IsNullOrEmpty(userId))
+                {
+                    var avatar = UserAvatarManager.GetAvatar(userId);
+                    if (avatar != null)
+                    {
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            var imageSource = ConvertToImageSource(avatar);
+                            if (imageSource != null)
+                            {
+                                avatarEllipse.Fill = new ImageBrush(imageSource) { Stretch = Stretch.UniformToFill };
+                                avatarEllipse.Visibility = Visibility.Visible;
+                            }
+                        });
+                    }
+                }
+            });
+        }
+
+        private string GetUserIdByName(string name)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    using (var cmd = new SqlCommand("SELECT CAST(ID AS VARCHAR(20)) FROM dbo.operators WHERE Name = @Name", connection))
+                    {
+                        cmd.Parameters.AddWithValue("@Name", name);
+                        var result = cmd.ExecuteScalar();
+                        return result?.ToString();
+                    }
+                }
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private ImageSource ConvertToImageSource(System.Drawing.Image image)
+        {
+            using (var memory = new MemoryStream())
+            {
+                image.Save(memory, System.Drawing.Imaging.ImageFormat.Png);
+                memory.Position = 0;
+                var bitmapImage = new BitmapImage();
+                bitmapImage.BeginInit();
+                bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
+                bitmapImage.StreamSource = memory;
+                bitmapImage.EndInit();
+                bitmapImage.Freeze();
+                return bitmapImage;
+            }
         }
 
         private void LoadData()
@@ -114,19 +205,20 @@ namespace Kalendarz1
             var lista = new List<SzczegolyWstawienie>();
 
             string query = @"
-                SELECT 
+                SELECT
                     w.Lp,
                     w.Dostawca,
                     w.DataWstawienia,
                     w.IloscWstawienia,
                     os.Name as KtoStworzyl,
+                    CAST(w.KtoStwo AS VARCHAR(20)) as KtoStworzylId,
                     w.DataConf
                 FROM dbo.WstawieniaKurczakow w
                 LEFT JOIN dbo.operators oc ON w.KtoConf = oc.ID
                 LEFT JOIN dbo.operators os ON w.KtoStwo = os.ID
-                WHERE oc.Name = @Pracownik 
+                WHERE oc.Name = @Pracownik
                     AND w.isConf = 1
-                    AND w.DataConf >= @StartDate 
+                    AND w.DataConf >= @StartDate
                     AND w.DataConf < @EndDate
                 ORDER BY w.DataConf DESC";
 
@@ -142,20 +234,58 @@ namespace Kalendarz1
                 {
                     while (reader.Read())
                     {
-                        lista.Add(new SzczegolyWstawienie
+                        var ktoStworzyl = reader["KtoStworzyl"]?.ToString() ?? "Nieznany";
+                        var item = new SzczegolyWstawienie
                         {
                             Lp = Convert.ToInt32(reader["Lp"]),
                             Dostawca = reader["Dostawca"]?.ToString() ?? "",
                             DataWstawienia = reader["DataWstawienia"] as DateTime?,
                             IloscWstawienia = reader["IloscWstawienia"] as int?,
-                            KtoStworzyl = reader["KtoStworzyl"]?.ToString() ?? "Nieznany",
-                            DataConf = reader["DataConf"] as DateTime?
-                        });
+                            KtoStworzyl = ktoStworzyl,
+                            KtoStworzylId = reader["KtoStworzylId"]?.ToString(),
+                            DataConf = reader["DataConf"] as DateTime?,
+                            AvatarInitials = GetInitials(ktoStworzyl)
+                        };
+                        lista.Add(item);
                     }
                 }
             }
 
+            // Load avatars asynchronously
+            LoadCreatorAvatarsAsync(lista);
+
             return lista;
+        }
+
+        private void LoadCreatorAvatarsAsync(List<SzczegolyWstawienie> items)
+        {
+            Task.Run(() =>
+            {
+                foreach (var item in items)
+                {
+                    if (!string.IsNullOrEmpty(item.KtoStworzylId))
+                    {
+                        var avatar = UserAvatarManager.GetAvatar(item.KtoStworzylId);
+                        if (avatar != null)
+                        {
+                            Application.Current.Dispatcher.Invoke(() =>
+                            {
+                                var imageSource = ConvertToImageSource(avatar);
+                                if (imageSource != null)
+                                {
+                                    item.AvatarImageSource = imageSource;
+                                    item.AvatarImageVisibility = Visibility.Visible;
+                                }
+                            });
+                        }
+                    }
+                }
+                // Refresh the DataGrid
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    dgPotwierdzone.Items.Refresh();
+                });
+            });
         }
 
         private void BtnZamknij_Click(object sender, RoutedEventArgs e)

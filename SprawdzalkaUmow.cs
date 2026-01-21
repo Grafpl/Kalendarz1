@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Linq;
 using System.Windows.Forms;
 using Microsoft.Data.SqlClient;
@@ -15,6 +17,12 @@ namespace Kalendarz1
         // Kolory do stylizacji UI
         private readonly Color _primaryColor = Color.FromArgb(92, 138, 58);
         private readonly Color _hoverColor = Color.FromArgb(75, 115, 47);
+
+        // Cache avatarów
+        private Dictionary<string, Image> _avatarCache = new Dictionary<string, Image>();
+
+        // Rozmiar avatara
+        private const int AVATAR_SIZE = 24;
 
         public string UserID { get; set; } = "";
 
@@ -36,6 +44,8 @@ namespace Kalendarz1
             ConfigureDataGridView(dgvContracts);
             btnAddContract.MouseEnter += (s, e) => btnAddContract.BackColor = _hoverColor;
             btnAddContract.MouseLeave += (s, e) => btnAddContract.BackColor = _primaryColor;
+            dgvContracts.CellPainting += DgvContracts_CellPainting;
+            dgvContracts.RowTemplate.Height = 36; // Zwiększ wysokość wierszy dla avatarów
         }
 
         private void ConfigureDataGridView(DataGridView dgv)
@@ -56,7 +66,7 @@ namespace Kalendarz1
                 state = CaptureGridState();
 
             const string query = @"
-                SELECT 
+                SELECT
                     h.[LP] AS ID, h.[DataOdbioru], h.[Dostawca],
                     CAST(ISNULL(h.[Utworzone],0) AS bit) AS Utworzone,
                     CAST(ISNULL(h.[Wysłane],0) AS bit) AS Wysłane,
@@ -64,8 +74,11 @@ namespace Kalendarz1
                     CAST(ISNULL(h.[Posrednik],0) AS bit) AS Posrednik,
                     h.[Auta], h.[SztukiDek], h.[WagaDek], h.[SztSzuflada],
                     ISNULL(u1.Name, h.KtoUtw) AS KtoUtw, h.[KiedyUtw],
+                    CAST(h.KtoUtw AS VARCHAR(50)) AS KtoUtwID,
                     ISNULL(u2.Name, h.KtoWysl) AS KtoWysl, h.[KiedyWysl],
-                    ISNULL(u3.Name, h.KtoOtrzym) AS KtoOtrzym, h.[KiedyOtrzm]
+                    CAST(h.KtoWysl AS VARCHAR(50)) AS KtoWyslID,
+                    ISNULL(u3.Name, h.KtoOtrzym) AS KtoOtrzym, h.[KiedyOtrzm],
+                    CAST(h.KtoOtrzym AS VARCHAR(50)) AS KtoOtrzymID
                 FROM [LibraNet].[dbo].[HarmonogramDostaw] h
                 LEFT JOIN [LibraNet].[dbo].[operators] u1 ON TRY_CAST(h.KtoUtw AS INT) = u1.ID
                 LEFT JOIN [LibraNet].[dbo].[operators] u2 ON TRY_CAST(h.KtoWysl AS INT) = u2.ID
@@ -96,11 +109,14 @@ namespace Kalendarz1
                     dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "SztukiDek", Name = "SztukiDek", HeaderText = "Sztuki" });
                     dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "WagaDek", Name = "WagaDek", HeaderText = "Waga" });
                     dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "SztSzuflada", Name = "SztSzuflada", HeaderText = "sztPoj" });
-                    dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KtoUtw", Name = "KtoUtw", HeaderText = "Kto utworzył" });
+                    dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KtoUtw", Name = "KtoUtw", HeaderText = "Kto utworzył", Width = 130 });
+                    dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KtoUtwID", Name = "KtoUtwID", Visible = false });
                     dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KiedyUtw", Name = "KiedyUtw", HeaderText = "Kiedy utworzył", DefaultCellStyle = { Format = "yyyy-MM-dd HH:mm" } });
-                    dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KtoWysl", Name = "KtoWysl", HeaderText = "Kto wysłał" });
+                    dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KtoWysl", Name = "KtoWysl", HeaderText = "Kto wysłał", Width = 130 });
+                    dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KtoWyslID", Name = "KtoWyslID", Visible = false });
                     dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KiedyWysl", Name = "KiedyWysl", HeaderText = "Kiedy wysłał", DefaultCellStyle = { Format = "yyyy-MM-dd HH:mm" } });
-                    dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KtoOtrzym", Name = "KtoOtrzym", HeaderText = "Kto otrzymał" });
+                    dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KtoOtrzym", Name = "KtoOtrzym", HeaderText = "Kto otrzymał", Width = 130 });
+                    dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KtoOtrzymID", Name = "KtoOtrzymID", Visible = false });
                     dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KiedyOtrzm", Name = "KiedyOtrzm", HeaderText = "Kiedy otrzymał", DefaultCellStyle = { Format = "yyyy-MM-dd HH:mm" } });
                 }
 
@@ -304,6 +320,101 @@ namespace Kalendarz1
         private void textBoxSearch_TextChanged(object sender, EventArgs e)
         {
             ApplyCombinedFilter();
+        }
+
+        private void DgvContracts_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+
+            string colName = dgvContracts.Columns[e.ColumnIndex].Name;
+            if (colName != "KtoUtw" && colName != "KtoWysl" && colName != "KtoOtrzym") return;
+
+            // Określ kolumnę z ID
+            string idColName = colName switch
+            {
+                "KtoUtw" => "KtoUtwID",
+                "KtoWysl" => "KtoWyslID",
+                "KtoOtrzym" => "KtoOtrzymID",
+                _ => null
+            };
+
+            var row = dgvContracts.Rows[e.RowIndex];
+            string name = row.Cells[colName]?.Value?.ToString();
+            string odbiorcaId = idColName != null ? row.Cells[idColName]?.Value?.ToString() : null;
+
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return; // Pozwól na domyślne renderowanie pustych komórek
+            }
+
+            e.PaintBackground(e.ClipBounds, true);
+
+            var g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+
+            // Pobierz lub wygeneruj avatar
+            Image avatar = GetOrCreateAvatar(odbiorcaId, name);
+            if (avatar != null)
+            {
+                int avatarY = e.CellBounds.Y + (e.CellBounds.Height - AVATAR_SIZE) / 2;
+                int avatarX = e.CellBounds.X + 6;
+                g.DrawImage(avatar, avatarX, avatarY, AVATAR_SIZE, AVATAR_SIZE);
+
+                // Narysuj tekst obok avatara
+                var textBounds = new Rectangle(
+                    avatarX + AVATAR_SIZE + 6,
+                    e.CellBounds.Y,
+                    e.CellBounds.Width - AVATAR_SIZE - 18,
+                    e.CellBounds.Height);
+
+                bool isSelected = (e.State & DataGridViewElementStates.Selected) != 0;
+                Color textColor = isSelected ? Color.White : Color.FromArgb(44, 62, 80);
+
+                TextRenderer.DrawText(g, name, e.CellStyle.Font, textBounds, textColor,
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+            }
+
+            e.Handled = true;
+        }
+
+        private Image GetOrCreateAvatar(string odbiorcaId, string name)
+        {
+            string cacheKey = odbiorcaId ?? name ?? "unknown";
+
+            if (_avatarCache.TryGetValue(cacheKey, out Image cachedAvatar))
+                return cachedAvatar;
+
+            Image avatar = null;
+
+            // Spróbuj pobrać avatar z UserAvatarManager
+            if (!string.IsNullOrWhiteSpace(odbiorcaId))
+            {
+                avatar = UserAvatarManager.GetAvatarRounded(odbiorcaId, AVATAR_SIZE);
+            }
+
+            // Jeśli brak avatara, wygeneruj domyślny z inicjałami
+            if (avatar == null && !string.IsNullOrWhiteSpace(name))
+            {
+                avatar = UserAvatarManager.GenerateDefaultAvatar(name, cacheKey, AVATAR_SIZE);
+            }
+
+            if (avatar != null)
+            {
+                _avatarCache[cacheKey] = avatar;
+            }
+
+            return avatar;
+        }
+
+        protected override void OnFormClosed(FormClosedEventArgs e)
+        {
+            // Zwolnij zasoby avatarów
+            foreach (var avatar in _avatarCache.Values)
+            {
+                avatar?.Dispose();
+            }
+            _avatarCache.Clear();
+            base.OnFormClosed(e);
         }
     }
 }

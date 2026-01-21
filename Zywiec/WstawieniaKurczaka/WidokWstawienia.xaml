@@ -536,8 +536,10 @@
 
                             <Grid Grid.Row="0" Margin="0,0,0,6">
                                 <TextBlock Text="📋 Lista Wstawień" FontSize="15" FontWeight="Bold" Foreground="#2C3E50" VerticalAlignment="Center"/>
-                                <Button Content="➕ Dodaj" Style="{StaticResource PrimaryButton}" 
-                                        HorizontalAlignment="Right" Click="BtnDodaj_Click"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <Button Content="➕ Dodaj" Style="{StaticResource PrimaryButton}"
+                                            Click="BtnDodaj_Click"/>
+                                </StackPanel>
                             </Grid>
 
                             <Grid Grid.Row="1">
@@ -601,29 +603,12 @@
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="120"/>
-                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
 
-                        <Border Grid.Row="0" Background="#E8F5E9" CornerRadius="6" Padding="6,4" Margin="0,0,0,6">
-                            <TextBlock Text="📦 Zaplanowane Dostawy" FontSize="13" FontWeight="Bold" 
-                                       Foreground="#2E7D32" TextAlignment="Center"/>
-                        </Border>
-
-                        <Border Grid.Row="1" BorderBrush="#5C8A3A" BorderThickness="2" CornerRadius="8" ClipToBounds="True" Margin="0,0,0,8">
-                            <DataGrid x:Name="dataGridDostawy" 
-                                      Style="{StaticResource ModernDataGrid}"
-                                      ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
-                                      CellStyle="{StaticResource DataGridCellStyle}"
-                                      FontSize="9" RowHeight="24"
-                                      AutoGenerateColumns="False"
-                                      ColumnWidth="*"/>
-                        </Border>
-
-                        <StackPanel Grid.Row="2" Margin="0,0,0,6">
+                        <StackPanel Grid.Row="0" Margin="0,0,0,6">
                             <Grid Margin="0,0,0,2">
                                 <TextBlock Text="⏰ Przypomnienia" FontSize="13" FontWeight="Bold" Foreground="#2C3E50" HorizontalAlignment="Left"/>
                                 <Border Background="#FFEBEE" CornerRadius="6" Padding="5,2" HorizontalAlignment="Right">
@@ -636,8 +621,8 @@
                             <TextBlock Text="PPM → Opcje kontaktu" FontSize="7.5" Foreground="#7F8C8D" FontStyle="Italic"/>
                         </StackPanel>
 
-                        <Border Grid.Row="3" BorderBrush="#F39C12" BorderThickness="2" CornerRadius="8" ClipToBounds="True" Margin="0,0,0,8">
-                            <DataGrid x:Name="dataGridPrzypomnienia" 
+                        <Border Grid.Row="1" BorderBrush="#F39C12" BorderThickness="2" CornerRadius="8" ClipToBounds="True" Margin="0,0,0,8">
+                            <DataGrid x:Name="dataGridPrzypomnienia"
                                       Style="{StaticResource ModernDataGrid}"
                                       ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
                                       CellStyle="{StaticResource DataGridCellStyle}"
@@ -654,10 +639,10 @@
                             </DataGrid>
                         </Border>
 
-                        <TextBlock Grid.Row="4" Text="⏳ Do Potwierdzenia" FontSize="13" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,6"/>
+                        <TextBlock Grid.Row="2" Text="⏳ Do Potwierdzenia" FontSize="13" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,6"/>
 
-                        <Border Grid.Row="5" BorderBrush="#3498DB" BorderThickness="2" CornerRadius="8" ClipToBounds="True">
-                            <DataGrid x:Name="dataGridDoPotwierdzenia" 
+                        <Border Grid.Row="3" BorderBrush="#3498DB" BorderThickness="2" CornerRadius="8" ClipToBounds="True">
+                            <DataGrid x:Name="dataGridDoPotwierdzenia"
                                       Style="{StaticResource ModernDataGrid}"
                                       ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
                                       CellStyle="{StaticResource DataGridCellStyle}"
@@ -680,11 +665,11 @@
                         </StackPanel>
 
                         <Border Grid.Row="1" BorderBrush="#9B59B6" BorderThickness="2" CornerRadius="10" ClipToBounds="True">
-                            <DataGrid x:Name="dataGridHistoria" 
+                            <DataGrid x:Name="dataGridHistoria"
                                       Style="{StaticResource ModernDataGrid}"
                                       ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
                                       CellStyle="{StaticResource DataGridCellStyle}"
-                                      RowHeight="24" FontSize="9"/>
+                                      RowHeight="38" FontSize="12"/>
                         </Border>
                     </Grid>
                 </Border>

@@ -211,13 +211,23 @@
                                                     <RowDefinition Height="Auto"/>
                                                 </Grid.RowDefinitions>
                                                 <Button Background="Transparent" BorderThickness="0" Cursor="Hand" HorizontalContentAlignment="Stretch" Padding="0" Click="BtnPracownikDetails_Click" Tag="{Binding NazwaPracownika}">
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <Ellipse Width="12" Height="12" Fill="{Binding Kolor}" Margin="0,0,8,0"/>
-                                                        <TextBlock Text="{Binding NazwaPracownika}" FontWeight="SemiBold" Foreground="#5D6D7E" TextDecorations="Underline"/>
-                                                        <TextBlock FontWeight="Bold" Foreground="#5C8A3A" Margin="5,0,0,0">
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <!-- Avatar -->
+                                                        <Grid Width="28" Height="28" Margin="0,0,8,0">
+                                                            <Border Width="28" Height="28" CornerRadius="14" Background="{Binding Kolor}">
+                                                                <TextBlock Text="{Binding Initials}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White" FontSize="10" FontWeight="SemiBold"/>
+                                                            </Border>
+                                                            <Ellipse Width="28" Height="28" x:Name="avatarEllipse">
+                                                                <Ellipse.Fill>
+                                                                    <ImageBrush ImageSource="{Binding AvatarSource}" Stretch="UniformToFill"/>
+                                                                </Ellipse.Fill>
+                                                            </Ellipse>
+                                                        </Grid>
+                                                        <TextBlock Text="{Binding NazwaPracownika}" FontWeight="SemiBold" Foreground="#5D6D7E" TextDecorations="Underline" VerticalAlignment="Center"/>
+                                                        <TextBlock FontWeight="Bold" Foreground="#5C8A3A" Margin="5,0,0,0" VerticalAlignment="Center">
                                                             <Run Text=" ("/><Run Text="{Binding LiczbaAkcji}"/><Run Text=")"/>
                                                         </TextBlock>
-                                                        <TextBlock FontStyle="Italic" Foreground="#7F8C8D" Margin="5,0,0,0">
+                                                        <TextBlock FontStyle="Italic" Foreground="#7F8C8D" Margin="5,0,0,0" VerticalAlignment="Center">
                                                             <Run Text=" - "/><Run Text="{Binding ProcentTekst, Mode=OneWay}"/>
                                                         </TextBlock>
                                                     </StackPanel>
@@ -257,13 +267,23 @@
                                                     <RowDefinition Height="Auto"/>
                                                 </Grid.RowDefinitions>
                                                 <Button Background="Transparent" BorderThickness="0" Cursor="Hand" HorizontalContentAlignment="Stretch" Padding="0" Click="BtnPracownikDetails_Click" Tag="{Binding NazwaPracownika}">
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <Ellipse Width="12" Height="12" Fill="{Binding Kolor}" Margin="0,0,8,0"/>
-                                                        <TextBlock Text="{Binding NazwaPracownika}" FontWeight="SemiBold" Foreground="#5D6D7E" TextDecorations="Underline"/>
-                                                        <TextBlock FontWeight="Bold" Foreground="#3498DB" Margin="5,0,0,0">
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <!-- Avatar -->
+                                                        <Grid Width="28" Height="28" Margin="0,0,8,0">
+                                                            <Border Width="28" Height="28" CornerRadius="14" Background="{Binding Kolor}">
+                                                                <TextBlock Text="{Binding Initials}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White" FontSize="10" FontWeight="SemiBold"/>
+                                                            </Border>
+                                                            <Ellipse Width="28" Height="28">
+                                                                <Ellipse.Fill>
+                                                                    <ImageBrush ImageSource="{Binding AvatarSource}" Stretch="UniformToFill"/>
+                                                                </Ellipse.Fill>
+                                                            </Ellipse>
+                                                        </Grid>
+                                                        <TextBlock Text="{Binding NazwaPracownika}" FontWeight="SemiBold" Foreground="#5D6D7E" TextDecorations="Underline" VerticalAlignment="Center"/>
+                                                        <TextBlock FontWeight="Bold" Foreground="#3498DB" Margin="5,0,0,0" VerticalAlignment="Center">
                                                             <Run Text=" ("/><Run Text="{Binding LiczbaAkcji}"/><Run Text=")"/>
                                                         </TextBlock>
-                                                        <TextBlock FontStyle="Italic" Foreground="#7F8C8D" Margin="5,0,0,0">
+                                                        <TextBlock FontStyle="Italic" Foreground="#7F8C8D" Margin="5,0,0,0" VerticalAlignment="Center">
                                                             <Run Text=" - "/><Run Text="{Binding ProcentTekst, Mode=OneWay}"/>
                                                         </TextBlock>
                                                     </StackPanel>
@@ -288,16 +308,52 @@
                 </Border.Effect>
                 <StackPanel>
                     <TextBlock Text="📋 Szczegółowa Lista Wstawień" FontSize="18" FontWeight="Bold" Foreground="#34495E" Margin="0,0,0,15"/>
-                    <DataGrid x:Name="dgSzczegoly" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column" BorderThickness="0" Background="White" RowBackground="White" AlternatingRowBackground="#F8F9FA" FontSize="12">
+                    <DataGrid x:Name="dgSzczegoly" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column" BorderThickness="0" Background="White" RowBackground="White" AlternatingRowBackground="#F8F9FA" FontSize="12" RowHeight="36">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Lp" Binding="{Binding Lp}" Width="50"/>
                             <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="150"/>
                             <DataGridTextColumn Header="Data Wstawienia" Binding="{Binding DataWstawienia, StringFormat=dd.MM.yyyy}" Width="120"/>
                             <DataGridTextColumn Header="Ilość" Binding="{Binding IloscWstawienia}" Width="80"/>
-                            <DataGridTextColumn Header="Utworzył" Binding="{Binding KtoStworzyl}" Width="120"/>
+                            <DataGridTemplateColumn Header="Utworzył" Width="130">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="2">
+                                            <Grid Width="26" Height="26" Margin="0,0,6,0">
+                                                <Border Width="26" Height="26" CornerRadius="13" Background="#5C8A3A">
+                                                    <TextBlock Text="{Binding InitialsStworzyl}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White" FontSize="9" FontWeight="SemiBold"/>
+                                                </Border>
+                                                <Ellipse Width="26" Height="26">
+                                                    <Ellipse.Fill>
+                                                        <ImageBrush ImageSource="{Binding AvatarStworzyl}" Stretch="UniformToFill"/>
+                                                    </Ellipse.Fill>
+                                                </Ellipse>
+                                            </Grid>
+                                            <TextBlock Text="{Binding KtoStworzyl}" VerticalAlignment="Center" FontSize="11"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                             <DataGridTextColumn Header="Data Utw." Binding="{Binding DataUtw, StringFormat=dd.MM.yyyy HH:mm}" Width="130"/>
                             <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="100"/>
-                            <DataGridTextColumn Header="Potwierdził" Binding="{Binding KtoPotwierdził}" Width="120"/>
+                            <DataGridTemplateColumn Header="Potwierdził" Width="130">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="2">
+                                            <Grid Width="26" Height="26" Margin="0,0,6,0">
+                                                <Border Width="26" Height="26" CornerRadius="13" Background="#3498DB">
+                                                    <TextBlock Text="{Binding InitialsPotwierdził}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White" FontSize="9" FontWeight="SemiBold"/>
+                                                </Border>
+                                                <Ellipse Width="26" Height="26">
+                                                    <Ellipse.Fill>
+                                                        <ImageBrush ImageSource="{Binding AvatarPotwierdził}" Stretch="UniformToFill"/>
+                                                    </Ellipse.Fill>
+                                                </Ellipse>
+                                            </Grid>
+                                            <TextBlock Text="{Binding KtoPotwierdził}" VerticalAlignment="Center" FontSize="11"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                             <DataGridTextColumn Header="Data Potw." Binding="{Binding DataConf, StringFormat=dd.MM.yyyy HH:mm}" Width="130"/>
                         </DataGrid.Columns>
                     </DataGrid>

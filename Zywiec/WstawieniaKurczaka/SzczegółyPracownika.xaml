@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- SzczegółyPracownika Window -->
 <Window x:Class="Kalendarz1.SzczegółyPracownika"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -23,13 +24,22 @@
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                
-                <TextBlock Grid.Column="0" x:Name="txtNazwaPracownika" Text="Pracownik" FontSize="24" FontWeight="Bold" Foreground="#2C3E50"/>
-                <TextBlock Grid.Column="1" x:Name="txtOkres" Text="" FontSize="14" Foreground="#7F8C8D" VerticalAlignment="Bottom" Margin="20,0,0,5"/>
-                <Button Grid.Column="2" Content="Zamknij" Click="BtnZamknij_Click" Padding="15,8" FontSize="13" Background="#E74C3C" Foreground="White" BorderThickness="0" Cursor="Hand">
+
+                <!-- Avatar -->
+                <Grid Grid.Column="0" Width="80" Height="80" Margin="0,0,20,0">
+                    <Border x:Name="avatarBorder" Width="80" Height="80" CornerRadius="40" Background="#5C8A3A">
+                        <TextBlock x:Name="txtAvatarInitials" Text="?" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White" FontSize="28" FontWeight="Bold"/>
+                    </Border>
+                    <Ellipse x:Name="avatarEllipse" Width="80" Height="80" Visibility="Collapsed"/>
+                </Grid>
+
+                <TextBlock Grid.Column="1" x:Name="txtNazwaPracownika" Text="Pracownik" FontSize="24" FontWeight="Bold" Foreground="#2C3E50" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="2" x:Name="txtOkres" Text="" FontSize="14" Foreground="#7F8C8D" VerticalAlignment="Bottom" Margin="20,0,0,5"/>
+                <Button Grid.Column="3" Content="Zamknij" Click="BtnZamknij_Click" Padding="15,8" FontSize="13" Background="#E74C3C" Foreground="White" BorderThickness="0" Cursor="Hand">
                     <Button.Style>
                         <Style TargetType="Button">
                             <Setter Property="Template">
@@ -147,7 +157,25 @@
                             <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="*"/>
                             <DataGridTextColumn Header="Data Wst." Binding="{Binding DataWstawienia, StringFormat=dd.MM.yyyy}" Width="90"/>
                             <DataGridTextColumn Header="Ilosc" Binding="{Binding IloscWstawienia}" Width="60"/>
-                            <DataGridTextColumn Header="Utworzyl" Binding="{Binding KtoStworzyl}" Width="90"/>
+                            <DataGridTemplateColumn Header="Utworzyl" Width="110">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Grid Width="24" Height="24" Margin="0,0,6,0">
+                                                <Border Width="24" Height="24" CornerRadius="12" Background="{Binding AvatarBackground}">
+                                                    <TextBlock Text="{Binding AvatarInitials}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White" FontSize="10" FontWeight="Bold"/>
+                                                </Border>
+                                                <Ellipse Width="24" Height="24" Visibility="{Binding AvatarImageVisibility}">
+                                                    <Ellipse.Fill>
+                                                        <ImageBrush ImageSource="{Binding AvatarImageSource}" Stretch="UniformToFill"/>
+                                                    </Ellipse.Fill>
+                                                </Ellipse>
+                                            </Grid>
+                                            <TextBlock Text="{Binding KtoStworzyl}" VerticalAlignment="Center" FontSize="11"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                             <DataGridTextColumn Header="Data Potw." Binding="{Binding DataConf, StringFormat=dd.MM.yyyy HH:mm}" Width="120"/>
                         </DataGrid.Columns>
                     </DataGrid>

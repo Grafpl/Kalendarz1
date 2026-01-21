@@ -4,7 +4,11 @@ using System.Data;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Shapes;
 using Microsoft.Data.SqlClient;
 
 namespace Kalendarz1.WPF
@@ -39,6 +43,7 @@ namespace Kalendarz1.WPF
             _dtHistoria.Columns.Add("Handlowiec", typeof(string));
             _dtHistoria.Columns.Add("Odbiorca", typeof(string));
             _dtHistoria.Columns.Add("UzytkownikNazwa", typeof(string));
+            _dtHistoria.Columns.Add("UzytkownikId", typeof(string));
             _dtHistoria.Columns.Add("Towar", typeof(string));
             _dtHistoria.Columns.Add("KodTowaru", typeof(int));
             _dtHistoria.Columns.Add("OpisZmiany", typeof(string));
@@ -80,12 +85,67 @@ namespace Kalendarz1.WPF
                 Width = new DataGridLength(100)
             });
 
-            dgHistoria.Columns.Add(new DataGridTextColumn
+            // Kolumna Użytkownik z avatarem
+            var userColumn = new DataGridTemplateColumn
             {
                 Header = "Użytkownik",
-                Binding = new Binding("UzytkownikNazwa"),
-                Width = new DataGridLength(120)
-            });
+                Width = new DataGridLength(140)
+            };
+
+            var cellTemplate = new DataTemplate();
+            var stackPanelFactory = new FrameworkElementFactory(typeof(StackPanel));
+            stackPanelFactory.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+            stackPanelFactory.SetValue(StackPanel.VerticalAlignmentProperty, VerticalAlignment.Center);
+
+            // Grid dla avatara
+            var gridFactory = new FrameworkElementFactory(typeof(Grid));
+            gridFactory.SetValue(Grid.WidthProperty, 26.0);
+            gridFactory.SetValue(Grid.HeightProperty, 26.0);
+            gridFactory.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 8, 0));
+
+            // Border z inicjałami (domyślny avatar)
+            var borderFactory = new FrameworkElementFactory(typeof(Border));
+            borderFactory.SetValue(Border.WidthProperty, 26.0);
+            borderFactory.SetValue(Border.HeightProperty, 26.0);
+            borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(13));
+            borderFactory.SetValue(Border.BackgroundProperty, new SolidColorBrush(Color.FromRgb(142, 68, 173)));
+            borderFactory.SetValue(FrameworkElement.NameProperty, "avatarBorder");
+
+            var initialsFactory = new FrameworkElementFactory(typeof(TextBlock));
+            initialsFactory.SetBinding(TextBlock.TextProperty, new Binding("UzytkownikNazwa") { Converter = new InitialsConverter() });
+            initialsFactory.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            initialsFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            initialsFactory.SetValue(TextBlock.ForegroundProperty, Brushes.White);
+            initialsFactory.SetValue(TextBlock.FontSizeProperty, 10.0);
+            initialsFactory.SetValue(TextBlock.FontWeightProperty, FontWeights.Bold);
+            borderFactory.AppendChild(initialsFactory);
+
+            // Ellipse dla obrazka avatara
+            var ellipseFactory = new FrameworkElementFactory(typeof(Ellipse));
+            ellipseFactory.SetValue(Ellipse.WidthProperty, 26.0);
+            ellipseFactory.SetValue(Ellipse.HeightProperty, 26.0);
+            ellipseFactory.SetValue(UIElement.VisibilityProperty, Visibility.Collapsed);
+            ellipseFactory.SetValue(FrameworkElement.NameProperty, "avatarImage");
+
+            gridFactory.AppendChild(borderFactory);
+            gridFactory.AppendChild(ellipseFactory);
+
+            // TextBlock z nazwą użytkownika
+            var nameFactory = new FrameworkElementFactory(typeof(TextBlock));
+            nameFactory.SetBinding(TextBlock.TextProperty, new Binding("UzytkownikNazwa"));
+            nameFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            nameFactory.SetValue(TextBlock.FontSizeProperty, 11.0);
+
+            stackPanelFactory.AppendChild(gridFactory);
+            stackPanelFactory.AppendChild(nameFactory);
+
+            cellTemplate.VisualTree = stackPanelFactory;
+            userColumn.CellTemplate = cellTemplate;
+
+            dgHistoria.Columns.Add(userColumn);
+
+            // Dodaj LoadingRow event handler dla avatarów
+            dgHistoria.LoadingRow += DgHistoria_LoadingRow;
 
             dgHistoria.Columns.Add(new DataGridTextColumn
             {
@@ -221,10 +281,10 @@ namespace Kalendarz1.WPF
 
                     // Pobierz CAŁĄ historię - posortowaną od najnowszej do najstarszej
                     string sqlHistory = hasKodTowaru
-                        ? @"SELECT Id, ZamowienieId, DataZmiany, TypZmiany, UzytkownikNazwa, OpisZmiany, KodTowaru
+                        ? @"SELECT Id, ZamowienieId, DataZmiany, TypZmiany, UzytkownikNazwa, OpisZmiany, KodTowaru, Uzytkownik
                             FROM HistoriaZmianZamowien
                             ORDER BY DataZmiany DESC"
-                        : @"SELECT Id, ZamowienieId, DataZmiany, TypZmiany, UzytkownikNazwa, OpisZmiany
+                        : @"SELECT Id, ZamowienieId, DataZmiany, TypZmiany, UzytkownikNazwa, OpisZmiany, Uzytkownik
                             FROM HistoriaZmianZamowien
                             ORDER BY DataZmiany DESC";
 
@@ -243,15 +303,24 @@ namespace Kalendarz1.WPF
                         // Pobierz towar jeśli kolumna istnieje
                         string towar = "";
                         int kodTowaru = 0;
-                        if (hasKodTowaru && !rdrHistory.IsDBNull(6))
+                        string uzytkownikId = "";
+
+                        if (hasKodTowaru)
                         {
-                            kodTowaru = rdrHistory.GetInt32(6);
-                            towar = _productNames.TryGetValue(kodTowaru, out var name) ? name : $"ID:{kodTowaru}";
+                            if (!rdrHistory.IsDBNull(6))
+                            {
+                                kodTowaru = rdrHistory.GetInt32(6);
+                                towar = _productNames.TryGetValue(kodTowaru, out var name) ? name : $"ID:{kodTowaru}";
+                            }
+                            // Uzytkownik jest na pozycji 7 gdy jest KodTowaru
+                            uzytkownikId = rdrHistory.IsDBNull(7) ? "" : rdrHistory.GetString(7);
                         }
                         else
                         {
                             // Spróbuj wyciągnąć nazwę towaru z opisu zmiany
                             towar = ExtractProductFromDescription(opisZmiany);
+                            // Uzytkownik jest na pozycji 6 gdy nie ma KodTowaru
+                            uzytkownikId = rdrHistory.IsDBNull(6) ? "" : rdrHistory.GetString(6);
                         }
 
                         string handlowiec = "";
@@ -267,7 +336,7 @@ namespace Kalendarz1.WPF
                         DateTime? dataUboju = orderToDataUboju.TryGetValue(zamowienieId, out var du) ? du : null;
 
                         _dtHistoria.Rows.Add(id, zamowienieId, dataZmiany, typZmiany,
-                            handlowiec, odbiorca, uzytkownikNazwa, towar, kodTowaru, opisZmiany,
+                            handlowiec, odbiorca, uzytkownikNazwa, uzytkownikId, towar, kodTowaru, opisZmiany,
                             dataUboju.HasValue ? (object)dataUboju.Value : DBNull.Value);
                     }
                 }
@@ -465,6 +534,101 @@ namespace Kalendarz1.WPF
                     }
                 }
             }
+        }
+
+        // Event handler dla ładowania avatarów użytkowników
+        private void DgHistoria_LoadingRow(object sender, DataGridRowEventArgs e)
+        {
+            if (e.Row.DataContext is DataRowView rowView)
+            {
+                var uzytkownikId = rowView.Row.Field<string>("UzytkownikId");
+                if (!string.IsNullOrEmpty(uzytkownikId))
+                {
+                    e.Row.Loaded += (s, args) =>
+                    {
+                        try
+                        {
+                            var presenter = FindVisualChild<DataGridCellsPresenter>(e.Row);
+                            if (presenter == null) return;
+
+                            var avatarImage = FindVisualChild<Ellipse>(e.Row, "avatarImage");
+                            var avatarBorder = FindVisualChild<Border>(e.Row, "avatarBorder");
+
+                            if (avatarImage != null && avatarBorder != null && UserAvatarManager.HasAvatar(uzytkownikId))
+                            {
+                                using (var avatar = UserAvatarManager.GetAvatarRounded(uzytkownikId, 32))
+                                {
+                                    if (avatar != null)
+                                    {
+                                        var brush = new ImageBrush(ConvertToImageSource(avatar));
+                                        brush.Stretch = Stretch.UniformToFill;
+                                        avatarImage.Fill = brush;
+                                        avatarImage.Visibility = Visibility.Visible;
+                                        avatarBorder.Visibility = Visibility.Collapsed;
+                                    }
+                                }
+                            }
+                        }
+                        catch { }
+                    };
+                }
+            }
+        }
+
+        private T FindVisualChild<T>(DependencyObject parent, string name = null) where T : DependencyObject
+        {
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T typedChild)
+                {
+                    if (name == null || (child is FrameworkElement fe && fe.Name == name))
+                        return typedChild;
+                }
+                var result = FindVisualChild<T>(child, name);
+                if (result != null) return result;
+            }
+            return null;
+        }
+
+        private ImageSource ConvertToImageSource(System.Drawing.Image image)
+        {
+            using (var ms = new System.IO.MemoryStream())
+            {
+                image.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                ms.Position = 0;
+
+                var bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.StreamSource = ms;
+                bitmap.EndInit();
+                bitmap.Freeze();
+                return bitmap;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Konwerter do wyświetlania inicjałów z nazwy użytkownika
+    /// </summary>
+    public class InitialsConverter : System.Windows.Data.IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (value is string name && !string.IsNullOrWhiteSpace(name))
+            {
+                var parts = name.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 2)
+                    return (parts[0][0].ToString() + parts[1][0].ToString()).ToUpper();
+                return name.Length >= 2 ? name.Substring(0, 2).ToUpper() : name.ToUpper();
+            }
+            return "?";
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            throw new NotImplementedException();
         }
     }
 }

@@ -94,6 +94,7 @@
     <Grid Margin="12">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
+            <ColumnDefinition x:Name="kolumnaKalendarz" Width="0"/>
             <ColumnDefinition x:Name="kolumnaPomoc" Width="0"/>
         </Grid.ColumnDefinitions>
 
@@ -131,6 +132,9 @@
 
                         <!-- Prawa: Checkboxy -->
                         <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                            <CheckBox x:Name="chkKalendarz" Content="📅 Kalendarz"
+                                      FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,12,0"
+                                      Checked="ChkKalendarz_Changed" Unchecked="ChkKalendarz_Changed"/>
                             <CheckBox x:Name="chkPomoc" Content="❓ Pomoc"
                                       FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,12,0"
                                       Checked="ChkPomoc_Changed" Unchecked="ChkPomoc_Changed"/>
@@ -312,8 +316,56 @@
             </StackPanel>
         </ScrollViewer>
 
+        <!-- ŚRODKOWA KOLUMNA - LISTA TYGODNI DOSTAW -->
+        <Border Grid.Column="1" Style="{StaticResource Card}" Margin="12,0,0,0" Background="#FAFAFA">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Nagłówek -->
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                    <TextBlock Text="Podgląd tygodni dostaw" FontSize="13" FontWeight="Bold" Foreground="#2C3E50" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- Nawigacja tygodni -->
+                <Grid Grid.Row="1" Margin="0,0,0,5">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="◀" Width="30" Height="26" FontSize="12"
+                            Background="Transparent" BorderThickness="0" Cursor="Hand"
+                            Click="BtnCalendarPrev_Click"/>
+                    <TextBlock x:Name="txtCalendarMonth" Grid.Column="1" Text="tyg. 4-5"
+                               FontSize="12" FontWeight="Bold" Foreground="#5C8A3A"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <Button Grid.Column="2" Content="▶" Width="30" Height="26" FontSize="12"
+                            Background="Transparent" BorderThickness="0" Cursor="Hand"
+                            Click="BtnCalendarNext_Click"/>
+                </Grid>
+
+                <!-- Lista tygodni z dostawami -->
+                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="panelWeeksList"/>
+                </ScrollViewer>
+
+                <!-- Podsumowanie -->
+                <Border Grid.Row="3" x:Name="panelCalendarSummary" Background="#E3F2FD" CornerRadius="4" Padding="6,4" Margin="0,10,0,0">
+                    <StackPanel>
+                        <TextBlock x:Name="txtCalendarDeliveryCount" Text="Tygodni z dostawami: 0" FontSize="9" FontWeight="SemiBold" Foreground="#1976D2"/>
+                        <TextBlock x:Name="txtCalendarTotalSzt" Text="Łącznie: 0 szt." FontSize="9" Foreground="#1976D2"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
         <!-- PRAWA STRONA - WSKAZÓWKI (widoczne gdy kolumna poszerzona) -->
-        <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+        <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" Margin="12,0,0,0">
             <StackPanel>
 
                 <!-- WSKAZÓWKI - FORMUŁY -->
