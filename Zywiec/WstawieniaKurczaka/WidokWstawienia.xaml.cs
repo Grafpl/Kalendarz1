@@ -28,11 +28,27 @@ namespace Kalendarz1
         public double PerMonth { get; set; }
     }
 
+    public class DeliveryInfo
+    {
+        public DateTime DataOdbioru { get; set; }
+        public int Auta { get; set; }
+        public int SztukiDek { get; set; }
+        public decimal WagaDek { get; set; }
+        public decimal Cena { get; set; }
+        public string TypCeny { get; set; }
+        public int RoznicaDni { get; set; }
+        public string Bufor { get; set; }
+    }
+
     public partial class WidokWstawienia : Window, INotifyPropertyChanged
     {
         private string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private string lpDostawa;
         private static ZapytaniaSQL zapytaniasql = new ZapytaniaSQL();
+
+        // Cache dla danych dostaw - ładowany raz przy starcie
+        private Dictionary<int, List<DeliveryInfo>> _deliveryCache = new Dictionary<int, List<DeliveryInfo>>();
+        private bool _deliveryCacheLoaded = false;
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -78,11 +94,71 @@ namespace Kalendarz1
 
         private void InitializeData()
         {
+            PreloadDeliveryCache();
             LoadWstawienia();
             LoadPrzypomnienia();
             LoadHistoria();
             LoadDoPotwierdzenia();
             UpdateStatistics();
+        }
+
+        private void PreloadDeliveryCache()
+        {
+            try
+            {
+                _deliveryCache.Clear();
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    string query = @"
+                        SELECT
+                            HD.LpW,
+                            HD.DataOdbioru,
+                            ISNULL(HD.Auta, 0) as Auta,
+                            ISNULL(HD.SztukiDek, 0) as SztukiDek,
+                            ISNULL(HD.WagaDek, 0) as WagaDek,
+                            ISNULL(HD.Cena, 0) as Cena,
+                            ISNULL(HD.typCeny, '-') as TypCeny,
+                            ISNULL(HD.bufor, '') as Bufor,
+                            WK.DataWstawienia
+                        FROM dbo.HarmonogramDostaw HD
+                        LEFT JOIN dbo.WstawieniaKurczakow WK ON HD.LpW = WK.Lp
+                        ORDER BY HD.LpW, HD.DataOdbioru";
+
+                    using (var cmd = new SqlCommand(query, connection))
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            int lpW = reader.GetInt32(0);
+                            if (!_deliveryCache.ContainsKey(lpW))
+                                _deliveryCache[lpW] = new List<DeliveryInfo>();
+
+                            var dataOdbioru = reader.IsDBNull(1) ? DateTime.MinValue : reader.GetDateTime(1);
+                            var dataWstawienia = reader.IsDBNull(8) ? DateTime.MinValue : reader.GetDateTime(8);
+                            int roznicaDni = dataOdbioru != DateTime.MinValue && dataWstawienia != DateTime.MinValue
+                                ? (dataOdbioru - dataWstawienia).Days : 0;
+
+                            _deliveryCache[lpW].Add(new DeliveryInfo
+                            {
+                                DataOdbioru = dataOdbioru,
+                                Auta = reader.GetInt32(2),
+                                SztukiDek = reader.GetInt32(3),
+                                WagaDek = reader.GetDecimal(4),
+                                Cena = reader.GetDecimal(5),
+                                TypCeny = reader.GetString(6),
+                                Bufor = reader.GetString(7),
+                                RoznicaDni = roznicaDni
+                            });
+                        }
+                    }
+                }
+                _deliveryCacheLoaded = true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Błąd ładowania cache dostaw: {ex.Message}");
+            }
         }
 
         private void SetupEventHandlers()
@@ -1223,37 +1299,88 @@ namespace Kalendarz1
                     {
                         tooltipContent.Children.Add(new Separator { Margin = new Thickness(0, 5, 0, 5) });
 
-                        var deliveryHeader = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 3) };
+                        var deliveryHeader = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 5) };
                         deliveryHeader.Children.Add(new TextBlock { Text = "📦 Zaplanowane dostawy:", FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(92, 138, 58)) });
                         tooltipContent.Children.Add(deliveryHeader);
+
+                        // Nagłówek tabeli
+                        var headerGrid = new Grid { Margin = new Thickness(5, 0, 0, 3) };
+                        headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) });  // Icon
+                        headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(95) }); // Data
+                        headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(25) }); // A
+                        headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) }); // Szt
+                        headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) }); // Waga
+                        headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) }); // Cena
+                        headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) }); // Dni
+                        headerGrid.RowDefinitions.Add(new RowDefinition());
+
+                        var headerColor = new SolidColorBrush(Color.FromRgb(127, 140, 141));
+                        var headers = new[] { "", "Data", "A", "Szt", "Waga", "Cena", "Dni" };
+                        for (int i = 0; i < headers.Length; i++)
+                        {
+                            var tb = new TextBlock { Text = headers[i], FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = headerColor };
+                            Grid.SetColumn(tb, i);
+                            headerGrid.Children.Add(tb);
+                        }
+                        tooltipContent.Children.Add(headerGrid);
 
                         var today = DateTime.Today;
                         foreach (var delivery in deliveries)
                         {
-                            var deliveryPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(10, 1, 0, 1) };
-                            var isPast = delivery.Date.Date < today;
-                            var isToday = delivery.Date.Date == today;
+                            var rowGrid = new Grid { Margin = new Thickness(5, 1, 0, 1) };
+                            rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) });
+                            rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(95) });
+                            rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(25) });
+                            rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) });
+                            rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) });
+                            rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
+                            rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });
+                            rowGrid.RowDefinitions.Add(new RowDefinition());
+
+                            var isPast = delivery.DataOdbioru.Date < today;
+                            var isToday = delivery.DataOdbioru.Date == today;
 
                             var dateColor = isPast ? new SolidColorBrush(Color.FromRgb(46, 125, 50)) :
                                            isToday ? new SolidColorBrush(Color.FromRgb(230, 126, 34)) :
                                            new SolidColorBrush(Color.FromRgb(100, 116, 139));
 
-                            var icon = isPast ? "✓ " : isToday ? "▶ " : "○ ";
-                            deliveryPanel.Children.Add(new TextBlock { Text = icon, Foreground = dateColor, FontSize = 10 });
-                            deliveryPanel.Children.Add(new TextBlock { Text = delivery.Date.ToString("dd.MM.yyyy (ddd)"), Foreground = dateColor, FontWeight = isToday ? FontWeights.Bold : FontWeights.Normal });
-                            deliveryPanel.Children.Add(new TextBlock { Text = $"  -  {delivery.Ilosc:# ##0} szt.", Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)) });
-                            tooltipContent.Children.Add(deliveryPanel);
+                            var icon = isPast ? "✓" : isToday ? "▶" : "○";
+                            var fontWeight = isToday ? FontWeights.Bold : FontWeights.Normal;
+
+                            var values = new (string text, Brush color)[]
+                            {
+                                (icon, dateColor),
+                                (delivery.DataOdbioru.ToString("MM-dd ddd"), dateColor),
+                                (delivery.Auta.ToString(), new SolidColorBrush(Color.FromRgb(52, 152, 219))),
+                                (delivery.SztukiDek.ToString("# ##0"), new SolidColorBrush(Color.FromRgb(46, 125, 50))),
+                                (delivery.WagaDek.ToString("# ##0.00"), new SolidColorBrush(Color.FromRgb(142, 68, 173))),
+                                (delivery.Cena.ToString("0.00"), new SolidColorBrush(Color.FromRgb(230, 126, 34))),
+                                (delivery.RoznicaDni.ToString(), new SolidColorBrush(Color.FromRgb(127, 140, 141)))
+                            };
+
+                            for (int i = 0; i < values.Length; i++)
+                            {
+                                var tb = new TextBlock { Text = values[i].text, FontSize = 10, Foreground = values[i].color, FontWeight = fontWeight };
+                                Grid.SetColumn(tb, i);
+                                rowGrid.Children.Add(tb);
+                            }
+                            tooltipContent.Children.Add(rowGrid);
                         }
 
                         // Podsumowanie
-                        var totalDelivered = deliveries.Where(d => d.Date.Date < today).Sum(d => d.Ilosc);
-                        var totalPlanned = deliveries.Where(d => d.Date.Date >= today).Sum(d => d.Ilosc);
-                        var totalAll = deliveries.Sum(d => d.Ilosc);
+                        var totalDeliveredSzt = deliveries.Where(d => d.DataOdbioru.Date < today).Sum(d => d.SztukiDek);
+                        var totalPlannedSzt = deliveries.Where(d => d.DataOdbioru.Date >= today).Sum(d => d.SztukiDek);
+                        var totalDeliveredWaga = deliveries.Where(d => d.DataOdbioru.Date < today).Sum(d => d.WagaDek);
+                        var totalPlannedWaga = deliveries.Where(d => d.DataOdbioru.Date >= today).Sum(d => d.WagaDek);
 
-                        tooltipContent.Children.Add(new Separator { Margin = new Thickness(0, 3, 0, 3) });
-                        var summaryPanel = new StackPanel { Orientation = Orientation.Horizontal };
-                        summaryPanel.Children.Add(new TextBlock { Text = $"✓ Odebrano: {totalDelivered:# ##0}", Foreground = new SolidColorBrush(Color.FromRgb(46, 125, 50)), FontSize = 10, Margin = new Thickness(0, 0, 10, 0) });
-                        summaryPanel.Children.Add(new TextBlock { Text = $"○ Pozostało: {totalPlanned:# ##0}", Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)), FontSize = 10 });
+                        tooltipContent.Children.Add(new Separator { Margin = new Thickness(0, 4, 0, 4) });
+                        var summaryPanel = new StackPanel { Margin = new Thickness(5, 0, 0, 0) };
+                        var summaryRow1 = new StackPanel { Orientation = Orientation.Horizontal };
+                        summaryRow1.Children.Add(new TextBlock { Text = $"✓ Odebrano: {totalDeliveredSzt:# ##0} szt. ({totalDeliveredWaga:# ##0.00} kg)", Foreground = new SolidColorBrush(Color.FromRgb(46, 125, 50)), FontSize = 10, FontWeight = FontWeights.SemiBold });
+                        summaryPanel.Children.Add(summaryRow1);
+                        var summaryRow2 = new StackPanel { Orientation = Orientation.Horizontal };
+                        summaryRow2.Children.Add(new TextBlock { Text = $"○ Pozostało: {totalPlannedSzt:# ##0} szt. ({totalPlannedWaga:# ##0.00} kg)", Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)), FontSize = 10 });
+                        summaryPanel.Children.Add(summaryRow2);
                         tooltipContent.Children.Add(summaryPanel);
                     }
                     else
@@ -1411,38 +1538,14 @@ namespace Kalendarz1
             }
         }
 
-        private List<(DateTime Date, int Ilosc)> GetDeliveryDetails(int lpWstawienia)
+        private List<DeliveryInfo> GetDeliveryDetails(int lpWstawienia)
         {
-            var result = new List<(DateTime Date, int Ilosc)>();
-            try
+            // Użyj cache jeśli załadowany
+            if (_deliveryCacheLoaded && _deliveryCache.ContainsKey(lpWstawienia))
             {
-                using (var connection = new SqlConnection(connectionString))
-                {
-                    connection.Open();
-                    string query = @"
-                        SELECT DataOdbioru, ISNULL(Ilosc, 0) as Ilosc
-                        FROM dbo.HarmonogramDostaw
-                        WHERE LpW = @LP
-                        ORDER BY DataOdbioru";
-
-                    using (var cmd = new SqlCommand(query, connection))
-                    {
-                        cmd.Parameters.AddWithValue("@LP", lpWstawienia);
-                        using (var reader = cmd.ExecuteReader())
-                        {
-                            while (reader.Read())
-                            {
-                                if (!reader.IsDBNull(0))
-                                {
-                                    result.Add((reader.GetDateTime(0), reader.GetInt32(1)));
-                                }
-                            }
-                        }
-                    }
-                }
+                return _deliveryCache[lpWstawienia];
             }
-            catch { }
-            return result;
+            return new List<DeliveryInfo>();
         }
 
         private void LoadPrzypomnienia()
@@ -1593,22 +1696,22 @@ namespace Kalendarz1
             var userTemplateColumn = new DataGridTemplateColumn
             {
                 Header = "User",
-                Width = 38
+                Width = 48
             };
 
             var userTemplate = new DataTemplate();
             var gridFactory = new FrameworkElementFactory(typeof(Grid));
-            gridFactory.SetValue(Grid.WidthProperty, 20.0);
-            gridFactory.SetValue(Grid.HeightProperty, 20.0);
+            gridFactory.SetValue(Grid.WidthProperty, 22.0);
+            gridFactory.SetValue(Grid.HeightProperty, 22.0);
             gridFactory.SetValue(Grid.HorizontalAlignmentProperty, HorizontalAlignment.Center);
             gridFactory.SetValue(Grid.VerticalAlignmentProperty, VerticalAlignment.Center);
             gridFactory.SetValue(Grid.MarginProperty, new Thickness(2));
 
             // Background border with initials
             var borderFactory = new FrameworkElementFactory(typeof(Border));
-            borderFactory.SetValue(Border.WidthProperty, 20.0);
-            borderFactory.SetValue(Border.HeightProperty, 20.0);
-            borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(10));
+            borderFactory.SetValue(Border.WidthProperty, 22.0);
+            borderFactory.SetValue(Border.HeightProperty, 22.0);
+            borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(11));
             borderFactory.SetValue(Border.BackgroundProperty, new SolidColorBrush(Color.FromRgb(99, 102, 241)));
             borderFactory.SetValue(Border.HorizontalAlignmentProperty, HorizontalAlignment.Center);
             borderFactory.SetValue(Border.VerticalAlignmentProperty, VerticalAlignment.Center);
@@ -1617,7 +1720,7 @@ namespace Kalendarz1
             initialsTextFactory.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
             initialsTextFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
             initialsTextFactory.SetValue(TextBlock.ForegroundProperty, Brushes.White);
-            initialsTextFactory.SetValue(TextBlock.FontSizeProperty, 8.0);
+            initialsTextFactory.SetValue(TextBlock.FontSizeProperty, 9.0);
             initialsTextFactory.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
             initialsTextFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("UserName")
             {
@@ -1629,8 +1732,8 @@ namespace Kalendarz1
 
             // Ellipse for photo (initially hidden, will be shown if photo loads)
             var ellipseFactory = new FrameworkElementFactory(typeof(Ellipse));
-            ellipseFactory.SetValue(Ellipse.WidthProperty, 20.0);
-            ellipseFactory.SetValue(Ellipse.HeightProperty, 20.0);
+            ellipseFactory.SetValue(Ellipse.WidthProperty, 22.0);
+            ellipseFactory.SetValue(Ellipse.HeightProperty, 22.0);
             ellipseFactory.SetValue(Ellipse.VisibilityProperty, Visibility.Collapsed);
             ellipseFactory.SetValue(Ellipse.NameProperty, "avatarEllipse");
 
