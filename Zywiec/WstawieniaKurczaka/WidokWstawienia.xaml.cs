@@ -50,6 +50,9 @@ namespace Kalendarz1
         private Dictionary<int, List<DeliveryInfo>> _deliveryCache = new Dictionary<int, List<DeliveryInfo>>();
         private bool _deliveryCacheLoaded = false;
 
+        // Aktualnie otwarty tooltip - tylko jeden naraz
+        private ToolTip _currentOpenTooltip = null;
+
         public event PropertyChangedEventHandler PropertyChanged;
 
         public WidokWstawienia()
@@ -1417,7 +1420,22 @@ namespace Kalendarz1
                     {
                         if (e.Row.ToolTip is ToolTip tt)
                         {
+                            // Zamknij poprzedni tooltip jeśli istnieje
+                            if (_currentOpenTooltip != null && _currentOpenTooltip != tt)
+                            {
+                                _currentOpenTooltip.IsOpen = false;
+                            }
                             tt.IsOpen = true;
+                            _currentOpenTooltip = tt;
+                        }
+                    };
+
+                    // Zamknij tooltip gdy stracił focus
+                    tooltip.Closed += (s, args) =>
+                    {
+                        if (_currentOpenTooltip == tooltip)
+                        {
+                            _currentOpenTooltip = null;
                         }
                     };
                 }
@@ -1901,7 +1919,22 @@ namespace Kalendarz1
                 {
                     if (e.Row.ToolTip is ToolTip tt)
                     {
+                        // Zamknij poprzedni tooltip jeśli istnieje
+                        if (_currentOpenTooltip != null && _currentOpenTooltip != tt)
+                        {
+                            _currentOpenTooltip.IsOpen = false;
+                        }
                         tt.IsOpen = true;
+                        _currentOpenTooltip = tt;
+                    }
+                };
+
+                // Zamknij tooltip gdy stracił focus
+                tooltip.Closed += (s, args) =>
+                {
+                    if (_currentOpenTooltip == tooltip)
+                    {
+                        _currentOpenTooltip = null;
                     }
                 };
             }
@@ -2222,7 +2255,6 @@ namespace Kalendarz1
                 if (row["LP"] != DBNull.Value)
                 {
                     lpDostawa = row["LP"].ToString();
-                    LoadDostawy(lpDostawa);
                 }
             }
         }
@@ -2235,7 +2267,6 @@ namespace Kalendarz1
                 if (row["LP"] != DBNull.Value)
                 {
                     lpDostawa = row["LP"].ToString();
-                    LoadDostawy(lpDostawa);
                 }
             }
         }
@@ -2515,131 +2546,6 @@ namespace Kalendarz1
                 Console.WriteLine($"Błąd pobierania danych ostatniego dostarczonego: {ex.Message}");
                 return null;
             }
-        }
-
-        private void LoadDostawy(string lpWstawienia)
-        {
-            string query = @"
-                SELECT 
-                    HD.LP, 
-                    HD.Dostawca, 
-                    HD.DataOdbioru, 
-                    HD.Auta, 
-                    HD.SztukiDek, 
-                    HD.WagaDek, 
-                    HD.Cena, 
-                    HD.typCeny, 
-                    HD.bufor,
-                    WK.DataWstawienia
-                FROM dbo.HarmonogramDostaw HD
-                LEFT JOIN dbo.WstawieniaKurczakow WK ON HD.LpW = WK.Lp
-                WHERE HD.LpW = @NumerWstawienia 
-                ORDER BY HD.DataOdbioru ASC";
-
-            using (var connection = new SqlConnection(connectionString))
-            using (var adapter = new SqlDataAdapter(query, connection))
-            {
-                adapter.SelectCommand.Parameters.AddWithValue("@NumerWstawienia", lpWstawienia);
-
-                var table = new DataTable();
-                adapter.Fill(table);
-
-                // Dodaj kolumnę z różnicą dni
-                table.Columns.Add("RoznicaDni", typeof(string));
-
-                foreach (DataRow row in table.Rows)
-                {
-                    if (row["DataOdbioru"] != DBNull.Value && row["DataWstawienia"] != DBNull.Value)
-                    {
-                        DateTime dataOdbioru = Convert.ToDateTime(row["DataOdbioru"]);
-                        DateTime dataWstawienia = Convert.ToDateTime(row["DataWstawienia"]);
-                        int roznicaDni = (dataOdbioru - dataWstawienia).Days;
-                        row["RoznicaDni"] = $"{roznicaDni}";
-                    }
-                    else
-                    {
-                        row["RoznicaDni"] = "-";
-                    }
-                }
-
-                dataGridDostawy.ItemsSource = table.DefaultView;
-                SetupDostawyColumns();
-            }
-        }
-
-        private void SetupDostawyColumns()
-        {
-            dataGridDostawy.Columns.Clear();
-
-            // ZMIANA: Auto dla Data, A, Szt, Waga
-            dataGridDostawy.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Data",
-                Binding = new System.Windows.Data.Binding("DataOdbioru")
-                {
-                    StringFormat = "MM-dd ddd"
-                },
-                Width = DataGridLength.Auto
-            });
-
-            dataGridDostawy.Columns.Add(new DataGridTextColumn
-            {
-                Header = "A",
-                Binding = new System.Windows.Data.Binding("Auta"),
-                Width = DataGridLength.Auto
-            });
-
-            dataGridDostawy.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Szt",
-                Binding = new System.Windows.Data.Binding("SztukiDek")
-                {
-                    StringFormat = "# ##0"
-                },
-                Width = DataGridLength.Auto
-            });
-
-            // ZMIANA: Waga z 2 miejscami po przecinku
-            dataGridDostawy.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Waga",
-                Binding = new System.Windows.Data.Binding("WagaDek")
-                {
-                    StringFormat = "# ##0.00"
-                },
-                Width = DataGridLength.Auto
-            });
-
-            dataGridDostawy.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Cena",
-                Binding = new System.Windows.Data.Binding("Cena")
-                {
-                    StringFormat = "0.00"
-                },
-                Width = 45
-            });
-
-            dataGridDostawy.Columns.Add(new DataGridTextColumn
-            {
-                Header = "T",
-                Binding = new System.Windows.Data.Binding("typCeny"),
-                Width = 50
-            });
-
-            dataGridDostawy.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Dni",
-                Binding = new System.Windows.Data.Binding("RoznicaDni"),
-                Width = 30
-            });
-
-            dataGridDostawy.Columns.Add(new DataGridTextColumn
-            {
-                Header = "B",
-                Binding = new System.Windows.Data.Binding("bufor"),
-                Width = new DataGridLength(1, DataGridLengthUnitType.Star)
-            });
         }
 
         // ====== MENU KONTEKSTOWE - LISTA WSTAWIEŃ ======
@@ -3433,11 +3339,6 @@ namespace Kalendarz1
             LoadHistoria();
             LoadDoPotwierdzenia();
             UpdateStatistics();
-
-            if (!string.IsNullOrEmpty(lpDostawa))
-            {
-                LoadDostawy(lpDostawa);
-            }
         }
 
         // ====== EFEKT KONFETTI ======
