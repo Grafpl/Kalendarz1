@@ -4941,7 +4941,8 @@ namespace Kalendarz1
                     }
 
                     string query = @"
-                        SELECT FarmerCalcID, Zatwierdzony, ZatwierdzonePrzez, Zweryfikowany, ZweryfikowanePrzez
+                        SELECT FarmerCalcID, Zatwierdzony, ZatwierdzonePrzez, ZatwierdzoneByUserID,
+                               Zweryfikowany, ZweryfikowanePrzez, ZweryfikowaneByUserID
                         FROM [dbo].[RozliczeniaZatwierdzenia]
                         WHERE CalcDate = @CalcDate";
 
@@ -4959,8 +4960,10 @@ namespace Kalendarz1
                                 {
                                     row.Zatwierdzony = reader.GetBoolean(1);
                                     row.ZatwierdzonePrzez = reader.IsDBNull(2) ? null : reader.GetString(2);
-                                    row.Zweryfikowany = reader.GetBoolean(3);
-                                    row.ZweryfikowanePrzez = reader.IsDBNull(4) ? null : reader.GetString(4);
+                                    row.ZatwierdzoneByUserID = reader.IsDBNull(3) ? null : reader.GetString(3);
+                                    row.Zweryfikowany = reader.GetBoolean(4);
+                                    row.ZweryfikowanePrzez = reader.IsDBNull(5) ? null : reader.GetString(5);
+                                    row.ZweryfikowaneByUserID = reader.IsDBNull(6) ? null : reader.GetString(6);
                                 }
                             }
                         }
@@ -8554,10 +8557,11 @@ namespace Kalendarz1
                     }
                 }
 
-                dataGridRozliczenia.ItemsSource = rozliczeniaData;
-
-                // Załaduj stany zatwierdzenia z bazy
+                // Załaduj stany zatwierdzenia z bazy PRZED ustawieniem ItemsSource
+                // (żeby UserID był dostępny dla bindingów avatarów)
                 LoadZatwierdzeniaForRozliczenia();
+
+                dataGridRozliczenia.ItemsSource = rozliczeniaData;
 
                 // Aktualizuj podsumowanie
                 lblRozliczeniaSumaWierszy.Text = rozliczeniaData.Count.ToString();
