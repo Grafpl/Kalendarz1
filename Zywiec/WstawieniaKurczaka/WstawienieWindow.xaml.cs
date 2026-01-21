@@ -1255,9 +1255,9 @@ namespace Kalendarz1
             {
                 if (chkKalendarz.IsChecked == true)
                 {
-                    // Rozszerz okno i pokaż kolumnę kalendarza (większa szerokość dla nowych komórek z paskiem pojemności)
-                    this.Width = Math.Max(this.Width, 1300);
-                    kolumnaKalendarz.Width = new GridLength(350);
+                    // Rozszerz okno i pokaż kolumnę kalendarza (większa szerokość dla szczegółów dostaw)
+                    this.Width = Math.Max(this.Width, 1400);
+                    kolumnaKalendarz.Width = new GridLength(420);
                     LoadDeliveryDatesForCalendar();
                     RenderMiniCalendar();
                 }
@@ -1461,6 +1461,10 @@ namespace Kalendarz1
             var weekHeader = CreateWeekHeader(week);
             panelWeeksList.Children.Add(weekHeader);
 
+            // Add column headers
+            var columnHeaders = CreateColumnHeaders();
+            panelWeeksList.Children.Add(columnHeaders);
+
             // Render days with deliveries
             foreach (var dayEntry in week.DayDeliveries.OrderBy(d => d.Key))
             {
@@ -1516,6 +1520,49 @@ namespace Kalendarz1
             };
             Grid.SetColumn(totalText, 1);
             grid.Children.Add(totalText);
+
+            header.Child = grid;
+            return header;
+        }
+
+        private Border CreateColumnHeaders()
+        {
+            var header = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(243, 244, 246)),
+                Padding = new Thickness(4, 2, 4, 2),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(209, 213, 219)),
+                BorderThickness = new Thickness(0, 0, 0, 1)
+            };
+
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Hodowca
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(25) }); // Auto
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) }); // Szt
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(35) }); // Waga
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(45) }); // Status
+
+            var headerStyle = new Style(typeof(TextBlock));
+
+            var hodowcaHeader = new TextBlock { Text = "Hodowca", FontSize = 9, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(75, 85, 99)) };
+            Grid.SetColumn(hodowcaHeader, 0);
+            grid.Children.Add(hodowcaHeader);
+
+            var autaHeader = new TextBlock { Text = "Aut", FontSize = 9, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(75, 85, 99)), HorizontalAlignment = HorizontalAlignment.Center };
+            Grid.SetColumn(autaHeader, 1);
+            grid.Children.Add(autaHeader);
+
+            var sztukiHeader = new TextBlock { Text = "Szt", FontSize = 9, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(75, 85, 99)), HorizontalAlignment = HorizontalAlignment.Right };
+            Grid.SetColumn(sztukiHeader, 2);
+            grid.Children.Add(sztukiHeader);
+
+            var wagaHeader = new TextBlock { Text = "Waga", FontSize = 9, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(75, 85, 99)), HorizontalAlignment = HorizontalAlignment.Right };
+            Grid.SetColumn(wagaHeader, 3);
+            grid.Children.Add(wagaHeader);
+
+            var statusHeader = new TextBlock { Text = "Status", FontSize = 9, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(75, 85, 99)), HorizontalAlignment = HorizontalAlignment.Right };
+            Grid.SetColumn(statusHeader, 4);
+            grid.Children.Add(statusHeader);
 
             header.Child = grid;
             return header;
@@ -1605,16 +1652,16 @@ namespace Kalendarz1
 
             var grid = new Grid();
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Hodowca
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) }); // Auto
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(45) }); // Szt
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) }); // Waga
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) }); // Status
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(25) }); // Auto
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) }); // Szt
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(35) }); // Waga
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(45) }); // Status
 
             // Hodowca name
             var hodowcaText = new TextBlock
             {
                 Text = delivery.Dostawca,
-                FontSize = 9,
+                FontSize = 10,
                 Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81)),
                 VerticalAlignment = VerticalAlignment.Center,
                 TextTrimming = TextTrimming.CharacterEllipsis,
@@ -1627,7 +1674,7 @@ namespace Kalendarz1
             var autaText = new TextBlock
             {
                 Text = delivery.Auta.ToString(),
-                FontSize = 9,
+                FontSize = 10,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81)),
                 HorizontalAlignment = HorizontalAlignment.Center,
@@ -1640,7 +1687,7 @@ namespace Kalendarz1
             var sztukiText = new TextBlock
             {
                 Text = delivery.Sztuki.ToString("# ##0"),
-                FontSize = 9,
+                FontSize = 10,
                 Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81)),
                 HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Center
@@ -1652,7 +1699,7 @@ namespace Kalendarz1
             var wagaText = new TextBlock
             {
                 Text = delivery.Waga.ToString("0.00"),
-                FontSize = 9,
+                FontSize = 10,
                 Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81)),
                 HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Center
@@ -1676,7 +1723,8 @@ namespace Kalendarz1
             var statusText = new TextBlock
             {
                 Text = statusShort,
-                FontSize = 8,
+                FontSize = 9,
+                FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(statusColor),
                 HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Center
