@@ -186,6 +186,20 @@ namespace Kalendarz1
             chkPokazPrzyszle.Checked += ChkPokazPrzyszle_Changed;
             chkPokazPrzyszle.Unchecked += ChkPokazPrzyszle_Changed;
             datePickerOd.SelectedDateChanged += DatePickerOd_Changed;
+
+            // Zamknij tooltip przy kliknięciu lewym przyciskiem myszy w dowolne miejsce
+            this.PreviewMouseLeftButtonDown += Window_PreviewMouseLeftButtonDown;
+        }
+
+        private void Window_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            // Zamknij otwarty tooltip przy kliknięciu w dowolne miejsce
+            if (_currentOpenTooltip != null && _currentOpenTooltip.IsOpen)
+            {
+                _currentOpenTooltip.IsOpen = false;
+                StopTooltipTimer();
+                _currentOpenTooltip = null;
+            }
         }
 
         // ====== PRZYCISK POMOCY ======
