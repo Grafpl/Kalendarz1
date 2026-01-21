@@ -1,0 +1,170 @@
+<Window x:Class="Kalendarz1.DeliveryCalendarWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Kalendarz Dostaw"
+        WindowState="Maximized"
+        WindowStartupLocation="CenterScreen"
+        Background="#ECF0F1"
+        FontFamily="Segoe UI">
+
+    <Window.Resources>
+        <Style x:Key="DayCellStyle" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#E0E0E0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Margin" Value="1"/>
+            <Setter Property="MinHeight" Value="100"/>
+        </Style>
+
+        <Style x:Key="HeaderButton" TargetType="Button">
+            <Setter Property="Background" Value="#5C8A3A"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="15,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#4B732F"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="NavButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#5C8A3A"/>
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Width" Value="40"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                CornerRadius="20">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#E8F5E9"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DeliveryItem" TargetType="Border">
+            <Setter Property="Background" Value="#E3F2FD"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="Margin" Value="2,1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Background="#5C8A3A" Padding="20,15">
+            <Grid>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                    <TextBlock Text="📦 Kalendarz Dostaw" FontSize="22" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="Dzisiaj" Style="{StaticResource HeaderButton}" Click="BtnToday_Click" Margin="0,0,10,0"/>
+                    <Button Content="Zamknij" Style="{StaticResource HeaderButton}" Click="BtnClose_Click" Background="#E74C3C"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Month Navigation -->
+        <Border Grid.Row="1" Background="White" Padding="10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Button Grid.Column="0" Content="◀" Style="{StaticResource NavButton}" Click="BtnPrevMonth_Click"/>
+
+                <StackPanel Grid.Column="1" HorizontalAlignment="Center" Orientation="Horizontal">
+                    <TextBlock x:Name="txtCurrentMonth" Text="Styczeń 2025" FontSize="24" FontWeight="Bold"
+                               Foreground="#2C3E50" VerticalAlignment="Center"/>
+                    <Border Background="#FFF3E0" CornerRadius="6" Padding="10,5" Margin="20,0,0,0" VerticalAlignment="Center">
+                        <TextBlock x:Name="txtMonthTotal" Text="Suma: 0 szt." FontSize="12" FontWeight="SemiBold" Foreground="#EF6C00"/>
+                    </Border>
+                </StackPanel>
+
+                <Button Grid.Column="2" Content="▶" Style="{StaticResource NavButton}" Click="BtnNextMonth_Click"/>
+            </Grid>
+        </Border>
+
+        <!-- Calendar Grid -->
+        <Border Grid.Row="2" Margin="10" Background="White" CornerRadius="8" Padding="10">
+            <Border.Effect>
+                <DropShadowEffect ShadowDepth="0" Color="#000000" Opacity="0.1" BlurRadius="15"/>
+            </Border.Effect>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Days of Week Header -->
+                <UniformGrid Grid.Row="0" Columns="7" Margin="0,0,0,5">
+                    <TextBlock Text="Poniedziałek" FontWeight="Bold" FontSize="12" Foreground="#5C8A3A" HorizontalAlignment="Center" Padding="5"/>
+                    <TextBlock Text="Wtorek" FontWeight="Bold" FontSize="12" Foreground="#5C8A3A" HorizontalAlignment="Center" Padding="5"/>
+                    <TextBlock Text="Środa" FontWeight="Bold" FontSize="12" Foreground="#5C8A3A" HorizontalAlignment="Center" Padding="5"/>
+                    <TextBlock Text="Czwartek" FontWeight="Bold" FontSize="12" Foreground="#5C8A3A" HorizontalAlignment="Center" Padding="5"/>
+                    <TextBlock Text="Piątek" FontWeight="Bold" FontSize="12" Foreground="#5C8A3A" HorizontalAlignment="Center" Padding="5"/>
+                    <TextBlock Text="Sobota" FontWeight="Bold" FontSize="12" Foreground="#7F8C8D" HorizontalAlignment="Center" Padding="5"/>
+                    <TextBlock Text="Niedziela" FontWeight="Bold" FontSize="12" Foreground="#E74C3C" HorizontalAlignment="Center" Padding="5"/>
+                </UniformGrid>
+
+                <!-- Calendar Days -->
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                    <UniformGrid x:Name="calendarGrid" Columns="7"/>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
+        <!-- Legend -->
+        <Border Grid.Row="3" Background="White" Padding="10">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Border Background="#E8F5E9" CornerRadius="4" Padding="8,4" Margin="5,0">
+                    <TextBlock Text="Zielony = Poniżej 50%" FontSize="11" Foreground="#2E7D32"/>
+                </Border>
+                <Border Background="#FFF3E0" CornerRadius="4" Padding="8,4" Margin="5,0">
+                    <TextBlock Text="Żółty = 50-80%" FontSize="11" Foreground="#EF6C00"/>
+                </Border>
+                <Border Background="#FFEBEE" CornerRadius="4" Padding="8,4" Margin="5,0">
+                    <TextBlock Text="Czerwony = Powyżej 80%" FontSize="11" Foreground="#C62828"/>
+                </Border>
+                <Border Background="#F3E5F5" CornerRadius="4" Padding="8,4" Margin="5,0">
+                    <TextBlock Text="Limit: 80 000 szt./dzień" FontSize="11" FontWeight="Bold" Foreground="#7B1FA2"/>
+                </Border>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

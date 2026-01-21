@@ -53,6 +53,9 @@ namespace Kalendarz1
         // Aktualnie otwarty tooltip - tylko jeden naraz
         private ToolTip _currentOpenTooltip = null;
 
+        // Timer do automatycznego zamknięcia tooltipa po 10 sekundach
+        private System.Windows.Threading.DispatcherTimer _tooltipCloseTimer = null;
+
         public event PropertyChangedEventHandler PropertyChanged;
 
         public WidokWstawienia()
@@ -1403,7 +1406,6 @@ namespace Kalendarz1
 
                     var tooltip = new ToolTip
                     {
-                        Content = tooltipContent,
                         Background = new SolidColorBrush(Colors.White),
                         BorderBrush = new SolidColorBrush(Color.FromRgb(92, 138, 58)),
                         BorderThickness = new Thickness(2),
@@ -1411,29 +1413,27 @@ namespace Kalendarz1
                         StaysOpen = true
                     };
 
+                    // Wrap content with close button
+                    tooltip.Content = WrapTooltipWithCloseButton(tooltipContent, tooltip);
+
                     e.Row.ToolTip = tooltip;
                     // Wyłącz automatyczne pokazywanie tooltipa przy hover
                     ToolTipService.SetIsEnabled(e.Row, false);
-                    ToolTipService.SetShowDuration(e.Row, 30000);
+                    ToolTipService.SetShowDuration(e.Row, 15000);
 
-                    // Kliknięcie na wiersz pokazuje tooltip
+                    // Kliknięcie na wiersz pokazuje tooltip z timerem 10s
                     e.Row.MouseLeftButtonUp += (rowSender, rowArgs) =>
                     {
                         if (e.Row.ToolTip is ToolTip tt)
                         {
-                            // Zamknij poprzedni tooltip jeśli istnieje
-                            if (_currentOpenTooltip != null && _currentOpenTooltip != tt)
-                            {
-                                _currentOpenTooltip.IsOpen = false;
-                            }
-                            tt.IsOpen = true;
-                            _currentOpenTooltip = tt;
+                            ShowTooltipWithTimer(tt);
                         }
                     };
 
                     // Zamknij tooltip gdy stracił focus
                     tooltip.Closed += (s, args) =>
                     {
+                        StopTooltipTimer();
                         if (_currentOpenTooltip == tooltip)
                         {
                             _currentOpenTooltip = null;
@@ -1505,6 +1505,93 @@ namespace Kalendarz1
                 bitmapImage.Freeze();
 
                 return bitmapImage;
+            }
+        }
+
+        /// <summary>
+        /// Wraps tooltip content with close button (X) and sets up auto-close timer
+        /// </summary>
+        private StackPanel WrapTooltipWithCloseButton(StackPanel content, ToolTip tooltip)
+        {
+            var mainContainer = new StackPanel();
+
+            // Header with close button
+            var headerRow = new Grid();
+            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var closeButton = new Button
+            {
+                Content = "✕",
+                Width = 22,
+                Height = 22,
+                FontSize = 12,
+                FontWeight = FontWeights.Bold,
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)),
+                Cursor = Cursors.Hand,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(0, -5, -5, 0),
+                Padding = new Thickness(0)
+            };
+            closeButton.MouseEnter += (s, e) => closeButton.Foreground = new SolidColorBrush(Color.FromRgb(231, 76, 60));
+            closeButton.MouseLeave += (s, e) => closeButton.Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141));
+            closeButton.Click += (s, e) =>
+            {
+                tooltip.IsOpen = false;
+                StopTooltipTimer();
+            };
+            Grid.SetColumn(closeButton, 1);
+            headerRow.Children.Add(closeButton);
+
+            mainContainer.Children.Add(headerRow);
+            mainContainer.Children.Add(content);
+
+            return mainContainer;
+        }
+
+        /// <summary>
+        /// Shows tooltip and starts auto-close timer (10 seconds)
+        /// </summary>
+        private void ShowTooltipWithTimer(ToolTip tooltip)
+        {
+            // Stop any existing timer
+            StopTooltipTimer();
+
+            // Close previous tooltip
+            if (_currentOpenTooltip != null && _currentOpenTooltip != tooltip)
+            {
+                _currentOpenTooltip.IsOpen = false;
+            }
+
+            // Show new tooltip
+            tooltip.IsOpen = true;
+            _currentOpenTooltip = tooltip;
+
+            // Start auto-close timer (10 seconds)
+            _tooltipCloseTimer = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(10)
+            };
+            _tooltipCloseTimer.Tick += (s, e) =>
+            {
+                tooltip.IsOpen = false;
+                StopTooltipTimer();
+            };
+            _tooltipCloseTimer.Start();
+        }
+
+        /// <summary>
+        /// Stops the tooltip auto-close timer
+        /// </summary>
+        private void StopTooltipTimer()
+        {
+            if (_tooltipCloseTimer != null)
+            {
+                _tooltipCloseTimer.Stop();
+                _tooltipCloseTimer = null;
             }
         }
 
@@ -1903,7 +1990,6 @@ namespace Kalendarz1
 
                 var tooltip = new ToolTip
                 {
-                    Content = tooltipContent,
                     Background = new SolidColorBrush(Colors.White),
                     BorderBrush = new SolidColorBrush(Color.FromRgb(155, 89, 182)),
                     BorderThickness = new Thickness(2),
@@ -1911,29 +1997,27 @@ namespace Kalendarz1
                     StaysOpen = true
                 };
 
+                // Wrap content with close button
+                tooltip.Content = WrapTooltipWithCloseButton(tooltipContent, tooltip);
+
                 e.Row.ToolTip = tooltip;
                 // Wyłącz automatyczne pokazywanie tooltipa przy hover
                 ToolTipService.SetIsEnabled(e.Row, false);
-                ToolTipService.SetShowDuration(e.Row, 30000);
+                ToolTipService.SetShowDuration(e.Row, 15000);
 
-                // Kliknięcie na wiersz pokazuje tooltip
+                // Kliknięcie na wiersz pokazuje tooltip z timerem 10s
                 e.Row.MouseLeftButtonUp += (rowSender, rowArgs) =>
                 {
                     if (e.Row.ToolTip is ToolTip tt)
                     {
-                        // Zamknij poprzedni tooltip jeśli istnieje
-                        if (_currentOpenTooltip != null && _currentOpenTooltip != tt)
-                        {
-                            _currentOpenTooltip.IsOpen = false;
-                        }
-                        tt.IsOpen = true;
-                        _currentOpenTooltip = tt;
+                        ShowTooltipWithTimer(tt);
                     }
                 };
 
                 // Zamknij tooltip gdy stracił focus
                 tooltip.Closed += (s, args) =>
                 {
+                    StopTooltipTimer();
                     if (_currentOpenTooltip == tooltip)
                     {
                         _currentOpenTooltip = null;
@@ -3314,6 +3398,14 @@ namespace Kalendarz1
             }
 
             RefreshAll();
+        }
+
+        private void BtnKalendarzDostaw_Click(object sender, RoutedEventArgs e)
+        {
+            var calendarWindow = new DeliveryCalendarWindow();
+            calendarWindow.Owner = this;
+            calendarWindow.ShowDialog();
+            RefreshAll(); // Refresh after calendar closes in case deliveries were moved
         }
 
         // ====== POMOCNICZE ======
