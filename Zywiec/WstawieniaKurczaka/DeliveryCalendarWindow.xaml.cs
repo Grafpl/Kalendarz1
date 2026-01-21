@@ -484,11 +484,14 @@ namespace Kalendarz1
 
             row.Child = grid;
 
-            // Double-click to edit (future feature)
-            row.MouseDoubleClick += (s, e) =>
+            // Double-click to show details
+            row.MouseLeftButtonDown += (s, e) =>
             {
-                MessageBox.Show($"LP: {delivery.LP}\nDostawca: {delivery.Dostawca}\nData: {delivery.DataOdbioru:dd.MM.yyyy}\nSztuki: {delivery.SztukiDek}\nWaga: {delivery.WagaDek:0.00}\nStatus: {delivery.Bufor}",
-                    "Szczegóły dostawy", MessageBoxButton.OK, MessageBoxImage.Information);
+                if (e.ClickCount == 2)
+                {
+                    MessageBox.Show($"LP: {delivery.LP}\nDostawca: {delivery.Dostawca}\nData: {delivery.DataOdbioru:dd.MM.yyyy}\nSztuki: {delivery.SztukiDek}\nWaga: {delivery.WagaDek:0.00}\nStatus: {delivery.Bufor}",
+                        "Szczegóły dostawy", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
             };
 
             return row;
