@@ -1121,6 +1121,11 @@
                                         Content="📥 Import Excel" ToolTip="Importuj specyfikacje z pliku Excel/LibreOffice (kreator)"
                                         Style="{StaticResource ToolbarButton}" Background="#FF5722"/>
 
+                                <!-- === PRZYCISK MAPOWANIE DOSTAWCÓW === -->
+                                <Button x:Name="btnMapowanie" Click="BtnMapowanie_Click"
+                                        Content="🔗 MAPOWANIE" ToolTip="Mapuj dostawców LibraNet do kontrahentów Symfonia"
+                                        Style="{StaticResource ToolbarButton}" Background="#9C27B0"/>
+
                                 <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
 
                                 <!-- Przycisk Otwórz folder -->

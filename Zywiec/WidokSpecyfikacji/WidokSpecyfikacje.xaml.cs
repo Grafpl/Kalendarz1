@@ -10341,6 +10341,34 @@ namespace Kalendarz1
 
         #endregion
 
+        #region Mapowanie Dostawców
+
+        /// <summary>
+        /// Otwiera okno mapowania dostawców LibraNet do kontrahentów Symfonia
+        /// </summary>
+        private void BtnMapowanie_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var window = new Kalendarz1.Zywiec.WidokSpecyfikacji.MapowanieDostawcowWindow();
+                window.Owner = this;
+                window.ShowDialog();
+
+                // Po zamknięciu okna mapowania - wyczyść cache dostawców
+                _cachedDostawcy = null;
+                _cacheTimestamp = DateTime.MinValue;
+                LoadDostawcyFromCache();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd otwierania okna mapowania:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Diagnostics.Debug.WriteLine($"BtnMapowanie_Click error: {ex}");
+            }
+        }
+
+        #endregion
+
         /// <summary>
         /// Otwiera folder z plikami specyfikacji dla zaznaczonego wiersza
         /// </summary>
