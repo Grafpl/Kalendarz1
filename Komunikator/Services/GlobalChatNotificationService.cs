@@ -34,6 +34,7 @@ namespace Kalendarz1.Komunikator.Services
         private bool _isDisposed;
         private bool _temporarilyHidden; // Po kliknięciu dymka ukryj go tymczasowo
         private int _lastUnreadCount;
+        private int _lastShownCount; // Licznik przy ostatnim pokazaniu dymka
         private DateTime _lastCheckTime = DateTime.MinValue;
 
         /// <summary>
@@ -241,28 +242,51 @@ namespace Kalendarz1.Komunikator.Services
         /// </summary>
         private void ShowBubble(int count, List<NewMessageInfo> newMessages)
         {
-            // Nie pokazuj jeśli tymczasowo ukryty (po kliknięciu)
-            if (_temporarilyHidden) return;
+            // Nie pokazuj jeśli tymczasowo ukryty (po kliknięciu lub zamknięciu)
+            // Pokaż ponownie tylko gdy pojawiły się NOWE wiadomości
+            if (_temporarilyHidden && count <= _lastShownCount)
+                return;
 
-            if (_bubbleWindow == null || !_bubbleWindow.IsLoaded)
+            // Reset flagi jeśli są nowe wiadomości
+            if (count > _lastShownCount)
+                _temporarilyHidden = false;
+
+            // Jeśli dymek jest już widoczny, tylko zaktualizuj
+            if (_bubbleWindow != null && _bubbleWindow.IsLoaded)
             {
-                _bubbleWindow = new ChatBubbleNotification();
-                _bubbleWindow.BubbleClicked += (s, e) =>
-                {
-                    // Natychmiast ukryj dymek po kliknięciu
-                    HideBubble();
-                    _temporarilyHidden = true; // Nie pokazuj ponownie przez chwilę
-                    BubbleClicked?.Invoke(this, EventArgs.Empty);
-                    OpenChatWindow();
-                };
-                _bubbleWindow.Closed += (s, e) =>
-                {
-                    _bubbleWindow = null;
-                };
-                _bubbleWindow.Show();
+                _bubbleWindow.UpdateCount(count, newMessages);
+                _lastShownCount = count;
+                return;
             }
 
+            // Nie twórz nowego dymka jeśli ukryty
+            if (_temporarilyHidden) return;
+
+            // Utwórz nowy dymek
+            _bubbleWindow = new ChatBubbleNotification();
+            _bubbleWindow.BubbleClicked += (s, e) =>
+            {
+                // Natychmiast ukryj dymek po kliknięciu
+                _lastShownCount = count;
+                _temporarilyHidden = true;
+                HideBubble();
+                BubbleClicked?.Invoke(this, EventArgs.Empty);
+                OpenChatWindow();
+            };
+            _bubbleWindow.Closed += (s, e) =>
+            {
+                // Dymek zamknięty (auto-hide lub X) - zapamiętaj stan
+                if (_bubbleWindow != null)
+                {
+                    _lastShownCount = count;
+                    _temporarilyHidden = true;
+                }
+                _bubbleWindow = null;
+            };
+
+            _bubbleWindow.Show();
             _bubbleWindow.UpdateCount(count, newMessages);
+            _lastShownCount = count;
         }
 
         /// <summary>
@@ -310,8 +334,9 @@ namespace Kalendarz1.Komunikator.Services
         /// </summary>
         public void Refresh()
         {
-            // Zresetuj flagę tymczasowego ukrycia - wiadomości zostały przeczytane
+            // Zresetuj flagi - wiadomości zostały przeczytane
             _temporarilyHidden = false;
+            _lastShownCount = 0;
             CheckForNewMessages();
         }
 

@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using Kalendarz1.Komunikator.Services;
 
 namespace Kalendarz1.Komunikator.Views
@@ -25,12 +26,18 @@ namespace Kalendarz1.Komunikator.Views
     }
 
     /// <summary>
-    /// Dymek powiadomienia o nowych wiadomościach w prawym dolnym rogu
+    /// Kompaktowy dymek powiadomienia o nowych wiadomościach
+    /// Pojawia się w prawym dolnym rogu, rozszerza się na hover
+    /// Auto-ukrywa się po 8 sekundach
     /// </summary>
     public partial class ChatBubbleNotification : Window
     {
-        private bool _isHovered;
+        private const int AUTO_HIDE_SECONDS = 8;
+
+        private bool _isExpanded;
+        private bool _isMouseOver;
         private int _currentCount;
+        private DispatcherTimer _autoHideTimer;
         private ObservableCollection<BubbleSenderInfo> _senders;
 
         public event EventHandler BubbleClicked;
@@ -38,10 +45,16 @@ namespace Kalendarz1.Komunikator.Views
         public ChatBubbleNotification()
         {
             InitializeComponent();
-            WindowIconHelper.SetIcon(this);
 
             _senders = new ObservableCollection<BubbleSenderInfo>();
             SendersPanel.ItemsSource = _senders;
+
+            // Timer auto-ukrywania
+            _autoHideTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(AUTO_HIDE_SECONDS)
+            };
+            _autoHideTimer.Tick += AutoHideTimer_Tick;
 
             PositionInBottomRight();
         }
@@ -49,10 +62,10 @@ namespace Kalendarz1.Komunikator.Views
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             // Animacja wejścia
-            var fadeIn = FindResource("FadeIn") as Storyboard;
-            fadeIn?.Begin(this);
+            var slideIn = FindResource("SlideIn") as Storyboard;
+            slideIn?.Begin(this);
 
-            // Odtwórz dźwięk
+            // Subtelny dźwięk (opcjonalnie)
             try
             {
                 System.Media.SystemSounds.Asterisk.Play();
@@ -60,23 +73,31 @@ namespace Kalendarz1.Komunikator.Views
             catch { }
 
             // Pulsuj badge
-            var pulse = FindResource("PulseBadge") as Storyboard;
-            pulse?.Begin(this);
+            PulseBadge();
+
+            // Uruchom timer auto-ukrywania
+            _autoHideTimer.Start();
         }
 
         /// <summary>
-        /// Pozycjonuje okno w prawym dolnym rogu ekranu
+        /// Pozycjonuje okno w prawym dolnym rogu
         /// </summary>
         private void PositionInBottomRight()
         {
             var workArea = SystemParameters.WorkArea;
-            Left = workArea.Right - Width - 10;
-            Top = workArea.Bottom - ActualHeight - 10;
 
-            // Zaktualizuj pozycję po załadowaniu gdy znamy rzeczywistą wysokość
+            // Wymusza layout aby poznać rzeczywiste rozmiary
+            this.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            this.Arrange(new Rect(0, 0, DesiredSize.Width, DesiredSize.Height));
+
+            Left = workArea.Right - ActualWidth - 8;
+            Top = workArea.Bottom - ActualHeight - 8;
+
+            // Aktualizuj pozycję przy zmianie rozmiaru
             this.SizeChanged += (s, e) =>
             {
-                Top = workArea.Bottom - ActualHeight - 10;
+                Left = workArea.Right - ActualWidth - 8;
+                Top = workArea.Bottom - ActualHeight - 8;
             };
         }
 
@@ -88,15 +109,19 @@ namespace Kalendarz1.Komunikator.Views
             _currentCount = count;
             CountBadge.Text = count > 99 ? "99+" : count.ToString();
 
-            // Aktualizuj podtytuł
+            // Tytuł
             if (count == 1)
-                SubtitleText.Text = "Masz 1 nieprzeczytaną wiadomość";
-            else if (count < 5)
-                SubtitleText.Text = $"Masz {count} nieprzeczytane wiadomości";
+            {
+                TitleText.Text = "Nowa wiadomość";
+                SubtitleText.Text = "Kliknij aby przeczytać";
+            }
             else
-                SubtitleText.Text = $"Masz {count} nieprzeczytanych wiadomości";
+            {
+                TitleText.Text = $"{count} nowych wiadomości";
+                SubtitleText.Text = "Kliknij aby otworzyć";
+            }
 
-            // Zaktualizuj listę nadawców jeśli są nowe wiadomości
+            // Zaktualizuj listę nadawców
             if (newMessages != null && newMessages.Count > 0)
             {
                 _senders.Clear();
@@ -106,38 +131,150 @@ namespace Kalendarz1.Komunikator.Views
                     {
                         SenderId = msg.SenderId,
                         SenderName = msg.SenderName,
-                        Preview = msg.Content?.Length > 40
-                            ? msg.Content.Substring(0, 40) + "..."
-                            : msg.Content,
+                        Preview = TruncateText(msg.Content, 35),
                         Avatar = LoadAvatar(msg.SenderId, msg.SenderName)
                     };
                     _senders.Add(info);
-
-                    if (_senders.Count >= 3) break; // Max 3 nadawców
+                    if (_senders.Count >= 3) break;
                 }
 
-                SendersPanel.Visibility = _senders.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-
-                // Pulsuj badge przy nowych wiadomościach
-                var pulse = FindResource("PulseBadge") as Storyboard;
-                pulse?.Begin(this);
-
-                // Dźwięk
-                try
-                {
-                    System.Media.SystemSounds.Asterisk.Play();
-                }
-                catch { }
+                // Pulsuj badge i reset timer
+                PulseBadge();
+                ResetAutoHideTimer();
             }
 
-            // Zaktualizuj pozycję
-            var workArea = SystemParameters.WorkArea;
-            Top = workArea.Bottom - ActualHeight - 10;
+            // Aktualizuj pozycję
+            PositionInBottomRight();
         }
 
-        /// <summary>
-        /// Ładuje avatar użytkownika
-        /// </summary>
+        private string TruncateText(string text, int maxLength)
+        {
+            if (string.IsNullOrEmpty(text)) return "";
+            return text.Length > maxLength ? text.Substring(0, maxLength) + "..." : text;
+        }
+
+        private void PulseBadge()
+        {
+            var pulse = FindResource("PulseBadge") as Storyboard;
+            pulse?.Begin(this);
+        }
+
+        #region Mouse Events
+
+        private void Window_MouseEnter(object sender, MouseEventArgs e)
+        {
+            _isMouseOver = true;
+            _autoHideTimer.Stop(); // Zatrzymaj auto-ukrywanie gdy hover
+
+            // Pokaż przycisk zamknij
+            CloseBtn.BeginAnimation(OpacityProperty,
+                new DoubleAnimation(1, TimeSpan.FromMilliseconds(150)));
+
+            // Rozwiń jeśli są nadawcy do pokazania
+            if (_senders.Count > 0 && !_isExpanded)
+            {
+                Expand();
+            }
+        }
+
+        private void Window_MouseLeave(object sender, MouseEventArgs e)
+        {
+            _isMouseOver = false;
+
+            // Ukryj przycisk zamknij
+            CloseBtn.BeginAnimation(OpacityProperty,
+                new DoubleAnimation(0, TimeSpan.FromMilliseconds(150)));
+
+            // Zwiń po chwili
+            if (_isExpanded)
+            {
+                Collapse();
+            }
+
+            // Wznów timer auto-ukrywania
+            ResetAutoHideTimer();
+        }
+
+        private void MainBorder_Click(object sender, MouseButtonEventArgs e)
+        {
+            BubbleClicked?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void CloseButton_Click(object sender, RoutedEventArgs e)
+        {
+            e.Handled = true; // Nie propaguj do MainBorder
+            CloseWithAnimation();
+        }
+
+        #endregion
+
+        #region Expand/Collapse
+
+        private void Expand()
+        {
+            if (_isExpanded) return;
+            _isExpanded = true;
+
+            var expand = FindResource("Expand") as Storyboard;
+            expand?.Begin(this);
+        }
+
+        private void Collapse()
+        {
+            if (!_isExpanded) return;
+            _isExpanded = false;
+
+            var collapse = FindResource("Collapse") as Storyboard;
+            collapse?.Begin(this);
+        }
+
+        #endregion
+
+        #region Auto-hide
+
+        private void ResetAutoHideTimer()
+        {
+            _autoHideTimer.Stop();
+            if (!_isMouseOver)
+            {
+                _autoHideTimer.Start();
+            }
+        }
+
+        private void AutoHideTimer_Tick(object sender, EventArgs e)
+        {
+            _autoHideTimer.Stop();
+            if (!_isMouseOver)
+            {
+                CloseWithAnimation();
+            }
+        }
+
+        #endregion
+
+        #region Close
+
+        private void CloseWithAnimation()
+        {
+            _autoHideTimer.Stop();
+
+            var slideOut = FindResource("SlideOut") as Storyboard;
+            if (slideOut != null)
+            {
+                var clone = slideOut.Clone();
+                clone.Completed += (s, e) => Close();
+                clone.Begin(this);
+            }
+            else
+            {
+                Close();
+            }
+        }
+
+        #endregion
+
+        #region Avatar Helper
+
         private BitmapSource LoadAvatar(string userId, string userName)
         {
             try
@@ -164,44 +301,6 @@ namespace Kalendarz1.Komunikator.Views
                 return null;
             }
         }
-
-        private void MainBorder_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-        {
-            BubbleClicked?.Invoke(this, EventArgs.Empty);
-        }
-
-        private void MainBorder_MouseEnter(object sender, MouseEventArgs e)
-        {
-            _isHovered = true;
-            MainBorder.BorderThickness = new Thickness(3);
-        }
-
-        private void MainBorder_MouseLeave(object sender, MouseEventArgs e)
-        {
-            _isHovered = false;
-            MainBorder.BorderThickness = new Thickness(2);
-        }
-
-        private void CloseButton_Click(object sender, RoutedEventArgs e)
-        {
-            CloseWithAnimation();
-        }
-
-        private void CloseWithAnimation()
-        {
-            var fadeOut = FindResource("FadeOut") as Storyboard;
-            if (fadeOut != null)
-            {
-                fadeOut.Completed += (s, e) => Close();
-                fadeOut.Begin(this);
-            }
-            else
-            {
-                Close();
-            }
-        }
-
-        #region Helpers
 
         [DllImport("gdi32.dll")]
         private static extern bool DeleteObject(IntPtr hObject);
