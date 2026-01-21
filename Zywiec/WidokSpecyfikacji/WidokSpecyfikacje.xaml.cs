@@ -1433,10 +1433,16 @@ namespace Kalendarz1
                                     fc.ZdjecieTaraPath, fc.ZdjecieBruttoPath,
                                     fc.PartiaGuid,
                                     COALESCE(fc.PartiaNumber, CONCAT(pd.CustomerID, pd.Partia)) AS PartiaNumber,
-                                    d.Name AS DriverName
+                                    d.Name AS DriverName,
+                                    cust.ShortName AS DostawcaName,
+                                    custReal.ShortName AS RealDostawcaName,
+                                    pt.Name AS PriceTypeName
                                     FROM [LibraNet].[dbo].[FarmerCalc] fc
                                     LEFT JOIN [LibraNet].[dbo].[Driver] d ON fc.DriverGID = d.GID
                                     LEFT JOIN [LibraNet].[dbo].[PartiaDostawca] pd ON fc.PartiaGuid = pd.guid
+                                    LEFT JOIN [LibraNet].[dbo].[Dostawcy] cust ON fc.CustomerGID = cust.ID
+                                    LEFT JOIN [LibraNet].[dbo].[Dostawcy] custReal ON fc.CustomerRealGID = custReal.ID
+                                    LEFT JOIN [LibraNet].[dbo].[PriceType] pt ON fc.PriceTypeID = pt.ID
                                     WHERE fc.CalcDate = @SelectedDate
                                     ORDER BY fc.CarLP";
 
@@ -1465,9 +1471,9 @@ namespace Kalendarz1
                                 Number = ZapytaniaSQL.GetValueOrDefault<int>(row, "Number", 0),
                                 YearNumber = ZapytaniaSQL.GetValueOrDefault<int>(row, "YearNumber", 0),
                                 DostawcaGID = customerGID,
-                                Dostawca = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerGID, "ShortName"),
-                                RealDostawca = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(
-                                    ZapytaniaSQL.GetValueOrDefault<string>(row, "CustomerRealGID", "-1"), "ShortName"),
+                                // Użyj danych z JOIN zamiast osobnych zapytań (optymalizacja)
+                                Dostawca = ZapytaniaSQL.GetValueOrDefault<string>(row, "DostawcaName", "")?.Trim() ?? "",
+                                RealDostawca = ZapytaniaSQL.GetValueOrDefault<string>(row, "RealDostawcaName", "")?.Trim() ?? "",
                                 SztukiDek = ZapytaniaSQL.GetValueOrDefault<int>(row, "DeclI1", 0),
                                 Padle = ZapytaniaSQL.GetValueOrDefault<int>(row, "DeclI2", 0),
                                 CH = ZapytaniaSQL.GetValueOrDefault<int>(row, "DeclI3", 0),
@@ -1486,8 +1492,8 @@ namespace Kalendarz1
                                 KilogramyWybijak = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "ProdWgt", 0),
                                 Cena = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "Price", 0),
                                 Dodatek = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "Addition", 0),
-                                TypCeny = zapytaniasql.ZnajdzNazweCenyPoID(
-                                    ZapytaniaSQL.GetValueOrDefault<int>(row, "PriceTypeID", -1)),
+                                // Użyj danych z JOIN zamiast osobnego zapytania (optymalizacja)
+                                TypCeny = ZapytaniaSQL.GetValueOrDefault<string>(row, "PriceTypeName", "")?.Trim() ?? "",
                                 PiK = row["IncDeadConf"] != DBNull.Value && Convert.ToBoolean(row["IncDeadConf"]),
                                 Ubytek = Math.Round(ZapytaniaSQL.GetValueOrDefault<decimal>(row, "Loss", 0) * 100, 2),
                                 // Nowe pola
@@ -1516,8 +1522,8 @@ namespace Kalendarz1
                                 ZdjecieBruttoPath = dataTable.Columns.Contains("ZdjecieBruttoPath") ? ZapytaniaSQL.GetValueOrDefault<string>(row, "ZdjecieBruttoPath", null)?.Trim() : null,
                                 // PayWgt z bazy - kolumna "Do zapł." z PDF
                                 PayWgt = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "PayWgt", 0),
-                                // Odbiorca (Customer) - pobierz nazwę z CustomerRealGID
-                                Odbiorca = GetCustomerName(ZapytaniaSQL.GetValueOrDefault<string>(row, "CustomerRealGID", "-1")?.Trim()),
+                                // Odbiorca (Customer) - użyj RealDostawcaName z JOIN (optymalizacja)
+                                Odbiorca = ZapytaniaSQL.GetValueOrDefault<string>(row, "RealDostawcaName", "")?.Trim() ?? "-",
                                 // Partia drobiu - obsluga Guid jako UNIQUEIDENTIFIER lub VARCHAR
                                 PartiaGuid = GetPartiaGuidFromRow(dataTable, row),
                                 PartiaNumber = dataTable.Columns.Contains("PartiaNumber") ? ZapytaniaSQL.GetValueOrDefault<string>(row, "PartiaNumber", null)?.Trim() : null
@@ -14317,6 +14323,21 @@ public class HarmonogramRow : INotifyPropertyChanged
     {
         get => _uwagi;
         set { _uwagi = value; OnPropertyChanged(nameof(Uwagi)); }
+    }
+
+    // Właściwości wymagane przez DataGrid RowStyle (unikanie błędów binding)
+    private bool _isHighlighted;
+    public bool IsHighlighted
+    {
+        get => _isHighlighted;
+        set { _isHighlighted = value; OnPropertyChanged(nameof(IsHighlighted)); }
+    }
+
+    private bool _isFirstInGroup;
+    public bool IsFirstInGroup
+    {
+        get => _isFirstInGroup;
+        set { _isFirstInGroup = value; OnPropertyChanged(nameof(IsFirstInGroup)); }
     }
 
     public event PropertyChangedEventHandler PropertyChanged;
