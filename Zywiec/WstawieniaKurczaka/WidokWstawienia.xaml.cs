@@ -1452,7 +1452,7 @@ namespace Kalendarz1
             var userTemplateColumn = new DataGridTemplateColumn
             {
                 Header = "User",
-                Width = 40
+                Width = 55
             };
 
             var userTemplate = new DataTemplate();
@@ -1514,7 +1514,7 @@ namespace Kalendarz1
             {
                 Header = "Notatka",
                 Binding = new System.Windows.Data.Binding("Reason"),
-                Width = new DataGridLength(2.0, DataGridLengthUnitType.Star)
+                Width = new DataGridLength(1.5, DataGridLengthUnitType.Star)
             });
 
             dataGridHistoria.Columns.Add(new DataGridTextColumn
@@ -1524,7 +1524,7 @@ namespace Kalendarz1
                 {
                     StringFormat = "MM-dd HH:mm"
                 },
-                Width = 75
+                Width = 95
             });
 
             // Menu kontekstowe dla historii kontaktów
@@ -1556,6 +1556,79 @@ namespace Kalendarz1
                 {
                     LoadAvatarForHistoriaRow(e.Row, userId);
                 }
+
+                // Utwórz tooltip z pełnymi szczegółami
+                var hodowca = rowView["Dostawca"]?.ToString() ?? "-";
+                var userName = rowView["UserName"]?.ToString() ?? "-";
+                var snoozedUntil = rowView["SnoozedUntil"];
+                var reason = rowView["Reason"]?.ToString() ?? "-";
+                var createdAt = rowView["CreatedAt"];
+
+                var snoozedUntilStr = snoozedUntil != DBNull.Value && snoozedUntil != null
+                    ? ((DateTime)snoozedUntil).ToString("dd.MM.yyyy")
+                    : "-";
+                var createdAtStr = createdAt != DBNull.Value && createdAt != null
+                    ? ((DateTime)createdAt).ToString("dd.MM.yyyy HH:mm:ss")
+                    : "-";
+
+                // Utwórz sformatowany tooltip
+                var tooltipContent = new StackPanel { Margin = new Thickness(5) };
+
+                // Hodowca
+                var hodowcaPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+                hodowcaPanel.Children.Add(new TextBlock { Text = "🐔 Hodowca: ", FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(92, 138, 58)) });
+                hodowcaPanel.Children.Add(new TextBlock { Text = hodowca, Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)) });
+                tooltipContent.Children.Add(hodowcaPanel);
+
+                // User
+                var userPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+                userPanel.Children.Add(new TextBlock { Text = "👤 Użytkownik: ", FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(52, 152, 219)) });
+                userPanel.Children.Add(new TextBlock { Text = userName, Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)) });
+                tooltipContent.Children.Add(userPanel);
+
+                // Separator
+                tooltipContent.Children.Add(new Separator { Margin = new Thickness(0, 4, 0, 4) });
+
+                // Przesunięcie do
+                var snoozedPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+                snoozedPanel.Children.Add(new TextBlock { Text = "📅 Przesunięcie do: ", FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(243, 156, 18)) });
+                snoozedPanel.Children.Add(new TextBlock { Text = snoozedUntilStr, Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)) });
+                tooltipContent.Children.Add(snoozedPanel);
+
+                // Dodano
+                var createdPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+                createdPanel.Children.Add(new TextBlock { Text = "🕐 Dodano: ", FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(155, 89, 182)) });
+                createdPanel.Children.Add(new TextBlock { Text = createdAtStr, Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)) });
+                tooltipContent.Children.Add(createdPanel);
+
+                // Separator
+                tooltipContent.Children.Add(new Separator { Margin = new Thickness(0, 4, 0, 4) });
+
+                // Notatka - pełna treść
+                var notatkaTitlePanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+                notatkaTitlePanel.Children.Add(new TextBlock { Text = "📝 Notatka:", FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(231, 76, 60)) });
+                tooltipContent.Children.Add(notatkaTitlePanel);
+
+                var notatkaText = new TextBlock
+                {
+                    Text = reason,
+                    Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                    TextWrapping = TextWrapping.Wrap,
+                    MaxWidth = 350,
+                    Margin = new Thickness(5, 2, 0, 0)
+                };
+                tooltipContent.Children.Add(notatkaText);
+
+                var tooltip = new ToolTip
+                {
+                    Content = tooltipContent,
+                    Background = new SolidColorBrush(Colors.White),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(155, 89, 182)),
+                    BorderThickness = new Thickness(2),
+                    Padding = new Thickness(8)
+                };
+
+                e.Row.ToolTip = tooltip;
             }
         }
 
