@@ -114,12 +114,12 @@ namespace Kalendarz1
                         SELECT
                             HD.LpW,
                             HD.DataOdbioru,
-                            ISNULL(HD.Auta, 0) as Auta,
-                            ISNULL(HD.SztukiDek, 0) as SztukiDek,
-                            ISNULL(HD.WagaDek, 0) as WagaDek,
-                            ISNULL(HD.Cena, 0) as Cena,
-                            ISNULL(HD.typCeny, '-') as TypCeny,
-                            ISNULL(HD.bufor, '') as Bufor,
+                            HD.Auta,
+                            HD.SztukiDek,
+                            HD.WagaDek,
+                            HD.Cena,
+                            HD.typCeny,
+                            HD.bufor,
                             WK.DataWstawienia
                         FROM dbo.HarmonogramDostaw HD
                         LEFT JOIN dbo.WstawieniaKurczakow WK ON HD.LpW = WK.Lp
@@ -130,24 +130,33 @@ namespace Kalendarz1
                     {
                         while (reader.Read())
                         {
-                            int lpW = reader.GetInt32(0);
+                            // LpW może być int lub string - konwertuj do int
+                            var lpWValue = reader[0];
+                            if (lpWValue == DBNull.Value) continue;
+
+                            int lpW;
+                            if (lpWValue is int intVal)
+                                lpW = intVal;
+                            else if (!int.TryParse(lpWValue.ToString(), out lpW))
+                                continue;
+
                             if (!_deliveryCache.ContainsKey(lpW))
                                 _deliveryCache[lpW] = new List<DeliveryInfo>();
 
-                            var dataOdbioru = reader.IsDBNull(1) ? DateTime.MinValue : reader.GetDateTime(1);
-                            var dataWstawienia = reader.IsDBNull(8) ? DateTime.MinValue : reader.GetDateTime(8);
+                            var dataOdbioru = reader[1] != DBNull.Value ? Convert.ToDateTime(reader[1]) : DateTime.MinValue;
+                            var dataWstawienia = reader[8] != DBNull.Value ? Convert.ToDateTime(reader[8]) : DateTime.MinValue;
                             int roznicaDni = dataOdbioru != DateTime.MinValue && dataWstawienia != DateTime.MinValue
                                 ? (dataOdbioru - dataWstawienia).Days : 0;
 
                             _deliveryCache[lpW].Add(new DeliveryInfo
                             {
                                 DataOdbioru = dataOdbioru,
-                                Auta = reader.GetInt32(2),
-                                SztukiDek = reader.GetInt32(3),
-                                WagaDek = reader.GetDecimal(4),
-                                Cena = reader.GetDecimal(5),
-                                TypCeny = reader.GetString(6),
-                                Bufor = reader.GetString(7),
+                                Auta = reader[2] != DBNull.Value ? Convert.ToInt32(reader[2]) : 0,
+                                SztukiDek = reader[3] != DBNull.Value ? Convert.ToInt32(reader[3]) : 0,
+                                WagaDek = reader[4] != DBNull.Value ? Convert.ToDecimal(reader[4]) : 0,
+                                Cena = reader[5] != DBNull.Value ? Convert.ToDecimal(reader[5]) : 0,
+                                TypCeny = reader[6] != DBNull.Value ? reader[6].ToString() : "-",
+                                Bufor = reader[7] != DBNull.Value ? reader[7].ToString() : "",
                                 RoznicaDni = roznicaDni
                             });
                         }
