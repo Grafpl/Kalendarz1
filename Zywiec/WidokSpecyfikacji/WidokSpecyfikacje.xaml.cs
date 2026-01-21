@@ -13487,6 +13487,11 @@ public class SpecyfikacjaRow : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// ID użytkownika który wprowadził (do ładowania avatara)
+    /// </summary>
+    public string ZatwierdzoneByUserID { get; set; }
+
+    /// <summary>
     /// Czy wiersz został zweryfikowany
     /// </summary>
     public bool Zweryfikowany
@@ -13510,6 +13515,11 @@ public class SpecyfikacjaRow : INotifyPropertyChanged
         get => _zweryfikowanePrzez;
         set { _zweryfikowanePrzez = value; OnPropertyChanged(nameof(ZweryfikowanePrzez)); }
     }
+
+    /// <summary>
+    /// ID użytkownika który zweryfikował (do ładowania avatara)
+    /// </summary>
+    public string ZweryfikowaneByUserID { get; set; }
 
     /// <summary>
     /// Czy wiersz jest wprowadzony (zatwierdzony) - blokuje edycję
