@@ -53,8 +53,11 @@ namespace Kalendarz1
         // Aktualnie otwarty tooltip - tylko jeden naraz
         private ToolTip _currentOpenTooltip = null;
 
-        // Timer do automatycznego zamknięcia tooltipa po 10 sekundach
+        // Timer do automatycznego zamknięcia tooltipa po 6 sekundach
         private System.Windows.Threading.DispatcherTimer _tooltipCloseTimer = null;
+
+        // Flaga do blokowania ponownego otwarcia tooltipa zaraz po zamknięciu
+        private DateTime _tooltipCloseTime = DateTime.MinValue;
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -199,6 +202,8 @@ namespace Kalendarz1
                 _currentOpenTooltip.IsOpen = false;
                 StopTooltipTimer();
                 _currentOpenTooltip = null;
+                // Zapamiętaj czas zamknięcia, żeby nie otworzyć od razu ponownie
+                _tooltipCloseTime = DateTime.Now;
             }
         }
 
@@ -1435,9 +1440,16 @@ namespace Kalendarz1
                     ToolTipService.SetIsEnabled(e.Row, false);
                     ToolTipService.SetShowDuration(e.Row, 15000);
 
-                    // Kliknięcie na wiersz pokazuje tooltip z timerem 10s
+                    // Kliknięcie na wiersz pokazuje tooltip z timerem 6s
+                    // Ale tylko jeśli tooltip nie został właśnie zamknięty (w tym samym kliknięciu)
                     e.Row.MouseLeftButtonUp += (rowSender, rowArgs) =>
                     {
+                        // Nie otwieraj tooltipa jeśli został zamknięty mniej niż 200ms temu
+                        if ((DateTime.Now - _tooltipCloseTime).TotalMilliseconds < 200)
+                        {
+                            return;
+                        }
+
                         if (e.Row.ToolTip is ToolTip tt)
                         {
                             ShowTooltipWithTimer(tt);
@@ -2062,9 +2074,16 @@ namespace Kalendarz1
                 ToolTipService.SetIsEnabled(e.Row, false);
                 ToolTipService.SetShowDuration(e.Row, 15000);
 
-                // Kliknięcie na wiersz pokazuje tooltip z timerem 10s
+                // Kliknięcie na wiersz pokazuje tooltip z timerem 6s
+                // Ale tylko jeśli tooltip nie został właśnie zamknięty (w tym samym kliknięciu)
                 e.Row.MouseLeftButtonUp += (rowSender, rowArgs) =>
                 {
+                    // Nie otwieraj tooltipa jeśli został zamknięty mniej niż 200ms temu
+                    if ((DateTime.Now - _tooltipCloseTime).TotalMilliseconds < 200)
+                    {
+                        return;
+                    }
+
                     if (e.Row.ToolTip is ToolTip tt)
                     {
                         ShowTooltipWithTimer(tt);
