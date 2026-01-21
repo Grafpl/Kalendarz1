@@ -4534,7 +4534,46 @@
                                 </DataGridTextColumn>
 
                                 <!-- Checkboxy statusów -->
+                                <!-- Mapowanie dostawcy do Symfonii -->
+                                <DataGridTemplateColumn Header="Zmap." Width="45" ToolTipService.ToolTip="Dostawca zmapowany do kontrahenta Symfonia">
+                                    <DataGridTemplateColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader">
+                                            <Setter Property="Background" Value="#E1BEE7"/>
+                                            <Setter Property="Foreground" Value="#7B1FA2"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                            <Setter Property="Padding" Value="5,3"/>
+                                        </Style>
+                                    </DataGridTemplateColumn.HeaderStyle>
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding IsZmapowany, Mode=OneWay}"
+                                                      IsEnabled="False" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                      ToolTip="{Binding IdSymf, StringFormat='ID Symfonia: {0}'}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                                 <DataGridCheckBoxColumn Header="Symf" Binding="{Binding Symfonia}" Width="45" ToolTipService.ToolTip="Przeniesione do Symfonii"/>
+                                <!-- Numer faktury (FVR/FVZ) -->
+                                <DataGridTextColumn Header="Nr Fakt." Binding="{Binding NrFaktury}" Width="85" ToolTipService.ToolTip="Numer faktury (FVR/FVZ)">
+                                    <DataGridTextColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader">
+                                            <Setter Property="Background" Value="#B3E5FC"/>
+                                            <Setter Property="Foreground" Value="#0277BD"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                            <Setter Property="Padding" Value="5,3"/>
+                                        </Style>
+                                    </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="FontSize" Value="10"/>
+                                            <Setter Property="Foreground" Value="#0277BD"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
                                 <DataGridCheckBoxColumn Header="ARiMR" Binding="{Binding ARIMR}" Width="50"/>
                                 <!-- Status wprowadzenia (1. kontrola) -->
                                 <DataGridTemplateColumn Header="Wprowadzenie" Width="90">

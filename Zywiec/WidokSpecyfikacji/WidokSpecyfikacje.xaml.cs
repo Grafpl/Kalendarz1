@@ -8512,7 +8512,8 @@ namespace Kalendarz1
                             pt.Name as TypCeny,
                             ISNULL(fc.TerminDni, 0) as TerminDni,
                             ISNULL(fc.NettoWeight, 0) * (ISNULL(fc.Price, 0) + ISNULL(fc.Addition, 0)) as Wartosc,
-                            ISNULL(fc.Symfonia, 0) as Symfonia
+                            ISNULL(fc.Symfonia, 0) as Symfonia,
+                            ISNULL(k.IdSymf, 0) as IdSymf
                         FROM dbo.FarmerCalc fc
                         LEFT JOIN dbo.Dostawcy k ON fc.CustomerGID = k.ID
                         LEFT JOIN dbo.PriceType pt ON fc.PriceTypeID = pt.ID
@@ -8540,7 +8541,9 @@ namespace Kalendarz1
                                     TypCeny = reader.IsDBNull(reader.GetOrdinal("TypCeny")) ? "" : reader["TypCeny"].ToString(),
                                     TerminDni = reader.IsDBNull(reader.GetOrdinal("TerminDni")) ? 0 : Convert.ToInt32(reader["TerminDni"]),
                                     Wartosc = reader.IsDBNull(reader.GetOrdinal("Wartosc")) ? 0 : Convert.ToDecimal(reader["Wartosc"]),
-                                    Symfonia = !reader.IsDBNull(reader.GetOrdinal("Symfonia")) && Convert.ToBoolean(reader["Symfonia"])
+                                    Symfonia = !reader.IsDBNull(reader.GetOrdinal("Symfonia")) && Convert.ToBoolean(reader["Symfonia"]),
+                                    IdSymf = reader.IsDBNull(reader.GetOrdinal("IdSymf")) ? 0 : Convert.ToInt32(reader["IdSymf"]),
+                                    NrFaktury = "" // TODO: Dodać właściwe źródło numeru faktury (FVR/FVZ)
                                 });
                             }
                         }
@@ -14440,6 +14443,22 @@ public class RozliczenieRow : INotifyPropertyChanged
     public string TypCeny { get; set; }
     public int TerminDni { get; set; }
     public decimal Wartosc { get; set; }
+
+    // === MAPOWANIE DOSTAWCY ===
+    /// <summary>
+    /// ID kontrahenta w Symfonii (z tabeli Dostawcy.IdSymf)
+    /// </summary>
+    public int IdSymf { get; set; }
+
+    /// <summary>
+    /// Czy dostawca jest zmapowany do kontrahenta Symfonia (IdSymf > 0)
+    /// </summary>
+    public bool IsZmapowany => IdSymf > 0;
+
+    /// <summary>
+    /// Numer faktury (FVR lub FVZ) jeśli dostawa ma przypisaną fakturę
+    /// </summary>
+    public string NrFaktury { get; set; }
 
     private bool _symfonia;
     public bool Symfonia
