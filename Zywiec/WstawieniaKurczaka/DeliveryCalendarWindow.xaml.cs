@@ -12,25 +12,38 @@ using Microsoft.Data.SqlClient;
 namespace Kalendarz1
 {
     /// <summary>
-    /// Calendar window for viewing and managing deliveries with drag & drop support
+    /// Calendar window for viewing deliveries grouped by week like Dostawy Żywca view
+    /// Shows only weeks that have deliveries
     /// </summary>
     public partial class DeliveryCalendarWindow : Window
     {
         private readonly string _connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
-        private DateTime _currentMonth;
+        private DateTime _startDate;
         private Dictionary<DateTime, List<DeliveryCalendarItem>> _deliveriesByDate = new();
-        private const int MAX_DAILY_CAPACITY = 80000; // Maximum 80,000 pieces per day
-
-        // Drag & Drop state
-        private DeliveryCalendarItem _draggedDelivery = null;
-        private Border _draggedElement = null;
+        private List<WeekData> _weeksWithDeliveries = new();
+        private int _currentWeekIndex = 0;
+        private const int MAX_DAILY_CAPACITY = 80000;
+        private static readonly CultureInfo _polishCulture = new CultureInfo("pl-PL");
 
         public DeliveryCalendarWindow()
         {
             InitializeComponent();
-            _currentMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+            _startDate = GetStartOfWeek(DateTime.Today);
             LoadDeliveries();
-            RenderCalendar();
+            FindWeeksWithDeliveries();
+            ScrollToCurrentWeek();
+            RenderWeekView();
+        }
+
+        private DateTime GetStartOfWeek(DateTime date)
+        {
+            int diff = ((int)date.DayOfWeek + 6) % 7;
+            return date.AddDays(-diff).Date;
+        }
+
+        private int GetWeekOfYear(DateTime date)
+        {
+            return _polishCulture.Calendar.GetWeekOfYear(date, CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
         }
 
         private void LoadDeliveries()
@@ -42,7 +55,6 @@ namespace Kalendarz1
                 using var connection = new SqlConnection(_connectionString);
                 connection.Open();
 
-                // Load all confirmed deliveries
                 const string query = @"
                     SELECT
                         h.LP,
@@ -51,12 +63,16 @@ namespace Kalendarz1
                         ISNULL(h.SztukiDek, 0) AS SztukiDek,
                         ISNULL(h.WagaDek, 0) AS WagaDek,
                         ISNULL(h.Auta, 0) AS Auta,
-                        h.Bufor
+                        h.Bufor,
+                        h.TypCeny,
+                        ISNULL(h.Cena, 0) AS Cena,
+                        h.Uwagi
                     FROM [LibraNet].[dbo].[HarmonogramDostaw] h
                     WHERE h.DataOdbioru IS NOT NULL
                       AND h.DataOdbioru >= DATEADD(MONTH, -3, GETDATE())
                       AND h.DataOdbioru <= DATEADD(MONTH, 6, GETDATE())
-                    ORDER BY h.DataOdbioru";
+                      AND (h.Bufor IS NULL OR h.Bufor NOT IN ('Anulowany', 'Sprzedany'))
+                    ORDER BY h.DataOdbioru, h.Dostawca";
 
                 using var cmd = new SqlCommand(query, connection);
                 using var reader = cmd.ExecuteReader();
@@ -71,7 +87,10 @@ namespace Kalendarz1
                         SztukiDek = Convert.ToInt32(reader.GetValue(3)),
                         WagaDek = Convert.ToDecimal(reader.GetValue(4)),
                         Auta = Convert.ToInt32(reader.GetValue(5)),
-                        Bufor = reader.IsDBNull(6) ? "" : reader.GetString(6)
+                        Bufor = reader.IsDBNull(6) ? "" : reader.GetString(6),
+                        TypCeny = reader.IsDBNull(7) ? "" : reader.GetString(7),
+                        Cena = Convert.ToDecimal(reader.GetValue(8)),
+                        Uwagi = reader.IsDBNull(9) ? "" : reader.GetString(9)
                     };
 
                     var date = delivery.DataOdbioru.Date;
@@ -88,310 +107,427 @@ namespace Kalendarz1
             }
         }
 
-        private void RenderCalendar()
+        private void FindWeeksWithDeliveries()
         {
-            calendarGrid.Children.Clear();
+            _weeksWithDeliveries.Clear();
 
-            // Get first day of month and calculate start of calendar grid
-            var firstDayOfMonth = new DateTime(_currentMonth.Year, _currentMonth.Month, 1);
-            var daysInMonth = DateTime.DaysInMonth(_currentMonth.Year, _currentMonth.Month);
+            if (!_deliveriesByDate.Any()) return;
 
-            // Calculate which day of week the month starts on (Monday = 0)
-            int startDayOfWeek = ((int)firstDayOfMonth.DayOfWeek + 6) % 7;
+            var minDate = _deliveriesByDate.Keys.Min();
+            var maxDate = _deliveriesByDate.Keys.Max();
 
-            // Update header
-            txtCurrentMonth.Text = _currentMonth.ToString("MMMM yyyy", new CultureInfo("pl-PL"));
-
-            // Calculate total for month
-            int monthTotal = 0;
-            for (int day = 1; day <= daysInMonth; day++)
+            var weekStart = GetStartOfWeek(minDate);
+            while (weekStart <= maxDate)
             {
-                var date = new DateTime(_currentMonth.Year, _currentMonth.Month, day);
-                if (_deliveriesByDate.TryGetValue(date, out var dayDeliveries))
+                var weekEnd = weekStart.AddDays(6);
+                var weekDeliveries = _deliveriesByDate
+                    .Where(kvp => kvp.Key >= weekStart && kvp.Key <= weekEnd)
+                    .SelectMany(kvp => kvp.Value)
+                    .ToList();
+
+                if (weekDeliveries.Any())
                 {
-                    monthTotal += dayDeliveries.Sum(d => d.SztukiDek);
+                    _weeksWithDeliveries.Add(new WeekData
+                    {
+                        WeekStart = weekStart,
+                        WeekEnd = weekEnd,
+                        WeekNumber = GetWeekOfYear(weekStart),
+                        TotalSztuki = weekDeliveries.Sum(d => d.SztukiDek),
+                        TotalAuta = weekDeliveries.Sum(d => d.Auta),
+                        TotalWaga = weekDeliveries.Sum(d => d.WagaDek),
+                        DeliveriesByDay = _deliveriesByDate
+                            .Where(kvp => kvp.Key >= weekStart && kvp.Key <= weekEnd)
+                            .OrderBy(kvp => kvp.Key)
+                            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value)
+                    });
+                }
+
+                weekStart = weekStart.AddDays(7);
+            }
+        }
+
+        private void ScrollToCurrentWeek()
+        {
+            var currentWeekStart = GetStartOfWeek(DateTime.Today);
+            _currentWeekIndex = _weeksWithDeliveries.FindIndex(w => w.WeekStart >= currentWeekStart);
+            if (_currentWeekIndex < 0) _currentWeekIndex = 0;
+            if (_currentWeekIndex > 0) _currentWeekIndex--; // Show previous week on left
+        }
+
+        private void RenderWeekView()
+        {
+            panelLeftWeeks.Children.Clear();
+            panelRightWeeks.Children.Clear();
+
+            if (!_weeksWithDeliveries.Any())
+            {
+                txtDateRange.Text = "Brak dostaw";
+                txtTotalSummary.Text = "";
+                txtLeftPanelHeader.Text = "Brak danych";
+                txtRightPanelHeader.Text = "Brak danych";
+                return;
+            }
+
+            // Ensure index is valid
+            _currentWeekIndex = Math.Max(0, Math.Min(_currentWeekIndex, _weeksWithDeliveries.Count - 1));
+
+            // Get weeks to display
+            var leftWeek = _weeksWithDeliveries.ElementAtOrDefault(_currentWeekIndex);
+            var rightWeek = _weeksWithDeliveries.ElementAtOrDefault(_currentWeekIndex + 1);
+
+            // Calculate total for displayed weeks
+            var displayedWeeks = new[] { leftWeek, rightWeek }.Where(w => w != null).ToList();
+            var totalSztuki = displayedWeeks.Sum(w => w.TotalSztuki);
+            var totalAuta = displayedWeeks.Sum(w => w.TotalAuta);
+
+            // Update headers
+            if (leftWeek != null && rightWeek != null)
+            {
+                txtDateRange.Text = $"tyg.{leftWeek.WeekNumber}-{rightWeek.WeekNumber} ({leftWeek.WeekStart:dd.MM} - {rightWeek.WeekEnd:dd.MM})";
+            }
+            else if (leftWeek != null)
+            {
+                txtDateRange.Text = $"tyg.{leftWeek.WeekNumber} ({leftWeek.WeekStart:dd.MM} - {leftWeek.WeekEnd:dd.MM})";
+            }
+
+            txtTotalSummary.Text = $"Suma: {totalSztuki:# ##0} szt. | {totalAuta} aut";
+
+            // Render left panel
+            if (leftWeek != null)
+            {
+                txtLeftPanelHeader.Text = $"tyg.{leftWeek.WeekNumber} ({leftWeek.WeekStart:dd.MM}-{leftWeek.WeekEnd:dd.MM})";
+                RenderWeekToPanel(leftWeek, panelLeftWeeks);
+            }
+            else
+            {
+                txtLeftPanelHeader.Text = "Brak danych";
+            }
+
+            // Render right panel
+            if (rightWeek != null)
+            {
+                txtRightPanelHeader.Text = $"tyg.{rightWeek.WeekNumber} ({rightWeek.WeekStart:dd.MM}-{rightWeek.WeekEnd:dd.MM})";
+                RenderWeekToPanel(rightWeek, panelRightWeeks);
+            }
+            else
+            {
+                txtRightPanelHeader.Text = "Brak danych";
+            }
+        }
+
+        private void RenderWeekToPanel(WeekData week, StackPanel panel)
+        {
+            foreach (var dayEntry in week.DeliveriesByDay.OrderBy(d => d.Key))
+            {
+                var date = dayEntry.Key;
+                var deliveries = dayEntry.Value;
+
+                // Create day header
+                var dayHeader = CreateDayHeader(date, deliveries);
+                panel.Children.Add(dayHeader);
+
+                // Add delivery rows
+                foreach (var delivery in deliveries.OrderByDescending(d => d.SztukiDek))
+                {
+                    var deliveryRow = CreateDeliveryRow(delivery);
+                    panel.Children.Add(deliveryRow);
                 }
             }
-            txtMonthTotal.Text = $"Suma: {monthTotal:# ##0} szt.";
-
-            // Add empty cells for days before month starts
-            for (int i = 0; i < startDayOfWeek; i++)
-            {
-                var emptyCell = CreateEmptyDayCell();
-                calendarGrid.Children.Add(emptyCell);
-            }
-
-            // Add cells for each day of month
-            for (int day = 1; day <= daysInMonth; day++)
-            {
-                var date = new DateTime(_currentMonth.Year, _currentMonth.Month, day);
-                var dayCell = CreateDayCell(date);
-                calendarGrid.Children.Add(dayCell);
-            }
-
-            // Add empty cells to complete the grid (ensure full rows)
-            int totalCells = startDayOfWeek + daysInMonth;
-            int remainingCells = (7 - (totalCells % 7)) % 7;
-            for (int i = 0; i < remainingCells; i++)
-            {
-                var emptyCell = CreateEmptyDayCell();
-                calendarGrid.Children.Add(emptyCell);
-            }
         }
 
-        private Border CreateEmptyDayCell()
+        private Border CreateDayHeader(DateTime date, List<DeliveryCalendarItem> deliveries)
         {
-            return new Border
-            {
-                Background = new SolidColorBrush(Color.FromRgb(245, 245, 245)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(224, 224, 224)),
-                BorderThickness = new Thickness(1),
-                Margin = new Thickness(1),
-                MinHeight = 100
-            };
-        }
+            var totalSztuki = deliveries.Sum(d => d.SztukiDek);
+            var totalWaga = deliveries.Sum(d => d.WagaDek);
+            var totalAuta = deliveries.Sum(d => d.Auta);
+            var avgWaga = deliveries.Any() ? deliveries.Average(d => (double)d.WagaDek) : 0;
+            var capacityPercent = (double)totalSztuki / MAX_DAILY_CAPACITY * 100;
 
-        private Border CreateDayCell(DateTime date)
-        {
-            var deliveries = _deliveriesByDate.TryGetValue(date, out var list) ? list : new List<DeliveryCalendarItem>();
-            var totalSzt = deliveries.Sum(d => d.SztukiDek);
-            var capacityPercent = (double)totalSzt / MAX_DAILY_CAPACITY * 100;
+            var isToday = date.Date == DateTime.Today;
+            var dayName = date.ToString("ddd", _polishCulture).ToLower().TrimEnd('.');
+            var dayLabel = $"{dayName}.{date:dd.MM}";
 
             // Determine background color based on capacity
             Color bgColor;
-            if (capacityPercent >= 100)
-                bgColor = Color.FromRgb(255, 205, 210); // Red - overfilled
-            else if (capacityPercent >= 80)
-                bgColor = Color.FromRgb(255, 224, 178); // Orange - near capacity
+            if (capacityPercent >= 80)
+                bgColor = Color.FromRgb(239, 68, 68); // Red
             else if (capacityPercent >= 50)
-                bgColor = Color.FromRgb(255, 243, 224); // Light orange
-            else if (totalSzt > 0)
-                bgColor = Color.FromRgb(232, 245, 233); // Light green
+                bgColor = Color.FromRgb(251, 191, 36); // Yellow/Orange
             else
-                bgColor = Colors.White;
+                bgColor = Color.FromRgb(34, 197, 94); // Green
 
-            // Check if today
-            bool isToday = date.Date == DateTime.Today;
-            var borderColor = isToday ? Color.FromRgb(92, 138, 58) : Color.FromRgb(224, 224, 224);
-            var borderThickness = isToday ? 3 : 1;
+            if (isToday)
+                bgColor = Color.FromRgb(59, 130, 246); // Blue for today
 
-            var cell = new Border
+            var header = new Border
             {
                 Background = new SolidColorBrush(bgColor),
-                BorderBrush = new SolidColorBrush(borderColor),
-                BorderThickness = new Thickness(borderThickness),
-                Margin = new Thickness(1),
-                MinHeight = 100,
-                AllowDrop = true,
-                Tag = date
+                Padding = new Thickness(6, 4, 6, 4),
+                Margin = new Thickness(0, 2, 0, 0)
             };
 
-            // Setup drag & drop events
-            cell.DragEnter += DayCell_DragEnter;
-            cell.DragLeave += DayCell_DragLeave;
-            cell.Drop += DayCell_Drop;
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(75) }); // Day
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(35) }); // Count
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) }); // Sztuki
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(45) }); // Waga
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(45) }); // Ub (placeholder)
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Auta
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Anulowane info
 
-            var content = new StackPanel { Margin = new Thickness(4) };
-
-            // Day number header
-            var headerGrid = new Grid();
-            var dayNumber = new TextBlock
+            // Day label
+            var dayText = new TextBlock
             {
-                Text = date.Day.ToString(),
-                FontWeight = isToday ? FontWeights.Bold : FontWeights.SemiBold,
-                FontSize = isToday ? 16 : 14,
-                Foreground = new SolidColorBrush(isToday ? Color.FromRgb(92, 138, 58) : Color.FromRgb(44, 62, 80))
+                Text = dayLabel,
+                FontWeight = FontWeights.Bold,
+                FontSize = 11,
+                Foreground = Brushes.White,
+                VerticalAlignment = VerticalAlignment.Center
             };
-            headerGrid.Children.Add(dayNumber);
+            Grid.SetColumn(dayText, 0);
+            grid.Children.Add(dayText);
 
-            // Capacity indicator
-            if (totalSzt > 0)
+            // Delivery count
+            var countText = new TextBlock
             {
-                var capacityText = new TextBlock
-                {
-                    Text = $"{totalSzt:# ##0} szt.",
-                    FontSize = 10,
-                    FontWeight = capacityPercent >= 80 ? FontWeights.Bold : FontWeights.Normal,
-                    Foreground = new SolidColorBrush(
-                        capacityPercent >= 100 ? Color.FromRgb(198, 40, 40) :
-                        capacityPercent >= 80 ? Color.FromRgb(239, 108, 0) :
-                        Color.FromRgb(46, 125, 50)),
-                    HorizontalAlignment = HorizontalAlignment.Right
-                };
-                headerGrid.Children.Add(capacityText);
-            }
-
-            content.Children.Add(headerGrid);
-
-            // Capacity bar
-            if (totalSzt > 0)
-            {
-                var progressBg = new Border
-                {
-                    Background = new SolidColorBrush(Color.FromRgb(224, 224, 224)),
-                    Height = 4,
-                    CornerRadius = new CornerRadius(2),
-                    Margin = new Thickness(0, 2, 0, 4)
-                };
-                var progressFg = new Border
-                {
-                    Background = new SolidColorBrush(
-                        capacityPercent >= 100 ? Color.FromRgb(198, 40, 40) :
-                        capacityPercent >= 80 ? Color.FromRgb(239, 108, 0) :
-                        Color.FromRgb(92, 138, 58)),
-                    Height = 4,
-                    CornerRadius = new CornerRadius(2),
-                    HorizontalAlignment = HorizontalAlignment.Left,
-                    Width = Math.Min(capacityPercent, 100) * 0.9 // Scale to cell width
-                };
-                var progressGrid = new Grid { Margin = new Thickness(0, 2, 0, 4) };
-                progressGrid.Children.Add(progressBg);
-                progressGrid.Children.Add(progressFg);
-                content.Children.Add(progressGrid);
-            }
-
-            // Deliveries list (scrollable)
-            var deliveriesPanel = new ScrollViewer
-            {
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                MaxHeight = 80
+                Text = deliveries.Count.ToString(),
+                FontWeight = FontWeights.Bold,
+                FontSize = 11,
+                Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
             };
-            var deliveriesList = new StackPanel();
+            Grid.SetColumn(countText, 1);
+            grid.Children.Add(countText);
 
-            // Show up to 5 deliveries, then show count
-            var sortedDeliveries = deliveries.OrderByDescending(d => d.SztukiDek).ToList();
-            int shown = 0;
-            foreach (var delivery in sortedDeliveries.Take(5))
+            // Total sztuki
+            var sztukiText = new TextBlock
             {
-                var deliveryItem = CreateDeliveryItem(delivery);
-                deliveriesList.Children.Add(deliveryItem);
-                shown++;
-            }
+                Text = totalSztuki.ToString("# ##0"),
+                FontWeight = FontWeights.Bold,
+                FontSize = 11,
+                Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(sztukiText, 2);
+            grid.Children.Add(sztukiText);
 
-            if (sortedDeliveries.Count > 5)
+            // Average weight
+            var wagaText = new TextBlock
             {
-                var moreText = new TextBlock
-                {
-                    Text = $"... +{sortedDeliveries.Count - 5} więcej",
-                    FontSize = 9,
-                    FontStyle = FontStyles.Italic,
-                    Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)),
-                    Margin = new Thickness(4, 2, 0, 0)
-                };
-                deliveriesList.Children.Add(moreText);
-            }
+                Text = avgWaga.ToString("0.00"),
+                FontWeight = FontWeights.Bold,
+                FontSize = 11,
+                Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(wagaText, 3);
+            grid.Children.Add(wagaText);
 
-            deliveriesPanel.Content = deliveriesList;
-            content.Children.Add(deliveriesPanel);
+            // Total auta
+            var autaText = new TextBlock
+            {
+                Text = totalAuta.ToString(),
+                FontWeight = FontWeights.Bold,
+                FontSize = 11,
+                Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(autaText, 5);
+            grid.Children.Add(autaText);
 
-            cell.Child = content;
-            return cell;
+            header.Child = grid;
+            return header;
         }
 
-        private Border CreateDeliveryItem(DeliveryCalendarItem delivery)
+        private Border CreateDeliveryRow(DeliveryCalendarItem delivery)
         {
-            // Color based on status
-            Color bgColor;
-            if (delivery.Bufor == "Potwierdzony")
-                bgColor = Color.FromRgb(227, 242, 253); // Blue for confirmed
-            else if (delivery.Bufor == "Planowany")
-                bgColor = Color.FromRgb(255, 243, 224); // Orange for planned
-            else
-                bgColor = Color.FromRgb(245, 245, 245); // Gray for others
+            var isConfirmed = delivery.Bufor == "Potwierdzony";
+            var isPlanned = delivery.Bufor == "Planowany" || string.IsNullOrEmpty(delivery.Bufor);
 
-            var item = new Border
+            Color bgColor = Colors.White;
+            if (isConfirmed)
+                bgColor = Color.FromRgb(236, 253, 245); // Light green for confirmed
+
+            var row = new Border
             {
                 Background = new SolidColorBrush(bgColor),
-                CornerRadius = new CornerRadius(4),
-                Padding = new Thickness(4, 2, 4, 2),
-                Margin = new Thickness(0, 1, 0, 1),
-                Cursor = Cursors.Hand,
-                Tag = delivery
+                BorderBrush = new SolidColorBrush(Color.FromRgb(229, 231, 235)),
+                BorderThickness = new Thickness(0, 0, 0, 1),
+                Padding = new Thickness(6, 3, 6, 3),
+                Cursor = Cursors.Hand
             };
 
-            var content = new StackPanel();
+            // Hover effect
+            row.MouseEnter += (s, e) => row.Background = new SolidColorBrush(Color.FromRgb(243, 244, 246));
+            row.MouseLeave += (s, e) => row.Background = new SolidColorBrush(bgColor);
 
-            var nameText = new TextBlock
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(75) }); // Dostawca
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(35) }); // Auta
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) }); // Sztuki
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(45) }); // Waga
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(45) }); // TypCeny
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) }); // Cena
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Uwagi
+
+            // Dostawca name (truncated)
+            var dostawcaText = new TextBlock
             {
-                Text = TruncateString(delivery.Dostawca, 15),
+                Text = TruncateString(delivery.Dostawca, 12),
+                FontSize = 10,
+                Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81)),
+                VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = delivery.Dostawca
+            };
+            Grid.SetColumn(dostawcaText, 0);
+            grid.Children.Add(dostawcaText);
+
+            // Auta
+            var autaText = new TextBlock
+            {
+                Text = delivery.Auta.ToString(),
                 FontSize = 10,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80))
+                Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81)),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
             };
+            Grid.SetColumn(autaText, 1);
+            grid.Children.Add(autaText);
 
-            var detailsText = new TextBlock
+            // Sztuki
+            var sztukiText = new TextBlock
             {
-                Text = $"{delivery.SztukiDek:# ##0} szt. | {delivery.Auta} aut",
+                Text = delivery.SztukiDek.ToString("# ##0"),
+                FontSize = 10,
+                Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81)),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(sztukiText, 2);
+            grid.Children.Add(sztukiText);
+
+            // Waga
+            var wagaText = new TextBlock
+            {
+                Text = delivery.WagaDek.ToString("0.00"),
+                FontSize = 10,
+                Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81)),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(wagaText, 3);
+            grid.Children.Add(wagaText);
+
+            // TypCeny with background color
+            var typCenyBg = GetTypCenyBackground(delivery.TypCeny);
+            var typCenyBorder = new Border
+            {
+                Background = new SolidColorBrush(typCenyBg),
+                CornerRadius = new CornerRadius(2),
+                Padding = new Thickness(2, 0, 2, 0),
+                Margin = new Thickness(2, 0, 2, 0),
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+            var typCenyText = new TextBlock
+            {
+                Text = GetTypCenyShort(delivery.TypCeny),
                 FontSize = 9,
-                Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141))
+                Foreground = GetTypCenyForeground(delivery.TypCeny),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
             };
+            typCenyBorder.Child = typCenyText;
+            Grid.SetColumn(typCenyBorder, 4);
+            grid.Children.Add(typCenyBorder);
 
-            content.Children.Add(nameText);
-            content.Children.Add(detailsText);
-            item.Child = content;
-
-            // Drag start
-            item.MouseLeftButtonDown += (s, e) =>
+            // Cena
+            var cenaText = new TextBlock
             {
-                _draggedDelivery = delivery;
-                _draggedElement = item;
-                DragDrop.DoDragDrop(item, delivery, DragDropEffects.Move);
+                Text = delivery.Cena > 0 ? delivery.Cena.ToString("0.00") : "",
+                FontSize = 10,
+                Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81)),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center
             };
+            Grid.SetColumn(cenaText, 5);
+            grid.Children.Add(cenaText);
 
-            // Tooltip
-            item.ToolTip = new ToolTip
+            // Uwagi with icon
+            if (!string.IsNullOrEmpty(delivery.Uwagi))
             {
-                Content = CreateDeliveryTooltip(delivery),
-                Background = Brushes.White,
-                BorderBrush = new SolidColorBrush(Color.FromRgb(92, 138, 58)),
-                BorderThickness = new Thickness(2),
-                Padding = new Thickness(8)
+                var uwagiPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(4, 0, 0, 0) };
+                var uwagiIcon = new TextBlock
+                {
+                    Text = "💬",
+                    FontSize = 10,
+                    Margin = new Thickness(0, 0, 3, 0),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                var uwagiText = new TextBlock
+                {
+                    Text = TruncateString(delivery.Uwagi, 25),
+                    FontSize = 9,
+                    Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    ToolTip = delivery.Uwagi
+                };
+                uwagiPanel.Children.Add(uwagiIcon);
+                uwagiPanel.Children.Add(uwagiText);
+                Grid.SetColumn(uwagiPanel, 6);
+                grid.Children.Add(uwagiPanel);
+            }
+
+            row.Child = grid;
+
+            // Double-click to edit (future feature)
+            row.MouseDoubleClick += (s, e) =>
+            {
+                MessageBox.Show($"LP: {delivery.LP}\nDostawca: {delivery.Dostawca}\nData: {delivery.DataOdbioru:dd.MM.yyyy}\nSztuki: {delivery.SztukiDek}\nWaga: {delivery.WagaDek:0.00}\nStatus: {delivery.Bufor}",
+                    "Szczegóły dostawy", MessageBoxButton.OK, MessageBoxImage.Information);
             };
 
-            return item;
+            return row;
         }
 
-        private StackPanel CreateDeliveryTooltip(DeliveryCalendarItem delivery)
+        private Color GetTypCenyBackground(string typCeny)
         {
-            var tooltip = new StackPanel { MinWidth = 200 };
-
-            tooltip.Children.Add(new TextBlock
+            return typCeny?.ToLower() switch
             {
-                Text = delivery.Dostawca,
-                FontWeight = FontWeights.Bold,
-                FontSize = 13,
-                Foreground = new SolidColorBrush(Color.FromRgb(92, 138, 58)),
-                Margin = new Thickness(0, 0, 0, 5)
-            });
-
-            tooltip.Children.Add(new Separator { Margin = new Thickness(0, 2, 0, 5) });
-
-            AddTooltipRow(tooltip, "Data:", delivery.DataOdbioru.ToString("dd.MM.yyyy (dddd)", new CultureInfo("pl-PL")));
-            AddTooltipRow(tooltip, "Sztuki:", $"{delivery.SztukiDek:# ##0} szt.");
-            AddTooltipRow(tooltip, "Waga:", $"{delivery.WagaDek:# ##0.00} kg");
-            AddTooltipRow(tooltip, "Auta:", delivery.Auta.ToString());
-            AddTooltipRow(tooltip, "Status:", delivery.Bufor);
-            AddTooltipRow(tooltip, "LP:", delivery.LP.ToString());
-
-            return tooltip;
+                "wolny" => Color.FromRgb(255, 245, 157), // Yellow
+                "rolniczy" => Color.FromRgb(46, 125, 50), // Green
+                "mini" => Color.FromRgb(25, 118, 210), // Blue
+                "laczony" => Color.FromRgb(123, 31, 162), // Purple
+                _ => Colors.Transparent
+            };
         }
 
-        private void AddTooltipRow(StackPanel parent, string label, string value)
+        private Brush GetTypCenyForeground(string typCeny)
         {
-            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 1, 0, 1) };
-            row.Children.Add(new TextBlock
+            return typCeny?.ToLower() switch
             {
-                Text = label,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)),
-                Width = 60
-            });
-            row.Children.Add(new TextBlock
+                "wolny" => Brushes.Black,
+                "rolniczy" => Brushes.White,
+                "mini" => Brushes.White,
+                "laczony" => Brushes.White,
+                _ => Brushes.Black
+            };
+        }
+
+        private string GetTypCenyShort(string typCeny)
+        {
+            return typCeny?.ToLower() switch
             {
-                Text = value,
-                Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80))
-            });
-            parent.Children.Add(row);
+                "wolny" => "wol.",
+                "rolniczy" => "rol.",
+                "mini" => "mini.",
+                "laczony" => "łącz.",
+                _ => typCeny ?? ""
+            };
         }
 
         private string TruncateString(string text, int maxLength)
@@ -400,117 +536,31 @@ namespace Kalendarz1
             return text.Length <= maxLength ? text : text.Substring(0, maxLength) + "...";
         }
 
-        #region Drag & Drop
-
-        private void DayCell_DragEnter(object sender, DragEventArgs e)
-        {
-            if (sender is Border cell)
-            {
-                cell.BorderBrush = new SolidColorBrush(Color.FromRgb(92, 138, 58));
-                cell.BorderThickness = new Thickness(3);
-            }
-        }
-
-        private void DayCell_DragLeave(object sender, DragEventArgs e)
-        {
-            if (sender is Border cell)
-            {
-                var date = (DateTime)cell.Tag;
-                bool isToday = date.Date == DateTime.Today;
-                cell.BorderBrush = new SolidColorBrush(isToday ? Color.FromRgb(92, 138, 58) : Color.FromRgb(224, 224, 224));
-                cell.BorderThickness = new Thickness(isToday ? 3 : 1);
-            }
-        }
-
-        private void DayCell_Drop(object sender, DragEventArgs e)
-        {
-            if (sender is Border cell && _draggedDelivery != null)
-            {
-                var newDate = (DateTime)cell.Tag;
-                var oldDate = _draggedDelivery.DataOdbioru.Date;
-
-                if (newDate != oldDate)
-                {
-                    // Confirm move
-                    var result = MessageBox.Show(
-                        $"Czy przenieść dostawę od '{_draggedDelivery.Dostawca}'\n" +
-                        $"z dnia {oldDate:dd.MM.yyyy} na {newDate:dd.MM.yyyy}?",
-                        "Potwierdzenie przeniesienia",
-                        MessageBoxButton.YesNo,
-                        MessageBoxImage.Question);
-
-                    if (result == MessageBoxResult.Yes)
-                    {
-                        // Update in database
-                        if (UpdateDeliveryDate(_draggedDelivery.LP, newDate))
-                        {
-                            // Update local data
-                            if (_deliveriesByDate.TryGetValue(oldDate, out var oldList))
-                            {
-                                oldList.Remove(_draggedDelivery);
-                            }
-
-                            _draggedDelivery.DataOdbioru = newDate;
-
-                            if (!_deliveriesByDate.ContainsKey(newDate))
-                                _deliveriesByDate[newDate] = new List<DeliveryCalendarItem>();
-
-                            _deliveriesByDate[newDate].Add(_draggedDelivery);
-
-                            // Refresh calendar
-                            RenderCalendar();
-                        }
-                    }
-                }
-
-                _draggedDelivery = null;
-                _draggedElement = null;
-            }
-        }
-
-        private bool UpdateDeliveryDate(int lp, DateTime newDate)
-        {
-            try
-            {
-                using var connection = new SqlConnection(_connectionString);
-                connection.Open();
-
-                const string sql = "UPDATE [LibraNet].[dbo].[HarmonogramDostaw] SET DataOdbioru = @newDate WHERE LP = @lp";
-                using var cmd = new SqlCommand(sql, connection);
-                cmd.Parameters.AddWithValue("@newDate", newDate);
-                cmd.Parameters.AddWithValue("@lp", lp);
-
-                int affected = cmd.ExecuteNonQuery();
-                return affected == 1;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd aktualizacji daty: {ex.Message}", "Błąd",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-                return false;
-            }
-        }
-
-        #endregion
-
         #region Navigation
 
-        private void BtnPrevMonth_Click(object sender, RoutedEventArgs e)
+        private void BtnPrevWeeks_Click(object sender, RoutedEventArgs e)
         {
-            _currentMonth = _currentMonth.AddMonths(-1);
-            RenderCalendar();
+            if (_currentWeekIndex > 0)
+            {
+                _currentWeekIndex -= 2;
+                if (_currentWeekIndex < 0) _currentWeekIndex = 0;
+                RenderWeekView();
+            }
         }
 
-        private void BtnNextMonth_Click(object sender, RoutedEventArgs e)
+        private void BtnNextWeeks_Click(object sender, RoutedEventArgs e)
         {
-            _currentMonth = _currentMonth.AddMonths(1);
-            RenderCalendar();
+            if (_currentWeekIndex + 2 < _weeksWithDeliveries.Count)
+            {
+                _currentWeekIndex += 2;
+                RenderWeekView();
+            }
         }
 
         private void BtnToday_Click(object sender, RoutedEventArgs e)
         {
-            _currentMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
-            RenderCalendar();
+            ScrollToCurrentWeek();
+            RenderWeekView();
         }
 
         private void BtnClose_Click(object sender, RoutedEventArgs e)
@@ -519,6 +569,20 @@ namespace Kalendarz1
         }
 
         #endregion
+    }
+
+    /// <summary>
+    /// Represents delivery data for a week
+    /// </summary>
+    public class WeekData
+    {
+        public DateTime WeekStart { get; set; }
+        public DateTime WeekEnd { get; set; }
+        public int WeekNumber { get; set; }
+        public int TotalSztuki { get; set; }
+        public int TotalAuta { get; set; }
+        public decimal TotalWaga { get; set; }
+        public Dictionary<DateTime, List<DeliveryCalendarItem>> DeliveriesByDay { get; set; } = new();
     }
 
     /// <summary>
@@ -533,5 +597,8 @@ namespace Kalendarz1
         public decimal WagaDek { get; set; }
         public int Auta { get; set; }
         public string Bufor { get; set; }
+        public string TypCeny { get; set; }
+        public decimal Cena { get; set; }
+        public string Uwagi { get; set; }
     }
 }

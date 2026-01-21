@@ -8,12 +8,17 @@
         FontFamily="Segoe UI">
 
     <Window.Resources>
-        <Style x:Key="DayCellStyle" TargetType="Border">
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="BorderBrush" Value="#E0E0E0"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Margin" Value="1"/>
-            <Setter Property="MinHeight" Value="100"/>
+        <!-- Style for week header -->
+        <Style x:Key="WeekHeaderStyle" TargetType="Border">
+            <Setter Property="Background" Value="#1565C0"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Margin" Value="0,5,0,0"/>
+        </Style>
+
+        <!-- Style for day header -->
+        <Style x:Key="DayHeaderStyle" TargetType="Border">
+            <Setter Property="Padding" Value="6,3"/>
+            <Setter Property="Margin" Value="0,0,0,0"/>
         </Style>
 
         <Style x:Key="HeaderButton" TargetType="Button">
@@ -67,12 +72,30 @@
             </Setter>
         </Style>
 
-        <Style x:Key="DeliveryItem" TargetType="Border">
-            <Setter Property="Background" Value="#E3F2FD"/>
-            <Setter Property="CornerRadius" Value="4"/>
-            <Setter Property="Padding" Value="4,2"/>
-            <Setter Property="Margin" Value="2,1"/>
-            <Setter Property="Cursor" Value="Hand"/>
+        <!-- DataGrid styles -->
+        <Style x:Key="DeliveryDataGridStyle" TargetType="DataGrid">
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="CanUserDeleteRows" Value="False"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="SelectionMode" Value="Single"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#E0E0E0"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="RowHeight" Value="24"/>
+        </Style>
+
+        <Style x:Key="DataGridHeaderStyle" TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#F5F5F5"/>
+            <Setter Property="Foreground" Value="#374151"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="BorderBrush" Value="#E0E0E0"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
         </Style>
     </Window.Resources>
 
@@ -88,7 +111,7 @@
         <Border Grid.Row="0" Background="#5C8A3A" Padding="20,15">
             <Grid>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
-                    <TextBlock Text="📦 Kalendarz Dostaw" FontSize="22" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                    <TextBlock Text="Kalendarz Dostaw" FontSize="22" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Content="Dzisiaj" Style="{StaticResource HeaderButton}" Click="BtnToday_Click" Margin="0,0,10,0"/>
@@ -97,7 +120,7 @@
             </Grid>
         </Border>
 
-        <!-- Month Navigation -->
+        <!-- Navigation / Date Range -->
         <Border Grid.Row="1" Background="White" Padding="10">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -106,48 +129,69 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <Button Grid.Column="0" Content="◀" Style="{StaticResource NavButton}" Click="BtnPrevMonth_Click"/>
+                <Button Grid.Column="0" Content="Poprzednie" Style="{StaticResource NavButton}" Click="BtnPrevWeeks_Click" Width="100"/>
 
                 <StackPanel Grid.Column="1" HorizontalAlignment="Center" Orientation="Horizontal">
-                    <TextBlock x:Name="txtCurrentMonth" Text="Styczeń 2025" FontSize="24" FontWeight="Bold"
+                    <TextBlock x:Name="txtDateRange" Text="tyg. 1-8 (01.01 - 25.02)" FontSize="18" FontWeight="Bold"
                                Foreground="#2C3E50" VerticalAlignment="Center"/>
                     <Border Background="#FFF3E0" CornerRadius="6" Padding="10,5" Margin="20,0,0,0" VerticalAlignment="Center">
-                        <TextBlock x:Name="txtMonthTotal" Text="Suma: 0 szt." FontSize="12" FontWeight="SemiBold" Foreground="#EF6C00"/>
+                        <TextBlock x:Name="txtTotalSummary" Text="Suma: 0 szt. | 0 aut" FontSize="12" FontWeight="SemiBold" Foreground="#EF6C00"/>
                     </Border>
                 </StackPanel>
 
-                <Button Grid.Column="2" Content="▶" Style="{StaticResource NavButton}" Click="BtnNextMonth_Click"/>
+                <Button Grid.Column="2" Content="Nastepne" Style="{StaticResource NavButton}" Click="BtnNextWeeks_Click" Width="100"/>
             </Grid>
         </Border>
 
-        <!-- Calendar Grid -->
-        <Border Grid.Row="2" Margin="10" Background="White" CornerRadius="8" Padding="10">
-            <Border.Effect>
-                <DropShadowEffect ShadowDepth="0" Color="#000000" Opacity="0.1" BlurRadius="15"/>
-            </Border.Effect>
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
+        <!-- Main Content - Split into two columns like Dostawy Zywca -->
+        <Grid Grid.Row="2" Margin="5">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
 
-                <!-- Days of Week Header -->
-                <UniformGrid Grid.Row="0" Columns="7" Margin="0,0,0,5">
-                    <TextBlock Text="Poniedziałek" FontWeight="Bold" FontSize="12" Foreground="#5C8A3A" HorizontalAlignment="Center" Padding="5"/>
-                    <TextBlock Text="Wtorek" FontWeight="Bold" FontSize="12" Foreground="#5C8A3A" HorizontalAlignment="Center" Padding="5"/>
-                    <TextBlock Text="Środa" FontWeight="Bold" FontSize="12" Foreground="#5C8A3A" HorizontalAlignment="Center" Padding="5"/>
-                    <TextBlock Text="Czwartek" FontWeight="Bold" FontSize="12" Foreground="#5C8A3A" HorizontalAlignment="Center" Padding="5"/>
-                    <TextBlock Text="Piątek" FontWeight="Bold" FontSize="12" Foreground="#5C8A3A" HorizontalAlignment="Center" Padding="5"/>
-                    <TextBlock Text="Sobota" FontWeight="Bold" FontSize="12" Foreground="#7F8C8D" HorizontalAlignment="Center" Padding="5"/>
-                    <TextBlock Text="Niedziela" FontWeight="Bold" FontSize="12" Foreground="#E74C3C" HorizontalAlignment="Center" Padding="5"/>
-                </UniformGrid>
+            <!-- Left Panel - First set of weeks -->
+            <Border Grid.Column="0" Margin="3" Background="White" CornerRadius="4" BorderBrush="#5C8A3A" BorderThickness="2">
+                <Border.Effect>
+                    <DropShadowEffect ShadowDepth="0" Color="#000000" Opacity="0.1" BlurRadius="10"/>
+                </Border.Effect>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
 
-                <!-- Calendar Days -->
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                    <UniformGrid x:Name="calendarGrid" Columns="7"/>
-                </ScrollViewer>
-            </Grid>
-        </Border>
+                    <Border Grid.Row="0" Background="#5C8A3A" Padding="10,6">
+                        <TextBlock x:Name="txtLeftPanelHeader" Text="tyg.4 (19.01-25.01)" FontWeight="Bold" FontSize="12" Foreground="White"/>
+                    </Border>
+
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="panelLeftWeeks"/>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+            <!-- Right Panel - Second set of weeks -->
+            <Border Grid.Column="1" Margin="3" Background="White" CornerRadius="4" BorderBrush="#3498DB" BorderThickness="2">
+                <Border.Effect>
+                    <DropShadowEffect ShadowDepth="0" Color="#000000" Opacity="0.1" BlurRadius="10"/>
+                </Border.Effect>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="#3498DB" Padding="10,6">
+                        <TextBlock x:Name="txtRightPanelHeader" Text="tyg.5 (26.01-01.02)" FontWeight="Bold" FontSize="12" Foreground="White"/>
+                    </Border>
+
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="panelRightWeeks"/>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
 
         <!-- Legend -->
         <Border Grid.Row="3" Background="White" Padding="10">
