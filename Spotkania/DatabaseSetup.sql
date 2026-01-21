@@ -499,7 +499,8 @@ BEGIN
     WHERE n.OperatorID = @OperatorID
       AND n.CzyPrzeczytana = 0
       AND (n.DataWygasniecia IS NULL OR n.DataWygasniecia > GETDATE())
-    ORDER BY n.DataUtworzenia DESC;
+      AND (n.SpotkanieDataSpotkania IS NULL OR n.SpotkanieDataSpotkania > GETDATE())
+    ORDER BY n.SpotkanieDataSpotkania ASC;
 END;
 GO
 

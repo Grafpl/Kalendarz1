@@ -218,6 +218,9 @@ namespace Kalendarz1.Komunikator.Views
                         // Oznacz jako przeczytane
                         await _chatService.MarkMessagesAsReadAsync(_selectedUser.UserId);
 
+                        // Odśwież globalny dymek powiadomień
+                        GlobalChatManager.Refresh();
+
                         // Przewiń na dół i animuj
                         ScrollToBottom();
                         AnimateReceivedMessages(relevantMessages.Count);
@@ -384,6 +387,9 @@ namespace Kalendarz1.Komunikator.Views
             // Odśwież kontakty (aby zaktualizować badge)
             contact.UnreadCount = 0;
             UpdateTotalUnreadBadge();
+
+            // Odśwież globalny dymek powiadomień
+            GlobalChatManager.Refresh();
 
             // Skup się na polu wprowadzania
             MessageInput.Focus();

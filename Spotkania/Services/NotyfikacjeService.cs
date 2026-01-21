@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -162,7 +163,7 @@ namespace Kalendarz1.Spotkania.Services
         #region Operacje na powiadomieniach
 
         /// <summary>
-        /// Pobiera nieprzeczytane powiadomienia
+        /// Pobiera nieprzeczytane powiadomienia (tylko przyszłe spotkania)
         /// </summary>
         public async Task<List<NotyfikacjaModel>> PobierzNieprzeczytane()
         {
@@ -209,7 +210,12 @@ namespace Kalendarz1.Spotkania.Services
 
                     notyfikacja.MinutyDoSpotkania = reader.GetInt32(reader.GetOrdinal("MinutyDoSpotkania"));
 
-                    lista.Add(notyfikacja);
+                    // Filtruj - pokaż tylko przyszłe spotkania
+                    if (!notyfikacja.SpotkanieDataSpotkania.HasValue ||
+                        notyfikacja.SpotkanieDataSpotkania.Value > DateTime.Now)
+                    {
+                        lista.Add(notyfikacja);
+                    }
                 }
             }
             catch (Exception ex)
@@ -217,7 +223,8 @@ namespace Kalendarz1.Spotkania.Services
                 System.Diagnostics.Debug.WriteLine($"Błąd pobierania powiadomień: {ex.Message}");
             }
 
-            return lista;
+            // Sortuj po dacie spotkania (najbliższe najpierw)
+            return lista.OrderBy(n => n.SpotkanieDataSpotkania ?? DateTime.MaxValue).ToList();
         }
 
         /// <summary>

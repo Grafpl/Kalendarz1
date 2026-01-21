@@ -722,6 +722,9 @@ namespace Kalendarz1
                 // Uruchom serwis powiadomień o spotkaniach
                 App.StartNotyfikacjeService();
 
+                // Uruchom globalny serwis powiadomień czatu (co 30 sek)
+                App.StartChatNotificationService();
+
                 try
                 {
                     StopTimers();
@@ -741,6 +744,7 @@ namespace Kalendarz1
                     menuWindow.FormClosed += (s, args) =>
                     {
                         App.StopNotyfikacjeService(); // Zatrzymaj serwis przy zamknięciu
+                        App.StopChatNotificationService(); // Zatrzymaj powiadomienia czatu
                         Application.Current.Shutdown();
                     };
                     menuWindow.Show();
