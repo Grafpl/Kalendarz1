@@ -1157,8 +1157,8 @@ namespace Kalendarz1
                             AVG(DATEDIFF(MINUTE, Wyjazd, DojazdHodowca)) as AvgMinutes,
                             COUNT(*) as Cnt
                             FROM [LibraNet].[dbo].[FarmerCalc] fc
-                            INNER JOIN [LibraNet].[dbo].[Customer] c ON fc.CustomerRealGID = c.GID
-                            WHERE c.ShortName = @Dostawca
+                            INNER JOIN [LibraNet].[dbo].[Dostawcy] d ON fc.CustomerRealGID = d.ID
+                            WHERE d.ShortName = @Dostawca
                             AND fc.Wyjazd IS NOT NULL
                             AND fc.DojazdHodowca IS NOT NULL
                             AND fc.CalcDate >= DATEADD(DAY, -30, GETDATE())
@@ -7538,10 +7538,10 @@ namespace Kalendarz1
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
-                    string query = "SELECT ShortName FROM [LibraNet].[dbo].[Customer] WHERE GID = @GID";
+                    string query = "SELECT ShortName FROM [LibraNet].[dbo].[Dostawcy] WHERE ID = @ID";
                     using (SqlCommand cmd = new SqlCommand(query, connection))
                     {
-                        cmd.Parameters.AddWithValue("@GID", customerGID);
+                        cmd.Parameters.AddWithValue("@ID", customerGID);
                         var result = cmd.ExecuteScalar();
                         if (result != null && result != DBNull.Value)
                         {
