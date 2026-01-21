@@ -1167,6 +1167,113 @@ namespace Kalendarz1
                             catch { }
                         };
                     }
+
+                    // Tooltip z pełnymi informacjami
+                    var hodowca = row["Dostawca"]?.ToString() ?? "-";
+                    var data = row["Data"]?.ToString() ?? "-";
+                    var ilosc = row["IloscWstawienia"] != DBNull.Value ? Convert.ToInt32(row["IloscWstawienia"]).ToString("# ##0") : "-";
+                    var typUmowy = row["TypUmowy"]?.ToString() ?? "-";
+                    var typCeny = row["TypCeny"]?.ToString() ?? "-";
+                    var ktoStwo = row["KtoStwo"]?.ToString() ?? "-";
+                    var dataUtw = row["DataUtw"]?.ToString() ?? "-";
+
+                    var tooltipContent = new StackPanel { Margin = new Thickness(5) };
+
+                    // Nagłówek - Hodowca
+                    var headerPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 5) };
+                    headerPanel.Children.Add(new TextBlock { Text = "🐔 ", FontSize = 14 });
+                    headerPanel.Children.Add(new TextBlock { Text = hodowca, FontWeight = FontWeights.Bold, FontSize = 13, Foreground = new SolidColorBrush(Color.FromRgb(92, 138, 58)) });
+                    tooltipContent.Children.Add(headerPanel);
+
+                    tooltipContent.Children.Add(new Separator { Margin = new Thickness(0, 2, 0, 5) });
+
+                    // Dane podstawowe
+                    var grid = new Grid();
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(10) });
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                    void AddInfoRow(int rowIndex, string label, string value, Brush color)
+                    {
+                        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                        var labelTb = new TextBlock { Text = label, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)), Margin = new Thickness(0, 1, 0, 1) };
+                        Grid.SetRow(labelTb, rowIndex);
+                        Grid.SetColumn(labelTb, 0);
+                        grid.Children.Add(labelTb);
+
+                        var valueTb = new TextBlock { Text = value, Foreground = color, Margin = new Thickness(0, 1, 0, 1) };
+                        Grid.SetRow(valueTb, rowIndex);
+                        Grid.SetColumn(valueTb, 2);
+                        grid.Children.Add(valueTb);
+                    }
+
+                    AddInfoRow(0, "LP:", lp.ToString(), new SolidColorBrush(Color.FromRgb(44, 62, 80)));
+                    AddInfoRow(1, "Data wstawienia:", data, new SolidColorBrush(Color.FromRgb(52, 152, 219)));
+                    AddInfoRow(2, "Ilość:", ilosc, new SolidColorBrush(Color.FromRgb(46, 125, 50)));
+                    AddInfoRow(3, "Typ umowy:", typUmowy, new SolidColorBrush(Color.FromRgb(142, 68, 173)));
+                    AddInfoRow(4, "Typ ceny:", typCeny, new SolidColorBrush(Color.FromRgb(230, 126, 34)));
+                    AddInfoRow(5, "Utworzył:", ktoStwo, new SolidColorBrush(Color.FromRgb(100, 116, 139)));
+                    AddInfoRow(6, "Data utworzenia:", dataUtw, new SolidColorBrush(Color.FromRgb(149, 165, 166)));
+
+                    tooltipContent.Children.Add(grid);
+
+                    // Dostawy
+                    var deliveries = GetDeliveryDetails(lp);
+                    if (deliveries.Count > 0)
+                    {
+                        tooltipContent.Children.Add(new Separator { Margin = new Thickness(0, 5, 0, 5) });
+
+                        var deliveryHeader = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 3) };
+                        deliveryHeader.Children.Add(new TextBlock { Text = "📦 Zaplanowane dostawy:", FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(92, 138, 58)) });
+                        tooltipContent.Children.Add(deliveryHeader);
+
+                        var today = DateTime.Today;
+                        foreach (var delivery in deliveries)
+                        {
+                            var deliveryPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(10, 1, 0, 1) };
+                            var isPast = delivery.Date.Date < today;
+                            var isToday = delivery.Date.Date == today;
+
+                            var dateColor = isPast ? new SolidColorBrush(Color.FromRgb(46, 125, 50)) :
+                                           isToday ? new SolidColorBrush(Color.FromRgb(230, 126, 34)) :
+                                           new SolidColorBrush(Color.FromRgb(100, 116, 139));
+
+                            var icon = isPast ? "✓ " : isToday ? "▶ " : "○ ";
+                            deliveryPanel.Children.Add(new TextBlock { Text = icon, Foreground = dateColor, FontSize = 10 });
+                            deliveryPanel.Children.Add(new TextBlock { Text = delivery.Date.ToString("dd.MM.yyyy (ddd)"), Foreground = dateColor, FontWeight = isToday ? FontWeights.Bold : FontWeights.Normal });
+                            deliveryPanel.Children.Add(new TextBlock { Text = $"  -  {delivery.Ilosc:# ##0} szt.", Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)) });
+                            tooltipContent.Children.Add(deliveryPanel);
+                        }
+
+                        // Podsumowanie
+                        var totalDelivered = deliveries.Where(d => d.Date.Date < today).Sum(d => d.Ilosc);
+                        var totalPlanned = deliveries.Where(d => d.Date.Date >= today).Sum(d => d.Ilosc);
+                        var totalAll = deliveries.Sum(d => d.Ilosc);
+
+                        tooltipContent.Children.Add(new Separator { Margin = new Thickness(0, 3, 0, 3) });
+                        var summaryPanel = new StackPanel { Orientation = Orientation.Horizontal };
+                        summaryPanel.Children.Add(new TextBlock { Text = $"✓ Odebrano: {totalDelivered:# ##0}", Foreground = new SolidColorBrush(Color.FromRgb(46, 125, 50)), FontSize = 10, Margin = new Thickness(0, 0, 10, 0) });
+                        summaryPanel.Children.Add(new TextBlock { Text = $"○ Pozostało: {totalPlanned:# ##0}", Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)), FontSize = 10 });
+                        tooltipContent.Children.Add(summaryPanel);
+                    }
+                    else
+                    {
+                        tooltipContent.Children.Add(new Separator { Margin = new Thickness(0, 5, 0, 5) });
+                        tooltipContent.Children.Add(new TextBlock { Text = "📦 Brak zaplanowanych dostaw", FontStyle = FontStyles.Italic, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)) });
+                    }
+
+                    var tooltip = new ToolTip
+                    {
+                        Content = tooltipContent,
+                        Background = new SolidColorBrush(Colors.White),
+                        BorderBrush = new SolidColorBrush(Color.FromRgb(92, 138, 58)),
+                        BorderThickness = new Thickness(2),
+                        Padding = new Thickness(8)
+                    };
+
+                    e.Row.ToolTip = tooltip;
+                    ToolTipService.SetInitialShowDelay(e.Row, 50);
+                    ToolTipService.SetShowDuration(e.Row, 30000);
                 }
             };
         }
@@ -1302,6 +1409,40 @@ namespace Kalendarz1
                 Console.WriteLine($"Błąd sprawdzania statusu dostaw: {ex.Message}");
                 return DeliveryStatus.NoDeliveries;
             }
+        }
+
+        private List<(DateTime Date, int Ilosc)> GetDeliveryDetails(int lpWstawienia)
+        {
+            var result = new List<(DateTime Date, int Ilosc)>();
+            try
+            {
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    string query = @"
+                        SELECT DataOdbioru, ISNULL(Ilosc, 0) as Ilosc
+                        FROM dbo.HarmonogramDostaw
+                        WHERE LpW = @LP
+                        ORDER BY DataOdbioru";
+
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@LP", lpWstawienia);
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                if (!reader.IsDBNull(0))
+                                {
+                                    result.Add((reader.GetDateTime(0), reader.GetInt32(1)));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+            return result;
         }
 
         private void LoadPrzypomnienia()
@@ -1452,22 +1593,22 @@ namespace Kalendarz1
             var userTemplateColumn = new DataGridTemplateColumn
             {
                 Header = "User",
-                Width = 45
+                Width = 38
             };
 
             var userTemplate = new DataTemplate();
             var gridFactory = new FrameworkElementFactory(typeof(Grid));
-            gridFactory.SetValue(Grid.WidthProperty, 24.0);
-            gridFactory.SetValue(Grid.HeightProperty, 24.0);
+            gridFactory.SetValue(Grid.WidthProperty, 20.0);
+            gridFactory.SetValue(Grid.HeightProperty, 20.0);
             gridFactory.SetValue(Grid.HorizontalAlignmentProperty, HorizontalAlignment.Center);
             gridFactory.SetValue(Grid.VerticalAlignmentProperty, VerticalAlignment.Center);
             gridFactory.SetValue(Grid.MarginProperty, new Thickness(2));
 
             // Background border with initials
             var borderFactory = new FrameworkElementFactory(typeof(Border));
-            borderFactory.SetValue(Border.WidthProperty, 24.0);
-            borderFactory.SetValue(Border.HeightProperty, 24.0);
-            borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(12));
+            borderFactory.SetValue(Border.WidthProperty, 20.0);
+            borderFactory.SetValue(Border.HeightProperty, 20.0);
+            borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(10));
             borderFactory.SetValue(Border.BackgroundProperty, new SolidColorBrush(Color.FromRgb(99, 102, 241)));
             borderFactory.SetValue(Border.HorizontalAlignmentProperty, HorizontalAlignment.Center);
             borderFactory.SetValue(Border.VerticalAlignmentProperty, VerticalAlignment.Center);
@@ -1476,7 +1617,7 @@ namespace Kalendarz1
             initialsTextFactory.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
             initialsTextFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
             initialsTextFactory.SetValue(TextBlock.ForegroundProperty, Brushes.White);
-            initialsTextFactory.SetValue(TextBlock.FontSizeProperty, 9.0);
+            initialsTextFactory.SetValue(TextBlock.FontSizeProperty, 8.0);
             initialsTextFactory.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
             initialsTextFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("UserName")
             {
@@ -1488,8 +1629,8 @@ namespace Kalendarz1
 
             // Ellipse for photo (initially hidden, will be shown if photo loads)
             var ellipseFactory = new FrameworkElementFactory(typeof(Ellipse));
-            ellipseFactory.SetValue(Ellipse.WidthProperty, 24.0);
-            ellipseFactory.SetValue(Ellipse.HeightProperty, 24.0);
+            ellipseFactory.SetValue(Ellipse.WidthProperty, 20.0);
+            ellipseFactory.SetValue(Ellipse.HeightProperty, 20.0);
             ellipseFactory.SetValue(Ellipse.VisibilityProperty, Visibility.Collapsed);
             ellipseFactory.SetValue(Ellipse.NameProperty, "avatarEllipse");
 
@@ -1629,7 +1770,7 @@ namespace Kalendarz1
                 };
 
                 e.Row.ToolTip = tooltip;
-                ToolTipService.SetInitialShowDelay(e.Row, 100);
+                ToolTipService.SetInitialShowDelay(e.Row, 50);
                 ToolTipService.SetShowDuration(e.Row, 30000);
             }
         }
