@@ -1412,10 +1412,11 @@ namespace Kalendarz1
                     };
 
                     e.Row.ToolTip = tooltip;
-                    ToolTipService.SetInitialShowDelay(e.Row, 50);
+                    // Wyłącz automatyczne pokazywanie tooltipa przy hover
+                    ToolTipService.SetIsEnabled(e.Row, false);
                     ToolTipService.SetShowDuration(e.Row, 30000);
 
-                    // Kliknięcie na wiersz też pokazuje tooltip
+                    // Kliknięcie na wiersz pokazuje tooltip
                     e.Row.MouseLeftButtonUp += (rowSender, rowArgs) =>
                     {
                         if (e.Row.ToolTip is ToolTip tt)
@@ -1911,10 +1912,11 @@ namespace Kalendarz1
                 };
 
                 e.Row.ToolTip = tooltip;
-                ToolTipService.SetInitialShowDelay(e.Row, 50);
+                // Wyłącz automatyczne pokazywanie tooltipa przy hover
+                ToolTipService.SetIsEnabled(e.Row, false);
                 ToolTipService.SetShowDuration(e.Row, 30000);
 
-                // Kliknięcie na wiersz też pokazuje tooltip
+                // Kliknięcie na wiersz pokazuje tooltip
                 e.Row.MouseLeftButtonUp += (rowSender, rowArgs) =>
                 {
                     if (e.Row.ToolTip is ToolTip tt)
