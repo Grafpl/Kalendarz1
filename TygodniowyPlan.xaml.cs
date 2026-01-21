@@ -9,6 +9,8 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
+using System.Windows.Media.Effects;
 using Microsoft.Data.SqlClient;
 
 namespace Kalendarz1
@@ -731,6 +733,7 @@ namespace Kalendarz1
 
             decimal sumaSurowiec = daneRzeczywiste.Sum(x => x.ZywiecKg);
             int sumaSztuki = daneRzeczywiste.Sum(x => x.Sztuki);
+            int sumaAut = daneRzeczywiste.Sum(x => x.LiczbaAut);
             decimal sumaTuszkaA = daneRzeczywiste.Sum(x => x.TuszkaA);
             decimal sumaFilet = daneRzeczywiste.Sum(x => x.Filet);
             decimal sumaCwiartka = daneRzeczywiste.Sum(x => x.Cwiartka);
@@ -746,6 +749,9 @@ namespace Kalendarz1
             txtStatUbiorki.Text = $"{sumaUbiorek}";
             progressPotwierdzenie.Value = (double)procentPotwierdzenia;
 
+            // Sumy w stopce
+            txtSumaAut.Text = $"{sumaAut:N0}";
+            txtSumaSztuki.Text = $"{sumaSztuki:N0}";
             txtSumaSurowiec.Text = $"{sumaSurowiec:N0} kg";
             txtSumaTuszkaA.Text = $"{sumaTuszkaA:N0} kg";
             txtSumaFilet.Text = $"{sumaFilet:N0} kg";
@@ -854,22 +860,101 @@ namespace Kalendarz1
             {
                 if (plan.JestSuma)
                 {
+                    // Wiersz SUMA - ciemny z pulsującym pomarańczowym glow
                     e.Row.Background = new SolidColorBrush(Color.FromRgb(52, 73, 94));
                     e.Row.Foreground = Brushes.White;
                     e.Row.FontWeight = FontWeights.Bold;
+                    e.Row.FontSize = 14;
+
+                    var glowEffect = new DropShadowEffect
+                    {
+                        Color = Color.FromRgb(255, 167, 38), // Pomarańczowy
+                        BlurRadius = 15,
+                        ShadowDepth = 0,
+                        Opacity = 0.7
+                    };
+                    e.Row.Effect = glowEffect;
+
+                    // Pulsująca animacja glow dla SUMY
+                    var pulseOpacity = new DoubleAnimation
+                    {
+                        From = 0.5,
+                        To = 1.0,
+                        Duration = TimeSpan.FromMilliseconds(800),
+                        AutoReverse = true,
+                        RepeatBehavior = RepeatBehavior.Forever
+                    };
+                    var pulseBlur = new DoubleAnimation
+                    {
+                        From = 10,
+                        To = 25,
+                        Duration = TimeSpan.FromMilliseconds(800),
+                        AutoReverse = true,
+                        RepeatBehavior = RepeatBehavior.Forever
+                    };
+                    glowEffect.BeginAnimation(DropShadowEffect.OpacityProperty, pulseOpacity);
+                    glowEffect.BeginAnimation(DropShadowEffect.BlurRadiusProperty, pulseBlur);
                 }
-                else if (plan.CzyPotwierdzone && plan.ZywiecKg > 0)
+                else if (plan.ZywiecKg > 0)
                 {
-                    e.Row.Background = new SolidColorBrush(Color.FromRgb(200, 230, 201));
+                    // Wiersz z dostawami - pulsujący z efektem glow
+                    Color bgColor;
+                    Color glowColor;
+
+                    if (plan.CzyPotwierdzone)
+                    {
+                        bgColor = Color.FromRgb(200, 230, 201); // Zielony - potwierdzony
+                        glowColor = Color.FromRgb(76, 175, 80);
+                    }
+                    else if (plan.ProcentPotwierdzenia > 0)
+                    {
+                        bgColor = Color.FromRgb(255, 249, 196); // Żółty - częściowo
+                        glowColor = Color.FromRgb(255, 193, 7);
+                    }
+                    else
+                    {
+                        bgColor = Color.FromRgb(187, 222, 251); // Niebieski - zaplanowany
+                        glowColor = Color.FromRgb(33, 150, 243);
+                    }
+
+                    e.Row.Background = new SolidColorBrush(bgColor);
+                    e.Row.FontWeight = FontWeights.SemiBold;
+
+                    var glowEffect = new DropShadowEffect
+                    {
+                        Color = glowColor,
+                        BlurRadius = 10,
+                        ShadowDepth = 0,
+                        Opacity = 0.5
+                    };
+                    e.Row.Effect = glowEffect;
+
+                    // Pulsująca animacja dla wierszy z dostawami
+                    var pulseOpacity = new DoubleAnimation
+                    {
+                        From = 0.3,
+                        To = 0.8,
+                        Duration = TimeSpan.FromMilliseconds(900),
+                        AutoReverse = true,
+                        RepeatBehavior = RepeatBehavior.Forever
+                    };
+                    var pulseBlur = new DoubleAnimation
+                    {
+                        From = 6,
+                        To = 16,
+                        Duration = TimeSpan.FromMilliseconds(900),
+                        AutoReverse = true,
+                        RepeatBehavior = RepeatBehavior.Forever
+                    };
+                    glowEffect.BeginAnimation(DropShadowEffect.OpacityProperty, pulseOpacity);
+                    glowEffect.BeginAnimation(DropShadowEffect.BlurRadiusProperty, pulseBlur);
                 }
-                else if (plan.ProcentPotwierdzenia > 0 && plan.ZywiecKg > 0)
+                else
                 {
-                    e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 249, 196));
-                }
-                else if (plan.ZywiecKg == 0)
-                {
+                    // Wiersz bez dostaw - bez efektu
                     e.Row.Background = Brushes.White;
                     e.Row.Foreground = new SolidColorBrush(Color.FromRgb(189, 195, 199));
+                    e.Row.Effect = null;
                 }
             }
         }

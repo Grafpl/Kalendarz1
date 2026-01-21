@@ -24,7 +24,7 @@
             </DoubleAnimation>
         </Storyboard>
 
-        <!-- Styl dla pulsujacego wiersza DataGrid - INTENSYWNE PULSOWANIE -->
+        <!-- Styl dla pulsujacego wiersza DataGrid - INTENSYWNE PULSOWANIE Z GLOW -->
         <Style x:Key="PulsingRowStyle" TargetType="DataGridRow">
             <Setter Property="Background" Value="#BBDEFB"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
@@ -32,6 +32,11 @@
             <Setter Property="MinHeight" Value="38"/>
             <Setter Property="BorderBrush" Value="#1976D2"/>
             <Setter Property="BorderThickness" Value="0,0,0,2"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="#1976D2" BlurRadius="8" ShadowDepth="0" Opacity="0.4"/>
+                </Setter.Value>
+            </Setter>
             <Style.Triggers>
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="#90CAF9"/>
@@ -47,18 +52,38 @@
                                     <SineEase EasingMode="EaseInOut"/>
                                 </ColorAnimation.EasingFunction>
                             </ColorAnimation>
+                            <!-- Pulsujący efekt glow -->
+                            <DoubleAnimation Storyboard.TargetProperty="(DataGridRow.Effect).(DropShadowEffect.Opacity)"
+                                           From="0.3" To="0.8" Duration="0:0:0.8"
+                                           AutoReverse="True">
+                                <DoubleAnimation.EasingFunction>
+                                    <SineEase EasingMode="EaseInOut"/>
+                                </DoubleAnimation.EasingFunction>
+                            </DoubleAnimation>
+                            <DoubleAnimation Storyboard.TargetProperty="(DataGridRow.Effect).(DropShadowEffect.BlurRadius)"
+                                           From="6" To="15" Duration="0:0:0.8"
+                                           AutoReverse="True">
+                                <DoubleAnimation.EasingFunction>
+                                    <SineEase EasingMode="EaseInOut"/>
+                                </DoubleAnimation.EasingFunction>
+                            </DoubleAnimation>
                         </Storyboard>
                     </BeginStoryboard>
                 </EventTrigger>
             </Style.Triggers>
         </Style>
 
-        <!-- Styl dla wiersza z dostawami - z pulsowaniem TLA -->
+        <!-- Styl dla wiersza z dostawami - z pulsowaniem TLA I GLOW -->
         <Style x:Key="DeliveryRowStyle" TargetType="DataGridRow">
             <Setter Property="Background" Value="#E8F5E9"/>
             <Setter Property="FontWeight" Value="Normal"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="MinHeight" Value="36"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="#4CAF50" BlurRadius="8" ShadowDepth="0" Opacity="0.4"/>
+                </Setter.Value>
+            </Setter>
             <Style.Triggers>
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="#C8E6C9"/>
@@ -68,6 +93,11 @@
                     <Setter Property="Background" Value="#34495E"/>
                     <Setter Property="Foreground" Value="White"/>
                     <Setter Property="FontWeight" Value="Bold"/>
+                    <Setter Property="Effect">
+                        <Setter.Value>
+                            <DropShadowEffect Color="#FFA726" BlurRadius="12" ShadowDepth="0" Opacity="0.7"/>
+                        </Setter.Value>
+                    </Setter>
                 </DataTrigger>
                 <EventTrigger RoutedEvent="Loaded">
                     <BeginStoryboard>
@@ -79,6 +109,21 @@
                                     <SineEase EasingMode="EaseInOut"/>
                                 </ColorAnimation.EasingFunction>
                             </ColorAnimation>
+                            <!-- Pulsujący efekt glow -->
+                            <DoubleAnimation Storyboard.TargetProperty="(DataGridRow.Effect).(DropShadowEffect.Opacity)"
+                                           From="0.3" To="0.7" Duration="0:0:0.9"
+                                           AutoReverse="True">
+                                <DoubleAnimation.EasingFunction>
+                                    <SineEase EasingMode="EaseInOut"/>
+                                </DoubleAnimation.EasingFunction>
+                            </DoubleAnimation>
+                            <DoubleAnimation Storyboard.TargetProperty="(DataGridRow.Effect).(DropShadowEffect.BlurRadius)"
+                                           From="5" To="14" Duration="0:0:0.9"
+                                           AutoReverse="True">
+                                <DoubleAnimation.EasingFunction>
+                                    <SineEase EasingMode="EaseInOut"/>
+                                </DoubleAnimation.EasingFunction>
+                            </DoubleAnimation>
                         </Storyboard>
                     </BeginStoryboard>
                 </EventTrigger>
@@ -153,6 +198,12 @@
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Padding" Value="5"/>
         </Style>
+
+        <!-- ==================== KOLORY STATUSÓW ==================== -->
+        <SolidColorBrush x:Key="StatusPotwierdzonyBrush" Color="#C8E6C9"/>
+        <SolidColorBrush x:Key="StatusCzesciowyBrush" Color="#FFF9C4"/>
+        <SolidColorBrush x:Key="StatusZaplanowanyBrush" Color="#BBDEFB"/>
+        <SolidColorBrush x:Key="StatusBrakBrush" Color="#F5F5F5"/>
     </Window.Resources>
 
     <Grid>
@@ -881,60 +932,108 @@
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
 
-                            <DataGridTemplateColumn Header="Status" Width="*" MinWidth="100">
+                            <DataGridTemplateColumn Header="Status" Width="*" MinWidth="150">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Grid Margin="3">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
+                                        <Border Margin="2" CornerRadius="4" Padding="6,3">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="#F5F5F5"/>
+                                                    <Style.Triggers>
+                                                        <!-- W pełni potwierdzony -->
+                                                        <DataTrigger Binding="{Binding CzyPotwierdzone}" Value="True">
+                                                            <Setter Property="Background" Value="#C8E6C9"/>
+                                                        </DataTrigger>
+                                                        <!-- Częściowo potwierdzony (więcej niż 0% ale mniej niż 100%) -->
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding CzyPotwierdzone}" Value="False"/>
+                                                                <Condition Binding="{Binding ProcentPotwierdzenia, Converter={StaticResource GreaterThanZeroConverter}}" Value="True"/>
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="Background" Value="#FFF9C4"/>
+                                                        </MultiDataTrigger>
+                                                        <!-- Zaplanowany (ma żywiec ale 0%) -->
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding ProcentPotwierdzenia}" Value="0"/>
+                                                                <Condition Binding="{Binding ZywiecKg, Converter={StaticResource GreaterThanZeroConverter}}" Value="True"/>
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="Background" Value="#BBDEFB"/>
+                                                        </MultiDataTrigger>
+                                                        <!-- Suma -->
+                                                        <DataTrigger Binding="{Binding JestSuma}" Value="True">
+                                                            <Setter Property="Background" Value="#FFA726"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
 
-                                            <TextBlock Grid.Column="0"
-                                                      Text="{Binding StatusTekst}"
-                                                      FontWeight="SemiBold"
-                                                      FontSize="9"
-                                                      VerticalAlignment="Center"/>
-
-                                            <Border Grid.Column="1"
-                                                   CornerRadius="3"
-                                                   Padding="4,1"
-                                                   Margin="3,0,0,0">
-                                                <Border.Style>
-                                                    <Style TargetType="Border">
-                                                        <Setter Property="Background" Value="#E8F5E9"/>
-                                                        <Setter Property="Visibility" Value="Visible"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding ProcentPotwierdzenia}" Value="100">
-                                                                <Setter Property="Background" Value="#4CAF50"/>
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding ProcentPotwierdzenia}" Value="0">
-                                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding JestSuma}" Value="True">
-                                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Border.Style>
-                                                <TextBlock FontWeight="Bold"
-                                                          FontSize="9"
+                                                <TextBlock Grid.Column="0"
+                                                          Text="{Binding StatusTekst}"
+                                                          FontWeight="SemiBold"
+                                                          FontSize="10"
                                                           VerticalAlignment="Center">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
-                                                            <Setter Property="Foreground" Value="#2E7D32"/>
+                                                            <Setter Property="Foreground" Value="#424242"/>
                                                             <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding ProcentPotwierdzenia}" Value="100">
+                                                                <DataTrigger Binding="{Binding CzyPotwierdzone}" Value="True">
+                                                                    <Setter Property="Foreground" Value="#2E7D32"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding JestSuma}" Value="True">
                                                                     <Setter Property="Foreground" Value="White"/>
+                                                                    <Setter Property="FontWeight" Value="Bold"/>
                                                                 </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>
                                                     </TextBlock.Style>
-                                                    <Run Text="{Binding ProcentPotwierdzenia, StringFormat=F0}"/>
-                                                    <Run Text="%"/>
                                                 </TextBlock>
-                                            </Border>
-                                        </Grid>
+
+                                                <Border Grid.Column="1"
+                                                       CornerRadius="10"
+                                                       Padding="8,2"
+                                                       Margin="5,0,0,0">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Background" Value="#E8F5E9"/>
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding ProcentPotwierdzenia}" Value="100">
+                                                                    <Setter Property="Background" Value="#4CAF50"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding ProcentPotwierdzenia}" Value="0">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding JestSuma}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <TextBlock FontWeight="Bold"
+                                                              FontSize="10"
+                                                              VerticalAlignment="Center">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Foreground" Value="#2E7D32"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding ProcentPotwierdzenia}" Value="100">
+                                                                        <Setter Property="Foreground" Value="White"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                        <Run Text="{Binding ProcentPotwierdzenia, StringFormat=F0}"/>
+                                                        <Run Text="%"/>
+                                                    </TextBlock>
+                                                </Border>
+                                            </Grid>
+                                        </Border>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
@@ -1035,6 +1134,8 @@
         <Border Grid.Row="4" Background="#34495E" Padding="15,10">
             <Grid>
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
@@ -1043,70 +1144,108 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Column="0">
-                    <TextBlock Text="Suma tygodnia:" 
-                               Foreground="White" 
-                               FontSize="10" 
-                               Opacity="0.8"/>
-                    <TextBlock x:Name="txtSumaSurowiec" 
-                               Foreground="White" 
-                               FontSize="18" 
-                               FontWeight="Bold"/>
-                </StackPanel>
+                <!-- SUMA AUT - pulsujący -->
+                <Border Grid.Column="0" Background="#E67E22" CornerRadius="8" Padding="12,6" Margin="0,0,10,0">
+                    <Border.Effect>
+                        <DropShadowEffect Color="#E67E22" BlurRadius="10" ShadowDepth="0" Opacity="0.6"/>
+                    </Border.Effect>
+                    <StackPanel>
+                        <TextBlock Text="🚗 SUMA AUT:"
+                                   Foreground="White"
+                                   FontSize="10"
+                                   FontWeight="Bold"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="txtSumaAut"
+                                   Foreground="White"
+                                   FontSize="20"
+                                   FontWeight="Bold"
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
 
-                <StackPanel Grid.Column="1">
-                    <TextBlock Text="Tuszka A:" 
-                               Foreground="White" 
-                               FontSize="10" 
-                               Opacity="0.8"/>
-                    <TextBlock x:Name="txtSumaTuszkaA" 
-                               Foreground="#5C8A3A" 
-                               FontSize="18" 
-                               FontWeight="Bold"/>
-                </StackPanel>
+                <!-- SUMA SZTUK - pulsujący -->
+                <Border Grid.Column="1" Background="#9C27B0" CornerRadius="8" Padding="12,6" Margin="0,0,15,0">
+                    <Border.Effect>
+                        <DropShadowEffect Color="#9C27B0" BlurRadius="10" ShadowDepth="0" Opacity="0.6"/>
+                    </Border.Effect>
+                    <StackPanel>
+                        <TextBlock Text="🐔 SUMA SZTUK:"
+                                   Foreground="White"
+                                   FontSize="10"
+                                   FontWeight="Bold"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="txtSumaSztuki"
+                                   Foreground="White"
+                                   FontSize="20"
+                                   FontWeight="Bold"
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
 
                 <StackPanel Grid.Column="2">
-                    <TextBlock Text="Filet:" 
-                               Foreground="White" 
-                               FontSize="10" 
+                    <TextBlock Text="Suma żywca:"
+                               Foreground="White"
+                               FontSize="10"
                                Opacity="0.8"/>
-                    <TextBlock x:Name="txtSumaFilet" 
-                               Foreground="#E67E22" 
-                               FontSize="18" 
+                    <TextBlock x:Name="txtSumaSurowiec"
+                               Foreground="White"
+                               FontSize="18"
                                FontWeight="Bold"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="3">
-                    <TextBlock Text="Ćwiartka:" 
-                               Foreground="White" 
-                               FontSize="10" 
+                    <TextBlock Text="Tuszka A:"
+                               Foreground="White"
+                               FontSize="10"
                                Opacity="0.8"/>
-                    <TextBlock x:Name="txtSumaCwiartka" 
-                               Foreground="White" 
-                               FontSize="18" 
+                    <TextBlock x:Name="txtSumaTuszkaA"
+                               Foreground="#5C8A3A"
+                               FontSize="18"
                                FontWeight="Bold"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="4">
-                    <TextBlock Text="Ubiórki:" 
-                               Foreground="White" 
-                               FontSize="10" 
+                    <TextBlock Text="Filet:"
+                               Foreground="White"
+                               FontSize="10"
                                Opacity="0.8"/>
-                    <TextBlock x:Name="txtSumaUbiorki" 
-                               Foreground="#2196F3" 
-                               FontSize="18" 
+                    <TextBlock x:Name="txtSumaFilet"
+                               Foreground="#E67E22"
+                               FontSize="18"
                                FontWeight="Bold"/>
                 </StackPanel>
 
-                <StackPanel Grid.Column="5" 
+                <StackPanel Grid.Column="5">
+                    <TextBlock Text="Ćwiartka:"
+                               Foreground="White"
+                               FontSize="10"
+                               Opacity="0.8"/>
+                    <TextBlock x:Name="txtSumaCwiartka"
+                               Foreground="White"
+                               FontSize="18"
+                               FontWeight="Bold"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="6">
+                    <TextBlock Text="Ubiórki:"
+                               Foreground="White"
+                               FontSize="10"
+                               Opacity="0.8"/>
+                    <TextBlock x:Name="txtSumaUbiorki"
+                               Foreground="#2196F3"
+                               FontSize="18"
+                               FontWeight="Bold"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="7"
                             Orientation="Horizontal"
                             VerticalAlignment="Center">
-                    <Button Content="📋 Kopiuj tekst" 
+                    <Button Content="📋 Kopiuj tekst"
                             Style="{StaticResource ButtonStyle}"
                             Background="#3498DB"
                             Click="BtnKopiuj_Click"
                             Width="120"/>
-                    <Button Content="📊 Eksport Excel" 
+                    <Button Content="📊 Eksport Excel"
                             Style="{StaticResource ButtonStyle}"
                             Background="#27AE60"
                             Click="BtnEksportExcel_Click"
