@@ -1404,12 +1404,22 @@ namespace Kalendarz1
                         Background = new SolidColorBrush(Colors.White),
                         BorderBrush = new SolidColorBrush(Color.FromRgb(92, 138, 58)),
                         BorderThickness = new Thickness(2),
-                        Padding = new Thickness(8)
+                        Padding = new Thickness(8),
+                        StaysOpen = true
                     };
 
                     e.Row.ToolTip = tooltip;
                     ToolTipService.SetInitialShowDelay(e.Row, 50);
                     ToolTipService.SetShowDuration(e.Row, 30000);
+
+                    // Kliknięcie na wiersz też pokazuje tooltip
+                    e.Row.MouseLeftButtonUp += (rowSender, rowArgs) =>
+                    {
+                        if (e.Row.ToolTip is ToolTip tt)
+                        {
+                            tt.IsOpen = true;
+                        }
+                    };
                 }
             };
         }
@@ -1878,12 +1888,22 @@ namespace Kalendarz1
                     Background = new SolidColorBrush(Colors.White),
                     BorderBrush = new SolidColorBrush(Color.FromRgb(155, 89, 182)),
                     BorderThickness = new Thickness(2),
-                    Padding = new Thickness(8)
+                    Padding = new Thickness(8),
+                    StaysOpen = true
                 };
 
                 e.Row.ToolTip = tooltip;
                 ToolTipService.SetInitialShowDelay(e.Row, 50);
                 ToolTipService.SetShowDuration(e.Row, 30000);
+
+                // Kliknięcie na wiersz też pokazuje tooltip
+                e.Row.MouseLeftButtonUp += (rowSender, rowArgs) =>
+                {
+                    if (e.Row.ToolTip is ToolTip tt)
+                    {
+                        tt.IsOpen = true;
+                    }
+                };
             }
         }
 
