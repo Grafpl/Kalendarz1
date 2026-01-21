@@ -245,7 +245,7 @@ namespace Kalendarz1
 
             var isToday = date.Date == DateTime.Today;
             var dayName = date.ToString("ddd", _polishCulture).ToLower().TrimEnd('.');
-            var dayLabel = $"{dayName}.{date:dd.MM}";
+            var dayLabel = $"{dayName}. {date:dd.MM}";
 
             // Determine background color based on capacity
             Color bgColor;
@@ -267,18 +267,16 @@ namespace Kalendarz1
             };
 
             var grid = new Grid();
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(75) }); // Day
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(35) }); // Count
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) }); // Sztuki
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(45) }); // Waga
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(45) }); // Ub (placeholder)
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Auta
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Anulowane info
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Data + count
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(35) }); // Auto
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) }); // Szt
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) }); // Waga
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) }); // Capacity %
 
-            // Day label
+            // Day label with count
             var dayText = new TextBlock
             {
-                Text = dayLabel,
+                Text = $"{dayLabel} ({deliveries.Count} dostaw)",
                 FontWeight = FontWeights.Bold,
                 FontSize = 11,
                 Foreground = Brushes.White,
@@ -287,18 +285,18 @@ namespace Kalendarz1
             Grid.SetColumn(dayText, 0);
             grid.Children.Add(dayText);
 
-            // Delivery count
-            var countText = new TextBlock
+            // Total auta
+            var autaText = new TextBlock
             {
-                Text = deliveries.Count.ToString(),
+                Text = totalAuta.ToString(),
                 FontWeight = FontWeights.Bold,
                 FontSize = 11,
                 Foreground = Brushes.White,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
-            Grid.SetColumn(countText, 1);
-            grid.Children.Add(countText);
+            Grid.SetColumn(autaText, 1);
+            grid.Children.Add(autaText);
 
             // Total sztuki
             var sztukiText = new TextBlock
@@ -326,18 +324,18 @@ namespace Kalendarz1
             Grid.SetColumn(wagaText, 3);
             grid.Children.Add(wagaText);
 
-            // Total auta
-            var autaText = new TextBlock
+            // Capacity percentage
+            var capacityText = new TextBlock
             {
-                Text = totalAuta.ToString(),
+                Text = $"{capacityPercent:0}%",
                 FontWeight = FontWeights.Bold,
                 FontSize = 11,
                 Foreground = Brushes.White,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
-            Grid.SetColumn(autaText, 5);
-            grid.Children.Add(autaText);
+            Grid.SetColumn(capacityText, 4);
+            grid.Children.Add(capacityText);
 
             header.Child = grid;
             return header;
@@ -346,7 +344,6 @@ namespace Kalendarz1
         private Border CreateDeliveryRow(DeliveryCalendarItem delivery)
         {
             var isConfirmed = delivery.Bufor == "Potwierdzony";
-            var isPlanned = delivery.Bufor == "Planowany" || string.IsNullOrEmpty(delivery.Bufor);
 
             Color bgColor = Colors.White;
             if (isConfirmed)
@@ -366,31 +363,30 @@ namespace Kalendarz1
             row.MouseLeave += (s, e) => row.Background = new SolidColorBrush(bgColor);
 
             var grid = new Grid();
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(75) }); // Dostawca
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(35) }); // Auta
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) }); // Sztuki
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(45) }); // Waga
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(45) }); // TypCeny
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) }); // Cena
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Uwagi
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Hodowca
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(35) }); // Auto
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) }); // Szt
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) }); // Waga
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) }); // Status
 
-            // Dostawca name (truncated)
-            var dostawcaText = new TextBlock
+            // Hodowca name
+            var hodowcaText = new TextBlock
             {
-                Text = TruncateString(delivery.Dostawca, 12),
-                FontSize = 10,
+                Text = delivery.Dostawca,
+                FontSize = 11,
                 Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81)),
                 VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis,
                 ToolTip = delivery.Dostawca
             };
-            Grid.SetColumn(dostawcaText, 0);
-            grid.Children.Add(dostawcaText);
+            Grid.SetColumn(hodowcaText, 0);
+            grid.Children.Add(hodowcaText);
 
-            // Auta
+            // Auto
             var autaText = new TextBlock
             {
                 Text = delivery.Auta.ToString(),
-                FontSize = 10,
+                FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81)),
                 HorizontalAlignment = HorizontalAlignment.Center,
@@ -399,11 +395,11 @@ namespace Kalendarz1
             Grid.SetColumn(autaText, 1);
             grid.Children.Add(autaText);
 
-            // Sztuki
+            // Szt (Sztuki)
             var sztukiText = new TextBlock
             {
                 Text = delivery.SztukiDek.ToString("# ##0"),
-                FontSize = 10,
+                FontSize = 11,
                 Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81)),
                 HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Center
@@ -415,7 +411,7 @@ namespace Kalendarz1
             var wagaText = new TextBlock
             {
                 Text = delivery.WagaDek.ToString("0.00"),
-                FontSize = 10,
+                FontSize = 11,
                 Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81)),
                 HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Center
@@ -423,64 +419,27 @@ namespace Kalendarz1
             Grid.SetColumn(wagaText, 3);
             grid.Children.Add(wagaText);
 
-            // TypCeny with background color
-            var typCenyBg = GetTypCenyBackground(delivery.TypCeny);
-            var typCenyBorder = new Border
+            // Status (Bufor) with color coding
+            var statusBg = GetStatusBackground(delivery.Bufor);
+            var statusFg = GetStatusForeground(delivery.Bufor);
+            var statusBorder = new Border
             {
-                Background = new SolidColorBrush(typCenyBg),
-                CornerRadius = new CornerRadius(2),
-                Padding = new Thickness(2, 0, 2, 0),
-                Margin = new Thickness(2, 0, 2, 0),
-                HorizontalAlignment = HorizontalAlignment.Center
+                Background = new SolidColorBrush(statusBg),
+                CornerRadius = new CornerRadius(3),
+                Padding = new Thickness(4, 1, 4, 1),
+                Margin = new Thickness(4, 0, 0, 0),
+                HorizontalAlignment = HorizontalAlignment.Left
             };
-            var typCenyText = new TextBlock
+            var statusText = new TextBlock
             {
-                Text = GetTypCenyShort(delivery.TypCeny),
-                FontSize = 9,
-                Foreground = GetTypCenyForeground(delivery.TypCeny),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            typCenyBorder.Child = typCenyText;
-            Grid.SetColumn(typCenyBorder, 4);
-            grid.Children.Add(typCenyBorder);
-
-            // Cena
-            var cenaText = new TextBlock
-            {
-                Text = delivery.Cena > 0 ? delivery.Cena.ToString("0.00") : "",
+                Text = string.IsNullOrEmpty(delivery.Bufor) ? "Planowany" : delivery.Bufor,
                 FontSize = 10,
-                Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81)),
-                HorizontalAlignment = HorizontalAlignment.Right,
+                Foreground = statusFg,
                 VerticalAlignment = VerticalAlignment.Center
             };
-            Grid.SetColumn(cenaText, 5);
-            grid.Children.Add(cenaText);
-
-            // Uwagi with icon
-            if (!string.IsNullOrEmpty(delivery.Uwagi))
-            {
-                var uwagiPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(4, 0, 0, 0) };
-                var uwagiIcon = new TextBlock
-                {
-                    Text = "💬",
-                    FontSize = 10,
-                    Margin = new Thickness(0, 0, 3, 0),
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-                var uwagiText = new TextBlock
-                {
-                    Text = TruncateString(delivery.Uwagi, 25),
-                    FontSize = 9,
-                    Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
-                    VerticalAlignment = VerticalAlignment.Center,
-                    ToolTip = delivery.Uwagi
-                };
-                uwagiPanel.Children.Add(uwagiIcon);
-                uwagiPanel.Children.Add(uwagiText);
-                Grid.SetColumn(uwagiPanel, 6);
-                grid.Children.Add(uwagiPanel);
-            }
+            statusBorder.Child = statusText;
+            Grid.SetColumn(statusBorder, 4);
+            grid.Children.Add(statusBorder);
 
             row.Child = grid;
 
@@ -489,7 +448,7 @@ namespace Kalendarz1
             {
                 if (e.ClickCount == 2)
                 {
-                    MessageBox.Show($"LP: {delivery.LP}\nDostawca: {delivery.Dostawca}\nData: {delivery.DataOdbioru:dd.MM.yyyy}\nSztuki: {delivery.SztukiDek}\nWaga: {delivery.WagaDek:0.00}\nStatus: {delivery.Bufor}",
+                    MessageBox.Show($"LP: {delivery.LP}\nHodowca: {delivery.Dostawca}\nData: {delivery.DataOdbioru:dd.MM.yyyy}\nAuto: {delivery.Auta}\nSztuki: {delivery.SztukiDek}\nWaga: {delivery.WagaDek:0.00}\nStatus: {(string.IsNullOrEmpty(delivery.Bufor) ? "Planowany" : delivery.Bufor)}",
                         "Szczegóły dostawy", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             };
@@ -497,39 +456,24 @@ namespace Kalendarz1
             return row;
         }
 
-        private Color GetTypCenyBackground(string typCeny)
+        private Color GetStatusBackground(string status)
         {
-            return typCeny?.ToLower() switch
+            return status?.ToLower() switch
             {
-                "wolny" => Color.FromRgb(255, 245, 157), // Yellow
-                "rolniczy" => Color.FromRgb(46, 125, 50), // Green
-                "mini" => Color.FromRgb(25, 118, 210), // Blue
-                "laczony" => Color.FromRgb(123, 31, 162), // Purple
-                _ => Colors.Transparent
+                "potwierdzony" => Color.FromRgb(34, 197, 94), // Green
+                "planowany" => Color.FromRgb(59, 130, 246), // Blue
+                "anulowany" => Color.FromRgb(239, 68, 68), // Red
+                "sprzedany" => Color.FromRgb(251, 191, 36), // Yellow
+                _ => Color.FromRgb(59, 130, 246) // Default blue for empty/planowany
             };
         }
 
-        private Brush GetTypCenyForeground(string typCeny)
+        private Brush GetStatusForeground(string status)
         {
-            return typCeny?.ToLower() switch
+            return status?.ToLower() switch
             {
-                "wolny" => Brushes.Black,
-                "rolniczy" => Brushes.White,
-                "mini" => Brushes.White,
-                "laczony" => Brushes.White,
-                _ => Brushes.Black
-            };
-        }
-
-        private string GetTypCenyShort(string typCeny)
-        {
-            return typCeny?.ToLower() switch
-            {
-                "wolny" => "wol.",
-                "rolniczy" => "rol.",
-                "mini" => "mini.",
-                "laczony" => "łącz.",
-                _ => typCeny ?? ""
+                "sprzedany" => Brushes.Black,
+                _ => Brushes.White
             };
         }
 
