@@ -37,6 +37,7 @@ namespace Kalendarz1
         // Kalendarz dostaw
         private DateTime _calendarMonth = DateTime.Today;
         private Dictionary<DateTime, int> _deliveryDates = new Dictionary<DateTime, int>(); // Data -> ilość sztuk
+        private const int MAX_DAILY_CAPACITY = 80000; // Maksymalna pojemność 80 000 szt./dzień
 
         public WstawienieWindow()
         {
@@ -1251,9 +1252,9 @@ namespace Kalendarz1
             {
                 if (chkKalendarz.IsChecked == true)
                 {
-                    // Rozszerz okno i pokaż kolumnę kalendarza
-                    this.Width = Math.Max(this.Width, 1200);
-                    kolumnaKalendarz.Width = new GridLength(280);
+                    // Rozszerz okno i pokaż kolumnę kalendarza (większa szerokość dla nowych komórek z paskiem pojemności)
+                    this.Width = Math.Max(this.Width, 1300);
+                    kolumnaKalendarz.Width = new GridLength(350);
                     LoadDeliveryDatesForCalendar();
                     RenderMiniCalendar();
                 }
@@ -1385,73 +1386,161 @@ namespace Kalendarz1
             {
                 Background = new SolidColorBrush(Color.FromRgb(250, 250, 250)),
                 Margin = new Thickness(1),
-                MinHeight = 28
+                MinHeight = 45,
+                CornerRadius = new CornerRadius(3)
             };
         }
 
         private Border CreateCalendarDayCell(int day, bool hasDelivery, bool isCurrentWeek, bool isToday, int szt)
         {
-            // Kolor tła
+            // Oblicz procent pojemności
+            var capacityPercent = (double)szt / MAX_DAILY_CAPACITY * 100;
+
+            // Kolor tła oparty na pojemności (jak w planowaniu dostaw)
             Color bgColor;
             if (isToday)
-                bgColor = Color.FromRgb(92, 138, 58); // Zielony dla dzisiaj
+            {
+                // Dzisiaj - specjalny kolor z ramką
+                if (capacityPercent >= 100)
+                    bgColor = Color.FromRgb(255, 205, 210); // Czerwony - przepełniony
+                else if (capacityPercent >= 80)
+                    bgColor = Color.FromRgb(255, 224, 178); // Pomarańczowy - blisko limitu
+                else if (capacityPercent >= 50)
+                    bgColor = Color.FromRgb(255, 243, 224); // Jasny pomarańczowy
+                else if (hasDelivery)
+                    bgColor = Color.FromRgb(232, 245, 233); // Jasnozielony
+                else
+                    bgColor = Color.FromRgb(232, 245, 233); // Jasnozielony dla dzisiaj
+            }
+            else if (capacityPercent >= 100)
+                bgColor = Color.FromRgb(255, 205, 210); // Czerwony - przepełniony
+            else if (capacityPercent >= 80)
+                bgColor = Color.FromRgb(255, 224, 178); // Pomarańczowy - blisko limitu
+            else if (capacityPercent >= 50)
+                bgColor = Color.FromRgb(255, 243, 224); // Jasny pomarańczowy
             else if (hasDelivery)
-                bgColor = Color.FromRgb(129, 199, 132); // Jasnozielony dla dostaw
-            else if (isCurrentWeek)
-                bgColor = Color.FromRgb(255, 183, 77); // Pomarańczowy dla bieżącego tygodnia
+                bgColor = Color.FromRgb(232, 245, 233); // Jasnozielony
             else
                 bgColor = Colors.White;
+
+            // Kolor ramki - zielony dla dzisiaj
+            var borderColor = isToday ? Color.FromRgb(92, 138, 58) : Color.FromRgb(224, 224, 224);
+            var borderThickness = isToday ? 2.5 : 0.5;
 
             var cell = new Border
             {
                 Background = new SolidColorBrush(bgColor),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(224, 224, 224)),
-                BorderThickness = new Thickness(isToday ? 2 : 0.5),
+                BorderBrush = new SolidColorBrush(borderColor),
+                BorderThickness = new Thickness(borderThickness),
                 Margin = new Thickness(1),
-                MinHeight = 28,
+                MinHeight = 45,
                 CornerRadius = new CornerRadius(3)
             };
 
             var content = new StackPanel
             {
-                VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Center
+                Margin = new Thickness(2)
             };
+
+            // Header z numerem dnia i ilością
+            var headerGrid = new Grid();
 
             // Numer dnia
             var dayText = new TextBlock
             {
                 Text = day.ToString(),
-                FontSize = 10,
+                FontSize = 11,
                 FontWeight = isToday || hasDelivery ? FontWeights.Bold : FontWeights.Normal,
-                Foreground = new SolidColorBrush(isToday ? Colors.White : Color.FromRgb(44, 62, 80)),
-                HorizontalAlignment = HorizontalAlignment.Center
+                Foreground = new SolidColorBrush(isToday ? Color.FromRgb(92, 138, 58) : Color.FromRgb(44, 62, 80)),
+                HorizontalAlignment = HorizontalAlignment.Left
             };
-            content.Children.Add(dayText);
+            headerGrid.Children.Add(dayText);
 
-            // Ilość sztuk jeśli jest dostawa
+            // Ilość sztuk po prawej stronie
             if (hasDelivery && szt > 0)
             {
                 var sztText = new TextBlock
                 {
                     Text = szt >= 1000 ? $"{szt / 1000}k" : szt.ToString(),
-                    FontSize = 7,
-                    Foreground = new SolidColorBrush(isToday ? Colors.White : Color.FromRgb(46, 125, 50)),
-                    HorizontalAlignment = HorizontalAlignment.Center
+                    FontSize = 9,
+                    FontWeight = capacityPercent >= 80 ? FontWeights.Bold : FontWeights.Normal,
+                    Foreground = new SolidColorBrush(
+                        capacityPercent >= 100 ? Color.FromRgb(198, 40, 40) :
+                        capacityPercent >= 80 ? Color.FromRgb(239, 108, 0) :
+                        Color.FromRgb(46, 125, 50)),
+                    HorizontalAlignment = HorizontalAlignment.Right
                 };
-                content.Children.Add(sztText);
+                headerGrid.Children.Add(sztText);
+            }
+
+            content.Children.Add(headerGrid);
+
+            // Pasek pojemności (progress bar)
+            if (hasDelivery && szt > 0)
+            {
+                var progressBg = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(224, 224, 224)),
+                    Height = 3,
+                    CornerRadius = new CornerRadius(1.5),
+                    Margin = new Thickness(0, 3, 0, 0)
+                };
+
+                var progressGrid = new Grid { Margin = new Thickness(0, 3, 0, 0) };
+                progressGrid.Children.Add(progressBg);
+
+                var progressFg = new Border
+                {
+                    Background = new SolidColorBrush(
+                        capacityPercent >= 100 ? Color.FromRgb(198, 40, 40) :
+                        capacityPercent >= 80 ? Color.FromRgb(239, 108, 0) :
+                        Color.FromRgb(92, 138, 58)),
+                    Height = 3,
+                    CornerRadius = new CornerRadius(1.5),
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    Width = Math.Min(capacityPercent, 100) * 0.30 // Skalowanie do szerokości komórki
+                };
+                progressGrid.Children.Add(progressFg);
+                content.Children.Add(progressGrid);
             }
 
             cell.Child = content;
 
-            // Tooltip z detalami
+            // Tooltip z detalami pojemności
             if (hasDelivery)
             {
+                var tooltipContent = new StackPanel { MinWidth = 120 };
+                tooltipContent.Children.Add(new TextBlock
+                {
+                    Text = $"📦 {szt:# ##0} szt.",
+                    FontWeight = FontWeights.Bold,
+                    FontSize = 12
+                });
+                tooltipContent.Children.Add(new TextBlock
+                {
+                    Text = $"Pojemność: {capacityPercent:0.0}%",
+                    FontSize = 10,
+                    Foreground = new SolidColorBrush(
+                        capacityPercent >= 100 ? Color.FromRgb(198, 40, 40) :
+                        capacityPercent >= 80 ? Color.FromRgb(239, 108, 0) :
+                        Color.FromRgb(46, 125, 50))
+                });
+                tooltipContent.Children.Add(new TextBlock
+                {
+                    Text = $"Limit: {MAX_DAILY_CAPACITY:# ##0} szt./dzień",
+                    FontSize = 9,
+                    Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141))
+                });
+
                 cell.ToolTip = new ToolTip
                 {
-                    Content = $"📦 {szt:# ##0} szt.",
+                    Content = tooltipContent,
                     Background = Brushes.White,
-                    BorderBrush = new SolidColorBrush(Color.FromRgb(92, 138, 58)),
+                    BorderBrush = new SolidColorBrush(
+                        capacityPercent >= 100 ? Color.FromRgb(198, 40, 40) :
+                        capacityPercent >= 80 ? Color.FromRgb(239, 108, 0) :
+                        Color.FromRgb(92, 138, 58)),
+                    BorderThickness = new Thickness(2),
                     Padding = new Thickness(8)
                 };
             }
