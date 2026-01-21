@@ -2,10 +2,12 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Mapowanie Dostawców LibraNet → Symfonia"
-        Height="700" Width="950"
+        Height="800" Width="1100"
+        MinHeight="600" MinWidth="900"
         WindowStartupLocation="CenterOwner"
-        Background="#F5F5F5"
-        FontFamily="Segoe UI">
+        Background="#ECEFF1"
+        FontFamily="Segoe UI"
+        KeyDown="Window_KeyDown">
 
     <Window.Resources>
         <!-- Styl głównych przycisków -->
@@ -14,7 +16,7 @@
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Padding" Value="18,10"/>
+            <Setter Property="Padding" Value="20,12"/>
             <Setter Property="Margin" Value="5"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -39,6 +41,38 @@
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="border" Property="Background" Value="#BDBDBD"/>
+                                <Setter TargetName="border" Property="Effect" Value="{x:Null}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SuccessButtonStyle" TargetType="Button" BasedOn="{StaticResource MainButtonStyle}">
+            <Setter Property="Background" Value="#4CAF50"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.15" BlurRadius="8"/>
+                            </Border.Effect>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#43A047"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#388E3C"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Background" Value="#BDBDBD"/>
+                                <Setter TargetName="border" Property="Effect" Value="{x:Null}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -94,6 +128,38 @@
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="border" Property="Background" Value="#B71C1C"/>
                             </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Background" Value="#BDBDBD"/>
+                                <Setter TargetName="border" Property="Effect" Value="{x:Null}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SmallButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#FF9800"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Margin" Value="3,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#F57C00"/>
+                            </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
@@ -106,34 +172,72 @@
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Padding" Value="8,10"/>
-            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
             <Setter Property="BorderBrush" Value="#2C3E50"/>
             <Setter Property="BorderThickness" Value="0,0,1,0"/>
         </Style>
 
-        <!-- Styl wiersza DataGrid -->
-        <Style x:Key="DataGridRowStyle" TargetType="DataGridRow">
+        <!-- Styl wiersza DataGrid dla dostawców -->
+        <Style x:Key="DostawcaRowStyle" TargetType="DataGridRow">
             <Setter Property="Background" Value="White"/>
-            <Setter Property="Foreground" Value="Black"/>
+            <Setter Property="Foreground" Value="#333333"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="MinHeight" Value="36"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#E8F5E9"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#C8E6C9"/>
+                    <Setter Property="Foreground" Value="#1B5E20"/>
+                </Trigger>
+                <DataTrigger Binding="{Binding IsUnmapped}" Value="True">
+                    <Setter Property="Background" Value="#FFF8E1"/>
+                </DataTrigger>
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding IsUnmapped}" Value="True"/>
+                        <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsMouseOver}" Value="True"/>
+                    </MultiDataTrigger.Conditions>
+                    <Setter Property="Background" Value="#FFECB3"/>
+                </MultiDataTrigger>
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding IsUnmapped}" Value="True"/>
+                        <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="True"/>
+                    </MultiDataTrigger.Conditions>
+                    <Setter Property="Background" Value="#FFE082"/>
+                    <Setter Property="Foreground" Value="#E65100"/>
+                </MultiDataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Styl wiersza DataGrid dla kontrahentów -->
+        <Style x:Key="KontrahentRowStyle" TargetType="DataGridRow">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="#333333"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="MinHeight" Value="36"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="#E3F2FD"/>
                 </Trigger>
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="#BBDEFB"/>
-                    <Setter Property="Foreground" Value="Black"/>
+                    <Setter Property="Foreground" Value="#0D47A1"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
 
         <!-- Styl komórki DataGrid -->
         <Style TargetType="DataGridCell">
-            <Setter Property="Foreground" Value="Black"/>
-            <Setter Property="Padding" Value="5,3"/>
+            <Setter Property="Foreground" Value="#333333"/>
+            <Setter Property="Padding" Value="8,6"/>
             <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="DataGridCell">
@@ -142,14 +246,15 @@
                                 BorderThickness="{TemplateBinding BorderThickness}"
                                 Padding="{TemplateBinding Padding}"
                                 SnapsToDevicePixels="True">
-                            <ContentPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                            <ContentPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"
+                                              VerticalAlignment="Center"/>
                         </Border>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
             <Style.Triggers>
                 <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Foreground" Value="Black"/>
+                    <Setter Property="Foreground" Value="#333333"/>
                     <Setter Property="Background" Value="Transparent"/>
                 </Trigger>
             </Style.Triggers>
@@ -157,7 +262,7 @@
 
         <!-- Styl TextBox filtra -->
         <Style x:Key="FilterTextBoxStyle" TargetType="TextBox">
-            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="Padding" Value="10,8"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="BorderBrush" Value="#BDBDBD"/>
             <Setter Property="BorderThickness" Value="1"/>
@@ -170,7 +275,7 @@
         </Style>
     </Window.Resources>
 
-    <Grid Margin="15">
+    <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -181,36 +286,93 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Nagłówek -->
-        <Border Grid.Row="0" Background="#9C27B0" CornerRadius="8" Padding="15" Margin="0,0,0,15">
-            <TextBlock Text="Mapowanie Dostawców LibraNet → Symfonia"
-                       FontSize="18" FontWeight="Bold" Foreground="White"/>
+        <!-- Nagłówek z logo i statystykami -->
+        <Border Grid.Row="0" Background="Linear Gradient" Padding="20,15" Margin="10,10,10,5">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#9C27B0" Offset="0"/>
+                    <GradientStop Color="#7B1FA2" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <Border.Effect>
+                <DropShadowEffect ShadowDepth="3" Color="#000000" Opacity="0.2" BlurRadius="10"/>
+            </Border.Effect>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="🔗" FontSize="28" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <StackPanel>
+                        <TextBlock Text="Mapowanie Dostawców" FontSize="20" FontWeight="Bold" Foreground="White"/>
+                        <TextBlock Text="LibraNet → Symfonia Handel" FontSize="12" Foreground="#E1BEE7" Margin="0,2,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Panel statystyk -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Border Background="#7B1FA2" CornerRadius="6" Padding="15,8" Margin="5,0">
+                        <StackPanel>
+                            <TextBlock x:Name="txtStatZmapowani" Text="0" FontSize="20" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Zmapowani" FontSize="10" Foreground="#E1BEE7" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#E91E63" CornerRadius="6" Padding="15,8" Margin="5,0">
+                        <StackPanel>
+                            <TextBlock x:Name="txtStatNiezmapowani" Text="0" FontSize="20" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Niezmapowani" FontSize="10" Foreground="#F8BBD9" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#00796B" CornerRadius="6" Padding="15,8" Margin="5,0">
+                        <StackPanel>
+                            <TextBlock x:Name="txtStatProcent" Text="0%" FontSize="20" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Kompletność" FontSize="10" Foreground="#B2DFDB" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
         </Border>
 
         <!-- Pasek filtrów dostawców -->
-        <Border Grid.Row="1" Background="White" CornerRadius="6" Padding="10" Margin="0,0,0,10">
+        <Border Grid.Row="1" Background="White" CornerRadius="8" Padding="15,10" Margin="10,5">
             <Border.Effect>
-                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="6"/>
+                <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.1" BlurRadius="5"/>
             </Border.Effect>
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="Filtruj dostawców:" VerticalAlignment="Center" Margin="0,0,10,0" FontWeight="SemiBold"/>
-                <TextBox x:Name="txtFilterDostawcy" Width="200"
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="250"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" Text="🔍 Szukaj dostawcy:" VerticalAlignment="Center" Margin="0,0,10,0" FontWeight="SemiBold" Foreground="#555"/>
+                <TextBox x:Name="txtFilterDostawcy" Grid.Column="1"
                          Style="{StaticResource FilterTextBoxStyle}"
                          TextChanged="TxtFilterDostawcy_TextChanged"
-                         ToolTip="Wpisz nazwę dostawcy"/>
-                <CheckBox x:Name="chkOnlyUnmapped" Content="Tylko niezmapowani"
-                          VerticalAlignment="Center" Margin="20,0,0,0"
+                         ToolTip="Wpisz ID lub nazwę dostawcy (Enter = szukaj)"/>
+                <CheckBox x:Name="chkOnlyUnmapped" Grid.Column="2" Content="⚠️ Tylko niezmapowani"
+                          VerticalAlignment="Center" Margin="20,0,0,0" FontWeight="SemiBold"
                           Checked="ChkOnlyUnmapped_Changed" Unchecked="ChkOnlyUnmapped_Changed"/>
-                <Button x:Name="btnRefresh" Content="Odśwież" Click="BtnRefresh_Click"
-                        Style="{StaticResource SecondaryButtonStyle}"
-                        Padding="12,6" Margin="20,0,0,0"/>
-            </StackPanel>
+
+                <StackPanel Grid.Column="4" Orientation="Horizontal">
+                    <Button Content="🔄 Odśwież" Click="BtnRefresh_Click"
+                            Style="{StaticResource SmallButtonStyle}" Background="#2196F3"
+                            ToolTip="Odśwież dane z bazy (F5)"/>
+                    <Button x:Name="btnAutoMatch" Content="✨ Auto-dopasuj" Click="BtnAutoMatch_Click"
+                            Style="{StaticResource SmallButtonStyle}" Background="#FF9800"
+                            ToolTip="Automatycznie dopasuj dostawców po nazwie"/>
+                </StackPanel>
+            </Grid>
         </Border>
 
         <!-- Lista dostawców LibraNet -->
-        <Border Grid.Row="2" Background="White" CornerRadius="6" Margin="0,0,0,5">
+        <Border Grid.Row="2" Background="White" CornerRadius="8" Margin="10,5" Padding="0">
             <Border.Effect>
-                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="6"/>
+                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="8"/>
             </Border.Effect>
             <Grid>
                 <Grid.RowDefinitions>
@@ -218,8 +380,12 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <Border Grid.Row="0" Background="#9C27B0" CornerRadius="6,6,0,0" Padding="10,6">
-                    <TextBlock Text="DOSTAWCY LIBRANET" FontWeight="Bold" Foreground="White" FontSize="12"/>
+                <Border Grid.Row="0" Background="#9C27B0" Padding="12,8">
+                    <Grid>
+                        <TextBlock Text="📦 DOSTAWCY LIBRANET" FontWeight="Bold" Foreground="White" FontSize="13" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="txtDostawcyCount" Text="(0)" FontWeight="Normal" Foreground="#E1BEE7"
+                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                    </Grid>
                 </Border>
 
                 <DataGrid Grid.Row="1" x:Name="dgDostawcy"
@@ -227,16 +393,44 @@
                           AutoGenerateColumns="False"
                           IsReadOnly="True"
                           SelectionMode="Single"
-                          RowStyle="{StaticResource DataGridRowStyle}"
+                          RowStyle="{StaticResource DostawcaRowStyle}"
                           ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
                           GridLinesVisibility="Horizontal"
-                          HorizontalGridLinesBrush="#E0E0E0"
-                          RowHeight="32"
+                          HorizontalGridLinesBrush="#EEEEEE"
+                          RowHeight="38"
                           HeadersVisibility="Column"
                           BorderThickness="0"
-                          SelectionChanged="DgDostawcy_SelectionChanged">
+                          SelectionChanged="DgDostawcy_SelectionChanged"
+                          MouseDoubleClick="DgDostawcy_MouseDoubleClick">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="ID" Binding="{Binding ID}" Width="80">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="FontFamily" Value="Consolas"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="Foreground" Value="#5C6BC0"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Nazwa dostawcy (LibraNet)" Binding="{Binding ShortName}" Width="*">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Kontrahent Symfonia" Binding="{Binding MappedName}" Width="200">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="FontStyle" Value="Italic"/>
+                                    <Setter Property="Foreground" Value="#00796B"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="IdSymf" Binding="{Binding IdSymf}" Width="70">
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="HorizontalAlignment" Value="Center"/>
@@ -245,49 +439,47 @@
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="Nazwa (ShortName)" Binding="{Binding ShortName}" Width="*">
-                            <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="VerticalAlignment" Value="Center"/>
-                                    <Setter Property="Padding" Value="5,0"/>
-                                </Style>
-                            </DataGridTextColumn.ElementStyle>
-                        </DataGridTextColumn>
-                        <DataGridTextColumn Header="IdSymf" Binding="{Binding IdSymf}" Width="80">
-                            <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="HorizontalAlignment" Value="Center"/>
-                                    <Setter Property="VerticalAlignment" Value="Center"/>
-                                </Style>
-                            </DataGridTextColumn.ElementStyle>
-                        </DataGridTextColumn>
-                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="140">
-                            <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="HorizontalAlignment" Value="Center"/>
-                                    <Setter Property="VerticalAlignment" Value="Center"/>
-                                    <Setter Property="FontWeight" Value="SemiBold"/>
-                                </Style>
-                            </DataGridTextColumn.ElementStyle>
-                        </DataGridTextColumn>
+                        <DataGridTemplateColumn Header="Status" Width="110">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Border CornerRadius="4" Padding="8,4" HorizontalAlignment="Center"
+                                            Background="{Binding StatusBackground}">
+                                        <TextBlock Text="{Binding StatusIcon}" FontWeight="Bold"
+                                                   Foreground="{Binding StatusForeground}" FontSize="11"/>
+                                    </Border>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                     </DataGrid.Columns>
                 </DataGrid>
             </Grid>
         </Border>
 
-        <!-- Wybrany dostawca -->
-        <Border Grid.Row="3" Background="#E8F5E9" CornerRadius="6" Padding="10" Margin="0,5">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <TextBlock Text="Wybrany dostawca: " FontWeight="SemiBold" VerticalAlignment="Center"/>
-                <TextBlock x:Name="txtSelectedDostawca" Text="(nie wybrano)"
-                           FontWeight="Bold" Foreground="#2E7D32" VerticalAlignment="Center"/>
-            </StackPanel>
+        <!-- Panel wybranego dostawcy -->
+        <Border Grid.Row="3" Margin="10,5" CornerRadius="8" Padding="15,10"
+                Background="{Binding SelectedDostawcaBackground, FallbackValue=#E8F5E9}">
+            <Border.Effect>
+                <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.1" BlurRadius="5"/>
+            </Border.Effect>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" Text="📌 Wybrany:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <TextBlock Grid.Column="1" x:Name="txtSelectedDostawca" Text="(kliknij na dostawcę aby wybrać)"
+                           FontWeight="Bold" FontSize="14" VerticalAlignment="Center" Foreground="#2E7D32"/>
+                <TextBlock Grid.Column="2" x:Name="txtSelectedHint" Text="💡 Dwuklik = szybkie przypisanie"
+                           FontSize="11" Foreground="#757575" VerticalAlignment="Center"/>
+            </Grid>
         </Border>
 
         <!-- Lista kontrahentów Symfonia -->
-        <Border Grid.Row="4" Background="White" CornerRadius="6" Margin="0,5,0,0">
+        <Border Grid.Row="4" Background="White" CornerRadius="8" Margin="10,5" Padding="0">
             <Border.Effect>
-                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="6"/>
+                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="8"/>
             </Border.Effect>
             <Grid>
                 <Grid.RowDefinitions>
@@ -296,18 +488,30 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <Border Grid.Row="0" Background="#1976D2" CornerRadius="6,6,0,0" Padding="10,6">
-                    <TextBlock Text="KONTRAHENCI SYMFONIA" FontWeight="Bold" Foreground="White" FontSize="12"/>
+                <Border Grid.Row="0" Background="#1976D2" Padding="12,8">
+                    <Grid>
+                        <TextBlock Text="🏢 KONTRAHENCI SYMFONIA" FontWeight="Bold" Foreground="White" FontSize="13" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="txtKontrahenciCount" Text="(0)" FontWeight="Normal" Foreground="#BBDEFB"
+                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                    </Grid>
                 </Border>
 
-                <Border Grid.Row="1" Background="#F5F5F5" Padding="10,6">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Szukaj:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                        <TextBox x:Name="txtFilterKontrahenci" Width="300"
+                <Border Grid.Row="1" Background="#F5F5F5" Padding="12,8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="300"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="🔍 Szukaj:" VerticalAlignment="Center" Margin="0,0,10,0" FontWeight="SemiBold" Foreground="#555"/>
+                        <TextBox x:Name="txtFilterKontrahenci" Grid.Column="1"
                                  Style="{StaticResource FilterTextBoxStyle}"
                                  TextChanged="TxtFilterKontrahenci_TextChanged"
                                  ToolTip="Szukaj po kodzie, NIP lub nazwie"/>
-                    </StackPanel>
+                        <TextBlock Grid.Column="2" x:Name="txtKontrahenciHint"
+                                   Text="💡 Zacznij pisać nazwę dostawcy - kontrahenci zostaną przefiltrowani"
+                                   FontSize="11" Foreground="#757575" VerticalAlignment="Center" Margin="15,0,0,0"/>
+                    </Grid>
                 </Border>
 
                 <DataGrid Grid.Row="2" x:Name="dgKontrahenci"
@@ -315,28 +519,31 @@
                           AutoGenerateColumns="False"
                           IsReadOnly="True"
                           SelectionMode="Single"
-                          RowStyle="{StaticResource DataGridRowStyle}"
+                          RowStyle="{StaticResource KontrahentRowStyle}"
                           ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
                           GridLinesVisibility="Horizontal"
-                          HorizontalGridLinesBrush="#E0E0E0"
-                          RowHeight="32"
+                          HorizontalGridLinesBrush="#EEEEEE"
+                          RowHeight="38"
                           HeadersVisibility="Column"
-                          BorderThickness="0">
+                          BorderThickness="0"
+                          MouseDoubleClick="DgKontrahenci_MouseDoubleClick">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="Id" Binding="{Binding Id}" Width="70">
+                        <DataGridTextColumn Header="Id" Binding="{Binding Id}" Width="60">
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="HorizontalAlignment" Value="Center"/>
                                     <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="FontFamily" Value="Consolas"/>
+                                    <Setter Property="Foreground" Value="#5C6BC0"/>
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="Kod" Binding="{Binding Code}" Width="120">
+                        <DataGridTextColumn Header="Kod (Skrót)" Binding="{Binding Code}" Width="150">
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="VerticalAlignment" Value="Center"/>
-                                    <Setter Property="Padding" Value="5,0"/>
                                     <Setter Property="FontFamily" Value="Consolas"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
@@ -344,16 +551,14 @@
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="VerticalAlignment" Value="Center"/>
-                                    <Setter Property="Padding" Value="5,0"/>
                                     <Setter Property="FontFamily" Value="Consolas"/>
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="Nazwa" Binding="{Binding Name}" Width="*">
+                        <DataGridTextColumn Header="Nazwa kontrahenta" Binding="{Binding Name}" Width="*">
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="VerticalAlignment" Value="Center"/>
-                                    <Setter Property="Padding" Value="5,0"/>
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
@@ -363,29 +568,56 @@
         </Border>
 
         <!-- Przyciski akcji -->
-        <Border Grid.Row="5" Background="White" CornerRadius="6" Padding="15" Margin="0,10,0,0">
+        <Border Grid.Row="5" Background="White" CornerRadius="8" Padding="15" Margin="10,5">
             <Border.Effect>
-                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="6"/>
+                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="8"/>
             </Border.Effect>
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <Button x:Name="btnPrzypisz" Content="PRZYPISZ WYBRANEGO"
-                        Click="BtnPrzypisz_Click"
-                        Style="{StaticResource MainButtonStyle}"
-                        Padding="20,12"/>
-                <Button x:Name="btnUsunMapowanie" Content="USUŃ MAPOWANIE"
-                        Click="BtnUsunMapowanie_Click"
-                        Style="{StaticResource DangerButtonStyle}"
-                        Padding="20,12" Margin="10,0"/>
-                <Button x:Name="btnClose" Content="Zamknij"
-                        Click="BtnClose_Click"
-                        Style="{StaticResource SecondaryButtonStyle}"
-                        Padding="20,12"/>
-            </StackPanel>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
+                    <Button x:Name="btnPrzypisz" Content="✅ PRZYPISZ WYBRANEGO (Enter)"
+                            Click="BtnPrzypisz_Click"
+                            Style="{StaticResource SuccessButtonStyle}"
+                            IsEnabled="False"
+                            ToolTip="Przypisz wybranego kontrahenta do dostawcy (Enter)"/>
+                    <Button x:Name="btnUsunMapowanie" Content="🗑️ USUŃ MAPOWANIE (Del)"
+                            Click="BtnUsunMapowanie_Click"
+                            Style="{StaticResource DangerButtonStyle}"
+                            IsEnabled="False"
+                            ToolTip="Usuń przypisanie kontrahenta (Delete)"/>
+                    <Button x:Name="btnClose" Content="✖ Zamknij (Esc)"
+                            Click="BtnClose_Click"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            ToolTip="Zamknij okno (Escape)"/>
+                </StackPanel>
+            </Grid>
         </Border>
 
         <!-- Status -->
-        <Border Grid.Row="6" Background="#ECEFF1" CornerRadius="4" Padding="10,6" Margin="0,10,0,0">
-            <TextBlock x:Name="txtStatus" Text="Gotowy" Foreground="#607D8B"/>
+        <Border Grid.Row="6" Background="#37474F" Padding="12,8" Margin="10,5,10,10" CornerRadius="6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="txtStatus" Grid.Column="0" Text="Gotowy" Foreground="#B0BEC5" FontSize="12"/>
+                <TextBlock Grid.Column="1" Text="⌨️ Enter=Przypisz | Del=Usuń | F5=Odśwież | Esc=Zamknij"
+                           Foreground="#78909C" FontSize="11"/>
+            </Grid>
+        </Border>
+
+        <!-- Loading overlay -->
+        <Border x:Name="loadingOverlay" Grid.RowSpan="7" Background="#90000000" Visibility="Collapsed">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="⏳" FontSize="48" HorizontalAlignment="Center" Foreground="White"/>
+                <TextBlock x:Name="txtLoading" Text="Ładowanie danych..." FontSize="16" Foreground="White"
+                           HorizontalAlignment="Center" Margin="0,10,0,0"/>
+            </StackPanel>
         </Border>
     </Grid>
 </Window>
