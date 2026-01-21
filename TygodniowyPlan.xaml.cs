@@ -38,8 +38,11 @@ namespace Kalendarz1
         private DateTime aktualnyTydzien;
         private Dictionary<string, decimal> konfiguracjaProduktow;
         private List<PlanDziennyModel> aktualneDane;
-        private List<PlanDziennyModel> daneDalszegoTygodnia;
         private WydajnoscModel aktualnaWydajnosc;
+
+        // Daty z dostaw do dynamicznego zakresu
+        private DateTime? minDataDostawy;
+        private DateTime? maxDataDostawy;
 
         // Ograniczenia dla handlowców
         private DateTime minData;
@@ -51,11 +54,13 @@ namespace Kalendarz1
             aktualnyTydzien = DateTime.Today;
             konfiguracjaProduktow = new Dictionary<string, decimal>();
             aktualneDane = new List<PlanDziennyModel>();
-            daneDalszegoTygodnia = new List<PlanDziennyModel>();
 
             // Ustaw ograniczenia dat - 6 tygodni wstecz, 2 tygodnie do przodu
             minData = DateTime.Today.AddDays(-42); // 6 tygodni wstecz
             maxData = DateTime.Today.AddDays(14);  // 2 tygodnie do przodu
+
+            // Pobierz zakres dat z dostaw
+            PobierzZakresDatDostaw();
 
             // Inicjalizacja domyślnej wydajności
             aktualnaWydajnosc = new WydajnoscModel
@@ -86,8 +91,8 @@ namespace Kalendarz1
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-                    string query = @"SELECT NazwaTowaru, ProcentUdzialu 
-                                   FROM KonfiguracjaProduktow 
+                    string query = @"SELECT NazwaTowaru, ProcentUdzialu
+                                   FROM KonfiguracjaProduktow
                                    WHERE Aktywny = 1";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
@@ -105,6 +110,44 @@ namespace Kalendarz1
             catch
             {
                 // Użyj domyślnych wartości
+            }
+        }
+
+        private void PobierzZakresDatDostaw()
+        {
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string query = @"
+                        SELECT MIN(DataOdbioru) as MinData, MAX(DataOdbioru) as MaxData
+                        FROM HarmonogramDostaw
+                        WHERE Bufor IN ('B.Wolny', 'B.Kontr.', 'Potwierdzony')
+                        AND DataOdbioru >= @MinData AND DataOdbioru <= @MaxData";
+
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@MinData", DateTime.Today.AddDays(-60));
+                        cmd.Parameters.AddWithValue("@MaxData", DateTime.Today.AddDays(30));
+
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                if (!reader.IsDBNull(0))
+                                    minDataDostawy = Convert.ToDateTime(reader["MinData"]);
+                                if (!reader.IsDBNull(1))
+                                    maxDataDostawy = Convert.ToDateTime(reader["MaxData"]);
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                minDataDostawy = null;
+                maxDataDostawy = null;
             }
         }
 
@@ -171,22 +214,41 @@ namespace Kalendarz1
             {
                 Mouse.OverrideCursor = Cursors.Wait;
 
-                // === DOCELOWY TYDZIEN ===
-                DateTime poniedzialek = GetPoniedzialek(aktualnyTydzien);
-                DateTime niedziela = poniedzialek.AddDays(6);
+                // Odśwież zakres dat z dostaw
+                PobierzZakresDatDostaw();
 
-                WczytajWydajnoscDlaDaty(poniedzialek);
+                // Oblicz zakres: od min daty -5 dni do max daty +5 dni
+                DateTime dataOd, dataDo;
 
-                CultureInfo ciCurr = CultureInfo.CurrentCulture;
-                int weekNum = ciCurr.Calendar.GetWeekOfYear(poniedzialek, CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
+                if (minDataDostawy.HasValue && maxDataDostawy.HasValue)
+                {
+                    dataOd = minDataDostawy.Value.AddDays(-5);
+                    dataDo = maxDataDostawy.Value.AddDays(5);
+                }
+                else
+                {
+                    // Domyślnie: bieżący tydzień
+                    DateTime poniedzialek = GetPoniedzialek(aktualnyTydzien);
+                    dataOd = poniedzialek.AddDays(-5);
+                    dataDo = poniedzialek.AddDays(12);
+                }
 
-                txtDataZakres.Text = $"{poniedzialek:dd.MM.yyyy} - {niedziela:dd.MM.yyyy}";
-                txtNumerTygodnia.Text = $"(Tydzień {weekNum}/{poniedzialek.Year})";
-                txtDocelowyTydzienZakres.Text = $"{poniedzialek:dd.MM} - {niedziela:dd.MM}";
+                WczytajWydajnoscDlaDaty(dataOd);
 
-                aktualneDane = PobierzDaneTygodnia(poniedzialek, niedziela);
+                // Aktualizuj nagłówki
+                int liczbaDni = (int)(dataDo - dataOd).TotalDays + 1;
+                txtDataZakres.Text = $"{dataOd:dd.MM.yyyy} - {dataDo:dd.MM.yyyy}";
+                txtNumerTygodnia.Text = $"({liczbaDni} dni)";
+                txtDocelowyTydzienZakres.Text = $"Zakres: {dataOd:dd.MM} - {dataDo:dd.MM}";
+                txtInfoZakres.Text = $"Min dostawa: {minDataDostawy?.ToString("dd.MM") ?? "brak"} | Max dostawa: {maxDataDostawy?.ToString("dd.MM") ?? "brak"}";
 
-                // Dodaj wiersz SUMA dla docelowego tygodnia
+                aktualneDane = PobierzDaneZakresu(dataOd, dataDo);
+
+                // Policz dostawy z danymi
+                int liczbaDostaw = aktualneDane.Count(x => !x.JestSuma && x.ZywiecKg > 0);
+                txtLiczbaDostaw.Text = $"{liczbaDostaw} dostaw";
+
+                // Dodaj wiersz SUMA
                 var wierszSuma = new PlanDziennyModel
                 {
                     Data = "SUMA",
@@ -220,49 +282,6 @@ namespace Kalendarz1
                 dgPlan.ItemsSource = null;
                 dgPlan.ItemsSource = aktualneDane;
 
-                // === DALSZY TYDZIEN (+1 tydzien) ===
-                DateTime poniedzialekDalszy = poniedzialek.AddDays(7);
-                DateTime niedzielaDalszy = poniedzialekDalszy.AddDays(6);
-                int weekNumDalszy = ciCurr.Calendar.GetWeekOfYear(poniedzialekDalszy, CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
-
-                txtDalszyTydzienZakres.Text = $"{poniedzialekDalszy:dd.MM} - {niedzielaDalszy:dd.MM}";
-
-                daneDalszegoTygodnia = PobierzDaneTygodnia(poniedzialekDalszy, niedzielaDalszy);
-
-                // Dodaj wiersz SUMA dla dalszego tygodnia
-                var wierszSumaDalszy = new PlanDziennyModel
-                {
-                    Data = "SUMA",
-                    DzienTygodnia = "",
-                    LiczbaAut = daneDalszegoTygodnia.Sum(x => x.LiczbaAut),
-                    LiczbaUbiorek = daneDalszegoTygodnia.Sum(x => x.LiczbaUbiorek),
-                    ZywiecKg = daneDalszegoTygodnia.Sum(x => x.ZywiecKg),
-                    Sztuki = daneDalszegoTygodnia.Sum(x => x.Sztuki),
-                    WagaSrednia = daneDalszegoTygodnia.Sum(x => x.Sztuki) > 0 ? daneDalszegoTygodnia.Sum(x => x.ZywiecKg) / daneDalszegoTygodnia.Sum(x => x.Sztuki) : 0,
-                    TuszkaCalkowita = daneDalszegoTygodnia.Sum(x => x.TuszkaCalkowita),
-                    TuszkaAB = $"{aktualnaWydajnosc.ProcentTuszkaA:F0}/{aktualnaWydajnosc.ProcentTuszkaB:F0}",
-                    TuszkaA = daneDalszegoTygodnia.Sum(x => x.TuszkaA),
-                    Cwiartka = daneDalszegoTygodnia.Sum(x => x.Cwiartka),
-                    Skrzydlo = daneDalszegoTygodnia.Sum(x => x.Skrzydlo),
-                    Filet = daneDalszegoTygodnia.Sum(x => x.Filet),
-                    Korpus = daneDalszegoTygodnia.Sum(x => x.Korpus),
-                    Pojemniki9 = daneDalszegoTygodnia.Sum(x => x.Pojemniki9),
-                    Pojemniki10 = daneDalszegoTygodnia.Sum(x => x.Pojemniki10),
-                    Pojemniki11 = daneDalszegoTygodnia.Sum(x => x.Pojemniki11),
-                    Pojemniki12 = daneDalszegoTygodnia.Sum(x => x.Pojemniki12),
-                    Pojemniki8 = daneDalszegoTygodnia.Sum(x => x.Pojemniki8),
-                    Pojemniki7 = daneDalszegoTygodnia.Sum(x => x.Pojemniki7),
-                    Pojemniki6 = daneDalszegoTygodnia.Sum(x => x.Pojemniki6),
-                    Pojemniki5 = daneDalszegoTygodnia.Sum(x => x.Pojemniki5),
-                    StatusTekst = "PODSUMOWANIE",
-                    JestSuma = true
-                };
-
-                daneDalszegoTygodnia.Add(wierszSumaDalszy);
-
-                dgPlanDalszy.ItemsSource = null;
-                dgPlanDalszy.ItemsSource = daneDalszegoTygodnia;
-
                 ObliczStatystyki(aktualneDane);
                 ObliczStatystykiPojemnikow(aktualneDane);
             }
@@ -275,6 +294,126 @@ namespace Kalendarz1
             {
                 Mouse.OverrideCursor = null;
             }
+        }
+
+        private List<PlanDziennyModel> PobierzDaneZakresu(DateTime od, DateTime doo)
+        {
+            List<PlanDziennyModel> wynik = new List<PlanDziennyModel>();
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Inicjalizuj wszystkie dni w zakresie
+                    int liczbaDni = (int)(doo - od).TotalDays + 1;
+                    for (int i = 0; i < liczbaDni; i++)
+                    {
+                        DateTime dzien = od.AddDays(i);
+                        wynik.Add(new PlanDziennyModel
+                        {
+                            Data = dzien.ToString("yyyy-MM-dd"),
+                            DzienTygodnia = GetPolskiDzienTygodnia(dzien),
+                            LiczbaAut = 0,
+                            LiczbaUbiorek = 0,
+                            ZywiecKg = 0,
+                            Sztuki = 0,
+                            WagaSrednia = 0,
+                            CzyPotwierdzone = false,
+                            ProcentPotwierdzenia = 0
+                        });
+                    }
+
+                    // Pobierz dostawy
+                    string query = @"
+                        SELECT
+                            DataOdbioru,
+                            Auta,
+                            SztukiDek,
+                            WagaDek,
+                            PotwWaga,
+                            PotwSztuki,
+                            Ubiorka
+                        FROM HarmonogramDostaw
+                        WHERE DataOdbioru >= @Od AND DataOdbioru <= @Do
+                        AND Bufor IN ('B.Wolny', 'B.Kontr.', 'Potwierdzony')
+                        ORDER BY DataOdbioru";
+
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Od", od);
+                        cmd.Parameters.AddWithValue("@Do", doo);
+
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                DateTime dataOdbioru = Convert.ToDateTime(reader["DataOdbioru"]);
+
+                                int auta = 0;
+                                if (!reader.IsDBNull(reader.GetOrdinal("Auta")))
+                                {
+                                    try { auta = Convert.ToInt32(reader["Auta"]); }
+                                    catch { auta = 0; }
+                                }
+
+                                int sztuki = 0;
+                                if (!reader.IsDBNull(reader.GetOrdinal("SztukiDek")))
+                                {
+                                    try { sztuki = Convert.ToInt32(reader["SztukiDek"]); }
+                                    catch { sztuki = 0; }
+                                }
+
+                                decimal wagaDek = 0;
+                                if (!reader.IsDBNull(reader.GetOrdinal("WagaDek")))
+                                {
+                                    try { wagaDek = Convert.ToDecimal(reader["WagaDek"]); }
+                                    catch { wagaDek = 0; }
+                                }
+
+                                int ubiorka = 0;
+                                if (!reader.IsDBNull(reader.GetOrdinal("Ubiorka")))
+                                {
+                                    try { ubiorka = Convert.ToInt32(reader["Ubiorka"]); }
+                                    catch { ubiorka = 0; }
+                                }
+
+                                decimal zywiecKg = sztuki * wagaDek;
+
+                                var dzien = wynik.FirstOrDefault(x => x.Data == dataOdbioru.ToString("yyyy-MM-dd"));
+                                if (dzien != null)
+                                {
+                                    dzien.LiczbaAut += auta;
+                                    dzien.LiczbaUbiorek += ubiorka;
+                                    dzien.ZywiecKg += zywiecKg;
+                                    dzien.Sztuki += sztuki;
+
+                                    ObliczIPojemnikiDlaDostawy(dzien, wagaDek, zywiecKg);
+                                }
+                            }
+                        }
+                    }
+
+                    // Oblicz produkty i statusy
+                    foreach (var dzien in wynik)
+                    {
+                        if (dzien.Sztuki > 0)
+                        {
+                            dzien.WagaSrednia = dzien.ZywiecKg / dzien.Sztuki;
+                        }
+                        ObliczProdukty(dzien);
+                        ObliczStatusPotwierdzenia(dzien, conn, od, doo);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd pobierania danych: {ex.Message}\n\nSzczegóły: {ex.StackTrace}",
+                              "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+
+            return wynik;
         }
 
         private DateTime GetPoniedzialek(DateTime data)
@@ -746,44 +885,6 @@ namespace Kalendarz1
             }
         }
 
-        private void DgPlanDalszy_LoadingRow(object sender, DataGridRowEventArgs e)
-        {
-            var plan = e.Row.Item as PlanDziennyModel;
-            if (plan != null)
-            {
-                if (plan.JestSuma)
-                {
-                    e.Row.Background = new SolidColorBrush(Color.FromRgb(52, 73, 94));
-                    e.Row.Foreground = Brushes.White;
-                    e.Row.FontWeight = FontWeights.Bold;
-                }
-                else if (plan.CzyPotwierdzone && plan.ZywiecKg > 0)
-                {
-                    e.Row.Background = new SolidColorBrush(Color.FromRgb(200, 230, 201));
-                }
-                else if (plan.ProcentPotwierdzenia > 0 && plan.ZywiecKg > 0)
-                {
-                    e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 249, 196));
-                }
-                else if (plan.ZywiecKg == 0)
-                {
-                    e.Row.Background = Brushes.White;
-                    e.Row.Foreground = new SolidColorBrush(Color.FromRgb(189, 195, 199));
-                }
-            }
-        }
-
-        private void DgPlanDalszy_MouseDoubleClick(object sender, MouseButtonEventArgs e)
-        {
-            var plan = dgPlanDalszy.SelectedItem as PlanDziennyModel;
-            if (plan != null && plan.ZywiecKg > 0 && !plan.JestSuma)
-            {
-                DateTime dataWybrana = DateTime.Parse(plan.Data);
-                var oknoSzczegoly = new SzczegolyDnia(connectionString, dataWybrana, aktualnaWydajnosc, konfiguracjaProduktow);
-                oknoSzczegoly.ShowDialog();
-            }
-        }
-
         private void BtnPoprzedniTydzien_Click(object sender, RoutedEventArgs e)
         {
             DateTime nowyTydzien = aktualnyTydzien.AddDays(-7);
@@ -972,6 +1073,60 @@ namespace Kalendarz1
             {
                 MessageBox.Show($"Błąd eksportu: {ex.Message}",
                               "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnGoToDelivery_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var button = sender as Button;
+                var plan = button?.DataContext as PlanDziennyModel;
+
+                if (plan != null && !plan.JestSuma && plan.ZywiecKg > 0)
+                {
+                    DateTime dataWybrana = DateTime.Parse(plan.Data);
+
+                    // Otwórz WidokKalendarzaWPF z wybraną datą
+                    var oknoKalendarza = new Zywiec.Kalendarz.WidokKalendarzaWPF();
+                    oknoKalendarza.Show();
+
+                    // Pokaż informację o nawigacji
+                    MessageBox.Show($"Otwarto kalendarz dostaw.\n\nData: {dataWybrana:dd.MM.yyyy}\nŻywiec: {plan.ZywiecKg:N0} kg\nAuta: {plan.LiczbaAut}",
+                                  "Nawigacja do kalendarza", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd nawigacji: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnDeleteDelivery_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var button = sender as Button;
+                var plan = button?.DataContext as PlanDziennyModel;
+
+                if (plan != null && !plan.JestSuma && plan.ZywiecKg > 0)
+                {
+                    DateTime dataWybrana = DateTime.Parse(plan.Data);
+
+                    var result = MessageBox.Show($"Czy na pewno chcesz usunąć wszystkie dostawy z dnia {dataWybrana:dd.MM.yyyy}?\n\nŻywiec: {plan.ZywiecKg:N0} kg\nAuta: {plan.LiczbaAut}",
+                                                "Potwierdzenie usunięcia", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+                    if (result == MessageBoxResult.Yes)
+                    {
+                        // Tutaj logika usuwania dostaw
+                        MessageBox.Show("Funkcja usuwania dostaw nie jest jeszcze zaimplementowana.\n\nUżyj kalendarza dostaw do zarządzania dostawami.",
+                                      "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd usuwania: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
     }
