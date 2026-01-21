@@ -1570,10 +1570,10 @@ namespace Kalendarz1
             tooltip.IsOpen = true;
             _currentOpenTooltip = tooltip;
 
-            // Start auto-close timer (10 seconds)
+            // Start auto-close timer (6 seconds)
             _tooltipCloseTimer = new System.Windows.Threading.DispatcherTimer
             {
-                Interval = TimeSpan.FromSeconds(10)
+                Interval = TimeSpan.FromSeconds(6)
             };
             _tooltipCloseTimer.Tick += (s, e) =>
             {
@@ -1726,6 +1726,33 @@ namespace Kalendarz1
             var telColumn = new DataGridTemplateColumn { Header = "Tel", Width = 82 };
             telColumn.CellTemplate = CreatePulsatingTextTemplate("Telefon", null);
             dataGridPrzypomnienia.Columns.Add(telColumn);
+
+            // Dodaj pulsowanie tła dla całych wierszy
+            dataGridPrzypomnienia.LoadingRow += DataGridPrzypomnienia_LoadingRow;
+        }
+
+        private void DataGridPrzypomnienia_LoadingRow(object sender, DataGridRowEventArgs e)
+        {
+            // Dodaj pulsujące tło dla wiersza przypomnienia
+            var row = e.Row;
+
+            // Ustaw początkowe jasne czerwone tło
+            var brush = new SolidColorBrush(Color.FromRgb(255, 235, 238)); // Jasny różowy
+            row.Background = brush;
+
+            // Animacja koloru tła - pulsowanie
+            var colorAnimation = new System.Windows.Media.Animation.ColorAnimationUsingKeyFrames
+            {
+                RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever
+            };
+
+            // Jasny różowy -> czerwonawy -> jasny różowy
+            colorAnimation.KeyFrames.Add(new System.Windows.Media.Animation.LinearColorKeyFrame(Color.FromRgb(255, 235, 238), TimeSpan.FromSeconds(0)));
+            colorAnimation.KeyFrames.Add(new System.Windows.Media.Animation.LinearColorKeyFrame(Color.FromRgb(255, 235, 238), TimeSpan.FromSeconds(0.8)));
+            colorAnimation.KeyFrames.Add(new System.Windows.Media.Animation.EasingColorKeyFrame(Color.FromRgb(255, 182, 193), TimeSpan.FromSeconds(1.3), new System.Windows.Media.Animation.SineEase())); // Mocniejszy różowy
+            colorAnimation.KeyFrames.Add(new System.Windows.Media.Animation.EasingColorKeyFrame(Color.FromRgb(255, 235, 238), TimeSpan.FromSeconds(1.8), new System.Windows.Media.Animation.SineEase()));
+
+            brush.BeginAnimation(SolidColorBrush.ColorProperty, colorAnimation);
         }
 
         private DataTemplate CreatePulsatingTextTemplate(string bindingPath, string stringFormat)
@@ -1750,21 +1777,37 @@ namespace Kalendarz1
             var textBlock = sender as TextBlock;
             if (textBlock != null)
             {
-                // Animacja z klatkami kluczowymi: dłużej na 1.0, krótkie przejście do 0.7
-                var animation = new System.Windows.Media.Animation.DoubleAnimationUsingKeyFrames
+                // Ustaw początkowy kolor na czerwony dla lepszej widoczności
+                textBlock.Foreground = new SolidColorBrush(Color.FromRgb(220, 53, 69)); // Czerwony
+                textBlock.FontWeight = FontWeights.Bold;
+
+                // Animacja koloru - bardziej widoczna
+                var colorAnimation = new System.Windows.Media.Animation.ColorAnimationUsingKeyFrames
                 {
                     RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever
                 };
 
-                // Pozostaje na 1.0 przez 1.5 sekundy
-                animation.KeyFrames.Add(new System.Windows.Media.Animation.LinearDoubleKeyFrame(1.0, TimeSpan.FromSeconds(0)));
-                animation.KeyFrames.Add(new System.Windows.Media.Animation.LinearDoubleKeyFrame(1.0, TimeSpan.FromSeconds(1.5)));
-                // Przejście do 0.7 przez 0.4 sekundy
-                animation.KeyFrames.Add(new System.Windows.Media.Animation.EasingDoubleKeyFrame(0.7, TimeSpan.FromSeconds(1.9), new System.Windows.Media.Animation.SineEase()));
-                // Powrót do 1.0 przez 0.4 sekundy
-                animation.KeyFrames.Add(new System.Windows.Media.Animation.EasingDoubleKeyFrame(1.0, TimeSpan.FromSeconds(2.3), new System.Windows.Media.Animation.SineEase()));
+                // Kolor: czerwony -> ciemniejszy -> czerwony (pulsowanie)
+                colorAnimation.KeyFrames.Add(new System.Windows.Media.Animation.LinearColorKeyFrame(Color.FromRgb(220, 53, 69), TimeSpan.FromSeconds(0)));
+                colorAnimation.KeyFrames.Add(new System.Windows.Media.Animation.LinearColorKeyFrame(Color.FromRgb(220, 53, 69), TimeSpan.FromSeconds(0.8)));
+                colorAnimation.KeyFrames.Add(new System.Windows.Media.Animation.EasingColorKeyFrame(Color.FromRgb(128, 0, 32), TimeSpan.FromSeconds(1.2), new System.Windows.Media.Animation.SineEase()));
+                colorAnimation.KeyFrames.Add(new System.Windows.Media.Animation.EasingColorKeyFrame(Color.FromRgb(220, 53, 69), TimeSpan.FromSeconds(1.6), new System.Windows.Media.Animation.SineEase()));
 
-                textBlock.BeginAnimation(TextBlock.OpacityProperty, animation);
+                // Animacja opacity - dodatkowy efekt
+                var opacityAnimation = new System.Windows.Media.Animation.DoubleAnimationUsingKeyFrames
+                {
+                    RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever
+                };
+                opacityAnimation.KeyFrames.Add(new System.Windows.Media.Animation.LinearDoubleKeyFrame(1.0, TimeSpan.FromSeconds(0)));
+                opacityAnimation.KeyFrames.Add(new System.Windows.Media.Animation.LinearDoubleKeyFrame(1.0, TimeSpan.FromSeconds(0.8)));
+                opacityAnimation.KeyFrames.Add(new System.Windows.Media.Animation.EasingDoubleKeyFrame(0.5, TimeSpan.FromSeconds(1.2), new System.Windows.Media.Animation.SineEase()));
+                opacityAnimation.KeyFrames.Add(new System.Windows.Media.Animation.EasingDoubleKeyFrame(1.0, TimeSpan.FromSeconds(1.6), new System.Windows.Media.Animation.SineEase()));
+
+                // Zastosuj obie animacje
+                var brush = new SolidColorBrush(Color.FromRgb(220, 53, 69));
+                textBlock.Foreground = brush;
+                brush.BeginAnimation(SolidColorBrush.ColorProperty, colorAnimation);
+                textBlock.BeginAnimation(TextBlock.OpacityProperty, opacityAnimation);
             }
         }
 
