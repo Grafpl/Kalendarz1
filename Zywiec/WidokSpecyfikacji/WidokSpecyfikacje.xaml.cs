@@ -14556,18 +14556,14 @@ public class RozliczenieRow : INotifyPropertyChanged
     public bool JestZablokowany => Zatwierdzony && Zweryfikowany;
 
     // === AWATARY: Właściwości do wyświetlania awatarów użytkowników ===
-
-    // Ścieżki sieciowe do awatarów
-    private static readonly string[] NetworkAvatarPaths = {
-        @"\\192.168.0.170\Install\Prace Graficzne\Avatary",
-        @"\\192.168.0.171\Install\Prace Graficzne\Avatary"
-    };
+    // Używa UserAvatarManager tak jak w WidokKalendarzaWPF
 
     // Cache dla załadowanych awatarów
     private static readonly Dictionary<string, System.Windows.Media.ImageSource> _avatarCache =
         new Dictionary<string, System.Windows.Media.ImageSource>();
 
     private System.Windows.Media.ImageSource _zatwierdzoneAvatarImage;
+    private bool _zatwierdzoneAvatarLoaded;
     /// <summary>
     /// Obrazek awatara osoby wprowadzającej (z serwera)
     /// </summary>
@@ -14575,13 +14571,17 @@ public class RozliczenieRow : INotifyPropertyChanged
     {
         get
         {
-            if (_zatwierdzoneAvatarImage == null && !string.IsNullOrEmpty(ZatwierdzoneByUserID))
-                _zatwierdzoneAvatarImage = LoadAvatarImage(ZatwierdzoneByUserID);
+            if (!_zatwierdzoneAvatarLoaded && !string.IsNullOrEmpty(ZatwierdzoneByUserID))
+            {
+                _zatwierdzoneAvatarImage = LoadAvatarFromUserAvatarManager(ZatwierdzoneByUserID);
+                _zatwierdzoneAvatarLoaded = true;
+            }
             return _zatwierdzoneAvatarImage;
         }
     }
 
     private System.Windows.Media.ImageSource _zweryfikowaneAvatarImage;
+    private bool _zweryfikowaneAvatarLoaded;
     /// <summary>
     /// Obrazek awatara osoby weryfikującej (z serwera)
     /// </summary>
@@ -14589,8 +14589,11 @@ public class RozliczenieRow : INotifyPropertyChanged
     {
         get
         {
-            if (_zweryfikowaneAvatarImage == null && !string.IsNullOrEmpty(ZweryfikowaneByUserID))
-                _zweryfikowaneAvatarImage = LoadAvatarImage(ZweryfikowaneByUserID);
+            if (!_zweryfikowaneAvatarLoaded && !string.IsNullOrEmpty(ZweryfikowaneByUserID))
+            {
+                _zweryfikowaneAvatarImage = LoadAvatarFromUserAvatarManager(ZweryfikowaneByUserID);
+                _zweryfikowaneAvatarLoaded = true;
+            }
             return _zweryfikowaneAvatarImage;
         }
     }
@@ -14606,9 +14609,9 @@ public class RozliczenieRow : INotifyPropertyChanged
     public bool HasZweryfikowaneAvatar => ZweryfikowaneAvatarImage != null;
 
     /// <summary>
-    /// Ładuje awatar z serwera sieciowego
+    /// Ładuje awatar używając UserAvatarManager (tak jak w WidokKalendarzaWPF)
     /// </summary>
-    private static System.Windows.Media.ImageSource LoadAvatarImage(string userId)
+    private static System.Windows.Media.ImageSource LoadAvatarFromUserAvatarManager(string userId)
     {
         if (string.IsNullOrEmpty(userId)) return null;
 
@@ -14616,46 +14619,45 @@ public class RozliczenieRow : INotifyPropertyChanged
         if (_avatarCache.TryGetValue(userId, out var cached))
             return cached;
 
-        string[] extensions = { ".png", ".jpg", ".jpeg", ".bmp" };
-
-        foreach (var networkPath in NetworkAvatarPaths)
+        try
         {
-            try
+            if (UserAvatarManager.HasAvatar(userId))
             {
-                if (!System.IO.Directory.Exists(networkPath))
-                    continue;
-
-                foreach (var ext in extensions)
+                using (var avatar = UserAvatarManager.GetAvatarRounded(userId, 44))
                 {
-                    string avatarPath = System.IO.Path.Combine(networkPath, $"{userId}{ext}");
-                    if (System.IO.File.Exists(avatarPath))
+                    if (avatar != null)
                     {
-                        try
-                        {
-                            var bitmap = new System.Windows.Media.Imaging.BitmapImage();
-                            bitmap.BeginInit();
-                            bitmap.UriSource = new Uri(avatarPath);
-                            bitmap.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
-                            bitmap.DecodePixelWidth = 48; // Optymalizacja - mały rozmiar
-                            bitmap.EndInit();
-                            bitmap.Freeze(); // Umożliwia użycie z różnych wątków
-
-                            _avatarCache[userId] = bitmap;
-                            return bitmap;
-                        }
-                        catch { }
+                        var imageSource = ConvertDrawingImageToWpfImageSource(avatar);
+                        _avatarCache[userId] = imageSource;
+                        return imageSource;
                     }
                 }
             }
-            catch
-            {
-                continue;
-            }
         }
+        catch { }
 
         // Nie znaleziono - zapisz null w cache żeby nie szukać ponownie
         _avatarCache[userId] = null;
         return null;
+    }
+
+    /// <summary>
+    /// Konwertuje System.Drawing.Image na WPF ImageSource (tak jak w WidokKalendarzaWPF)
+    /// </summary>
+    private static System.Windows.Media.ImageSource ConvertDrawingImageToWpfImageSource(System.Drawing.Image image)
+    {
+        using (var ms = new System.IO.MemoryStream())
+        {
+            image.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+            ms.Position = 0;
+            var bitmapImage = new System.Windows.Media.Imaging.BitmapImage();
+            bitmapImage.BeginInit();
+            bitmapImage.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+            bitmapImage.StreamSource = ms;
+            bitmapImage.EndInit();
+            bitmapImage.Freeze();
+            return bitmapImage;
+        }
     }
 
     /// <summary>
