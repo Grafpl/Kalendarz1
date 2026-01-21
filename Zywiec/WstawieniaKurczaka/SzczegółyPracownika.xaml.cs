@@ -38,10 +38,9 @@ namespace Kalendarz1
         public SzczegółyPracownika(string pracownik, DateTime dataOd, DateTime dataDo)
         {
             InitializeComponent();
-<<<<<<< HEAD
+
             WindowIconHelper.SetIcon(this);
-=======
->>>>>>> Zywiec-avatary
+
 
             nazwaPracownika = pracownik;
             startDate = dataOd;
