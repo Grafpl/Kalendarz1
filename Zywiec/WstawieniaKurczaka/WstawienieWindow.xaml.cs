@@ -34,10 +34,12 @@ namespace Kalendarz1
         // Stoper do mierzenia czasu tworzenia wstawienia
         private System.Diagnostics.Stopwatch stopwatch = new System.Diagnostics.Stopwatch();
 
-        // Kalendarz dostaw
-        private DateTime _calendarMonth = DateTime.Today;
+        // Kalendarz dostaw - widok tygodniowy
+        private int _currentWeekIndex = 0;
+        private List<MiniWeekData> _weeksWithDeliveries = new List<MiniWeekData>();
         private Dictionary<DateTime, int> _deliveryDates = new Dictionary<DateTime, int>(); // Data -> ilość sztuk
         private const int MAX_DAILY_CAPACITY = 80000; // Maksymalna pojemność 80 000 szt./dzień
+        private static readonly CultureInfo _plCulture = new CultureInfo("pl-PL");
 
         public WstawienieWindow()
         {
@@ -1272,19 +1274,37 @@ namespace Kalendarz1
 
         private void BtnCalendarPrev_Click(object sender, RoutedEventArgs e)
         {
-            _calendarMonth = _calendarMonth.AddMonths(-1);
-            RenderMiniCalendar();
+            if (_currentWeekIndex > 0)
+            {
+                _currentWeekIndex--;
+                RenderWeeksList();
+            }
         }
 
         private void BtnCalendarNext_Click(object sender, RoutedEventArgs e)
         {
-            _calendarMonth = _calendarMonth.AddMonths(1);
-            RenderMiniCalendar();
+            if (_currentWeekIndex + 1 < _weeksWithDeliveries.Count)
+            {
+                _currentWeekIndex++;
+                RenderWeeksList();
+            }
+        }
+
+        private DateTime GetStartOfWeek(DateTime date)
+        {
+            int diff = ((int)date.DayOfWeek + 6) % 7;
+            return date.AddDays(-diff).Date;
+        }
+
+        private int GetWeekOfYear(DateTime date)
+        {
+            return _plCulture.Calendar.GetWeekOfYear(date, CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
         }
 
         private void LoadDeliveryDatesForCalendar()
         {
             _deliveryDates.Clear();
+            _weeksWithDeliveries.Clear();
 
             try
             {
@@ -1298,6 +1318,7 @@ namespace Kalendarz1
                     WHERE DataOdbioru IS NOT NULL
                       AND DataOdbioru >= DATEADD(MONTH, -6, GETDATE())
                       AND DataOdbioru <= DATEADD(MONTH, 6, GETDATE())
+                      AND (Bufor IS NULL OR Bufor NOT IN ('Anulowany', 'Sprzedany'))
                     GROUP BY DataOdbioru
                     ORDER BY DataOdbioru";
 
@@ -1313,6 +1334,12 @@ namespace Kalendarz1
                         _deliveryDates[date] = szt;
                     }
                 }
+
+                // Znajdź tygodnie z dostawami
+                FindWeeksWithDeliveries();
+
+                // Ustaw bieżący tydzień
+                ScrollToCurrentWeek();
             }
             catch (Exception ex)
             {
@@ -1320,232 +1347,204 @@ namespace Kalendarz1
             }
         }
 
-        private void RenderMiniCalendar()
+        private void FindWeeksWithDeliveries()
         {
-            if (calendarDaysGrid == null) return;
+            _weeksWithDeliveries.Clear();
 
-            calendarDaysGrid.Children.Clear();
+            if (!_deliveryDates.Any()) return;
 
-            // Aktualizuj nagłówek miesiąca
-            txtCalendarMonth.Text = _calendarMonth.ToString("MMMM yyyy", new CultureInfo("pl-PL"));
+            var minDate = _deliveryDates.Keys.Min();
+            var maxDate = _deliveryDates.Keys.Max();
 
-            var firstDayOfMonth = new DateTime(_calendarMonth.Year, _calendarMonth.Month, 1);
-            var daysInMonth = DateTime.DaysInMonth(_calendarMonth.Year, _calendarMonth.Month);
-
-            // Dzień tygodnia pierwszego dnia (Poniedziałek = 0)
-            int startDayOfWeek = ((int)firstDayOfMonth.DayOfWeek + 6) % 7;
-
-            // Bieżący tydzień
-            var currentWeekStart = DateTime.Today.AddDays(-((int)DateTime.Today.DayOfWeek + 6) % 7);
-            var currentWeekEnd = currentWeekStart.AddDays(6);
-
-            int totalDeliveries = 0;
-            int totalSzt = 0;
-
-            // Puste komórki przed pierwszym dniem miesiąca
-            for (int i = 0; i < startDayOfWeek; i++)
+            var weekStart = GetStartOfWeek(minDate);
+            while (weekStart <= maxDate)
             {
-                calendarDaysGrid.Children.Add(CreateEmptyCalendarCell());
-            }
+                var weekEnd = weekStart.AddDays(6);
+                var weekDeliveries = _deliveryDates
+                    .Where(kvp => kvp.Key >= weekStart && kvp.Key <= weekEnd)
+                    .ToList();
 
-            // Dni miesiąca
-            for (int day = 1; day <= daysInMonth; day++)
-            {
-                var date = new DateTime(_calendarMonth.Year, _calendarMonth.Month, day);
-                bool hasDelivery = _deliveryDates.ContainsKey(date);
-                bool isCurrentWeek = date >= currentWeekStart && date <= currentWeekEnd;
-                bool isToday = date.Date == DateTime.Today;
-
-                if (hasDelivery)
+                if (weekDeliveries.Any())
                 {
-                    totalDeliveries++;
-                    totalSzt += _deliveryDates[date];
+                    _weeksWithDeliveries.Add(new MiniWeekData
+                    {
+                        WeekStart = weekStart,
+                        WeekEnd = weekEnd,
+                        WeekNumber = GetWeekOfYear(weekStart),
+                        DayDeliveries = weekDeliveries.OrderBy(kvp => kvp.Key).ToDictionary(kvp => kvp.Key, kvp => kvp.Value),
+                        TotalSztuki = weekDeliveries.Sum(kvp => kvp.Value)
+                    });
                 }
 
-                var cell = CreateCalendarDayCell(day, hasDelivery, isCurrentWeek, isToday,
-                    hasDelivery ? _deliveryDates[date] : 0);
-                calendarDaysGrid.Children.Add(cell);
+                weekStart = weekStart.AddDays(7);
             }
-
-            // Puste komórki po ostatnim dniu
-            int totalCells = startDayOfWeek + daysInMonth;
-            int remainingCells = (7 - (totalCells % 7)) % 7;
-            for (int i = 0; i < remainingCells; i++)
-            {
-                calendarDaysGrid.Children.Add(CreateEmptyCalendarCell());
-            }
-
-            // Aktualizuj podsumowanie
-            txtCalendarDeliveryCount.Text = $"Dni z dostawami: {totalDeliveries}";
-            txtCalendarTotalSzt.Text = $"Łącznie: {totalSzt:# ##0} szt.";
         }
 
-        private Border CreateEmptyCalendarCell()
+        private void ScrollToCurrentWeek()
         {
-            return new Border
+            var currentWeekStart = GetStartOfWeek(DateTime.Today);
+            _currentWeekIndex = _weeksWithDeliveries.FindIndex(w => w.WeekStart >= currentWeekStart);
+            if (_currentWeekIndex < 0) _currentWeekIndex = Math.Max(0, _weeksWithDeliveries.Count - 1);
+        }
+
+        private void RenderMiniCalendar()
+        {
+            RenderWeeksList();
+        }
+
+        private void RenderWeeksList()
+        {
+            if (panelWeeksList == null) return;
+
+            panelWeeksList.Children.Clear();
+
+            if (!_weeksWithDeliveries.Any())
             {
-                Background = new SolidColorBrush(Color.FromRgb(250, 250, 250)),
-                Margin = new Thickness(1),
-                MinHeight = 45,
-                CornerRadius = new CornerRadius(3)
+                txtCalendarMonth.Text = "Brak dostaw";
+                txtCalendarDeliveryCount.Text = "Tygodni: 0";
+                txtCalendarTotalSzt.Text = "";
+                return;
+            }
+
+            // Ensure index is valid
+            _currentWeekIndex = Math.Max(0, Math.Min(_currentWeekIndex, _weeksWithDeliveries.Count - 1));
+
+            // Get current week to display
+            var week = _weeksWithDeliveries[_currentWeekIndex];
+
+            // Update header
+            txtCalendarMonth.Text = $"tyg.{week.WeekNumber} ({week.WeekStart:dd.MM}-{week.WeekEnd:dd.MM})";
+            txtCalendarDeliveryCount.Text = $"Tydzień {_currentWeekIndex + 1} z {_weeksWithDeliveries.Count}";
+            txtCalendarTotalSzt.Text = $"Łącznie: {week.TotalSztuki:# ##0} szt.";
+
+            // Render week header
+            var weekHeader = CreateWeekHeader(week);
+            panelWeeksList.Children.Add(weekHeader);
+
+            // Render days with deliveries
+            foreach (var dayEntry in week.DayDeliveries.OrderBy(d => d.Key))
+            {
+                var dayRow = CreateDayRow(dayEntry.Key, dayEntry.Value);
+                panelWeeksList.Children.Add(dayRow);
+            }
+        }
+
+        private Border CreateWeekHeader(MiniWeekData week)
+        {
+            var isCurrentWeek = week.WeekStart <= DateTime.Today && week.WeekEnd >= DateTime.Today;
+
+            var header = new Border
+            {
+                Background = new SolidColorBrush(isCurrentWeek ? Color.FromRgb(59, 130, 246) : Color.FromRgb(92, 138, 58)),
+                Padding = new Thickness(6, 4, 6, 4),
+                Margin = new Thickness(0, 0, 0, 2)
             };
+
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var weekText = new TextBlock
+            {
+                Text = $"tyg.{week.WeekNumber} ({week.WeekStart:dd.MM}-{week.WeekEnd:dd.MM})",
+                FontWeight = FontWeights.Bold,
+                FontSize = 10,
+                Foreground = Brushes.White,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(weekText, 0);
+            grid.Children.Add(weekText);
+
+            var totalText = new TextBlock
+            {
+                Text = $"{week.TotalSztuki:# ##0} szt.",
+                FontWeight = FontWeights.Bold,
+                FontSize = 10,
+                Foreground = Brushes.White,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(totalText, 1);
+            grid.Children.Add(totalText);
+
+            header.Child = grid;
+            return header;
         }
 
-        private Border CreateCalendarDayCell(int day, bool hasDelivery, bool isCurrentWeek, bool isToday, int szt)
+        private Border CreateDayRow(DateTime date, int szt)
         {
-            // Oblicz procent pojemności
             var capacityPercent = (double)szt / MAX_DAILY_CAPACITY * 100;
+            var isToday = date.Date == DateTime.Today;
 
-            // Kolor tła oparty na pojemności (jak w planowaniu dostaw)
+            // Determine background color based on capacity
             Color bgColor;
-            if (isToday)
-            {
-                // Dzisiaj - specjalny kolor z ramką
-                if (capacityPercent >= 100)
-                    bgColor = Color.FromRgb(255, 205, 210); // Czerwony - przepełniony
-                else if (capacityPercent >= 80)
-                    bgColor = Color.FromRgb(255, 224, 178); // Pomarańczowy - blisko limitu
-                else if (capacityPercent >= 50)
-                    bgColor = Color.FromRgb(255, 243, 224); // Jasny pomarańczowy
-                else if (hasDelivery)
-                    bgColor = Color.FromRgb(232, 245, 233); // Jasnozielony
-                else
-                    bgColor = Color.FromRgb(232, 245, 233); // Jasnozielony dla dzisiaj
-            }
-            else if (capacityPercent >= 100)
-                bgColor = Color.FromRgb(255, 205, 210); // Czerwony - przepełniony
-            else if (capacityPercent >= 80)
-                bgColor = Color.FromRgb(255, 224, 178); // Pomarańczowy - blisko limitu
+            if (capacityPercent >= 80)
+                bgColor = Color.FromRgb(254, 226, 226); // Red
             else if (capacityPercent >= 50)
-                bgColor = Color.FromRgb(255, 243, 224); // Jasny pomarańczowy
-            else if (hasDelivery)
-                bgColor = Color.FromRgb(232, 245, 233); // Jasnozielony
+                bgColor = Color.FromRgb(254, 243, 199); // Yellow
             else
-                bgColor = Colors.White;
+                bgColor = Color.FromRgb(220, 252, 231); // Green
 
-            // Kolor ramki - zielony dla dzisiaj
-            var borderColor = isToday ? Color.FromRgb(92, 138, 58) : Color.FromRgb(224, 224, 224);
-            var borderThickness = isToday ? 2.5 : 0.5;
+            if (isToday)
+                bgColor = Color.FromRgb(219, 234, 254); // Blue for today
 
-            var cell = new Border
+            var dayName = date.ToString("ddd", _plCulture).ToLower().TrimEnd('.');
+
+            var row = new Border
             {
                 Background = new SolidColorBrush(bgColor),
-                BorderBrush = new SolidColorBrush(borderColor),
-                BorderThickness = new Thickness(borderThickness),
-                Margin = new Thickness(1),
-                MinHeight = 45,
-                CornerRadius = new CornerRadius(3)
+                BorderBrush = new SolidColorBrush(Color.FromRgb(229, 231, 235)),
+                BorderThickness = new Thickness(0, 0, 0, 1),
+                Padding = new Thickness(6, 3, 6, 3)
             };
 
-            var content = new StackPanel
-            {
-                Margin = new Thickness(2)
-            };
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) }); // Day
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Sztuki
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) }); // Percent
 
-            // Header z numerem dnia i ilością
-            var headerGrid = new Grid();
-
-            // Numer dnia
+            // Day label
             var dayText = new TextBlock
             {
-                Text = day.ToString(),
-                FontSize = 11,
-                FontWeight = isToday || hasDelivery ? FontWeights.Bold : FontWeights.Normal,
-                Foreground = new SolidColorBrush(isToday ? Color.FromRgb(92, 138, 58) : Color.FromRgb(44, 62, 80)),
-                HorizontalAlignment = HorizontalAlignment.Left
+                Text = $"{dayName}.{date:dd.MM}",
+                FontWeight = isToday ? FontWeights.Bold : FontWeights.SemiBold,
+                FontSize = 10,
+                Foreground = new SolidColorBrush(isToday ? Color.FromRgb(37, 99, 235) : Color.FromRgb(55, 65, 81)),
+                VerticalAlignment = VerticalAlignment.Center
             };
-            headerGrid.Children.Add(dayText);
+            Grid.SetColumn(dayText, 0);
+            grid.Children.Add(dayText);
 
-            // Ilość sztuk po prawej stronie
-            if (hasDelivery && szt > 0)
+            // Sztuki
+            var sztukiText = new TextBlock
             {
-                var sztText = new TextBlock
-                {
-                    Text = szt >= 1000 ? $"{szt / 1000}k" : szt.ToString(),
-                    FontSize = 9,
-                    FontWeight = capacityPercent >= 80 ? FontWeights.Bold : FontWeights.Normal,
-                    Foreground = new SolidColorBrush(
-                        capacityPercent >= 100 ? Color.FromRgb(198, 40, 40) :
-                        capacityPercent >= 80 ? Color.FromRgb(239, 108, 0) :
-                        Color.FromRgb(46, 125, 50)),
-                    HorizontalAlignment = HorizontalAlignment.Right
-                };
-                headerGrid.Children.Add(sztText);
-            }
+                Text = $"{szt:# ##0} szt.",
+                FontSize = 10,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81)),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(sztukiText, 1);
+            grid.Children.Add(sztukiText);
 
-            content.Children.Add(headerGrid);
-
-            // Pasek pojemności (progress bar)
-            if (hasDelivery && szt > 0)
+            // Capacity percent
+            var percentText = new TextBlock
             {
-                var progressBg = new Border
-                {
-                    Background = new SolidColorBrush(Color.FromRgb(224, 224, 224)),
-                    Height = 3,
-                    CornerRadius = new CornerRadius(1.5),
-                    Margin = new Thickness(0, 3, 0, 0)
-                };
+                Text = $"{capacityPercent:0}%",
+                FontSize = 9,
+                FontWeight = capacityPercent >= 80 ? FontWeights.Bold : FontWeights.Normal,
+                Foreground = new SolidColorBrush(
+                    capacityPercent >= 80 ? Color.FromRgb(185, 28, 28) :
+                    capacityPercent >= 50 ? Color.FromRgb(180, 83, 9) :
+                    Color.FromRgb(21, 128, 61)),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(percentText, 2);
+            grid.Children.Add(percentText);
 
-                var progressGrid = new Grid { Margin = new Thickness(0, 3, 0, 0) };
-                progressGrid.Children.Add(progressBg);
-
-                var progressFg = new Border
-                {
-                    Background = new SolidColorBrush(
-                        capacityPercent >= 100 ? Color.FromRgb(198, 40, 40) :
-                        capacityPercent >= 80 ? Color.FromRgb(239, 108, 0) :
-                        Color.FromRgb(92, 138, 58)),
-                    Height = 3,
-                    CornerRadius = new CornerRadius(1.5),
-                    HorizontalAlignment = HorizontalAlignment.Left,
-                    Width = Math.Min(capacityPercent, 100) * 0.30 // Skalowanie do szerokości komórki
-                };
-                progressGrid.Children.Add(progressFg);
-                content.Children.Add(progressGrid);
-            }
-
-            cell.Child = content;
-
-            // Tooltip z detalami pojemności
-            if (hasDelivery)
-            {
-                var tooltipContent = new StackPanel { MinWidth = 120 };
-                tooltipContent.Children.Add(new TextBlock
-                {
-                    Text = $"📦 {szt:# ##0} szt.",
-                    FontWeight = FontWeights.Bold,
-                    FontSize = 12
-                });
-                tooltipContent.Children.Add(new TextBlock
-                {
-                    Text = $"Pojemność: {capacityPercent:0.0}%",
-                    FontSize = 10,
-                    Foreground = new SolidColorBrush(
-                        capacityPercent >= 100 ? Color.FromRgb(198, 40, 40) :
-                        capacityPercent >= 80 ? Color.FromRgb(239, 108, 0) :
-                        Color.FromRgb(46, 125, 50))
-                });
-                tooltipContent.Children.Add(new TextBlock
-                {
-                    Text = $"Limit: {MAX_DAILY_CAPACITY:# ##0} szt./dzień",
-                    FontSize = 9,
-                    Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141))
-                });
-
-                cell.ToolTip = new ToolTip
-                {
-                    Content = tooltipContent,
-                    Background = Brushes.White,
-                    BorderBrush = new SolidColorBrush(
-                        capacityPercent >= 100 ? Color.FromRgb(198, 40, 40) :
-                        capacityPercent >= 80 ? Color.FromRgb(239, 108, 0) :
-                        Color.FromRgb(92, 138, 58)),
-                    BorderThickness = new Thickness(2),
-                    Padding = new Thickness(8)
-                };
-            }
-
-            return cell;
+            row.Child = grid;
+            return row;
         }
 
         /// <summary>
@@ -1566,11 +1565,12 @@ namespace Kalendarz1
                         {
                             if (!_deliveryDates.ContainsKey(date))
                                 _deliveryDates[date] = 0;
-                            // Oznacz planowaną dostawę (może nadpisać istniejącą)
+                            _deliveryDates[date] += szt;
                         }
                     }
                 }
-                RenderMiniCalendar();
+                FindWeeksWithDeliveries();
+                RenderWeeksList();
             }
         }
 
@@ -1766,5 +1766,17 @@ namespace Kalendarz1
     public class DaneOstatniegoDostarczonego
     {
         public List<DaneDostawy> Dostawy { get; set; }
+    }
+
+    /// <summary>
+    /// Represents delivery data for a week in the mini calendar
+    /// </summary>
+    public class MiniWeekData
+    {
+        public DateTime WeekStart { get; set; }
+        public DateTime WeekEnd { get; set; }
+        public int WeekNumber { get; set; }
+        public int TotalSztuki { get; set; }
+        public Dictionary<DateTime, int> DayDeliveries { get; set; } = new Dictionary<DateTime, int>();
     }
 }
