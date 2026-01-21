@@ -1,4 +1,5 @@
-﻿using Kalendarz1.Services;
+﻿using Kalendarz1.Komunikator.Services;
+using Kalendarz1.Services;
 using Kalendarz1.Spotkania.Services;
 using System;
 using System.IO;
@@ -32,6 +33,27 @@ namespace Kalendarz1
         public static void StopNotyfikacjeService()
         {
             NotyfikacjeManager.Shutdown();
+        }
+
+        /// <summary>
+        /// Uruchamia globalny serwis powiadomień czatu
+        /// Wywoływane po zalogowaniu użytkownika
+        /// </summary>
+        public static void StartChatNotificationService()
+        {
+            if (!string.IsNullOrEmpty(UserID))
+            {
+                GlobalChatManager.Start(UserID);
+            }
+        }
+
+        /// <summary>
+        /// Zatrzymuje serwis powiadomień czatu
+        /// Wywoływane przy wylogowaniu lub zamknięciu aplikacji
+        /// </summary>
+        public static void StopChatNotificationService()
+        {
+            GlobalChatManager.Shutdown();
         }
 
         // === ITEXTSHARP WORKAROUND ===
