@@ -19,6 +19,13 @@ namespace Kalendarz1
         public string Status { get; set; }
         public string KtoStworzyl { get; set; }
         public DateTime? DataConf { get; set; }
+
+        // Avatar properties for the creator
+        public string KtoStworzylId { get; set; }
+        public Brush AvatarBackground { get; set; } = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#5C8A3A"));
+        public string AvatarInitials { get; set; } = "?";
+        public Visibility AvatarImageVisibility { get; set; } = Visibility.Collapsed;
+        public ImageSource AvatarImageSource { get; set; }
     }
 
     public partial class SzczegółyPracownika : Window
@@ -194,19 +201,20 @@ namespace Kalendarz1
             var lista = new List<SzczegolyWstawienie>();
 
             string query = @"
-                SELECT 
+                SELECT
                     w.Lp,
                     w.Dostawca,
                     w.DataWstawienia,
                     w.IloscWstawienia,
                     os.Name as KtoStworzyl,
+                    CAST(w.KtoStwo AS VARCHAR(20)) as KtoStworzylId,
                     w.DataConf
                 FROM dbo.WstawieniaKurczakow w
                 LEFT JOIN dbo.operators oc ON w.KtoConf = oc.ID
                 LEFT JOIN dbo.operators os ON w.KtoStwo = os.ID
-                WHERE oc.Name = @Pracownik 
+                WHERE oc.Name = @Pracownik
                     AND w.isConf = 1
-                    AND w.DataConf >= @StartDate 
+                    AND w.DataConf >= @StartDate
                     AND w.DataConf < @EndDate
                 ORDER BY w.DataConf DESC";
 
@@ -222,20 +230,58 @@ namespace Kalendarz1
                 {
                     while (reader.Read())
                     {
-                        lista.Add(new SzczegolyWstawienie
+                        var ktoStworzyl = reader["KtoStworzyl"]?.ToString() ?? "Nieznany";
+                        var item = new SzczegolyWstawienie
                         {
                             Lp = Convert.ToInt32(reader["Lp"]),
                             Dostawca = reader["Dostawca"]?.ToString() ?? "",
                             DataWstawienia = reader["DataWstawienia"] as DateTime?,
                             IloscWstawienia = reader["IloscWstawienia"] as int?,
-                            KtoStworzyl = reader["KtoStworzyl"]?.ToString() ?? "Nieznany",
-                            DataConf = reader["DataConf"] as DateTime?
-                        });
+                            KtoStworzyl = ktoStworzyl,
+                            KtoStworzylId = reader["KtoStworzylId"]?.ToString(),
+                            DataConf = reader["DataConf"] as DateTime?,
+                            AvatarInitials = GetInitials(ktoStworzyl)
+                        };
+                        lista.Add(item);
                     }
                 }
             }
 
+            // Load avatars asynchronously
+            LoadCreatorAvatarsAsync(lista);
+
             return lista;
+        }
+
+        private void LoadCreatorAvatarsAsync(List<SzczegolyWstawienie> items)
+        {
+            Task.Run(() =>
+            {
+                foreach (var item in items)
+                {
+                    if (!string.IsNullOrEmpty(item.KtoStworzylId))
+                    {
+                        var avatar = UserAvatarManager.GetAvatar(item.KtoStworzylId);
+                        if (avatar != null)
+                        {
+                            Application.Current.Dispatcher.Invoke(() =>
+                            {
+                                var imageSource = ConvertToImageSource(avatar);
+                                if (imageSource != null)
+                                {
+                                    item.AvatarImageSource = imageSource;
+                                    item.AvatarImageVisibility = Visibility.Visible;
+                                }
+                            });
+                        }
+                    }
+                }
+                // Refresh the DataGrid
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    dgPotwierdzone.Items.Refresh();
+                });
+            });
         }
 
         private void BtnZamknij_Click(object sender, RoutedEventArgs e)
