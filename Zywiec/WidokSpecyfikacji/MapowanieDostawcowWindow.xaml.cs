@@ -93,9 +93,9 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
             {
                 conn.Open();
                 var cmd = new SqlCommand(@"
-                    SELECT Id, ISNULL(Code,'') AS Code, ISNULL(NIP,'') AS NIP, ISNULL(Name,'') AS Name
+                    SELECT Id, ISNULL(Kod,'') AS Code, ISNULL(NIP,'') AS NIP, ISNULL(Nazwa,'') AS Name
                     FROM SSCommon.STContractors
-                    ORDER BY Name", conn);
+                    ORDER BY Nazwa", conn);
 
                 using (var reader = cmd.ExecuteReader())
                 {
