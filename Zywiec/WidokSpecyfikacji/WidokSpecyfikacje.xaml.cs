@@ -14557,6 +14557,107 @@ public class RozliczenieRow : INotifyPropertyChanged
 
     // === AWATARY: Właściwości do wyświetlania awatarów użytkowników ===
 
+    // Ścieżki sieciowe do awatarów
+    private static readonly string[] NetworkAvatarPaths = {
+        @"\\192.168.0.170\Install\Prace Graficzne\Avatary",
+        @"\\192.168.0.171\Install\Prace Graficzne\Avatary"
+    };
+
+    // Cache dla załadowanych awatarów
+    private static readonly Dictionary<string, System.Windows.Media.ImageSource> _avatarCache =
+        new Dictionary<string, System.Windows.Media.ImageSource>();
+
+    private System.Windows.Media.ImageSource _zatwierdzoneAvatarImage;
+    /// <summary>
+    /// Obrazek awatara osoby wprowadzającej (z serwera)
+    /// </summary>
+    public System.Windows.Media.ImageSource ZatwierdzoneAvatarImage
+    {
+        get
+        {
+            if (_zatwierdzoneAvatarImage == null && !string.IsNullOrEmpty(ZatwierdzoneByUserID))
+                _zatwierdzoneAvatarImage = LoadAvatarImage(ZatwierdzoneByUserID);
+            return _zatwierdzoneAvatarImage;
+        }
+    }
+
+    private System.Windows.Media.ImageSource _zweryfikowaneAvatarImage;
+    /// <summary>
+    /// Obrazek awatara osoby weryfikującej (z serwera)
+    /// </summary>
+    public System.Windows.Media.ImageSource ZweryfikowaneAvatarImage
+    {
+        get
+        {
+            if (_zweryfikowaneAvatarImage == null && !string.IsNullOrEmpty(ZweryfikowaneByUserID))
+                _zweryfikowaneAvatarImage = LoadAvatarImage(ZweryfikowaneByUserID);
+            return _zweryfikowaneAvatarImage;
+        }
+    }
+
+    /// <summary>
+    /// Czy awatar osoby wprowadzającej jest dostępny
+    /// </summary>
+    public bool HasZatwierdzoneAvatar => ZatwierdzoneAvatarImage != null;
+
+    /// <summary>
+    /// Czy awatar osoby weryfikującej jest dostępny
+    /// </summary>
+    public bool HasZweryfikowaneAvatar => ZweryfikowaneAvatarImage != null;
+
+    /// <summary>
+    /// Ładuje awatar z serwera sieciowego
+    /// </summary>
+    private static System.Windows.Media.ImageSource LoadAvatarImage(string userId)
+    {
+        if (string.IsNullOrEmpty(userId)) return null;
+
+        // Sprawdź cache
+        if (_avatarCache.TryGetValue(userId, out var cached))
+            return cached;
+
+        string[] extensions = { ".png", ".jpg", ".jpeg", ".bmp" };
+
+        foreach (var networkPath in NetworkAvatarPaths)
+        {
+            try
+            {
+                if (!System.IO.Directory.Exists(networkPath))
+                    continue;
+
+                foreach (var ext in extensions)
+                {
+                    string avatarPath = System.IO.Path.Combine(networkPath, $"{userId}{ext}");
+                    if (System.IO.File.Exists(avatarPath))
+                    {
+                        try
+                        {
+                            var bitmap = new System.Windows.Media.Imaging.BitmapImage();
+                            bitmap.BeginInit();
+                            bitmap.UriSource = new Uri(avatarPath);
+                            bitmap.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                            bitmap.DecodePixelWidth = 48; // Optymalizacja - mały rozmiar
+                            bitmap.EndInit();
+                            bitmap.Freeze(); // Umożliwia użycie z różnych wątków
+
+                            _avatarCache[userId] = bitmap;
+                            return bitmap;
+                        }
+                        catch { }
+                    }
+                }
+            }
+            catch
+            {
+                continue;
+            }
+        }
+
+        // Nie znaleziono - zapisz null w cache żeby nie szukać ponownie
+        _avatarCache[userId] = null;
+        return null;
+    }
+
     /// <summary>
     /// Inicjały osoby wprowadzającej (do wyświetlania w awatarze)
     /// </summary>
