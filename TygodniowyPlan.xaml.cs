@@ -38,6 +38,7 @@ namespace Kalendarz1
         private DateTime aktualnyTydzien;
         private Dictionary<string, decimal> konfiguracjaProduktow;
         private List<PlanDziennyModel> aktualneDane;
+        private List<PlanDziennyModel> daneDalszegoTygodnia;
         private WydajnoscModel aktualnaWydajnosc;
 
         // Ograniczenia dla handlowców
@@ -50,6 +51,7 @@ namespace Kalendarz1
             aktualnyTydzien = DateTime.Today;
             konfiguracjaProduktow = new Dictionary<string, decimal>();
             aktualneDane = new List<PlanDziennyModel>();
+            daneDalszegoTygodnia = new List<PlanDziennyModel>();
 
             // Ustaw ograniczenia dat - 6 tygodni wstecz, 2 tygodnie do przodu
             minData = DateTime.Today.AddDays(-42); // 6 tygodni wstecz
@@ -169,6 +171,7 @@ namespace Kalendarz1
             {
                 Mouse.OverrideCursor = Cursors.Wait;
 
+                // === DOCELOWY TYDZIEN ===
                 DateTime poniedzialek = GetPoniedzialek(aktualnyTydzien);
                 DateTime niedziela = poniedzialek.AddDays(6);
 
@@ -179,10 +182,11 @@ namespace Kalendarz1
 
                 txtDataZakres.Text = $"{poniedzialek:dd.MM.yyyy} - {niedziela:dd.MM.yyyy}";
                 txtNumerTygodnia.Text = $"(Tydzień {weekNum}/{poniedzialek.Year})";
+                txtDocelowyTydzienZakres.Text = $"{poniedzialek:dd.MM} - {niedziela:dd.MM}";
 
                 aktualneDane = PobierzDaneTygodnia(poniedzialek, niedziela);
 
-                // Dodaj wiersz SUMA
+                // Dodaj wiersz SUMA dla docelowego tygodnia
                 var wierszSuma = new PlanDziennyModel
                 {
                     Data = "SUMA",
@@ -215,6 +219,49 @@ namespace Kalendarz1
 
                 dgPlan.ItemsSource = null;
                 dgPlan.ItemsSource = aktualneDane;
+
+                // === DALSZY TYDZIEN (+1 tydzien) ===
+                DateTime poniedzialekDalszy = poniedzialek.AddDays(7);
+                DateTime niedzielaDalszy = poniedzialekDalszy.AddDays(6);
+                int weekNumDalszy = ciCurr.Calendar.GetWeekOfYear(poniedzialekDalszy, CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
+
+                txtDalszyTydzienZakres.Text = $"{poniedzialekDalszy:dd.MM} - {niedzielaDalszy:dd.MM}";
+
+                daneDalszegoTygodnia = PobierzDaneTygodnia(poniedzialekDalszy, niedzielaDalszy);
+
+                // Dodaj wiersz SUMA dla dalszego tygodnia
+                var wierszSumaDalszy = new PlanDziennyModel
+                {
+                    Data = "SUMA",
+                    DzienTygodnia = "",
+                    LiczbaAut = daneDalszegoTygodnia.Sum(x => x.LiczbaAut),
+                    LiczbaUbiorek = daneDalszegoTygodnia.Sum(x => x.LiczbaUbiorek),
+                    ZywiecKg = daneDalszegoTygodnia.Sum(x => x.ZywiecKg),
+                    Sztuki = daneDalszegoTygodnia.Sum(x => x.Sztuki),
+                    WagaSrednia = daneDalszegoTygodnia.Sum(x => x.Sztuki) > 0 ? daneDalszegoTygodnia.Sum(x => x.ZywiecKg) / daneDalszegoTygodnia.Sum(x => x.Sztuki) : 0,
+                    TuszkaCalkowita = daneDalszegoTygodnia.Sum(x => x.TuszkaCalkowita),
+                    TuszkaAB = $"{aktualnaWydajnosc.ProcentTuszkaA:F0}/{aktualnaWydajnosc.ProcentTuszkaB:F0}",
+                    TuszkaA = daneDalszegoTygodnia.Sum(x => x.TuszkaA),
+                    Cwiartka = daneDalszegoTygodnia.Sum(x => x.Cwiartka),
+                    Skrzydlo = daneDalszegoTygodnia.Sum(x => x.Skrzydlo),
+                    Filet = daneDalszegoTygodnia.Sum(x => x.Filet),
+                    Korpus = daneDalszegoTygodnia.Sum(x => x.Korpus),
+                    Pojemniki9 = daneDalszegoTygodnia.Sum(x => x.Pojemniki9),
+                    Pojemniki10 = daneDalszegoTygodnia.Sum(x => x.Pojemniki10),
+                    Pojemniki11 = daneDalszegoTygodnia.Sum(x => x.Pojemniki11),
+                    Pojemniki12 = daneDalszegoTygodnia.Sum(x => x.Pojemniki12),
+                    Pojemniki8 = daneDalszegoTygodnia.Sum(x => x.Pojemniki8),
+                    Pojemniki7 = daneDalszegoTygodnia.Sum(x => x.Pojemniki7),
+                    Pojemniki6 = daneDalszegoTygodnia.Sum(x => x.Pojemniki6),
+                    Pojemniki5 = daneDalszegoTygodnia.Sum(x => x.Pojemniki5),
+                    StatusTekst = "PODSUMOWANIE",
+                    JestSuma = true
+                };
+
+                daneDalszegoTygodnia.Add(wierszSumaDalszy);
+
+                dgPlanDalszy.ItemsSource = null;
+                dgPlanDalszy.ItemsSource = daneDalszegoTygodnia;
 
                 ObliczStatystyki(aktualneDane);
                 ObliczStatystykiPojemnikow(aktualneDane);
@@ -691,6 +738,44 @@ namespace Kalendarz1
         private void DgPlan_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
             var plan = dgPlan.SelectedItem as PlanDziennyModel;
+            if (plan != null && plan.ZywiecKg > 0 && !plan.JestSuma)
+            {
+                DateTime dataWybrana = DateTime.Parse(plan.Data);
+                var oknoSzczegoly = new SzczegolyDnia(connectionString, dataWybrana, aktualnaWydajnosc, konfiguracjaProduktow);
+                oknoSzczegoly.ShowDialog();
+            }
+        }
+
+        private void DgPlanDalszy_LoadingRow(object sender, DataGridRowEventArgs e)
+        {
+            var plan = e.Row.Item as PlanDziennyModel;
+            if (plan != null)
+            {
+                if (plan.JestSuma)
+                {
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(52, 73, 94));
+                    e.Row.Foreground = Brushes.White;
+                    e.Row.FontWeight = FontWeights.Bold;
+                }
+                else if (plan.CzyPotwierdzone && plan.ZywiecKg > 0)
+                {
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(200, 230, 201));
+                }
+                else if (plan.ProcentPotwierdzenia > 0 && plan.ZywiecKg > 0)
+                {
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 249, 196));
+                }
+                else if (plan.ZywiecKg == 0)
+                {
+                    e.Row.Background = Brushes.White;
+                    e.Row.Foreground = new SolidColorBrush(Color.FromRgb(189, 195, 199));
+                }
+            }
+        }
+
+        private void DgPlanDalszy_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            var plan = dgPlanDalszy.SelectedItem as PlanDziennyModel;
             if (plan != null && plan.ZywiecKg > 0 && !plan.JestSuma)
             {
                 DateTime dataWybrana = DateTime.Parse(plan.Data);

@@ -13,6 +13,40 @@
         <!-- Konwerter dla wartości większych niż 0 -->
         <local:GreaterThanZeroConverter x:Key="GreaterThanZeroConverter"/>
 
+        <!-- Animacja pulsowania dla wierszy -->
+        <Storyboard x:Key="PulseAnimation" RepeatBehavior="Forever">
+            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                           From="1.0" To="0.6" Duration="0:0:0.8"
+                           AutoReverse="True">
+                <DoubleAnimation.EasingFunction>
+                    <SineEase EasingMode="EaseInOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+
+        <!-- Styl dla pulsujacego wiersza DataGrid -->
+        <Style x:Key="PulsingRowStyle" TargetType="DataGridRow">
+            <Setter Property="Background" Value="#E3F2FD"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#BBDEFB"/>
+                </Trigger>
+                <EventTrigger RoutedEvent="Loaded">
+                    <BeginStoryboard>
+                        <Storyboard RepeatBehavior="Forever">
+                            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                           From="1.0" To="0.65" Duration="0:0:1"
+                                           AutoReverse="True">
+                                <DoubleAnimation.EasingFunction>
+                                    <SineEase EasingMode="EaseInOut"/>
+                                </DoubleAnimation.EasingFunction>
+                            </DoubleAnimation>
+                        </Storyboard>
+                    </BeginStoryboard>
+                </EventTrigger>
+            </Style.Triggers>
+        </Style>
+
         <!-- Styl dla przycisków -->
         <Style x:Key="ButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="#5C8A3A"/>
@@ -668,232 +702,390 @@
             </Grid>
         </Border>
 
-        <!-- DataGrid z planem -->
-        <Border Grid.Row="3" 
-                BorderBrush="#BDC3C7" 
-                BorderThickness="1"
-                Margin="10">
-            <DataGrid x:Name="dgPlan" 
-                      Style="{StaticResource DataGridStyle}"
-                      ColumnHeaderStyle="{StaticResource ColumnHeaderStyle}"
-                      LoadingRow="DgPlan_LoadingRow"
-                      MouseDoubleClick="DgPlan_MouseDoubleClick">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="Data" 
-                                      Binding="{Binding Data}" 
-                                      Width="100">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock" BasedOn="{StaticResource CellCenterStyle}">
-                                <Setter Property="FontWeight" Value="Bold"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
+        <!-- Dwie tablice obok siebie: Docelowy tydzien i Dalszy tydzien -->
+        <Grid Grid.Row="3" Margin="10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
 
-                    <DataGridTextColumn Header="Dzień" 
-                                      Binding="{Binding DzienTygodnia}" 
-                                      Width="80">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock" BasedOn="{StaticResource CellCenterStyle}">
-                                <Setter Property="FontWeight" Value="SemiBold"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
+            <!-- DOCELOWY TYDZIEN (lewa tabela) -->
+            <Border Grid.Column="0"
+                    BorderBrush="#5C8A3A"
+                    BorderThickness="2"
+                    CornerRadius="5">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
 
-                    <!-- Kolumna Auta z ubiórką -->
-                    <DataGridTemplateColumn Header="Auta" Width="65">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Horizontal" 
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding LiczbaAut}" 
-                                              FontWeight="Bold"
-                                              FontSize="13"
-                                              Foreground="#E67E22"
-                                              VerticalAlignment="Center"/>
-                                    <TextBlock VerticalAlignment="Center"
-                                              Margin="3,0,0,0">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding LiczbaUbiorek, Converter={StaticResource GreaterThanZeroConverter}}" Value="True">
+                    <!-- Naglowek docelowego tygodnia -->
+                    <Border Grid.Row="0" Background="#5C8A3A" Padding="10,8">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="DOCELOWY TYDZIEN"
+                                       FontSize="14" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock x:Name="txtDocelowyTydzienZakres"
+                                       FontSize="12" Foreground="White" Opacity="0.9"
+                                       Margin="15,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <DataGrid Grid.Row="1" x:Name="dgPlan"
+                              Style="{StaticResource DataGridStyle}"
+                              ColumnHeaderStyle="{StaticResource ColumnHeaderStyle}"
+                              RowStyle="{StaticResource PulsingRowStyle}"
+                              LoadingRow="DgPlan_LoadingRow"
+                              MouseDoubleClick="DgPlan_MouseDoubleClick">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Data"
+                                              Binding="{Binding Data}"
+                                              Width="85">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource CellCenterStyle}">
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTextColumn Header="Dzien"
+                                              Binding="{Binding DzienTygodnia}"
+                                              Width="70">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource CellCenterStyle}">
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTemplateColumn Header="Auta" Width="55">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding LiczbaAut}"
+                                                      FontWeight="Bold"
+                                                      FontSize="12"
+                                                      Foreground="#E67E22"
+                                                      VerticalAlignment="Center"/>
+                                            <TextBlock VerticalAlignment="Center"
+                                                      Margin="2,0,0,0">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding LiczbaUbiorek, Converter={StaticResource GreaterThanZeroConverter}}" Value="True">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                                <Run Text="(" FontSize="8" Foreground="#2196F3"/>
+                                                <Run Text="{Binding LiczbaUbiorek}" FontSize="8" FontWeight="SemiBold" Foreground="#2196F3"/>
+                                                <Run Text=")" FontSize="8" Foreground="#2196F3"/>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTextColumn Header="Zywiec"
+                                              Binding="{Binding ZywiecKg, StringFormat=N0}"
+                                              Width="70">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource CellRightStyle}">
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="FontSize" Value="11"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTextColumn Header="Szt"
+                                              Binding="{Binding Sztuki, StringFormat=N0}"
+                                              Width="55">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource CellRightStyle}">
+                                        <Setter Property="FontSize" Value="10"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTextColumn Header="Tusz A"
+                                              Binding="{Binding TuszkaA, StringFormat=N0}"
+                                              Width="70">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource CellRightStyle}">
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="Foreground" Value="#5C8A3A"/>
+                                        <Setter Property="FontSize" Value="11"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTextColumn Header="Filet"
+                                              Binding="{Binding Filet, StringFormat=N0}"
+                                              Width="60">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource CellRightStyle}">
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="Foreground" Value="#E67E22"/>
+                                        <Setter Property="FontSize" Value="11"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTemplateColumn Header="Status" Width="*" MinWidth="100">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="3">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <TextBlock Grid.Column="0"
+                                                      Text="{Binding StatusTekst}"
+                                                      FontWeight="SemiBold"
+                                                      FontSize="9"
+                                                      VerticalAlignment="Center"/>
+
+                                            <Border Grid.Column="1"
+                                                   CornerRadius="3"
+                                                   Padding="4,1"
+                                                   Margin="3,0,0,0">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="#E8F5E9"/>
                                                         <Setter Property="Visibility" Value="Visible"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBlock.Style>
-                                        <Run Text="(" FontSize="9" Foreground="#2196F3"/>
-                                        <Run Text="{Binding LiczbaUbiorek}" FontSize="9" FontWeight="SemiBold" Foreground="#2196F3"/>
-                                        <Run Text=")" FontSize="9" Foreground="#2196F3"/>
-                                    </TextBlock>
-                                </StackPanel>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding ProcentPotwierdzenia}" Value="100">
+                                                                <Setter Property="Background" Value="#4CAF50"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding ProcentPotwierdzenia}" Value="0">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding JestSuma}" Value="True">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock FontWeight="Bold"
+                                                          FontSize="9"
+                                                          VerticalAlignment="Center">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="#2E7D32"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding ProcentPotwierdzenia}" Value="100">
+                                                                    <Setter Property="Foreground" Value="White"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                    <Run Text="{Binding ProcentPotwierdzenia, StringFormat=F0}"/>
+                                                    <Run Text="%"/>
+                                                </TextBlock>
+                                            </Border>
+                                        </Grid>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </Border>
 
-                    <DataGridTextColumn Header="Żywiec [kg]" 
-                                      Binding="{Binding ZywiecKg, StringFormat=N0}" 
-                                      Width="100">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock" BasedOn="{StaticResource CellRightStyle}">
-                                <Setter Property="FontWeight" Value="Bold"/>
-                                <Setter Property="FontSize" Value="13"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
+            <!-- DALSZY TYDZIEN (prawa tabela) -->
+            <Border Grid.Column="2"
+                    BorderBrush="#3498DB"
+                    BorderThickness="2"
+                    CornerRadius="5">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
 
-                    <DataGridTextColumn Header="Sztuki" 
-                                      Binding="{Binding Sztuki, StringFormat=N0}" 
-                                      Width="75">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock" BasedOn="{StaticResource CellRightStyle}"/>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
+                    <!-- Naglowek dalszego tygodnia -->
+                    <Border Grid.Row="0" Background="#3498DB" Padding="10,8">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="DALSZY TYDZIEN (+1)"
+                                       FontSize="14" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock x:Name="txtDalszyTydzienZakres"
+                                       FontSize="12" Foreground="White" Opacity="0.9"
+                                       Margin="15,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
 
-                    <DataGridTextColumn Header="Waga śr." 
-                                      Binding="{Binding WagaSrednia, StringFormat=F2}" 
-                                      Width="80">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock" BasedOn="{StaticResource CellRightStyle}">
-                                <Setter Property="Foreground" Value="#7F8C8D"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
+                    <DataGrid Grid.Row="1" x:Name="dgPlanDalszy"
+                              Style="{StaticResource DataGridStyle}"
+                              ColumnHeaderStyle="{StaticResource ColumnHeaderStyle}"
+                              RowStyle="{StaticResource PulsingRowStyle}"
+                              LoadingRow="DgPlanDalszy_LoadingRow"
+                              MouseDoubleClick="DgPlanDalszy_MouseDoubleClick">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Data"
+                                              Binding="{Binding Data}"
+                                              Width="85">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource CellCenterStyle}">
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
 
-                    <DataGridTextColumn Header="Tuszka" 
-                                      Binding="{Binding TuszkaCalkowita, StringFormat=N0}" 
-                                      Width="90">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock" BasedOn="{StaticResource CellRightStyle}">
-                                <Setter Property="FontWeight" Value="SemiBold"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
+                            <DataGridTextColumn Header="Dzien"
+                                              Binding="{Binding DzienTygodnia}"
+                                              Width="70">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource CellCenterStyle}">
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
 
-                    <DataGridTextColumn Header="Tuszka A/B" 
-                                      Binding="{Binding TuszkaAB}" 
-                                      Width="90">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock" BasedOn="{StaticResource CellCenterStyle}">
-                                <Setter Property="FontSize" Value="11"/>
-                                <Setter Property="Foreground" Value="#7F8C8D"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
-
-                    <DataGridTextColumn Header="Tusz A [kg]" 
-                                      Binding="{Binding TuszkaA, StringFormat=N0}" 
-                                      Width="100">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock" BasedOn="{StaticResource CellRightStyle}">
-                                <Setter Property="FontWeight" Value="Bold"/>
-                                <Setter Property="Foreground" Value="#5C8A3A"/>
-                                <Setter Property="FontSize" Value="13"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
-
-                    <DataGridTextColumn Header="Ćwiartka [kg]" 
-                                      Binding="{Binding Cwiartka, StringFormat=N0}" 
-                                      Width="100">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock" BasedOn="{StaticResource CellRightStyle}"/>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
-
-                    <DataGridTextColumn Header="Skrzydło [kg]" 
-                                      Binding="{Binding Skrzydlo, StringFormat=N0}" 
-                                      Width="100">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock" BasedOn="{StaticResource CellRightStyle}"/>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
-
-                    <DataGridTextColumn Header="Filet [kg]" 
-                                      Binding="{Binding Filet, StringFormat=N0}" 
-                                      Width="100">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock" BasedOn="{StaticResource CellRightStyle}">
-                                <Setter Property="FontWeight" Value="Bold"/>
-                                <Setter Property="Foreground" Value="#E67E22"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
-
-                    <DataGridTextColumn Header="Korpus [kg]" 
-                                      Binding="{Binding Korpus, StringFormat=N0}" 
-                                      Width="100">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock" BasedOn="{StaticResource CellRightStyle}"/>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
-
-                    <!-- Kolumna Status z procentem potwierdzeń -->
-                    <DataGridTemplateColumn Header="Status / Potwierdz." 
-                                          Width="*"
-                                          MinWidth="180">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <Grid Margin="5">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-
-                                    <!-- Status tekstowy -->
-                                    <TextBlock Grid.Column="0"
-                                              Text="{Binding StatusTekst}" 
-                                              FontWeight="SemiBold"
-                                              FontSize="11"
-                                              VerticalAlignment="Center"/>
-
-                                    <!-- Procent potwierdzeń -->
-                                    <Border Grid.Column="1"
-                                           CornerRadius="3"
-                                           Padding="6,2"
-                                           Margin="5,0,0,0">
-                                        <Border.Style>
-                                            <Style TargetType="Border">
-                                                <Setter Property="Background" Value="#E8F5E9"/>
-                                                <Setter Property="Visibility" Value="Visible"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding ProcentPotwierdzenia}" Value="100">
-                                                        <Setter Property="Background" Value="#4CAF50"/>
-                                                    </DataTrigger>
-                                                    <DataTrigger Binding="{Binding ProcentPotwierdzenia}" Value="0">
+                            <DataGridTemplateColumn Header="Auta" Width="55">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding LiczbaAut}"
+                                                      FontWeight="Bold"
+                                                      FontSize="12"
+                                                      Foreground="#E67E22"
+                                                      VerticalAlignment="Center"/>
+                                            <TextBlock VerticalAlignment="Center"
+                                                      Margin="2,0,0,0">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
                                                         <Setter Property="Visibility" Value="Collapsed"/>
-                                                    </DataTrigger>
-                                                    <DataTrigger Binding="{Binding JestSuma}" Value="True">
-                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Border.Style>
-                                        <TextBlock FontWeight="Bold"
-                                                  FontSize="10"
-                                                  VerticalAlignment="Center">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="#2E7D32"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding ProcentPotwierdzenia}" Value="100">
-                                                            <Setter Property="Foreground" Value="White"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style>
-                                            <Run Text="{Binding ProcentPotwierdzenia, StringFormat=F0}"/>
-                                            <Run Text="%"/>
-                                        </TextBlock>
-                                    </Border>
-                                </Grid>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                </DataGrid.Columns>
-            </DataGrid>
-        </Border>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding LiczbaUbiorek, Converter={StaticResource GreaterThanZeroConverter}}" Value="True">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                                <Run Text="(" FontSize="8" Foreground="#2196F3"/>
+                                                <Run Text="{Binding LiczbaUbiorek}" FontSize="8" FontWeight="SemiBold" Foreground="#2196F3"/>
+                                                <Run Text=")" FontSize="8" Foreground="#2196F3"/>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTextColumn Header="Zywiec"
+                                              Binding="{Binding ZywiecKg, StringFormat=N0}"
+                                              Width="70">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource CellRightStyle}">
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="FontSize" Value="11"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTextColumn Header="Szt"
+                                              Binding="{Binding Sztuki, StringFormat=N0}"
+                                              Width="55">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource CellRightStyle}">
+                                        <Setter Property="FontSize" Value="10"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTextColumn Header="Tusz A"
+                                              Binding="{Binding TuszkaA, StringFormat=N0}"
+                                              Width="70">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource CellRightStyle}">
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="Foreground" Value="#5C8A3A"/>
+                                        <Setter Property="FontSize" Value="11"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTextColumn Header="Filet"
+                                              Binding="{Binding Filet, StringFormat=N0}"
+                                              Width="60">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource CellRightStyle}">
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="Foreground" Value="#E67E22"/>
+                                        <Setter Property="FontSize" Value="11"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTemplateColumn Header="Status" Width="*" MinWidth="100">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="3">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <TextBlock Grid.Column="0"
+                                                      Text="{Binding StatusTekst}"
+                                                      FontWeight="SemiBold"
+                                                      FontSize="9"
+                                                      VerticalAlignment="Center"/>
+
+                                            <Border Grid.Column="1"
+                                                   CornerRadius="3"
+                                                   Padding="4,1"
+                                                   Margin="3,0,0,0">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="#E8F5E9"/>
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding ProcentPotwierdzenia}" Value="100">
+                                                                <Setter Property="Background" Value="#4CAF50"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding ProcentPotwierdzenia}" Value="0">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding JestSuma}" Value="True">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock FontWeight="Bold"
+                                                          FontSize="9"
+                                                          VerticalAlignment="Center">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="#2E7D32"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding ProcentPotwierdzenia}" Value="100">
+                                                                    <Setter Property="Foreground" Value="White"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                    <Run Text="{Binding ProcentPotwierdzenia, StringFormat=F0}"/>
+                                                    <Run Text="%"/>
+                                                </TextBlock>
+                                            </Border>
+                                        </Grid>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </Border>
+        </Grid>
 
         <!-- Stopka z podsumowaniem -->
         <Border Grid.Row="4" Background="#34495E" Padding="15,10">
