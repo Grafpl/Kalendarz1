@@ -4574,7 +4574,27 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridCheckBoxColumn Header="ARiMR" Binding="{Binding ARIMR}" Width="50"/>
+                                <DataGridCheckBoxColumn Header="ARiMR" Binding="{Binding ARIMR}" Width="50" ToolTipService.ToolTip="Dokument ARiMR"/>
+                                <!-- Numer dokumentu ARiMR -->
+                                <DataGridTextColumn Header="Nr Dok.ARiMR" Binding="{Binding NrDokArimr}" Width="95" ToolTipService.ToolTip="Numer dokumentu ARiMR">
+                                    <DataGridTextColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader">
+                                            <Setter Property="Background" Value="#C8E6C9"/>
+                                            <Setter Property="Foreground" Value="#2E7D32"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                            <Setter Property="Padding" Value="5,3"/>
+                                        </Style>
+                                    </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="FontSize" Value="10"/>
+                                            <Setter Property="Foreground" Value="#2E7D32"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
                                 <!-- Status wprowadzenia (1. kontrola) -->
                                 <DataGridTemplateColumn Header="Wprowadzenie" Width="90">
                                     <DataGridTemplateColumn.CellTemplate>

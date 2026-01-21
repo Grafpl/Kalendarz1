@@ -8514,7 +8514,8 @@ namespace Kalendarz1
                             ISNULL(fc.NettoWeight, 0) * (ISNULL(fc.Price, 0) + ISNULL(fc.Addition, 0)) as Wartosc,
                             ISNULL(fc.Symfonia, 0) as Symfonia,
                             ISNULL(k.IdSymf, 0) as IdSymf,
-                            ISNULL(fc.SymfoniaNrFV, '') as NrFaktury
+                            ISNULL(fc.SymfoniaNrFV, '') as NrFaktury,
+                            ISNULL(fc.NrDokArimr, '') as NrDokArimr
                         FROM dbo.FarmerCalc fc
                         LEFT JOIN dbo.Dostawcy k ON fc.CustomerGID = k.ID
                         LEFT JOIN dbo.PriceType pt ON fc.PriceTypeID = pt.ID
@@ -8544,7 +8545,9 @@ namespace Kalendarz1
                                     Wartosc = reader.IsDBNull(reader.GetOrdinal("Wartosc")) ? 0 : Convert.ToDecimal(reader["Wartosc"]),
                                     Symfonia = !reader.IsDBNull(reader.GetOrdinal("Symfonia")) && Convert.ToBoolean(reader["Symfonia"]),
                                     IdSymf = reader.IsDBNull(reader.GetOrdinal("IdSymf")) ? 0 : Convert.ToInt32(reader["IdSymf"]),
-                                    NrFaktury = reader.IsDBNull(reader.GetOrdinal("NrFaktury")) ? "" : reader["NrFaktury"].ToString()
+                                    NrFaktury = reader.IsDBNull(reader.GetOrdinal("NrFaktury")) ? "" : reader["NrFaktury"].ToString(),
+                                    NrDokArimr = reader.IsDBNull(reader.GetOrdinal("NrDokArimr")) ? "" : reader["NrDokArimr"].ToString(),
+                                    ARIMR = !reader.IsDBNull(reader.GetOrdinal("NrDokArimr")) && !string.IsNullOrWhiteSpace(reader["NrDokArimr"].ToString())
                                 });
                             }
                         }
@@ -14460,6 +14463,16 @@ public class RozliczenieRow : INotifyPropertyChanged
     /// Numer faktury (FVR lub FVZ) jeśli dostawa ma przypisaną fakturę
     /// </summary>
     public string NrFaktury { get; set; }
+
+    /// <summary>
+    /// Numer dokumentu ARiMR
+    /// </summary>
+    public string NrDokArimr { get; set; }
+
+    /// <summary>
+    /// Czy dostawa ma dokument ARiMR (NrDokArimr niepusty)
+    /// </summary>
+    public bool HasArimrDoc => !string.IsNullOrWhiteSpace(NrDokArimr);
 
     private bool _symfonia;
     public bool Symfonia
