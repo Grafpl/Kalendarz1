@@ -1452,22 +1452,22 @@ namespace Kalendarz1
             var userTemplateColumn = new DataGridTemplateColumn
             {
                 Header = "User",
-                Width = 55
+                Width = 45
             };
 
             var userTemplate = new DataTemplate();
             var gridFactory = new FrameworkElementFactory(typeof(Grid));
-            gridFactory.SetValue(Grid.WidthProperty, 32.0);
-            gridFactory.SetValue(Grid.HeightProperty, 32.0);
+            gridFactory.SetValue(Grid.WidthProperty, 24.0);
+            gridFactory.SetValue(Grid.HeightProperty, 24.0);
             gridFactory.SetValue(Grid.HorizontalAlignmentProperty, HorizontalAlignment.Center);
             gridFactory.SetValue(Grid.VerticalAlignmentProperty, VerticalAlignment.Center);
             gridFactory.SetValue(Grid.MarginProperty, new Thickness(2));
 
             // Background border with initials
             var borderFactory = new FrameworkElementFactory(typeof(Border));
-            borderFactory.SetValue(Border.WidthProperty, 32.0);
-            borderFactory.SetValue(Border.HeightProperty, 32.0);
-            borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(16));
+            borderFactory.SetValue(Border.WidthProperty, 24.0);
+            borderFactory.SetValue(Border.HeightProperty, 24.0);
+            borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(12));
             borderFactory.SetValue(Border.BackgroundProperty, new SolidColorBrush(Color.FromRgb(99, 102, 241)));
             borderFactory.SetValue(Border.HorizontalAlignmentProperty, HorizontalAlignment.Center);
             borderFactory.SetValue(Border.VerticalAlignmentProperty, VerticalAlignment.Center);
@@ -1476,7 +1476,7 @@ namespace Kalendarz1
             initialsTextFactory.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
             initialsTextFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
             initialsTextFactory.SetValue(TextBlock.ForegroundProperty, Brushes.White);
-            initialsTextFactory.SetValue(TextBlock.FontSizeProperty, 11.0);
+            initialsTextFactory.SetValue(TextBlock.FontSizeProperty, 9.0);
             initialsTextFactory.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
             initialsTextFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("UserName")
             {
@@ -1488,8 +1488,8 @@ namespace Kalendarz1
 
             // Ellipse for photo (initially hidden, will be shown if photo loads)
             var ellipseFactory = new FrameworkElementFactory(typeof(Ellipse));
-            ellipseFactory.SetValue(Ellipse.WidthProperty, 32.0);
-            ellipseFactory.SetValue(Ellipse.HeightProperty, 32.0);
+            ellipseFactory.SetValue(Ellipse.WidthProperty, 24.0);
+            ellipseFactory.SetValue(Ellipse.HeightProperty, 24.0);
             ellipseFactory.SetValue(Ellipse.VisibilityProperty, Visibility.Collapsed);
             ellipseFactory.SetValue(Ellipse.NameProperty, "avatarEllipse");
 
@@ -1629,6 +1629,8 @@ namespace Kalendarz1
                 };
 
                 e.Row.ToolTip = tooltip;
+                ToolTipService.SetInitialShowDelay(e.Row, 100);
+                ToolTipService.SetShowDuration(e.Row, 30000);
             }
         }
 
