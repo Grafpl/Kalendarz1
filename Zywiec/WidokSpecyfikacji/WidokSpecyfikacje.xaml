@@ -21,6 +21,9 @@
         <local:ZeroToRedBrushConverter x:Key="ZeroToRedBrush"/>
         <local:ZeroToBoldConverter x:Key="ZeroToBold"/>
         <local:NullToCollapsedConverter x:Key="NullToCollapsedConverter"/>
+        <local:UserIdToAvatarConverter x:Key="UserIdToAvatarConverter"/>
+        <local:UserIdToAvatarVisibilityConverter x:Key="UserIdToAvatarVisibilityConverter"/>
+        <local:UserIdToInitialsVisibilityConverter x:Key="UserIdToInitialsVisibilityConverter"/>
         <local:PercentToPixelConverter x:Key="PercentToPixelConverter"/>
         <local:PercentToMarginConverter x:Key="PercentToMarginConverter"/>
         <local:PercentToWidthConverter x:Key="PercentToWidthConverter"/>
@@ -4637,35 +4640,18 @@
                                                 <Grid Width="22" Height="22"
                                                       Visibility="{Binding ZatwierdzonePrzez, Converter={StaticResource NullToCollapsedConverter}}"
                                                       ToolTip="{Binding ZatwierdzonePrzez}">
-                                                    <!-- Fallback: inicjały z kolorem -->
-                                                    <Border CornerRadius="11" Background="{Binding ZatwierdzoneAvatarColor}">
-                                                        <Border.Style>
-                                                            <Style TargetType="Border">
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding HasZatwierdzoneAvatar}" Value="True">
-                                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </Border.Style>
+                                                    <!-- Fallback: inicjały z kolorem (ukryte gdy jest awatar) -->
+                                                    <Border CornerRadius="11" Background="{Binding ZatwierdzoneAvatarColor}"
+                                                            Visibility="{Binding ZatwierdzoneByUserID, Converter={StaticResource UserIdToInitialsVisibilityConverter}}">
                                                         <TextBlock Text="{Binding ZatwierdzoneInicjaly}"
                                                                    Foreground="White" FontSize="9" FontWeight="Bold"
                                                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                     </Border>
-                                                    <!-- Zdjęcie z serwera (jeśli dostępne) -->
-                                                    <Ellipse Width="22" Height="22">
-                                                        <Ellipse.Style>
-                                                            <Style TargetType="Ellipse">
-                                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding HasZatwierdzoneAvatar}" Value="True">
-                                                                        <Setter Property="Visibility" Value="Visible"/>
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </Ellipse.Style>
+                                                    <!-- Zdjęcie z serwera (pokazane gdy jest awatar) -->
+                                                    <Ellipse Width="22" Height="22"
+                                                             Visibility="{Binding ZatwierdzoneByUserID, Converter={StaticResource UserIdToAvatarVisibilityConverter}}">
                                                         <Ellipse.Fill>
-                                                            <ImageBrush ImageSource="{Binding ZatwierdzoneAvatarImage}" Stretch="UniformToFill"/>
+                                                            <ImageBrush ImageSource="{Binding ZatwierdzoneByUserID, Converter={StaticResource UserIdToAvatarConverter}}" Stretch="UniformToFill"/>
                                                         </Ellipse.Fill>
                                                     </Ellipse>
                                                 </Grid>
@@ -4719,35 +4705,18 @@
                                                 <Grid Width="22" Height="22"
                                                       Visibility="{Binding ZweryfikowanePrzez, Converter={StaticResource NullToCollapsedConverter}}"
                                                       ToolTip="{Binding ZweryfikowanePrzez}">
-                                                    <!-- Fallback: inicjały z kolorem -->
-                                                    <Border CornerRadius="11" Background="{Binding ZweryfikowaneAvatarColor}">
-                                                        <Border.Style>
-                                                            <Style TargetType="Border">
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding HasZweryfikowaneAvatar}" Value="True">
-                                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </Border.Style>
+                                                    <!-- Fallback: inicjały z kolorem (ukryte gdy jest awatar) -->
+                                                    <Border CornerRadius="11" Background="{Binding ZweryfikowaneAvatarColor}"
+                                                            Visibility="{Binding ZweryfikowaneByUserID, Converter={StaticResource UserIdToInitialsVisibilityConverter}}">
                                                         <TextBlock Text="{Binding ZweryfikowaneInicjaly}"
                                                                    Foreground="White" FontSize="9" FontWeight="Bold"
                                                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                     </Border>
-                                                    <!-- Zdjęcie z serwera (jeśli dostępne) -->
-                                                    <Ellipse Width="22" Height="22">
-                                                        <Ellipse.Style>
-                                                            <Style TargetType="Ellipse">
-                                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding HasZweryfikowaneAvatar}" Value="True">
-                                                                        <Setter Property="Visibility" Value="Visible"/>
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </Ellipse.Style>
+                                                    <!-- Zdjęcie z serwera (pokazane gdy jest awatar) -->
+                                                    <Ellipse Width="22" Height="22"
+                                                             Visibility="{Binding ZweryfikowaneByUserID, Converter={StaticResource UserIdToAvatarVisibilityConverter}}">
                                                         <Ellipse.Fill>
-                                                            <ImageBrush ImageSource="{Binding ZweryfikowaneAvatarImage}" Stretch="UniformToFill"/>
+                                                            <ImageBrush ImageSource="{Binding ZweryfikowaneByUserID, Converter={StaticResource UserIdToAvatarConverter}}" Stretch="UniformToFill"/>
                                                         </Ellipse.Fill>
                                                     </Ellipse>
                                                 </Grid>

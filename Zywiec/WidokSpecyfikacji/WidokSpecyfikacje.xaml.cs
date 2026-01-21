@@ -14392,6 +14392,112 @@ public class NullToCollapsedConverter : System.Windows.Data.IValueConverter
 }
 
 /// <summary>
+/// Konwerter UserID na ImageSource awatara (używa UserAvatarManager)
+/// </summary>
+public class UserIdToAvatarConverter : System.Windows.Data.IValueConverter
+{
+    private static readonly Dictionary<string, System.Windows.Media.ImageSource> _cache =
+        new Dictionary<string, System.Windows.Media.ImageSource>();
+
+    public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        string userId = value as string;
+        if (string.IsNullOrEmpty(userId)) return null;
+
+        // Sprawdź cache
+        if (_cache.TryGetValue(userId, out var cached))
+            return cached;
+
+        try
+        {
+            if (UserAvatarManager.HasAvatar(userId))
+            {
+                using (var avatar = UserAvatarManager.GetAvatarRounded(userId, 44))
+                {
+                    if (avatar != null)
+                    {
+                        using (var ms = new System.IO.MemoryStream())
+                        {
+                            avatar.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                            ms.Position = 0;
+                            var bitmapImage = new System.Windows.Media.Imaging.BitmapImage();
+                            bitmapImage.BeginInit();
+                            bitmapImage.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                            bitmapImage.StreamSource = ms;
+                            bitmapImage.EndInit();
+                            bitmapImage.Freeze();
+                            _cache[userId] = bitmapImage;
+                            return bitmapImage;
+                        }
+                    }
+                }
+            }
+        }
+        catch { }
+
+        _cache[userId] = null;
+        return null;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+/// <summary>
+/// Konwerter UserID na Visibility (Visible jeśli ma awatar, Collapsed jeśli nie)
+/// </summary>
+public class UserIdToAvatarVisibilityConverter : System.Windows.Data.IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        string userId = value as string;
+        if (string.IsNullOrEmpty(userId)) return System.Windows.Visibility.Collapsed;
+
+        try
+        {
+            if (UserAvatarManager.HasAvatar(userId))
+                return System.Windows.Visibility.Visible;
+        }
+        catch { }
+
+        return System.Windows.Visibility.Collapsed;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+/// <summary>
+/// Konwerter UserID na Visibility dla inicjałów (Visible jeśli NIE ma awatara)
+/// </summary>
+public class UserIdToInitialsVisibilityConverter : System.Windows.Data.IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        string userId = value as string;
+        if (string.IsNullOrEmpty(userId)) return System.Windows.Visibility.Visible;
+
+        try
+        {
+            if (UserAvatarManager.HasAvatar(userId))
+                return System.Windows.Visibility.Collapsed;
+        }
+        catch { }
+
+        return System.Windows.Visibility.Visible;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+/// <summary>
 /// Konwerter procentu na piksele dla Timeline (0-100% -> 0-szerokość)
 /// </summary>
 public class PercentToPixelConverter : System.Windows.Data.IValueConverter
