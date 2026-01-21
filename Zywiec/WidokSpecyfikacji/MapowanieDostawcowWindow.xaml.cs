@@ -15,7 +15,7 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
     public partial class MapowanieDostawcowWindow : Window, INotifyPropertyChanged
     {
         private string libraNetConnectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
-        private string symfoniaConnectionString = "Server=192.168.0.109;Database=HANDEL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        private string symfoniaConnectionString = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
 
         public ObservableCollection<DostawcaMapowanie> Dostawcy { get; set; }
         public ObservableCollection<KontrahentSymfonia> Kontrahenci { get; set; }

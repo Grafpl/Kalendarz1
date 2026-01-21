@@ -778,6 +778,12 @@
                             Style="{StaticResource MainButtonStyle}"
                             Background="#00796B"
                             ToolTip="Wyślij zgłoszenie do systemu IRZplus ARiMR"/>
+                    <Button Content="🔗 Mapowanie"
+                            x:Name="btnMapowanie"
+                            Click="BtnMapowanie_Click"
+                            Style="{StaticResource MainButtonStyle}"
+                            Background="#9C27B0"
+                            ToolTip="Mapuj dostawców LibraNet do kontrahentów Symfonia"/>
                     <Button Content="🗑️ Odpady"
                             x:Name="btnOdpady"
                             Click="BtnOdpady_Click"
@@ -1120,11 +1126,6 @@
                                 <Button x:Name="btnImportExcel" Click="BtnImportExcel_Click"
                                         Content="📥 Import Excel" ToolTip="Importuj specyfikacje z pliku Excel/LibreOffice (kreator)"
                                         Style="{StaticResource ToolbarButton}" Background="#FF5722"/>
-
-                                <!-- === PRZYCISK MAPOWANIE DOSTAWCÓW === -->
-                                <Button x:Name="btnMapowanie" Click="BtnMapowanie_Click"
-                                        Content="🔗 MAPOWANIE" ToolTip="Mapuj dostawców LibraNet do kontrahentów Symfonia"
-                                        Style="{StaticResource ToolbarButton}" Background="#9C27B0"/>
 
                                 <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
 
