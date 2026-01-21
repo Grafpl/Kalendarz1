@@ -1,6 +1,7 @@
 ﻿using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -32,6 +33,10 @@ namespace Kalendarz1
 
         // Stoper do mierzenia czasu tworzenia wstawienia
         private System.Diagnostics.Stopwatch stopwatch = new System.Diagnostics.Stopwatch();
+
+        // Kalendarz dostaw
+        private DateTime _calendarMonth = DateTime.Today;
+        private Dictionary<DateTime, int> _deliveryDates = new Dictionary<DateTime, int>(); // Data -> ilość sztuk
 
         public WstawienieWindow()
         {
@@ -1237,6 +1242,250 @@ namespace Kalendarz1
                     : Visibility.Collapsed;
             }
         }
+
+        #region Kalendarz Dostaw
+
+        private void ChkKalendarz_Changed(object sender, RoutedEventArgs e)
+        {
+            if (kolumnaKalendarz != null)
+            {
+                if (chkKalendarz.IsChecked == true)
+                {
+                    // Rozszerz okno i pokaż kolumnę kalendarza
+                    this.Width = Math.Max(this.Width, 1200);
+                    kolumnaKalendarz.Width = new GridLength(280);
+                    LoadDeliveryDatesForCalendar();
+                    RenderMiniCalendar();
+                }
+                else
+                {
+                    // Ukryj kolumnę kalendarza
+                    kolumnaKalendarz.Width = new GridLength(0);
+                    if (chkPomoc.IsChecked != true)
+                    {
+                        this.Width = 980;
+                    }
+                }
+            }
+        }
+
+        private void BtnCalendarPrev_Click(object sender, RoutedEventArgs e)
+        {
+            _calendarMonth = _calendarMonth.AddMonths(-1);
+            RenderMiniCalendar();
+        }
+
+        private void BtnCalendarNext_Click(object sender, RoutedEventArgs e)
+        {
+            _calendarMonth = _calendarMonth.AddMonths(1);
+            RenderMiniCalendar();
+        }
+
+        private void LoadDeliveryDatesForCalendar()
+        {
+            _deliveryDates.Clear();
+
+            try
+            {
+                using var conn = new SqlConnection(connectionString);
+                conn.Open();
+
+                // Załaduj wszystkie dostawy z bazy (6 miesięcy wstecz i 6 miesięcy wprzód)
+                const string query = @"
+                    SELECT DataOdbioru, SUM(ISNULL(SztukiDek, 0)) as TotalSzt
+                    FROM [LibraNet].[dbo].[HarmonogramDostaw]
+                    WHERE DataOdbioru IS NOT NULL
+                      AND DataOdbioru >= DATEADD(MONTH, -6, GETDATE())
+                      AND DataOdbioru <= DATEADD(MONTH, 6, GETDATE())
+                    GROUP BY DataOdbioru
+                    ORDER BY DataOdbioru";
+
+                using var cmd = new SqlCommand(query, conn);
+                using var reader = cmd.ExecuteReader();
+
+                while (reader.Read())
+                {
+                    if (!reader.IsDBNull(0))
+                    {
+                        var date = reader.GetDateTime(0).Date;
+                        var szt = reader.GetInt32(1);
+                        _deliveryDates[date] = szt;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd ładowania dat dostaw: {ex.Message}");
+            }
+        }
+
+        private void RenderMiniCalendar()
+        {
+            if (calendarDaysGrid == null) return;
+
+            calendarDaysGrid.Children.Clear();
+
+            // Aktualizuj nagłówek miesiąca
+            txtCalendarMonth.Text = _calendarMonth.ToString("MMMM yyyy", new CultureInfo("pl-PL"));
+
+            var firstDayOfMonth = new DateTime(_calendarMonth.Year, _calendarMonth.Month, 1);
+            var daysInMonth = DateTime.DaysInMonth(_calendarMonth.Year, _calendarMonth.Month);
+
+            // Dzień tygodnia pierwszego dnia (Poniedziałek = 0)
+            int startDayOfWeek = ((int)firstDayOfMonth.DayOfWeek + 6) % 7;
+
+            // Bieżący tydzień
+            var currentWeekStart = DateTime.Today.AddDays(-(int)((DateTime.Today.DayOfWeek + 6) % 7));
+            var currentWeekEnd = currentWeekStart.AddDays(6);
+
+            int totalDeliveries = 0;
+            int totalSzt = 0;
+
+            // Puste komórki przed pierwszym dniem miesiąca
+            for (int i = 0; i < startDayOfWeek; i++)
+            {
+                calendarDaysGrid.Children.Add(CreateEmptyCalendarCell());
+            }
+
+            // Dni miesiąca
+            for (int day = 1; day <= daysInMonth; day++)
+            {
+                var date = new DateTime(_calendarMonth.Year, _calendarMonth.Month, day);
+                bool hasDelivery = _deliveryDates.ContainsKey(date);
+                bool isCurrentWeek = date >= currentWeekStart && date <= currentWeekEnd;
+                bool isToday = date.Date == DateTime.Today;
+
+                if (hasDelivery)
+                {
+                    totalDeliveries++;
+                    totalSzt += _deliveryDates[date];
+                }
+
+                var cell = CreateCalendarDayCell(day, hasDelivery, isCurrentWeek, isToday,
+                    hasDelivery ? _deliveryDates[date] : 0);
+                calendarDaysGrid.Children.Add(cell);
+            }
+
+            // Puste komórki po ostatnim dniu
+            int totalCells = startDayOfWeek + daysInMonth;
+            int remainingCells = (7 - (totalCells % 7)) % 7;
+            for (int i = 0; i < remainingCells; i++)
+            {
+                calendarDaysGrid.Children.Add(CreateEmptyCalendarCell());
+            }
+
+            // Aktualizuj podsumowanie
+            txtCalendarDeliveryCount.Text = $"Dni z dostawami: {totalDeliveries}";
+            txtCalendarTotalSzt.Text = $"Łącznie: {totalSzt:# ##0} szt.";
+        }
+
+        private Border CreateEmptyCalendarCell()
+        {
+            return new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(250, 250, 250)),
+                Margin = new Thickness(1),
+                MinHeight = 28
+            };
+        }
+
+        private Border CreateCalendarDayCell(int day, bool hasDelivery, bool isCurrentWeek, bool isToday, int szt)
+        {
+            // Kolor tła
+            Color bgColor;
+            if (isToday)
+                bgColor = Color.FromRgb(92, 138, 58); // Zielony dla dzisiaj
+            else if (hasDelivery)
+                bgColor = Color.FromRgb(129, 199, 132); // Jasnozielony dla dostaw
+            else if (isCurrentWeek)
+                bgColor = Color.FromRgb(255, 183, 77); // Pomarańczowy dla bieżącego tygodnia
+            else
+                bgColor = Colors.White;
+
+            var cell = new Border
+            {
+                Background = new SolidColorBrush(bgColor),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(224, 224, 224)),
+                BorderThickness = new Thickness(isToday ? 2 : 0.5),
+                Margin = new Thickness(1),
+                MinHeight = 28,
+                CornerRadius = new CornerRadius(3)
+            };
+
+            var content = new StackPanel
+            {
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+
+            // Numer dnia
+            var dayText = new TextBlock
+            {
+                Text = day.ToString(),
+                FontSize = 10,
+                FontWeight = isToday || hasDelivery ? FontWeights.Bold : FontWeights.Normal,
+                Foreground = new SolidColorBrush(isToday ? Colors.White : Color.FromRgb(44, 62, 80)),
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+            content.Children.Add(dayText);
+
+            // Ilość sztuk jeśli jest dostawa
+            if (hasDelivery && szt > 0)
+            {
+                var sztText = new TextBlock
+                {
+                    Text = szt >= 1000 ? $"{szt / 1000}k" : szt.ToString(),
+                    FontSize = 7,
+                    Foreground = new SolidColorBrush(isToday ? Colors.White : Color.FromRgb(46, 125, 50)),
+                    HorizontalAlignment = HorizontalAlignment.Center
+                };
+                content.Children.Add(sztText);
+            }
+
+            cell.Child = content;
+
+            // Tooltip z detalami
+            if (hasDelivery)
+            {
+                cell.ToolTip = new ToolTip
+                {
+                    Content = $"📦 {szt:# ##0} szt.",
+                    Background = Brushes.White,
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(92, 138, 58)),
+                    Padding = new Thickness(8)
+                };
+            }
+
+            return cell;
+        }
+
+        /// <summary>
+        /// Odświeża kalendarz po dodaniu/zmianie dostawy
+        /// </summary>
+        public void RefreshCalendarWithCurrentDeliveries()
+        {
+            if (chkKalendarz?.IsChecked == true)
+            {
+                // Dodaj planowane dostawy z formularza do podglądu
+                foreach (var row in dostawyRows)
+                {
+                    if (row.DatePicker?.SelectedDate != null)
+                    {
+                        var date = row.DatePicker.SelectedDate.Value.Date;
+                        int szt = 0;
+                        if (int.TryParse(row.TxtSztuki?.Text?.Replace(" ", ""), out szt))
+                        {
+                            if (!_deliveryDates.ContainsKey(date))
+                                _deliveryDates[date] = 0;
+                            // Oznacz planowaną dostawę (może nadpisać istniejącą)
+                        }
+                    }
+                }
+                RenderMiniCalendar();
+            }
+        }
+
+        #endregion
 
         private void AktualizujWstawienie(SqlConnection conn, SqlTransaction trans, long lpW, string typUmowy, string typCeny, int ilosc)
         {
