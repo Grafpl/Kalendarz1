@@ -1407,14 +1407,23 @@ namespace Kalendarz1
         private void LoadData(DateTime selectedDate)
         {
             _isLoadingData = true; // Blokuj logowanie zmian podczas ładowania
+            var totalStopwatch = System.Diagnostics.Stopwatch.StartNew();
+            var stepStopwatch = new System.Diagnostics.Stopwatch();
+            var debugLog = new System.Text.StringBuilder();
+            debugLog.AppendLine($"=== LoadData DEBUG ({selectedDate:yyyy-MM-dd}) ===");
+
             try
             {
                 UpdateStatus("Ładowanie danych...");
                 specyfikacjeData.Clear();
 
+                stepStopwatch.Restart();
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
+                    debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] Połączenie z bazą");
+
+                    stepStopwatch.Restart();
                     string query = @"SELECT fc.ID, fc.CarLp, fc.Number, fc.YearNumber, fc.CustomerGID, fc.CustomerRealGID, fc.DeclI1, fc.DeclI2, fc.DeclI3, fc.DeclI4, fc.DeclI5,
                                     fc.LumQnt, fc.ProdQnt, fc.ProdWgt, fc.FullFarmWeight, fc.EmptyFarmWeight, fc.NettoFarmWeight,
                                     fc.FullWeight, fc.EmptyWeight, fc.NettoWeight, fc.Price, fc.Addition, fc.PriceTypeID, fc.IncDeadConf, fc.Loss,
@@ -1437,9 +1446,11 @@ namespace Kalendarz1
                     SqlDataAdapter adapter = new SqlDataAdapter(command);
                     DataTable dataTable = new DataTable();
                     adapter.Fill(dataTable);
+                    debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] Zapytanie SQL ({dataTable.Rows.Count} wierszy)");
 
                     if (dataTable.Rows.Count > 0)
                     {
+                        stepStopwatch.Restart();
                         foreach (DataRow row in dataTable.Rows)
                         {
                             // WAŻNE: Trim() usuwa spacje z nchar(10) - bez tego ComboBox nie znajdzie dopasowania
@@ -1514,13 +1525,36 @@ namespace Kalendarz1
 
                             specyfikacjeData.Add(specRow);
                         }
+                        debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] Tworzenie obiektów SpecyfikacjaRow (foreach)");
+
+                        stepStopwatch.Restart();
                         UpdateStatistics();
+                        debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] UpdateStatistics()");
+
+                        stepStopwatch.Restart();
                         LoadTransportData(); // Załaduj dane transportowe
+                        debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] LoadTransportData()");
+
+                        stepStopwatch.Restart();
                         LoadHarmonogramData(); // Załaduj harmonogram dostaw
+                        debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] LoadHarmonogramData()");
+
+                        stepStopwatch.Restart();
                         LoadPdfStatusForAllRows(); // Załaduj status PDF dla wszystkich wierszy
+                        debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] LoadPdfStatusForAllRows()");
+
+                        stepStopwatch.Restart();
                         AssignSupplierColorsAndGroups(); // Przypisz kolory dostawcom
+                        debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] AssignSupplierColorsAndGroups()");
+
+                        stepStopwatch.Restart();
                         AutoShowColumnsBasedOnData(); // Auto-pokaż kolumny jeśli dane zawierają wartości
+                        debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] AutoShowColumnsBasedOnData()");
+
+                        stepStopwatch.Restart();
                         LoadSpecyfikacjeZatwierdzenia(); // Załaduj status wprowadzenia/weryfikacji
+                        debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] LoadSpecyfikacjeZatwierdzenia()");
+
                         UpdateStatus($"Załadowano {dataTable.Rows.Count} rekordów");
                     }
                     else
@@ -1531,10 +1565,15 @@ namespace Kalendarz1
                         UpdateStatus("Brak danych dla wybranej daty");
                     }
                 }
+
+                totalStopwatch.Stop();
+                debugLog.AppendLine($"=== RAZEM: {totalStopwatch.ElapsedMilliseconds}ms ===");
+                System.Diagnostics.Debug.WriteLine(debugLog.ToString());
             }
             catch (Exception ex)
             {
                 UpdateStatus($"Błąd: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"LoadData ERROR: {ex}");
             }
             finally
             {
@@ -8488,16 +8527,24 @@ namespace Kalendarz1
 
         private void LoadRozliczeniaData()
         {
+            var totalStopwatch = System.Diagnostics.Stopwatch.StartNew();
+            var stepStopwatch = new System.Diagnostics.Stopwatch();
+            var debugLog = new System.Text.StringBuilder();
+            debugLog.AppendLine("=== LoadRozliczeniaData DEBUG ===");
+
             try
             {
+                stepStopwatch.Restart();
                 // Upewnij się że tabela zatwierdzień istnieje
                 EnsureRozliczeniaZatwierdzeniaTabelaExists();
+                debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] EnsureRozliczeniaZatwierdzeniaTabelaExists()");
 
                 // Użyj tej samej daty co w Specyfikacjach (główny DatePicker w lewym górnym rogu)
                 DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
 
                 rozliczeniaData.Clear();
 
+                stepStopwatch.Restart();
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
@@ -8557,11 +8604,17 @@ namespace Kalendarz1
                     }
                 }
 
+                debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] Zapytanie SQL Rozliczenia ({rozliczeniaData.Count} wierszy)");
+
                 // Załaduj stany zatwierdzenia z bazy PRZED ustawieniem ItemsSource
                 // (żeby UserID był dostępny dla bindingów avatarów)
+                stepStopwatch.Restart();
                 LoadZatwierdzeniaForRozliczenia();
+                debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] LoadZatwierdzeniaForRozliczenia()");
 
+                stepStopwatch.Restart();
                 dataGridRozliczenia.ItemsSource = rozliczeniaData;
+                debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] dataGridRozliczenia.ItemsSource = rozliczeniaData");
 
                 // Aktualizuj podsumowanie
                 lblRozliczeniaSumaWierszy.Text = rozliczeniaData.Count.ToString();
@@ -8569,11 +8622,16 @@ namespace Kalendarz1
                 lblRozliczeniaSumaKg.Text = rozliczeniaData.Sum(r => r.NettoKg).ToString("N0");
                 lblRozliczeniaSumaWartosc.Text = rozliczeniaData.Sum(r => r.Wartosc).ToString("N2") + " zł";
 
+                totalStopwatch.Stop();
+                debugLog.AppendLine($"=== RAZEM Rozliczenia: {totalStopwatch.ElapsedMilliseconds}ms ===");
+                System.Diagnostics.Debug.WriteLine(debugLog.ToString());
+
                 UpdateStatus($"Rozliczenia: załadowano {rozliczeniaData.Count} rekordów dla {selectedDate:yyyy-MM-dd}");
             }
             catch (Exception ex)
             {
                 UpdateStatus($"Błąd ładowania rozliczeń: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"LoadRozliczeniaData ERROR: {ex}");
             }
         }
 
