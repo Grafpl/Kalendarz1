@@ -3400,13 +3400,7 @@ namespace Kalendarz1
             RefreshAll();
         }
 
-        private void BtnKalendarzDostaw_Click(object sender, RoutedEventArgs e)
-        {
-            var calendarWindow = new DeliveryCalendarWindow();
-            calendarWindow.Owner = this;
-            calendarWindow.ShowDialog();
-            RefreshAll(); // Refresh after calendar closes in case deliveries were moved
-        }
+        // Kalendarz dostaw usunięty - używamy mini-kalendarza w oknie WstawienieWindow
 
         // ====== POMOCNICZE ======
         private void AddContactHistory(int lpWstawienia, string dostawca, DateTime? snoozedUntil, string reason)

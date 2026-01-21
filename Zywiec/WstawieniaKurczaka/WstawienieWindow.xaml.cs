@@ -346,7 +346,7 @@ namespace Kalendarz1
 
             // Data
             var dpData = new DatePicker { Style = (Style)FindResource("ModernDatePicker"), FontSize = 11 };
-            dpData.SelectedDateChanged += (s, e) => PrzeliczenieRoznicyDni(dostawa);
+            dpData.SelectedDateChanged += (s, e) => { PrzeliczenieRoznicyDni(dostawa); UpdateMiniCalendarPreview(); };
             Grid.SetColumn(dpData, 2);
             grid.Children.Add(dpData);
             dostawa.DpData = dpData;
@@ -382,7 +382,7 @@ namespace Kalendarz1
             // Sztuki
             var txtSztuki = new TextBox { Style = (Style)FindResource("ModernTextBox"), FontSize = 11 };
             if (dostawa.Sztuki.HasValue) txtSztuki.Text = dostawa.Sztuki.Value.ToString();
-            txtSztuki.TextChanged += (s, e) => { ObliczSumeSztuk(); ObliczAutaWyliczone(dostawa); };
+            txtSztuki.TextChanged += (s, e) => { ObliczSumeSztuk(); ObliczAutaWyliczone(dostawa); UpdateMiniCalendarPreview(); };
             Grid.SetColumn(txtSztuki, 7);
             grid.Children.Add(txtSztuki);
             dostawa.TxtSztuki = txtSztuki;
@@ -1304,6 +1304,7 @@ namespace Kalendarz1
         private void LoadDeliveryDatesForCalendar()
         {
             _deliveryDates.Clear();
+            _originalDeliveryDates.Clear();
             _weeksWithDeliveries.Clear();
 
             try
@@ -1332,6 +1333,7 @@ namespace Kalendarz1
                         var date = reader.GetDateTime(0).Date;
                         var szt = reader.GetInt32(1);
                         _deliveryDates[date] = szt;
+                        _originalDeliveryDates[date] = szt; // Zachowaj oryginalne dane
                     }
                 }
 
@@ -1398,6 +1400,25 @@ namespace Kalendarz1
 
             panelWeeksList.Children.Clear();
 
+            // Zbierz planowane daty z formularza
+            var plannedDates = new HashSet<DateTime>();
+            var plannedSztByDate = new Dictionary<DateTime, int>();
+            foreach (var row in dostawyRows)
+            {
+                if (row.DpData?.SelectedDate != null)
+                {
+                    var date = row.DpData.SelectedDate.Value.Date;
+                    plannedDates.Add(date);
+                    int szt = 0;
+                    if (int.TryParse(row.TxtSztuki?.Text?.Replace(" ", ""), out szt) && szt > 0)
+                    {
+                        if (!plannedSztByDate.ContainsKey(date))
+                            plannedSztByDate[date] = 0;
+                        plannedSztByDate[date] += szt;
+                    }
+                }
+            }
+
             if (!_weeksWithDeliveries.Any())
             {
                 txtCalendarMonth.Text = "Brak dostaw";
@@ -1424,7 +1445,9 @@ namespace Kalendarz1
             // Render days with deliveries
             foreach (var dayEntry in week.DayDeliveries.OrderBy(d => d.Key))
             {
-                var dayRow = CreateDayRow(dayEntry.Key, dayEntry.Value);
+                bool isPlanned = plannedDates.Contains(dayEntry.Key);
+                int plannedSzt = plannedSztByDate.GetValueOrDefault(dayEntry.Key, 0);
+                var dayRow = CreateDayRow(dayEntry.Key, dayEntry.Value, isPlanned, plannedSzt);
                 panelWeeksList.Children.Add(dayRow);
             }
         }
@@ -1470,21 +1493,26 @@ namespace Kalendarz1
             return header;
         }
 
-        private Border CreateDayRow(DateTime date, int szt)
+        private Border CreateDayRow(DateTime date, int szt, bool isPlanned = false, int plannedSzt = 0)
         {
             var capacityPercent = (double)szt / MAX_DAILY_CAPACITY * 100;
             var isToday = date.Date == DateTime.Today;
 
             // Determine background color based on capacity
             Color bgColor;
-            if (capacityPercent >= 80)
+            if (isPlanned)
+            {
+                // Planowana dostawa - fioletowe tło
+                bgColor = Color.FromRgb(243, 232, 255); // Light purple
+            }
+            else if (capacityPercent >= 80)
                 bgColor = Color.FromRgb(254, 226, 226); // Red
             else if (capacityPercent >= 50)
                 bgColor = Color.FromRgb(254, 243, 199); // Yellow
             else
                 bgColor = Color.FromRgb(220, 252, 231); // Green
 
-            if (isToday)
+            if (isToday && !isPlanned)
                 bgColor = Color.FromRgb(219, 234, 254); // Blue for today
 
             var dayName = date.ToString("ddd", _plCulture).ToLower().TrimEnd('.');
@@ -1492,8 +1520,8 @@ namespace Kalendarz1
             var row = new Border
             {
                 Background = new SolidColorBrush(bgColor),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(229, 231, 235)),
-                BorderThickness = new Thickness(0, 0, 0, 1),
+                BorderBrush = new SolidColorBrush(isPlanned ? Color.FromRgb(147, 51, 234) : Color.FromRgb(229, 231, 235)),
+                BorderThickness = new Thickness(isPlanned ? 2 : 0, 0, 0, 1),
                 Padding = new Thickness(6, 3, 6, 3)
             };
 
@@ -1502,25 +1530,31 @@ namespace Kalendarz1
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Sztuki
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) }); // Percent
 
-            // Day label
+            // Day label with planned indicator
             var dayText = new TextBlock
             {
-                Text = $"{dayName}.{date:dd.MM}",
-                FontWeight = isToday ? FontWeights.Bold : FontWeights.SemiBold,
+                Text = isPlanned ? $"★ {dayName}.{date:dd.MM}" : $"{dayName}.{date:dd.MM}",
+                FontWeight = (isToday || isPlanned) ? FontWeights.Bold : FontWeights.SemiBold,
                 FontSize = 10,
-                Foreground = new SolidColorBrush(isToday ? Color.FromRgb(37, 99, 235) : Color.FromRgb(55, 65, 81)),
+                Foreground = new SolidColorBrush(
+                    isPlanned ? Color.FromRgb(126, 34, 206) :
+                    isToday ? Color.FromRgb(37, 99, 235) :
+                    Color.FromRgb(55, 65, 81)),
                 VerticalAlignment = VerticalAlignment.Center
             };
             Grid.SetColumn(dayText, 0);
             grid.Children.Add(dayText);
 
-            // Sztuki
+            // Sztuki - pokaż planowaną ilość osobno jeśli jest
+            var sztukiDisplay = isPlanned && plannedSzt > 0
+                ? $"{szt:# ##0} (+{plannedSzt:# ##0})"
+                : $"{szt:# ##0} szt.";
             var sztukiText = new TextBlock
             {
-                Text = $"{szt:# ##0} szt.",
+                Text = sztukiDisplay,
                 FontSize = 10,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81)),
+                Foreground = new SolidColorBrush(isPlanned ? Color.FromRgb(126, 34, 206) : Color.FromRgb(55, 65, 81)),
                 HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -1547,31 +1581,62 @@ namespace Kalendarz1
             return row;
         }
 
+        // Przechowuje oryginalne daty z bazy danych
+        private Dictionary<DateTime, int> _originalDeliveryDates = new Dictionary<DateTime, int>();
+
+        /// <summary>
+        /// Aktualizuje mini-kalendarz z podglądem planowanych dostaw z formularza
+        /// </summary>
+        private void UpdateMiniCalendarPreview()
+        {
+            if (chkKalendarz?.IsChecked != true || panelWeeksList == null) return;
+
+            // Skopiuj oryginalne dane z bazy
+            _deliveryDates = new Dictionary<DateTime, int>(_originalDeliveryDates);
+
+            // Dodaj planowane dostawy z formularza
+            foreach (var row in dostawyRows)
+            {
+                if (row.DpData?.SelectedDate != null)
+                {
+                    var date = row.DpData.SelectedDate.Value.Date;
+                    int szt = 0;
+                    if (int.TryParse(row.TxtSztuki?.Text?.Replace(" ", ""), out szt) && szt > 0)
+                    {
+                        if (!_deliveryDates.ContainsKey(date))
+                            _deliveryDates[date] = 0;
+                        _deliveryDates[date] += szt;
+                    }
+                }
+            }
+
+            // Przerenderuj tygodnie
+            FindWeeksWithDeliveries();
+
+            // Spróbuj przewinąć do tygodnia z pierwszą planowaną dostawą
+            var firstPlannedDate = dostawyRows
+                .Where(r => r.DpData?.SelectedDate != null)
+                .Select(r => r.DpData.SelectedDate.Value.Date)
+                .OrderBy(d => d)
+                .FirstOrDefault();
+
+            if (firstPlannedDate != default)
+            {
+                var weekStart = GetStartOfWeek(firstPlannedDate);
+                var weekIndex = _weeksWithDeliveries.FindIndex(w => w.WeekStart == weekStart);
+                if (weekIndex >= 0)
+                    _currentWeekIndex = weekIndex;
+            }
+
+            RenderWeeksList();
+        }
+
         /// <summary>
         /// Odświeża kalendarz po dodaniu/zmianie dostawy
         /// </summary>
         public void RefreshCalendarWithCurrentDeliveries()
         {
-            if (chkKalendarz?.IsChecked == true)
-            {
-                // Dodaj planowane dostawy z formularza do podglądu
-                foreach (var row in dostawyRows)
-                {
-                    if (row.DpData?.SelectedDate != null)
-                    {
-                        var date = row.DpData.SelectedDate.Value.Date;
-                        int szt = 0;
-                        if (int.TryParse(row.TxtSztuki?.Text?.Replace(" ", ""), out szt))
-                        {
-                            if (!_deliveryDates.ContainsKey(date))
-                                _deliveryDates[date] = 0;
-                            _deliveryDates[date] += szt;
-                        }
-                    }
-                }
-                FindWeeksWithDeliveries();
-                RenderWeeksList();
-            }
+            UpdateMiniCalendarPreview();
         }
 
         #endregion
