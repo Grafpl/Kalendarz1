@@ -8513,7 +8513,8 @@ namespace Kalendarz1
                             ISNULL(fc.TerminDni, 0) as TerminDni,
                             ISNULL(fc.NettoWeight, 0) * (ISNULL(fc.Price, 0) + ISNULL(fc.Addition, 0)) as Wartosc,
                             ISNULL(fc.Symfonia, 0) as Symfonia,
-                            ISNULL(k.IdSymf, 0) as IdSymf
+                            ISNULL(k.IdSymf, 0) as IdSymf,
+                            ISNULL(fc.SymfoniaNrFV, '') as NrFaktury
                         FROM dbo.FarmerCalc fc
                         LEFT JOIN dbo.Dostawcy k ON fc.CustomerGID = k.ID
                         LEFT JOIN dbo.PriceType pt ON fc.PriceTypeID = pt.ID
@@ -8543,7 +8544,7 @@ namespace Kalendarz1
                                     Wartosc = reader.IsDBNull(reader.GetOrdinal("Wartosc")) ? 0 : Convert.ToDecimal(reader["Wartosc"]),
                                     Symfonia = !reader.IsDBNull(reader.GetOrdinal("Symfonia")) && Convert.ToBoolean(reader["Symfonia"]),
                                     IdSymf = reader.IsDBNull(reader.GetOrdinal("IdSymf")) ? 0 : Convert.ToInt32(reader["IdSymf"]),
-                                    NrFaktury = "" // TODO: Dodać właściwe źródło numeru faktury (FVR/FVZ)
+                                    NrFaktury = reader.IsDBNull(reader.GetOrdinal("NrFaktury")) ? "" : reader["NrFaktury"].ToString()
                                 });
                             }
                         }
