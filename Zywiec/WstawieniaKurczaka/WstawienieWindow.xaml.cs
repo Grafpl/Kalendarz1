@@ -1335,7 +1335,7 @@ namespace Kalendarz1
             int startDayOfWeek = ((int)firstDayOfMonth.DayOfWeek + 6) % 7;
 
             // Bieżący tydzień
-            var currentWeekStart = DateTime.Today.AddDays(-(int)((DateTime.Today.DayOfWeek + 6) % 7));
+            var currentWeekStart = DateTime.Today.AddDays(-((int)DateTime.Today.DayOfWeek + 6) % 7);
             var currentWeekEnd = currentWeekStart.AddDays(6);
 
             int totalDeliveries = 0;
@@ -1469,9 +1469,9 @@ namespace Kalendarz1
                 // Dodaj planowane dostawy z formularza do podglądu
                 foreach (var row in dostawyRows)
                 {
-                    if (row.DatePicker?.SelectedDate != null)
+                    if (row.DpData?.SelectedDate != null)
                     {
-                        var date = row.DatePicker.SelectedDate.Value.Date;
+                        var date = row.DpData.SelectedDate.Value.Date;
                         int szt = 0;
                         if (int.TryParse(row.TxtSztuki?.Text?.Replace(" ", ""), out szt))
                         {
