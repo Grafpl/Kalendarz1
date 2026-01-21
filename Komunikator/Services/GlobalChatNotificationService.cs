@@ -32,6 +32,7 @@ namespace Kalendarz1.Komunikator.Services
         private readonly DispatcherTimer _timer;
         private ChatBubbleNotification _bubbleWindow;
         private bool _isDisposed;
+        private bool _temporarilyHidden; // Po kliknięciu dymka ukryj go tymczasowo
         private int _lastUnreadCount;
         private DateTime _lastCheckTime = DateTime.MinValue;
 
@@ -240,13 +241,23 @@ namespace Kalendarz1.Komunikator.Services
         /// </summary>
         private void ShowBubble(int count, List<NewMessageInfo> newMessages)
         {
+            // Nie pokazuj jeśli tymczasowo ukryty (po kliknięciu)
+            if (_temporarilyHidden) return;
+
             if (_bubbleWindow == null || !_bubbleWindow.IsLoaded)
             {
                 _bubbleWindow = new ChatBubbleNotification();
                 _bubbleWindow.BubbleClicked += (s, e) =>
                 {
+                    // Natychmiast ukryj dymek po kliknięciu
+                    HideBubble();
+                    _temporarilyHidden = true; // Nie pokazuj ponownie przez chwilę
                     BubbleClicked?.Invoke(this, EventArgs.Empty);
                     OpenChatWindow();
+                };
+                _bubbleWindow.Closed += (s, e) =>
+                {
+                    _bubbleWindow = null;
                 };
                 _bubbleWindow.Show();
             }
@@ -299,6 +310,8 @@ namespace Kalendarz1.Komunikator.Services
         /// </summary>
         public void Refresh()
         {
+            // Zresetuj flagę tymczasowego ukrycia - wiadomości zostały przeczytane
+            _temporarilyHidden = false;
             CheckForNewMessages();
         }
 
