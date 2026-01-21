@@ -8605,10 +8605,12 @@ namespace Kalendarz1
             }
 
             string userName = GetCurrentUserDisplayName();
+            string userId = App.UserID ?? Environment.UserName;
             foreach (var row in selectedRows)
             {
                 row.Zatwierdzony = true;
                 row.ZatwierdzonePrzez = userName;
+                row.ZatwierdzoneByUserID = userId;
                 row.DataZatwierdzenia = DateTime.Now;
                 SaveZatwierdzenie(row);
             }
@@ -8620,12 +8622,14 @@ namespace Kalendarz1
         {
             // Pierwsza kontrola - wprowadzenie WSZYSTKICH niezatwierdzonych wierszy
             string userName = GetCurrentUserDisplayName();
+            string userId = App.UserID ?? Environment.UserName;
             int zatwierdzone = 0;
 
             foreach (var row in rozliczeniaData.Where(r => !r.Zatwierdzony))
             {
                 row.Zatwierdzony = true;
                 row.ZatwierdzonePrzez = userName;
+                row.ZatwierdzoneByUserID = userId;
                 row.DataZatwierdzenia = DateTime.Now;
                 SaveZatwierdzenie(row);
                 zatwierdzone++;
@@ -8681,6 +8685,7 @@ namespace Kalendarz1
             }
 
             string userName = GetCurrentUserDisplayName();
+            string userId = App.UserID ?? Environment.UserName;
             int weryfikowane = 0;
             int pominieteSameOsoba = 0;
 
@@ -8695,6 +8700,7 @@ namespace Kalendarz1
 
                 row.Zweryfikowany = true;
                 row.ZweryfikowanePrzez = userName;
+                row.ZweryfikowaneByUserID = userId;
                 row.DataWeryfikacji = DateTime.Now;
                 SaveZatwierdzenie(row);
                 weryfikowane++;
@@ -8718,6 +8724,7 @@ namespace Kalendarz1
         {
             // Weryfikacja WSZYSTKICH zatwierdzonych wierszy
             string userName = GetCurrentUserDisplayName();
+            string userId = App.UserID ?? Environment.UserName;
             int weryfikowane = 0;
             int pominieteSameOsoba = 0;
 
@@ -8732,6 +8739,7 @@ namespace Kalendarz1
 
                 row.Zweryfikowany = true;
                 row.ZweryfikowanePrzez = userName;
+                row.ZweryfikowaneByUserID = userId;
                 row.DataWeryfikacji = DateTime.Now;
                 SaveZatwierdzenie(row);
                 weryfikowane++;
@@ -8809,14 +8817,21 @@ namespace Kalendarz1
                                 [CalcDate] [date] NOT NULL,
                                 [Zatwierdzony] [bit] NOT NULL DEFAULT 0,
                                 [ZatwierdzonePrzez] [nvarchar](100) NULL,
+                                [ZatwierdzoneByUserID] [nvarchar](50) NULL,
                                 [DataZatwierdzenia] [datetime] NULL,
                                 [Zweryfikowany] [bit] NOT NULL DEFAULT 0,
                                 [ZweryfikowanePrzez] [nvarchar](100) NULL,
+                                [ZweryfikowaneByUserID] [nvarchar](50) NULL,
                                 [DataWeryfikacji] [datetime] NULL,
                                 PRIMARY KEY CLUSTERED ([ID] ASC),
                                 UNIQUE NONCLUSTERED ([FarmerCalcID] ASC)
                             )
-                        END";
+                        END
+                        -- Dodaj kolumny UserID jeśli nie istnieją (dla istniejących tabel)
+                        IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'RozliczeniaZatwierdzenia' AND COLUMN_NAME = 'ZatwierdzoneByUserID')
+                            ALTER TABLE [dbo].[RozliczeniaZatwierdzenia] ADD [ZatwierdzoneByUserID] [nvarchar](50) NULL;
+                        IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'RozliczeniaZatwierdzenia' AND COLUMN_NAME = 'ZweryfikowaneByUserID')
+                            ALTER TABLE [dbo].[RozliczeniaZatwierdzenia] ADD [ZweryfikowaneByUserID] [nvarchar](50) NULL;";
                     using (SqlCommand cmd = new SqlCommand(createTable, conn))
                     {
                         cmd.ExecuteNonQuery();
@@ -8847,13 +8862,15 @@ namespace Kalendarz1
                             UPDATE SET
                                 Zatwierdzony = @Zatwierdzony,
                                 ZatwierdzonePrzez = @ZatwierdzonePrzez,
+                                ZatwierdzoneByUserID = @ZatwierdzoneByUserID,
                                 DataZatwierdzenia = @DataZatwierdzenia,
                                 Zweryfikowany = @Zweryfikowany,
                                 ZweryfikowanePrzez = @ZweryfikowanePrzez,
+                                ZweryfikowaneByUserID = @ZweryfikowaneByUserID,
                                 DataWeryfikacji = @DataWeryfikacji
                         WHEN NOT MATCHED THEN
-                            INSERT (FarmerCalcID, CalcDate, Zatwierdzony, ZatwierdzonePrzez, DataZatwierdzenia, Zweryfikowany, ZweryfikowanePrzez, DataWeryfikacji)
-                            VALUES (@FarmerCalcID, @CalcDate, @Zatwierdzony, @ZatwierdzonePrzez, @DataZatwierdzenia, @Zweryfikowany, @ZweryfikowanePrzez, @DataWeryfikacji);";
+                            INSERT (FarmerCalcID, CalcDate, Zatwierdzony, ZatwierdzonePrzez, ZatwierdzoneByUserID, DataZatwierdzenia, Zweryfikowany, ZweryfikowanePrzez, ZweryfikowaneByUserID, DataWeryfikacji)
+                            VALUES (@FarmerCalcID, @CalcDate, @Zatwierdzony, @ZatwierdzonePrzez, @ZatwierdzoneByUserID, @DataZatwierdzenia, @Zweryfikowany, @ZweryfikowanePrzez, @ZweryfikowaneByUserID, @DataWeryfikacji);";
 
                     using (SqlCommand cmd = new SqlCommand(upsert, conn))
                     {
@@ -8861,9 +8878,11 @@ namespace Kalendarz1
                         cmd.Parameters.AddWithValue("@CalcDate", row.Data.Date);
                         cmd.Parameters.AddWithValue("@Zatwierdzony", row.Zatwierdzony);
                         cmd.Parameters.AddWithValue("@ZatwierdzonePrzez", (object)row.ZatwierdzonePrzez ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@ZatwierdzoneByUserID", (object)row.ZatwierdzoneByUserID ?? DBNull.Value);
                         cmd.Parameters.AddWithValue("@DataZatwierdzenia", (object)row.DataZatwierdzenia ?? DBNull.Value);
                         cmd.Parameters.AddWithValue("@Zweryfikowany", row.Zweryfikowany);
                         cmd.Parameters.AddWithValue("@ZweryfikowanePrzez", (object)row.ZweryfikowanePrzez ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@ZweryfikowaneByUserID", (object)row.ZweryfikowaneByUserID ?? DBNull.Value);
                         cmd.Parameters.AddWithValue("@DataWeryfikacji", (object)row.DataWeryfikacji ?? DBNull.Value);
                         cmd.ExecuteNonQuery();
                     }
@@ -8897,8 +8916,8 @@ namespace Kalendarz1
                     }
 
                     string query = @"
-                        SELECT FarmerCalcID, Zatwierdzony, ZatwierdzonePrzez, DataZatwierdzenia,
-                               Zweryfikowany, ZweryfikowanePrzez, DataWeryfikacji
+                        SELECT FarmerCalcID, Zatwierdzony, ZatwierdzonePrzez, ZatwierdzoneByUserID, DataZatwierdzenia,
+                               Zweryfikowany, ZweryfikowanePrzez, ZweryfikowaneByUserID, DataWeryfikacji
                         FROM [dbo].[RozliczeniaZatwierdzenia]
                         WHERE CalcDate = @CalcDate";
 
@@ -8916,10 +8935,12 @@ namespace Kalendarz1
                                 {
                                     row.Zatwierdzony = reader.GetBoolean(1);
                                     row.ZatwierdzonePrzez = reader.IsDBNull(2) ? null : reader.GetString(2);
-                                    row.DataZatwierdzenia = reader.IsDBNull(3) ? (DateTime?)null : reader.GetDateTime(3);
-                                    row.Zweryfikowany = reader.GetBoolean(4);
-                                    row.ZweryfikowanePrzez = reader.IsDBNull(5) ? null : reader.GetString(5);
-                                    row.DataWeryfikacji = reader.IsDBNull(6) ? (DateTime?)null : reader.GetDateTime(6);
+                                    row.ZatwierdzoneByUserID = reader.IsDBNull(3) ? null : reader.GetString(3);
+                                    row.DataZatwierdzenia = reader.IsDBNull(4) ? (DateTime?)null : reader.GetDateTime(4);
+                                    row.Zweryfikowany = reader.GetBoolean(5);
+                                    row.ZweryfikowanePrzez = reader.IsDBNull(6) ? null : reader.GetString(6);
+                                    row.ZweryfikowaneByUserID = reader.IsDBNull(7) ? null : reader.GetString(7);
+                                    row.DataWeryfikacji = reader.IsDBNull(8) ? (DateTime?)null : reader.GetDateTime(8);
                                 }
                             }
                         }
@@ -14353,6 +14374,24 @@ public class ZeroToBoldConverter : System.Windows.Data.IValueConverter
 }
 
 /// <summary>
+/// Konwerter null/empty na Collapsed (do ukrywania awatarów gdy brak danych)
+/// </summary>
+public class NullToCollapsedConverter : System.Windows.Data.IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        if (value == null) return System.Windows.Visibility.Collapsed;
+        if (value is string str && string.IsNullOrWhiteSpace(str)) return System.Windows.Visibility.Collapsed;
+        return System.Windows.Visibility.Visible;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+/// <summary>
 /// Konwerter procentu na piksele dla Timeline (0-100% -> 0-szerokość)
 /// </summary>
 public class PercentToPixelConverter : System.Windows.Data.IValueConverter
@@ -14496,6 +14535,7 @@ public class RozliczenieRow : INotifyPropertyChanged
     }
 
     public string ZatwierdzonePrzez { get; set; }
+    public string ZatwierdzoneByUserID { get; set; }
     public DateTime? DataZatwierdzenia { get; set; }
 
     // === PODWÓJNA KONTROLA: Weryfikacja przez drugiego pracownika ===
@@ -14507,12 +14547,61 @@ public class RozliczenieRow : INotifyPropertyChanged
     }
 
     public string ZweryfikowanePrzez { get; set; }
+    public string ZweryfikowaneByUserID { get; set; }
     public DateTime? DataWeryfikacji { get; set; }
 
     /// <summary>
     /// Wiersz jest w pełni zablokowany gdy zarówno Zatwierdzony jak i Zweryfikowany są true
     /// </summary>
     public bool JestZablokowany => Zatwierdzony && Zweryfikowany;
+
+    // === AWATARY: Właściwości do wyświetlania awatarów użytkowników ===
+
+    /// <summary>
+    /// Inicjały osoby wprowadzającej (do wyświetlania w awatarze)
+    /// </summary>
+    public string ZatwierdzoneInicjaly => GetInitials(ZatwierdzonePrzez);
+
+    /// <summary>
+    /// Inicjały osoby weryfikującej (do wyświetlania w awatarze)
+    /// </summary>
+    public string ZweryfikowaneInicjaly => GetInitials(ZweryfikowanePrzez);
+
+    /// <summary>
+    /// Kolor awatara osoby wprowadzającej
+    /// </summary>
+    public string ZatwierdzoneAvatarColor => GetAvatarColor(ZatwierdzoneByUserID ?? ZatwierdzonePrzez);
+
+    /// <summary>
+    /// Kolor awatara osoby weryfikującej
+    /// </summary>
+    public string ZweryfikowaneAvatarColor => GetAvatarColor(ZweryfikowaneByUserID ?? ZweryfikowanePrzez);
+
+    private static string GetInitials(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var parts = name.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+            return $"{char.ToUpper(parts[0][0])}{char.ToUpper(parts[1][0])}";
+        return name.Length >= 2 ? name.Substring(0, 2).ToUpper() : name.ToUpper();
+    }
+
+    private static string GetAvatarColor(string id)
+    {
+        if (string.IsNullOrEmpty(id)) return "#78909C"; // Szary dla pustego
+        int hash = id.GetHashCode();
+        string[] colors = {
+            "#2E7D32", // Zielony
+            "#1976D2", // Niebieski
+            "#7B1FA2", // Fioletowy
+            "#E65100", // Pomarańczowy
+            "#00796B", // Teal
+            "#C2185B", // Różowy
+            "#455A64", // Szary
+            "#5D4037"  // Brązowy
+        };
+        return colors[Math.Abs(hash) % colors.Length];
+    }
 
     /// <summary>
     /// Wiersz jest wprowadzony (zatwierdzony) - blokuje edycję dla wszystkich

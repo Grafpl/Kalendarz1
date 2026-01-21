@@ -20,6 +20,7 @@
         <local:ZeroToEmptyConverter x:Key="ZeroToEmptyConverter"/>
         <local:ZeroToRedBrushConverter x:Key="ZeroToRedBrush"/>
         <local:ZeroToBoldConverter x:Key="ZeroToBold"/>
+        <local:NullToCollapsedConverter x:Key="NullToCollapsedConverter"/>
         <local:PercentToPixelConverter x:Key="PercentToPixelConverter"/>
         <local:PercentToMarginConverter x:Key="PercentToMarginConverter"/>
         <local:PercentToWidthConverter x:Key="PercentToWidthConverter"/>
@@ -4628,13 +4629,27 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="Wprowadził" Binding="{Binding ZatwierdzonePrzez}" Width="80">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="FontSize" Value="10"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                                <DataGridTemplateColumn Header="Wprowadził" Width="110" ToolTipService.ToolTip="Osoba która wprowadzała dane">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="2,0">
+                                                <!-- Awatar z inicjałami -->
+                                                <Border Width="22" Height="22" CornerRadius="11"
+                                                        Background="{Binding ZatwierdzoneAvatarColor}"
+                                                        Visibility="{Binding ZatwierdzonePrzez, Converter={StaticResource NullToCollapsedConverter}}"
+                                                        ToolTip="{Binding ZatwierdzonePrzez}">
+                                                    <TextBlock Text="{Binding ZatwierdzoneInicjaly}"
+                                                               Foreground="White" FontSize="9" FontWeight="Bold"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <!-- Imię (skrócone) -->
+                                                <TextBlock Text="{Binding ZatwierdzonePrzez}" FontSize="9"
+                                                           VerticalAlignment="Center" Margin="4,0,0,0"
+                                                           MaxWidth="75" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
 
                                 <!-- Status weryfikacji (2. kontrola) -->
                                 <DataGridTemplateColumn Header="Weryfikacja" Width="90">
@@ -4669,13 +4684,27 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="Zweryfikował" Binding="{Binding ZweryfikowanePrzez}" Width="80">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="FontSize" Value="10"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                                <DataGridTemplateColumn Header="Zweryfikował" Width="110" ToolTipService.ToolTip="Osoba która weryfikowała dane">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="2,0">
+                                                <!-- Awatar z inicjałami -->
+                                                <Border Width="22" Height="22" CornerRadius="11"
+                                                        Background="{Binding ZweryfikowaneAvatarColor}"
+                                                        Visibility="{Binding ZweryfikowanePrzez, Converter={StaticResource NullToCollapsedConverter}}"
+                                                        ToolTip="{Binding ZweryfikowanePrzez}">
+                                                    <TextBlock Text="{Binding ZweryfikowaneInicjaly}"
+                                                               Foreground="White" FontSize="9" FontWeight="Bold"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <!-- Imię (skrócone) -->
+                                                <TextBlock Text="{Binding ZweryfikowanePrzez}" FontSize="9"
+                                                           VerticalAlignment="Center" Margin="4,0,0,0"
+                                                           MaxWidth="75" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
 
                                 <!-- Status końcowy (blokada) -->
                                 <DataGridTemplateColumn Header="🔒" Width="35">
