@@ -11026,16 +11026,10 @@ namespace Kalendarz1
             if (row == null) return false;
 
             // Sprawdź czy wiersz jest wprowadzony (zatwierdzony) - blokada statusowa
+            // Nie pokazuj MessageBox - blokada jest wizualnie widoczna w UI (zielone tło)
+            // i BeginningEdit już obsługuje anulowanie edycji z informacją w statusie
             if (row.JestWprowadzony)
             {
-                MessageBox.Show(
-                    $"Edycja wiersza jest zablokowana - został już wprowadzony.\n\n" +
-                    $"Wprowadził: {row.ZatwierdzonePrzez}\n\n" +
-                    "Wiersz o statusie 'wprowadzone' nie może być modyfikowany.\n" +
-                    "Chroni to dane przed zmianami podczas weryfikacji.",
-                    "Blokada - wiersz wprowadzony",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
                 return false;
             }
 
