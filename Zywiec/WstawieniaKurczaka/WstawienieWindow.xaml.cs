@@ -1764,7 +1764,7 @@ namespace Kalendarz1
                     decimal waga = 0;
 
                     int.TryParse(row.TxtSztuki?.Text?.Replace(" ", ""), out szt);
-                    int.TryParse(row.TxtAuta?.Text, out auta);
+                    int.TryParse(row.TxtAutaReczne?.Text, out auta);
                     decimal.TryParse(row.TxtWaga?.Text?.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out waga);
 
                     if (szt > 0)
