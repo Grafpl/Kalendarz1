@@ -192,6 +192,9 @@ namespace Kalendarz1
 
             // Zamknij tooltip przy kliknięciu lewym przyciskiem myszy w dowolne miejsce
             this.PreviewMouseLeftButtonDown += Window_PreviewMouseLeftButtonDown;
+
+            // Zamknij tooltip przy wciśnięciu klawisza Escape
+            this.PreviewKeyDown += Window_PreviewKeyDown;
         }
 
         private void Window_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -204,6 +207,19 @@ namespace Kalendarz1
                 _currentOpenTooltip = null;
                 // Zapamiętaj czas zamknięcia, żeby nie otworzyć od razu ponownie
                 _tooltipCloseTime = DateTime.Now;
+            }
+        }
+
+        private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            // Zamknij otwarty tooltip przy wciśnięciu Escape
+            if (e.Key == Key.Escape && _currentOpenTooltip != null && _currentOpenTooltip.IsOpen)
+            {
+                _currentOpenTooltip.IsOpen = false;
+                StopTooltipTimer();
+                _currentOpenTooltip = null;
+                _tooltipCloseTime = DateTime.Now;
+                e.Handled = true;
             }
         }
 
@@ -1445,7 +1461,7 @@ namespace Kalendarz1
                     e.Row.MouseLeftButtonUp += (rowSender, rowArgs) =>
                     {
                         // Nie otwieraj tooltipa jeśli został zamknięty mniej niż 200ms temu
-                        if ((DateTime.Now - _tooltipCloseTime).TotalMilliseconds < 200)
+                        if ((DateTime.Now - _tooltipCloseTime).TotalMilliseconds < 350)
                         {
                             return;
                         }
@@ -1549,9 +1565,9 @@ namespace Kalendarz1
             var closeButton = new Button
             {
                 Content = "✕",
-                Width = 22,
-                Height = 22,
-                FontSize = 12,
+                Width = 28,
+                Height = 28,
+                FontSize = 14,
                 FontWeight = FontWeights.Bold,
                 Background = Brushes.Transparent,
                 BorderThickness = new Thickness(0),
@@ -1560,14 +1576,35 @@ namespace Kalendarz1
                 HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Top,
                 Margin = new Thickness(0, -5, -5, 0),
-                Padding = new Thickness(0)
+                Padding = new Thickness(0),
+                RenderTransformOrigin = new Point(0.5, 0.5),
+                RenderTransform = new ScaleTransform(1, 1)
             };
-            closeButton.MouseEnter += (s, e) => closeButton.Foreground = new SolidColorBrush(Color.FromRgb(231, 76, 60));
-            closeButton.MouseLeave += (s, e) => closeButton.Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141));
-            closeButton.Click += (s, e) =>
+            closeButton.MouseEnter += (s, e) =>
+            {
+                closeButton.Foreground = new SolidColorBrush(Color.FromRgb(231, 76, 60));
+                if (closeButton.RenderTransform is ScaleTransform scale)
+                {
+                    scale.ScaleX = 1.15;
+                    scale.ScaleY = 1.15;
+                }
+            };
+            closeButton.MouseLeave += (s, e) =>
+            {
+                closeButton.Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141));
+                if (closeButton.RenderTransform is ScaleTransform scale)
+                {
+                    scale.ScaleX = 1.0;
+                    scale.ScaleY = 1.0;
+                }
+            };
+            closeButton.Click += (s, args) =>
             {
                 tooltip.IsOpen = false;
                 StopTooltipTimer();
+                _currentOpenTooltip = null;
+                _tooltipCloseTime = DateTime.Now;
+                args.Handled = true;
             };
             Grid.SetColumn(closeButton, 1);
             headerRow.Children.Add(closeButton);
@@ -1596,10 +1633,10 @@ namespace Kalendarz1
             tooltip.IsOpen = true;
             _currentOpenTooltip = tooltip;
 
-            // Start auto-close timer (6 seconds)
+            // Start auto-close timer (10 seconds)
             _tooltipCloseTimer = new System.Windows.Threading.DispatcherTimer
             {
-                Interval = TimeSpan.FromSeconds(6)
+                Interval = TimeSpan.FromSeconds(10)
             };
             _tooltipCloseTimer.Tick += (s, e) =>
             {
@@ -2079,7 +2116,7 @@ namespace Kalendarz1
                 e.Row.MouseLeftButtonUp += (rowSender, rowArgs) =>
                 {
                     // Nie otwieraj tooltipa jeśli został zamknięty mniej niż 200ms temu
-                    if ((DateTime.Now - _tooltipCloseTime).TotalMilliseconds < 200)
+                    if ((DateTime.Now - _tooltipCloseTime).TotalMilliseconds < 350)
                     {
                         return;
                     }
