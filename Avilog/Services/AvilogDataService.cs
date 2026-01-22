@@ -45,7 +45,7 @@ namespace Kalendarz1.Avilog.Services
                     -- Sztuki
                     ISNULL(fc.DeclI1, 0) AS SztukiZadeklarowane,
                     ISNULL(fc.LumQnt, 0) AS SztukiLumel,
-                    ISNULL(fc.DeadQnt, 0) AS SztukiPadle,
+                    ISNULL(fc.DeclI2, 0) AS SztukiPadle,
 
                     -- Wagi hodowcy
                     ISNULL(fc.FullFarmWeight, 0) AS BruttoHodowcy,
@@ -150,17 +150,17 @@ namespace Kalendarz1.Avilog.Services
                     COUNT(*) AS LiczbaKursow,
                     COUNT(DISTINCT CONCAT(fc.CarID, '-', fc.TrailerID)) AS LiczbaZestawow,
 
-                    SUM(ISNULL(fc.LumQnt, 0) + ISNULL(fc.DeadQnt, 0)) AS SumaSztuk,
+                    SUM(ISNULL(fc.LumQnt, 0) + ISNULL(fc.DeclI2, 0)) AS SumaSztuk,
                     SUM(ISNULL(fc.FullFarmWeight, 0)) AS SumaBrutto,
                     SUM(ISNULL(fc.EmptyFarmWeight, 0)) AS SumaTara,
                     SUM(ISNULL(fc.NettoFarmWeight, ISNULL(fc.FullFarmWeight, 0) - ISNULL(fc.EmptyFarmWeight, 0))) AS SumaNetto,
-                    SUM(ISNULL(fc.DeadQnt, 0)) AS SumaUpadkowSzt,
+                    SUM(ISNULL(fc.DeclI2, 0)) AS SumaUpadkowSzt,
 
                     -- Upadki kg = suma(padłe × średnia waga)
                     SUM(
                         CASE
-                            WHEN (ISNULL(fc.LumQnt, 0) + ISNULL(fc.DeadQnt, 0)) > 0
-                            THEN ROUND(ISNULL(fc.DeadQnt, 0) * (ISNULL(fc.NettoFarmWeight, 0) / (ISNULL(fc.LumQnt, 0) + ISNULL(fc.DeadQnt, 0))), 0)
+                            WHEN (ISNULL(fc.LumQnt, 0) + ISNULL(fc.DeclI2, 0)) > 0
+                            THEN ROUND(ISNULL(fc.DeclI2, 0) * (ISNULL(fc.NettoFarmWeight, 0) / (ISNULL(fc.LumQnt, 0) + ISNULL(fc.DeclI2, 0))), 0)
                             ELSE 0
                         END
                     ) AS SumaUpadkowKg,
