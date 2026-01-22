@@ -186,7 +186,7 @@
         </Grid.RowDefinitions>
 
         <!-- === NAGŁÓWEK === -->
-        <Border Grid.Row="0" Background="Linear Gradient" Padding="20,15">
+        <Border Grid.Row="0" Padding="20,15">
             <Border.Background>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
                     <GradientStop Color="#388E3C" Offset="0"/>
