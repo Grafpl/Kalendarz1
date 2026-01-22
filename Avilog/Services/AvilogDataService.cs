@@ -72,7 +72,7 @@ namespace Kalendarz1.Avilog.Services
                     fc.KoniecUslugi
 
                 FROM [LibraNet].[dbo].[FarmerCalc] fc
-                LEFT JOIN [LibraNet].[dbo].[Dostawcy] dos ON fc.CustomerRealGID = dos.CustomerGID
+                LEFT JOIN [LibraNet].[dbo].[Dostawcy] dos ON fc.CustomerRealGID = dos.ID
                 LEFT JOIN [LibraNet].[dbo].[Kierowcy] k ON fc.DriverGID = k.ID
 
                 WHERE fc.CalcDate >= @DataOd AND fc.CalcDate < DATEADD(day, 1, @DataDo)
@@ -393,7 +393,7 @@ namespace Kalendarz1.Avilog.Services
                     SUM(ISNULL(fc.NettoFarmWeight, 0)) AS Tonaz,
                     COUNT(*) AS Kursy
                 FROM [LibraNet].[dbo].[FarmerCalc] fc
-                LEFT JOIN [LibraNet].[dbo].[Dostawcy] dos ON fc.CustomerRealGID = dos.CustomerGID
+                LEFT JOIN [LibraNet].[dbo].[Dostawcy] dos ON fc.CustomerRealGID = dos.ID
                 WHERE fc.CalcDate >= @DataOd AND fc.CalcDate < DATEADD(day, 1, @DataDo)
                   AND ISNULL(fc.LumQnt, 0) > 0
                 GROUP BY ISNULL(dos.ShortName, fc.CustomerRealGID)
