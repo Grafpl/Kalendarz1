@@ -253,7 +253,6 @@
         <Style x:Key="StatLabel" TargetType="TextBlock">
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="Foreground" Value="{StaticResource TextGrayBrush}"/>
-            <Setter Property="TextTransform" Value="Uppercase"/>
             <Setter Property="Margin" Value="0,0,0,4"/>
         </Style>
 
