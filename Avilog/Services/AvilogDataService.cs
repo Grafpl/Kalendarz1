@@ -151,16 +151,16 @@ namespace Kalendarz1.Avilog.Services
                     COUNT(DISTINCT CONCAT(fc.CarID, '-', fc.TrailerID)) AS LiczbaZestawow,
 
                     SUM(ISNULL(fc.LumQnt, 0) + ISNULL(fc.DeclI2, 0)) AS SumaSztuk,
-                    SUM(ISNULL(fc.FullFarmWeight, 0)) AS SumaBrutto,
-                    SUM(ISNULL(fc.EmptyFarmWeight, 0)) AS SumaTara,
-                    SUM(ISNULL(fc.NettoFarmWeight, ISNULL(fc.FullFarmWeight, 0) - ISNULL(fc.EmptyFarmWeight, 0))) AS SumaNetto,
+                    SUM(ISNULL(fc.FullWeight, 0)) AS SumaBrutto,
+                    SUM(ISNULL(fc.EmptyWeight, 0)) AS SumaTara,
+                    SUM(ISNULL(fc.NettoWeight, 0)) AS SumaNetto,
                     SUM(ISNULL(fc.DeclI2, 0)) AS SumaUpadkowSzt,
 
-                    -- Upadki kg = suma(padłe × średnia waga)
+                    -- Upadki kg = suma(padłe × średnia waga z ubojni)
                     SUM(
                         CASE
                             WHEN (ISNULL(fc.LumQnt, 0) + ISNULL(fc.DeclI2, 0)) > 0
-                            THEN ROUND(ISNULL(fc.DeclI2, 0) * (ISNULL(fc.NettoFarmWeight, 0) / (ISNULL(fc.LumQnt, 0) + ISNULL(fc.DeclI2, 0))), 0)
+                            THEN ROUND(ISNULL(fc.DeclI2, 0) * (ISNULL(fc.NettoWeight, 0) / (ISNULL(fc.LumQnt, 0) + ISNULL(fc.DeclI2, 0))), 0)
                             ELSE 0
                         END
                     ) AS SumaUpadkowKg,
@@ -390,7 +390,7 @@ namespace Kalendarz1.Avilog.Services
             string query = @"
                 SELECT TOP (@Top)
                     ISNULL(dos.ShortName, fc.CustomerRealGID) AS Hodowca,
-                    SUM(ISNULL(fc.NettoFarmWeight, 0)) AS Tonaz,
+                    SUM(ISNULL(fc.NettoWeight, 0)) AS Tonaz,
                     COUNT(*) AS Kursy
                 FROM [LibraNet].[dbo].[FarmerCalc] fc
                 LEFT JOIN [LibraNet].[dbo].[Dostawcy] dos ON fc.CustomerRealGID = dos.ID

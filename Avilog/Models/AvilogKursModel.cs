@@ -85,14 +85,14 @@ namespace Kalendarz1.Avilog.Models
         // === OBLICZENIA AVILOG ===
 
         /// <summary>
-        /// Średnia waga kurczaka = Netto / Suma sztuk
+        /// Średnia waga kurczaka = Netto Ubojni / Suma sztuk
         /// </summary>
         public decimal SredniaWagaKurczaka
         {
             get
             {
                 if (SztukiRazem > 0)
-                    return Math.Round(NettoHodowcy / SztukiRazem, 3);
+                    return Math.Round(NettoUbojni / SztukiRazem, 3);
                 return 0;
             }
         }
@@ -105,15 +105,15 @@ namespace Kalendarz1.Avilog.Models
             get
             {
                 if (SztukiRazem > 0)
-                    return Math.Round(SztukiPadle * (NettoHodowcy / SztukiRazem), 0);
+                    return Math.Round(SztukiPadle * (NettoUbojni / SztukiRazem), 0);
                 return 0;
             }
         }
 
         /// <summary>
-        /// Różnica kg = Netto hodowcy - Upadki kg (to idzie do rozliczenia)
+        /// Różnica kg = Netto Ubojni - Upadki kg (to idzie do rozliczenia/zapłaty)
         /// </summary>
-        public decimal RoznicaKg => NettoHodowcy - UpadkiKg;
+        public decimal RoznicaKg => NettoUbojni - UpadkiKg;
 
         /// <summary>
         /// Różnica wag między hodowcą a ubojnią w %
