@@ -35,7 +35,7 @@ namespace Kalendarz1.Avilog.Services
                     fc.CarID,
                     fc.TrailerID,
                     fc.DriverGID,
-                    ISNULL(k.Nazwisko + ' ' + k.Imie, ISNULL(k.Nazwisko, 'Nieznany')) AS KierowcaNazwa,
+                    ISNULL(d.Name, 'Nieznany') AS KierowcaNazwa,
 
                     -- Dostawca
                     fc.CustomerGID,
@@ -73,7 +73,7 @@ namespace Kalendarz1.Avilog.Services
 
                 FROM [LibraNet].[dbo].[FarmerCalc] fc
                 LEFT JOIN [LibraNet].[dbo].[Dostawcy] dos ON fc.CustomerRealGID = dos.ID
-                LEFT JOIN [LibraNet].[dbo].[Kierowcy] k ON fc.DriverGID = k.ID
+                LEFT JOIN [LibraNet].[dbo].[Driver] d ON fc.DriverGID = d.GID
 
                 WHERE fc.CalcDate >= @DataOd AND fc.CalcDate < DATEADD(day, 1, @DataDo)
                   AND ISNULL(fc.LumQnt, 0) > 0
@@ -434,14 +434,14 @@ namespace Kalendarz1.Avilog.Services
 
             string query = @"
                 SELECT TOP (@Top)
-                    ISNULL(k.Nazwisko + ' ' + k.Imie, ISNULL(k.Nazwisko, 'Nieznany')) AS Kierowca,
+                    ISNULL(d.Name, 'Nieznany') AS Kierowca,
                     SUM(ISNULL(fc.StopKM, 0) - ISNULL(fc.StartKM, 0)) AS KM,
                     COUNT(*) AS Kursy
                 FROM [LibraNet].[dbo].[FarmerCalc] fc
-                LEFT JOIN [LibraNet].[dbo].[Kierowcy] k ON fc.DriverGID = k.ID
+                LEFT JOIN [LibraNet].[dbo].[Driver] d ON fc.DriverGID = d.GID
                 WHERE fc.CalcDate >= @DataOd AND fc.CalcDate < DATEADD(day, 1, @DataDo)
                   AND ISNULL(fc.LumQnt, 0) > 0
-                GROUP BY ISNULL(k.Nazwisko + ' ' + k.Imie, ISNULL(k.Nazwisko, 'Nieznany'))
+                GROUP BY ISNULL(d.Name, 'Nieznany')
                 ORDER BY KM DESC";
 
             using (var conn = new SqlConnection(_connectionString))
