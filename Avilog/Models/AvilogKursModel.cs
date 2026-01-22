@@ -173,6 +173,14 @@ namespace Kalendarz1.Avilog.Models
 
         public string PoczatekUslugiFormatowany => PoczatekUslugi?.ToString("HH:mm") ?? "-";
         public string KoniecUslugiFormatowany => KoniecUslugi?.ToString("HH:mm") ?? "-";
-        public string CzasUslugiFormatowany => CzasUslugiGodziny > 0 ? $"{CzasUslugiGodziny:N2} h" : "-";
+        public string CzasUslugiFormatowany
+        {
+            get
+            {
+                if (PoczatekUslugi.HasValue && KoniecUslugi.HasValue)
+                    return $"{PoczatekUslugi:HH:mm}-{KoniecUslugi:HH:mm}";
+                return "-";
+            }
+        }
     }
 }
