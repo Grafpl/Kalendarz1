@@ -4844,6 +4844,102 @@ namespace Kalendarz1
             }
         }
 
+        // === Drukuj tylko wybrane (zaznaczone) specyfikacje ===
+        private void BtnPrintSelected_Click(object sender, RoutedEventArgs e)
+        {
+            // Pobierz zaznaczone wiersze z DataGrid
+            var selectedRows = dataGridView1.SelectedItems.Cast<SpecyfikacjaRow>().ToList();
+
+            if (selectedRows.Count == 0)
+            {
+                MessageBox.Show("Proszę zaznaczyć wiersze do wydruku.\n\nWskazówka: Użyj Ctrl+klik aby zaznaczyć wiele wierszy.",
+                    "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var result = MessageBox.Show(
+                $"Czy chcesz wydrukować PDF dla {selectedRows.Count} zaznaczonych transportów?\n\n" +
+                $"Zaznaczone wiersze:\n" +
+                string.Join("\n", selectedRows.Take(10).Select(r => $"  • LP {r.Nr}: {r.RealDostawca} ({r.NumerAuta})")) +
+                (selectedRows.Count > 10 ? $"\n  ... i {selectedRows.Count - 10} więcej" : "") +
+                "\n\nPDF zostanie oznaczony jako wykonany.",
+                "Drukuj wybrane",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    UpdateStatus("Generowanie PDF dla zaznaczonych wierszy...");
+
+                    // Grupuj zaznaczone wiersze po dostawcy, aby wygenerować jeden PDF na dostawcę
+                    var grupy = selectedRows.GroupBy(r => r.DostawcaGID).ToList();
+                    int countPdf = 0;
+                    int countRows = 0;
+
+                    foreach (var grupa in grupy)
+                    {
+                        List<int> ids = grupa.Select(r => r.ID).ToList();
+                        GeneratePDFReport(ids, false); // false = nie pokazuj MessageBox
+
+                        // Oznacz wszystkie wiersze tej grupy jako wydrukowane
+                        foreach (var wiersz in grupa)
+                        {
+                            wiersz.Wydrukowano = true;
+                            countRows++;
+                        }
+
+                        countPdf++;
+                    }
+
+                    // Zapisz status "wykonane" do bazy danych dla zaznaczonych wierszy
+                    MarkRowsAsExecuted(selectedRows.Select(r => r.ID).ToList());
+
+                    UpdateStatus($"Wygenerowano {countPdf} plików PDF dla {countRows} transportów");
+                    MessageBox.Show($"Wygenerowano {countPdf} plików PDF dla {countRows} transportów.\n\nWiersze zostały oznaczone jako wykonane.",
+                        "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd podczas generowania PDF:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                    UpdateStatus("Błąd generowania PDF");
+                }
+            }
+        }
+
+        // === Oznacz wiersze jako wykonane w bazie danych ===
+        private void MarkRowsAsExecuted(List<int> ids)
+        {
+            if (ids == null || ids.Count == 0) return;
+
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Aktualizuj kolumnę Executed w FarmerCalc (jeśli istnieje) lub użyj innej metody oznaczania
+                    string idsList = string.Join(",", ids);
+                    string query = $@"
+                        UPDATE [LibraNet].[dbo].[FarmerCalc]
+                        SET Executed = 1, ExecutedDate = GETDATE()
+                        WHERE ID IN ({idsList})";
+
+                    using (var cmd = new SqlCommand(query, conn))
+                    {
+                        int affected = cmd.ExecuteNonQuery();
+                        System.Diagnostics.Debug.WriteLine($"Oznaczono {affected} wierszy jako wykonane");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Jeśli kolumna nie istnieje, loguj błąd ale nie przerywaj działania
+                System.Diagnostics.Debug.WriteLine($"Błąd oznaczania jako wykonane: {ex.Message}");
+            }
+        }
+
         // === Checkbox: Pokaż/ukryj kolumnę Opasienie ===
         private void ChkShowOpasienie_Changed(object sender, RoutedEventArgs e)
         {

@@ -1144,6 +1144,9 @@
                                 <Button x:Name="btnGenerujPdf" Click="Button1_Click"
                                         Content="📄 PDF" ToolTip="Generuj PDF dla wybranego dostawcy (prawy przycisk myszy dla więcej opcji)"
                                         Style="{StaticResource ProgressButton}" Background="#E53935" Padding="12,4"/>
+                                <Button x:Name="btnGenerujPdfWybranych" Click="BtnPrintSelected_Click"
+                                        Content="📄 PDF Wybranych" ToolTip="Generuj PDF tylko dla zaznaczonych wierszy (Ctrl+klik aby zaznaczyć wiele)"
+                                        Style="{StaticResource ProgressButton}" Background="#F57C00" Padding="10,4" Margin="2,0"/>
                                 <Button x:Name="btnGenerujPdfAll" Click="BtnPrintAll_Click"
                                         Content="📄 Wszystkie PDF" ToolTip="Generuj PDF dla wszystkich dostawców"
                                         Style="{StaticResource ProgressButton}" Background="#C62828" Padding="10,4" Margin="2,0"/>
@@ -1225,7 +1228,7 @@
                       CanUserAddRows="False"
                       CanUserDeleteRows="False"
                       CanUserReorderColumns="False"
-                      SelectionMode="Single"
+                      SelectionMode="Extended"
                       SelectionUnit="FullRow"
                       GridLinesVisibility="All"
                       HorizontalGridLinesBrush="Black"
