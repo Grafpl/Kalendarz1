@@ -160,6 +160,9 @@
     <Compile Update="Zywiec\WidokSpecyfikacji\PhotoCompareWindow.xaml.cs">
       <DependentUpon>PhotoCompareWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Update="Avilog\Views\RozliczeniaAvilogWindow.xaml.cs">
+      <DependentUpon>RozliczeniaAvilogWindow.xaml</DependentUpon>
+    </Compile>
   </ItemGroup>
 
 </Project>

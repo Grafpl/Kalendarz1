@@ -1,4 +1,5 @@
 using Kalendarz1.AnalizaPrzychoduProdukcji;
+using Kalendarz1.Avilog.Views;
 using Kalendarz1.HandlowiecDashboard.Views;
 using Kalendarz1.OfertaCenowa;
 using Kalendarz1.Opakowania.Views;
@@ -1074,7 +1075,8 @@ namespace Kalendarz1
                 [41] = "KontrolaGodzin",
                 [42] = "CentrumSpotkan",
                 [43] = "PanelPaniJola",
-                [44] = "KomunikatorFirmowy"
+                [44] = "KomunikatorFirmowy",
+                [45] = "RozliczeniaAvilog"
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
@@ -1145,7 +1147,7 @@ namespace Kalendarz1
             {
                 // ZAOPATRZENIE I ZAKUPY
                 "DaneHodowcy", "WstawieniaHodowcy", "TerminyDostawyZywca", "PlachtyAviloga",
-                "PanelPortiera", "PanelLekarza", "Specyfikacje", "DokumentyZakupu",
+                "PanelPortiera", "PanelLekarza", "Specyfikacje", "RozliczeniaAvilog", "DokumentyZakupu",
                 "PlatnosciHodowcy", "ZakupPaszyPisklak", "RaportyHodowcow",
 
                 // PRODUKCJA I MAGAZYN
@@ -1234,6 +1236,11 @@ namespace Kalendarz1
                         "Definiowanie parametrów jakościowych surowca od poszczególnych dostawców żywca",
                         Color.FromArgb(67, 160, 71), // #43A047
                         () => new WidokSpecyfikacje(), "📋", "Specyfikacje"),
+
+                    new MenuItemConfig("RozliczeniaAvilog", "Rozliczenia Avilog",
+                        "Tygodniowe zestawienia transportu żywca dla firmy Avilog - kalkulacja kosztów usługi transportowej",
+                        Color.FromArgb(56, 142, 60), // #388E3C
+                        () => new Kalendarz1.Avilog.Views.RozliczeniaAvilogWindow(), "🚛", "Avilog"),
 
                     new MenuItemConfig("DokumentyZakupu", "Dokumenty i Umowy",
                         "Archiwum umów handlowych, certyfikatów i dokumentów związanych z zakupem żywca",
