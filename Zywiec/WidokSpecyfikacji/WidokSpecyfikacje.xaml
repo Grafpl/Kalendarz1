@@ -21,6 +21,9 @@
         <local:ZeroToRedBrushConverter x:Key="ZeroToRedBrush"/>
         <local:ZeroToBoldConverter x:Key="ZeroToBold"/>
         <local:NullToCollapsedConverter x:Key="NullToCollapsedConverter"/>
+        <local:UserIdToAvatarConverter x:Key="UserIdToAvatarConverter"/>
+        <local:UserIdToAvatarVisibilityConverter x:Key="UserIdToAvatarVisibilityConverter"/>
+        <local:UserIdToInitialsVisibilityConverter x:Key="UserIdToInitialsVisibilityConverter"/>
         <local:PercentToPixelConverter x:Key="PercentToPixelConverter"/>
         <local:PercentToMarginConverter x:Key="PercentToMarginConverter"/>
         <local:PercentToWidthConverter x:Key="PercentToWidthConverter"/>
@@ -131,17 +134,10 @@
                     <Setter Property="BorderBrush" Value="#1976D2"/>
                     <Setter Property="Background" Value="#E8F4FD"/>
                 </DataTrigger>
-                <!-- 2. Zaznaczenie - z animacją highlight -->
+                <!-- 2. Zaznaczenie - stały kolor tła dla widoczności multi-select -->
                 <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#BBDEFB"/>
                     <Setter Property="FontWeight" Value="Bold"/>
-                    <Trigger.EnterActions>
-                        <BeginStoryboard>
-                            <Storyboard>
-                                <ColorAnimation Storyboard.TargetProperty="(DataGridRow.Background).(SolidColorBrush.Color)"
-                                                From="#90CAF9" To="White" Duration="0:0:0.4"/>
-                            </Storyboard>
-                        </BeginStoryboard>
-                    </Trigger.EnterActions>
                 </Trigger>
                 <!-- 3. Hover + Zaznaczenie -->
                 <MultiTrigger>
@@ -149,7 +145,7 @@
                         <Condition Property="IsMouseOver" Value="True"/>
                         <Condition Property="IsSelected" Value="True"/>
                     </MultiTrigger.Conditions>
-                    <Setter Property="Background" Value="#E3F2FD"/>
+                    <Setter Property="Background" Value="#90CAF9"/>
                     <Setter Property="FontWeight" Value="Bold"/>
                 </MultiTrigger>
                 <!-- 4. PODŚWIETLENIE GRUPY - subtelne, bez zmiany układu -->
@@ -1141,6 +1137,9 @@
                                 <Button x:Name="btnGenerujPdf" Click="Button1_Click"
                                         Content="📄 PDF" ToolTip="Generuj PDF dla wybranego dostawcy (prawy przycisk myszy dla więcej opcji)"
                                         Style="{StaticResource ProgressButton}" Background="#E53935" Padding="12,4"/>
+                                <Button x:Name="btnGenerujPdfWybranych" Click="BtnPrintSelected_Click"
+                                        Content="📄 PDF Wybranych" ToolTip="Generuj PDF tylko dla zaznaczonych wierszy (Ctrl+klik aby zaznaczyć wiele)"
+                                        Style="{StaticResource ProgressButton}" Background="#F57C00" Padding="10,4" Margin="2,0"/>
                                 <Button x:Name="btnGenerujPdfAll" Click="BtnPrintAll_Click"
                                         Content="📄 Wszystkie PDF" ToolTip="Generuj PDF dla wszystkich dostawców"
                                         Style="{StaticResource ProgressButton}" Background="#C62828" Padding="10,4" Margin="2,0"/>
@@ -1222,7 +1221,7 @@
                       CanUserAddRows="False"
                       CanUserDeleteRows="False"
                       CanUserReorderColumns="False"
-                      SelectionMode="Single"
+                      SelectionMode="Extended"
                       SelectionUnit="FullRow"
                       GridLinesVisibility="All"
                       HorizontalGridLinesBrush="Black"

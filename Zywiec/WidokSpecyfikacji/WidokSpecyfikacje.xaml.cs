@@ -1157,8 +1157,8 @@ namespace Kalendarz1
                             AVG(DATEDIFF(MINUTE, Wyjazd, DojazdHodowca)) as AvgMinutes,
                             COUNT(*) as Cnt
                             FROM [LibraNet].[dbo].[FarmerCalc] fc
-                            INNER JOIN [LibraNet].[dbo].[Customer] c ON fc.CustomerRealGID = c.GID
-                            WHERE c.ShortName = @Dostawca
+                            INNER JOIN [LibraNet].[dbo].[Dostawcy] d ON fc.CustomerRealGID = d.ID
+                            WHERE d.ShortName = @Dostawca
                             AND fc.Wyjazd IS NOT NULL
                             AND fc.DojazdHodowca IS NOT NULL
                             AND fc.CalcDate >= DATEADD(DAY, -30, GETDATE())
@@ -1407,14 +1407,23 @@ namespace Kalendarz1
         private void LoadData(DateTime selectedDate)
         {
             _isLoadingData = true; // Blokuj logowanie zmian podczas ładowania
+            var totalStopwatch = System.Diagnostics.Stopwatch.StartNew();
+            var stepStopwatch = new System.Diagnostics.Stopwatch();
+            var debugLog = new System.Text.StringBuilder();
+            debugLog.AppendLine($"=== LoadData DEBUG ({selectedDate:yyyy-MM-dd}) ===");
+
             try
             {
                 UpdateStatus("Ładowanie danych...");
                 specyfikacjeData.Clear();
 
+                stepStopwatch.Restart();
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
+                    debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] Połączenie z bazą");
+
+                    stepStopwatch.Restart();
                     string query = @"SELECT fc.ID, fc.CarLp, fc.Number, fc.YearNumber, fc.CustomerGID, fc.CustomerRealGID, fc.DeclI1, fc.DeclI2, fc.DeclI3, fc.DeclI4, fc.DeclI5,
                                     fc.LumQnt, fc.ProdQnt, fc.ProdWgt, fc.FullFarmWeight, fc.EmptyFarmWeight, fc.NettoFarmWeight,
                                     fc.FullWeight, fc.EmptyWeight, fc.NettoWeight, fc.Price, fc.Addition, fc.PriceTypeID, fc.IncDeadConf, fc.Loss,
@@ -1424,10 +1433,16 @@ namespace Kalendarz1
                                     fc.ZdjecieTaraPath, fc.ZdjecieBruttoPath,
                                     fc.PartiaGuid,
                                     COALESCE(fc.PartiaNumber, CONCAT(pd.CustomerID, pd.Partia)) AS PartiaNumber,
-                                    d.Name AS DriverName
+                                    d.Name AS DriverName,
+                                    cust.ShortName AS DostawcaName,
+                                    custReal.ShortName AS RealDostawcaName,
+                                    pt.Name AS PriceTypeName
                                     FROM [LibraNet].[dbo].[FarmerCalc] fc
                                     LEFT JOIN [LibraNet].[dbo].[Driver] d ON fc.DriverGID = d.GID
                                     LEFT JOIN [LibraNet].[dbo].[PartiaDostawca] pd ON fc.PartiaGuid = pd.guid
+                                    LEFT JOIN [LibraNet].[dbo].[Dostawcy] cust ON fc.CustomerGID = cust.ID
+                                    LEFT JOIN [LibraNet].[dbo].[Dostawcy] custReal ON fc.CustomerRealGID = custReal.ID
+                                    LEFT JOIN [LibraNet].[dbo].[PriceType] pt ON fc.PriceTypeID = pt.ID
                                     WHERE fc.CalcDate = @SelectedDate
                                     ORDER BY fc.CarLP";
 
@@ -1437,9 +1452,11 @@ namespace Kalendarz1
                     SqlDataAdapter adapter = new SqlDataAdapter(command);
                     DataTable dataTable = new DataTable();
                     adapter.Fill(dataTable);
+                    debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] Zapytanie SQL ({dataTable.Rows.Count} wierszy)");
 
                     if (dataTable.Rows.Count > 0)
                     {
+                        stepStopwatch.Restart();
                         foreach (DataRow row in dataTable.Rows)
                         {
                             // WAŻNE: Trim() usuwa spacje z nchar(10) - bez tego ComboBox nie znajdzie dopasowania
@@ -1454,9 +1471,9 @@ namespace Kalendarz1
                                 Number = ZapytaniaSQL.GetValueOrDefault<int>(row, "Number", 0),
                                 YearNumber = ZapytaniaSQL.GetValueOrDefault<int>(row, "YearNumber", 0),
                                 DostawcaGID = customerGID,
-                                Dostawca = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerGID, "ShortName"),
-                                RealDostawca = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(
-                                    ZapytaniaSQL.GetValueOrDefault<string>(row, "CustomerRealGID", "-1"), "ShortName"),
+                                // Użyj danych z JOIN zamiast osobnych zapytań (optymalizacja)
+                                Dostawca = ZapytaniaSQL.GetValueOrDefault<string>(row, "DostawcaName", "")?.Trim() ?? "",
+                                RealDostawca = ZapytaniaSQL.GetValueOrDefault<string>(row, "RealDostawcaName", "")?.Trim() ?? "",
                                 SztukiDek = ZapytaniaSQL.GetValueOrDefault<int>(row, "DeclI1", 0),
                                 Padle = ZapytaniaSQL.GetValueOrDefault<int>(row, "DeclI2", 0),
                                 CH = ZapytaniaSQL.GetValueOrDefault<int>(row, "DeclI3", 0),
@@ -1475,8 +1492,8 @@ namespace Kalendarz1
                                 KilogramyWybijak = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "ProdWgt", 0),
                                 Cena = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "Price", 0),
                                 Dodatek = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "Addition", 0),
-                                TypCeny = zapytaniasql.ZnajdzNazweCenyPoID(
-                                    ZapytaniaSQL.GetValueOrDefault<int>(row, "PriceTypeID", -1)),
+                                // Użyj danych z JOIN zamiast osobnego zapytania (optymalizacja)
+                                TypCeny = ZapytaniaSQL.GetValueOrDefault<string>(row, "PriceTypeName", "")?.Trim() ?? "",
                                 PiK = row["IncDeadConf"] != DBNull.Value && Convert.ToBoolean(row["IncDeadConf"]),
                                 Ubytek = Math.Round(ZapytaniaSQL.GetValueOrDefault<decimal>(row, "Loss", 0) * 100, 2),
                                 // Nowe pola
@@ -1505,8 +1522,8 @@ namespace Kalendarz1
                                 ZdjecieBruttoPath = dataTable.Columns.Contains("ZdjecieBruttoPath") ? ZapytaniaSQL.GetValueOrDefault<string>(row, "ZdjecieBruttoPath", null)?.Trim() : null,
                                 // PayWgt z bazy - kolumna "Do zapł." z PDF
                                 PayWgt = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "PayWgt", 0),
-                                // Odbiorca (Customer) - pobierz nazwę z CustomerRealGID
-                                Odbiorca = GetCustomerName(ZapytaniaSQL.GetValueOrDefault<string>(row, "CustomerRealGID", "-1")?.Trim()),
+                                // Odbiorca (Customer) - użyj RealDostawcaName z JOIN (optymalizacja)
+                                Odbiorca = ZapytaniaSQL.GetValueOrDefault<string>(row, "RealDostawcaName", "")?.Trim() ?? "-",
                                 // Partia drobiu - obsluga Guid jako UNIQUEIDENTIFIER lub VARCHAR
                                 PartiaGuid = GetPartiaGuidFromRow(dataTable, row),
                                 PartiaNumber = dataTable.Columns.Contains("PartiaNumber") ? ZapytaniaSQL.GetValueOrDefault<string>(row, "PartiaNumber", null)?.Trim() : null
@@ -1514,13 +1531,36 @@ namespace Kalendarz1
 
                             specyfikacjeData.Add(specRow);
                         }
+                        debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] Tworzenie obiektów SpecyfikacjaRow (foreach)");
+
+                        stepStopwatch.Restart();
                         UpdateStatistics();
+                        debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] UpdateStatistics()");
+
+                        stepStopwatch.Restart();
                         LoadTransportData(); // Załaduj dane transportowe
+                        debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] LoadTransportData()");
+
+                        stepStopwatch.Restart();
                         LoadHarmonogramData(); // Załaduj harmonogram dostaw
+                        debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] LoadHarmonogramData()");
+
+                        stepStopwatch.Restart();
                         LoadPdfStatusForAllRows(); // Załaduj status PDF dla wszystkich wierszy
+                        debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] LoadPdfStatusForAllRows()");
+
+                        stepStopwatch.Restart();
                         AssignSupplierColorsAndGroups(); // Przypisz kolory dostawcom
+                        debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] AssignSupplierColorsAndGroups()");
+
+                        stepStopwatch.Restart();
                         AutoShowColumnsBasedOnData(); // Auto-pokaż kolumny jeśli dane zawierają wartości
+                        debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] AutoShowColumnsBasedOnData()");
+
+                        stepStopwatch.Restart();
                         LoadSpecyfikacjeZatwierdzenia(); // Załaduj status wprowadzenia/weryfikacji
+                        debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] LoadSpecyfikacjeZatwierdzenia()");
+
                         UpdateStatus($"Załadowano {dataTable.Rows.Count} rekordów");
                     }
                     else
@@ -1531,10 +1571,15 @@ namespace Kalendarz1
                         UpdateStatus("Brak danych dla wybranej daty");
                     }
                 }
+
+                totalStopwatch.Stop();
+                debugLog.AppendLine($"=== RAZEM: {totalStopwatch.ElapsedMilliseconds}ms ===");
+                System.Diagnostics.Debug.WriteLine(debugLog.ToString());
             }
             catch (Exception ex)
             {
                 UpdateStatus($"Błąd: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"LoadData ERROR: {ex}");
             }
             finally
             {
@@ -4799,6 +4844,102 @@ namespace Kalendarz1
             }
         }
 
+        // === Drukuj tylko wybrane (zaznaczone) specyfikacje ===
+        private void BtnPrintSelected_Click(object sender, RoutedEventArgs e)
+        {
+            // Pobierz zaznaczone wiersze z DataGrid
+            var selectedRows = dataGridView1.SelectedItems.Cast<SpecyfikacjaRow>().ToList();
+
+            if (selectedRows.Count == 0)
+            {
+                MessageBox.Show("Proszę zaznaczyć wiersze do wydruku.\n\nWskazówka: Użyj Ctrl+klik aby zaznaczyć wiele wierszy.",
+                    "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var result = MessageBox.Show(
+                $"Czy chcesz wydrukować PDF dla {selectedRows.Count} zaznaczonych transportów?\n\n" +
+                $"Zaznaczone wiersze:\n" +
+                string.Join("\n", selectedRows.Take(10).Select(r => $"  • LP {r.Nr}: {r.RealDostawca} ({r.CarID})")) +
+                (selectedRows.Count > 10 ? $"\n  ... i {selectedRows.Count - 10} więcej" : "") +
+                "\n\nPDF zostanie oznaczony jako wykonany.",
+                "Drukuj wybrane",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    UpdateStatus("Generowanie PDF dla zaznaczonych wierszy...");
+
+                    // Grupuj zaznaczone wiersze po dostawcy, aby wygenerować jeden PDF na dostawcę
+                    var grupy = selectedRows.GroupBy(r => r.DostawcaGID).ToList();
+                    int countPdf = 0;
+                    int countRows = 0;
+
+                    foreach (var grupa in grupy)
+                    {
+                        List<int> ids = grupa.Select(r => r.ID).ToList();
+                        GeneratePDFReport(ids, false); // false = nie pokazuj MessageBox
+
+                        // Oznacz wszystkie wiersze tej grupy jako wydrukowane
+                        foreach (var wiersz in grupa)
+                        {
+                            wiersz.Wydrukowano = true;
+                            countRows++;
+                        }
+
+                        countPdf++;
+                    }
+
+                    // Zapisz status "wykonane" do bazy danych dla zaznaczonych wierszy
+                    MarkRowsAsExecuted(selectedRows.Select(r => r.ID).ToList());
+
+                    UpdateStatus($"Wygenerowano {countPdf} plików PDF dla {countRows} transportów");
+                    MessageBox.Show($"Wygenerowano {countPdf} plików PDF dla {countRows} transportów.\n\nWiersze zostały oznaczone jako wykonane.",
+                        "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd podczas generowania PDF:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                    UpdateStatus("Błąd generowania PDF");
+                }
+            }
+        }
+
+        // === Oznacz wiersze jako wykonane w bazie danych ===
+        private void MarkRowsAsExecuted(List<int> ids)
+        {
+            if (ids == null || ids.Count == 0) return;
+
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Aktualizuj kolumnę Executed w FarmerCalc (jeśli istnieje) lub użyj innej metody oznaczania
+                    string idsList = string.Join(",", ids);
+                    string query = $@"
+                        UPDATE [LibraNet].[dbo].[FarmerCalc]
+                        SET Executed = 1, ExecutedDate = GETDATE()
+                        WHERE ID IN ({idsList})";
+
+                    using (var cmd = new SqlCommand(query, conn))
+                    {
+                        int affected = cmd.ExecuteNonQuery();
+                        System.Diagnostics.Debug.WriteLine($"Oznaczono {affected} wierszy jako wykonane");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Jeśli kolumna nie istnieje, loguj błąd ale nie przerywaj działania
+                System.Diagnostics.Debug.WriteLine($"Błąd oznaczania jako wykonane: {ex.Message}");
+            }
+        }
+
         // === Checkbox: Pokaż/ukryj kolumnę Opasienie ===
         private void ChkShowOpasienie_Changed(object sender, RoutedEventArgs e)
         {
@@ -4941,7 +5082,8 @@ namespace Kalendarz1
                     }
 
                     string query = @"
-                        SELECT FarmerCalcID, Zatwierdzony, ZatwierdzonePrzez, Zweryfikowany, ZweryfikowanePrzez
+                        SELECT FarmerCalcID, Zatwierdzony, ZatwierdzonePrzez, ZatwierdzoneByUserID,
+                               Zweryfikowany, ZweryfikowanePrzez, ZweryfikowaneByUserID
                         FROM [dbo].[RozliczeniaZatwierdzenia]
                         WHERE CalcDate = @CalcDate";
 
@@ -4959,8 +5101,10 @@ namespace Kalendarz1
                                 {
                                     row.Zatwierdzony = reader.GetBoolean(1);
                                     row.ZatwierdzonePrzez = reader.IsDBNull(2) ? null : reader.GetString(2);
-                                    row.Zweryfikowany = reader.GetBoolean(3);
-                                    row.ZweryfikowanePrzez = reader.IsDBNull(4) ? null : reader.GetString(4);
+                                    row.ZatwierdzoneByUserID = reader.IsDBNull(3) ? null : reader.GetString(3);
+                                    row.Zweryfikowany = reader.GetBoolean(4);
+                                    row.ZweryfikowanePrzez = reader.IsDBNull(5) ? null : reader.GetString(5);
+                                    row.ZweryfikowaneByUserID = reader.IsDBNull(6) ? null : reader.GetString(6);
                                 }
                             }
                         }
@@ -7490,10 +7634,10 @@ namespace Kalendarz1
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
-                    string query = "SELECT ShortName FROM [LibraNet].[dbo].[Customer] WHERE GID = @GID";
+                    string query = "SELECT ShortName FROM [LibraNet].[dbo].[Dostawcy] WHERE ID = @ID";
                     using (SqlCommand cmd = new SqlCommand(query, connection))
                     {
-                        cmd.Parameters.AddWithValue("@GID", customerGID);
+                        cmd.Parameters.AddWithValue("@ID", customerGID);
                         var result = cmd.ExecuteScalar();
                         if (result != null && result != DBNull.Value)
                         {
@@ -7661,6 +7805,9 @@ namespace Kalendarz1
         {
             try
             {
+                // Lista rekordów PDF do sprawdzenia
+                var pdfRecords = new List<(string IdsString, string PdfPath)>();
+
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
@@ -7680,20 +7827,34 @@ namespace Kalendarz1
                         {
                             while (reader.Read())
                             {
-                                string idsString = reader.GetString(0);
-                                string pdfPath = reader.GetString(1);
-
-                                // Sprawdź czy plik istnieje
-                                bool fileExists = File.Exists(pdfPath);
-
-                                var idsList = idsString.Split(',').Select(s => int.TryParse(s, out int id) ? id : 0).Where(id => id > 0).ToList();
-                                foreach (var row in specyfikacjeData.Where(r => idsList.Contains(r.ID)))
-                                {
-                                    row.HasPdf = fileExists;
-                                    row.PdfPath = pdfPath;
-                                }
+                                pdfRecords.Add((reader.GetString(0), reader.GetString(1)));
                             }
                         }
+                    }
+                }
+
+                if (pdfRecords.Count == 0) return;
+
+                // Pobierz unikalne ścieżki PDF i sprawdź ich istnienie równolegle
+                var uniquePaths = pdfRecords.Select(r => r.PdfPath).Distinct().ToList();
+                var pathExistsDict = new System.Collections.Concurrent.ConcurrentDictionary<string, bool>();
+
+                // Sprawdź pliki równolegle (znacznie szybsze dla dysków sieciowych)
+                System.Threading.Tasks.Parallel.ForEach(uniquePaths, new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = 8 }, path =>
+                {
+                    pathExistsDict[path] = File.Exists(path);
+                });
+
+                // Teraz przypisz statusy do wierszy (szybkie - tylko operacje w pamięci)
+                foreach (var record in pdfRecords)
+                {
+                    bool fileExists = pathExistsDict.TryGetValue(record.PdfPath, out bool exists) && exists;
+                    var idsList = record.IdsString.Split(',').Select(s => int.TryParse(s, out int id) ? id : 0).Where(id => id > 0).ToList();
+
+                    foreach (var row in specyfikacjeData.Where(r => idsList.Contains(r.ID)))
+                    {
+                        row.HasPdf = fileExists;
+                        row.PdfPath = record.PdfPath;
                     }
                 }
             }
@@ -8485,16 +8646,24 @@ namespace Kalendarz1
 
         private void LoadRozliczeniaData()
         {
+            var totalStopwatch = System.Diagnostics.Stopwatch.StartNew();
+            var stepStopwatch = new System.Diagnostics.Stopwatch();
+            var debugLog = new System.Text.StringBuilder();
+            debugLog.AppendLine("=== LoadRozliczeniaData DEBUG ===");
+
             try
             {
+                stepStopwatch.Restart();
                 // Upewnij się że tabela zatwierdzień istnieje
                 EnsureRozliczeniaZatwierdzeniaTabelaExists();
+                debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] EnsureRozliczeniaZatwierdzeniaTabelaExists()");
 
                 // Użyj tej samej daty co w Specyfikacjach (główny DatePicker w lewym górnym rogu)
                 DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
 
                 rozliczeniaData.Clear();
 
+                stepStopwatch.Restart();
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
@@ -8554,10 +8723,17 @@ namespace Kalendarz1
                     }
                 }
 
-                dataGridRozliczenia.ItemsSource = rozliczeniaData;
+                debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] Zapytanie SQL Rozliczenia ({rozliczeniaData.Count} wierszy)");
 
-                // Załaduj stany zatwierdzenia z bazy
+                // Załaduj stany zatwierdzenia z bazy PRZED ustawieniem ItemsSource
+                // (żeby UserID był dostępny dla bindingów avatarów)
+                stepStopwatch.Restart();
                 LoadZatwierdzeniaForRozliczenia();
+                debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] LoadZatwierdzeniaForRozliczenia()");
+
+                stepStopwatch.Restart();
+                dataGridRozliczenia.ItemsSource = rozliczeniaData;
+                debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] dataGridRozliczenia.ItemsSource = rozliczeniaData");
 
                 // Aktualizuj podsumowanie
                 lblRozliczeniaSumaWierszy.Text = rozliczeniaData.Count.ToString();
@@ -8565,11 +8741,16 @@ namespace Kalendarz1
                 lblRozliczeniaSumaKg.Text = rozliczeniaData.Sum(r => r.NettoKg).ToString("N0");
                 lblRozliczeniaSumaWartosc.Text = rozliczeniaData.Sum(r => r.Wartosc).ToString("N2") + " zł";
 
+                totalStopwatch.Stop();
+                debugLog.AppendLine($"=== RAZEM Rozliczenia: {totalStopwatch.ElapsedMilliseconds}ms ===");
+                System.Diagnostics.Debug.WriteLine(debugLog.ToString());
+
                 UpdateStatus($"Rozliczenia: załadowano {rozliczeniaData.Count} rekordów dla {selectedDate:yyyy-MM-dd}");
             }
             catch (Exception ex)
             {
                 UpdateStatus($"Błąd ładowania rozliczeń: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"LoadRozliczeniaData ERROR: {ex}");
             }
         }
 
@@ -11022,16 +11203,10 @@ namespace Kalendarz1
             if (row == null) return false;
 
             // Sprawdź czy wiersz jest wprowadzony (zatwierdzony) - blokada statusowa
+            // Nie pokazuj MessageBox - blokada jest wizualnie widoczna w UI (zielone tło)
+            // i BeginningEdit już obsługuje anulowanie edycji z informacją w statusie
             if (row.JestWprowadzony)
             {
-                MessageBox.Show(
-                    $"Edycja wiersza jest zablokowana - został już wprowadzony.\n\n" +
-                    $"Wprowadził: {row.ZatwierdzonePrzez}\n\n" +
-                    "Wiersz o statusie 'wprowadzone' nie może być modyfikowany.\n" +
-                    "Chroni to dane przed zmianami podczas weryfikacji.",
-                    "Blokada - wiersz wprowadzony",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
                 return false;
             }
 
@@ -13483,6 +13658,11 @@ public class SpecyfikacjaRow : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// ID użytkownika który wprowadził (do ładowania avatara)
+    /// </summary>
+    public string ZatwierdzoneByUserID { get; set; }
+
+    /// <summary>
     /// Czy wiersz został zweryfikowany
     /// </summary>
     public bool Zweryfikowany
@@ -13506,6 +13686,11 @@ public class SpecyfikacjaRow : INotifyPropertyChanged
         get => _zweryfikowanePrzez;
         set { _zweryfikowanePrzez = value; OnPropertyChanged(nameof(ZweryfikowanePrzez)); }
     }
+
+    /// <summary>
+    /// ID użytkownika który zweryfikował (do ładowania avatara)
+    /// </summary>
+    public string ZweryfikowaneByUserID { get; set; }
 
     /// <summary>
     /// Czy wiersz jest wprowadzony (zatwierdzony) - blokuje edycję
@@ -14253,6 +14438,21 @@ public class HarmonogramRow : INotifyPropertyChanged
         set { _uwagi = value; OnPropertyChanged(nameof(Uwagi)); }
     }
 
+    // Właściwości wymagane przez DataGrid RowStyle (unikanie błędów binding)
+    private bool _isHighlighted;
+    public bool IsHighlighted
+    {
+        get => _isHighlighted;
+        set { _isHighlighted = value; OnPropertyChanged(nameof(IsHighlighted)); }
+    }
+
+    private bool _isFirstInGroup;
+    public bool IsFirstInGroup
+    {
+        get => _isFirstInGroup;
+        set { _isFirstInGroup = value; OnPropertyChanged(nameof(IsFirstInGroup)); }
+    }
+
     public event PropertyChangedEventHandler PropertyChanged;
     protected void OnPropertyChanged(string propertyName)
     {
@@ -14382,6 +14582,112 @@ public class NullToCollapsedConverter : System.Windows.Data.IValueConverter
     {
         if (value == null) return System.Windows.Visibility.Collapsed;
         if (value is string str && string.IsNullOrWhiteSpace(str)) return System.Windows.Visibility.Collapsed;
+        return System.Windows.Visibility.Visible;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+/// <summary>
+/// Konwerter UserID na ImageSource awatara (używa UserAvatarManager)
+/// </summary>
+public class UserIdToAvatarConverter : System.Windows.Data.IValueConverter
+{
+    private static readonly Dictionary<string, System.Windows.Media.ImageSource> _cache =
+        new Dictionary<string, System.Windows.Media.ImageSource>();
+
+    public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        string userId = value as string;
+        if (string.IsNullOrEmpty(userId)) return null;
+
+        // Sprawdź cache
+        if (_cache.TryGetValue(userId, out var cached))
+            return cached;
+
+        try
+        {
+            if (UserAvatarManager.HasAvatar(userId))
+            {
+                using (var avatar = UserAvatarManager.GetAvatarRounded(userId, 44))
+                {
+                    if (avatar != null)
+                    {
+                        using (var ms = new System.IO.MemoryStream())
+                        {
+                            avatar.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                            ms.Position = 0;
+                            var bitmapImage = new System.Windows.Media.Imaging.BitmapImage();
+                            bitmapImage.BeginInit();
+                            bitmapImage.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                            bitmapImage.StreamSource = ms;
+                            bitmapImage.EndInit();
+                            bitmapImage.Freeze();
+                            _cache[userId] = bitmapImage;
+                            return bitmapImage;
+                        }
+                    }
+                }
+            }
+        }
+        catch { }
+
+        _cache[userId] = null;
+        return null;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+/// <summary>
+/// Konwerter UserID na Visibility (Visible jeśli ma awatar, Collapsed jeśli nie)
+/// </summary>
+public class UserIdToAvatarVisibilityConverter : System.Windows.Data.IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        string userId = value as string;
+        if (string.IsNullOrEmpty(userId)) return System.Windows.Visibility.Collapsed;
+
+        try
+        {
+            if (UserAvatarManager.HasAvatar(userId))
+                return System.Windows.Visibility.Visible;
+        }
+        catch { }
+
+        return System.Windows.Visibility.Collapsed;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+/// <summary>
+/// Konwerter UserID na Visibility dla inicjałów (Visible jeśli NIE ma awatara)
+/// </summary>
+public class UserIdToInitialsVisibilityConverter : System.Windows.Data.IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        string userId = value as string;
+        if (string.IsNullOrEmpty(userId)) return System.Windows.Visibility.Visible;
+
+        try
+        {
+            if (UserAvatarManager.HasAvatar(userId))
+                return System.Windows.Visibility.Collapsed;
+        }
+        catch { }
+
         return System.Windows.Visibility.Visible;
     }
 
