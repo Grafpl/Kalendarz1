@@ -4860,7 +4860,7 @@ namespace Kalendarz1
             var result = MessageBox.Show(
                 $"Czy chcesz wydrukować PDF dla {selectedRows.Count} zaznaczonych transportów?\n\n" +
                 $"Zaznaczone wiersze:\n" +
-                string.Join("\n", selectedRows.Take(10).Select(r => $"  • LP {r.Nr}: {r.RealDostawca} ({r.NumerAuta})")) +
+                string.Join("\n", selectedRows.Take(10).Select(r => $"  • LP {r.Nr}: {r.RealDostawca} ({r.CarID})")) +
                 (selectedRows.Count > 10 ? $"\n  ... i {selectedRows.Count - 10} więcej" : "") +
                 "\n\nPDF zostanie oznaczony jako wykonany.",
                 "Drukuj wybrane",
