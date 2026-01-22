@@ -8,6 +8,60 @@
         FontFamily="Segoe UI">
 
     <Window.Resources>
+        <!-- Storyboard: Pulsowanie dla nagłówków dni - INTENSYWNE -->
+        <Storyboard x:Key="DayHeaderPulseAnimation" RepeatBehavior="Forever">
+            <DoubleAnimation Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.Opacity)"
+                           From="0.4" To="0.9" Duration="0:0:0.8"
+                           AutoReverse="True">
+                <DoubleAnimation.EasingFunction>
+                    <SineEase EasingMode="EaseInOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.BlurRadius)"
+                           From="8" To="20" Duration="0:0:0.8"
+                           AutoReverse="True">
+                <DoubleAnimation.EasingFunction>
+                    <SineEase EasingMode="EaseInOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+
+        <!-- Storyboard: Pulsowanie dla wierszy dostaw -->
+        <Storyboard x:Key="DeliveryRowPulseAnimation" RepeatBehavior="Forever">
+            <DoubleAnimation Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.Opacity)"
+                           From="0.2" To="0.6" Duration="0:0:0.9"
+                           AutoReverse="True">
+                <DoubleAnimation.EasingFunction>
+                    <SineEase EasingMode="EaseInOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.BlurRadius)"
+                           From="4" To="12" Duration="0:0:0.9"
+                           AutoReverse="True">
+                <DoubleAnimation.EasingFunction>
+                    <SineEase EasingMode="EaseInOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+
+        <!-- Storyboard: Pulsowanie dla sum tygodniowych -->
+        <Storyboard x:Key="WeekSummaryPulseAnimation" RepeatBehavior="Forever">
+            <DoubleAnimation Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.Opacity)"
+                           From="0.5" To="1.0" Duration="0:0:0.7"
+                           AutoReverse="True">
+                <DoubleAnimation.EasingFunction>
+                    <SineEase EasingMode="EaseInOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.BlurRadius)"
+                           From="6" To="18" Duration="0:0:0.7"
+                           AutoReverse="True">
+                <DoubleAnimation.EasingFunction>
+                    <SineEase EasingMode="EaseInOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+
         <!-- Style for week header -->
         <Style x:Key="WeekHeaderStyle" TargetType="Border">
             <Setter Property="Background" Value="#1565C0"/>
@@ -134,8 +188,11 @@
                 <StackPanel Grid.Column="1" HorizontalAlignment="Center" Orientation="Horizontal">
                     <TextBlock x:Name="txtDateRange" Text="tyg. 1-8 (01.01 - 25.02)" FontSize="18" FontWeight="Bold"
                                Foreground="#2C3E50" VerticalAlignment="Center"/>
-                    <Border Background="#FFF3E0" CornerRadius="6" Padding="10,5" Margin="20,0,0,0" VerticalAlignment="Center">
-                        <TextBlock x:Name="txtTotalSummary" Text="Suma: 0 szt. | 0 aut" FontSize="12" FontWeight="SemiBold" Foreground="#EF6C00"/>
+                    <Border x:Name="borderTotalSummary" Background="#FFF3E0" CornerRadius="6" Padding="10,5" Margin="20,0,0,0" VerticalAlignment="Center">
+                        <Border.Effect>
+                            <DropShadowEffect Color="#FF9800" BlurRadius="8" ShadowDepth="0" Opacity="0.5"/>
+                        </Border.Effect>
+                        <TextBlock x:Name="txtTotalSummary" Text="Suma: 0 szt. | 0 aut" FontSize="12" FontWeight="Bold" Foreground="#EF6C00"/>
                     </Border>
                 </StackPanel>
 

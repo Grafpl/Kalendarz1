@@ -53,8 +53,11 @@ namespace Kalendarz1
         // Aktualnie otwarty tooltip - tylko jeden naraz
         private ToolTip _currentOpenTooltip = null;
 
-        // Timer do automatycznego zamknięcia tooltipa po 10 sekundach
+        // Timer do automatycznego zamknięcia tooltipa po 6 sekundach
         private System.Windows.Threading.DispatcherTimer _tooltipCloseTimer = null;
+
+        // Flaga do blokowania ponownego otwarcia tooltipa zaraz po zamknięciu
+        private DateTime _tooltipCloseTime = DateTime.MinValue;
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -187,6 +190,38 @@ namespace Kalendarz1
             chkPokazPrzyszle.Checked += ChkPokazPrzyszle_Changed;
             chkPokazPrzyszle.Unchecked += ChkPokazPrzyszle_Changed;
             datePickerOd.SelectedDateChanged += DatePickerOd_Changed;
+
+            // Zamknij tooltip przy kliknięciu lewym przyciskiem myszy w dowolne miejsce
+            this.PreviewMouseLeftButtonDown += Window_PreviewMouseLeftButtonDown;
+
+            // Zamknij tooltip przy wciśnięciu klawisza Escape
+            this.PreviewKeyDown += Window_PreviewKeyDown;
+        }
+
+        private void Window_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            // Zamknij otwarty tooltip przy kliknięciu w dowolne miejsce
+            if (_currentOpenTooltip != null && _currentOpenTooltip.IsOpen)
+            {
+                _currentOpenTooltip.IsOpen = false;
+                StopTooltipTimer();
+                _currentOpenTooltip = null;
+                // Zapamiętaj czas zamknięcia, żeby nie otworzyć od razu ponownie
+                _tooltipCloseTime = DateTime.Now;
+            }
+        }
+
+        private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            // Zamknij otwarty tooltip przy wciśnięciu Escape
+            if (e.Key == Key.Escape && _currentOpenTooltip != null && _currentOpenTooltip.IsOpen)
+            {
+                _currentOpenTooltip.IsOpen = false;
+                StopTooltipTimer();
+                _currentOpenTooltip = null;
+                _tooltipCloseTime = DateTime.Now;
+                e.Handled = true;
+            }
         }
 
         // ====== PRZYCISK POMOCY ======
@@ -1422,9 +1457,16 @@ namespace Kalendarz1
                     ToolTipService.SetIsEnabled(e.Row, false);
                     ToolTipService.SetShowDuration(e.Row, 15000);
 
-                    // Kliknięcie na wiersz pokazuje tooltip z timerem 10s
+                    // Kliknięcie na wiersz pokazuje tooltip z timerem 6s
+                    // Ale tylko jeśli tooltip nie został właśnie zamknięty (w tym samym kliknięciu)
                     e.Row.MouseLeftButtonUp += (rowSender, rowArgs) =>
                     {
+                        // Nie otwieraj tooltipa jeśli został zamknięty mniej niż 200ms temu
+                        if ((DateTime.Now - _tooltipCloseTime).TotalMilliseconds < 350)
+                        {
+                            return;
+                        }
+
                         if (e.Row.ToolTip is ToolTip tt)
                         {
                             ShowTooltipWithTimer(tt);
@@ -1524,9 +1566,9 @@ namespace Kalendarz1
             var closeButton = new Button
             {
                 Content = "✕",
-                Width = 22,
-                Height = 22,
-                FontSize = 12,
+                Width = 28,
+                Height = 28,
+                FontSize = 14,
                 FontWeight = FontWeights.Bold,
                 Background = Brushes.Transparent,
                 BorderThickness = new Thickness(0),
@@ -1535,14 +1577,35 @@ namespace Kalendarz1
                 HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Top,
                 Margin = new Thickness(0, -5, -5, 0),
-                Padding = new Thickness(0)
+                Padding = new Thickness(0),
+                RenderTransformOrigin = new Point(0.5, 0.5),
+                RenderTransform = new ScaleTransform(1, 1)
             };
-            closeButton.MouseEnter += (s, e) => closeButton.Foreground = new SolidColorBrush(Color.FromRgb(231, 76, 60));
-            closeButton.MouseLeave += (s, e) => closeButton.Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141));
-            closeButton.Click += (s, e) =>
+            closeButton.MouseEnter += (s, e) =>
+            {
+                closeButton.Foreground = new SolidColorBrush(Color.FromRgb(231, 76, 60));
+                if (closeButton.RenderTransform is ScaleTransform scale)
+                {
+                    scale.ScaleX = 1.15;
+                    scale.ScaleY = 1.15;
+                }
+            };
+            closeButton.MouseLeave += (s, e) =>
+            {
+                closeButton.Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141));
+                if (closeButton.RenderTransform is ScaleTransform scale)
+                {
+                    scale.ScaleX = 1.0;
+                    scale.ScaleY = 1.0;
+                }
+            };
+            closeButton.Click += (s, args) =>
             {
                 tooltip.IsOpen = false;
                 StopTooltipTimer();
+                _currentOpenTooltip = null;
+                _tooltipCloseTime = DateTime.Now;
+                args.Handled = true;
             };
             Grid.SetColumn(closeButton, 1);
             headerRow.Children.Add(closeButton);
@@ -1727,6 +1790,33 @@ namespace Kalendarz1
             var telColumn = new DataGridTemplateColumn { Header = "Tel", Width = 82 };
             telColumn.CellTemplate = CreatePulsatingTextTemplate("Telefon", null);
             dataGridPrzypomnienia.Columns.Add(telColumn);
+
+            // Dodaj pulsowanie tła dla całych wierszy
+            dataGridPrzypomnienia.LoadingRow += DataGridPrzypomnienia_LoadingRow;
+        }
+
+        private void DataGridPrzypomnienia_LoadingRow(object sender, DataGridRowEventArgs e)
+        {
+            // Dodaj pulsujące tło dla wiersza przypomnienia
+            var row = e.Row;
+
+            // Ustaw początkowe jasne czerwone tło
+            var brush = new SolidColorBrush(Color.FromRgb(255, 235, 238)); // Jasny różowy
+            row.Background = brush;
+
+            // Animacja koloru tła - pulsowanie
+            var colorAnimation = new System.Windows.Media.Animation.ColorAnimationUsingKeyFrames
+            {
+                RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever
+            };
+
+            // Jasny różowy -> czerwonawy -> jasny różowy
+            colorAnimation.KeyFrames.Add(new System.Windows.Media.Animation.LinearColorKeyFrame(Color.FromRgb(255, 235, 238), TimeSpan.FromSeconds(0)));
+            colorAnimation.KeyFrames.Add(new System.Windows.Media.Animation.LinearColorKeyFrame(Color.FromRgb(255, 235, 238), TimeSpan.FromSeconds(0.8)));
+            colorAnimation.KeyFrames.Add(new System.Windows.Media.Animation.EasingColorKeyFrame(Color.FromRgb(255, 182, 193), TimeSpan.FromSeconds(1.3), new System.Windows.Media.Animation.SineEase())); // Mocniejszy różowy
+            colorAnimation.KeyFrames.Add(new System.Windows.Media.Animation.EasingColorKeyFrame(Color.FromRgb(255, 235, 238), TimeSpan.FromSeconds(1.8), new System.Windows.Media.Animation.SineEase()));
+
+            brush.BeginAnimation(SolidColorBrush.ColorProperty, colorAnimation);
         }
 
         private DataTemplate CreatePulsatingTextTemplate(string bindingPath, string stringFormat)
@@ -1751,21 +1841,37 @@ namespace Kalendarz1
             var textBlock = sender as TextBlock;
             if (textBlock != null)
             {
-                // Animacja z klatkami kluczowymi: dłużej na 1.0, krótkie przejście do 0.7
-                var animation = new System.Windows.Media.Animation.DoubleAnimationUsingKeyFrames
+                // Ustaw początkowy kolor na czerwony dla lepszej widoczności
+                textBlock.Foreground = new SolidColorBrush(Color.FromRgb(220, 53, 69)); // Czerwony
+                textBlock.FontWeight = FontWeights.Bold;
+
+                // Animacja koloru - bardziej widoczna
+                var colorAnimation = new System.Windows.Media.Animation.ColorAnimationUsingKeyFrames
                 {
                     RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever
                 };
 
-                // Pozostaje na 1.0 przez 1.5 sekundy
-                animation.KeyFrames.Add(new System.Windows.Media.Animation.LinearDoubleKeyFrame(1.0, TimeSpan.FromSeconds(0)));
-                animation.KeyFrames.Add(new System.Windows.Media.Animation.LinearDoubleKeyFrame(1.0, TimeSpan.FromSeconds(1.5)));
-                // Przejście do 0.7 przez 0.4 sekundy
-                animation.KeyFrames.Add(new System.Windows.Media.Animation.EasingDoubleKeyFrame(0.7, TimeSpan.FromSeconds(1.9), new System.Windows.Media.Animation.SineEase()));
-                // Powrót do 1.0 przez 0.4 sekundy
-                animation.KeyFrames.Add(new System.Windows.Media.Animation.EasingDoubleKeyFrame(1.0, TimeSpan.FromSeconds(2.3), new System.Windows.Media.Animation.SineEase()));
+                // Kolor: czerwony -> ciemniejszy -> czerwony (pulsowanie)
+                colorAnimation.KeyFrames.Add(new System.Windows.Media.Animation.LinearColorKeyFrame(Color.FromRgb(220, 53, 69), TimeSpan.FromSeconds(0)));
+                colorAnimation.KeyFrames.Add(new System.Windows.Media.Animation.LinearColorKeyFrame(Color.FromRgb(220, 53, 69), TimeSpan.FromSeconds(0.8)));
+                colorAnimation.KeyFrames.Add(new System.Windows.Media.Animation.EasingColorKeyFrame(Color.FromRgb(128, 0, 32), TimeSpan.FromSeconds(1.2), new System.Windows.Media.Animation.SineEase()));
+                colorAnimation.KeyFrames.Add(new System.Windows.Media.Animation.EasingColorKeyFrame(Color.FromRgb(220, 53, 69), TimeSpan.FromSeconds(1.6), new System.Windows.Media.Animation.SineEase()));
 
-                textBlock.BeginAnimation(TextBlock.OpacityProperty, animation);
+                // Animacja opacity - dodatkowy efekt
+                var opacityAnimation = new System.Windows.Media.Animation.DoubleAnimationUsingKeyFrames
+                {
+                    RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever
+                };
+                opacityAnimation.KeyFrames.Add(new System.Windows.Media.Animation.LinearDoubleKeyFrame(1.0, TimeSpan.FromSeconds(0)));
+                opacityAnimation.KeyFrames.Add(new System.Windows.Media.Animation.LinearDoubleKeyFrame(1.0, TimeSpan.FromSeconds(0.8)));
+                opacityAnimation.KeyFrames.Add(new System.Windows.Media.Animation.EasingDoubleKeyFrame(0.5, TimeSpan.FromSeconds(1.2), new System.Windows.Media.Animation.SineEase()));
+                opacityAnimation.KeyFrames.Add(new System.Windows.Media.Animation.EasingDoubleKeyFrame(1.0, TimeSpan.FromSeconds(1.6), new System.Windows.Media.Animation.SineEase()));
+
+                // Zastosuj obie animacje
+                var brush = new SolidColorBrush(Color.FromRgb(220, 53, 69));
+                textBlock.Foreground = brush;
+                brush.BeginAnimation(SolidColorBrush.ColorProperty, colorAnimation);
+                textBlock.BeginAnimation(TextBlock.OpacityProperty, opacityAnimation);
             }
         }
 
@@ -2006,9 +2112,16 @@ namespace Kalendarz1
                 ToolTipService.SetIsEnabled(e.Row, false);
                 ToolTipService.SetShowDuration(e.Row, 15000);
 
-                // Kliknięcie na wiersz pokazuje tooltip z timerem 10s
+                // Kliknięcie na wiersz pokazuje tooltip z timerem 6s
+                // Ale tylko jeśli tooltip nie został właśnie zamknięty (w tym samym kliknięciu)
                 e.Row.MouseLeftButtonUp += (rowSender, rowArgs) =>
                 {
+                    // Nie otwieraj tooltipa jeśli został zamknięty mniej niż 200ms temu
+                    if ((DateTime.Now - _tooltipCloseTime).TotalMilliseconds < 350)
+                    {
+                        return;
+                    }
+
                     if (e.Row.ToolTip is ToolTip tt)
                     {
                         ShowTooltipWithTimer(tt);

@@ -317,7 +317,10 @@
         </ScrollViewer>
 
         <!-- ŚRODKOWA KOLUMNA - LISTA TYGODNI DOSTAW -->
-        <Border Grid.Column="1" Style="{StaticResource Card}" Margin="12,0,0,0" Background="#FAFAFA">
+        <Border Grid.Column="1" Margin="12,0,0,0" Background="White" CornerRadius="8" BorderBrush="#5C8A3A" BorderThickness="2">
+            <Border.Effect>
+                <DropShadowEffect ShadowDepth="0" Color="#000000" Opacity="0.1" BlurRadius="12"/>
+            </Border.Effect>
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -326,39 +329,70 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <!-- Nagłówek -->
-                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
-                    <TextBlock Text="Podgląd tygodni dostaw" FontSize="13" FontWeight="Bold" Foreground="#2C3E50" VerticalAlignment="Center"/>
-                </StackPanel>
+                <!-- Nagłówek - zielony pasek jak w głównym kalendarzu -->
+                <Border Grid.Row="0" Background="#5C8A3A" Padding="10,8" CornerRadius="6,6,0,0">
+                    <TextBlock Text="📅 Podgląd tygodni dostaw" FontSize="13" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                </Border>
 
                 <!-- Nawigacja tygodni -->
-                <Grid Grid.Row="1" Margin="0,0,0,5">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <Button Grid.Column="0" Content="◀" Width="30" Height="26" FontSize="12"
-                            Background="Transparent" BorderThickness="0" Cursor="Hand"
-                            Click="BtnCalendarPrev_Click"/>
-                    <TextBlock x:Name="txtCalendarMonth" Grid.Column="1" Text="tyg. 4-5"
-                               FontSize="12" FontWeight="Bold" Foreground="#5C8A3A"
-                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    <Button Grid.Column="2" Content="▶" Width="30" Height="26" FontSize="12"
-                            Background="Transparent" BorderThickness="0" Cursor="Hand"
-                            Click="BtnCalendarNext_Click"/>
-                </Grid>
+                <Border Grid.Row="1" Background="#F8F9FA" Padding="6,4">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" Content="◀" Width="32" Height="28" FontSize="14" FontWeight="Bold"
+                                Background="#5C8A3A" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                Click="BtnCalendarPrev_Click">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="4" Padding="6,4">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#4B732F"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                        <TextBlock x:Name="txtCalendarMonth" Grid.Column="1" Text="tyg. 4-5"
+                                   FontSize="13" FontWeight="Bold" Foreground="#2C3E50"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Button Grid.Column="2" Content="▶" Width="32" Height="28" FontSize="14" FontWeight="Bold"
+                                Background="#5C8A3A" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                Click="BtnCalendarNext_Click">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="4" Padding="6,4">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#4B732F"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </Grid>
+                </Border>
 
                 <!-- Lista tygodni z dostawami -->
-                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="6">
                     <StackPanel x:Name="panelWeeksList"/>
                 </ScrollViewer>
 
-                <!-- Podsumowanie -->
-                <Border Grid.Row="3" x:Name="panelCalendarSummary" Background="#E3F2FD" CornerRadius="4" Padding="6,4" Margin="0,10,0,0">
+                <!-- Podsumowanie - pulsujący pomarańczowy pasek -->
+                <Border Grid.Row="3" x:Name="panelCalendarSummary" Background="#344A5E" CornerRadius="0,0,6,6" Padding="8,6">
+                    <Border.Effect>
+                        <DropShadowEffect Color="#FF9800" BlurRadius="10" ShadowDepth="0" Opacity="0.6"/>
+                    </Border.Effect>
                     <StackPanel>
-                        <TextBlock x:Name="txtCalendarDeliveryCount" Text="Tygodni z dostawami: 0" FontSize="9" FontWeight="SemiBold" Foreground="#1976D2"/>
-                        <TextBlock x:Name="txtCalendarTotalSzt" Text="Łącznie: 0 szt." FontSize="9" Foreground="#1976D2"/>
+                        <TextBlock x:Name="txtCalendarDeliveryCount" Text="Tygodni z dostawami: 0" FontSize="10" FontWeight="SemiBold" Foreground="White"/>
+                        <TextBlock x:Name="txtCalendarTotalSzt" Text="Łącznie: 0 szt." FontSize="10" FontWeight="Bold" Foreground="#FFC107"/>
                     </StackPanel>
                 </Border>
             </Grid>

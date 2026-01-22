@@ -7,6 +7,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
+using System.Windows.Media.Effects;
 using Microsoft.Data.SqlClient;
 
 namespace Kalendarz1
@@ -190,7 +192,10 @@ namespace Kalendarz1
                 txtDateRange.Text = $"tyg.{leftWeek.WeekNumber} ({leftWeek.WeekStart:dd.MM} - {leftWeek.WeekEnd:dd.MM})";
             }
 
-            txtTotalSummary.Text = $"Suma: {totalSztuki:# ##0} szt. | {totalAuta} aut";
+            txtTotalSummary.Text = $"SUMA: {totalSztuki:# ##0} szt. | {totalAuta} aut";
+
+            // Apply pulsing animation to total summary
+            ApplyPulsingToSummary();
 
             // Render left panel
             if (leftWeek != null)
@@ -215,6 +220,33 @@ namespace Kalendarz1
             }
         }
 
+        private void ApplyPulsingToSummary()
+        {
+            if (borderTotalSummary?.Effect is DropShadowEffect effect)
+            {
+                var pulseOpacity = new DoubleAnimation
+                {
+                    From = 0.4,
+                    To = 0.9,
+                    Duration = TimeSpan.FromMilliseconds(700),
+                    AutoReverse = true,
+                    RepeatBehavior = RepeatBehavior.Forever,
+                    EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
+                };
+                var pulseBlur = new DoubleAnimation
+                {
+                    From = 5,
+                    To = 15,
+                    Duration = TimeSpan.FromMilliseconds(700),
+                    AutoReverse = true,
+                    RepeatBehavior = RepeatBehavior.Forever,
+                    EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
+                };
+                effect.BeginAnimation(DropShadowEffect.OpacityProperty, pulseOpacity);
+                effect.BeginAnimation(DropShadowEffect.BlurRadiusProperty, pulseBlur);
+            }
+        }
+
         private void RenderWeekToPanel(WeekData week, StackPanel panel)
         {
             foreach (var dayEntry in week.DeliveriesByDay.OrderBy(d => d.Key))
@@ -233,6 +265,115 @@ namespace Kalendarz1
                     panel.Children.Add(deliveryRow);
                 }
             }
+
+            // Add week sum row at the end
+            var weekSumRow = CreateWeekSumRow(week);
+            panel.Children.Add(weekSumRow);
+        }
+
+        private Border CreateWeekSumRow(WeekData week)
+        {
+            var sumRow = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)), // Dark blue-gray
+                Padding = new Thickness(6, 6, 6, 6),
+                Margin = new Thickness(0, 4, 0, 0),
+                CornerRadius = new CornerRadius(4)
+            };
+
+            // Add pulsing orange glow
+            var glowEffect = new DropShadowEffect
+            {
+                Color = Color.FromRgb(255, 167, 38), // Orange
+                BlurRadius = 15,
+                ShadowDepth = 0,
+                Opacity = 0.7
+            };
+            sumRow.Effect = glowEffect;
+
+            // Pulsing animation for sum row
+            var pulseOpacity = new DoubleAnimation
+            {
+                From = 0.5,
+                To = 1.0,
+                Duration = TimeSpan.FromMilliseconds(800),
+                AutoReverse = true,
+                RepeatBehavior = RepeatBehavior.Forever,
+                EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
+            };
+            var pulseBlur = new DoubleAnimation
+            {
+                From = 10,
+                To = 25,
+                Duration = TimeSpan.FromMilliseconds(800),
+                AutoReverse = true,
+                RepeatBehavior = RepeatBehavior.Forever,
+                EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
+            };
+            glowEffect.BeginAnimation(DropShadowEffect.OpacityProperty, pulseOpacity);
+            glowEffect.BeginAnimation(DropShadowEffect.BlurRadiusProperty, pulseBlur);
+
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Label
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) }); // Suma szt
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) }); // Auta
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) }); // Avg waga
+
+            // Sum label
+            var labelText = new TextBlock
+            {
+                Text = $"★ SUMA tyg.{week.WeekNumber}",
+                FontWeight = FontWeights.Bold,
+                FontSize = 12,
+                Foreground = Brushes.White,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(labelText, 0);
+            grid.Children.Add(labelText);
+
+            // Total pieces
+            var sztukiText = new TextBlock
+            {
+                Text = $"{week.TotalSztuki:# ##0} szt.",
+                FontWeight = FontWeights.Bold,
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.FromRgb(255, 193, 7)), // Yellow/gold
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(sztukiText, 1);
+            grid.Children.Add(sztukiText);
+
+            // Total auta
+            var autaText = new TextBlock
+            {
+                Text = $"{week.TotalAuta} aut",
+                FontWeight = FontWeights.Bold,
+                FontSize = 11,
+                Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(autaText, 2);
+            grid.Children.Add(autaText);
+
+            // Average weight
+            var allDeliveries = week.DeliveriesByDay.Values.SelectMany(d => d).ToList();
+            var avgWaga = allDeliveries.Any() ? allDeliveries.Average(d => (double)d.WagaDek) : 0;
+            var wagaText = new TextBlock
+            {
+                Text = $"ś.{avgWaga:0.00}",
+                FontWeight = FontWeights.SemiBold,
+                FontSize = 11,
+                Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(wagaText, 3);
+            grid.Children.Add(wagaText);
+
+            sumRow.Child = grid;
+            return sumRow;
         }
 
         private Border CreateDayHeader(DateTime date, List<DeliveryCalendarItem> deliveries)
@@ -245,97 +386,149 @@ namespace Kalendarz1
 
             var isToday = date.Date == DateTime.Today;
             var dayName = date.ToString("ddd", _polishCulture).ToLower().TrimEnd('.');
-            var dayLabel = $"{dayName}. {date:dd.MM}";
+            var dayLabel = $"{dayName}.{date:dd.MM}";
 
-            // Determine background color based on capacity
-            Color bgColor;
-            if (capacityPercent >= 80)
+            // Determine background color and glow color based on capacity
+            Color bgColor, glowColor;
+            bool shouldPulse = capacityPercent >= 100; // Pulsuj jeśli powyżej 100%
+
+            if (capacityPercent >= 100)
+            {
+                bgColor = Color.FromRgb(183, 28, 28); // Dark red
+                glowColor = Color.FromRgb(244, 67, 54); // Red glow
+                shouldPulse = true;
+            }
+            else if (capacityPercent >= 80)
+            {
                 bgColor = Color.FromRgb(239, 68, 68); // Red
+                glowColor = Color.FromRgb(239, 68, 68);
+            }
             else if (capacityPercent >= 50)
+            {
                 bgColor = Color.FromRgb(251, 191, 36); // Yellow/Orange
+                glowColor = Color.FromRgb(255, 193, 7);
+            }
             else
+            {
                 bgColor = Color.FromRgb(34, 197, 94); // Green
+                glowColor = Color.FromRgb(76, 175, 80);
+            }
 
             if (isToday)
+            {
                 bgColor = Color.FromRgb(59, 130, 246); // Blue for today
+                glowColor = Color.FromRgb(33, 150, 243);
+                shouldPulse = true; // Today always pulses
+            }
 
             var header = new Border
             {
                 Background = new SolidColorBrush(bgColor),
                 Padding = new Thickness(6, 4, 6, 4),
-                Margin = new Thickness(0, 2, 0, 0)
+                Margin = new Thickness(0, 2, 0, 0),
+                CornerRadius = new CornerRadius(3)
             };
 
-            var grid = new Grid();
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Data + count
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(35) }); // Auto
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) }); // Szt
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) }); // Waga
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) }); // Capacity %
+            // Add pulsing glow effect
+            var glowEffect = new DropShadowEffect
+            {
+                Color = glowColor,
+                BlurRadius = shouldPulse ? 12 : 6,
+                ShadowDepth = 0,
+                Opacity = shouldPulse ? 0.7 : 0.4
+            };
+            header.Effect = glowEffect;
 
-            // Day label with count
+            // Apply pulsing animation
+            if (shouldPulse)
+            {
+                var pulseOpacity = new DoubleAnimation
+                {
+                    From = 0.4,
+                    To = 1.0,
+                    Duration = TimeSpan.FromMilliseconds(700),
+                    AutoReverse = true,
+                    RepeatBehavior = RepeatBehavior.Forever,
+                    EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
+                };
+                var pulseBlur = new DoubleAnimation
+                {
+                    From = 8,
+                    To = 22,
+                    Duration = TimeSpan.FromMilliseconds(700),
+                    AutoReverse = true,
+                    RepeatBehavior = RepeatBehavior.Forever,
+                    EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
+                };
+                glowEffect.BeginAnimation(DropShadowEffect.OpacityProperty, pulseOpacity);
+                glowEffect.BeginAnimation(DropShadowEffect.BlurRadiusProperty, pulseBlur);
+            }
+
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Data + star
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) }); // Suma szt + procent
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(35) }); // Auto
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) }); // Waga avg
+
+            // Day label with star for high capacity
+            var starPrefix = capacityPercent >= 100 ? "★ " : "";
             var dayText = new TextBlock
             {
-                Text = $"{dayLabel} ({deliveries.Count} dostaw)",
+                Text = $"{starPrefix}{dayLabel}",
                 FontWeight = FontWeights.Bold,
-                FontSize = 11,
+                FontSize = 12,
                 Foreground = Brushes.White,
                 VerticalAlignment = VerticalAlignment.Center
             };
             Grid.SetColumn(dayText, 0);
             grid.Children.Add(dayText);
 
-            // Total auta
-            var autaText = new TextBlock
+            // SUMA: sztuki + procent w jednej kolumnie (wyróżnione)
+            var sumaBorder = new Border
             {
-                Text = totalAuta.ToString(),
+                Background = new SolidColorBrush(Color.FromArgb(80, 255, 255, 255)),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(6, 2, 6, 2),
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+            var sumaText = new TextBlock
+            {
+                Text = $"{totalSztuki:# ##0} szt. {capacityPercent:0}%",
                 FontWeight = FontWeights.Bold,
                 FontSize = 11,
                 Foreground = Brushes.White,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
-            Grid.SetColumn(autaText, 1);
-            grid.Children.Add(autaText);
+            sumaBorder.Child = sumaText;
+            Grid.SetColumn(sumaBorder, 1);
+            grid.Children.Add(sumaBorder);
 
-            // Total sztuki
-            var sztukiText = new TextBlock
+            // Total auta
+            var autaText = new TextBlock
             {
-                Text = totalSztuki.ToString("# ##0"),
-                FontWeight = FontWeights.Bold,
-                FontSize = 11,
+                Text = $"{totalAuta} aut",
+                FontWeight = FontWeights.SemiBold,
+                FontSize = 10,
                 Foreground = Brushes.White,
-                HorizontalAlignment = HorizontalAlignment.Right,
+                HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
-            Grid.SetColumn(sztukiText, 2);
-            grid.Children.Add(sztukiText);
+            Grid.SetColumn(autaText, 2);
+            grid.Children.Add(autaText);
 
             // Average weight
             var wagaText = new TextBlock
             {
-                Text = avgWaga.ToString("0.00"),
-                FontWeight = FontWeights.Bold,
-                FontSize = 11,
+                Text = $"{avgWaga:0.00}",
+                FontWeight = FontWeights.SemiBold,
+                FontSize = 10,
                 Foreground = Brushes.White,
                 HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Center
             };
             Grid.SetColumn(wagaText, 3);
             grid.Children.Add(wagaText);
-
-            // Capacity percentage
-            var capacityText = new TextBlock
-            {
-                Text = $"{capacityPercent:0}%",
-                FontWeight = FontWeights.Bold,
-                FontSize = 11,
-                Foreground = Brushes.White,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            Grid.SetColumn(capacityText, 4);
-            grid.Children.Add(capacityText);
 
             header.Child = grid;
             return header;
@@ -344,10 +537,30 @@ namespace Kalendarz1
         private Border CreateDeliveryRow(DeliveryCalendarItem delivery)
         {
             var isConfirmed = delivery.Bufor == "Potwierdzony";
+            var isPartiallyConfirmed = delivery.Bufor == "B.Kontr." || delivery.Bufor == "B.Wolny";
+            var isPlanned = string.IsNullOrEmpty(delivery.Bufor) || delivery.Bufor == "Planowany" || delivery.Bufor == "Do w.";
 
-            Color bgColor = Colors.White;
+            // Kolory tła i efektu glow w zależności od statusu
+            Color bgColor, glowColor;
+            bool shouldPulse = false;
+
             if (isConfirmed)
-                bgColor = Color.FromRgb(236, 253, 245); // Light green for confirmed
+            {
+                bgColor = Color.FromRgb(200, 230, 201); // Light green
+                glowColor = Color.FromRgb(76, 175, 80); // Green glow
+            }
+            else if (isPartiallyConfirmed)
+            {
+                bgColor = Color.FromRgb(255, 249, 196); // Light yellow
+                glowColor = Color.FromRgb(255, 193, 7); // Yellow glow
+                shouldPulse = true; // Pulsuj częściowo potwierdzone
+            }
+            else
+            {
+                bgColor = Color.FromRgb(227, 242, 253); // Light blue
+                glowColor = Color.FromRgb(33, 150, 243); // Blue glow
+                shouldPulse = true; // Pulsuj planowane
+            }
 
             var row = new Border
             {
@@ -358,9 +571,44 @@ namespace Kalendarz1
                 Cursor = Cursors.Hand
             };
 
+            // Add pulsing glow effect for planned/partially confirmed deliveries
+            if (shouldPulse)
+            {
+                var glowEffect = new DropShadowEffect
+                {
+                    Color = glowColor,
+                    BlurRadius = 6,
+                    ShadowDepth = 0,
+                    Opacity = 0.3
+                };
+                row.Effect = glowEffect;
+
+                var pulseOpacity = new DoubleAnimation
+                {
+                    From = 0.2,
+                    To = 0.6,
+                    Duration = TimeSpan.FromMilliseconds(900),
+                    AutoReverse = true,
+                    RepeatBehavior = RepeatBehavior.Forever,
+                    EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
+                };
+                var pulseBlur = new DoubleAnimation
+                {
+                    From = 3,
+                    To = 10,
+                    Duration = TimeSpan.FromMilliseconds(900),
+                    AutoReverse = true,
+                    RepeatBehavior = RepeatBehavior.Forever,
+                    EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
+                };
+                glowEffect.BeginAnimation(DropShadowEffect.OpacityProperty, pulseOpacity);
+                glowEffect.BeginAnimation(DropShadowEffect.BlurRadiusProperty, pulseBlur);
+            }
+
             // Hover effect
+            var originalBgColor = bgColor;
             row.MouseEnter += (s, e) => row.Background = new SolidColorBrush(Color.FromRgb(243, 244, 246));
-            row.MouseLeave += (s, e) => row.Background = new SolidColorBrush(bgColor);
+            row.MouseLeave += (s, e) => row.Background = new SolidColorBrush(originalBgColor);
 
             var grid = new Grid();
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Hodowca
@@ -369,11 +617,13 @@ namespace Kalendarz1
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) }); // Waga
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) }); // Status
 
-            // Hodowca name
+            // Hodowca name with indicator for planned
+            var hodowcaPrefix = shouldPulse ? "○ " : "✓ ";
             var hodowcaText = new TextBlock
             {
-                Text = delivery.Dostawca,
+                Text = hodowcaPrefix + delivery.Dostawca,
                 FontSize = 11,
+                FontWeight = shouldPulse ? FontWeights.Normal : FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81)),
                 VerticalAlignment = VerticalAlignment.Center,
                 TextTrimming = TextTrimming.CharacterEllipsis,
@@ -400,6 +650,7 @@ namespace Kalendarz1
             {
                 Text = delivery.SztukiDek.ToString("# ##0"),
                 FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81)),
                 HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Center
@@ -419,7 +670,7 @@ namespace Kalendarz1
             Grid.SetColumn(wagaText, 3);
             grid.Children.Add(wagaText);
 
-            // Status (Bufor) with color coding
+            // Status (Bufor) with color coding and glow
             var statusBg = GetStatusBackground(delivery.Bufor);
             var statusFg = GetStatusForeground(delivery.Bufor);
             var statusBorder = new Border
@@ -430,10 +681,35 @@ namespace Kalendarz1
                 Margin = new Thickness(4, 0, 0, 0),
                 HorizontalAlignment = HorizontalAlignment.Left
             };
+
+            // Add subtle glow to status badge
+            if (shouldPulse)
+            {
+                statusBorder.Effect = new DropShadowEffect
+                {
+                    Color = statusBg,
+                    BlurRadius = 4,
+                    ShadowDepth = 0,
+                    Opacity = 0.5
+                };
+            }
+
+            var statusDisplayText = delivery.Bufor switch
+            {
+                "Potwierdzony" => "Potw.",
+                "B.Kontr." => "B.Ko.",
+                "B.Wolny" => "B.Wo.",
+                "Do w." => "Do w.",
+                "Planowany" => "Plan.",
+                "" or null => "Plan.",
+                _ => delivery.Bufor.Length > 6 ? delivery.Bufor.Substring(0, 5) + "." : delivery.Bufor
+            };
+
             var statusText = new TextBlock
             {
-                Text = string.IsNullOrEmpty(delivery.Bufor) ? "Planowany" : delivery.Bufor,
+                Text = statusDisplayText,
                 FontSize = 10,
+                FontWeight = FontWeights.SemiBold,
                 Foreground = statusFg,
                 VerticalAlignment = VerticalAlignment.Center
             };
