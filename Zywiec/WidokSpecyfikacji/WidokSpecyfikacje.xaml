@@ -134,17 +134,10 @@
                     <Setter Property="BorderBrush" Value="#1976D2"/>
                     <Setter Property="Background" Value="#E8F4FD"/>
                 </DataTrigger>
-                <!-- 2. Zaznaczenie - z animacją highlight -->
+                <!-- 2. Zaznaczenie - stały kolor tła dla widoczności multi-select -->
                 <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#BBDEFB"/>
                     <Setter Property="FontWeight" Value="Bold"/>
-                    <Trigger.EnterActions>
-                        <BeginStoryboard>
-                            <Storyboard>
-                                <ColorAnimation Storyboard.TargetProperty="(DataGridRow.Background).(SolidColorBrush.Color)"
-                                                From="#90CAF9" To="White" Duration="0:0:0.4"/>
-                            </Storyboard>
-                        </BeginStoryboard>
-                    </Trigger.EnterActions>
                 </Trigger>
                 <!-- 3. Hover + Zaznaczenie -->
                 <MultiTrigger>
@@ -152,7 +145,7 @@
                         <Condition Property="IsMouseOver" Value="True"/>
                         <Condition Property="IsSelected" Value="True"/>
                     </MultiTrigger.Conditions>
-                    <Setter Property="Background" Value="#E3F2FD"/>
+                    <Setter Property="Background" Value="#90CAF9"/>
                     <Setter Property="FontWeight" Value="Bold"/>
                 </MultiTrigger>
                 <!-- 4. PODŚWIETLENIE GRUPY - subtelne, bez zmiany układu -->
