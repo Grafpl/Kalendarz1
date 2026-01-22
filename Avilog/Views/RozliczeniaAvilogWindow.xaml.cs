@@ -13,12 +13,11 @@ using Kalendarz1.Avilog.Services;
 namespace Kalendarz1.Avilog.Views
 {
     /// <summary>
-    /// Okno rozliczeń transportowych Avilog
+    /// Okno rozliczeń transportowych Avilog - Dzienne zestawienie uboju
     /// </summary>
     public partial class RozliczeniaAvilogWindow : Window
     {
         private readonly AvilogDataService _dataService;
-        private ObservableCollection<AvilogDayModel> _dniCollection;
         private ObservableCollection<AvilogKursModel> _kursyCollection;
         private List<AvilogKursModel> _allKursy;
         private AvilogSummaryModel _summary;
@@ -32,7 +31,6 @@ namespace Kalendarz1.Avilog.Views
             try { WindowIconHelper.SetIcon(this); } catch { }
 
             _dataService = new AvilogDataService();
-            _dniCollection = new ObservableCollection<AvilogDayModel>();
             _kursyCollection = new ObservableCollection<AvilogKursModel>();
             _allKursy = new List<AvilogKursModel>();
 
@@ -42,7 +40,6 @@ namespace Kalendarz1.Avilog.Views
             datePickerDo.SelectedDate = do_;
 
             // Bindowanie kolekcji
-            dataGridDni.ItemsSource = _dniCollection;
             dataGridKursy.ItemsSource = _kursyCollection;
 
             // Załaduj stawkę z bazy
@@ -100,31 +97,11 @@ namespace Kalendarz1.Avilog.Views
 
                 // Pobierz dane z bazy
                 var kursy = await _dataService.GetKursyAsync(dataOd, dataDo);
-                var dni = await _dataService.GetPodsumowaniaDzienneAsync(dataOd, dataDo);
 
-                // Ustaw stawkę dla każdego dnia
-                foreach (var dzien in dni)
-                {
-                    dzien.StawkaZaKg = _stawkaZaKg;
-                }
-
-                // Zapisz wszystkie kursy do filtrowania
+                // Zapisz wszystkie kursy
                 _allKursy = kursy;
 
-                // Aktualizuj kolekcje
-                _dniCollection.Clear();
-                foreach (var dzien in dni)
-                {
-                    _dniCollection.Add(dzien);
-                }
-
-                // Dodaj wiersz sumy
-                if (dni.Any())
-                {
-                    var sumaRow = AvilogCalculator.CreateSumRow(dni, _stawkaZaKg);
-                    _dniCollection.Add(sumaRow);
-                }
-
+                // Aktualizuj kolekcję
                 _kursyCollection.Clear();
                 foreach (var kurs in kursy)
                 {
@@ -132,13 +109,13 @@ namespace Kalendarz1.Avilog.Views
                 }
 
                 // Oblicz podsumowanie
-                _summary = AvilogCalculator.CalculateSummary(kursy, _stawkaZaKg);
+                _summary = CalculateSummaryFromKursy(kursy);
                 UpdateSummaryUI();
 
-                // Załaduj statystyki
-                await LoadStatystykiAsync(dataOd, dataDo);
+                // Aktualizuj nagłówek
+                txtOkres.Text = $"Okres: {dataOd:dd.MM.yyyy} - {dataDo:dd.MM.yyyy}";
 
-                ShowLoading(false, $"Załadowano {kursy.Count} kursów z {dni.Count} dni");
+                ShowLoading(false, $"Załadowano {kursy.Count} kursów");
             }
             catch (Exception ex)
             {
@@ -147,68 +124,55 @@ namespace Kalendarz1.Avilog.Views
             }
         }
 
-        private async System.Threading.Tasks.Task LoadStatystykiAsync(DateTime dataOd, DateTime dataDo)
+        private AvilogSummaryModel CalculateSummaryFromKursy(List<AvilogKursModel> kursy)
         {
-            try
+            var summary = new AvilogSummaryModel
             {
-                // Top hodowcy
-                var topHodowcy = await _dataService.GetTopHodowcyAsync(dataOd, dataDo, 5);
-                var hodowcyItems = topHodowcy.Select((h, i) => new { Lp = $"{i + 1}.", Nazwa = h.Hodowca, Wartosc = h.Tonaz }).ToList();
-                listTopHodowcy.ItemsSource = hodowcyItems;
+                DataOd = datePickerOd.SelectedDate ?? DateTime.Today,
+                DataDo = datePickerDo.SelectedDate ?? DateTime.Today,
+                LiczbaKursow = kursy.Count,
+                LiczbaZestawow = kursy.Select(k => $"{k.CarID}-{k.TrailerID}").Distinct().Count(),
+                LiczbaDni = kursy.Select(k => k.CalcDate.Date).Distinct().Count(),
+                SumaSztuk = kursy.Sum(k => k.SztukiRazem),
+                SumaUpadkowSzt = kursy.Sum(k => k.SztukiPadle),
+                SumaBrutto = kursy.Sum(k => k.BruttoUbojni),
+                SumaTara = kursy.Sum(k => k.TaraUbojni),
+                SumaNetto = kursy.Sum(k => k.NettoUbojni),
+                SumaUpadkowKg = kursy.Sum(k => k.UpadkiKg),
+                SumaRoznicaKg = kursy.Sum(k => k.RoznicaKg),
+                SumaKM = kursy.Sum(k => k.DystansKM),
+                SumaGodzin = kursy.Sum(k => k.CzasUslugiGodziny),
+                StawkaZaKg = _stawkaZaKg
+            };
 
-                // Top kierowcy
-                var topKierowcy = await _dataService.GetTopKierowcyAsync(dataOd, dataDo, 5);
-                var kierowcyItems = topKierowcy.Select((k, i) => new { Lp = $"{i + 1}.", Nazwa = k.Kierowca, Wartosc = (decimal)k.KM }).ToList();
-                listTopKierowcy.ItemsSource = kierowcyItems;
-
-                // Średnie
-                if (_summary != null)
-                {
-                    txtSredniaWaga.Text = $"{_summary.SredniaWagaKurczaka:N3} kg";
-                    txtSredniKM.Text = $"{_summary.SredniKMNaKurs:N1} km";
-                    txtSredniCzas.Text = $"{_summary.SredniCzasKursu:N2} h";
-                    txtSrednieSztuki.Text = $"{_summary.SrednieSztukiNaKurs:N0} szt";
-                }
-
-                // Ostrzeżenia
-                var ostrzezenia = new List<string>();
-                int brakiKM = _allKursy.Count(k => k.BrakKilometrow);
-                int brakiGodzin = _allKursy.Count(k => k.BrakGodzin);
-                int duzaRoznica = _allKursy.Count(k => k.DuzaRoznicaWag);
-
-                if (brakiKM > 0)
-                    ostrzezenia.Add($"• {brakiKM} kursów bez danych o kilometrach");
-                if (brakiGodzin > 0)
-                    ostrzezenia.Add($"• {brakiGodzin} kursów bez danych o godzinach");
-                if (duzaRoznica > 0)
-                    ostrzezenia.Add($"• {duzaRoznica} kursów z dużą różnicą wag (>2%)");
-
-                if (ostrzezenia.Any())
-                    txtOstrzezenia.Text = string.Join("\n", ostrzezenia);
-                else
-                    txtOstrzezenia.Text = "Brak ostrzeżeń - wszystkie dane kompletne.";
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Błąd ładowania statystyk: {ex.Message}");
-            }
+            return summary;
         }
 
         private void UpdateSummaryUI()
         {
             if (_summary == null) return;
 
-            txtSumaSztuk.Text = $"{_summary.SumaSztuk:N0} szt";
-            txtSumaNetto.Text = $"{_summary.SumaNetto:N0} kg";
-            txtSumaUpadkow.Text = $"{_summary.SumaUpadkowKg:N0} kg";
-            txtSumaRoznica.Text = $"{_summary.SumaRoznicaKg:N0} kg";
-            txtSumaKM.Text = $"{_summary.SumaKM:N0} km";
-            txtSumaGodzin.Text = $"{_summary.SumaGodzin:N2} h";
-            txtLiczbaKursow.Text = $"{_summary.LiczbaKursow}";
-            txtLiczbaZestawow.Text = $"{_summary.LiczbaZestawow}";
+            // Statystyki
+            txtSumaSztuk.Text = $"{_summary.SumaSztuk:N0}";
+            txtSumaBrutto.Text = $"{_summary.SumaBrutto:N0}";
+            txtSumaTara.Text = $"{_summary.SumaTara:N0}";
+            txtSumaNetto.Text = $"{_summary.SumaNetto:N0}";
+            txtSumaUpadkow.Text = $"{_summary.SumaUpadkowKg:N0}";
+            txtSumaRoznica.Text = $"{_summary.SumaRoznicaKg:N0}";
+            txtSumaKM.Text = $"{_summary.SumaKM:N0}";
+            txtSumaGodzin.Text = FormatHours(_summary.SumaGodzin);
 
-            txtFormulaDoZaplaty.Text = $"{_summary.SumaRoznicaKg:N0} kg × {_stawkaZaKg:N3} zł =";
+            // Formuła rozliczenia
+            txtFormulaCena.Text = $"{_stawkaZaKg:N3} zł";
+            txtFormulaRoznica.Text = $"{_summary.SumaRoznicaKg:N0} kg";
             txtDoZaplaty.Text = $"{_summary.DoZaplaty:N2} zł";
+        }
+
+        private string FormatHours(decimal totalHours)
+        {
+            int hours = (int)totalHours;
+            int minutes = (int)((totalHours - hours) * 60);
+            return $"{hours}:{minutes:D2}";
         }
 
         private void ShowLoading(bool isLoading, string message = "")
@@ -235,9 +199,34 @@ namespace Kalendarz1.Avilog.Views
 
         private void BtnPrevWeek_Click(object sender, RoutedEventArgs e)
         {
-            var (od, do_) = AvilogCalculator.GetPreviousWeekRange();
-            datePickerOd.SelectedDate = od;
-            datePickerDo.SelectedDate = do_;
+            if (datePickerOd.SelectedDate.HasValue)
+            {
+                var currentStart = datePickerOd.SelectedDate.Value;
+                var prevStart = currentStart.AddDays(-7);
+                var prevEnd = prevStart.AddDays(4); // pon-pt
+
+                datePickerOd.SelectedDate = prevStart;
+                datePickerDo.SelectedDate = prevEnd;
+            }
+            else
+            {
+                var (od, do_) = AvilogCalculator.GetPreviousWeekRange();
+                datePickerOd.SelectedDate = od;
+                datePickerDo.SelectedDate = do_;
+            }
+        }
+
+        private void BtnNextWeek_Click(object sender, RoutedEventArgs e)
+        {
+            if (datePickerOd.SelectedDate.HasValue)
+            {
+                var currentStart = datePickerOd.SelectedDate.Value;
+                var nextStart = currentStart.AddDays(7);
+                var nextEnd = nextStart.AddDays(4); // pon-pt
+
+                datePickerOd.SelectedDate = nextStart;
+                datePickerDo.SelectedDate = nextEnd;
+            }
         }
 
         private async void BtnSaveStawka_Click(object sender, RoutedEventArgs e)
@@ -269,8 +258,12 @@ namespace Kalendarz1.Avilog.Views
                     _stawkaZaKg = nowaStawka;
                     MessageBox.Show("Stawka została zapisana.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
 
-                    // Przelicz dane
-                    await LoadDataAsync();
+                    // Przelicz podsumowanie
+                    if (_summary != null)
+                    {
+                        _summary.StawkaZaKg = _stawkaZaKg;
+                        UpdateSummaryUI();
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -329,7 +322,7 @@ namespace Kalendarz1.Avilog.Views
 
                 string filePath = exportService.ExportToExcel(
                     _allKursy,
-                    _dniCollection.Where(d => !d.JestSuma).ToList(),
+                    null, // brak dni
                     _summary,
                     dataOd,
                     dataDo,
@@ -364,35 +357,6 @@ namespace Kalendarz1.Avilog.Views
             MessageBox.Show("Funkcja drukowania raportu PDF będzie dostępna wkrótce.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
-        private void BtnEmail_Click(object sender, RoutedEventArgs e)
-        {
-            if (_summary == null)
-            {
-                MessageBox.Show("Brak danych do wysłania.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            try
-            {
-                var dataOd = datePickerOd.SelectedDate.Value;
-                var dataDo = datePickerDo.SelectedDate.Value;
-
-                string subject = $"Rozliczenie Avilog {dataOd:dd.MM.yyyy} - {dataDo:dd.MM.yyyy}";
-                string body = GenerateEmailBody();
-
-                string mailto = $"mailto:?subject={Uri.EscapeDataString(subject)}&body={Uri.EscapeDataString(body)}";
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = mailto,
-                    UseShellExecute = true
-                });
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd otwierania klienta poczty:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
         private void BtnCopy_Click(object sender, RoutedEventArgs e)
         {
             if (_summary == null)
@@ -415,51 +379,7 @@ namespace Kalendarz1.Avilog.Views
 
         #endregion
 
-        #region === FILTROWANIE ===
-
-        private void TxtFilter_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            ApplyFilter();
-        }
-
-        private void BtnClearFilter_Click(object sender, RoutedEventArgs e)
-        {
-            txtFilter.Text = "";
-        }
-
-        private void ApplyFilter()
-        {
-            string filter = txtFilter.Text?.Trim().ToLower() ?? "";
-
-            _kursyCollection.Clear();
-
-            var filtered = string.IsNullOrEmpty(filter)
-                ? _allKursy
-                : _allKursy.Where(k =>
-                    (k.HodowcaNazwa?.ToLower().Contains(filter) ?? false) ||
-                    (k.KierowcaNazwa?.ToLower().Contains(filter) ?? false) ||
-                    (k.CarID?.ToLower().Contains(filter) ?? false) ||
-                    (k.TrailerID?.ToLower().Contains(filter) ?? false));
-
-            foreach (var kurs in filtered)
-            {
-                _kursyCollection.Add(kurs);
-            }
-        }
-
-        #endregion
-
         #region === DATAGRID EVENTS ===
-
-        private void DataGridDni_MouseDoubleClick(object sender, MouseButtonEventArgs e)
-        {
-            if (dataGridDni.SelectedItem is AvilogDayModel dzien && !dzien.JestSuma)
-            {
-                // Przejdź do zakładki szczegółów i filtruj po dniu
-                mainTabControl.SelectedIndex = 1;
-                txtFilter.Text = dzien.DataFormatowana;
-            }
-        }
 
         private void DataGridKursy_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
@@ -502,9 +422,14 @@ namespace Kalendarz1.Avilog.Views
                 BtnPrint_Click(null, null);
                 e.Handled = true;
             }
-            else if (e.Key == Key.C && Keyboard.Modifiers == ModifierKeys.Control && !txtFilter.IsFocused && !txtStawka.IsFocused)
+            else if (e.Key == Key.C && Keyboard.Modifiers == ModifierKeys.Control && !txtStawka.IsFocused)
             {
                 BtnCopy_Click(null, null);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Escape)
+            {
+                this.Close();
                 e.Handled = true;
             }
         }
@@ -519,57 +444,30 @@ namespace Kalendarz1.Avilog.Views
             var dataDo = datePickerDo.SelectedDate.Value;
 
             var sb = new StringBuilder();
-            sb.AppendLine("═══════════════════════════════════════════════════════");
-            sb.AppendLine("       ROZLICZENIE AVILOG - TRANSPORT ŻYWCA");
-            sb.AppendLine("═══════════════════════════════════════════════════════");
-            sb.AppendLine($"Okres: {dataOd:dd.MM.yyyy} - {dataDo:dd.MM.yyyy}");
-            sb.AppendLine("───────────────────────────────────────────────────────");
+            sb.AppendLine("╔═══════════════════════════════════════════════════════════╗");
+            sb.AppendLine("║     DZIENNE ZESTAWIENIE UBOJU - AVILOG                    ║");
+            sb.AppendLine("╠═══════════════════════════════════════════════════════════╣");
+            sb.AppendLine($"║  Okres: {dataOd:dd.MM.yyyy} - {dataDo:dd.MM.yyyy}");
+            sb.AppendLine("╠═══════════════════════════════════════════════════════════╣");
             sb.AppendLine();
-            sb.AppendLine($"Suma sztuk:        {_summary.SumaSztuk:N0} szt");
-            sb.AppendLine($"Suma netto:        {_summary.SumaNetto:N0} kg");
-            sb.AppendLine($"Suma upadków:      {_summary.SumaUpadkowKg:N0} kg");
-            sb.AppendLine($"Różnica kg:        {_summary.SumaRoznicaKg:N0} kg");
+            sb.AppendLine($"  Suma sztuk:          {_summary.SumaSztuk:N0} szt");
+            sb.AppendLine($"  Suma brutto:         {_summary.SumaBrutto:N0} kg");
+            sb.AppendLine($"  Suma tara:           {_summary.SumaTara:N0} kg");
+            sb.AppendLine($"  Suma netto:          {_summary.SumaNetto:N0} kg");
             sb.AppendLine();
-            sb.AppendLine($"Suma KM:           {_summary.SumaKM:N0} km");
-            sb.AppendLine($"Suma godzin:       {_summary.SumaGodzin:N2} h");
-            sb.AppendLine($"Liczba kursów:     {_summary.LiczbaKursow}");
-            sb.AppendLine($"Liczba zestawów:   {_summary.LiczbaZestawow}");
+            sb.AppendLine($"  Suma upadków:        {_summary.SumaUpadkowKg:N0} kg");
+            sb.AppendLine($"  RÓŻNICA KG:          {_summary.SumaRoznicaKg:N0} kg");
             sb.AppendLine();
-            sb.AppendLine("═══════════════════════════════════════════════════════");
-            sb.AppendLine($"Stawka za kg:      {_stawkaZaKg:N3} zł/kg");
-            sb.AppendLine($"DO ZAPŁATY:        {_summary.DoZaplaty:N2} zł");
-            sb.AppendLine("═══════════════════════════════════════════════════════");
+            sb.AppendLine($"  Suma KM:             {_summary.SumaKM:N0} km");
+            sb.AppendLine($"  Suma godzin:         {FormatHours(_summary.SumaGodzin)}");
+            sb.AppendLine($"  Liczba kursów:       {_summary.LiczbaKursow}");
             sb.AppendLine();
-            sb.AppendLine($"Wygenerowano: {DateTime.Now:dd.MM.yyyy HH:mm}");
-
-            return sb.ToString();
-        }
-
-        private string GenerateEmailBody()
-        {
-            var dataOd = datePickerOd.SelectedDate.Value;
-            var dataDo = datePickerDo.SelectedDate.Value;
-
-            var sb = new StringBuilder();
-            sb.AppendLine("Dzień dobry,");
+            sb.AppendLine("╠═══════════════════════════════════════════════════════════╣");
+            sb.AppendLine($"  Stawka:              {_stawkaZaKg:N3} zł/kg");
+            sb.AppendLine($"  DO ZAPŁATY:          {_summary.DoZaplaty:N2} zł");
+            sb.AppendLine("╚═══════════════════════════════════════════════════════════╝");
             sb.AppendLine();
-            sb.AppendLine($"Przesyłam rozliczenie transportu za okres {dataOd:dd.MM.yyyy} - {dataDo:dd.MM.yyyy}.");
-            sb.AppendLine();
-            sb.AppendLine("PODSUMOWANIE:");
-            sb.AppendLine($"- Suma sztuk: {_summary.SumaSztuk:N0}");
-            sb.AppendLine($"- Suma netto: {_summary.SumaNetto:N0} kg");
-            sb.AppendLine($"- Suma upadków: {_summary.SumaUpadkowKg:N0} kg");
-            sb.AppendLine($"- Różnica do rozliczenia: {_summary.SumaRoznicaKg:N0} kg");
-            sb.AppendLine($"- Liczba kursów: {_summary.LiczbaKursow}");
-            sb.AppendLine($"- Suma KM: {_summary.SumaKM:N0}");
-            sb.AppendLine();
-            sb.AppendLine($"Stawka: {_stawkaZaKg:N3} zł/kg");
-            sb.AppendLine($"DO ZAPŁATY: {_summary.DoZaplaty:N2} zł");
-            sb.AppendLine();
-            sb.AppendLine("Szczegółowe zestawienie w załączniku.");
-            sb.AppendLine();
-            sb.AppendLine("Z poważaniem,");
-            sb.AppendLine("Ubojnia Drobiu Piórkowscy");
+            sb.AppendLine($"  Wygenerowano: {DateTime.Now:dd.MM.yyyy HH:mm}");
 
             return sb.ToString();
         }
