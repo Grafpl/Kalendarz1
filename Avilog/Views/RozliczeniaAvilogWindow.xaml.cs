@@ -25,6 +25,9 @@ namespace Kalendarz1.Avilog.Views
         private AvilogSummaryModel _summary;
         private decimal _stawkaZaKg = 0.119m;
 
+        // Słownik przechowujący kursy pogrupowane po dniach
+        private Dictionary<DateTime, List<AvilogKursModel>> _kursyWgDni;
+
         public RozliczeniaAvilogWindow()
         {
             InitializeComponent();
@@ -37,6 +40,7 @@ namespace Kalendarz1.Avilog.Views
             _dniCollection = new ObservableCollection<AvilogDayModel>();
             _allKursy = new List<AvilogKursModel>();
             _allDni = new List<AvilogDayModel>();
+            _kursyWgDni = new Dictionary<DateTime, List<AvilogKursModel>>();
 
             // Ustaw domyślny zakres dat (ten tydzień)
             var (od, do_) = AvilogCalculator.GetCurrentWeekRange();
@@ -114,12 +118,11 @@ namespace Kalendarz1.Avilog.Views
                 _allKursy = kursy;
                 _allDni = dni;
 
-                // Aktualizuj kolekcje kursów
-                _kursyCollection.Clear();
-                foreach (var kurs in kursy)
-                {
-                    _kursyCollection.Add(kurs);
-                }
+                // Grupuj kursy według dni
+                _kursyWgDni = kursy
+                    .GroupBy(k => k.CalcDate.Date)
+                    .OrderBy(g => g.Key)
+                    .ToDictionary(g => g.Key, g => g.ToList());
 
                 // Aktualizuj kolekcję podsumowań dziennych + wiersz SUMA
                 _dniCollection.Clear();
@@ -160,12 +163,55 @@ namespace Kalendarz1.Avilog.Views
                 txtOkres.Text = $"Okres: {dataOd:dd.MM.yyyy} - {dataDo:dd.MM.yyyy}";
                 txtPodsumowanieOkres.Text = $"Okres: {dataOd:dd.MM.yyyy} - {dataDo:dd.MM.yyyy}";
 
+                // Twórz zakładki dla dni
+                CreateDayTabs();
+
                 ShowLoading(false, $"Załadowano {kursy.Count} kursów");
             }
             catch (Exception ex)
             {
                 ShowLoading(false, "Błąd ładowania");
                 MessageBox.Show($"Błąd podczas ładowania danych:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void CreateDayTabs()
+        {
+            tabControlDni.SelectionChanged -= TabControlDni_SelectionChanged;
+            tabControlDni.Items.Clear();
+
+            // Pobierz styl zakładki z zasobów
+            var tabItemStyle = (Style)FindResource("SimpleTabItem");
+
+            int dayNumber = 1;
+            foreach (var dzienKvp in _kursyWgDni.OrderBy(kvp => kvp.Key))
+            {
+                var tabItem = new TabItem
+                {
+                    Header = $"{dayNumber} dzień",
+                    Tag = dzienKvp.Key,
+                    Style = tabItemStyle
+                };
+                tabControlDni.Items.Add(tabItem);
+                dayNumber++;
+            }
+
+            // Dodaj zakładkę "Podsumowanie" na końcu
+            var podsumowanieTab = new TabItem
+            {
+                Header = "Podsumowanie",
+                Tag = "PODSUMOWANIE",
+                Style = tabItemStyle
+            };
+            tabControlDni.Items.Add(podsumowanieTab);
+
+            tabControlDni.SelectionChanged += TabControlDni_SelectionChanged;
+
+            // Wybierz pierwszą zakładkę
+            if (tabControlDni.Items.Count > 0)
+            {
+                tabControlDni.SelectedIndex = 0;
+                UpdateTabContent();
             }
         }
 
@@ -216,9 +262,6 @@ namespace Kalendarz1.Avilog.Views
             txtKalkRoznica.Text = $"= {_summary.SumaRoznicaKg:N0} kg";
             txtKalkDoZaplaty.Text = $"{_summary.DoZaplaty:N2} zł";
             txtKalkFormula.Text = $"{_summary.SumaRoznicaKg:N0} kg × {_stawkaZaKg:N3} zł";
-
-            // Info o stawce
-            txtInfoStawka.Text = $"Aktualna stawka: {_stawkaZaKg:N3} zł/kg";
         }
 
         private string FormatHours(decimal totalHours)
@@ -238,21 +281,41 @@ namespace Kalendarz1.Avilog.Views
 
         #region === OBSŁUGA ZAKŁADEK ===
 
-        private void TabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void TabControlDni_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (tabControl == null) return;
+            if (tabControlDni == null || tabControlDni.SelectedItem == null) return;
 
-            if (tabControl.SelectedIndex == 0)
+            UpdateTabContent();
+        }
+
+        private void UpdateTabContent()
+        {
+            if (tabControlDni.SelectedItem is TabItem selectedTab)
             {
-                // Zakładka Kursy
-                gridKursy.Visibility = Visibility.Visible;
-                scrollPodsumowanie.Visibility = Visibility.Collapsed;
-            }
-            else if (tabControl.SelectedIndex == 1)
-            {
-                // Zakładka Podsumowanie
-                gridKursy.Visibility = Visibility.Collapsed;
-                scrollPodsumowanie.Visibility = Visibility.Visible;
+                if (selectedTab.Tag is string tagStr && tagStr == "PODSUMOWANIE")
+                {
+                    // Zakładka Podsumowanie
+                    gridKursyDnia.Visibility = Visibility.Collapsed;
+                    scrollPodsumowanie.Visibility = Visibility.Visible;
+                }
+                else if (selectedTab.Tag is DateTime selectedDate)
+                {
+                    // Zakładka dnia
+                    gridKursyDnia.Visibility = Visibility.Visible;
+                    scrollPodsumowanie.Visibility = Visibility.Collapsed;
+
+                    // Pokaż kursy dla wybranego dnia
+                    _kursyCollection.Clear();
+                    if (_kursyWgDni.TryGetValue(selectedDate, out var kursyDnia))
+                    {
+                        int lp = 1;
+                        foreach (var kurs in kursyDnia)
+                        {
+                            kurs.LP = lp++;
+                            _kursyCollection.Add(kurs);
+                        }
+                    }
+                }
             }
         }
 
@@ -361,29 +424,27 @@ namespace Kalendarz1.Avilog.Views
                 var historia = await _dataService.GetHistoriaStawekAsync();
 
                 var sb = new StringBuilder();
-                sb.AppendLine("╔═══════════════════════════════════════════════════════════════╗");
-                sb.AppendLine("║               HISTORIA STAWEK ZA KG                           ║");
-                sb.AppendLine("╠═══════════════════════════════════════════════════════════════╣");
+                sb.AppendLine("HISTORIA STAWEK ZA KG");
+                sb.AppendLine("═════════════════════════════════════════");
 
                 if (!historia.Any())
                 {
-                    sb.AppendLine("║  Brak zapisanych stawek w historii.                          ║");
+                    sb.AppendLine("Brak zapisanych stawek w historii.");
                 }
                 else
                 {
                     foreach (var s in historia)
                     {
                         var status = s.JestAktywna ? "[AKTYWNA]" : "";
-                        sb.AppendLine($"║  {s.StawkaZaKg:N4} zł/kg  {status}");
-                        sb.AppendLine($"║  Okres: {s.DataOd:dd.MM.yyyy} - {(s.DataDo.HasValue ? s.DataDo.Value.ToString("dd.MM.yyyy") : "obecnie")}");
-                        sb.AppendLine($"║  Zmienione: {s.ZmienionePrzez} ({s.DataZmiany:dd.MM.yyyy HH:mm})");
+                        sb.AppendLine($"{s.StawkaZaKg:N4} zł/kg  {status}");
+                        sb.AppendLine($"Okres: {s.DataOd:dd.MM.yyyy} - {(s.DataDo.HasValue ? s.DataDo.Value.ToString("dd.MM.yyyy") : "obecnie")}");
+                        sb.AppendLine($"Zmienione: {s.ZmienionePrzez} ({s.DataZmiany:dd.MM.yyyy HH:mm})");
                         if (!string.IsNullOrEmpty(s.Uwagi))
-                            sb.AppendLine($"║  Uwagi: {s.Uwagi}");
-                        sb.AppendLine("╠───────────────────────────────────────────────────────────────╣");
+                            sb.AppendLine($"Uwagi: {s.Uwagi}");
+                        sb.AppendLine("─────────────────────────────────────────");
                     }
                 }
 
-                sb.AppendLine("╚═══════════════════════════════════════════════════════════════╝");
                 sb.AppendLine();
                 sb.AppendLine("Aby zmienić stawkę, wpisz nową wartość w polu STAWKA i kliknij Zapisz.");
 
@@ -521,14 +582,18 @@ namespace Kalendarz1.Avilog.Views
                 this.Close();
                 e.Handled = true;
             }
-            else if (e.Key == Key.D1 && Keyboard.Modifiers == ModifierKeys.Control)
+            else if (e.Key == Key.Left && Keyboard.Modifiers == ModifierKeys.Alt)
             {
-                tabControl.SelectedIndex = 0;
+                // Poprzednia zakładka
+                if (tabControlDni.SelectedIndex > 0)
+                    tabControlDni.SelectedIndex--;
                 e.Handled = true;
             }
-            else if (e.Key == Key.D2 && Keyboard.Modifiers == ModifierKeys.Control)
+            else if (e.Key == Key.Right && Keyboard.Modifiers == ModifierKeys.Alt)
             {
-                tabControl.SelectedIndex = 1;
+                // Następna zakładka
+                if (tabControlDni.SelectedIndex < tabControlDni.Items.Count - 1)
+                    tabControlDni.SelectedIndex++;
                 e.Handled = true;
             }
         }
@@ -543,11 +608,10 @@ namespace Kalendarz1.Avilog.Views
             var dataDo = datePickerDo.SelectedDate.Value;
 
             var sb = new StringBuilder();
-            sb.AppendLine("╔═══════════════════════════════════════════════════════════╗");
-            sb.AppendLine("║     DZIENNE ZESTAWIENIE UBOJU - AVILOG                    ║");
-            sb.AppendLine("╠═══════════════════════════════════════════════════════════╣");
-            sb.AppendLine($"║  Okres: {dataOd:dd.MM.yyyy} - {dataDo:dd.MM.yyyy}");
-            sb.AppendLine("╠═══════════════════════════════════════════════════════════╣");
+            sb.AppendLine("DZIENNE ZESTAWIENIE UBOJU - AVILOG");
+            sb.AppendLine("═══════════════════════════════════════════════════");
+            sb.AppendLine($"Okres: {dataOd:dd.MM.yyyy} - {dataDo:dd.MM.yyyy}");
+            sb.AppendLine("═══════════════════════════════════════════════════");
             sb.AppendLine();
             sb.AppendLine($"  Suma sztuk:          {_summary.SumaSztuk:N0} szt");
             sb.AppendLine($"  Suma brutto:         {_summary.SumaBrutto:N0} kg");
@@ -561,10 +625,10 @@ namespace Kalendarz1.Avilog.Views
             sb.AppendLine($"  Suma godzin:         {FormatHours(_summary.SumaGodzin)}");
             sb.AppendLine($"  Liczba kursów:       {_summary.LiczbaKursow}");
             sb.AppendLine();
-            sb.AppendLine("╠═══════════════════════════════════════════════════════════╣");
+            sb.AppendLine("═══════════════════════════════════════════════════");
             sb.AppendLine($"  Stawka:              {_stawkaZaKg:N3} zł/kg");
             sb.AppendLine($"  DO ZAPŁATY:          {_summary.DoZaplaty:N2} zł");
-            sb.AppendLine("╚═══════════════════════════════════════════════════════════╝");
+            sb.AppendLine("═══════════════════════════════════════════════════");
             sb.AppendLine();
             sb.AppendLine($"  Wygenerowano: {DateTime.Now:dd.MM.yyyy HH:mm}");
 
