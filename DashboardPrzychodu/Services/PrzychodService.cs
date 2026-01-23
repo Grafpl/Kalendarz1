@@ -41,8 +41,8 @@ namespace Kalendarz1.DashboardPrzychodu.Services
                     fc.CalcDate AS Data,
 
                     -- Hodowca
-                    ISNULL(d.Nazwa, 'Nieznany') AS Hodowca,
-                    ISNULL(d.Skrot, '') AS HodowcaSkrot,
+                    ISNULL(d.Name, 'Nieznany') AS Hodowca,
+                    ISNULL(d.ShortName, '') AS HodowcaSkrot,
 
                     -- PLAN (deklarowane)
                     ISNULL(fc.DeclI1, 0) AS SztukiPlan,
