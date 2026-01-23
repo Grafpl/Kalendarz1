@@ -209,23 +209,31 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             txtRealizacja.Text = $"{_podsumowanie.ProcentRealizacjiKg}%";
             txtDostawyStatus.Text = $"{_podsumowanie.LiczbaZwazonych}/{_podsumowanie.LiczbaDostawOgolem} dostaw";
 
-            // Pasek postępu
-            double progressWidth = Math.Min(100, _podsumowanie.ProcentRealizacjiKg) / 100.0 * (progressBar.Parent as Grid).ActualWidth;
-            if (double.IsNaN(progressWidth) || progressWidth < 0) progressWidth = 0;
-            progressBar.Width = progressWidth;
-
-            // Kolor paska postępu
-            if (_podsumowanie.ProcentRealizacjiKg >= 80)
-                progressBar.Background = FindResource("AccentGreenBrush") as SolidColorBrush;
-            else if (_podsumowanie.ProcentRealizacjiKg >= 50)
-                progressBar.Background = FindResource("StatusWarningBrush") as SolidColorBrush;
-            else
-                progressBar.Background = FindResource("StatusErrorBrush") as SolidColorBrush;
-
             // Prognoza produkcji
-            txtPrognozaTuszek.Text = $"{_podsumowanie.PrognozaTuszekKg:N0} kg";
             txtPrognozaA.Text = $"{_podsumowanie.PrognozaKlasaAKg:N0} kg";
             txtPrognozaB.Text = $"{_podsumowanie.PrognozaKlasaBKg:N0} kg";
+
+            // Średnia waga planowana (kg plan / sztuki plan)
+            if (_podsumowanie.SztukiPlanSuma > 0)
+            {
+                decimal srWagaPlan = _podsumowanie.KgPlanSuma / _podsumowanie.SztukiPlanSuma;
+                txtSrWagaPlan.Text = srWagaPlan.ToString("N2");
+            }
+            else
+            {
+                txtSrWagaPlan.Text = "-";
+            }
+
+            // Średnia waga rzeczywista (netto kg / lumel sztuki)
+            if (_podsumowanie.SztukiZwazoneSuma > 0)
+            {
+                decimal srWagaRzecz = _podsumowanie.KgZwazoneSuma / _podsumowanie.SztukiZwazoneSuma;
+                txtSrWagaRzecz.Text = srWagaRzecz.ToString("N2");
+            }
+            else
+            {
+                txtSrWagaRzecz.Text = "-";
+            }
         }
 
         /// <summary>
