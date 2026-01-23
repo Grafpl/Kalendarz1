@@ -39,27 +39,52 @@
         <SolidColorBrush x:Key="StatusWarningBrush" Color="{StaticResource StatusWarning}"/>
         <SolidColorBrush x:Key="StatusErrorBrush" Color="{StaticResource StatusError}"/>
 
+        <!-- GRADIENTY DLA KAFELKÓW -->
+        <LinearGradientBrush x:Key="GradientSzary" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#2D3748" Offset="0"/>
+            <GradientStop Color="#1A202C" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="GradientZielony" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#276749" Offset="0"/>
+            <GradientStop Color="#1A4731" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="GradientNiebieski" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#2B4A6F" Offset="0"/>
+            <GradientStop Color="#1A365D" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="GradientFioletowy" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#44337A" Offset="0"/>
+            <GradientStop Color="#2D2259" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="GradientPomaranczowy" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#744210" Offset="0"/>
+            <GradientStop Color="#553311" Offset="1"/>
+        </LinearGradientBrush>
+
         <!-- KONWERTERY -->
         <conv:StatusToBackgroundConverter x:Key="StatusToBackgroundConverter"/>
         <conv:StatusToColorConverter x:Key="StatusToColorConverter"/>
         <conv:OdchylenieToColorConverter x:Key="OdchylenieToColorConverter"/>
         <conv:OdchylenieToIconConverter x:Key="OdchylenieToIconConverter"/>
+        <conv:OdchylenieToBarColorConverter x:Key="OdchylenieToBarColorConverter"/>
+        <conv:ProblemToRowBackgroundConverter x:Key="ProblemToRowBackgroundConverter"/>
         <conv:StatusToIconConverter x:Key="StatusToIconConverter"/>
         <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
         <conv:NullToDashConverter x:Key="NullToDashConverter"/>
 
-        <!-- STYL KARTY -->
-        <Style x:Key="CardStyle" TargetType="Border">
-            <Setter Property="Background" Value="{StaticResource CardBackgroundBrush}"/>
-            <Setter Property="CornerRadius" Value="8"/>
+        <!-- STYL KAFELKA Z CIENIEM I ZAOKRĄGLENIEM -->
+        <Style x:Key="KafelekStyle" TargetType="Border">
+            <Setter Property="CornerRadius" Value="12"/>
             <Setter Property="Padding" Value="15,12"/>
-        </Style>
-
-        <!-- STYL KAFELKA -->
-        <Style x:Key="NumberTileStyle" TargetType="Border">
-            <Setter Property="Background" Value="{StaticResource BackgroundLightBrush}"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="15,10"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="Black" BlurRadius="15" ShadowDepth="5" Direction="270" Opacity="0.3"/>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <!-- DUŻA LICZBA -->
@@ -149,27 +174,30 @@
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="RowBackground" Value="Transparent"/>
-            <Setter Property="AlternatingRowBackground" Value="#0A0F1A"/>
+            <Setter Property="RowBackground" Value="#151E2B"/>
+            <Setter Property="AlternatingRowBackground" Value="#1E2A3A"/>
+            <Setter Property="AlternationCount" Value="2"/>
             <Setter Property="GridLinesVisibility" Value="Horizontal"/>
             <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource BorderBrush}"/>
-            <Setter Property="RowHeight" Value="36"/>
+            <Setter Property="RowHeight" Value="38"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="HeadersVisibility" Value="Column"/>
             <Setter Property="CanUserAddRows" Value="False"/>
             <Setter Property="CanUserDeleteRows" Value="False"/>
             <Setter Property="AutoGenerateColumns" Value="False"/>
             <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="EnableRowVirtualization" Value="True"/>
+            <Setter Property="EnableColumnVirtualization" Value="True"/>
         </Style>
 
         <Style x:Key="DataGridColumnHeaderStyle" TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="{StaticResource BackgroundLightBrush}"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="#1A202C"/>
+            <Setter Property="Foreground" Value="#A0AEC0"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Padding" Value="10,8"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
-            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            <Setter Property="BorderBrush" Value="#2D3748"/>
+            <Setter Property="BorderThickness" Value="0,0,0,2"/>
         </Style>
 
         <Style x:Key="DataGridCellStyle" TargetType="DataGridCell">
@@ -191,20 +219,60 @@
             </Style.Triggers>
         </Style>
 
+        <!-- STYL WIERSZA Z HOVER I ANIMACJAMI -->
         <Style x:Key="DataGridRowStyle" TargetType="DataGridRow">
+            <Setter Property="Background" Value="#151E2B"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                </Setter.Value>
+            </Setter>
             <Style.Triggers>
+                <!-- Hover effect -->
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#1A2A4A"/>
+                    <Setter Property="Background" Value="#2D3748"/>
+                    <Trigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                                 To="1.002" Duration="0:0:0.1"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                 To="1.01" Duration="0:0:0.1"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.EnterActions>
+                    <Trigger.ExitActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                                 To="1" Duration="0:0:0.1"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                 To="1" Duration="0:0:0.1"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.ExitActions>
                 </Trigger>
+                <!-- Zebra striping -->
+                <Trigger Property="AlternationIndex" Value="1">
+                    <Setter Property="Background" Value="#1E2A3A"/>
+                </Trigger>
+                <!-- Selection -->
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="#2A4A7A"/>
                 </Trigger>
+                <!-- Problem row highlighting -->
+                <DataTrigger Binding="{Binding JestProblem}" Value="True">
+                    <Setter Property="Background" Value="#2D1F1F"/>
+                </DataTrigger>
             </Style.Triggers>
         </Style>
     </Window.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -245,8 +313,39 @@
             </Grid>
         </Border>
 
+        <!-- PASEK POSTĘPU REALIZACJI -->
+        <Grid Grid.Row="1" Margin="20,10,20,5">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Pasek postępu -->
+            <Border Grid.Row="0" Background="#1A202C" CornerRadius="6" Height="12">
+                <Border x:Name="progressFill"
+                        Background="{StaticResource GradientZielony}"
+                        CornerRadius="6"
+                        HorizontalAlignment="Left"
+                        Width="0">
+                    <Border.Effect>
+                        <DropShadowEffect Color="#4ECCA3" BlurRadius="10" ShadowDepth="0" Opacity="0.5"/>
+                    </Border.Effect>
+                </Border>
+            </Border>
+
+            <!-- Etykiety -->
+            <Grid Grid.Row="1" Margin="0,5,0,0">
+                <TextBlock Text="0 kg" FontSize="10" Foreground="#718096" HorizontalAlignment="Left"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock x:Name="txtProgressPercent" Text="0%" FontSize="12" FontWeight="Bold" Foreground="#4ECCA3"/>
+                    <TextBlock Text=" zrealizowano" FontSize="10" Foreground="#718096" VerticalAlignment="Bottom" Margin="3,0,0,1"/>
+                </StackPanel>
+                <TextBlock x:Name="txtProgressMax" Text="0 kg" FontSize="10" Foreground="#718096" HorizontalAlignment="Right"/>
+            </Grid>
+        </Grid>
+
         <!-- PODSUMOWANIE - KOMPAKTOWE W JEDNEJ LINII -->
-        <Border Grid.Row="1" Background="{StaticResource CardBackgroundBrush}" Padding="15,10" Margin="10,5,10,0">
+        <Border Grid.Row="2" Background="{StaticResource CardBackgroundBrush}" Padding="15,10" Margin="10,5,10,0" CornerRadius="8">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -259,7 +358,7 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- PLANOWANE -->
-                <Border Grid.Column="0" Style="{StaticResource NumberTileStyle}" Margin="0,0,5,0">
+                <Border Grid.Column="0" Style="{StaticResource KafelekStyle}" Background="{StaticResource GradientSzary}" Margin="0,0,5,0">
                     <StackPanel>
                         <TextBlock Text="PLANOWANE" Style="{StaticResource LabelStyle}"/>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
@@ -271,19 +370,23 @@
                 </Border>
 
                 <!-- ZWAŻONE -->
-                <Border Grid.Column="1" Style="{StaticResource NumberTileStyle}" Margin="5,0" Background="#0A4A3A">
+                <Border Grid.Column="1" Style="{StaticResource KafelekStyle}" Background="{StaticResource GradientZielony}" Margin="5,0">
                     <StackPanel>
                         <TextBlock Text="ZWAZONE" Style="{StaticResource LabelStyle}"/>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
                             <TextBlock x:Name="txtKgZwazone" Text="0" Style="{StaticResource BigNumberStyle}" Foreground="{StaticResource AccentGreenBrush}"/>
                             <TextBlock Text=" kg" Foreground="{StaticResource AccentGreenBrush}" FontSize="12" VerticalAlignment="Bottom" Margin="0,0,0,4"/>
+                            <TextBlock x:Name="txtTrendZwazone" Text="" FontSize="18" VerticalAlignment="Center" Margin="8,0,0,0"/>
                         </StackPanel>
-                        <TextBlock x:Name="txtSztZwazone" Text="0 szt" Foreground="{StaticResource AccentGreenBrush}" FontSize="11" HorizontalAlignment="Center"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock x:Name="txtSztZwazone" Text="0 szt" Foreground="{StaticResource AccentGreenBrush}" FontSize="11"/>
+                            <TextBlock x:Name="txtTrendInfo" Text="" Foreground="#718096" FontSize="9" Margin="5,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
                     </StackPanel>
                 </Border>
 
                 <!-- POZOSTAŁO -->
-                <Border Grid.Column="2" Style="{StaticResource NumberTileStyle}" Margin="5,0">
+                <Border Grid.Column="2" Style="{StaticResource KafelekStyle}" Background="{StaticResource GradientNiebieski}" Margin="5,0">
                     <StackPanel>
                         <TextBlock Text="POZOSTALO" Style="{StaticResource LabelStyle}"/>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
@@ -294,8 +397,8 @@
                     </StackPanel>
                 </Border>
 
-                <!-- ODCHYLENIE -->
-                <Border Grid.Column="3" Style="{StaticResource NumberTileStyle}" Margin="5,0">
+                <!-- ODCHYLENIE - z pulsującym obramowaniem -->
+                <Border x:Name="borderOdchylenie" Grid.Column="3" Style="{StaticResource KafelekStyle}" Background="{StaticResource GradientSzary}" Margin="5,0" BorderThickness="2" BorderBrush="Transparent">
                     <StackPanel>
                         <TextBlock Text="ODCHYLENIE" Style="{StaticResource LabelStyle}"/>
                         <TextBlock x:Name="txtOdchylenie" Text="-" Style="{StaticResource BigNumberStyle}" FontSize="22" Margin="0,4,0,0"/>
@@ -304,19 +407,19 @@
                 </Border>
 
                 <!-- ŚREDNIA WAGA PLAN -->
-                <Border Grid.Column="4" Style="{StaticResource NumberTileStyle}" Margin="5,0" Background="#2A2A4A">
+                <Border Grid.Column="4" Style="{StaticResource KafelekStyle}" Background="{StaticResource GradientFioletowy}" Margin="5,0">
                     <StackPanel>
                         <TextBlock Text="SR.WAGA PLAN" Style="{StaticResource LabelStyle}"/>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
-                            <TextBlock x:Name="txtSrWagaPlan" Text="-" Style="{StaticResource BigNumberStyle}" FontSize="24" Foreground="#9090FF"/>
-                            <TextBlock Text=" kg" Foreground="#9090FF" FontSize="11" VerticalAlignment="Bottom" Margin="0,0,0,4"/>
+                            <TextBlock x:Name="txtSrWagaPlan" Text="-" Style="{StaticResource BigNumberStyle}" FontSize="24" Foreground="#9F7AEA"/>
+                            <TextBlock Text=" kg" Foreground="#9F7AEA" FontSize="11" VerticalAlignment="Bottom" Margin="0,0,0,4"/>
                         </StackPanel>
                         <TextBlock Text="na sztuke" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" HorizontalAlignment="Center"/>
                     </StackPanel>
                 </Border>
 
                 <!-- ŚREDNIA WAGA RZECZ -->
-                <Border Grid.Column="5" Style="{StaticResource NumberTileStyle}" Margin="5,0" Background="#0A4A3A">
+                <Border Grid.Column="5" Style="{StaticResource KafelekStyle}" Background="{StaticResource GradientZielony}" Margin="5,0">
                     <StackPanel>
                         <TextBlock Text="SR.WAGA RZECZ" Style="{StaticResource LabelStyle}"/>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
@@ -335,32 +438,72 @@
                         <TextBlock x:Name="txtRealizacja" Text="0%" FontSize="20" FontWeight="Bold" Foreground="{StaticResource AccentGreenBrush}"/>
                         <TextBlock x:Name="txtDostawyStatus" Text=" (0/0)" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
                     </StackPanel>
-                    <!-- Prognoza -->
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Prognoza:" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <Border Background="#0A4A3A" CornerRadius="4" Padding="8,3" Margin="0,0,5,0">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="A:" Foreground="{StaticResource AccentGreenBrush}" FontSize="11"/>
-                                <TextBlock x:Name="txtPrognozaA" Text="0" Foreground="{StaticResource AccentGreenBrush}" FontSize="11" FontWeight="SemiBold" Margin="3,0,0,0"/>
+                    <!-- Prognoza Tuszek rozbudowana -->
+                    <Border Style="{StaticResource KafelekStyle}" Background="{StaticResource GradientFioletowy}" Padding="12,8">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- Nagłówek -->
+                            <TextBlock Grid.Row="0" Text="PROGNOZA TUSZEK" FontSize="10" Foreground="#A0AEC0" HorizontalAlignment="Center"/>
+
+                            <!-- Główna wartość -->
+                            <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,3,0,0">
+                                <TextBlock x:Name="txtPrognozaTuszek" Text="0" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                                <TextBlock Text=" kg" FontSize="10" Foreground="#718096" VerticalAlignment="Bottom" Margin="2,0,0,2"/>
                             </StackPanel>
-                        </Border>
-                        <Border Background="#4A3A0A" CornerRadius="4" Padding="8,3">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="B:" Foreground="{StaticResource StatusWarningBrush}" FontSize="11"/>
-                                <TextBlock x:Name="txtPrognozaB" Text="0" Foreground="{StaticResource StatusWarningBrush}" FontSize="11" FontWeight="SemiBold" Margin="3,0,0,0"/>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
+
+                            <!-- Podział A/B -->
+                            <Grid Grid.Row="2" Margin="0,5,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Klasa A -->
+                                <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                                    <TextBlock Text="A" FontSize="12" FontWeight="Bold" Foreground="#4ECCA3" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="txtPrognozaA" Text="0 kg" FontSize="11" Foreground="White" HorizontalAlignment="Center"/>
+                                </StackPanel>
+
+                                <!-- Separator -->
+                                <Rectangle Grid.Column="1" Width="1" Fill="#4A5568" Margin="8,0"/>
+
+                                <!-- Klasa B -->
+                                <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                                    <TextBlock Text="B" FontSize="12" FontWeight="Bold" Foreground="#FFB347" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="txtPrognozaB" Text="0 kg" FontSize="11" Foreground="White" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Grid>
+                        </Grid>
+                    </Border>
                 </StackPanel>
             </Grid>
         </Border>
 
+        <!-- SEPARATOR -->
+        <Rectangle Grid.Row="3" Height="1" Margin="20,15,20,10">
+            <Rectangle.Fill>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="Transparent" Offset="0"/>
+                    <GradientStop Color="#4A5568" Offset="0.2"/>
+                    <GradientStop Color="#4A5568" Offset="0.8"/>
+                    <GradientStop Color="Transparent" Offset="1"/>
+                </LinearGradientBrush>
+            </Rectangle.Fill>
+        </Rectangle>
+
         <!-- TABELA DOSTAW -->
-        <Border Grid.Row="2" Style="{StaticResource CardStyle}" Margin="10,10,10,5">
+        <Border Grid.Row="4" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="15,12" Margin="10,0,10,5">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
@@ -379,8 +522,19 @@
                           ColumnHeaderStyle="{StaticResource DataGridColumnHeaderStyle}"
                           CellStyle="{StaticResource DataGridCellStyle}"
                           RowStyle="{StaticResource DataGridRowStyle}"
-                          VirtualizingPanel.IsVirtualizing="True">
+                          VirtualizingPanel.IsVirtualizing="True"
+                          MouseDoubleClick="DataGrid_MouseDoubleClick">
                     <DataGrid.Columns>
+                        <!-- Kolorowy pasek -->
+                        <DataGridTemplateColumn Width="4" CanUserResize="False">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Border Width="4" Margin="-10,0,0,0"
+                                            Background="{Binding Poziom, Converter={StaticResource OdchylenieToBarColorConverter}}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
                         <DataGridTextColumn Header="LP" Binding="{Binding NrKursu}" Width="45">
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
@@ -424,8 +578,6 @@
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding OdchylenieDisplay}"
                                                    Foreground="{Binding Poziom, Converter={StaticResource OdchylenieToColorConverter}}"/>
-                                        <TextBlock Text="{Binding Poziom, Converter={StaticResource OdchylenieToIconConverter}}"
-                                                   FontSize="11" Margin="4,0,0,0"/>
                                     </StackPanel>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
@@ -440,17 +592,15 @@
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
 
-                        <DataGridTemplateColumn Header="STATUS" Width="100">
+                        <!-- Status jako ikona -->
+                        <DataGridTemplateColumn Header="STATUS" Width="60">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <Border CornerRadius="4" Padding="6,2" HorizontalAlignment="Left"
-                                            Background="{Binding Status, Converter={StaticResource StatusToBackgroundConverter}}">
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="{Binding StatusIcon}" FontSize="11"/>
-                                            <TextBlock Text="{Binding StatusText}" FontSize="11" FontWeight="SemiBold" Margin="4,0,0,0"
-                                                       Foreground="{Binding Status, Converter={StaticResource StatusToColorConverter}}"/>
-                                        </StackPanel>
-                                    </Border>
+                                    <TextBlock Text="{Binding StatusIcon}"
+                                               FontSize="18"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               ToolTip="{Binding StatusText}"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
@@ -477,18 +627,48 @@
                     </DataGrid.Columns>
                 </DataGrid>
 
+                <!-- Wiersz podsumowania -->
+                <Border Grid.Row="2" Background="#1A365D" CornerRadius="0,0,8,8" Padding="10,8" Margin="0,0,0,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="4"/>
+                            <ColumnDefinition Width="45"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="90"/>
+                            <ColumnDefinition Width="90"/>
+                            <ColumnDefinition Width="110"/>
+                            <ColumnDefinition Width="75"/>
+                            <ColumnDefinition Width="60"/>
+                            <ColumnDefinition Width="70"/>
+                            <ColumnDefinition Width="90"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="1" Text="SUMA" FontWeight="Bold" Foreground="#63B3ED" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="txtSumaDostawy" Grid.Column="2" Text="0 dostaw" Foreground="#A0AEC0" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                        <TextBlock x:Name="txtSumaPlan" Grid.Column="3" Text="0" FontWeight="Bold" Foreground="White" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="txtSumaRzecz" Grid.Column="4" Text="0" FontWeight="Bold" Foreground="#4ECCA3" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="txtSumaOdchylenie" Grid.Column="5" Text="-" FontWeight="Bold" Foreground="#A0AEC0" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                        <TextBlock x:Name="txtSumaSrWaga" Grid.Column="6" Text="-" Foreground="#A0AEC0" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
                 <!-- Legenda -->
-                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0">
+                <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,8,0,0">
                     <TextBlock Text="Legenda:" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,15,0"/>
+                    <Border Width="12" Height="12" Background="#4ECCA3" CornerRadius="2" Margin="0,0,4,0"/>
                     <TextBlock Text="OK (±2%)" Foreground="{StaticResource StatusOKBrush}" FontSize="11" FontWeight="SemiBold" Margin="0,0,15,0"/>
+                    <Border Width="12" Height="12" Background="#FFB347" CornerRadius="2" Margin="0,0,4,0"/>
                     <TextBlock Text="Uwaga (±5%)" Foreground="{StaticResource StatusWarningBrush}" FontSize="11" FontWeight="SemiBold" Margin="0,0,15,0"/>
-                    <TextBlock Text="Problem (>5%)" Foreground="{StaticResource StatusErrorBrush}" FontSize="11" FontWeight="SemiBold"/>
+                    <Border Width="12" Height="12" Background="#E94560" CornerRadius="2" Margin="0,0,4,0"/>
+                    <TextBlock Text="Problem (>5%)" Foreground="{StaticResource StatusErrorBrush}" FontSize="11" FontWeight="SemiBold" Margin="0,0,15,0"/>
+                    <TextBlock Text="   |   " Foreground="#4A5568"/>
+                    <TextBlock Text="Dwuklik = szczegoly" Foreground="#718096" FontSize="11" FontStyle="Italic"/>
                 </StackPanel>
             </Grid>
         </Border>
 
         <!-- STOPKA -->
-        <Border Grid.Row="3" Background="{StaticResource BackgroundMediumBrush}" Padding="15,8">
+        <Border Grid.Row="5" Background="{StaticResource BackgroundMediumBrush}" Padding="15,8">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -506,21 +686,42 @@
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
                     <TextBlock Text="Aktualizacja: " Foreground="{StaticResource TextSecondaryBrush}" FontSize="11"/>
                     <TextBlock x:Name="txtLastUpdate" Text="-" Foreground="White" FontSize="11" FontWeight="SemiBold"/>
-                    <TextBlock Text="  |  Auto: 30s" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="10,0,0,0"/>
+                    <TextBlock Text="  |  Auto: " Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="10,0,0,0"/>
+                    <TextBlock x:Name="txtAutoRefreshFooter" Text="30s" Foreground="{StaticResource AccentGreenBrush}" FontSize="11" FontWeight="SemiBold"/>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- OVERLAY ŁADOWANIA -->
-        <Border x:Name="loadingOverlay" Grid.RowSpan="4" Background="#CC1A1A2E" Visibility="Collapsed">
+        <!-- OVERLAY ŁADOWANIA ZE SPINNEREM -->
+        <Border x:Name="loadingOverlay" Grid.RowSpan="6" Background="#CC1A1A2E" Visibility="Collapsed">
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                <ProgressBar IsIndeterminate="True" Width="200" Height="4" Foreground="{StaticResource AccentBlueBrush}"/>
-                <TextBlock x:Name="txtLoadingMessage" Text="Ladowanie..." Foreground="White" FontSize="14" HorizontalAlignment="Center" Margin="0,15,0,0"/>
+                <!-- Spinner -->
+                <Ellipse x:Name="spinnerEllipse" Width="50" Height="50" StrokeThickness="4"
+                         Stroke="#4ECCA3" StrokeDashArray="3,2">
+                    <Ellipse.RenderTransform>
+                        <RotateTransform x:Name="spinnerRotate" CenterX="25" CenterY="25"/>
+                    </Ellipse.RenderTransform>
+                    <Ellipse.Triggers>
+                        <EventTrigger RoutedEvent="Loaded">
+                            <BeginStoryboard>
+                                <Storyboard RepeatBehavior="Forever">
+                                    <DoubleAnimation Storyboard.TargetName="spinnerRotate"
+                                                     Storyboard.TargetProperty="Angle"
+                                                     From="0" To="360" Duration="0:0:1"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Ellipse.Triggers>
+                </Ellipse>
+
+                <!-- Tekst -->
+                <TextBlock x:Name="txtLoadingMessage" Text="Aktualizacja..." Foreground="White" FontSize="14"
+                           HorizontalAlignment="Center" Margin="0,15,0,0"/>
             </StackPanel>
         </Border>
 
         <!-- OVERLAY BŁĘDU -->
-        <Border x:Name="errorOverlay" Grid.RowSpan="4" Background="#CC1A1A2E" Visibility="Collapsed">
+        <Border x:Name="errorOverlay" Grid.RowSpan="6" Background="#CC1A1A2E" Visibility="Collapsed">
             <Border Background="{StaticResource CardBackgroundBrush}" CornerRadius="12" Padding="30,20" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="450">
                 <StackPanel>
                     <TextBlock Text="Blad polaczenia" FontSize="18" FontWeight="Bold" Foreground="{StaticResource StatusErrorBrush}" HorizontalAlignment="Center" Margin="0,0,0,10"/>

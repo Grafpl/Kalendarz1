@@ -8,7 +8,9 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using ClosedXML.Excel;
 using Kalendarz1.DashboardPrzychodu.Models;
@@ -30,6 +32,11 @@ namespace Kalendarz1.DashboardPrzychodu.Views
         private ICollectionView _dostawyView;
         private int _secondsToRefresh = 30;
         private bool _isLoading = false;
+
+        // Trend tracking
+        private decimal _poprzednieZwazone = 0;
+        private DateTime? _trendStartTime = null;
+        private Storyboard _pulseStoryboard;
 
         private const int AUTO_REFRESH_SECONDS = 30;
 
@@ -59,11 +66,36 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             };
             _countdownTimer.Tick += CountdownTimer_Tick;
 
+            // Inicjalizacja animacji pulsowania
+            InitializePulseAnimation();
+
             // Eventy
             dpData.SelectedDateChanged += async (s, e) => await LoadDataAsync();
             txtSearch.TextChanged += TxtSearch_TextChanged;
             Loaded += async (s, e) => await InitializeAsync();
             Closing += DashboardPrzychoduWindow_Closing;
+        }
+
+        /// <summary>
+        /// Inicjalizacja animacji pulsowania dla kafelka odchylenia
+        /// </summary>
+        private void InitializePulseAnimation()
+        {
+            _pulseStoryboard = new Storyboard();
+            _pulseStoryboard.RepeatBehavior = RepeatBehavior.Forever;
+            _pulseStoryboard.AutoReverse = true;
+
+            var colorAnimation = new ColorAnimation
+            {
+                From = Color.FromRgb(233, 69, 96),    // #E94560
+                To = Color.FromRgb(255, 107, 107),    // #FF6B6B
+                Duration = TimeSpan.FromMilliseconds(700)
+            };
+
+            Storyboard.SetTarget(colorAnimation, borderOdchylenie);
+            Storyboard.SetTargetProperty(colorAnimation, new PropertyPath("BorderBrush.Color"));
+
+            _pulseStoryboard.Children.Add(colorAnimation);
         }
 
         /// <summary>
@@ -110,7 +142,7 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             try
             {
                 _isLoading = true;
-                ShowLoading("Ladowanie danych...");
+                ShowLoading("Aktualizacja danych...");
 
                 Debug.WriteLine($"[DashboardPrzychodu] Pobieranie danych na {selectedDate:yyyy-MM-dd}");
 
@@ -135,6 +167,12 @@ namespace Kalendarz1.DashboardPrzychodu.Views
 
                     // Aktualizuj podsumowanie
                     UpdateSummaryUI();
+
+                    // Aktualizuj wiersz podsumowania tabeli
+                    UpdateTableSummary();
+
+                    // Aktualizuj pasek postępu
+                    UpdateProgressBar();
 
                     // Aktualizuj licznik wyników
                     txtLiczbaWynikow.Text = $"Wyniki: {_dostawy.Count}";
@@ -172,9 +210,13 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             txtKgPlan.Text = _podsumowanie.KgPlanSuma.ToString("N0");
             txtSztPlan.Text = $"{_podsumowanie.SztukiPlanSuma:N0} szt";
 
-            // Zważone
-            txtKgZwazone.Text = _podsumowanie.KgZwazoneSuma.ToString("N0");
+            // Zważone z trendem
+            decimal noweZwazone = _podsumowanie.KgZwazoneSuma;
+            txtKgZwazone.Text = noweZwazone.ToString("N0");
             txtSztZwazone.Text = $"{_podsumowanie.SztukiZwazoneSuma:N0} szt";
+
+            // Aktualizuj trend
+            UpdateTrend(noweZwazone);
 
             // Pozostałe
             txtKgPozostalo.Text = _podsumowanie.KgPozostalo.ToString("N0");
@@ -197,19 +239,24 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 };
                 txtOdchylenie.Foreground = brush;
                 txtOdchylenieProc.Foreground = brush;
+
+                // Pulsujące obramowanie przy problemie
+                UpdatePulseAnimation(_podsumowanie.Poziom == PoziomOdchylenia.Problem);
             }
             else
             {
                 txtOdchylenie.Text = "-";
                 txtOdchylenieProc.Text = "";
                 txtOdchylenie.Foreground = FindResource("TextSecondaryBrush") as SolidColorBrush;
+                UpdatePulseAnimation(false);
             }
 
             // Realizacja
             txtRealizacja.Text = $"{_podsumowanie.ProcentRealizacjiKg}%";
-            txtDostawyStatus.Text = $"{_podsumowanie.LiczbaZwazonych}/{_podsumowanie.LiczbaDostawOgolem} dostaw";
+            txtDostawyStatus.Text = $" ({_podsumowanie.LiczbaZwazonych}/{_podsumowanie.LiczbaDostawOgolem})";
 
             // Prognoza produkcji
+            txtPrognozaTuszek.Text = _podsumowanie.PrognozaTuszekKg.ToString("N0");
             txtPrognozaA.Text = $"{_podsumowanie.PrognozaKlasaAKg:N0} kg";
             txtPrognozaB.Text = $"{_podsumowanie.PrognozaKlasaBKg:N0} kg";
 
@@ -237,6 +284,167 @@ namespace Kalendarz1.DashboardPrzychodu.Views
         }
 
         /// <summary>
+        /// Aktualizacja trendu dla kafelka ZWAŻONE
+        /// </summary>
+        private void UpdateTrend(decimal noweZwazone)
+        {
+            if (_poprzednieZwazone == 0)
+            {
+                // Pierwsze ładowanie
+                txtTrendZwazone.Text = "";
+                txtTrendInfo.Text = "";
+                _trendStartTime = DateTime.Now;
+            }
+            else if (noweZwazone > _poprzednieZwazone)
+            {
+                txtTrendZwazone.Text = "↑";
+                txtTrendZwazone.Foreground = new SolidColorBrush(Color.FromRgb(78, 204, 163));
+                decimal roznica = noweZwazone - _poprzednieZwazone;
+                txtTrendInfo.Text = $"+{roznica:N0}";
+            }
+            else if (noweZwazone < _poprzednieZwazone)
+            {
+                txtTrendZwazone.Text = "↓";
+                txtTrendZwazone.Foreground = new SolidColorBrush(Color.FromRgb(233, 69, 96));
+                decimal roznica = _poprzednieZwazone - noweZwazone;
+                txtTrendInfo.Text = $"-{roznica:N0}";
+            }
+            else
+            {
+                txtTrendZwazone.Text = "→";
+                txtTrendZwazone.Foreground = new SolidColorBrush(Color.FromRgb(113, 128, 150));
+                txtTrendInfo.Text = "";
+            }
+
+            _poprzednieZwazone = noweZwazone;
+        }
+
+        /// <summary>
+        /// Włącza/wyłącza animację pulsowania obramowania
+        /// </summary>
+        private void UpdatePulseAnimation(bool enable)
+        {
+            try
+            {
+                if (enable)
+                {
+                    borderOdchylenie.BorderBrush = new SolidColorBrush(Color.FromRgb(233, 69, 96));
+                    _pulseStoryboard.Begin();
+                }
+                else
+                {
+                    _pulseStoryboard.Stop();
+                    borderOdchylenie.BorderBrush = new SolidColorBrush(Colors.Transparent);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[DashboardPrzychodu] Błąd animacji: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Aktualizacja paska postępu realizacji
+        /// </summary>
+        private void UpdateProgressBar()
+        {
+            if (_podsumowanie.KgPlanSuma > 0)
+            {
+                double procent = (double)_podsumowanie.ProcentRealizacjiKg;
+                double maxWidth = progressFill.Parent is Border parentBorder ? parentBorder.ActualWidth : 800;
+
+                if (maxWidth <= 0) maxWidth = 800;
+
+                double targetWidth = Math.Min(100, procent) / 100.0 * maxWidth;
+
+                // Animacja paska
+                var animation = new DoubleAnimation
+                {
+                    To = targetWidth,
+                    Duration = TimeSpan.FromMilliseconds(500),
+                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+                };
+                progressFill.BeginAnimation(WidthProperty, animation);
+
+                // Zmiana koloru w zależności od postępu
+                if (procent >= 80)
+                    progressFill.Background = FindResource("GradientZielony") as LinearGradientBrush;
+                else if (procent >= 50)
+                    progressFill.Background = new LinearGradientBrush(
+                        Color.FromRgb(255, 179, 71),
+                        Color.FromRgb(200, 140, 50),
+                        90);
+                else
+                    progressFill.Background = new LinearGradientBrush(
+                        Color.FromRgb(233, 69, 96),
+                        Color.FromRgb(180, 50, 70),
+                        90);
+
+                txtProgressPercent.Text = $"{procent:N0}%";
+                txtProgressMax.Text = $"{_podsumowanie.KgPlanSuma:N0} kg";
+            }
+            else
+            {
+                progressFill.Width = 0;
+                txtProgressPercent.Text = "0%";
+                txtProgressMax.Text = "0 kg";
+            }
+        }
+
+        /// <summary>
+        /// Aktualizacja wiersza podsumowania tabeli
+        /// </summary>
+        private void UpdateTableSummary()
+        {
+            int liczbaDostawFiltrowanych = _dostawyView.Cast<object>().Count();
+            txtSumaDostawy.Text = $"{liczbaDostawFiltrowanych} dostaw";
+
+            decimal sumaPlan = _dostawy.Sum(d => d.KgPlan);
+            decimal sumaRzecz = _dostawy.Where(d => d.Status == StatusDostawy.Zwazony).Sum(d => d.KgRzeczywiste);
+            decimal? sumaOdchylenie = _dostawy
+                .Where(d => d.OdchylenieKgCalc.HasValue)
+                .Sum(d => d.OdchylenieKgCalc);
+
+            txtSumaPlan.Text = sumaPlan.ToString("N0");
+            txtSumaRzecz.Text = sumaRzecz.ToString("N0");
+
+            if (sumaOdchylenie.HasValue && sumaOdchylenie != 0)
+            {
+                string znak = sumaOdchylenie > 0 ? "+" : "";
+                txtSumaOdchylenie.Text = $"{znak}{sumaOdchylenie:N0} kg";
+
+                // Kolor
+                if (sumaPlan > 0)
+                {
+                    decimal procent = Math.Abs(sumaOdchylenie.Value / sumaPlan * 100);
+                    if (procent <= 2)
+                        txtSumaOdchylenie.Foreground = FindResource("StatusOKBrush") as SolidColorBrush;
+                    else if (procent <= 5)
+                        txtSumaOdchylenie.Foreground = FindResource("StatusWarningBrush") as SolidColorBrush;
+                    else
+                        txtSumaOdchylenie.Foreground = FindResource("StatusErrorBrush") as SolidColorBrush;
+                }
+            }
+            else
+            {
+                txtSumaOdchylenie.Text = "-";
+                txtSumaOdchylenie.Foreground = new SolidColorBrush(Color.FromRgb(160, 174, 192));
+            }
+
+            // Średnia waga
+            var zwazone = _dostawy.Where(d => d.SredniaWagaRzeczywistaCalc.HasValue && d.SredniaWagaRzeczywistaCalc > 0).ToList();
+            if (zwazone.Any())
+            {
+                decimal sredniaSrWaga = zwazone.Average(d => d.SredniaWagaRzeczywistaCalc.Value);
+                txtSumaSrWaga.Text = sredniaSrWaga.ToString("N2");
+            }
+            else
+            {
+                txtSumaSrWaga.Text = "-";
+            }
+        }
+
+        /// <summary>
         /// Aktualizacja wyświetlanej daty
         /// </summary>
         private void UpdateDateDisplay()
@@ -257,6 +465,7 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 _secondsToRefresh = AUTO_REFRESH_SECONDS;
             }
             txtAutoRefresh.Text = $"Auto: {_secondsToRefresh}s";
+            txtAutoRefreshFooter.Text = $"{_secondsToRefresh}s";
         }
 
         /// <summary>
@@ -283,8 +492,128 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 };
             }
 
-            // Aktualizuj licznik
+            // Aktualizuj licznik i podsumowanie
             txtLiczbaWynikow.Text = $"Wyniki: {_dostawyView.Cast<object>().Count()}";
+            UpdateTableSummary();
+        }
+
+        /// <summary>
+        /// Dwuklik na wierszu - otwiera szczegóły dostawy
+        /// </summary>
+        private void DataGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (dgDostawy.SelectedItem is DostawaItem dostawa)
+            {
+                ShowDeliveryDetails(dostawa);
+            }
+        }
+
+        /// <summary>
+        /// Pokazuje szczegóły dostawy w oknie popup
+        /// </summary>
+        private void ShowDeliveryDetails(DostawaItem dostawa)
+        {
+            var detailWindow = new Window
+            {
+                Title = $"Szczegóły dostawy - {dostawa.Hodowca}",
+                Width = 500,
+                Height = 450,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Background = new SolidColorBrush(Color.FromRgb(26, 26, 46)),
+                ResizeMode = ResizeMode.NoResize
+            };
+
+            var grid = new Grid { Margin = new Thickness(20) };
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            // Nagłówek
+            var header = new TextBlock
+            {
+                Text = $"Dostawa #{dostawa.NrKursu}",
+                FontSize = 20,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White,
+                Margin = new Thickness(0, 0, 0, 15)
+            };
+            Grid.SetRow(header, 0);
+            grid.Children.Add(header);
+
+            // Szczegóły
+            var details = new StackPanel();
+            Grid.SetRow(details, 1);
+
+            void AddDetailRow(string label, string value, Brush valueBrush = null)
+            {
+                var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 5, 0, 5) };
+                row.Children.Add(new TextBlock
+                {
+                    Text = label,
+                    Width = 150,
+                    Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)),
+                    FontSize = 13
+                });
+                row.Children.Add(new TextBlock
+                {
+                    Text = value,
+                    Foreground = valueBrush ?? Brushes.White,
+                    FontWeight = FontWeights.SemiBold,
+                    FontSize = 13
+                });
+                details.Children.Add(row);
+            }
+
+            AddDetailRow("Hodowca:", dostawa.Hodowca);
+            AddDetailRow("Data:", dostawa.Data.ToString("dd.MM.yyyy"));
+            AddDetailRow("Nr kursu:", dostawa.NrKursu.ToString());
+            details.Children.Add(new Border { Height = 1, Background = new SolidColorBrush(Color.FromRgb(45, 58, 92)), Margin = new Thickness(0, 10, 0, 10) });
+
+            AddDetailRow("Plan [kg]:", dostawa.KgPlan.ToString("N0"));
+            AddDetailRow("Plan [szt]:", dostawa.SztukiPlan.ToString("N0"));
+            AddDetailRow("Rzeczywiste [kg]:", dostawa.KgRzeczywiste.ToString("N0"),
+                dostawa.Status == StatusDostawy.Zwazony ? new SolidColorBrush(Color.FromRgb(78, 204, 163)) : null);
+            AddDetailRow("Rzeczywiste [szt]:", dostawa.SztukiRzeczywiste.ToString("N0"));
+            details.Children.Add(new Border { Height = 1, Background = new SolidColorBrush(Color.FromRgb(45, 58, 92)), Margin = new Thickness(0, 10, 0, 10) });
+
+            var odchylenieBrush = dostawa.Poziom switch
+            {
+                PoziomOdchylenia.OK => new SolidColorBrush(Color.FromRgb(78, 204, 163)),
+                PoziomOdchylenia.Uwaga => new SolidColorBrush(Color.FromRgb(255, 179, 71)),
+                PoziomOdchylenia.Problem => new SolidColorBrush(Color.FromRgb(233, 69, 96)),
+                _ => new SolidColorBrush(Color.FromRgb(148, 163, 184))
+            };
+            AddDetailRow("Odchylenie:", dostawa.OdchylenieDisplay, odchylenieBrush);
+            AddDetailRow("Średnia waga:", dostawa.SredniaWagaRzeczywistaCalc?.ToString("N3") ?? "-");
+            AddDetailRow("Status:", dostawa.StatusText);
+            details.Children.Add(new Border { Height = 1, Background = new SolidColorBrush(Color.FromRgb(45, 58, 92)), Margin = new Thickness(0, 10, 0, 10) });
+
+            AddDetailRow("Brutto:", dostawa.Brutto.ToString("N0"));
+            AddDetailRow("Tara:", dostawa.Tara.ToString("N0"));
+            AddDetailRow("Przyjazd:", dostawa.PrzyjazdDisplay);
+            AddDetailRow("Ważył:", dostawa.KtoWazyl ?? "-");
+
+            grid.Children.Add(details);
+
+            // Przycisk zamknij
+            var closeButton = new Button
+            {
+                Content = "Zamknij",
+                Padding = new Thickness(20, 8, 20, 8),
+                Background = new SolidColorBrush(Color.FromRgb(15, 52, 96)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 15, 0, 0)
+            };
+            closeButton.Click += (s, e) => detailWindow.Close();
+            Grid.SetRow(closeButton, 2);
+            grid.Children.Add(closeButton);
+
+            detailWindow.Content = grid;
+            detailWindow.ShowDialog();
         }
 
         /// <summary>
@@ -555,6 +884,7 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             Debug.WriteLine("[DashboardPrzychodu] Zamykanie okna, zatrzymuję timery...");
             _autoRefreshTimer?.Stop();
             _countdownTimer?.Stop();
+            _pulseStoryboard?.Stop();
         }
 
         /// <summary>

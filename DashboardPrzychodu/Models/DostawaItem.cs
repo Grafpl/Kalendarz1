@@ -259,6 +259,11 @@ namespace Kalendarz1.DashboardPrzychodu.Models
             }
         }
 
+        /// <summary>
+        /// Czy wiersz ma problem (odchylenie >5%)
+        /// </summary>
+        public bool JestProblem => Poziom == PoziomOdchylenia.Problem;
+
         #endregion
 
         #region Properties - Status

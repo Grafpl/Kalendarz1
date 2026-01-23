@@ -266,4 +266,62 @@ namespace Kalendarz1.DashboardPrzychodu.Converters
         public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
             => throw new NotImplementedException();
     }
+
+    /// <summary>
+    /// Konwertuje odchylenie procentowe na kolor paska bocznego wiersza
+    /// </summary>
+    public class OdchylenieToBarColorConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is PoziomOdchylenia poziom)
+            {
+                return poziom switch
+                {
+                    PoziomOdchylenia.OK => new SolidColorBrush(Color.FromRgb(78, 204, 163)),       // Zielony #4ECCA3
+                    PoziomOdchylenia.Uwaga => new SolidColorBrush(Color.FromRgb(255, 179, 71)),    // Pomarańczowy #FFB347
+                    PoziomOdchylenia.Problem => new SolidColorBrush(Color.FromRgb(233, 69, 96)),   // Czerwony #E94560
+                    _ => new SolidColorBrush(Color.FromRgb(74, 85, 104))                            // Szary #4A5568
+                };
+            }
+            return new SolidColorBrush(Color.FromRgb(74, 85, 104));
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    /// <summary>
+    /// Konwertuje wartość bool na kolor tła wiersza z problemem
+    /// </summary>
+    public class ProblemToRowBackgroundConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is bool jestProblem && jestProblem)
+            {
+                return new SolidColorBrush(Color.FromRgb(45, 31, 31)); // #2D1F1F - ciemny czerwonawy
+            }
+            return new SolidColorBrush(Colors.Transparent);
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    /// <summary>
+    /// Konwertuje wartość bool na Brush dla obramowania pulsującego
+    /// </summary>
+    public class BoolToBorderBrushConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is bool b && b)
+                return new SolidColorBrush(Color.FromRgb(233, 69, 96)); // Czerwony
+            return new SolidColorBrush(Colors.Transparent);
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
 }
