@@ -308,16 +308,8 @@
 
                     <!-- Wyszukiwarka -->
                     <TextBox x:Name="txtSearch"
-                             Style="{StaticResource SearchBoxStyle}"
                              Width="200"
                              Margin="0,0,15,0">
-                        <TextBox.Resources>
-                            <VisualBrush x:Key="HintBrush" AlignmentX="Left" Stretch="None">
-                                <VisualBrush.Visual>
-                                    <TextBlock Text="Szukaj hodowcy..." Foreground="#5A6A7A" Margin="5,0,0,0"/>
-                                </VisualBrush.Visual>
-                            </VisualBrush>
-                        </TextBox.Resources>
                         <TextBox.Style>
                             <Style TargetType="TextBox" BasedOn="{StaticResource SearchBoxStyle}">
                                 <Style.Triggers>
