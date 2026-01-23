@@ -260,6 +260,21 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             txtPrognozaA.Text = $"{_podsumowanie.PrognozaKlasaAKg:N0} kg";
             txtPrognozaB.Text = $"{_podsumowanie.PrognozaKlasaBKg:N0} kg";
 
+            // Różnica tuszek (odchylenie * 0.78 = ile tuszek więcej/mniej)
+            if (_podsumowanie.OdchylenieKgSuma != 0)
+            {
+                decimal roznicaTuszek = _podsumowanie.OdchylenieKgSuma * 0.78m;
+                string znak = roznicaTuszek > 0 ? "+" : "";
+                txtTuszkiRoznica.Text = $"{znak}{roznicaTuszek:N0} kg tuszek";
+                txtTuszkiRoznica.Foreground = roznicaTuszek > 0
+                    ? new SolidColorBrush(Color.FromRgb(78, 204, 163))   // Zielony - więcej
+                    : new SolidColorBrush(Color.FromRgb(252, 129, 129)); // Czerwony - mniej
+            }
+            else
+            {
+                txtTuszkiRoznica.Text = "";
+            }
+
             // Średnia waga planowana (kg plan / sztuki plan)
             if (_podsumowanie.SztukiPlanSuma > 0)
             {
@@ -431,7 +446,19 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 txtSumaOdchylenie.Foreground = new SolidColorBrush(Color.FromRgb(160, 174, 192));
             }
 
-            // Średnia waga
+            // Średnia waga planowana
+            var zPlanem = _dostawy.Where(d => d.SredniaWagaPlanCalc.HasValue && d.SredniaWagaPlanCalc > 0).ToList();
+            if (zPlanem.Any())
+            {
+                decimal sredniaWagaPlan = zPlanem.Average(d => d.SredniaWagaPlanCalc.Value);
+                txtSumaWagaPlan.Text = sredniaWagaPlan.ToString("N2");
+            }
+            else
+            {
+                txtSumaWagaPlan.Text = "-";
+            }
+
+            // Średnia waga rzeczywista
             var zwazone = _dostawy.Where(d => d.SredniaWagaRzeczywistaCalc.HasValue && d.SredniaWagaRzeczywistaCalc > 0).ToList();
             if (zwazone.Any())
             {
