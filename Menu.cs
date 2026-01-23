@@ -1160,7 +1160,7 @@ namespace Kalendarz1
                 "DashboardOfert", "DashboardWyczerpalnosci", "PanelReklamacji",
 
                 // PLANOWANIE I ANALIZY
-                "PrognozyUboju", "PlanTygodniowy", "AnalizaTygodniowa",
+                "PrognozyUboju", "PlanTygodniowy", "AnalizaTygodniowa", "DashboardPrzychodu",
 
                 // OPAKOWANIA I TRANSPORT
                 "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "UstalanieTranportu",
@@ -1451,7 +1451,12 @@ namespace Kalendarz1
                     new MenuItemConfig("AnalizaTygodniowa", "Dashboard Analityczny",
                         "Kompleksowa analiza bilansu produkcji i sprzedaży z wykresami i wskaźnikami",
                         Color.FromArgb(74, 20, 140), // Ciemny fioletowy #4A148C
-                        () => new Kalendarz1.AnalizaTygodniowa.AnalizaTygodniowaWindow(), "📉", "Analizy")
+                        () => new Kalendarz1.AnalizaTygodniowa.AnalizaTygodniowaWindow(), "📉", "Analizy"),
+
+                    new MenuItemConfig("DashboardPrzychodu", "Przychod Zywca LIVE",
+                        "Dashboard czasu rzeczywistego: plan vs rzeczywiste przyjęcia żywca z prognozą produkcji",
+                        Color.FromArgb(156, 39, 176), // Fioletowy #9C27B0
+                        () => new Kalendarz1.DashboardPrzychodu.Views.DashboardPrzychoduWindow(), "🐔", "Przychód")
                 },
 
                 // ═══════════════════════════════════════════════════════════════════════════
