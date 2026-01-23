@@ -99,7 +99,7 @@ namespace Kalendarz1.DashboardPrzychodu.Services
                     fc.SlaughterWeightUser AS KtoWazyl
 
                 FROM dbo.FarmerCalc fc
-                LEFT JOIN dbo.Dostawcy d ON TRY_CAST(LTRIM(RTRIM(fc.CustomerGID)) AS INT) = d.ID
+                LEFT JOIN dbo.Dostawcy d ON LTRIM(RTRIM(d.ID)) = LTRIM(RTRIM(fc.CustomerGID))
                 WHERE fc.CalcDate = @Data
                   AND ISNULL(fc.Deleted, 0) = 0
                 ORDER BY fc.CarLp";
