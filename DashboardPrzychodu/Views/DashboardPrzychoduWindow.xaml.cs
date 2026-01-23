@@ -548,5 +548,63 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             _autoRefreshTimer?.Stop();
             _countdownTimer?.Stop();
         }
+
+        /// <summary>
+        /// Uruchamia diagnostykę zapytania SQL
+        /// </summary>
+        private async void BtnDiagnose_Click(object sender, RoutedEventArgs e)
+        {
+            var selectedDate = dpData.SelectedDate ?? DateTime.Today;
+
+            try
+            {
+                ShowLoading("Uruchamiam diagnostykę...");
+
+                var diagnosticResult = await _przychodService.DiagnoseQueryAsync(selectedDate);
+
+                HideLoading();
+
+                // Pokaż wynik w oknie dialogowym
+                var diagWindow = new Window
+                {
+                    Title = "Diagnostyka zapytania SQL",
+                    Width = 900,
+                    Height = 700,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    Owner = this,
+                    Background = new SolidColorBrush(Color.FromRgb(26, 26, 46))
+                };
+
+                var scrollViewer = new ScrollViewer
+                {
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    Margin = new Thickness(10)
+                };
+
+                var textBox = new TextBox
+                {
+                    Text = diagnosticResult,
+                    IsReadOnly = true,
+                    FontFamily = new FontFamily("Consolas"),
+                    FontSize = 12,
+                    Background = new SolidColorBrush(Color.FromRgb(22, 33, 62)),
+                    Foreground = Brushes.White,
+                    BorderThickness = new Thickness(0),
+                    TextWrapping = TextWrapping.NoWrap,
+                    AcceptsReturn = true
+                };
+
+                scrollViewer.Content = textBox;
+                diagWindow.Content = scrollViewer;
+                diagWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                HideLoading();
+                MessageBox.Show($"Błąd diagnostyki:\n\n{ex.Message}\n\n{ex.StackTrace}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
     }
 }

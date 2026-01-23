@@ -667,9 +667,16 @@
                         </StackPanel>
                     </Button>
 
-                    <Button x:Name="btnPrint" Style="{StaticResource ModernButton}" Click="BtnPrint_Click">
+                    <Button x:Name="btnPrint" Style="{StaticResource ModernButton}" Margin="0,0,10,0" Click="BtnPrint_Click">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="Drukuj raport" FontSize="13"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button x:Name="btnDiagnose" Style="{StaticResource ModernButton}" Click="BtnDiagnose_Click"
+                            Background="#8B0000" ToolTip="Uruchom diagnostykę SQL - pokazuje szczegóły błędów">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="DIAGNOSTYKA" FontSize="13" Foreground="#FF6B6B"/>
                         </StackPanel>
                     </Button>
                 </StackPanel>
