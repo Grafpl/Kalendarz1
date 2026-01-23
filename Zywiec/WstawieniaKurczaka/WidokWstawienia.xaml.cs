@@ -202,6 +202,15 @@ namespace Kalendarz1
             // Zamknij otwarty tooltip przy kliknięciu w dowolne miejsce
             if (_currentOpenTooltip != null && _currentOpenTooltip.IsOpen)
             {
+                // Sprawdź czy kliknięcie jest na wierszu DataGrid który ma tooltip
+                var clickedRow = FindVisualParent<DataGridRow>(e.OriginalSource as DependencyObject);
+                if (clickedRow != null && clickedRow.ToolTip is ToolTip)
+                {
+                    // Kliknięcie na inny wiersz z tooltipem - nie zamykamy tutaj,
+                    // ShowTooltipWithTimer to zrobi i od razu otworzy nowy
+                    return;
+                }
+
                 _currentOpenTooltip.IsOpen = false;
                 StopTooltipTimer();
                 _currentOpenTooltip = null;
@@ -1528,6 +1537,18 @@ namespace Kalendarz1
 
                 var found = FindVisualChild<T>(child, name);
                 if (found != null) return found;
+            }
+            return null;
+        }
+
+        private T FindVisualParent<T>(DependencyObject child) where T : DependencyObject
+        {
+            var parent = child;
+            while (parent != null)
+            {
+                if (parent is T typedParent)
+                    return typedParent;
+                parent = VisualTreeHelper.GetParent(parent);
             }
             return null;
         }
