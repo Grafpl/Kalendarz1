@@ -59,27 +59,22 @@
         <!-- STYL KARTY -->
         <Style x:Key="CardStyle" TargetType="Border">
             <Setter Property="Background" Value="{StaticResource CardBackgroundBrush}"/>
-            <Setter Property="CornerRadius" Value="12"/>
-            <Setter Property="Padding" Value="20"/>
-            <Setter Property="Margin" Value="10"/>
-            <Setter Property="Effect">
-                <Setter.Value>
-                    <DropShadowEffect BlurRadius="15" ShadowDepth="3" Opacity="0.3" Color="Black"/>
-                </Setter.Value>
-            </Setter>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="Margin" Value="5"/>
         </Style>
 
-        <!-- STYL KAFELKA Z LICZBĄ -->
+        <!-- STYL KAFELKA Z LICZBĄ - KOMPAKTOWY -->
         <Style x:Key="NumberTileStyle" TargetType="Border">
             <Setter Property="Background" Value="{StaticResource BackgroundLightBrush}"/>
-            <Setter Property="CornerRadius" Value="12"/>
-            <Setter Property="Padding" Value="20,15"/>
-            <Setter Property="MinWidth" Value="180"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="MinWidth" Value="130"/>
         </Style>
 
-        <!-- DUŻA LICZBA -->
+        <!-- DUŻA LICZBA - KOMPAKTOWA -->
         <Style x:Key="BigNumberStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="32"/>
+            <Setter Property="FontSize" Value="22"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="HorizontalAlignment" Value="Center"/>
@@ -87,18 +82,18 @@
 
         <!-- MAŁA ETYKIETA -->
         <Style x:Key="LabelStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontSize" Value="10"/>
             <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
             <Setter Property="HorizontalAlignment" Value="Center"/>
-            <Setter Property="Margin" Value="0,5,0,0"/>
+            <Setter Property="Margin" Value="0,2,0,0"/>
         </Style>
 
         <!-- NAGŁÓWEK SEKCJI -->
         <Style x:Key="SectionHeaderStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="{StaticResource AccentBlueBrush}"/>
-            <Setter Property="Margin" Value="0,0,0,15"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
         </Style>
 
         <!-- STYL PRZYCISKU -->
@@ -192,7 +187,7 @@
             <Setter Property="FontSize" Value="14"/>
         </Style>
 
-        <!-- STYL DATAGRID -->
+        <!-- STYL DATAGRID - KOMPAKTOWY -->
         <Style x:Key="ModernDataGrid" TargetType="DataGrid">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="White"/>
@@ -202,8 +197,8 @@
             <Setter Property="AlternatingRowBackground" Value="#0A0F1A"/>
             <Setter Property="GridLinesVisibility" Value="Horizontal"/>
             <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource BorderBrush}"/>
-            <Setter Property="RowHeight" Value="45"/>
-            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="RowHeight" Value="32"/>
+            <Setter Property="FontSize" Value="12"/>
             <Setter Property="HeadersVisibility" Value="Column"/>
             <Setter Property="SelectionMode" Value="Single"/>
             <Setter Property="SelectionUnit" Value="FullRow"/>
@@ -213,22 +208,22 @@
             <Setter Property="IsReadOnly" Value="True"/>
         </Style>
 
-        <!-- STYL NAGŁÓWKA KOLUMNY -->
+        <!-- STYL NAGŁÓWKA KOLUMNY - KOMPAKTOWY -->
         <Style x:Key="DataGridColumnHeaderStyle" TargetType="DataGridColumnHeader">
             <Setter Property="Background" Value="{StaticResource BackgroundLightBrush}"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="8,6"/>
             <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
             <Setter Property="BorderThickness" Value="0,0,1,1"/>
             <Setter Property="HorizontalContentAlignment" Value="Left"/>
         </Style>
 
-        <!-- STYL KOMÓRKI -->
+        <!-- STYL KOMÓRKI - KOMPAKTOWY -->
         <Style x:Key="DataGridCellStyle" TargetType="DataGridCell">
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="12,0"/>
+            <Setter Property="Padding" Value="8,0"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -348,7 +343,7 @@
 
         <!-- GŁÓWNA ZAWARTOŚĆ -->
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <Grid Margin="15">
+            <Grid Margin="10,5,10,5">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
@@ -364,125 +359,117 @@
                         </Grid.RowDefinitions>
 
                         <!-- Nagłówek sekcji -->
-                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,20">
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
                             <TextBlock Text="PODSUMOWANIE DNIA" Style="{StaticResource SectionHeaderStyle}"/>
                             <TextBlock x:Name="txtDataDisplay" Text="" Foreground="{StaticResource TextSecondaryBrush}"
-                                       FontSize="14" VerticalAlignment="Center" Margin="15,0,0,0"/>
+                                       FontSize="11" VerticalAlignment="Center" Margin="10,0,0,0"/>
                         </StackPanel>
 
-                        <!-- Kafelki statystyk -->
-                        <UniformGrid Grid.Row="1" Columns="5" Margin="0,0,0,25">
+                        <!-- Kafelki statystyk - kompaktowe -->
+                        <UniformGrid Grid.Row="1" Columns="5" Margin="0,0,0,8">
                             <!-- PLANOWANE -->
-                            <Border Style="{StaticResource NumberTileStyle}" Margin="0,0,10,0">
+                            <Border Style="{StaticResource NumberTileStyle}" Margin="0,0,5,0">
                                 <StackPanel>
-                                    <TextBlock Text="PLANOWANE" Style="{StaticResource LabelStyle}" Margin="0,0,0,10"/>
-                                    <TextBlock x:Name="txtKgPlan" Text="0" Style="{StaticResource BigNumberStyle}"/>
-                                    <TextBlock Text="kg" Style="{StaticResource LabelStyle}"/>
+                                    <TextBlock Text="PLANOWANE" Style="{StaticResource LabelStyle}" Margin="0,0,0,4"/>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock x:Name="txtKgPlan" Text="0" Style="{StaticResource BigNumberStyle}"/>
+                                        <TextBlock Text=" kg" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
+                                    </StackPanel>
                                     <TextBlock x:Name="txtSztPlan" Text="0 szt" Foreground="{StaticResource TextSecondaryBrush}"
-                                               FontSize="13" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                                               FontSize="10" HorizontalAlignment="Center"/>
                                 </StackPanel>
                             </Border>
 
                             <!-- ZWAŻONE -->
-                            <Border Style="{StaticResource NumberTileStyle}" Margin="5,0">
-                                <Border.Background>
-                                    <SolidColorBrush Color="#0A4A3A"/>
-                                </Border.Background>
+                            <Border Style="{StaticResource NumberTileStyle}" Margin="3,0" Background="#0A4A3A">
                                 <StackPanel>
-                                    <TextBlock Text="ZWAZZONE" Style="{StaticResource LabelStyle}" Margin="0,0,0,10"/>
-                                    <TextBlock x:Name="txtKgZwazone" Text="0" Style="{StaticResource BigNumberStyle}"
-                                               Foreground="{StaticResource AccentGreenBrush}"/>
-                                    <TextBlock Text="kg" Style="{StaticResource LabelStyle}"/>
+                                    <TextBlock Text="ZWAZONE" Style="{StaticResource LabelStyle}" Margin="0,0,0,4"/>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock x:Name="txtKgZwazone" Text="0" Style="{StaticResource BigNumberStyle}"
+                                                   Foreground="{StaticResource AccentGreenBrush}"/>
+                                        <TextBlock Text=" kg" Foreground="{StaticResource AccentGreenBrush}" FontSize="11" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
+                                    </StackPanel>
                                     <TextBlock x:Name="txtSztZwazone" Text="0 szt" Foreground="{StaticResource AccentGreenBrush}"
-                                               FontSize="13" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                                               FontSize="10" HorizontalAlignment="Center"/>
                                 </StackPanel>
                             </Border>
 
                             <!-- POZOSTAŁO -->
-                            <Border Style="{StaticResource NumberTileStyle}" Margin="5,0">
+                            <Border Style="{StaticResource NumberTileStyle}" Margin="3,0">
                                 <StackPanel>
-                                    <TextBlock Text="POZOSTALO" Style="{StaticResource LabelStyle}" Margin="0,0,0,10"/>
-                                    <TextBlock x:Name="txtKgPozostalo" Text="0" Style="{StaticResource BigNumberStyle}"
-                                               Foreground="{StaticResource StatusWarningBrush}"/>
-                                    <TextBlock Text="kg" Style="{StaticResource LabelStyle}"/>
+                                    <TextBlock Text="POZOSTALO" Style="{StaticResource LabelStyle}" Margin="0,0,0,4"/>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock x:Name="txtKgPozostalo" Text="0" Style="{StaticResource BigNumberStyle}"
+                                                   Foreground="{StaticResource StatusWarningBrush}"/>
+                                        <TextBlock Text=" kg" Foreground="{StaticResource StatusWarningBrush}" FontSize="11" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
+                                    </StackPanel>
                                     <TextBlock x:Name="txtSztPozostalo" Text="0 szt" Foreground="{StaticResource StatusWarningBrush}"
-                                               FontSize="13" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                                               FontSize="10" HorizontalAlignment="Center"/>
                                 </StackPanel>
                             </Border>
 
                             <!-- ODCHYLENIE -->
-                            <Border Style="{StaticResource NumberTileStyle}" Margin="5,0">
+                            <Border Style="{StaticResource NumberTileStyle}" Margin="3,0">
                                 <StackPanel>
-                                    <TextBlock Text="ODCHYLENIE" Style="{StaticResource LabelStyle}" Margin="0,0,0,10"/>
-                                    <TextBlock x:Name="txtOdchylenie" Text="-" Style="{StaticResource BigNumberStyle}" FontSize="24"/>
+                                    <TextBlock Text="ODCHYLENIE" Style="{StaticResource LabelStyle}" Margin="0,0,0,4"/>
+                                    <TextBlock x:Name="txtOdchylenie" Text="-" Style="{StaticResource BigNumberStyle}" FontSize="18"/>
                                     <TextBlock x:Name="txtOdchylenieProc" Text="" Foreground="{StaticResource TextSecondaryBrush}"
-                                               FontSize="14" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                                               FontSize="11" HorizontalAlignment="Center"/>
                                 </StackPanel>
                             </Border>
 
                             <!-- REALIZACJA -->
-                            <Border Style="{StaticResource NumberTileStyle}" Margin="10,0,0,0">
+                            <Border Style="{StaticResource NumberTileStyle}" Margin="5,0,0,0">
                                 <StackPanel>
-                                    <TextBlock Text="REALIZACJA" Style="{StaticResource LabelStyle}" Margin="0,0,0,10"/>
-                                    <TextBlock x:Name="txtRealizacja" Text="0%" Style="{StaticResource BigNumberStyle}" FontSize="28"/>
-                                    <Grid Margin="0,10,0,0" Height="8">
-                                        <Border Background="#2A3A5A" CornerRadius="4"/>
+                                    <TextBlock Text="REALIZACJA" Style="{StaticResource LabelStyle}" Margin="0,0,0,4"/>
+                                    <TextBlock x:Name="txtRealizacja" Text="0%" Style="{StaticResource BigNumberStyle}" FontSize="20"/>
+                                    <Grid Margin="0,4,0,0" Height="6">
+                                        <Border Background="#2A3A5A" CornerRadius="3"/>
                                         <Border x:Name="progressBar" Background="{StaticResource AccentGreenBrush}"
-                                                CornerRadius="4" HorizontalAlignment="Left" Width="0"/>
+                                                CornerRadius="3" HorizontalAlignment="Left" Width="0"/>
                                     </Grid>
                                     <TextBlock x:Name="txtDostawyStatus" Text="0/0 dostaw" Foreground="{StaticResource TextSecondaryBrush}"
-                                               FontSize="11" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                                               FontSize="9" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                                 </StackPanel>
                             </Border>
                         </UniformGrid>
 
-                        <!-- Prognoza produkcji -->
-                        <Border Grid.Row="2" Background="{StaticResource BackgroundMediumBrush}" CornerRadius="8" Padding="20,15">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
+                        <!-- Prognoza produkcji - kompaktowa -->
+                        <Border Grid.Row="2" Background="{StaticResource BackgroundMediumBrush}" CornerRadius="6" Padding="10,6">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="PROGNOZA:" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11"
+                                           VerticalAlignment="Center" Margin="0,0,15,0" FontWeight="SemiBold"/>
 
-                                <TextBlock Grid.Column="0" Text="PROGNOZA TUSZEK (z juz zwazonych):"
-                                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="13"
-                                           VerticalAlignment="Center" Margin="0,0,30,0"/>
+                                <!-- Tuszki ogółem -->
+                                <Border Background="{StaticResource BackgroundLightBrush}" CornerRadius="4" Padding="10,4" Margin="0,0,10,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Tuszki:" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <TextBlock x:Name="txtPrognozaTuszek" Text="0 kg" FontWeight="SemiBold" Foreground="White" FontSize="12"/>
+                                    </StackPanel>
+                                </Border>
 
-                                <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                    <!-- Tuszki ogółem -->
-                                    <Border Background="{StaticResource BackgroundLightBrush}" CornerRadius="6" Padding="15,8" Margin="0,0,15,0">
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="Tuszki:" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                            <TextBlock x:Name="txtPrognozaTuszek" Text="0 kg" FontWeight="SemiBold" Foreground="White" FontSize="14"/>
-                                            <TextBlock Text=" (78%)" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </Border>
+                                <!-- Klasa A -->
+                                <Border Background="#0A4A3A" CornerRadius="4" Padding="10,4" Margin="0,0,10,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="A:" Foreground="{StaticResource AccentGreenBrush}" FontSize="11" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <TextBlock x:Name="txtPrognozaA" Text="0 kg" FontWeight="SemiBold" Foreground="{StaticResource AccentGreenBrush}" FontSize="12"/>
+                                    </StackPanel>
+                                </Border>
 
-                                    <!-- Klasa A -->
-                                    <Border Background="#0A4A3A" CornerRadius="6" Padding="15,8" Margin="0,0,15,0">
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="Klasa A:" Foreground="{StaticResource AccentGreenBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                            <TextBlock x:Name="txtPrognozaA" Text="0 kg" FontWeight="SemiBold" Foreground="{StaticResource AccentGreenBrush}" FontSize="14"/>
-                                            <TextBlock Text=" (80%)" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </Border>
-
-                                    <!-- Klasa B -->
-                                    <Border Background="#4A3A0A" CornerRadius="6" Padding="15,8">
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="Klasa B:" Foreground="{StaticResource StatusWarningBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                            <TextBlock x:Name="txtPrognozaB" Text="0 kg" FontWeight="SemiBold" Foreground="{StaticResource StatusWarningBrush}" FontSize="14"/>
-                                            <TextBlock Text=" (20% - krojenie)" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </Border>
-                                </StackPanel>
-                            </Grid>
+                                <!-- Klasa B -->
+                                <Border Background="#4A3A0A" CornerRadius="4" Padding="10,4">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="B:" Foreground="{StaticResource StatusWarningBrush}" FontSize="11" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <TextBlock x:Name="txtPrognozaB" Text="0 kg" FontWeight="SemiBold" Foreground="{StaticResource StatusWarningBrush}" FontSize="12"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
                         </Border>
                     </Grid>
                 </Border>
 
                 <!-- TABELA DOSTAW -->
-                <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="10,0,10,10">
+                <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="5,0,5,5">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -491,7 +478,7 @@
                         </Grid.RowDefinitions>
 
                         <!-- Nagłówek tabeli -->
-                        <Grid Grid.Row="0" Margin="0,0,0,15">
+                        <Grid Grid.Row="0" Margin="0,0,0,6">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
@@ -502,7 +489,7 @@
                             <StackPanel Grid.Column="1" Orientation="Horizontal">
                                 <TextBlock x:Name="txtLiczbaWynikow" Text="Wyniki: 0"
                                            Foreground="{StaticResource TextSecondaryBrush}"
-                                           VerticalAlignment="Center" FontSize="13"/>
+                                           VerticalAlignment="Center" FontSize="11"/>
                             </StackPanel>
                         </Grid>
 
