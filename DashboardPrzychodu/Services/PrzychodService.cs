@@ -202,6 +202,7 @@ namespace Kalendarz1.DashboardPrzychodu.Services
             var dostawy = new List<DostawaItem>();
 
             // Nowe zapytanie: PLAN z HarmonogramDostaw (przez LpDostawy = Lp)
+            // UWAGA: hd.Auta może zawierać tekst jak '0-1', więc używamy TRY_CAST
             const string query = @"
                 SELECT
                     fc.ID,
@@ -216,17 +217,18 @@ namespace Kalendarz1.DashboardPrzychodu.Services
                     -- ========== PLAN (z HarmonogramDostaw) ==========
                     hd.Lp AS HarmonogramLp,
                     ISNULL(hd.SztukiDek, 0) AS SztukiPlanLacznie,
-                    ISNULL(hd.Auta, 1) AS IloscAutPlan,
+                    ISNULL(TRY_CAST(hd.Auta AS INT), 1) AS IloscAutPlan,
                     ISNULL(hd.WagaDek, 0) AS WagaDeklHarmonogram,
-                    hd.SztSzuflada AS SztPojPlan,
+                    TRY_CAST(hd.SztSzuflada AS DECIMAL(10,2)) AS SztPojPlan,
 
                     -- Plan na JEDNO auto (proporcjonalnie):
-                    CASE WHEN ISNULL(hd.Auta, 0) > 0
-                         THEN CAST(hd.SztukiDek / hd.Auta AS INT)
+                    -- TRY_CAST dla Auta - może zawierać tekst jak '0-1'
+                    CASE WHEN ISNULL(TRY_CAST(hd.Auta AS INT), 0) > 0
+                         THEN CAST(hd.SztukiDek / TRY_CAST(hd.Auta AS INT) AS INT)
                          ELSE ISNULL(hd.SztukiDek, ISNULL(fc.DeclI1, 0)) END AS SztukiPlan,
 
-                    CASE WHEN ISNULL(hd.Auta, 0) > 0
-                         THEN CAST((CAST(hd.SztukiDek AS DECIMAL) / hd.Auta) * ISNULL(hd.WagaDek, 0) AS DECIMAL(12,0))
+                    CASE WHEN ISNULL(TRY_CAST(hd.Auta AS INT), 0) > 0
+                         THEN CAST((CAST(hd.SztukiDek AS DECIMAL) / TRY_CAST(hd.Auta AS INT)) * ISNULL(hd.WagaDek, 0) AS DECIMAL(12,0))
                          ELSE CAST(ISNULL(hd.SztukiDek, ISNULL(fc.DeclI1, 0)) * ISNULL(hd.WagaDek, COALESCE(fc.WagaDek, 0)) AS DECIMAL(12,0)) END AS KgPlan,
 
                     -- Średnia waga deklarowana (z harmonogramu)
@@ -244,22 +246,22 @@ namespace Kalendarz1.DashboardPrzychodu.Services
                          ELSE NULL END AS SredniaWagaRzeczywista,
 
                     -- Rzeczywiste szt/pojemnik
-                    fc.SztPoj AS SztPojRzecz,
+                    TRY_CAST(fc.SztPoj AS DECIMAL(10,2)) AS SztPojRzecz,
 
                     -- ========== ODCHYLENIE KG ==========
-                    CASE WHEN ISNULL(hd.Auta, 0) > 0 AND ISNULL(fc.NettoWeight, 0) > 0
-                         THEN CAST(fc.NettoWeight - ((CAST(hd.SztukiDek AS DECIMAL) / hd.Auta) * ISNULL(hd.WagaDek, 0)) AS DECIMAL(12,0))
+                    CASE WHEN ISNULL(TRY_CAST(hd.Auta AS INT), 0) > 0 AND ISNULL(fc.NettoWeight, 0) > 0
+                         THEN CAST(fc.NettoWeight - ((CAST(hd.SztukiDek AS DECIMAL) / TRY_CAST(hd.Auta AS INT)) * ISNULL(hd.WagaDek, 0)) AS DECIMAL(12,0))
                          WHEN ISNULL(fc.NettoWeight, 0) > 0 AND COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0) > 0
                          THEN CAST(fc.NettoWeight - COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0) AS DECIMAL(18,2))
                          ELSE NULL END AS OdchylenieKg,
 
                     -- Odchylenie %
-                    CASE WHEN ISNULL(hd.Auta, 0) > 0
+                    CASE WHEN ISNULL(TRY_CAST(hd.Auta AS INT), 0) > 0
                               AND ISNULL(fc.NettoWeight, 0) > 0
-                              AND (CAST(hd.SztukiDek AS DECIMAL) / hd.Auta) * ISNULL(hd.WagaDek, 0) > 0
+                              AND (CAST(hd.SztukiDek AS DECIMAL) / TRY_CAST(hd.Auta AS INT)) * ISNULL(hd.WagaDek, 0) > 0
                          THEN CAST(
-                              (fc.NettoWeight - ((CAST(hd.SztukiDek AS DECIMAL) / hd.Auta) * hd.WagaDek))
-                              / (((CAST(hd.SztukiDek AS DECIMAL) / hd.Auta) * hd.WagaDek)) * 100
+                              (fc.NettoWeight - ((CAST(hd.SztukiDek AS DECIMAL) / TRY_CAST(hd.Auta AS INT)) * hd.WagaDek))
+                              / (((CAST(hd.SztukiDek AS DECIMAL) / TRY_CAST(hd.Auta AS INT)) * hd.WagaDek)) * 100
                               AS DECIMAL(5,2))
                          WHEN ISNULL(fc.NettoWeight, 0) > 0 AND COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0) > 0
                          THEN CAST((fc.NettoWeight - COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0))
@@ -376,6 +378,7 @@ namespace Kalendarz1.DashboardPrzychodu.Services
             var podsumowanie = new PodsumowanieDnia();
 
             // Nowe zapytanie z CTE: Plan z unikalnych harmonogramów
+            // UWAGA: hd.Auta i hd.SztSzuflada mogą zawierać tekst, więc używamy TRY_CAST
             const string query = @"
                 WITH UnikalneHarmonogramy AS (
                     -- Każdy LpDostawy tylko raz (bo może być kilka aut z tego samego harmonogramu)
@@ -383,8 +386,8 @@ namespace Kalendarz1.DashboardPrzychodu.Services
                         fc.LpDostawy,
                         hd.SztukiDek,
                         hd.WagaDek,
-                        hd.SztSzuflada,
-                        hd.Auta,
+                        TRY_CAST(hd.SztSzuflada AS DECIMAL(10,2)) AS SztSzuflada,
+                        TRY_CAST(hd.Auta AS INT) AS Auta,
                         CAST(ISNULL(hd.SztukiDek, 0) * ISNULL(hd.WagaDek, 0) AS DECIMAL(12,0)) AS KgPlanLacznie
                     FROM dbo.FarmerCalc fc
                     INNER JOIN dbo.HarmonogramDostaw hd ON fc.LpDostawy = hd.Lp
