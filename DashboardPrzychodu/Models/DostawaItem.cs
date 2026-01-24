@@ -267,6 +267,8 @@ namespace Kalendarz1.DashboardPrzychodu.Models
                 _kgPozostalo = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(TuszkiPozostalo));
+                OnPropertyChanged(nameof(PozostaloProc));
+                OnPropertyChanged(nameof(PozostaloKolor));
                 OnPropertyChanged(nameof(KgPlanNaAuto));
             }
         }
@@ -374,6 +376,24 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         /// Tuszki pozostałe do dostarczenia (kg × 0.78)
         /// </summary>
         public decimal TuszkiPozostalo => Math.Round(KgPozostalo * 0.78m, 0);
+
+        /// <summary>
+        /// Procent pozostałego żywca względem planu (KgPozostalo / PlanKgLacznie * 100)
+        /// </summary>
+        public double PozostaloProc => PlanKgLacznie > 0 ? (double)(KgPozostalo / PlanKgLacznie) * 100 : 0;
+
+        /// <summary>
+        /// Kolor dla pozostałego żywca - czerwony gdy < 5%
+        /// </summary>
+        public Brush PozostaloKolor
+        {
+            get
+            {
+                if (PozostaloProc < 5)
+                    return new SolidColorBrush(System.Windows.Media.Color.FromRgb(248, 113, 113)); // Czerwony #F87171
+                return new SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 217, 255)); // Cyan #00D9FF
+            }
+        }
 
         /// <summary>
         /// Pozostalo display - kg żywca
