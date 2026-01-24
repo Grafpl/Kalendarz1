@@ -195,6 +195,9 @@ namespace Kalendarz1
 
             // Zamknij tooltip przy wciśnięciu klawisza Escape
             this.PreviewKeyDown += Window_PreviewKeyDown;
+
+            // Zamknij tooltip gdy okno straci fokus (np. przy otwarciu innego okna)
+            this.Deactivated += Window_Deactivated;
         }
 
         private void Window_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -230,6 +233,12 @@ namespace Kalendarz1
                 _tooltipCloseTime = DateTime.Now;
                 e.Handled = true;
             }
+        }
+
+        private void Window_Deactivated(object sender, EventArgs e)
+        {
+            // Zamknij tooltip gdy okno straci fokus (np. przy otwarciu innego okna dialogowego)
+            CloseCurrentTooltip();
         }
 
         // ====== PRZYCISK POMOCY ======
@@ -1676,6 +1685,20 @@ namespace Kalendarz1
             {
                 _tooltipCloseTimer.Stop();
                 _tooltipCloseTimer = null;
+            }
+        }
+
+        /// <summary>
+        /// Zamyka aktualnie otwarty tooltip
+        /// </summary>
+        private void CloseCurrentTooltip()
+        {
+            if (_currentOpenTooltip != null && _currentOpenTooltip.IsOpen)
+            {
+                _currentOpenTooltip.IsOpen = false;
+                StopTooltipTimer();
+                _currentOpenTooltip = null;
+                _tooltipCloseTime = DateTime.Now;
             }
         }
 
