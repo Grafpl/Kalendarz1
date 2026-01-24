@@ -287,16 +287,70 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             }
 
             // Średnia waga rzeczywista (netto kg / lumel sztuki)
+            decimal? srWagaRzeczValue = null;
             if (_podsumowanie.SztukiZwazoneSuma > 0)
             {
-                decimal srWagaRzecz = _podsumowanie.KgZwazoneSuma / _podsumowanie.SztukiZwazoneSuma;
-                txtSrWagaRzecz.Text = srWagaRzecz.ToString("N2");
+                srWagaRzeczValue = _podsumowanie.KgZwazoneSuma / _podsumowanie.SztukiZwazoneSuma;
+                txtSrWagaRzecz.Text = srWagaRzeczValue.Value.ToString("N2");
             }
             else
             {
                 txtSrWagaRzecz.Text = "-";
             }
+
+            // Porównanie wag (nowy kafelek)
+            decimal? srWagaPlanValue = _podsumowanie.SztukiPlanSuma > 0
+                ? _podsumowanie.KgPlanSuma / _podsumowanie.SztukiPlanSuma
+                : null;
+
+            UpdateWeightComparison(srWagaPlanValue, srWagaRzeczValue);
         }
+
+        /// <summary>
+        /// Aktualizacja kafelka porównania wag
+        /// </summary>
+        private void UpdateWeightComparison(decimal? wagaPlan, decimal? wagaRzecz)
+        {
+            // Ustaw wartości
+            txtWagaPlanCompare.Text = wagaPlan.HasValue ? wagaPlan.Value.ToString("N2") : "-";
+            txtWagaRzeczCompare.Text = wagaRzecz.HasValue ? wagaRzecz.Value.ToString("N2") : "-";
+
+            if (!wagaPlan.HasValue || !wagaRzecz.HasValue)
+            {
+                txtWagaArrow.Text = "→";
+                txtWagaArrow.Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128));
+                txtWagaInterpretacja.Text = "Brak danych";
+                txtWagaInterpretacja.Foreground = new SolidColorBrush(Color.FromRgb(160, 174, 192));
+                return;
+            }
+
+            decimal roznica = wagaRzecz.Value - wagaPlan.Value;
+            decimal procentRoznicy = wagaPlan.Value > 0 ? (roznica / wagaPlan.Value) * 100 : 0;
+
+            if (roznica > 0.01m)
+            {
+                // Ptaki cięższe niż deklarowane
+                txtWagaArrow.Text = "↑";
+                txtWagaArrow.Foreground = new SolidColorBrush(Color.FromRgb(78, 204, 163)); // Zielony
+                txtWagaInterpretacja.Text = $"Ciezsze +{roznica:N3} kg ({procentRoznicy:+0.0}%)";
+                txtWagaInterpretacja.Foreground = new SolidColorBrush(Color.FromRgb(78, 204, 163));
+            }
+            else if (roznica < -0.01m)
+            {
+                // Ptaki lżejsze niż deklarowane
+                txtWagaArrow.Text = "↓";
+                txtWagaArrow.Foreground = new SolidColorBrush(Color.FromRgb(248, 113, 113)); // Czerwony
+                txtWagaInterpretacja.Text = $"Lzejsze {roznica:N3} kg ({procentRoznicy:0.0}%)";
+                txtWagaInterpretacja.Foreground = new SolidColorBrush(Color.FromRgb(248, 113, 113));
+            }
+            else
+            {
+                // Prawie identyczne
+                txtWagaArrow.Text = "=";
+                txtWagaArrow.Foreground = new SolidColorBrush(Color.FromRgb(34, 211, 238)); // Cyan
+                txtWagaInterpretacja.Text = "Zgodne z deklaracja";
+                txtWagaInterpretacja.Foreground = new SolidColorBrush(Color.FromRgb(34, 211, 238));
+            }
 
         /// <summary>
         /// Aktualizacja trendu dla kafelka ZWAŻONE
@@ -383,17 +437,11 @@ namespace Kalendarz1.DashboardPrzychodu.Views
 
                 // Zmiana koloru w zależności od postępu
                 if (procent >= 80)
-                    progressFill.Background = FindResource("GradientZielony") as LinearGradientBrush;
+                    progressFill.Background = new SolidColorBrush(Color.FromRgb(78, 204, 163)); // Zielony
                 else if (procent >= 50)
-                    progressFill.Background = new LinearGradientBrush(
-                        Color.FromRgb(255, 179, 71),
-                        Color.FromRgb(200, 140, 50),
-                        90);
+                    progressFill.Background = new SolidColorBrush(Color.FromRgb(255, 179, 71)); // Pomarańczowy
                 else
-                    progressFill.Background = new LinearGradientBrush(
-                        Color.FromRgb(233, 69, 96),
-                        Color.FromRgb(180, 50, 70),
-                        90);
+                    progressFill.Background = new SolidColorBrush(Color.FromRgb(233, 69, 96)); // Czerwony
 
                 txtProgressPercent.Text = $"{procent:N0}%";
                 txtProgressMax.Text = $"{_podsumowanie.KgPlanSuma:N0} kg";

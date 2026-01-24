@@ -39,41 +39,17 @@
         <SolidColorBrush x:Key="StatusWarningBrush" Color="{StaticResource StatusWarning}"/>
         <SolidColorBrush x:Key="StatusErrorBrush" Color="{StaticResource StatusError}"/>
 
-        <!-- GRADIENTY DLA KAFELKÓW - JASNE I WESOŁE -->
-        <LinearGradientBrush x:Key="GradientSzary" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#4A5568" Offset="0"/>
-            <GradientStop Color="#2D3748" Offset="1"/>
-        </LinearGradientBrush>
+        <!-- KOLORY PASKÓW KAFELKÓW -->
+        <SolidColorBrush x:Key="BarSzary" Color="#6B7280"/>
+        <SolidColorBrush x:Key="BarZielony" Color="#4ECCA3"/>
+        <SolidColorBrush x:Key="BarNiebieski" Color="#00D9FF"/>
+        <SolidColorBrush x:Key="BarFioletowy" Color="#A78BFA"/>
+        <SolidColorBrush x:Key="BarPomaranczowy" Color="#FFB347"/>
+        <SolidColorBrush x:Key="BarCzerwony" Color="#F87171"/>
+        <SolidColorBrush x:Key="BarCyan" Color="#22D3EE"/>
 
-        <LinearGradientBrush x:Key="GradientZielony" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#48BB78" Offset="0"/>
-            <GradientStop Color="#276749" Offset="1"/>
-        </LinearGradientBrush>
-
-        <LinearGradientBrush x:Key="GradientNiebieski" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#4299E1" Offset="0"/>
-            <GradientStop Color="#2B6CB0" Offset="1"/>
-        </LinearGradientBrush>
-
-        <LinearGradientBrush x:Key="GradientFioletowy" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#9F7AEA" Offset="0"/>
-            <GradientStop Color="#6B46C1" Offset="1"/>
-        </LinearGradientBrush>
-
-        <LinearGradientBrush x:Key="GradientPomaranczowy" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#ED8936" Offset="0"/>
-            <GradientStop Color="#C05621" Offset="1"/>
-        </LinearGradientBrush>
-
-        <LinearGradientBrush x:Key="GradientCzerwony" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#FC8181" Offset="0"/>
-            <GradientStop Color="#C53030" Offset="1"/>
-        </LinearGradientBrush>
-
-        <LinearGradientBrush x:Key="GradientCyan" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#4FD1C5" Offset="0"/>
-            <GradientStop Color="#319795" Offset="1"/>
-        </LinearGradientBrush>
+        <!-- Ciemne tło kafelków -->
+        <SolidColorBrush x:Key="TileDarkBg" Color="#1A1A2E"/>
 
         <!-- KONWERTERY -->
         <conv:StatusToBackgroundConverter x:Key="StatusToBackgroundConverter"/>
@@ -97,18 +73,24 @@
             </Setter>
         </Style>
 
-        <!-- DUŻA LICZBA - MNIEJSZA -->
+        <!-- DUŻA LICZBA - JAŚNIEJSZA Z CIENIEM -->
         <Style x:Key="BigNumberStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="22"/>
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
             <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="1" Direction="270" Opacity="0.5"/>
+                </Setter.Value>
+            </Setter>
         </Style>
 
-        <!-- ETYKIETA -->
+        <!-- ETYKIETA - JAŚNIEJSZA -->
         <Style x:Key="LabelStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
             <Setter Property="HorizontalAlignment" Value="Center"/>
         </Style>
 
@@ -285,6 +267,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -333,7 +316,7 @@
             <!-- Pasek postępu -->
             <Border Grid.Row="0" Background="#1A202C" CornerRadius="6" Height="12">
                 <Border x:Name="progressFill"
-                        Background="{StaticResource GradientZielony}"
+                        Background="{StaticResource BarZielony}"
                         CornerRadius="6"
                         HorizontalAlignment="Left"
                         Width="0">
@@ -362,27 +345,38 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="1.2*"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- PLANOWANE -->
-                <Border Grid.Column="0" Style="{StaticResource KafelekStyle}" Background="{StaticResource GradientSzary}" Margin="0,0,5,0">
+                <Border Grid.Column="0" Style="{StaticResource KafelekStyle}" Background="{StaticResource TileDarkBg}"
+                        BorderThickness="0,0,0,4" BorderBrush="{StaticResource BarSzary}" Margin="0,0,5,0"
+                        ToolTip="🐔 Planowana dostawa żywca wg deklaracji hodowców">
                     <StackPanel>
-                        <TextBlock Text="PLANOWANE" Style="{StaticResource LabelStyle}"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="🐔" FontSize="14" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBlock Text="PLANOWANE" Style="{StaticResource LabelStyle}"/>
+                        </StackPanel>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
                             <TextBlock x:Name="txtKgPlan" Text="0" Style="{StaticResource BigNumberStyle}"/>
-                            <TextBlock Text=" kg" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12" VerticalAlignment="Bottom" Margin="0,0,0,4"/>
+                            <TextBlock Text=" kg" Foreground="#CBD5E1" FontSize="12" VerticalAlignment="Bottom" Margin="0,0,0,4"/>
                         </StackPanel>
-                        <TextBlock x:Name="txtSztPlan" Text="0 szt" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="txtSztPlan" Text="0 szt" Foreground="#A0AEC0" FontSize="11" HorizontalAlignment="Center"/>
                     </StackPanel>
                 </Border>
 
                 <!-- ZWAŻONE -->
-                <Border Grid.Column="1" Style="{StaticResource KafelekStyle}" Background="{StaticResource GradientZielony}" Margin="5,0">
+                <Border Grid.Column="1" Style="{StaticResource KafelekStyle}" Background="{StaticResource TileDarkBg}"
+                        BorderThickness="0,0,0,4" BorderBrush="{StaticResource BarZielony}" Margin="5,0"
+                        ToolTip="🐔 Żywiec już zważony na wadze przyjęcia">
                     <StackPanel>
-                        <TextBlock Text="ZWAZONE" Style="{StaticResource LabelStyle}"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="🐔" FontSize="14" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBlock Text="ZWAZONE" Style="{StaticResource LabelStyle}" Foreground="{StaticResource AccentGreenBrush}"/>
+                        </StackPanel>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
                             <TextBlock x:Name="txtKgZwazone" Text="0" Style="{StaticResource BigNumberStyle}" Foreground="{StaticResource AccentGreenBrush}"/>
                             <TextBlock Text=" kg" Foreground="{StaticResource AccentGreenBrush}" FontSize="12" VerticalAlignment="Bottom" Margin="0,0,0,4"/>
@@ -390,15 +384,20 @@
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                             <TextBlock x:Name="txtSztZwazone" Text="0 szt" Foreground="{StaticResource AccentGreenBrush}" FontSize="11"/>
-                            <TextBlock x:Name="txtTrendInfo" Text="" Foreground="#718096" FontSize="9" Margin="5,0,0,0" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="txtTrendInfo" Text="" Foreground="#A0AEC0" FontSize="9" Margin="5,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
 
                 <!-- POZOSTAŁO -->
-                <Border Grid.Column="2" Style="{StaticResource KafelekStyle}" Background="{StaticResource GradientNiebieski}" Margin="5,0">
+                <Border Grid.Column="2" Style="{StaticResource KafelekStyle}" Background="{StaticResource TileDarkBg}"
+                        BorderThickness="0,0,0,4" BorderBrush="{StaticResource BarNiebieski}" Margin="5,0"
+                        ToolTip="🐔 Żywiec oczekujący na ważenie">
                     <StackPanel>
-                        <TextBlock Text="POZOSTALO" Style="{StaticResource LabelStyle}"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="🐔" FontSize="14" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBlock Text="POZOSTALO" Style="{StaticResource LabelStyle}" Foreground="{StaticResource AccentBlueBrush}"/>
+                        </StackPanel>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
                             <TextBlock x:Name="txtKgPozostalo" Text="0" Style="{StaticResource BigNumberStyle}" Foreground="{StaticResource StatusWarningBrush}"/>
                             <TextBlock Text=" kg" Foreground="{StaticResource StatusWarningBrush}" FontSize="12" VerticalAlignment="Bottom" Margin="0,0,0,4"/>
@@ -408,40 +407,99 @@
                 </Border>
 
                 <!-- ODCHYLENIE - z pulsującym obramowaniem -->
-                <Border x:Name="borderOdchylenie" Grid.Column="3" Style="{StaticResource KafelekStyle}" Background="{StaticResource GradientSzary}" Margin="5,0" BorderThickness="2" BorderBrush="Transparent">
+                <Border x:Name="borderOdchylenie" Grid.Column="3" Style="{StaticResource KafelekStyle}" Background="{StaticResource TileDarkBg}"
+                        BorderThickness="0,0,0,4" BorderBrush="{StaticResource BarSzary}" Margin="5,0"
+                        ToolTip="Różnica między planem a rzeczywistością. &#10;Zielony: ±2% OK | Pomarańczowy: ±5% UWAGA | Czerwony: >5% PROBLEM">
                     <StackPanel>
                         <TextBlock Text="ODCHYLENIE" Style="{StaticResource LabelStyle}"/>
                         <TextBlock x:Name="txtOdchylenie" Text="-" Style="{StaticResource BigNumberStyle}" FontSize="22" Margin="0,4,0,0"/>
-                        <TextBlock x:Name="txtOdchylenieProc" Text="" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12" HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="txtOdchylenieProc" Text="" Foreground="#A0AEC0" FontSize="12" HorizontalAlignment="Center"/>
                     </StackPanel>
                 </Border>
 
-                <!-- ŚREDNIA WAGA PLAN -->
-                <Border Grid.Column="4" Style="{StaticResource KafelekStyle}" Background="{StaticResource GradientFioletowy}" Margin="5,0">
-                    <StackPanel>
-                        <TextBlock Text="SR.WAGA PLAN" Style="{StaticResource LabelStyle}"/>
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
-                            <TextBlock x:Name="txtSrWagaPlan" Text="-" Style="{StaticResource BigNumberStyle}" FontSize="24" Foreground="#9F7AEA"/>
-                            <TextBlock Text=" kg" Foreground="#9F7AEA" FontSize="11" VerticalAlignment="Bottom" Margin="0,0,0,4"/>
+                <!-- PORÓWNANIE WAG - NOWY KAFELEK -->
+                <Border Grid.Column="4" Style="{StaticResource KafelekStyle}" Background="{StaticResource TileDarkBg}"
+                        BorderThickness="0,0,0,4" BorderBrush="{StaticResource BarCyan}" Margin="5,0"
+                        ToolTip="🐔 Porównanie średniej wagi deklarowanej vs rzeczywistej&#10;Pokazuje czy ptaki są cięższe czy lżejsze od deklaracji">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Nagłówek -->
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="🐔" FontSize="14" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBlock Text="POROWNANIE WAG" Style="{StaticResource LabelStyle}" Foreground="#22D3EE"/>
                         </StackPanel>
-                        <TextBlock Text="na sztuke" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" HorizontalAlignment="Center"/>
+
+                        <!-- Porównanie: Plan vs Rzecz -->
+                        <Grid Grid.Row="1" Margin="0,4,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Deklarowana -->
+                            <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                                <TextBlock Text="Dekl." FontSize="9" Foreground="#A0AEC0" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="txtWagaPlanCompare" Text="-" FontSize="14" FontWeight="Bold" Foreground="#A78BFA" HorizontalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- Strzałka -->
+                            <TextBlock Grid.Column="1" x:Name="txtWagaArrow" Text="→" FontSize="16" Foreground="#6B7280" VerticalAlignment="Center" Margin="5,0"/>
+
+                            <!-- Rzeczywista -->
+                            <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                                <TextBlock Text="Rzecz." FontSize="9" Foreground="#A0AEC0" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="txtWagaRzeczCompare" Text="-" FontSize="14" FontWeight="Bold" Foreground="#4ECCA3" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Interpretacja -->
+                        <TextBlock x:Name="txtWagaInterpretacja" Grid.Row="2" Text="-" FontSize="10" FontWeight="Bold"
+                                   HorizontalAlignment="Center" Margin="0,4,0,0" Foreground="#A0AEC0"/>
+                    </Grid>
+                </Border>
+
+                <!-- ŚREDNIA WAGA PLAN -->
+                <Border Grid.Column="5" Style="{StaticResource KafelekStyle}" Background="{StaticResource TileDarkBg}"
+                        BorderThickness="0,0,0,4" BorderBrush="{StaticResource BarFioletowy}" Margin="5,0"
+                        ToolTip="🐔 Deklarowana średnia waga sztuki wg hodowcy">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="🐔" FontSize="14" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBlock Text="SR.WAGA DEKL." Style="{StaticResource LabelStyle}" Foreground="#A78BFA"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
+                            <TextBlock x:Name="txtSrWagaPlan" Text="-" Style="{StaticResource BigNumberStyle}" FontSize="24" Foreground="#A78BFA"/>
+                            <TextBlock Text=" kg" Foreground="#A78BFA" FontSize="11" VerticalAlignment="Bottom" Margin="0,0,0,4"/>
+                        </StackPanel>
+                        <TextBlock Text="na sztuke" Foreground="#A0AEC0" FontSize="10" HorizontalAlignment="Center"/>
                     </StackPanel>
                 </Border>
 
                 <!-- ŚREDNIA WAGA RZECZ -->
-                <Border Grid.Column="5" Style="{StaticResource KafelekStyle}" Background="{StaticResource GradientZielony}" Margin="5,0">
+                <Border Grid.Column="6" Style="{StaticResource KafelekStyle}" Background="{StaticResource TileDarkBg}"
+                        BorderThickness="0,0,0,4" BorderBrush="{StaticResource BarZielony}" Margin="5,0"
+                        ToolTip="🐔 Rzeczywista średnia waga z wagi przyjęcia">
                     <StackPanel>
-                        <TextBlock Text="SR.WAGA RZECZ" Style="{StaticResource LabelStyle}"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="🐔" FontSize="14" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBlock Text="SR.WAGA RZECZ." Style="{StaticResource LabelStyle}" Foreground="{StaticResource AccentGreenBrush}"/>
+                        </StackPanel>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
                             <TextBlock x:Name="txtSrWagaRzecz" Text="-" Style="{StaticResource BigNumberStyle}" FontSize="24" Foreground="{StaticResource AccentGreenBrush}"/>
                             <TextBlock Text=" kg" Foreground="{StaticResource AccentGreenBrush}" FontSize="11" VerticalAlignment="Bottom" Margin="0,0,0,4"/>
                         </StackPanel>
-                        <TextBlock Text="netto/lumel" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" HorizontalAlignment="Center"/>
+                        <TextBlock Text="netto/lumel" Foreground="#A0AEC0" FontSize="10" HorizontalAlignment="Center"/>
                     </StackPanel>
                 </Border>
 
                 <!-- REALIZACJA + PROGNOZA -->
-                <StackPanel Grid.Column="6" Margin="10,0,0,0" VerticalAlignment="Center">
+                <StackPanel Grid.Column="7" Margin="10,0,0,0" VerticalAlignment="Center">
                     <!-- Realizacja -->
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
                         <TextBlock Text="Realizacja:" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0"/>
@@ -449,7 +507,9 @@
                         <TextBlock x:Name="txtDostawyStatus" Text=" (0/0)" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
                     </StackPanel>
                     <!-- Prognoza Tuszek rozbudowana z +/- -->
-                    <Border Style="{StaticResource KafelekStyle}" Background="{StaticResource GradientFioletowy}" Padding="10,6">
+                    <Border Style="{StaticResource KafelekStyle}" Background="{StaticResource TileDarkBg}"
+                            BorderThickness="0,0,0,4" BorderBrush="{StaticResource BarFioletowy}" Padding="10,6"
+                            ToolTip="🍗 Prognozowana ilość tuszek po uboju (78% wydajność)&#10;Klasa A: 80% | Klasa B: 20%">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -459,12 +519,15 @@
                             </Grid.RowDefinitions>
 
                             <!-- Nagłówek -->
-                            <TextBlock Grid.Row="0" Text="PROGNOZA TUSZEK (78%)" FontSize="9" Foreground="#A0AEC0" HorizontalAlignment="Center"/>
+                            <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center">
+                                <TextBlock Text="🍗" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                <TextBlock Text="PROGNOZA TUSZEK (78%)" FontSize="9" FontWeight="SemiBold" Foreground="#E2E8F0" HorizontalAlignment="Center"/>
+                            </StackPanel>
 
                             <!-- Główna wartość -->
                             <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,2,0,0">
-                                <TextBlock x:Name="txtPrognozaTuszek" Text="0" FontSize="16" FontWeight="Bold" Foreground="White"/>
-                                <TextBlock Text=" kg" FontSize="9" Foreground="#718096" VerticalAlignment="Bottom" Margin="2,0,0,2"/>
+                                <TextBlock x:Name="txtPrognozaTuszek" Text="0" FontSize="16" FontWeight="Bold" Foreground="#FFFFFF"/>
+                                <TextBlock Text=" kg" FontSize="9" Foreground="#A0AEC0" VerticalAlignment="Bottom" Margin="2,0,0,2"/>
                             </StackPanel>
 
                             <!-- Różnica tuszek (+/-) -->
@@ -483,7 +546,7 @@
                                 <!-- Klasa A -->
                                 <StackPanel Grid.Column="0" HorizontalAlignment="Center">
                                     <TextBlock Text="A (80%)" FontSize="9" FontWeight="Bold" Foreground="#4ECCA3" HorizontalAlignment="Center"/>
-                                    <TextBlock x:Name="txtPrognozaA" Text="0 kg" FontSize="10" Foreground="White" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="txtPrognozaA" Text="0 kg" FontSize="10" Foreground="#FFFFFF" HorizontalAlignment="Center"/>
                                 </StackPanel>
 
                                 <!-- Separator -->
@@ -492,7 +555,7 @@
                                 <!-- Klasa B -->
                                 <StackPanel Grid.Column="2" HorizontalAlignment="Center">
                                     <TextBlock Text="B (20%)" FontSize="9" FontWeight="Bold" Foreground="#FFB347" HorizontalAlignment="Center"/>
-                                    <TextBlock x:Name="txtPrognozaB" Text="0 kg" FontSize="10" Foreground="White" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="txtPrognozaB" Text="0 kg" FontSize="10" Foreground="#FFFFFF" HorizontalAlignment="Center"/>
                                 </StackPanel>
                             </Grid>
                         </Grid>
@@ -501,8 +564,98 @@
             </Grid>
         </Border>
 
+        <!-- INSTRUKCJA DLA HANDLOWCÓW -->
+        <Expander Grid.Row="3" Margin="10,5,10,0" IsExpanded="False">
+            <Expander.Header>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="📖" FontSize="14" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBlock Text="JAK CZYTAC TEN DASHBOARD? (kliknij aby rozwinac)" FontSize="12" FontWeight="SemiBold" Foreground="#00D9FF"/>
+                </StackPanel>
+            </Expander.Header>
+            <Expander.Style>
+                <Style TargetType="Expander">
+                    <Setter Property="Background" Value="{StaticResource CardBackgroundBrush}"/>
+                    <Setter Property="Foreground" Value="White"/>
+                    <Setter Property="BorderThickness" Value="0"/>
+                </Style>
+            </Expander.Style>
+            <Border Background="{StaticResource CardBackgroundBrush}" CornerRadius="0,0,8,8" Padding="15,10">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Kolumna 1: Kafelki -->
+                    <StackPanel Grid.Column="0" Margin="0,0,15,0">
+                        <TextBlock Text="🐔 KAFELKI ZYWCA" FontWeight="Bold" Foreground="#00D9FF" FontSize="12" Margin="0,0,0,8"/>
+                        <TextBlock TextWrapping="Wrap" Foreground="#E2E8F0" FontSize="11" LineHeight="18">
+                            <Run FontWeight="Bold" Foreground="#6B7280">PLANOWANE</Run>
+                            <Run> - ile kg zywca hodowcy zadeklarowali na dzis</Run>
+                            <LineBreak/>
+                            <Run FontWeight="Bold" Foreground="#4ECCA3">ZWAZONE</Run>
+                            <Run> - ile kg juz przyjeto i zwazono</Run>
+                            <LineBreak/>
+                            <Run FontWeight="Bold" Foreground="#00D9FF">POZOSTALO</Run>
+                            <Run> - ile kg jeszcze czeka na wazenie</Run>
+                            <LineBreak/>
+                            <Run FontWeight="Bold" Foreground="#A0AEC0">ODCHYLENIE</Run>
+                            <Run> - roznica miedzy planem a rzeczywistoscia</Run>
+                            <LineBreak/>
+                            <Run FontWeight="Bold" Foreground="#A78BFA">SR.WAGA DEKL.</Run>
+                            <Run> - srednia waga sztuki wg hodowcy</Run>
+                            <LineBreak/>
+                            <Run FontWeight="Bold" Foreground="#4ECCA3">SR.WAGA RZECZ.</Run>
+                            <Run> - faktyczna srednia waga z wagi</Run>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <!-- Kolumna 2: Tuszki -->
+                    <StackPanel Grid.Column="1" Margin="15,0">
+                        <TextBlock Text="🍗 PROGNOZA TUSZEK" FontWeight="Bold" Foreground="#A78BFA" FontSize="12" Margin="0,0,0,8"/>
+                        <TextBlock TextWrapping="Wrap" Foreground="#E2E8F0" FontSize="11" LineHeight="18">
+                            <Run>Ile kg tuszek dostaniemy po uboju:</Run>
+                            <LineBreak/>
+                            <Run>• </Run><Run FontWeight="Bold">78%</Run><Run> wydajnosc uboju (zywiec -> tuszka)</Run>
+                            <LineBreak/>
+                            <Run>• </Run><Run FontWeight="Bold" Foreground="#4ECCA3">Klasa A (80%)</Run><Run> - tuszki pierwszej jakosci</Run>
+                            <LineBreak/>
+                            <Run>• </Run><Run FontWeight="Bold" Foreground="#FFB347">Klasa B (20%)</Run><Run> - tuszki drugiej jakosci</Run>
+                            <LineBreak/><LineBreak/>
+                            <Run FontWeight="Bold" Foreground="#4ECCA3">+X kg tuszek</Run><Run> = hodowca przywiozl WIECEJ niz deklarowal</Run>
+                            <LineBreak/>
+                            <Run FontWeight="Bold" Foreground="#F87171">-X kg tuszek</Run><Run> = hodowca przywiozl MNIEJ niz deklarowal</Run>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <!-- Kolumna 3: Kolory i tabela -->
+                    <StackPanel Grid.Column="2" Margin="15,0,0,0">
+                        <TextBlock Text="🚦 ZNACZENIE KOLOROW" FontWeight="Bold" Foreground="#FFB347" FontSize="12" Margin="0,0,0,8"/>
+                        <TextBlock TextWrapping="Wrap" Foreground="#E2E8F0" FontSize="11" LineHeight="18">
+                            <Run>Kolorowy pasek przy wierszu pokazuje odchylenie:</Run>
+                            <LineBreak/>
+                            <Run>• </Run><Run FontWeight="Bold" Foreground="#4ECCA3">ZIELONY (±2%)</Run><Run> - OK, norma</Run>
+                            <LineBreak/>
+                            <Run>• </Run><Run FontWeight="Bold" Foreground="#FFB347">POMARANCZOWY (±5%)</Run><Run> - Uwaga</Run>
+                            <LineBreak/>
+                            <Run>• </Run><Run FontWeight="Bold" Foreground="#F87171">CZERWONY (>5%)</Run><Run> - Problem!</Run>
+                            <LineBreak/><LineBreak/>
+                            <Run FontWeight="Bold">Statusy w tabeli:</Run>
+                            <LineBreak/>
+                            <Run>✅ - Zważony (gotowe)</Run>
+                            <LineBreak/>
+                            <Run>⏳ - Tylko brutto (w trakcie)</Run>
+                            <LineBreak/>
+                            <Run>🔴 - Oczekuje (brak wag)</Run>
+                        </TextBlock>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Expander>
+
         <!-- SEPARATOR -->
-        <Rectangle Grid.Row="3" Height="1" Margin="20,8,20,5">
+        <Rectangle Grid.Row="4" Height="1" Margin="20,8,20,5">
             <Rectangle.Fill>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
                     <GradientStop Color="Transparent" Offset="0"/>
@@ -514,7 +667,7 @@
         </Rectangle>
 
         <!-- TABELA DOSTAW -->
-        <Border Grid.Row="4" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="15,12" Margin="10,0,10,5">
+        <Border Grid.Row="5" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="15,12" Margin="10,0,10,5">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -697,7 +850,7 @@
         </Border>
 
         <!-- STOPKA -->
-        <Border Grid.Row="5" Background="{StaticResource BackgroundMediumBrush}" Padding="15,8">
+        <Border Grid.Row="6" Background="{StaticResource BackgroundMediumBrush}" Padding="15,8">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -722,7 +875,7 @@
         </Border>
 
         <!-- OVERLAY ŁADOWANIA ZE SPINNEREM -->
-        <Border x:Name="loadingOverlay" Grid.RowSpan="6" Background="#CC1A1A2E" Visibility="Collapsed">
+        <Border x:Name="loadingOverlay" Grid.RowSpan="7" Background="#CC1A1A2E" Visibility="Collapsed">
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                 <!-- Spinner -->
                 <Ellipse x:Name="spinnerEllipse" Width="50" Height="50" StrokeThickness="4"
@@ -750,7 +903,7 @@
         </Border>
 
         <!-- OVERLAY BŁĘDU -->
-        <Border x:Name="errorOverlay" Grid.RowSpan="6" Background="#CC1A1A2E" Visibility="Collapsed">
+        <Border x:Name="errorOverlay" Grid.RowSpan="7" Background="#CC1A1A2E" Visibility="Collapsed">
             <Border Background="{StaticResource CardBackgroundBrush}" CornerRadius="12" Padding="30,20" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="450">
                 <StackPanel>
                     <TextBlock Text="Blad polaczenia" FontSize="18" FontWeight="Bold" Foreground="{StaticResource StatusErrorBrush}" HorizontalAlignment="Center" Margin="0,0,0,10"/>
