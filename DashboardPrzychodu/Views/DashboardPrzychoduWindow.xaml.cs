@@ -351,6 +351,7 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 txtWagaInterpretacja.Text = "Zgodne z deklaracja";
                 txtWagaInterpretacja.Foreground = new SolidColorBrush(Color.FromRgb(34, 211, 238));
             }
+        }
 
         /// <summary>
         /// Aktualizacja trendu dla kafelka ZWAŻONE
