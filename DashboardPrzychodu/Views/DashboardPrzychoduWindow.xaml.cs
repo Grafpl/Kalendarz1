@@ -789,6 +789,15 @@ namespace Kalendarz1.DashboardPrzychodu.Views
         }
 
         /// <summary>
+        /// Otwiera okno pomocy
+        /// </summary>
+        private void BtnHelp_Click(object sender, RoutedEventArgs e)
+        {
+            var helpWindow = new HelpWindow { Owner = this };
+            helpWindow.ShowDialog();
+        }
+
+        /// <summary>
         /// Eksport do Excel
         /// </summary>
         private void BtnExportExcel_Click(object sender, RoutedEventArgs e)
