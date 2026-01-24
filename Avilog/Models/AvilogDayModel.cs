@@ -124,6 +124,9 @@ namespace Kalendarz1.Avilog.Models
         public string Uwagi { get; set; }
 
         public bool JestAktywna => !DataDo.HasValue || DataDo.Value >= DateTime.Today;
+
+        public string DataDoFormatowana => DataDo.HasValue ? DataDo.Value.ToString("dd.MM.yyyy") : "(aktywna)";
+        public string StatusText => JestAktywna ? "AKTYWNA" : "nieaktywna";
     }
 
     /// <summary>

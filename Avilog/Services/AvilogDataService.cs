@@ -312,6 +312,74 @@ namespace Kalendarz1.Avilog.Services
         }
 
         /// <summary>
+        /// Zapisuje nową stawkę z określonymi datami od-do
+        /// </summary>
+        public async Task SaveStawkaWithDatesAsync(decimal stawka, DateTime dataOd, DateTime? dataDo, string zmienionePrzez, string uwagi = null)
+        {
+            using (var conn = new SqlConnection(_connectionString))
+            {
+                await conn.OpenAsync();
+
+                // Upewnij się, że tabela istnieje
+                string checkTable = @"SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
+                                     WHERE TABLE_NAME = 'AvilogSettings'";
+                using (var checkCmd = new SqlCommand(checkTable, conn))
+                {
+                    int exists = (int)await checkCmd.ExecuteScalarAsync();
+                    if (exists == 0)
+                    {
+                        await CreateAvilogSettingsTableAsync(conn);
+                    }
+                }
+
+                // Jeśli nowa stawka nie ma daty końcowej, zamknij poprzednie aktywne stawki
+                if (!dataDo.HasValue)
+                {
+                    string updateQuery = @"UPDATE [dbo].[AvilogSettings]
+                                          SET DataDo = DATEADD(day, -1, @DataOd)
+                                          WHERE DataDo IS NULL AND DataOd < @DataOd";
+                    using (var updateCmd = new SqlCommand(updateQuery, conn))
+                    {
+                        updateCmd.Parameters.AddWithValue("@DataOd", dataOd);
+                        await updateCmd.ExecuteNonQueryAsync();
+                    }
+                }
+
+                // Wstaw nową stawkę
+                string insertQuery = @"INSERT INTO [dbo].[AvilogSettings]
+                                      (StawkaZaKg, DataOd, DataDo, ZmienionePrzez, DataZmiany, Uwagi)
+                                      VALUES (@Stawka, @DataOd, @DataDo, @ZmienionePrzez, GETDATE(), @Uwagi)";
+                using (var insertCmd = new SqlCommand(insertQuery, conn))
+                {
+                    insertCmd.Parameters.AddWithValue("@Stawka", stawka);
+                    insertCmd.Parameters.AddWithValue("@DataOd", dataOd);
+                    insertCmd.Parameters.AddWithValue("@DataDo", (object)dataDo ?? DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@ZmienionePrzez", zmienionePrzez ?? Environment.UserName);
+                    insertCmd.Parameters.AddWithValue("@Uwagi", (object)uwagi ?? DBNull.Value);
+                    await insertCmd.ExecuteNonQueryAsync();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Usuwa stawkę o podanym ID
+        /// </summary>
+        public async Task DeleteStawkaAsync(int id)
+        {
+            using (var conn = new SqlConnection(_connectionString))
+            {
+                await conn.OpenAsync();
+
+                string deleteQuery = @"DELETE FROM [dbo].[AvilogSettings] WHERE ID = @ID";
+                using (var cmd = new SqlCommand(deleteQuery, conn))
+                {
+                    cmd.Parameters.AddWithValue("@ID", id);
+                    await cmd.ExecuteNonQueryAsync();
+                }
+            }
+        }
+
+        /// <summary>
         /// Pobiera historię zmian stawki
         /// </summary>
         public async Task<List<AvilogSettingsModel>> GetHistoriaStawekAsync()

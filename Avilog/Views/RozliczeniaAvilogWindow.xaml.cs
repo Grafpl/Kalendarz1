@@ -305,7 +305,36 @@ namespace Kalendarz1.Avilog.Views
                         foreach (var kurs in kursyDnia)
                         {
                             kurs.LP = lp++;
+                            kurs.JestSuma = false;
                             _kursyCollection.Add(kurs);
+                        }
+
+                        // Dodaj wiersz sumy na końcu
+                        if (kursyDnia.Any())
+                        {
+                            var sumaGodzin = kursyDnia.Sum(k => k.CzasUslugiGodziny);
+                            int godziny = (int)sumaGodzin;
+                            int minuty = (int)((sumaGodzin - godziny) * 60);
+                            string czasFormatowany = godziny > 0 && minuty > 0
+                                ? $"{godziny}h {minuty}min"
+                                : godziny > 0 ? $"{godziny}h" : $"{minuty}min";
+
+                            var suma = new AvilogKursModel
+                            {
+                                LP = 0,
+                                HodowcaNazwa = "SUMA",
+                                SztukiLumel = kursyDnia.Sum(k => k.SztukiLumel),
+                                SztukiPadle = kursyDnia.Sum(k => k.SztukiPadle),
+                                BruttoUbojni = kursyDnia.Sum(k => k.BruttoUbojni),
+                                TaraUbojni = kursyDnia.Sum(k => k.TaraUbojni),
+                                NettoUbojni = kursyDnia.Sum(k => k.NettoUbojni),
+                                StartKM = 0,
+                                StopKM = kursyDnia.Sum(k => k.DystansKM),
+                                JestSuma = true,
+                                KierowcaNazwa = czasFormatowany,
+                                CarID = $"{kursyDnia.Count} kursów"
+                            };
+                            _kursyCollection.Add(suma);
                         }
                     }
                 }
@@ -409,43 +438,30 @@ namespace Kalendarz1.Avilog.Views
             }
         }
 
-        private async void BtnZarzadzajStawkami_Click(object sender, RoutedEventArgs e)
+        private void BtnZarzadzajStawkami_Click(object sender, RoutedEventArgs e)
         {
-            // Pokaż dialog zarządzania stawkami
-            try
+            // Otwórz okno zarządzania stawkami
+            var stawkiWindow = new StawkiAvilogWindow();
+            stawkiWindow.Owner = this;
+
+            if (stawkiWindow.ShowDialog() == true && stawkiWindow.WybranaStawka.HasValue)
             {
-                var historia = await _dataService.GetHistoriaStawekAsync();
+                // Zaktualizuj stawkę
+                _stawkaZaKg = stawkiWindow.WybranaStawka.Value;
+                txtStawka.Text = _stawkaZaKg.ToString("N3");
 
-                var sb = new StringBuilder();
-                sb.AppendLine("HISTORIA STAWEK ZA KG");
-                sb.AppendLine("═════════════════════════════════════════");
-
-                if (!historia.Any())
+                // Przelicz podsumowanie
+                if (_summary != null)
                 {
-                    sb.AppendLine("Brak zapisanych stawek w historii.");
-                }
-                else
-                {
-                    foreach (var s in historia)
-                    {
-                        var status = s.JestAktywna ? "[AKTYWNA]" : "";
-                        sb.AppendLine($"{s.StawkaZaKg:N4} zł/kg  {status}");
-                        sb.AppendLine($"Okres: {s.DataOd:dd.MM.yyyy} - {(s.DataDo.HasValue ? s.DataDo.Value.ToString("dd.MM.yyyy") : "obecnie")}");
-                        sb.AppendLine($"Zmienione: {s.ZmienionePrzez} ({s.DataZmiany:dd.MM.yyyy HH:mm})");
-                        if (!string.IsNullOrEmpty(s.Uwagi))
-                            sb.AppendLine($"Uwagi: {s.Uwagi}");
-                        sb.AppendLine("─────────────────────────────────────────");
-                    }
+                    _summary.StawkaZaKg = _stawkaZaKg;
+                    UpdateSummaryUI();
                 }
 
-                sb.AppendLine();
-                sb.AppendLine("Aby zmienić stawkę, wpisz nową wartość w polu STAWKA i kliknij Zapisz.");
-
-                MessageBox.Show(sb.ToString(), "Zarządzanie stawkami", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd pobierania historii:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                // Zaktualizuj stawki w dniach
+                foreach (var dzien in _dniCollection)
+                {
+                    dzien.StawkaZaKg = _stawkaZaKg;
+                }
             }
         }
 

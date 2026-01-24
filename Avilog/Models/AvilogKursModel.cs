@@ -206,5 +206,10 @@ namespace Kalendarz1.Avilog.Models
                 return "-";
             }
         }
+
+        /// <summary>
+        /// Czy to jest wiersz sumy (do formatowania)
+        /// </summary>
+        public bool JestSuma { get; set; }
     }
 }
