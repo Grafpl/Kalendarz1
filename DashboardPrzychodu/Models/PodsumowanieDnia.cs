@@ -198,6 +198,8 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         /// <summary>
         /// Poziom odchylenia do kolorowania
         /// </summary>
+        /// Więcej niż plan = zawsze OK (to dobrze!)
+        /// Mniej niż plan = OK/Uwaga/Problem w zależności od wielkości
         public PoziomOdchylenia Poziom
         {
             get
@@ -205,8 +207,14 @@ namespace Kalendarz1.DashboardPrzychodu.Models
                 if (KgZwazoneSuma == 0)
                     return PoziomOdchylenia.Brak;
 
-                double absProc = Math.Abs((double)OdchylenieProc);
+                double procValue = (double)OdchylenieProc;
 
+                // Więcej niż plan = zawsze OK (to dobrze!)
+                if (procValue >= 0)
+                    return PoziomOdchylenia.OK;
+
+                // Mniej niż plan - sprawdzamy jak dużo brakuje
+                double absProc = Math.Abs(procValue);
                 if (absProc <= 2.0)
                     return PoziomOdchylenia.OK;
                 if (absProc <= 5.0)

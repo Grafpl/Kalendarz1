@@ -407,6 +407,8 @@ namespace Kalendarz1.DashboardPrzychodu.Models
 
         /// <summary>
         /// Kolor paska dla odchylenia (do wiazania w XAML)
+        /// Więcej niż plan = zawsze zielony (to dobrze!)
+        /// Mniej niż plan = zielony/żółty/czerwony w zależności od wielkości
         /// </summary>
         public Brush PasekKolor
         {
@@ -416,7 +418,14 @@ namespace Kalendarz1.DashboardPrzychodu.Models
                 if (!proc.HasValue || Status != StatusDostawy.Zwazony)
                     return new SolidColorBrush(System.Windows.Media.Color.FromRgb(107, 114, 128)); // Szary
 
-                double absProc = Math.Abs((double)proc.Value);
+                double procValue = (double)proc.Value;
+
+                // Więcej niż plan = zawsze zielony (to dobrze!)
+                if (procValue >= 0)
+                    return new SolidColorBrush(System.Windows.Media.Color.FromRgb(78, 204, 163));  // Zielony
+
+                // Mniej niż plan - sprawdzamy jak dużo brakuje
+                double absProc = Math.Abs(procValue);
                 if (absProc <= 2)
                     return new SolidColorBrush(System.Windows.Media.Color.FromRgb(78, 204, 163));  // Zielony
                 if (absProc <= 5)
@@ -687,6 +696,8 @@ namespace Kalendarz1.DashboardPrzychodu.Models
 
         /// <summary>
         /// Poziom odchylenia do kolorowania
+        /// Więcej niż plan (>0) = zawsze OK (zielony) - to dobrze
+        /// Mniej niż plan (<0) = OK/Uwaga/Problem w zależności od wielkości
         /// </summary>
         public PoziomOdchylenia Poziom
         {
@@ -697,11 +708,17 @@ namespace Kalendarz1.DashboardPrzychodu.Models
                 if (!proc.HasValue || Status != StatusDostawy.Zwazony)
                     return PoziomOdchylenia.Brak;
 
-                double absProcent = Math.Abs((double)proc);
+                double procValue = (double)proc;
 
-                if (absProcent <= 2.0)
+                // Więcej niż plan = zawsze OK (to dobrze!)
+                if (procValue >= 0)
                     return PoziomOdchylenia.OK;
-                if (absProcent <= 5.0)
+
+                // Mniej niż plan - sprawdzamy jak dużo brakuje
+                double absProc = Math.Abs(procValue);
+                if (absProc <= 2.0)
+                    return PoziomOdchylenia.OK;
+                if (absProc <= 5.0)
                     return PoziomOdchylenia.Uwaga;
                 return PoziomOdchylenia.Problem;
             }
