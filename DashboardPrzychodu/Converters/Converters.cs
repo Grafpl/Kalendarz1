@@ -310,7 +310,7 @@ namespace Kalendarz1.DashboardPrzychodu.Converters
     }
 
     /// <summary>
-    /// Konwertuje wartość bool na Brush dla obramowania pulsującego
+    /// Konwertuje wartosc bool na Brush dla obramowania pulsujacego
     /// </summary>
     public class BoolToBorderBrushConverter : IValueConverter
     {
@@ -319,6 +319,74 @@ namespace Kalendarz1.DashboardPrzychodu.Converters
             if (value is bool b && b)
                 return new SolidColorBrush(Color.FromRgb(233, 69, 96)); // Czerwony
             return new SolidColorBrush(Colors.Transparent);
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    /// <summary>
+    /// Konwertuje TrendProc na kolor (dla kolumny TREND)
+    /// &lt;95% = czerwony (mniej niz plan)
+    /// &gt;105% = zielony (wiecej niz plan)
+    /// 95-105% = szary (OK)
+    /// </summary>
+    public class TrendToColorConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            decimal trend = 100;
+            if (value is decimal d)
+                trend = d;
+            else if (value is double dbl)
+                trend = (decimal)dbl;
+            else if (value is int i)
+                trend = i;
+
+            if (trend < 95)
+                return new SolidColorBrush(Color.FromRgb(233, 69, 96));  // Czerwony - mniej niz plan
+            if (trend > 105)
+                return new SolidColorBrush(Color.FromRgb(78, 204, 163)); // Zielony - wiecej niz plan
+            return new SolidColorBrush(Color.FromRgb(156, 163, 175));    // Szary - OK
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    /// <summary>
+    /// Konwertuje wartosc bool na Visibility z odwracaniem
+    /// </summary>
+    public class InverseBoolToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is bool b)
+                return b ? Visibility.Collapsed : Visibility.Visible;
+            return Visibility.Visible;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    /// <summary>
+    /// Konwertuje PoziomAlertu na kolor tla
+    /// </summary>
+    public class AlertToColorConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is string alert)
+            {
+                if (alert.Contains("KRYTYCZNY"))
+                    return new SolidColorBrush(Color.FromRgb(220, 38, 38));
+                if (alert.Contains("WYSOKI"))
+                    return new SolidColorBrush(Color.FromRgb(251, 191, 36));
+                if (alert.Contains("UWAGA"))
+                    return new SolidColorBrush(Color.FromRgb(251, 146, 60));
+            }
+            return new SolidColorBrush(Color.FromRgb(78, 204, 163));
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

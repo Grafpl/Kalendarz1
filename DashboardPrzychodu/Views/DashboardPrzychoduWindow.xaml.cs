@@ -26,9 +26,11 @@ namespace Kalendarz1.DashboardPrzychodu.Views
     {
         private readonly PrzychodService _przychodService;
         private readonly ObservableCollection<DostawaItem> _dostawy;
+        private readonly ObservableCollection<PostepHarmonogramu> _postepyHarmonogramow;
         private readonly DispatcherTimer _autoRefreshTimer;
         private readonly DispatcherTimer _countdownTimer;
         private PodsumowanieDnia _podsumowanie;
+        private PrognozaDnia _prognoza;
         private ICollectionView _dostawyView;
         private int _secondsToRefresh = 30;
         private bool _isLoading = false;
@@ -46,11 +48,16 @@ namespace Kalendarz1.DashboardPrzychodu.Views
 
             _przychodService = new PrzychodService();
             _dostawy = new ObservableCollection<DostawaItem>();
+            _postepyHarmonogramow = new ObservableCollection<PostepHarmonogramu>();
             _podsumowanie = new PodsumowanieDnia();
+            _prognoza = new PrognozaDnia();
 
             // Konfiguracja DataGrid
             dgDostawy.ItemsSource = _dostawy;
             _dostawyView = CollectionViewSource.GetDefaultView(_dostawy);
+
+            // Konfiguracja listy harmonogramow
+            icHarmonogramy.ItemsSource = _postepyHarmonogramow;
 
             // Timer auto-odświeżania (co 30 sekund)
             _autoRefreshTimer = new DispatcherTimer
@@ -146,35 +153,49 @@ namespace Kalendarz1.DashboardPrzychodu.Views
 
                 Debug.WriteLine($"[DashboardPrzychodu] Pobieranie danych na {selectedDate:yyyy-MM-dd}");
 
-                // Pobierz dane równolegle
+                // Pobierz dane rownolegle
                 var dostawyTask = _przychodService.GetDostawyAsync(selectedDate);
                 var podsumowanieTask = _przychodService.GetPodsumowanieAsync(selectedDate);
+                var prognozaTask = _przychodService.GetPrognozaDniaAsync(selectedDate);
+                var harmonogramyTask = _przychodService.GetPostepyHarmonogramowAsync(selectedDate);
 
-                await System.Threading.Tasks.Task.WhenAll(dostawyTask, podsumowanieTask);
+                await System.Threading.Tasks.Task.WhenAll(dostawyTask, podsumowanieTask, prognozaTask, harmonogramyTask);
 
                 var noweDostawy = await dostawyTask;
                 _podsumowanie = await podsumowanieTask;
+                _prognoza = await prognozaTask;
+                var noweHarmonogramy = await harmonogramyTask;
 
-                // Aktualizuj UI w wątku UI
+                // Aktualizuj UI w watku UI
                 await Dispatcher.InvokeAsync(() =>
                 {
-                    // Aktualizuj kolekcję dostaw
+                    // Aktualizuj kolekcje dostaw
                     _dostawy.Clear();
                     foreach (var dostawa in noweDostawy)
                     {
                         _dostawy.Add(dostawa);
                     }
 
+                    // Aktualizuj kolekcje harmonogramow
+                    _postepyHarmonogramow.Clear();
+                    foreach (var harmonogram in noweHarmonogramy)
+                    {
+                        _postepyHarmonogramow.Add(harmonogram);
+                    }
+
                     // Aktualizuj podsumowanie
                     UpdateSummaryUI();
+
+                    // Aktualizuj prognoze redukcji
+                    UpdatePrognozaUI();
 
                     // Aktualizuj wiersz podsumowania tabeli
                     UpdateTableSummary();
 
-                    // Aktualizuj pasek postępu
+                    // Aktualizuj pasek postepu
                     UpdateProgressBar();
 
-                    // Aktualizuj licznik wyników
+                    // Aktualizuj licznik wynikow
                     txtLiczbaWynikow.Text = $"Wyniki: {_dostawy.Count}";
 
                     // Aktualizuj czas ostatniej aktualizacji
@@ -320,12 +341,52 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 txtSrWagaRzecz.Text = "-";
             }
 
-            // Porównanie wag - używamy wartości z modelu (z HarmonogramDostaw)
+            // Porownanie wag - uzywamy wartosci z modelu (z HarmonogramDostaw)
             UpdateWeightComparison(_podsumowanie.SrWagaPlanSrednia, _podsumowanie.SrWagaRzeczSrednia);
         }
 
         /// <summary>
-        /// Aktualizacja kafelka porównania wag (zintegrowany w kafelku ŚREDNIE WAGI)
+        /// Aktualizacja panelu prognozy redukcji zamowien
+        /// </summary>
+        private void UpdatePrognozaUI()
+        {
+            if (_prognoza == null || _prognoza.AutaZwazone == 0)
+            {
+                // Ukryj panel jesli brak danych
+                borderPrognoza.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            // Pokaz panel tylko jesli jest alert (trend < 98%)
+            if (_prognoza.JestAlert)
+            {
+                borderPrognoza.Visibility = Visibility.Visible;
+
+                // Kolor alertu
+                var alertColor = _prognoza.AlertKolor as SolidColorBrush;
+                borderAlertIkona.Background = alertColor;
+                txtAlertTuszkiPrognoza.Foreground = alertColor;
+                txtAlertRedukcja.Foreground = alertColor;
+
+                // Teksty
+                txtAlertPoziom.Text = _prognoza.PoziomAlertu;
+                txtAlertPrognoza.Text = _prognoza.PrognozaDisplay;
+                txtAlertTuszkiPlan.Text = _prognoza.TuszkiPlan.ToString("N0");
+                txtAlertTuszkiPrognoza.Text = _prognoza.TuszkiPrognoza.ToString("N0");
+                txtAlertRedukcja.Text = _prognoza.RedukcjaDisplay;
+                txtAlertAutaZwazone.Text = _prognoza.AutaZwazone.ToString();
+                txtAlertAutaOgolem.Text = _prognoza.AutaOgolem.ToString();
+                txtAlertTrendProc.Text = _prognoza.TrendProc.ToString("N0");
+            }
+            else
+            {
+                // Ukryj panel jesli wszystko OK
+                borderPrognoza.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        /// <summary>
+        /// Aktualizacja kafelka porownania wag (zintegrowany w kafelku SREDNIE WAGI)
         /// Używa danych z HarmonogramDostaw (WagaDek) vs FarmerCalc (NettoWeight/LumQnt)
         /// </summary>
         private void UpdateWeightComparison(decimal? wagaPlan, decimal? wagaRzecz)

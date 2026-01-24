@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Windows.Media;
 
 namespace Kalendarz1.DashboardPrzychodu.Models
 {
@@ -36,11 +37,27 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         private DateTime _data;
         private string _hodowca;
         private string _hodowcaSkrot;
+        private int? _lpDostawy;                 // FK do HarmonogramDostaw.Lp
         private int _sztukiPlan;
         private decimal _kgPlan;
         private decimal? _sredniaWagaPlan;
-        private decimal? _wagaDeklHarmonogram;  // Średnia waga z HarmonogramDostaw
+        private decimal? _wagaDeklHarmonogram;  // Srednia waga z HarmonogramDostaw
         private decimal? _sztPojPlan;            // Szt/pojemnik z harmonogramu
+
+        // Plan laczny z harmonogramu
+        private int _planSztukiLacznie;
+        private decimal _planKgLacznie;
+        private int _autaPlanowane;
+
+        // Postep harmonogramu
+        private int _autaZwazone;
+        private int _autaOgolem;
+        private decimal _sztukiZwazoneSuma;
+        private decimal _kgZwazoneSuma;
+        private decimal _sztukiPozostalo;
+        private decimal _kgPozostalo;
+        private decimal _realizacjaProc;
+        private decimal _trendProc;
         private decimal _brutto;
         private decimal _tara;
         private decimal _kgRzeczywiste;
@@ -94,13 +111,294 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         }
 
         /// <summary>
-        /// Wyświetlana nazwa hodowcy - skrót lub pełna nazwa
+        /// Wyswietlana nazwa hodowcy - skrot lub pelna nazwa
         /// </summary>
         public string HodowcaDisplay => !string.IsNullOrWhiteSpace(HodowcaSkrot) ? HodowcaSkrot : Hodowca;
 
+        /// <summary>
+        /// FK do HarmonogramDostaw.Lp
+        /// </summary>
+        public int? LpDostawy
+        {
+            get => _lpDostawy;
+            set { _lpDostawy = value; OnPropertyChanged(); }
+        }
+
         #endregion
 
-        #region Properties - Plan (deklarowane przez hodowcę)
+        #region Properties - Plan laczny z harmonogramu
+
+        /// <summary>
+        /// Plan sztuk LACZNIE z harmonogramu (na wszystkie auta)
+        /// </summary>
+        public int PlanSztukiLacznie
+        {
+            get => _planSztukiLacznie;
+            set
+            {
+                _planSztukiLacznie = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(SztukiPlanNaAuto));
+            }
+        }
+
+        /// <summary>
+        /// Plan kg LACZNIE z harmonogramu (na wszystkie auta)
+        /// </summary>
+        public decimal PlanKgLacznie
+        {
+            get => _planKgLacznie;
+            set
+            {
+                _planKgLacznie = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(KgPlanNaAuto));
+            }
+        }
+
+        /// <summary>
+        /// Ile aut zaplanowano w harmonogramie
+        /// </summary>
+        public int AutaPlanowane
+        {
+            get => _autaPlanowane;
+            set
+            {
+                _autaPlanowane = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(SztukiPlanNaAuto));
+                OnPropertyChanged(nameof(KgPlanNaAuto));
+            }
+        }
+
+        #endregion
+
+        #region Properties - Postep harmonogramu
+
+        /// <summary>
+        /// Ile aut z tego harmonogramu juz zwazono
+        /// </summary>
+        public int AutaZwazone
+        {
+            get => _autaZwazone;
+            set
+            {
+                _autaZwazone = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(AutaCzekajacych));
+                OnPropertyChanged(nameof(PostepDisplay));
+                OnPropertyChanged(nameof(PostepProc));
+                OnPropertyChanged(nameof(TrendHodowcy));
+            }
+        }
+
+        /// <summary>
+        /// Ile aut ogolem (zwazone + oczekujace) z tego harmonogramu
+        /// </summary>
+        public int AutaOgolem
+        {
+            get => _autaOgolem;
+            set
+            {
+                _autaOgolem = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(AutaCzekajacych));
+                OnPropertyChanged(nameof(CzyOstatnieAuto));
+                OnPropertyChanged(nameof(PostepDisplay));
+                OnPropertyChanged(nameof(PostepProc));
+                OnPropertyChanged(nameof(SztukiPlanNaAuto));
+                OnPropertyChanged(nameof(KgPlanNaAuto));
+            }
+        }
+
+        /// <summary>
+        /// Ile aut jeszcze czeka na wazenie
+        /// </summary>
+        public int AutaCzekajacych => Math.Max(0, AutaOgolem - AutaZwazone);
+
+        /// <summary>
+        /// Suma juz zwazonych sztuk z tego harmonogramu
+        /// </summary>
+        public decimal SztukiZwazoneSuma
+        {
+            get => _sztukiZwazoneSuma;
+            set
+            {
+                _sztukiZwazoneSuma = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// Suma juz zwazonych kg z tego harmonogramu
+        /// </summary>
+        public decimal KgZwazoneSuma
+        {
+            get => _kgZwazoneSuma;
+            set
+            {
+                _kgZwazoneSuma = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// Ile sztuk pozostalo do zabrania z harmonogramu
+        /// </summary>
+        public decimal SztukiPozostalo
+        {
+            get => _sztukiPozostalo;
+            set
+            {
+                _sztukiPozostalo = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(PozostaloDisplay));
+                OnPropertyChanged(nameof(SztukiPlanNaAuto));
+            }
+        }
+
+        /// <summary>
+        /// Ile kg pozostalo do zabrania z harmonogramu
+        /// </summary>
+        public decimal KgPozostalo
+        {
+            get => _kgPozostalo;
+            set
+            {
+                _kgPozostalo = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(PozostaloDisplay));
+                OnPropertyChanged(nameof(KgPlanNaAuto));
+            }
+        }
+
+        /// <summary>
+        /// Procent realizacji harmonogramu
+        /// </summary>
+        public decimal RealizacjaProc
+        {
+            get => _realizacjaProc;
+            set
+            {
+                _realizacjaProc = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// Trend hodowcy: srednia na zwazone auto vs plan na auto (100% = zgodnie z planem)
+        /// </summary>
+        public decimal TrendProc
+        {
+            get => _trendProc;
+            set
+            {
+                _trendProc = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(TrendHodowcy));
+            }
+        }
+
+        #endregion
+
+        #region Properties - Dynamiczny plan na auto
+
+        /// <summary>
+        /// Dynamiczny plan kg NA TO AUTO.
+        /// Jesli to ostatnie oczekujace auto: plan = POZOSTALO (reszta z harmonogramu)
+        /// W przeciwnym razie: plan = lacznie / ilosc aut
+        /// </summary>
+        public decimal KgPlanNaAuto
+        {
+            get
+            {
+                // Jesli to ostatnie oczekujace auto i jeszcze nie zwazone
+                if (CzyOstatnieAuto)
+                {
+                    return KgPozostalo;
+                }
+                // W przeciwnym razie: plan proporcjonalny
+                if (AutaPlanowane > 0)
+                {
+                    return Math.Round(PlanKgLacznie / AutaPlanowane, 0);
+                }
+                // Fallback do starej logiki
+                return KgPlan;
+            }
+        }
+
+        /// <summary>
+        /// Dynamiczny plan sztuk NA TO AUTO
+        /// </summary>
+        public int SztukiPlanNaAuto
+        {
+            get
+            {
+                if (CzyOstatnieAuto)
+                {
+                    return (int)SztukiPozostalo;
+                }
+                if (AutaPlanowane > 0)
+                {
+                    return (int)Math.Round((decimal)PlanSztukiLacznie / AutaPlanowane, 0);
+                }
+                return SztukiPlan;
+            }
+        }
+
+        /// <summary>
+        /// Czy to ostatnie oczekujace auto z harmonogramu (wtedy plan = reszta)
+        /// </summary>
+        public bool CzyOstatnieAuto => AutaCzekajacych <= 1 && Status == StatusDostawy.Oczekuje;
+
+        /// <summary>
+        /// Trend hodowcy tekstowo
+        /// </summary>
+        public string TrendHodowcy => TrendProc switch
+        {
+            < 95 => $"\u2193 {TrendProc:N0}% planu",
+            > 105 => $"\u2191 {TrendProc:N0}% planu",
+            _ => "\u2248 wg planu"
+        };
+
+        /// <summary>
+        /// Postep harmonogramu display
+        /// </summary>
+        public string PostepDisplay => $"{AutaZwazone}/{AutaOgolem} aut";
+
+        /// <summary>
+        /// Postep harmonogramu w procentach (do ProgressBar)
+        /// </summary>
+        public double PostepProc => AutaOgolem > 0 ? (double)AutaZwazone / AutaOgolem * 100 : 0;
+
+        /// <summary>
+        /// Pozostalo display
+        /// </summary>
+        public string PozostaloDisplay => $"{KgPozostalo:N0} kg ({SztukiPozostalo:N0} szt)";
+
+        /// <summary>
+        /// Kolor paska dla odchylenia (do wiazania w XAML)
+        /// </summary>
+        public Brush PasekKolor
+        {
+            get
+            {
+                var proc = OdchylenieProcCalc ?? OdchylenieProc;
+                if (!proc.HasValue || Status != StatusDostawy.Zwazony)
+                    return new SolidColorBrush(System.Windows.Media.Color.FromRgb(107, 114, 128)); // Szary
+
+                double absProc = Math.Abs((double)proc.Value);
+                if (absProc <= 2)
+                    return new SolidColorBrush(System.Windows.Media.Color.FromRgb(78, 204, 163));  // Zielony
+                if (absProc <= 5)
+                    return new SolidColorBrush(System.Windows.Media.Color.FromRgb(251, 191, 36));  // Zolty
+                return new SolidColorBrush(System.Windows.Media.Color.FromRgb(233, 69, 96));       // Czerwony
+            }
+        }
+
+        #endregion
+
+        #region Properties - Plan na pojedyncze auto (stare pola - fallback)
 
         public int SztukiPlan
         {
