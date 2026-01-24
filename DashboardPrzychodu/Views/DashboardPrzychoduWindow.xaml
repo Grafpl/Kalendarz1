@@ -772,18 +772,17 @@
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
 
-                        <DataGridTemplateColumn Header="ODCHYL." Width="110">
+                        <DataGridTemplateColumn Header="ODCHYLENIE" Width="130">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding OdchylenieDisplay}"
-                                                   Foreground="{Binding Poziom, Converter={StaticResource OdchylenieToColorConverter}}"/>
-                                    </StackPanel>
+                                    <TextBlock Text="{Binding OdchylenieDisplay}"
+                                               Foreground="{Binding Poziom, Converter={StaticResource OdchylenieToColorConverter}}"
+                                               VerticalAlignment="Center"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
 
-                        <DataGridTemplateColumn Header="WAGA DEKL." Width="70">
+                        <DataGridTemplateColumn Header="W.DEKL" Width="60">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding SredniaWagaPlanCalc, StringFormat=N2}"
@@ -793,7 +792,7 @@
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
 
-                        <DataGridTemplateColumn Header="WAGA RZ." Width="65">
+                        <DataGridTemplateColumn Header="W.RZECZ" Width="60">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding SredniaWagaRzeczywistaCalc, Converter={StaticResource NullToDashConverter}}"
@@ -804,7 +803,7 @@
                         </DataGridTemplateColumn>
 
                         <!-- TUSZKI PLAN -->
-                        <DataGridTemplateColumn Header="TUSZKI PL." Width="70">
+                        <DataGridTemplateColumn Header="TUSZ.PL" Width="70">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding TuszkiPlanKg, StringFormat=N0}"
@@ -815,7 +814,7 @@
                         </DataGridTemplateColumn>
 
                         <!-- TUSZKI RZECZYWISTE -->
-                        <DataGridTemplateColumn Header="TUSZKI RZ." Width="70">
+                        <DataGridTemplateColumn Header="TUSZ.RZ" Width="70">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding TuszkiRzeczywisteKg, Converter={StaticResource NullToDashConverter}}"
@@ -826,7 +825,7 @@
                         </DataGridTemplateColumn>
 
                         <!-- Status jako ikona -->
-                        <DataGridTemplateColumn Header="STATUS" Width="60">
+                        <DataGridTemplateColumn Header="" Width="40">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding StatusIcon}"
@@ -869,12 +868,12 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="90"/>
                             <ColumnDefinition Width="90"/>
-                            <ColumnDefinition Width="110"/>
-                            <ColumnDefinition Width="65"/>
-                            <ColumnDefinition Width="65"/>
-                            <ColumnDefinition Width="70"/>
-                            <ColumnDefinition Width="70"/>
+                            <ColumnDefinition Width="130"/>
                             <ColumnDefinition Width="60"/>
+                            <ColumnDefinition Width="60"/>
+                            <ColumnDefinition Width="70"/>
+                            <ColumnDefinition Width="70"/>
+                            <ColumnDefinition Width="40"/>
                             <ColumnDefinition Width="70"/>
                             <ColumnDefinition Width="90"/>
                         </Grid.ColumnDefinitions>
@@ -883,7 +882,7 @@
                         <TextBlock x:Name="txtSumaDostawy" Grid.Column="2" Text="0 dostaw" Foreground="#A0AEC0" VerticalAlignment="Center" Margin="10,0,0,0"/>
                         <TextBlock x:Name="txtSumaPlan" Grid.Column="3" Text="0" FontWeight="Bold" Foreground="White" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                         <TextBlock x:Name="txtSumaRzecz" Grid.Column="4" Text="0" FontWeight="Bold" Foreground="#4ECCA3" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="txtSumaOdchylenie" Grid.Column="5" Text="-" FontWeight="Bold" Foreground="#A0AEC0" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                        <TextBlock x:Name="txtSumaOdchylenie" Grid.Column="5" Text="-" FontWeight="Bold" Foreground="#A0AEC0" VerticalAlignment="Center"/>
                         <TextBlock x:Name="txtSumaWagaPlan" Grid.Column="6" Text="-" Foreground="#A0AEC0" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         <TextBlock x:Name="txtSumaSrWaga" Grid.Column="7" Text="-" Foreground="#A0AEC0" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         <TextBlock x:Name="txtSumaTuszkiPlan" Grid.Column="8" Text="-" FontWeight="Bold" Foreground="#A78BFA" HorizontalAlignment="Right" VerticalAlignment="Center"/>
