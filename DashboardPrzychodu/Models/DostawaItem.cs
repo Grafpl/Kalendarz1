@@ -252,7 +252,6 @@ namespace Kalendarz1.DashboardPrzychodu.Models
             {
                 _sztukiPozostalo = value;
                 OnPropertyChanged();
-                OnPropertyChanged(nameof(PozostaloDisplay));
                 OnPropertyChanged(nameof(SztukiPlanNaAuto));
             }
         }
@@ -267,7 +266,7 @@ namespace Kalendarz1.DashboardPrzychodu.Models
             {
                 _kgPozostalo = value;
                 OnPropertyChanged();
-                OnPropertyChanged(nameof(PozostaloDisplay));
+                OnPropertyChanged(nameof(TuszkiPozostalo));
                 OnPropertyChanged(nameof(KgPlanNaAuto));
             }
         }
