@@ -179,6 +179,22 @@ namespace Kalendarz1.DashboardPrzychodu.Models
 
         #endregion
 
+        #region Properties - Prognoza Tuszek (78% wydajności)
+
+        /// <summary>
+        /// Planowana ilość tuszek (kg plan * 78%)
+        /// </summary>
+        public decimal TuszkiPlanKg => Math.Round(KgPlan * 0.78m, 0);
+
+        /// <summary>
+        /// Rzeczywista ilość tuszek (kg rzeczywiste * 78%), tylko jeśli zważono
+        /// </summary>
+        public decimal? TuszkiRzeczywisteKg => Status == StatusDostawy.Zwazony && KgRzeczywiste > 0
+            ? Math.Round(KgRzeczywiste * 0.78m, 0)
+            : null;
+
+        #endregion
+
         #region Properties - Odchylenie
 
         public decimal? OdchylenieKg

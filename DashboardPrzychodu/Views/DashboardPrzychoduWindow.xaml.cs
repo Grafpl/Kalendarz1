@@ -255,15 +255,23 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             txtRealizacja.Text = $"{_podsumowanie.ProcentRealizacjiKg}%";
             txtDostawyStatus.Text = $" ({_podsumowanie.LiczbaZwazonych}/{_podsumowanie.LiczbaDostawOgolem})";
 
-            // Prognoza produkcji
-            txtPrognozaTuszek.Text = _podsumowanie.PrognozaTuszekKg.ToString("N0");
+            // Prognoza produkcji - tuszki planowane vs rzeczywiste
+            decimal tuszkiPlan = Math.Round(_podsumowanie.KgPlanSuma * 0.78m, 0);
+            decimal tuszkiRzecz = _podsumowanie.PrognozaTuszekKg;
+
+            txtTuszkiPlan.Text = tuszkiPlan.ToString("N0");
+            txtPrognozaTuszek.Text = tuszkiRzecz.ToString("N0");
+
+            // Wzór obliczeniowy
+            txtWzorTuszki.Text = $"{_podsumowanie.KgZwazoneSuma:N0} kg × 78% = {tuszkiRzecz:N0} kg";
+
             txtPrognozaA.Text = $"{_podsumowanie.PrognozaKlasaAKg:N0} kg";
             txtPrognozaB.Text = $"{_podsumowanie.PrognozaKlasaBKg:N0} kg";
 
-            // Różnica tuszek (odchylenie * 0.78 = ile tuszek więcej/mniej)
-            if (_podsumowanie.OdchylenieKgSuma != 0)
+            // Różnica tuszek (rzeczywiste - planowane)
+            decimal roznicaTuszek = tuszkiRzecz - tuszkiPlan;
+            if (roznicaTuszek != 0 && _podsumowanie.KgZwazoneSuma > 0)
             {
-                decimal roznicaTuszek = _podsumowanie.OdchylenieKgSuma * 0.78m;
                 string znak = roznicaTuszek > 0 ? "+" : "";
                 txtTuszkiRoznica.Text = $"{znak}{roznicaTuszek:N0} kg tuszek";
                 txtTuszkiRoznica.Foreground = roznicaTuszek > 0
@@ -518,6 +526,16 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             {
                 txtSumaSrWaga.Text = "-";
             }
+
+            // Suma tuszek planowanych (78% z kg plan)
+            decimal sumaTuszkiPlan = _dostawy.Sum(d => d.TuszkiPlanKg);
+            txtSumaTuszkiPlan.Text = sumaTuszkiPlan.ToString("N0");
+
+            // Suma tuszek rzeczywistych (78% z kg rzeczywiste, tylko zważone)
+            decimal sumaTuszkiRzecz = _dostawy
+                .Where(d => d.TuszkiRzeczywisteKg.HasValue)
+                .Sum(d => d.TuszkiRzeczywisteKg.Value);
+            txtSumaTuszkiRzecz.Text = sumaTuszkiRzecz > 0 ? sumaTuszkiRzecz.ToString("N0") : "-";
         }
 
         /// <summary>
