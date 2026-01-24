@@ -253,7 +253,15 @@ namespace Kalendarz1.DashboardPrzychodu.Views
 
             // Realizacja
             txtRealizacja.Text = $"{_podsumowanie.ProcentRealizacjiKg}%";
-            txtDostawyStatus.Text = $" ({_podsumowanie.LiczbaZwazonych}/{_podsumowanie.LiczbaDostawOgolem})";
+            txtDostawyStatus.Text = $"({_podsumowanie.LiczbaZwazonych}/{_podsumowanie.LiczbaDostawOgolem} dostaw)";
+
+            // Liczniki statusów dostaw (mini panel)
+            int zwazoneCount = _dostawy.Count(d => d.Status == StatusDostawy.Zwazony);
+            int bruttoCount = _dostawy.Count(d => d.Status == StatusDostawy.BruttoWpisane);
+            int oczekujeCount = _dostawy.Count(d => d.Status == StatusDostawy.Oczekuje);
+            txtZwazoneCount.Text = zwazoneCount.ToString();
+            txtBruttoCount.Text = bruttoCount.ToString();
+            txtOczekujeCount.Text = oczekujeCount.ToString();
 
             // Prognoza produkcji - tuszki planowane vs rzeczywiste
             decimal tuszkiPlan = Math.Round(_podsumowanie.KgPlanSuma * 0.78m, 0);
@@ -315,20 +323,15 @@ namespace Kalendarz1.DashboardPrzychodu.Views
         }
 
         /// <summary>
-        /// Aktualizacja kafelka porównania wag
+        /// Aktualizacja kafelka porównania wag (zintegrowany w kafelku ŚREDNIE WAGI)
         /// </summary>
         private void UpdateWeightComparison(decimal? wagaPlan, decimal? wagaRzecz)
         {
-            // Ustaw wartości
-            txtWagaPlanCompare.Text = wagaPlan.HasValue ? wagaPlan.Value.ToString("N2") : "-";
-            txtWagaRzeczCompare.Text = wagaRzecz.HasValue ? wagaRzecz.Value.ToString("N2") : "-";
-
             if (!wagaPlan.HasValue || !wagaRzecz.HasValue)
             {
                 txtWagaArrow.Text = "→";
-                txtWagaArrow.Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128));
-                txtWagaInterpretacja.Text = "Brak danych";
-                txtWagaInterpretacja.Foreground = new SolidColorBrush(Color.FromRgb(160, 174, 192));
+                txtWagaArrow.Foreground = new SolidColorBrush(Color.FromRgb(74, 85, 104));
+                txtWagaInterpretacja.Text = "";
                 return;
             }
 
@@ -340,7 +343,7 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 // Ptaki cięższe niż deklarowane
                 txtWagaArrow.Text = "↑";
                 txtWagaArrow.Foreground = new SolidColorBrush(Color.FromRgb(78, 204, 163)); // Zielony
-                txtWagaInterpretacja.Text = $"Ciezsze +{roznica:N3} kg ({procentRoznicy:+0.0}%)";
+                txtWagaInterpretacja.Text = $"+{procentRoznicy:0.0}%";
                 txtWagaInterpretacja.Foreground = new SolidColorBrush(Color.FromRgb(78, 204, 163));
             }
             else if (roznica < -0.01m)
@@ -348,7 +351,7 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 // Ptaki lżejsze niż deklarowane
                 txtWagaArrow.Text = "↓";
                 txtWagaArrow.Foreground = new SolidColorBrush(Color.FromRgb(248, 113, 113)); // Czerwony
-                txtWagaInterpretacja.Text = $"Lzejsze {roznica:N3} kg ({procentRoznicy:0.0}%)";
+                txtWagaInterpretacja.Text = $"{procentRoznicy:0.0}%";
                 txtWagaInterpretacja.Foreground = new SolidColorBrush(Color.FromRgb(248, 113, 113));
             }
             else
@@ -356,7 +359,7 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 // Prawie identyczne
                 txtWagaArrow.Text = "=";
                 txtWagaArrow.Foreground = new SolidColorBrush(Color.FromRgb(34, 211, 238)); // Cyan
-                txtWagaInterpretacja.Text = "Zgodne z deklaracja";
+                txtWagaInterpretacja.Text = "OK";
                 txtWagaInterpretacja.Foreground = new SolidColorBrush(Color.FromRgb(34, 211, 238));
             }
         }
