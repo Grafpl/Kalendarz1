@@ -964,12 +964,21 @@
                         </DataGridTemplateColumn>
 
                         <!-- POZOSTALO Z HARMONOGRAMU -->
-                        <DataGridTemplateColumn Header="POZOSTALO" Width="110">
+                        <DataGridTemplateColumn Header="POZOSTALO" Width="120">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding PozostaloDisplay}"
-                                               Foreground="#60A5FA" FontSize="10"
-                                               VerticalAlignment="Center"/>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding KgPozostalo, StringFormat=N0}"
+                                                       Foreground="#00D9FF" FontSize="10" FontWeight="SemiBold"/>
+                                            <TextBlock Text=" kg" Foreground="#00D9FF" FontSize="8" VerticalAlignment="Bottom" Margin="0,0,0,1"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding TuszkiPozostalo, StringFormat=N0}"
+                                                       Foreground="#A78BFA" FontSize="9"/>
+                                            <TextBlock Text=" kg tusz." Foreground="#A78BFA" FontSize="8" VerticalAlignment="Bottom" Margin="0,0,0,1"/>
+                                        </StackPanel>
+                                    </StackPanel>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>

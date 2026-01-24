@@ -372,9 +372,19 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         public double PostepProc => AutaOgolem > 0 ? (double)AutaZwazone / AutaOgolem * 100 : 0;
 
         /// <summary>
-        /// Pozostalo display
+        /// Tuszki pozostałe do dostarczenia (kg × 0.78)
         /// </summary>
-        public string PozostaloDisplay => $"{KgPozostalo:N0} kg ({SztukiPozostalo:N0} szt)";
+        public decimal TuszkiPozostalo => Math.Round(KgPozostalo * 0.78m, 0);
+
+        /// <summary>
+        /// Pozostalo display - kg żywca
+        /// </summary>
+        public string PozostaloKgDisplay => $"{KgPozostalo:N0} kg";
+
+        /// <summary>
+        /// Pozostalo display - tuszki
+        /// </summary>
+        public string PozostaloTuszkiDisplay => $"{TuszkiPozostalo:N0} kg tusz.";
 
         /// <summary>
         /// Kolor paska dla odchylenia (do wiazania w XAML)
