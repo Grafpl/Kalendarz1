@@ -293,7 +293,12 @@ namespace Kalendarz1.DashboardPrzychodu.Services
 
                 FROM dbo.FarmerCalc fc
                 LEFT JOIN dbo.HarmonogramDostaw hd ON fc.LpDostawy = hd.Lp
-                LEFT JOIN dbo.Dostawcy d ON TRY_CAST(LTRIM(RTRIM(fc.CustomerGID)) AS INT) = d.ID
+                LEFT JOIN dbo.Dostawcy d ON d.ID = CASE
+                    WHEN fc.CustomerGID IS NULL THEN NULL
+                    WHEN LTRIM(RTRIM(fc.CustomerGID)) = '' THEN NULL
+                    WHEN TRY_CAST(LTRIM(RTRIM(fc.CustomerGID)) AS INT) IS NOT NULL
+                    THEN TRY_CAST(LTRIM(RTRIM(fc.CustomerGID)) AS INT)
+                    ELSE NULL END
                 WHERE fc.CalcDate = @Data
                   AND ISNULL(fc.Deleted, 0) = 0
                 ORDER BY fc.CarLp";
