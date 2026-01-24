@@ -394,11 +394,12 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="Czas" Binding="{Binding CzasUslugiFormatowany}" Width="90">
+                                <DataGridTextColumn Header="Czas" Binding="{Binding CzasTrwaniaFormatowany}" Width="70">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="HorizontalAlignment" Value="Center"/>
                                             <Setter Property="Foreground" Value="Black"/>
+                                            <Setter Property="ToolTip" Value="{Binding CzasUslugiFormatowany}"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>

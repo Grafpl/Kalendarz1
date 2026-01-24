@@ -182,5 +182,29 @@ namespace Kalendarz1.Avilog.Models
                 return "-";
             }
         }
+
+        /// <summary>
+        /// Czas trwania kursu w formacie "Xh Ymin"
+        /// </summary>
+        public string CzasTrwaniaFormatowany
+        {
+            get
+            {
+                if (PoczatekUslugi.HasValue && KoniecUslugi.HasValue)
+                {
+                    var czas = KoniecUslugi.Value - PoczatekUslugi.Value;
+                    int godziny = (int)czas.TotalHours;
+                    int minuty = czas.Minutes;
+
+                    if (godziny > 0 && minuty > 0)
+                        return $"{godziny}h {minuty}min";
+                    else if (godziny > 0)
+                        return $"{godziny}h";
+                    else
+                        return $"{minuty}min";
+                }
+                return "-";
+            }
+        }
     }
 }
