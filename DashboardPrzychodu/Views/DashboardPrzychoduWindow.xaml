@@ -837,19 +837,25 @@
                         </DataGridTemplateColumn>
 
                         <!-- POZOSTALO Z HARMONOGRAMU -->
-                        <DataGridTemplateColumn Header="POZOSTALO" Width="120">
+                        <DataGridTemplateColumn Header="POZOSTALO" Width="130">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <StackPanel VerticalAlignment="Center">
+                                    <StackPanel VerticalAlignment="Center" Margin="2,0">
+                                        <!-- Zywiec pozostaly -->
                                         <StackPanel Orientation="Horizontal">
+                                            <Path Data="M12,2C9.5,2 7.5,4 7.5,6.5C7.5,7.5 7.8,8.4 8.4,9.1L3,14.5V22H8V18H10V22H14V18H16V22H21V14.5L15.6,9.1C16.2,8.4 16.5,7.5 16.5,6.5C16.5,4 14.5,2 12,2Z"
+                                                  Fill="White" Width="10" Height="10" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                             <TextBlock Text="{Binding KgPozostalo, StringFormat=N0}"
                                                        Foreground="#00D9FF" FontSize="10" FontWeight="SemiBold"/>
                                             <TextBlock Text=" kg" Foreground="#00D9FF" FontSize="8" VerticalAlignment="Bottom" Margin="0,0,0,1"/>
                                         </StackPanel>
+                                        <!-- Tuszki pozostale -->
                                         <StackPanel Orientation="Horizontal">
+                                            <Path Data="M17.9,2.6L16.2,3.1C15.8,1.9 14.6,1 13.2,1C12.6,1 12,1.2 11.5,1.5L8.1,3.6C6.8,4.4 6,5.8 6,7.4V8C4.3,8 3,9.3 3,11V13C3,14.7 4.3,16 6,16H7V22H17V16H18C19.7,16 21,14.7 21,13V11C21,9.3 19.7,8 18,8V7.4C18,6.7 17.8,6 17.4,5.4L19.3,4.9L17.9,2.6M9,14V10H15V14H9Z"
+                                                  Fill="White" Width="10" Height="10" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                             <TextBlock Text="{Binding TuszkiPozostalo, StringFormat=N0}"
                                                        Foreground="#A78BFA" FontSize="9"/>
-                                            <TextBlock Text=" kg tusz." Foreground="#A78BFA" FontSize="8" VerticalAlignment="Bottom" Margin="0,0,0,1"/>
+                                            <TextBlock Text=" kg" Foreground="#A78BFA" FontSize="8" VerticalAlignment="Bottom" Margin="0,0,0,1"/>
                                         </StackPanel>
                                     </StackPanel>
                                 </DataTemplate>
