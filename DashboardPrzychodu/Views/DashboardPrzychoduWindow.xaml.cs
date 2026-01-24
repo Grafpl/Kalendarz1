@@ -553,9 +553,14 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 string znak = sumaOdchylenie > 0 ? "+" : "";
                 txtSumaOdchylenie.Text = $"{znak}{sumaOdchylenie:N0} kg";
 
-                // Kolor
-                if (sumaPlan > 0)
+                // Kolor - więcej niż plan = zawsze zielony (to dobrze!)
+                if (sumaOdchylenie > 0)
                 {
+                    txtSumaOdchylenie.Foreground = FindResource("StatusOKBrush") as SolidColorBrush;
+                }
+                else if (sumaPlan > 0)
+                {
+                    // Mniej niż plan - sprawdzamy jak dużo brakuje
                     decimal procent = Math.Abs(sumaOdchylenie.Value / sumaPlan * 100);
                     if (procent <= 2)
                         txtSumaOdchylenie.Foreground = FindResource("StatusOKBrush") as SolidColorBrush;
