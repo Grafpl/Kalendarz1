@@ -731,131 +731,133 @@
                 </Style>
             </Expander.Style>
             <Border Background="{StaticResource CardBackgroundBrush}" CornerRadius="0,0,8,8" Padding="15,10">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-
-                    <!-- Kolumna 1: Kafelki -->
-                    <StackPanel Grid.Column="0" Margin="0,0,15,0">
-                        <TextBlock Text="● KAFELKI ZYWCA" FontWeight="Bold" Foreground="#00D9FF" FontSize="12" Margin="0,0,0,8"/>
-                        <TextBlock TextWrapping="Wrap" Foreground="#E2E8F0" FontSize="11" LineHeight="18">
-                            <Run FontWeight="Bold" Foreground="#6B7280">PLANOWANE</Run>
-                            <Run> - ile kg zywca hodowcy zadeklarowali na dzis</Run>
-                            <LineBreak/>
-                            <Run FontWeight="Bold" Foreground="#4ECCA3">ZWAZONE</Run>
-                            <Run> - ile kg juz przyjeto i zwazono</Run>
-                            <LineBreak/>
-                            <Run FontWeight="Bold" Foreground="#00D9FF">POZOSTALO</Run>
-                            <Run> - ile kg jeszcze czeka na wazenie</Run>
-                            <LineBreak/>
-                            <Run FontWeight="Bold" Foreground="#A0AEC0">ODCHYLENIE</Run>
-                            <Run> - roznica miedzy planem a rzeczywistoscia</Run>
-                            <LineBreak/>
-                            <Run FontWeight="Bold" Foreground="#A78BFA">SR.WAGA DEKL.</Run>
-                            <Run> - srednia waga sztuki wg hodowcy</Run>
-                            <LineBreak/>
-                            <Run FontWeight="Bold" Foreground="#4ECCA3">SR.WAGA RZECZ.</Run>
-                            <Run> - faktyczna srednia waga z wagi</Run>
-                        </TextBlock>
-                    </StackPanel>
-
-                    <!-- Kolumna 2: Tuszki -->
-                    <StackPanel Grid.Column="1" Margin="15,0">
-                        <TextBlock Text="◆ PROGNOZA TUSZEK" FontWeight="Bold" Foreground="#A78BFA" FontSize="12" Margin="0,0,0,8"/>
-                        <TextBlock TextWrapping="Wrap" Foreground="#E2E8F0" FontSize="11" LineHeight="18">
-                            <Run>Ile kg tuszek dostaniemy po uboju:</Run>
-                            <LineBreak/>
-                            <Run>• </Run><Run FontWeight="Bold">78%</Run><Run> wydajnosc uboju (zywiec -> tuszka)</Run>
-                            <LineBreak/>
-                            <Run>• </Run><Run FontWeight="Bold" Foreground="#4ECCA3">Klasa A (80%)</Run><Run> - tuszki pierwszej jakosci</Run>
-                            <LineBreak/>
-                            <Run>• </Run><Run FontWeight="Bold" Foreground="#FFB347">Klasa B (20%)</Run><Run> - tuszki drugiej jakosci</Run>
-                            <LineBreak/><LineBreak/>
-                            <Run FontWeight="Bold" Foreground="#4ECCA3">+X kg tuszek</Run><Run> = hodowca przywiozl WIECEJ niz deklarowal</Run>
-                            <LineBreak/>
-                            <Run FontWeight="Bold" Foreground="#F87171">-X kg tuszek</Run><Run> = hodowca przywiozl MNIEJ niz deklarowal</Run>
-                        </TextBlock>
-                    </StackPanel>
-
-                    <!-- Kolumna 3: Kolory i tabela -->
-                    <StackPanel Grid.Column="2" Margin="15,0,0,0">
-                        <TextBlock Text="▶ ZNACZENIE KOLOROW" FontWeight="Bold" Foreground="#FFB347" FontSize="12" Margin="0,0,0,8"/>
-                        <TextBlock TextWrapping="Wrap" Foreground="#E2E8F0" FontSize="11" LineHeight="18">
-                            <Run>Kolorowy pasek przy wierszu pokazuje odchylenie:</Run>
-                            <LineBreak/>
-                            <Run>• </Run><Run FontWeight="Bold" Foreground="#4ECCA3">ZIELONY (±2%)</Run><Run> - OK, norma</Run>
-                            <LineBreak/>
-                            <Run>• </Run><Run FontWeight="Bold" Foreground="#FFB347">POMARANCZOWY (±5%)</Run><Run> - Uwaga</Run>
-                            <LineBreak/>
-                            <Run>• </Run><Run FontWeight="Bold" Foreground="#F87171">CZERWONY (>5%)</Run><Run> - Problem!</Run>
-                            <LineBreak/><LineBreak/>
-                            <Run FontWeight="Bold">Statusy w tabeli:</Run>
-                            <LineBreak/>
-                            <Run>✅ - Zwazony (gotowe)</Run>
-                            <LineBreak/>
-                            <Run>⏳ - Tylko brutto (w trakcie)</Run>
-                            <LineBreak/>
-                            <Run>🔴 - Oczekuje (brak wag)</Run>
-                        </TextBlock>
-                    </StackPanel>
-                </Grid>
-
-                <!-- Sekcja PROGNOZA I REDUKCJA ZAMOWIEN -->
-                <Border Background="#0F172A" CornerRadius="8" Padding="15" Margin="0,15,0,0">
+                <StackPanel>
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
+                        <!-- Kolumna 1: Kafelki -->
                         <StackPanel Grid.Column="0" Margin="0,0,15,0">
-                            <TextBlock Text="PROGNOZA I REDUKCJA ZAMOWIEN" FontWeight="Bold" Foreground="#F59E0B" FontSize="12" Margin="0,0,0,8"/>
+                            <TextBlock Text="● KAFELKI ZYWCA" FontWeight="Bold" Foreground="#00D9FF" FontSize="12" Margin="0,0,0,8"/>
                             <TextBlock TextWrapping="Wrap" Foreground="#E2E8F0" FontSize="11" LineHeight="18">
-                                <Run FontWeight="Bold" Foreground="#60A5FA">Jak dziala prognoza?</Run>
+                                <Run FontWeight="Bold" Foreground="#6B7280">PLANOWANE</Run>
+                                <Run> - ile kg zywca hodowcy zadeklarowali na dzis</Run>
                                 <LineBreak/>
-                                <Run>System analizuje ile kg przywoza zwazone auta i prognozuje ile bedzie na koniec dnia.</Run>
+                                <Run FontWeight="Bold" Foreground="#4ECCA3">ZWAZONE</Run>
+                                <Run> - ile kg juz przyjeto i zwazono</Run>
                                 <LineBreak/>
-                                <Run>Jesli hodowcy daja MNIEJ niz deklarowali - zobaczysz alert z kwota redukcji zamowien.</Run>
-                                <LineBreak/><LineBreak/>
-                                <Run FontWeight="Bold" Foreground="#60A5FA">Co oznaczaja kolory alertu?</Run>
+                                <Run FontWeight="Bold" Foreground="#00D9FF">POZOSTALO</Run>
+                                <Run> - ile kg jeszcze czeka na wazenie</Run>
                                 <LineBreak/>
-                                <Run>• </Run><Run FontWeight="Bold" Foreground="#DC2626">KRYTYCZNY (&lt;90%)</Run><Run> - natychmiast redukuj zamowienia!</Run>
+                                <Run FontWeight="Bold" Foreground="#A0AEC0">ODCHYLENIE</Run>
+                                <Run> - roznica miedzy planem a rzeczywistoscia</Run>
                                 <LineBreak/>
-                                <Run>• </Run><Run FontWeight="Bold" Foreground="#FBBF24">WYSOKI (90-95%)</Run><Run> - przygotuj sie na redukcje</Run>
+                                <Run FontWeight="Bold" Foreground="#A78BFA">SR.WAGA DEKL.</Run>
+                                <Run> - srednia waga sztuki wg hodowcy</Run>
                                 <LineBreak/>
-                                <Run>• </Run><Run FontWeight="Bold" Foreground="#FB923C">UWAGA (95-98%)</Run><Run> - obserwuj trend</Run>
-                                <LineBreak/>
-                                <Run>• </Run><Run FontWeight="Bold" Foreground="#4ECCA3">OK (&gt;98%)</Run><Run> - plan realizowany</Run>
+                                <Run FontWeight="Bold" Foreground="#4ECCA3">SR.WAGA RZECZ.</Run>
+                                <Run> - faktyczna srednia waga z wagi</Run>
                             </TextBlock>
                         </StackPanel>
 
-                        <StackPanel Grid.Column="1" Margin="15,0,0,0">
-                            <TextBlock Text="CO ROBIC GDY JEST ALERT?" FontWeight="Bold" Foreground="#F59E0B" FontSize="12" Margin="0,0,0,8"/>
+                        <!-- Kolumna 2: Tuszki -->
+                        <StackPanel Grid.Column="1" Margin="15,0">
+                            <TextBlock Text="◆ PROGNOZA TUSZEK" FontWeight="Bold" Foreground="#A78BFA" FontSize="12" Margin="0,0,0,8"/>
                             <TextBlock TextWrapping="Wrap" Foreground="#E2E8F0" FontSize="11" LineHeight="18">
-                                <Run>1. Sprawdz ktory hodowca daje mniej (kolumna TREND)</Run>
+                                <Run>Ile kg tuszek dostaniemy po uboju:</Run>
                                 <LineBreak/>
-                                <Run>2. Zadzwon do hodowcy - moze ma problemy z zaladunkiem</Run>
+                                <Run>• </Run><Run FontWeight="Bold">78%</Run><Run> wydajnosc uboju (zywiec -> tuszka)</Run>
                                 <LineBreak/>
-                                <Run>3. Jesli potwierdzi brak - DZWON DO KLIENTOW i redukuj zamowienia</Run>
+                                <Run>• </Run><Run FontWeight="Bold" Foreground="#4ECCA3">Klasa A (80%)</Run><Run> - tuszki pierwszej jakosci</Run>
                                 <LineBreak/>
-                                <Run>4. Priorytet: klienci z najwiekszymi zamowieniami</Run>
+                                <Run>• </Run><Run FontWeight="Bold" Foreground="#FFB347">Klasa B (20%)</Run><Run> - tuszki drugiej jakosci</Run>
                                 <LineBreak/><LineBreak/>
-                                <Run FontWeight="Bold" Foreground="#60A5FA">Symbol (R) przy PLANIE</Run>
+                                <Run FontWeight="Bold" Foreground="#4ECCA3">+X kg tuszek</Run><Run> = hodowca przywiozl WIECEJ niz deklarowal</Run>
                                 <LineBreak/>
-                                <Run>Oznacza OSTATNIE auto hodowcy - jego plan to RESZTA z harmonogramu.</Run>
+                                <Run FontWeight="Bold" Foreground="#F87171">-X kg tuszek</Run><Run> = hodowca przywiozl MNIEJ niz deklarowal</Run>
+                            </TextBlock>
+                        </StackPanel>
+
+                        <!-- Kolumna 3: Kolory i tabela -->
+                        <StackPanel Grid.Column="2" Margin="15,0,0,0">
+                            <TextBlock Text="▶ ZNACZENIE KOLOROW" FontWeight="Bold" Foreground="#FFB347" FontSize="12" Margin="0,0,0,8"/>
+                            <TextBlock TextWrapping="Wrap" Foreground="#E2E8F0" FontSize="11" LineHeight="18">
+                                <Run>Kolorowy pasek przy wierszu pokazuje odchylenie:</Run>
                                 <LineBreak/>
-                                <Run>Dzieki temu wiesz ile MUSI przyjechac zeby zrealizowac plan.</Run>
+                                <Run>• </Run><Run FontWeight="Bold" Foreground="#4ECCA3">ZIELONY (±2%)</Run><Run> - OK, norma</Run>
+                                <LineBreak/>
+                                <Run>• </Run><Run FontWeight="Bold" Foreground="#FFB347">POMARANCZOWY (±5%)</Run><Run> - Uwaga</Run>
+                                <LineBreak/>
+                                <Run>• </Run><Run FontWeight="Bold" Foreground="#F87171">CZERWONY (>5%)</Run><Run> - Problem!</Run>
                                 <LineBreak/><LineBreak/>
-                                <Run FontWeight="Bold" Foreground="#60A5FA">Kolumna POZOSTALO</Run>
+                                <Run FontWeight="Bold">Statusy w tabeli:</Run>
                                 <LineBreak/>
-                                <Run>Pokazuje ile kg/szt zostalo jeszcze do zabrania z danego harmonogramu.</Run>
+                                <Run>✅ - Zwazony (gotowe)</Run>
+                                <LineBreak/>
+                                <Run>⏳ - Tylko brutto (w trakcie)</Run>
+                                <LineBreak/>
+                                <Run>🔴 - Oczekuje (brak wag)</Run>
                             </TextBlock>
                         </StackPanel>
                     </Grid>
-                </Border>
+
+                    <!-- Sekcja PROGNOZA I REDUKCJA ZAMOWIEN -->
+                    <Border Background="#0F172A" CornerRadius="8" Padding="15" Margin="0,15,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="0,0,15,0">
+                                <TextBlock Text="PROGNOZA I REDUKCJA ZAMOWIEN" FontWeight="Bold" Foreground="#F59E0B" FontSize="12" Margin="0,0,0,8"/>
+                                <TextBlock TextWrapping="Wrap" Foreground="#E2E8F0" FontSize="11" LineHeight="18">
+                                    <Run FontWeight="Bold" Foreground="#60A5FA">Jak dziala prognoza?</Run>
+                                    <LineBreak/>
+                                    <Run>System analizuje ile kg przywoza zwazone auta i prognozuje ile bedzie na koniec dnia.</Run>
+                                    <LineBreak/>
+                                    <Run>Jesli hodowcy daja MNIEJ niz deklarowali - zobaczysz alert z kwota redukcji zamowien.</Run>
+                                    <LineBreak/><LineBreak/>
+                                    <Run FontWeight="Bold" Foreground="#60A5FA">Co oznaczaja kolory alertu?</Run>
+                                    <LineBreak/>
+                                    <Run>• </Run><Run FontWeight="Bold" Foreground="#DC2626">KRYTYCZNY (&lt;90%)</Run><Run> - natychmiast redukuj zamowienia!</Run>
+                                    <LineBreak/>
+                                    <Run>• </Run><Run FontWeight="Bold" Foreground="#FBBF24">WYSOKI (90-95%)</Run><Run> - przygotuj sie na redukcje</Run>
+                                    <LineBreak/>
+                                    <Run>• </Run><Run FontWeight="Bold" Foreground="#FB923C">UWAGA (95-98%)</Run><Run> - obserwuj trend</Run>
+                                    <LineBreak/>
+                                    <Run>• </Run><Run FontWeight="Bold" Foreground="#4ECCA3">OK (&gt;98%)</Run><Run> - plan realizowany</Run>
+                                </TextBlock>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Margin="15,0,0,0">
+                                <TextBlock Text="CO ROBIC GDY JEST ALERT?" FontWeight="Bold" Foreground="#F59E0B" FontSize="12" Margin="0,0,0,8"/>
+                                <TextBlock TextWrapping="Wrap" Foreground="#E2E8F0" FontSize="11" LineHeight="18">
+                                    <Run>1. Sprawdz ktory hodowca daje mniej (kolumna TREND)</Run>
+                                    <LineBreak/>
+                                    <Run>2. Zadzwon do hodowcy - moze ma problemy z zaladunkiem</Run>
+                                    <LineBreak/>
+                                    <Run>3. Jesli potwierdzi brak - DZWON DO KLIENTOW i redukuj zamowienia</Run>
+                                    <LineBreak/>
+                                    <Run>4. Priorytet: klienci z najwiekszymi zamowieniami</Run>
+                                    <LineBreak/><LineBreak/>
+                                    <Run FontWeight="Bold" Foreground="#60A5FA">Symbol (R) przy PLANIE</Run>
+                                    <LineBreak/>
+                                    <Run>Oznacza OSTATNIE auto hodowcy - jego plan to RESZTA z harmonogramu.</Run>
+                                    <LineBreak/>
+                                    <Run>Dzieki temu wiesz ile MUSI przyjechac zeby zrealizowac plan.</Run>
+                                    <LineBreak/><LineBreak/>
+                                    <Run FontWeight="Bold" Foreground="#60A5FA">Kolumna POZOSTALO</Run>
+                                    <LineBreak/>
+                                    <Run>Pokazuje ile kg/szt zostalo jeszcze do zabrania z danego harmonogramu.</Run>
+                                </TextBlock>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </StackPanel>
             </Border>
         </Expander>
 
