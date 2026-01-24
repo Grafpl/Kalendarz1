@@ -981,7 +981,7 @@
                                     <StackPanel VerticalAlignment="Center">
                                         <TextBlock Text="{Binding PostepDisplay}"
                                                    FontSize="9" Foreground="#9CA3AF" HorizontalAlignment="Center"/>
-                                        <ProgressBar Value="{Binding PostepProc}" Maximum="100"
+                                        <ProgressBar Value="{Binding PostepProc, Mode=OneWay}" Maximum="100"
                                                      Height="3" Background="#374151" Foreground="#4ECCA3"
                                                      Margin="0,2,0,0"/>
                                     </StackPanel>
