@@ -16,8 +16,10 @@ namespace Kalendarz1.DashboardPrzychodu.Models
 
         private int _sztukiPlanSuma;
         private decimal _kgPlanSuma;
+        private decimal? _srWagaPlanSrednia;      // Średnia waga plan z harmonogramu
         private int _sztukiZwazoneSuma;
         private decimal _kgZwazoneSuma;
+        private decimal? _srWagaRzeczSrednia;     // Średnia waga rzeczywista
         private decimal _kgPlanDoZwazonych;
         private int _liczbaDostawOgolem;
         private int _liczbaZwazonych;
@@ -42,7 +44,16 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         public decimal KgPlanSuma
         {
             get => _kgPlanSuma;
-            set { _kgPlanSuma = value; OnPropertyChanged(); OnPropertyChanged(nameof(KgPozostalo)); OnPropertyChanged(nameof(ProcentRealizacjiKg)); }
+            set { _kgPlanSuma = value; OnPropertyChanged(); OnPropertyChanged(nameof(KgPozostalo)); OnPropertyChanged(nameof(ProcentRealizacjiKg)); OnPropertyChanged(nameof(TuszkiPlanKg)); }
+        }
+
+        /// <summary>
+        /// Średnia waga deklarowana z harmonogramu [kg/szt]
+        /// </summary>
+        public decimal? SrWagaPlanSrednia
+        {
+            get => _srWagaPlanSrednia;
+            set { _srWagaPlanSrednia = value; OnPropertyChanged(); OnPropertyChanged(nameof(OdchylenieWagiSrednie)); }
         }
 
         #endregion
@@ -77,6 +88,15 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         }
 
         /// <summary>
+        /// Średnia waga rzeczywista [kg/szt]
+        /// </summary>
+        public decimal? SrWagaRzeczSrednia
+        {
+            get => _srWagaRzeczSrednia;
+            set { _srWagaRzeczSrednia = value; OnPropertyChanged(); OnPropertyChanged(nameof(OdchylenieWagiSrednie)); }
+        }
+
+        /// <summary>
         /// Plan kg dla dostaw które zostały już zważone (do obliczenia odchylenia)
         /// </summary>
         public decimal KgPlanDoZwazonych
@@ -90,6 +110,34 @@ namespace Kalendarz1.DashboardPrzychodu.Models
                 OnPropertyChanged(nameof(Poziom));
             }
         }
+
+        #endregion
+
+        #region Properties - Porównanie wag
+
+        /// <summary>
+        /// Odchylenie średniej wagi [kg/szt] (rzeczywista - deklarowana)
+        /// </summary>
+        public decimal? OdchylenieWagiSrednie => SrWagaRzeczSrednia.HasValue && SrWagaPlanSrednia.HasValue
+            ? Math.Round(SrWagaRzeczSrednia.Value - SrWagaPlanSrednia.Value, 3)
+            : null;
+
+        /// <summary>
+        /// Wyświetlane odchylenie wagi
+        /// </summary>
+        public string OdchylenieWagiDisplay => OdchylenieWagiSrednie.HasValue
+            ? $"{(OdchylenieWagiSrednie > 0 ? "+" : "")}{OdchylenieWagiSrednie:N2} kg/szt"
+            : "-";
+
+        /// <summary>
+        /// Trend wagi (interpretacja dla handlowców)
+        /// </summary>
+        public string OdchylenieWagiTrend => OdchylenieWagiSrednie switch
+        {
+            > 0.02m => "↑ Cięższe",
+            < -0.02m => "↓ Lżejsze",
+            _ => "≈ Zgodne"
+        };
 
         #endregion
 
@@ -170,6 +218,11 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         #endregion
 
         #region Properties - Prognoza produkcji
+
+        /// <summary>
+        /// Plan tuszek z harmonogramu [kg]
+        /// </summary>
+        public decimal TuszkiPlanKg => Math.Round(KgPlanSuma * WspolczynnikTuszek, 0);
 
         /// <summary>
         /// Prognoza tuszek z już zważonego żywca [kg]

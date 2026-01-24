@@ -27,6 +27,7 @@ namespace Kalendarz1.DashboardPrzychodu.Models
 
     /// <summary>
     /// Model pojedynczej dostawy żywca dla Dashboard Przychodu
+    /// PLAN z HarmonogramDostaw, RZECZYWISTE z FarmerCalc
     /// </summary>
     public class DostawaItem : INotifyPropertyChanged
     {
@@ -38,13 +39,17 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         private int _sztukiPlan;
         private decimal _kgPlan;
         private decimal? _sredniaWagaPlan;
+        private decimal? _wagaDeklHarmonogram;  // Średnia waga z HarmonogramDostaw
+        private decimal? _sztPojPlan;            // Szt/pojemnik z harmonogramu
         private decimal _brutto;
         private decimal _tara;
         private decimal _kgRzeczywiste;
         private int _sztukiRzeczywiste;
         private decimal? _sredniaWagaRzeczywista;
+        private decimal? _sztPojRzecz;           // Szt/pojemnik rzeczywiste
         private decimal? _odchylenieKg;
         private decimal? _odchylenieProc;
+        private decimal? _odchylenieWagi;        // Różnica średnich wag
         private int _statusId;
         private int _padle;
         private int _konfiskaty;
@@ -122,6 +127,24 @@ namespace Kalendarz1.DashboardPrzychodu.Models
             ? Math.Round(KgPlan / SztukiPlan, 3)
             : SredniaWagaPlan;
 
+        /// <summary>
+        /// Średnia waga deklarowana z HarmonogramDostaw [kg/szt]
+        /// </summary>
+        public decimal? WagaDeklHarmonogram
+        {
+            get => _wagaDeklHarmonogram;
+            set { _wagaDeklHarmonogram = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>
+        /// Szt/pojemnik z harmonogramu (klasa wagowa)
+        /// </summary>
+        public decimal? SztPojPlan
+        {
+            get => _sztPojPlan;
+            set { _sztPojPlan = value; OnPropertyChanged(); }
+        }
+
         #endregion
 
         #region Properties - Rzeczywiste (z wagi w ubojni)
@@ -177,6 +200,15 @@ namespace Kalendarz1.DashboardPrzychodu.Models
             ? Math.Round(KgRzeczywiste / SztukiRzeczywiste, 3)
             : SredniaWagaRzeczywista;
 
+        /// <summary>
+        /// Szt/pojemnik rzeczywiste (klasa wagowa)
+        /// </summary>
+        public decimal? SztPojRzecz
+        {
+            get => _sztPojRzecz;
+            set { _sztPojRzecz = value; OnPropertyChanged(); }
+        }
+
         #endregion
 
         #region Properties - Prognoza Tuszek (78% wydajności)
@@ -218,6 +250,79 @@ namespace Kalendarz1.DashboardPrzychodu.Models
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(OdchylenieDisplay));
                 OnPropertyChanged(nameof(Poziom));
+            }
+        }
+
+        /// <summary>
+        /// Odchylenie średniej wagi [kg/szt] (rzeczywista - deklarowana)
+        /// </summary>
+        public decimal? OdchylenieWagi
+        {
+            get => _odchylenieWagi;
+            set
+            {
+                _odchylenieWagi = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(OdchylenieWagiDisplay));
+                OnPropertyChanged(nameof(WagaTrend));
+            }
+        }
+
+        /// <summary>
+        /// Obliczone odchylenie wagi (rzeczywista - deklarowana)
+        /// </summary>
+        public decimal? OdchylenieWagiCalc => SredniaWagaRzeczywistaCalc.HasValue && WagaDeklHarmonogram.HasValue
+            ? Math.Round(SredniaWagaRzeczywistaCalc.Value - WagaDeklHarmonogram.Value, 3)
+            : OdchylenieWagi;
+
+        /// <summary>
+        /// Wyświetlane odchylenie wagi
+        /// </summary>
+        public string OdchylenieWagiDisplay
+        {
+            get
+            {
+                var wagi = OdchylenieWagiCalc ?? OdchylenieWagi;
+                if (!wagi.HasValue || Status != StatusDostawy.Zwazony)
+                    return "-";
+                string znak = wagi > 0 ? "+" : "";
+                return $"{znak}{wagi:N2} kg";
+            }
+        }
+
+        /// <summary>
+        /// Kierunek zmiany wagi (strzałka)
+        /// </summary>
+        public string WagaTrend
+        {
+            get
+            {
+                var wagi = OdchylenieWagiCalc ?? OdchylenieWagi;
+                if (!wagi.HasValue || Status != StatusDostawy.Zwazony) return "";
+                return wagi switch
+                {
+                    > 0.02m => "↑",    // cięższe
+                    < -0.02m => "↓",   // lżejsze
+                    _ => "≈"           // bez zmian
+                };
+            }
+        }
+
+        /// <summary>
+        /// Kierunek zmiany szt/poj
+        /// </summary>
+        public string SztPojTrend
+        {
+            get
+            {
+                if (!SztPojPlan.HasValue || !SztPojRzecz.HasValue) return "";
+                var diff = SztPojRzecz.Value - SztPojPlan.Value;
+                return diff switch
+                {
+                    < -0.5m => "↑",  // mniej szt/poj = większe kurczaki
+                    > 0.5m => "↓",   // więcej szt/poj = mniejsze kurczaki
+                    _ => "≈"
+                };
             }
         }
 

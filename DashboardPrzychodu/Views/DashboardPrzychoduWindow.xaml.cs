@@ -264,7 +264,8 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             txtOczekujeCount.Text = oczekujeCount.ToString();
 
             // Prognoza produkcji - tuszki planowane vs rzeczywiste
-            decimal tuszkiPlan = Math.Round(_podsumowanie.KgPlanSuma * 0.78m, 0);
+            // Używamy TuszkiPlanKg z modelu (obliczone z KgPlanSuma * 78%)
+            decimal tuszkiPlan = _podsumowanie.TuszkiPlanKg;
             decimal tuszkiRzecz = _podsumowanie.PrognozaTuszekKg;
 
             txtTuszkiPlan.Text = tuszkiPlan.ToString("N0");
@@ -291,9 +292,15 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 txtTuszkiRoznica.Text = "";
             }
 
-            // Średnia waga planowana (kg plan / sztuki plan)
-            if (_podsumowanie.SztukiPlanSuma > 0)
+            // Średnia waga planowana - z HarmonogramDostaw (WagaDek)
+            // Używamy SrWagaPlanSrednia z modelu (obliczone w SQL z HarmonogramDostaw)
+            if (_podsumowanie.SrWagaPlanSrednia.HasValue)
             {
+                txtSrWagaPlan.Text = _podsumowanie.SrWagaPlanSrednia.Value.ToString("N2");
+            }
+            else if (_podsumowanie.SztukiPlanSuma > 0)
+            {
+                // Fallback: oblicz z kg/szt jeśli brak danych z harmonogramu
                 decimal srWagaPlan = _podsumowanie.KgPlanSuma / _podsumowanie.SztukiPlanSuma;
                 txtSrWagaPlan.Text = srWagaPlan.ToString("N2");
             }
@@ -302,28 +309,24 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 txtSrWagaPlan.Text = "-";
             }
 
-            // Średnia waga rzeczywista (netto kg / lumel sztuki)
-            decimal? srWagaRzeczValue = null;
-            if (_podsumowanie.SztukiZwazoneSuma > 0)
+            // Średnia waga rzeczywista - z FarmerCalc (NettoWeight / LumQnt)
+            // Używamy SrWagaRzeczSrednia z modelu (obliczone w SQL)
+            if (_podsumowanie.SrWagaRzeczSrednia.HasValue)
             {
-                srWagaRzeczValue = _podsumowanie.KgZwazoneSuma / _podsumowanie.SztukiZwazoneSuma;
-                txtSrWagaRzecz.Text = srWagaRzeczValue.Value.ToString("N2");
+                txtSrWagaRzecz.Text = _podsumowanie.SrWagaRzeczSrednia.Value.ToString("N2");
             }
             else
             {
                 txtSrWagaRzecz.Text = "-";
             }
 
-            // Porównanie wag (nowy kafelek)
-            decimal? srWagaPlanValue = _podsumowanie.SztukiPlanSuma > 0
-                ? _podsumowanie.KgPlanSuma / _podsumowanie.SztukiPlanSuma
-                : null;
-
-            UpdateWeightComparison(srWagaPlanValue, srWagaRzeczValue);
+            // Porównanie wag - używamy wartości z modelu (z HarmonogramDostaw)
+            UpdateWeightComparison(_podsumowanie.SrWagaPlanSrednia, _podsumowanie.SrWagaRzeczSrednia);
         }
 
         /// <summary>
         /// Aktualizacja kafelka porównania wag (zintegrowany w kafelku ŚREDNIE WAGI)
+        /// Używa danych z HarmonogramDostaw (WagaDek) vs FarmerCalc (NettoWeight/LumQnt)
         /// </summary>
         private void UpdateWeightComparison(decimal? wagaPlan, decimal? wagaRzecz)
         {
@@ -335,29 +338,30 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 return;
             }
 
-            decimal roznica = wagaRzecz.Value - wagaPlan.Value;
-            decimal procentRoznicy = wagaPlan.Value > 0 ? (roznica / wagaPlan.Value) * 100 : 0;
+            // Używamy OdchylenieWagiSrednie z modelu (obliczone jako różnica wag)
+            decimal? odchylenie = _podsumowanie.OdchylenieWagiSrednie;
+            decimal roznica = odchylenie ?? (wagaRzecz.Value - wagaPlan.Value);
 
-            if (roznica > 0.01m)
+            if (roznica > 0.02m)
             {
-                // Ptaki cięższe niż deklarowane
+                // Ptaki cięższe niż deklarowane (>0.02 kg/szt)
                 txtWagaArrow.Text = "↑";
                 txtWagaArrow.Foreground = new SolidColorBrush(Color.FromRgb(78, 204, 163)); // Zielony
-                txtWagaInterpretacja.Text = $"+{procentRoznicy:0.0}%";
+                txtWagaInterpretacja.Text = $"+{roznica:N2}kg";
                 txtWagaInterpretacja.Foreground = new SolidColorBrush(Color.FromRgb(78, 204, 163));
             }
-            else if (roznica < -0.01m)
+            else if (roznica < -0.02m)
             {
-                // Ptaki lżejsze niż deklarowane
+                // Ptaki lżejsze niż deklarowane (<-0.02 kg/szt)
                 txtWagaArrow.Text = "↓";
                 txtWagaArrow.Foreground = new SolidColorBrush(Color.FromRgb(248, 113, 113)); // Czerwony
-                txtWagaInterpretacja.Text = $"{procentRoznicy:0.0}%";
+                txtWagaInterpretacja.Text = $"{roznica:N2}kg";
                 txtWagaInterpretacja.Foreground = new SolidColorBrush(Color.FromRgb(248, 113, 113));
             }
             else
             {
-                // Prawie identyczne
-                txtWagaArrow.Text = "=";
+                // Zgodne (±0.02 kg/szt)
+                txtWagaArrow.Text = "≈";
                 txtWagaArrow.Foreground = new SolidColorBrush(Color.FromRgb(34, 211, 238)); // Cyan
                 txtWagaInterpretacja.Text = "OK";
                 txtWagaInterpretacja.Foreground = new SolidColorBrush(Color.FromRgb(34, 211, 238));
