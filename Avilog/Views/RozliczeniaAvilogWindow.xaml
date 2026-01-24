@@ -5,7 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="Rozliczenia Avilog - Dzienne zestawienie uboju"
-        WindowState="Maximized"
+        Width="1400" Height="900"
+        MinWidth="1200" MinHeight="600"
         WindowStartupLocation="CenterScreen"
         Background="#FFFFFF">
 
