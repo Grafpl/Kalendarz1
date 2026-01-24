@@ -250,7 +250,7 @@ namespace Kalendarz1.Avilog.Views
             txtSumaRoznica.Text = $"{_summary.SumaRoznicaKg:N0}";
             txtLiczbaKursow.Text = $"{_summary.LiczbaKursow}";
             txtSumaKM.Text = $"{_summary.SumaKM:N0}";
-            txtSumaGodzin.Text = FormatHours(_summary.SumaGodzin);
+            txtSumaGodzin.Text = _summary.SumaGodzinFormatowana;
 
             // Footer - DO ZAPŁATY
             txtDoZaplaty.Text = $"{_summary.DoZaplaty:N2} zł";
@@ -262,13 +262,6 @@ namespace Kalendarz1.Avilog.Views
             txtKalkRoznica.Text = $"= {_summary.SumaRoznicaKg:N0} kg";
             txtKalkDoZaplaty.Text = $"{_summary.DoZaplaty:N2} zł";
             txtKalkFormula.Text = $"{_summary.SumaRoznicaKg:N0} kg × {_stawkaZaKg:N3} zł";
-        }
-
-        private string FormatHours(decimal totalHours)
-        {
-            int hours = (int)totalHours;
-            int minutes = (int)((totalHours - hours) * 60);
-            return $"{hours}:{minutes:D2}";
         }
 
         private void ShowLoading(bool isLoading, string message = "")
@@ -622,7 +615,7 @@ namespace Kalendarz1.Avilog.Views
             sb.AppendLine($"  RÓŻNICA KG:          {_summary.SumaRoznicaKg:N0} kg");
             sb.AppendLine();
             sb.AppendLine($"  Suma KM:             {_summary.SumaKM:N0} km");
-            sb.AppendLine($"  Suma godzin:         {FormatHours(_summary.SumaGodzin)}");
+            sb.AppendLine($"  Suma czasu:          {_summary.SumaGodzinFormatowana}");
             sb.AppendLine($"  Liczba kursów:       {_summary.LiczbaKursow}");
             sb.AppendLine();
             sb.AppendLine("═══════════════════════════════════════════════════");

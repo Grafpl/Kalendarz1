@@ -84,6 +84,27 @@ namespace Kalendarz1.Avilog.Models
         }
 
         /// <summary>
+        /// Suma godzin sformatowana jako "Xh Ymin"
+        /// </summary>
+        public string SumaGodzinFormatowana
+        {
+            get
+            {
+                int godziny = (int)SumaGodzin;
+                int minuty = (int)((SumaGodzin - godziny) * 60);
+
+                if (godziny > 0 && minuty > 0)
+                    return $"{godziny}h {minuty}min";
+                else if (godziny > 0)
+                    return $"{godziny}h";
+                else if (minuty > 0)
+                    return $"{minuty}min";
+                else
+                    return "-";
+            }
+        }
+
+        /// <summary>
         /// Czy to jest wiersz sumy (do formatowania)
         /// </summary>
         public bool JestSuma { get; set; }
@@ -158,7 +179,27 @@ namespace Kalendarz1.Avilog.Models
         // === FORMATOWANIE ===
         public string OkresFormatowany => $"{DataOd:dd.MM.yyyy} - {DataDo:dd.MM.yyyy}";
         public string DoZaplatyFormatowane => $"{DoZaplaty:N2} zł";
-        public string SumaGodzinFormatowane => $"{SumaGodzin:N2} h";
+
+        /// <summary>
+        /// Suma godzin sformatowana jako "Xh Ymin"
+        /// </summary>
+        public string SumaGodzinFormatowana
+        {
+            get
+            {
+                int godziny = (int)SumaGodzin;
+                int minuty = (int)((SumaGodzin - godziny) * 60);
+
+                if (godziny > 0 && minuty > 0)
+                    return $"{godziny}h {minuty}min";
+                else if (godziny > 0)
+                    return $"{godziny}h";
+                else if (minuty > 0)
+                    return $"{minuty}min";
+                else
+                    return "-";
+            }
+        }
 
         // === ŚREDNIE ===
         public decimal SredniaWagaKurczaka => SumaSztuk > 0 ? Math.Round(SumaNetto / SumaSztuk, 3) : 0;
