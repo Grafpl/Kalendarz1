@@ -540,6 +540,59 @@ namespace Kalendarz1.Avilog.Views
 
         #region === DATAGRID EVENTS ===
 
+        private void DataGridKursy_Sorting(object sender, DataGridSortingEventArgs e)
+        {
+            e.Handled = true; // Anuluj domyślne sortowanie
+
+            var column = e.Column;
+            var direction = (column.SortDirection != System.ComponentModel.ListSortDirection.Ascending)
+                ? System.ComponentModel.ListSortDirection.Ascending
+                : System.ComponentModel.ListSortDirection.Descending;
+
+            column.SortDirection = direction;
+
+            // Pobierz wszystkie wiersze oprócz sumy
+            var regularRows = _kursyCollection.Where(k => !k.JestSuma).ToList();
+            var sumaRow = _kursyCollection.FirstOrDefault(k => k.JestSuma);
+
+            // Sortuj według wybranej kolumny
+            IOrderedEnumerable<AvilogKursModel> sorted;
+            var propertyName = column.SortMemberPath;
+
+            if (direction == System.ComponentModel.ListSortDirection.Ascending)
+            {
+                sorted = regularRows.OrderBy(k => GetPropertyValue(k, propertyName));
+            }
+            else
+            {
+                sorted = regularRows.OrderByDescending(k => GetPropertyValue(k, propertyName));
+            }
+
+            // Odśwież kolekcję
+            _kursyCollection.Clear();
+            int lp = 1;
+            foreach (var kurs in sorted)
+            {
+                kurs.LP = lp++;
+                _kursyCollection.Add(kurs);
+            }
+
+            // Dodaj wiersz sumy na końcu
+            if (sumaRow != null)
+            {
+                sumaRow.LP = 0;
+                _kursyCollection.Add(sumaRow);
+            }
+        }
+
+        private object GetPropertyValue(AvilogKursModel kurs, string propertyName)
+        {
+            if (string.IsNullOrEmpty(propertyName)) return null;
+
+            var property = typeof(AvilogKursModel).GetProperty(propertyName);
+            return property?.GetValue(kurs);
+        }
+
         private void DataGridKursy_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
             if (dataGridKursy.SelectedItem is AvilogKursModel kurs)

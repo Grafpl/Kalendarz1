@@ -300,7 +300,8 @@
                                   EnableRowVirtualization="True"
                                   VirtualizingPanel.IsVirtualizing="True"
                                   VirtualizingPanel.VirtualizationMode="Recycling"
-                                  MouseDoubleClick="DataGridKursy_MouseDoubleClick">
+                                  MouseDoubleClick="DataGridKursy_MouseDoubleClick"
+                                  Sorting="DataGridKursy_Sorting">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="LP" Binding="{Binding LP}" Width="40">
                                     <DataGridTextColumn.ElementStyle>
