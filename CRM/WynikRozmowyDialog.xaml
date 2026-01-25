@@ -1,0 +1,255 @@
+<Window x:Class="Kalendarz1.CRM.WynikRozmowyDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Wynik rozmowy"
+        Width="500" Height="650"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="#0F172A"
+        FontFamily="Segoe UI">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="BgSecondary" Color="#1E293B"/>
+        <SolidColorBrush x:Key="BgTertiary" Color="#334155"/>
+        <SolidColorBrush x:Key="AccentPrimary" Color="#6366F1"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#94A3B8"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#475569"/>
+
+        <Style x:Key="WynikButton" TargetType="Button">
+            <Setter Property="Background" Value="#334155"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="15,12"/>
+            <Setter Property="Margin" Value="0,4"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#475569"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="QuickDateButton" TargetType="Button">
+            <Setter Property="Background" Value="#334155"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Margin" Value="0,0,8,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#6366F1"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ActionButton" TargetType="Button">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="15,12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Opacity" Value="0.9"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="bd" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Naglowek z nazwa firmy -->
+        <Border Grid.Row="0" Background="#1E293B" CornerRadius="10" Padding="15" Margin="0,0,0,15">
+            <StackPanel>
+                <TextBlock Text="WYNIK ROZMOWY" FontSize="11" FontWeight="Bold"
+                           Foreground="#64748B" Margin="0,0,0,5"/>
+                <TextBlock x:Name="txtNazwaFirmy" Text="Nazwa firmy" FontSize="18"
+                           FontWeight="Bold" Foreground="#E2E8F0"/>
+                <TextBlock x:Name="txtTelefon" Text="123 456 789" FontSize="13"
+                           Foreground="#6366F1" Margin="0,3,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Przyciski wynikow -->
+        <StackPanel Grid.Row="1" x:Name="panelWyniki">
+            <TextBlock Text="Co sie wydarzylo?" Foreground="#94A3B8"
+                       FontSize="12" FontWeight="SemiBold" Margin="0,0,0,10"/>
+
+            <Button x:Name="btnNieOdebral" Style="{StaticResource WynikButton}"
+                    Click="BtnWynik_Click" Tag="nie_odebral">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#x1F4F5;" FontSize="18" Margin="0,0,12,0"/>
+                    <StackPanel>
+                        <TextBlock Text="Nie odebrali" FontWeight="SemiBold"/>
+                        <TextBlock Text="Przypomnienie jutro o tej samej porze"
+                                   FontSize="11" Foreground="#64748B"/>
+                    </StackPanel>
+                </StackPanel>
+            </Button>
+
+            <Button x:Name="btnZajety" Style="{StaticResource WynikButton}"
+                    Click="BtnWynik_Click" Tag="zajety">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#x23F0;" FontSize="18" Margin="0,0,12,0"/>
+                    <StackPanel>
+                        <TextBlock Text="Zajety / Zadzwonic pozniej" FontWeight="SemiBold"/>
+                        <TextBlock Text="Przypomnienie za 2 godziny"
+                                   FontSize="11" Foreground="#64748B"/>
+                    </StackPanel>
+                </StackPanel>
+            </Button>
+
+            <Button x:Name="btnRozmowaPozytywna" Style="{StaticResource WynikButton}"
+                    Click="BtnWynik_Click" Tag="rozmowa_pozytywna" Background="#14532D">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#x2705;" FontSize="18" Margin="0,0,12,0"/>
+                    <StackPanel>
+                        <TextBlock Text="Rozmowa - ZAINTERESOWANY" FontWeight="SemiBold" Foreground="#4ADE80"/>
+                        <TextBlock Text="Wypelnij dane o kliencie"
+                                   FontSize="11" Foreground="#86EFAC"/>
+                    </StackPanel>
+                </StackPanel>
+            </Button>
+
+            <Button x:Name="btnRozmowaNeutralna" Style="{StaticResource WynikButton}"
+                    Click="BtnWynik_Click" Tag="rozmowa_neutralna">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#x1F4AC;" FontSize="18" Margin="0,0,12,0"/>
+                    <StackPanel>
+                        <TextBlock Text="Rozmowa - moze pozniej" FontWeight="SemiBold"/>
+                        <TextBlock Text="Ustaw kiedy zadzwonic ponownie"
+                                   FontSize="11" Foreground="#64748B"/>
+                    </StackPanel>
+                </StackPanel>
+            </Button>
+
+            <Button x:Name="btnRozmowaNegitywna" Style="{StaticResource WynikButton}"
+                    Click="BtnWynik_Click" Tag="rozmowa_negatywna" Background="#7F1D1D">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#x274C;" FontSize="18" Margin="0,0,12,0"/>
+                    <StackPanel>
+                        <TextBlock Text="Nie zainteresowany" FontWeight="SemiBold" Foreground="#FCA5A5"/>
+                        <TextBlock Text="Wybierz powod odmowy"
+                                   FontSize="11" Foreground="#FECACA"/>
+                    </StackPanel>
+                </StackPanel>
+            </Button>
+
+            <Button x:Name="btnBlednyNumer" Style="{StaticResource WynikButton}"
+                    Click="BtnWynik_Click" Tag="bledny_numer">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#x26A0;" FontSize="18" Margin="0,0,12,0"/>
+                    <StackPanel>
+                        <TextBlock Text="Bledny numer / Nie istnieje" FontWeight="SemiBold"/>
+                        <TextBlock Text="Oznacz do weryfikacji"
+                                   FontSize="11" Foreground="#64748B"/>
+                    </StackPanel>
+                </StackPanel>
+            </Button>
+        </StackPanel>
+
+        <!-- Notatka -->
+        <StackPanel Grid.Row="2" Margin="0,15,0,0">
+            <TextBlock Text="Szybka notatka (opcjonalnie)" Foreground="#94A3B8"
+                       FontSize="12" FontWeight="SemiBold" Margin="0,0,0,8"/>
+            <TextBox x:Name="txtNotatka" Height="70" Background="#1E293B"
+                     Foreground="#E2E8F0" BorderBrush="#334155" BorderThickness="1"
+                     Padding="10" TextWrapping="Wrap" AcceptsReturn="True"
+                     VerticalScrollBarVisibility="Auto" CaretBrush="#E2E8F0">
+                <TextBox.Template>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                    </ControlTemplate>
+                </TextBox.Template>
+            </TextBox>
+        </StackPanel>
+
+        <!-- Panel daty (ukryty domyslnie) -->
+        <Border x:Name="panelData" Grid.Row="3" Background="#1E293B" CornerRadius="8"
+                Padding="15" Margin="0,15,0,0" Visibility="Collapsed">
+            <StackPanel>
+                <TextBlock Text="Kiedy zadzwonic ponownie?" Foreground="#E2E8F0"
+                           FontWeight="SemiBold" Margin="0,0,0,10"/>
+                <WrapPanel>
+                    <Button Content="Jutro" Tag="1" Click="BtnData_Click" Style="{StaticResource QuickDateButton}"/>
+                    <Button Content="Za 2 dni" Tag="2" Click="BtnData_Click" Style="{StaticResource QuickDateButton}"/>
+                    <Button Content="Za tydzien" Tag="7" Click="BtnData_Click" Style="{StaticResource QuickDateButton}"/>
+                    <Button Content="Za 2 tyg." Tag="14" Click="BtnData_Click" Style="{StaticResource QuickDateButton}"/>
+                    <Button Content="Za miesiac" Tag="30" Click="BtnData_Click" Style="{StaticResource QuickDateButton}"/>
+                    <Button Content="Za 3 mies." Tag="90" Click="BtnData_Click" Style="{StaticResource QuickDateButton}"/>
+                </WrapPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                    <TextBlock Text="Lub wybierz date:" Foreground="#94A3B8"
+                               VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <DatePicker x:Name="dpData" Width="150"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- Przyciski akcji -->
+        <Grid Grid.Row="4" Margin="0,15,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="1.2*"/>
+            </Grid.ColumnDefinitions>
+
+            <Button x:Name="btnAnuluj" Grid.Column="0" Content="Anuluj"
+                    Click="BtnAnuluj_Click" Background="#334155" Foreground="#94A3B8"
+                    Style="{StaticResource ActionButton}" Margin="0,0,5,0"/>
+
+            <Button x:Name="btnZapisz" Grid.Column="1" Content="Zapisz"
+                    Click="BtnZapisz_Click" Background="#6366F1"
+                    Style="{StaticResource ActionButton}" Margin="5,0" IsEnabled="False"/>
+
+            <Button x:Name="btnZapiszNastepny" Grid.Column="2" Content="Zapisz + Nastepny"
+                    Click="BtnZapiszNastepny_Click" Background="#22C55E"
+                    Style="{StaticResource ActionButton}" Margin="5,0,0,0" IsEnabled="False"/>
+        </Grid>
+    </Grid>
+</Window>

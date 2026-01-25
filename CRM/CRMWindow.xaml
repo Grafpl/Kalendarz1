@@ -282,7 +282,21 @@
                         </Border>
 
                         <StackPanel Grid.Column="2" Orientation="Horizontal">
-                            <Button x:Name="btnHeaderCall" Content="📞" Style="{StaticResource BtnIcon}" ToolTip="Zadzwoń" Click="BtnKlientZadzwon_Click"/>
+                            <Button x:Name="btnZadzwonilem" Content="📞 Zadzwonilem" Click="BtnZadzwonilem_Click" Margin="0,0,10,0" Padding="12,8" BorderThickness="0" Cursor="Hand" Foreground="White" FontWeight="Bold" FontSize="12">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="bd" CornerRadius="6" Background="#22C55E">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="bd" Property="Background" Value="#16A34A"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                            <Button x:Name="btnHeaderCall" Content="📞" Style="{StaticResource BtnIcon}" ToolTip="Zadzwon" Click="BtnKlientZadzwon_Click"/>
                             <Button x:Name="btnHeaderEdit" Content="✏️" Style="{StaticResource BtnIcon}" ToolTip="Edytuj" Click="BtnKlientEdytuj_Click"/>
                         </StackPanel>
                     </Grid>
@@ -396,6 +410,15 @@
                         </Grid>
                     </StackPanel>
                 </Border>
+                <Border Style="{StaticResource KpiCard}">
+                    <StackPanel>
+                        <TextBlock Text="PIPELINE" FontSize="10" FontWeight="Bold" Foreground="#64748B"/>
+                        <Grid Margin="0,5,0,0">
+                            <TextBlock Text="💰" FontSize="18" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="txtKpiPipeline" Text="0 zl" FontSize="18" FontWeight="Bold" Foreground="#22C55E" HorizontalAlignment="Right"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </Grid>
 
@@ -482,6 +505,104 @@
                         </DataGrid.RowStyle>
 
                         <DataGrid.Columns>
+                            <!-- Temperatura Leada -->
+                            <DataGridTemplateColumn Header="T" Width="40" ToolTipService.ToolTip="Temperatura leada">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border Width="28" Height="28" CornerRadius="14" HorizontalAlignment="Center">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="#374151"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding TemperaturaLeada}" Value="HOT">
+                                                            <Setter Property="Background" Value="#DC2626"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding TemperaturaLeada}" Value="WARM">
+                                                            <Setter Property="Background" Value="#F59E0B"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Text" Value="&#x2744;"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding TemperaturaLeada}" Value="HOT">
+                                                                <Setter Property="Text" Value="&#x1F525;"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding TemperaturaLeada}" Value="WARM">
+                                                                <Setter Property="Text" Value="&#x1F321;"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- Liczba prob -->
+                            <DataGridTemplateColumn Header="Pr" Width="45" ToolTipService.ToolTip="Liczba prob kontaktu">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border CornerRadius="10" Padding="6,2" HorizontalAlignment="Center">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="#334155"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding LiczbaProb}" Value="0">
+                                                            <Setter Property="Background" Value="Transparent"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock Text="{Binding LiczbaProb}" FontWeight="Bold" FontSize="11" HorizontalAlignment="Center" Foreground="#E2E8F0"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- Fit Score -->
+                            <DataGridTemplateColumn Header="Fit" Width="45" ToolTipService.ToolTip="FitScore (dopasowanie)">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border CornerRadius="4" Padding="4,2" HorizontalAlignment="Center">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="#374151"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Priorytet}" Value="A">
+                                                            <Setter Property="Background" Value="#14532D"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Priorytet}" Value="B">
+                                                            <Setter Property="Background" Value="#78350F"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock FontWeight="Bold" FontSize="10" HorizontalAlignment="Center">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="#94A3B8"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Priorytet}" Value="A">
+                                                                <Setter Property="Foreground" Value="#4ADE80"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Priorytet}" Value="B">
+                                                                <Setter Property="Foreground" Value="#FCD34D"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                                <Run Text="{Binding FitScore}"/>
+                                            </TextBlock>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
                             <DataGridTemplateColumn Header="Status" Width="155">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>

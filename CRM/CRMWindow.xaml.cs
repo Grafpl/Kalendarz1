@@ -67,6 +67,7 @@ namespace Kalendarz1.CRM
             {
                 WczytajKontakty();
                 WczytajKPI();
+                WczytajPipeline();
                 WczytajRanking();
                 WypelnijFiltryDynamiczne();
                 ObliczTargetDnia();
@@ -99,6 +100,13 @@ namespace Kalendarz1.CRM
                 var cmd = new SqlCommand($@"
                     SELECT o.ID, o.Nazwa as NAZWA, o.KOD, o.MIASTO, o.ULICA, o.Telefon_K as TELEFON_K, o.Email,
                         o.Wojewodztwo, o.PKD_Opis, o.Tagi, ISNULL(o.Status, 'Do zadzwonienia') as Status, o.DataNastepnegoKontaktu,
+                        ISNULL(o.LiczbaProb, 0) as LiczbaProb,
+                        ISNULL(o.FitScore, 0) as FitScore,
+                        ISNULL(o.EngagementScore, 0) as EngagementScore,
+                        ISNULL(o.Priorytet, 'C') as Priorytet,
+                        ISNULL(o.TemperaturaLeada, 'COLD') as TemperaturaLeada,
+                        o.SzacowanaWartoscMiesieczna,
+                        o.OsobaKontaktowa,
                         (SELECT TOP 1 DataZmiany FROM HistoriaZmianCRM WHERE IDOdbiorcy = o.ID ORDER BY DataZmiany DESC) as OstatniaZmiana,
                         (SELECT TOP 1 ISNULL(op.Name, h.KtoDodal) FROM NotatkiCRM h LEFT JOIN operators op ON h.KtoDodal = CAST(op.ID AS NVARCHAR) WHERE h.IDOdbiorcy = o.ID ORDER BY h.DataUtworzenia DESC) as OstatniHandlowiec,
                         kp.Latitude, kp.Longitude
@@ -106,7 +114,11 @@ namespace Kalendarz1.CRM
                     LEFT JOIN WlascicieleOdbiorcow w ON o.ID = w.IDOdbiorcy
                     LEFT JOIN KodyPocztowe kp ON o.KOD = kp.Kod
                     {whereClause}
-                    ORDER BY CASE WHEN o.DataNastepnegoKontaktu IS NULL THEN 1 ELSE 0 END, o.DataNastepnegoKontaktu ASC", conn);
+                    ORDER BY
+                        CASE ISNULL(o.TemperaturaLeada, 'COLD') WHEN 'HOT' THEN 1 WHEN 'WARM' THEN 2 ELSE 3 END,
+                        CASE WHEN o.DataNastepnegoKontaktu IS NULL THEN 1 ELSE 0 END,
+                        o.DataNastepnegoKontaktu ASC,
+                        ISNULL(o.FitScore, 0) DESC", conn);
 
                 cmd.Parameters.AddWithValue("@OperatorID", operatorID);
                 var adapter = new SqlDataAdapter(cmd);
@@ -175,6 +187,29 @@ namespace Kalendarz1.CRM
                     }
                 }
             }
+        }
+
+        private void WczytajPipeline()
+        {
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    var cmd = new SqlCommand(@"
+                        SELECT ISNULL(SUM(SzacowanaWartoscMiesieczna), 0) as Pipeline
+                        FROM OdbiorcyCRM o
+                        LEFT JOIN WlascicieleOdbiorcow w ON o.ID = w.IDOdbiorcy
+                        WHERE (w.OperatorID = @op OR w.OperatorID IS NULL)
+                          AND Status IN ('Nawiazano kontakt', 'Zgoda na dalszy kontakt', 'Do wyslania oferta', 'Negocjacje')", conn);
+                    cmd.Parameters.AddWithValue("@op", operatorID);
+
+                    var pipeline = Convert.ToDecimal(cmd.ExecuteScalar());
+                    if (txtKpiPipeline != null)
+                        txtKpiPipeline.Text = pipeline.ToString("N0") + " zl";
+                }
+            }
+            catch { }
         }
 
         private void ObliczTargetDnia()
@@ -291,15 +326,15 @@ namespace Kalendarz1.CRM
                     txtKlientNastepnyKontakt.Text = data.ToString("dd.MM");
                     if (panelNastepnyKontakt != null)
                     {
-                        if (data < DateTime.Today) panelNastepnyKontakt.Background = (Brush)new BrushConverter().ConvertFrom("#FEE2E2");
-                        else if (data == DateTime.Today) panelNastepnyKontakt.Background = (Brush)new BrushConverter().ConvertFrom("#DBEAFE");
-                        else panelNastepnyKontakt.Background = (Brush)new BrushConverter().ConvertFrom("#DCFCE7");
+                        if (data < DateTime.Today) panelNastepnyKontakt.Background = (Brush)new BrushConverter().ConvertFrom("#7F1D1D"); // Dark red
+                        else if (data == DateTime.Today) panelNastepnyKontakt.Background = (Brush)new BrushConverter().ConvertFrom("#1E3A8A"); // Dark blue
+                        else panelNastepnyKontakt.Background = (Brush)new BrushConverter().ConvertFrom("#14532D"); // Dark green
                     }
                 }
                 else if (txtKlientNastepnyKontakt != null)
                 {
                     txtKlientNastepnyKontakt.Text = "Brak";
-                    if (panelNastepnyKontakt != null) panelNastepnyKontakt.Background = (Brush)new BrushConverter().ConvertFrom("#F3F4F6");
+                    if (panelNastepnyKontakt != null) panelNastepnyKontakt.Background = (Brush)new BrushConverter().ConvertFrom("#334155"); // Dark gray
                 }
                 WczytajNotatki(aktualnyOdbiorcaID);
             }
@@ -585,6 +620,48 @@ namespace Kalendarz1.CRM
         {
             if (aktualnyOdbiorcaID == 0) return;
             if (new EdycjaKontaktuWindow { KlientID = aktualnyOdbiorcaID, OperatorID = operatorID }.ShowDialog() == true) WczytajDane();
+        }
+
+        private void BtnZadzwonilem_Click(object sender, RoutedEventArgs e)
+        {
+            if (aktualnyOdbiorcaID == 0)
+            {
+                MessageBox.Show("Wybierz najpierw kontakt z listy.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var row = dgKontakty.SelectedItem as DataRowView;
+            if (row == null) return;
+
+            string nazwaFirmy = row["NAZWA"]?.ToString() ?? "";
+            string telefon = row["TELEFON_K"]?.ToString() ?? "";
+
+            var dialog = new WynikRozmowyDialog(connectionString, aktualnyOdbiorcaID, nazwaFirmy, telefon, operatorID);
+
+            if (dialog.ShowDialog() == true && dialog.Zapisano)
+            {
+                // Jesli rozmowa pozytywna - otworz dialog danych klienta
+                if (dialog.WybranyWynik == "rozmowa_pozytywna")
+                {
+                    var daneDialog = new DaneKlientaDialog(connectionString, aktualnyOdbiorcaID, nazwaFirmy, operatorID);
+                    daneDialog.ShowDialog();
+                }
+
+                WczytajDane();
+
+                // Jesli "Zapisz i nastepny" - wybierz nastepny kontakt
+                if (dialog.ZapiszINastepny && dgKontakty.Items.Count > 0)
+                {
+                    int currentIndex = dgKontakty.SelectedIndex;
+                    if (currentIndex < dgKontakty.Items.Count - 1)
+                        dgKontakty.SelectedIndex = currentIndex + 1;
+                    else
+                        dgKontakty.SelectedIndex = 0;
+                    dgKontakty.ScrollIntoView(dgKontakty.SelectedItem);
+                }
+
+                ShowToast("Zapisano wynik rozmowy");
+            }
         }
 
         private void TxtKlientTelefon_Click(object sender, MouseButtonEventArgs e) => BtnKlientZadzwon_Click(sender, null);
