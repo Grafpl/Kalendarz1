@@ -128,6 +128,10 @@ namespace Kalendarz1.CRM
                     else r["CzyZaniedbany"] = false;
                     r["MaTagi"] = !string.IsNullOrEmpty(r["Tagi"]?.ToString());
 
+                    // Wojewodztwo z malej litery
+                    if (r["Wojewodztwo"] != DBNull.Value && !string.IsNullOrEmpty(r["Wojewodztwo"].ToString()))
+                        r["Wojewodztwo"] = r["Wojewodztwo"].ToString().ToLower();
+
                     // Oblicz dystans
                     if (r["Latitude"] != DBNull.Value && r["Longitude"] != DBNull.Value)
                     {

@@ -575,19 +575,27 @@
                             <DataGridTemplateColumn Header="Firma" Width="*">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock Text="{Binding NAZWA}" FontWeight="SemiBold" FontSize="14"
-                                                   TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="#E2E8F0"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
-                                                            <Setter Property="Foreground" Value="White"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <!-- Tag na poczatku -->
+                                            <Border Background="#78350F" CornerRadius="4" Padding="5,2" Margin="0,0,6,0"
+                                                    Visibility="{Binding MaTagi, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <TextBlock Text="{Binding Tagi}" FontSize="9" Foreground="#FBBF24" FontWeight="Bold"/>
+                                            </Border>
+                                            <!-- Nazwa firmy -->
+                                            <TextBlock Text="{Binding NAZWA}" FontWeight="SemiBold" FontSize="14"
+                                                       TextWrapping="Wrap" TextAlignment="Center" VerticalAlignment="Center">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="#E2E8F0"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
+                                                                <Setter Property="Foreground" Value="White"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
@@ -609,16 +617,6 @@
                                                 </Style>
                                             </TextBlock.Style>
                                         </TextBlock>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-
-                            <DataGridTemplateColumn Header="Tagi" Width="Auto">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <Border Background="#78350F" CornerRadius="4" Padding="6,2" HorizontalAlignment="Center" Visibility="{Binding MaTagi, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                            <TextBlock Text="{Binding Tagi}" FontSize="10" Foreground="#FBBF24" FontWeight="Bold" TextAlignment="Center"/>
-                                        </Border>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
@@ -695,26 +693,6 @@
                                                         <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
                                                             <Setter Property="Foreground" Value="White"/>
                                                             <Setter Property="FontSize" Value="18"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-
-                            <DataGridTemplateColumn Header="Email" Width="150">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding Email}" TextWrapping="Wrap" TextAlignment="Center"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="#94A3B8"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
-                                                            <Setter Property="Foreground" Value="White"/>
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
