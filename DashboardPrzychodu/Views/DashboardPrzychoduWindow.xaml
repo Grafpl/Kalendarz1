@@ -561,22 +561,22 @@
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <Border Background="#1c1917" CornerRadius="3" Padding="5,4" Margin="0,0,0,2"
-                                                BorderThickness="2,0,0,0" BorderBrush="{Binding StatusKolor}">
+                                                BorderThickness="2,0,0,0" BorderBrush="{Binding StatusKolor, Mode=OneWay}">
                                             <StackPanel>
                                                 <Grid>
-                                                    <TextBlock Text="{Binding Hodowca}" FontSize="9"
+                                                    <TextBlock Text="{Binding Hodowca, Mode=OneWay}" FontSize="9"
                                                                Foreground="#e7e5e4" TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Text="{Binding TrendDisplay}" FontSize="9" FontWeight="Bold"
-                                                               Foreground="{Binding StatusKolor}" HorizontalAlignment="Right"/>
+                                                    <TextBlock Text="{Binding TrendDisplay, Mode=OneWay}" FontSize="9" FontWeight="Bold"
+                                                               Foreground="{Binding StatusKolor, Mode=OneWay}" HorizontalAlignment="Right"/>
                                                 </Grid>
                                                 <ProgressBar Value="{Binding PostepProc, Mode=OneWay}" Maximum="100"
                                                              Height="2" Margin="0,2,0,1"
-                                                             Background="#44403c" Foreground="{Binding ProgressKolor}"/>
+                                                             Background="#44403c" Foreground="{Binding ProgressKolor, Mode=OneWay}"/>
                                                 <Grid>
                                                     <TextBlock FontSize="7" Foreground="#78716c">
-                                                        <Run Text="✓ "/><Run Text="{Binding PostepDisplay}"/>
+                                                        <Run Text="✓ "/><Run Text="{Binding PostepDisplay, Mode=OneWay}"/>
                                                     </TextBlock>
-                                                    <TextBlock Text="{Binding OdchylenieDisplay}"
+                                                    <TextBlock Text="{Binding OdchylenieDisplay, Mode=OneWay}"
                                                                FontSize="7" Foreground="#78716c" HorizontalAlignment="Right"/>
                                                 </Grid>
                                             </StackPanel>
