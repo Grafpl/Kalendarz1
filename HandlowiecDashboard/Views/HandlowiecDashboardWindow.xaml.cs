@@ -1988,24 +1988,24 @@ FROM FakturyPrzeterminowane;";
                     barAging21Plus.Width = (double)(agingData.Kwota21Plus / maxAgingKwota) * maxBarWidth;
                 }
 
-                // Przekroczone limity wg kwoty przeterminowanej klienta
-                var klienciZPrzeterminowanymi = dane.Where(d => d.Przeterminowane > 0).ToList();
+                // Przekroczone limity kredytowe wg kwoty przekroczenia
+                var klienciZPrzekroczonymLimitem = dane.Where(d => d.PrzekroczonyLimit > 0).ToList();
 
-                // do 100k
-                var limit100kKwota = klienciZPrzeterminowanymi.Where(d => d.Przeterminowane <= 100000).Sum(d => d.Przeterminowane);
-                var limit100kKlientow = klienciZPrzeterminowanymi.Count(d => d.Przeterminowane <= 100000);
+                // do 100k przekroczenia
+                var limit100kKwota = klienciZPrzekroczonymLimitem.Where(d => d.PrzekroczonyLimit <= 100000).Sum(d => d.PrzekroczonyLimit);
+                var limit100kKlientow = klienciZPrzekroczonymLimitem.Count(d => d.PrzekroczonyLimit <= 100000);
 
-                // 100-300k
-                var limit300kKwota = klienciZPrzeterminowanymi.Where(d => d.Przeterminowane > 100000 && d.Przeterminowane <= 300000).Sum(d => d.Przeterminowane);
-                var limit300kKlientow = klienciZPrzeterminowanymi.Count(d => d.Przeterminowane > 100000 && d.Przeterminowane <= 300000);
+                // 100-300k przekroczenia
+                var limit300kKwota = klienciZPrzekroczonymLimitem.Where(d => d.PrzekroczonyLimit > 100000 && d.PrzekroczonyLimit <= 300000).Sum(d => d.PrzekroczonyLimit);
+                var limit300kKlientow = klienciZPrzekroczonymLimitem.Count(d => d.PrzekroczonyLimit > 100000 && d.PrzekroczonyLimit <= 300000);
 
-                // 300-500k
-                var limit500kKwota = klienciZPrzeterminowanymi.Where(d => d.Przeterminowane > 300000 && d.Przeterminowane <= 500000).Sum(d => d.Przeterminowane);
-                var limit500kKlientow = klienciZPrzeterminowanymi.Count(d => d.Przeterminowane > 300000 && d.Przeterminowane <= 500000);
+                // 300-500k przekroczenia
+                var limit500kKwota = klienciZPrzekroczonymLimitem.Where(d => d.PrzekroczonyLimit > 300000 && d.PrzekroczonyLimit <= 500000).Sum(d => d.PrzekroczonyLimit);
+                var limit500kKlientow = klienciZPrzekroczonymLimitem.Count(d => d.PrzekroczonyLimit > 300000 && d.PrzekroczonyLimit <= 500000);
 
-                // 500k+
-                var limit500kPlusKwota = klienciZPrzeterminowanymi.Where(d => d.Przeterminowane > 500000).Sum(d => d.Przeterminowane);
-                var limit500kPlusKlientow = klienciZPrzeterminowanymi.Count(d => d.Przeterminowane > 500000);
+                // 500k+ przekroczenia
+                var limit500kPlusKwota = klienciZPrzekroczonymLimitem.Where(d => d.PrzekroczonyLimit > 500000).Sum(d => d.PrzekroczonyLimit);
+                var limit500kPlusKlientow = klienciZPrzekroczonymLimitem.Count(d => d.PrzekroczonyLimit > 500000);
 
                 // Aktualizuj UI przekroczonych limitow
                 txtLimit100k.Text = $"{limit100kKwota:N0} zl";
