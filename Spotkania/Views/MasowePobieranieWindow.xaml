@@ -1,7 +1,7 @@
 <Window x:Class="Kalendarz1.Spotkania.Views.MasowePobieranieWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Masowe pobieranie transkrypcji" Height="550" Width="600"
+        Title="Masowe pobieranie transkrypcji" Height="600" Width="650"
         WindowStartupLocation="CenterOwner"
         Background="#F5F5F5" ResizeMode="NoResize">
 
@@ -61,6 +61,11 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+
+        <Style x:Key="BtnSmall" TargetType="Button" BasedOn="{StaticResource BtnPrimary}">
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
     </Window.Resources>
 
     <Grid>
@@ -74,7 +79,7 @@
         <Border Grid.Row="0" Background="#4CAF50" Padding="20,16">
             <StackPanel>
                 <TextBlock Text="Masowe pobieranie transkrypcji" FontSize="20" FontWeight="Bold" Foreground="White"/>
-                <TextBlock Text="Pobierz wszystkie transkrypcje z konta Fireflies.ai"
+                <TextBlock Text="Pobierz wszystkie transkrypcje z konta Fireflies.ai do wybranego folderu"
                            FontSize="12" Foreground="#C8E6C9" Margin="0,4,0,0"/>
             </StackPanel>
         </Border>
@@ -82,6 +87,33 @@
         <!-- Zawartosc -->
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="20">
             <StackPanel>
+                <!-- Folder docelowy -->
+                <Border Style="{StaticResource CardBorder}" Margin="0,0,0,15">
+                    <StackPanel>
+                        <TextBlock Text="Folder docelowy" FontSize="15" FontWeight="SemiBold" Foreground="#4CAF50" Margin="0,0,0,12"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBox x:Name="TxtFolderDocelowy" Grid.Column="0" FontSize="13" Padding="10,8"
+                                     IsReadOnly="True" Background="#FAFAFA"/>
+                            <Button x:Name="BtnWybierzFolder" Grid.Column="1" Content="Wybierz..."
+                                    Style="{StaticResource BtnSmall}" Margin="10,0,0,0"
+                                    Click="BtnWybierzFolder_Click"/>
+                        </Grid>
+
+                        <TextBlock Text="Format zapisu:" FontSize="12" Foreground="#666" Margin="0,12,0,6"/>
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton x:Name="RbFormatTxt" Content="Pliki tekstowe (.txt)" IsChecked="True" Margin="0,0,20,0"/>
+                            <RadioButton x:Name="RbFormatJson" Content="Pliki JSON (.json)" Margin="0,0,20,0"/>
+                            <RadioButton x:Name="RbFormatOba" Content="Oba formaty"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
                 <!-- Opcje zakresu dat -->
                 <Border Style="{StaticResource CardBorder}" Margin="0,0,0,15">
                     <StackPanel>
@@ -111,13 +143,13 @@
                 <!-- Opcje pobierania -->
                 <Border Style="{StaticResource CardBorder}" Margin="0,0,0,15">
                     <StackPanel>
-                        <TextBlock Text="Opcje pobierania" FontSize="15" FontWeight="SemiBold" Foreground="#1976D2" Margin="0,0,0,12"/>
+                        <TextBlock Text="Opcje" FontSize="15" FontWeight="SemiBold" Foreground="#1976D2" Margin="0,0,0,12"/>
 
-                        <CheckBox x:Name="ChkNadpiszIstniejace" Content="Nadpisz istniejace transkrypcje (pobierz ponownie)"
-                                  Margin="0,0,0,8"/>
-                        <CheckBox x:Name="ChkPominKrotkie" Content="Pomin krotkie spotkania (ponizej 60 sekund)"
+                        <CheckBox x:Name="ChkZapiszDoBazy" Content="Zapisz rowniez do bazy danych"
                                   IsChecked="True" Margin="0,0,0,8"/>
-                        <CheckBox x:Name="ChkPobierzSzczegoly" Content="Pobieraj pelne szczegoly (wolniejsze, ale kompletne)"
+                        <CheckBox x:Name="ChkNadpiszPliki" Content="Nadpisz istniejace pliki"
+                                  IsChecked="True" Margin="0,0,0,8"/>
+                        <CheckBox x:Name="ChkDodajDate" Content="Dodaj date do nazwy pliku (RRRR-MM-DD_tytul.txt)"
                                   IsChecked="True" Margin="0,0,0,8"/>
                     </StackPanel>
                 </Border>
@@ -146,8 +178,8 @@
                                 <TextBlock x:Name="TxtPobrane" Text="0" FontSize="16" FontWeight="Bold" Foreground="#4CAF50"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2">
-                                <TextBlock Text="Pominiete:" FontSize="11" Foreground="#888"/>
-                                <TextBlock x:Name="TxtPominiete" Text="0" FontSize="16" FontWeight="Bold" Foreground="#FF9800"/>
+                                <TextBlock Text="Bledy:" FontSize="11" Foreground="#888"/>
+                                <TextBlock x:Name="TxtBledy" Text="0" FontSize="16" FontWeight="Bold" Foreground="#F44336"/>
                             </StackPanel>
                         </Grid>
 
@@ -168,15 +200,11 @@
                     <StackPanel>
                         <TextBlock Text="Informacje" FontSize="15" FontWeight="SemiBold" Foreground="#FF9800" Margin="0,0,0,12"/>
                         <TextBlock TextWrapping="Wrap" FontSize="13" Foreground="#666">
-                            <Run Text="Ta operacja pobierze transkrypcje z Twojego konta Fireflies.ai i zapisze je w lokalnej bazie danych."/>
+                            <Run Text="Ta operacja pobierze WSZYSTKIE transkrypcje z Twojego konta Fireflies.ai i zapisze je jako pliki w wybranym folderze."/>
                             <LineBreak/><LineBreak/>
-                            <Run Text="Uwaga:"/>
-                            <LineBreak/>
-                            <Run Text="- Pobieranie moze potrwac kilka minut w zaleznosci od liczby transkrypcji"/>
-                            <LineBreak/>
-                            <Run Text="- Istniejace transkrypcje nie beda nadpisywane (chyba ze zaznaczysz opcje)"/>
-                            <LineBreak/>
-                            <Run Text="- Upewnij sie ze masz skonfigurowany klucz API w ustawieniach Fireflies"/>
+                            <Run Text="Kazda transkrypcja zostanie zapisana jako osobny plik z pelna trescia rozmowy."/>
+                            <LineBreak/><LineBreak/>
+                            <Run Text="Upewnij sie ze masz skonfigurowany klucz API w ustawieniach Fireflies."/>
                         </TextBlock>
                     </StackPanel>
                 </Border>

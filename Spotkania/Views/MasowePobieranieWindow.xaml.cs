@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data.SqlClient;
+using System.IO;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -9,6 +10,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using Kalendarz1.Spotkania.Models;
 using Kalendarz1.Spotkania.Services;
+using Microsoft.Win32;
 
 namespace Kalendarz1.Spotkania.Views
 {
@@ -21,8 +23,9 @@ namespace Kalendarz1.Spotkania.Views
         private bool _pobieranieTrwa;
         private int _znalezione;
         private int _pobrane;
-        private int _pominiete;
+        private int _bledy;
         private readonly ObservableCollection<string> _logEntries = new();
+        private string? _folderDocelowy;
 
         public MasowePobieranieWindow(FirefliesService firefliesService)
         {
@@ -33,7 +36,32 @@ namespace Kalendarz1.Spotkania.Views
             DpOdDaty.SelectedDate = DateTime.Today.AddMonths(-6);
             DpDoDaty.SelectedDate = DateTime.Today;
 
+            // Domyslny folder - Dokumenty/Fireflies
+            var dokumenty = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            _folderDocelowy = Path.Combine(dokumenty, "Fireflies");
+            TxtFolderDocelowy.Text = _folderDocelowy;
+
             ListaLog.ItemsSource = _logEntries;
+        }
+
+        private void BtnWybierzFolder_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new System.Windows.Forms.FolderBrowserDialog
+            {
+                Description = "Wybierz folder do zapisania transkrypcji",
+                ShowNewFolderButton = true
+            };
+
+            if (!string.IsNullOrEmpty(_folderDocelowy) && Directory.Exists(_folderDocelowy))
+            {
+                dialog.SelectedPath = _folderDocelowy;
+            }
+
+            if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                _folderDocelowy = dialog.SelectedPath;
+                TxtFolderDocelowy.Text = _folderDocelowy;
+            }
         }
 
         private void ZakresZmieniony(object sender, RoutedEventArgs e)
@@ -49,7 +77,14 @@ namespace Kalendarz1.Spotkania.Views
             if (_pobieranieTrwa)
                 return;
 
-            // Walidacja
+            // Walidacja folderu
+            if (string.IsNullOrWhiteSpace(_folderDocelowy))
+            {
+                MessageBox.Show("Wybierz folder docelowy.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Walidacja dat
             if (RbZakres.IsChecked == true)
             {
                 if (!DpOdDaty.SelectedDate.HasValue || !DpDoDaty.SelectedDate.HasValue)
@@ -73,6 +108,20 @@ namespace Kalendarz1.Spotkania.Views
                 return;
             }
 
+            // Utworz folder jesli nie istnieje
+            try
+            {
+                if (!Directory.Exists(_folderDocelowy))
+                {
+                    Directory.CreateDirectory(_folderDocelowy);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Nie mozna utworzyc folderu: {ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
             await RozpocznijPobieranie();
         }
 
@@ -90,8 +139,14 @@ namespace Kalendarz1.Spotkania.Views
 
             _znalezione = 0;
             _pobrane = 0;
-            _pominiete = 0;
+            _bledy = 0;
             _logEntries.Clear();
+
+            bool zapiszTxt = RbFormatTxt.IsChecked == true || RbFormatOba.IsChecked == true;
+            bool zapiszJson = RbFormatJson.IsChecked == true || RbFormatOba.IsChecked == true;
+            bool zapiszDoBazy = ChkZapiszDoBazy.IsChecked == true;
+            bool nadpiszPliki = ChkNadpiszPliki.IsChecked == true;
+            bool dodajDate = ChkDodajDate.IsChecked == true;
 
             try
             {
@@ -102,7 +157,7 @@ namespace Kalendarz1.Spotkania.Views
                 DateTime? odDaty = RbZakres.IsChecked == true ? DpOdDaty.SelectedDate : null;
                 DateTime? doDaty = RbZakres.IsChecked == true ? DpDoDaty.SelectedDate : null;
 
-                var listaTranskrypcji = await _firefliesService.PobierzListeTranskrypcji(500, odDaty);
+                var listaTranskrypcji = await _firefliesService.PobierzListeTranskrypcji(1000, odDaty);
 
                 if (token.IsCancellationRequested) return;
 
@@ -128,11 +183,6 @@ namespace Kalendarz1.Spotkania.Views
                 ProgressPobieranie.Value = 0;
 
                 // Krok 2: Przetwarzaj kazda transkrypcje
-                bool nadpiszIstniejace = ChkNadpiszIstniejace.IsChecked == true;
-                bool pominKrotkie = ChkPominKrotkie.IsChecked == true;
-                bool pobierzSzczegoly = ChkPobierzSzczegoly.IsChecked == true;
-                int minCzas = pominKrotkie ? 60 : 0;
-
                 int i = 0;
                 foreach (var t in listaTranskrypcji)
                 {
@@ -144,58 +194,62 @@ namespace Kalendarz1.Spotkania.Views
 
                     try
                     {
-                        // Sprawdz czy istnieje
-                        bool istnieje = await CzyTranskrypcjaIstnieje(t.Id!);
-                        if (istnieje && !nadpiszIstniejace)
+                        // Pobierz pelne szczegoly z Fireflies
+                        var szczegoly = await _firefliesService.PobierzSzczegolyTranskrypcji(t.Id!);
+                        if (szczegoly == null)
                         {
-                            _pominiete++;
+                            _bledy++;
                             AktualizujLiczniki();
+                            DodajLog($"Blad pobierania szczegolow: {t.Title ?? t.Id}");
                             continue;
                         }
 
-                        // Sprawdz czas trwania
-                        if (t.Duration.HasValue && t.Duration.Value < minCzas)
-                        {
-                            _pominiete++;
-                            AktualizujLiczniki();
-                            DodajLog($"Pominieto (krotkie): {t.Title ?? t.Id}");
-                            continue;
-                        }
+                        // Przygotuj nazwe pliku
+                        string nazwaPliku = PrzygotujNazwePliku(szczegoly, dodajDate);
 
-                        // Pobierz szczegoly jesli potrzeba
-                        FirefliesTranscriptDto? szczegoly = t;
-                        if (pobierzSzczegoly)
+                        // Zapisz do pliku TXT
+                        if (zapiszTxt)
                         {
-                            szczegoly = await _firefliesService.PobierzSzczegolyTranskrypcji(t.Id!);
-                            if (szczegoly == null)
+                            string sciezkaTxt = Path.Combine(_folderDocelowy!, nazwaPliku + ".txt");
+                            if (nadpiszPliki || !File.Exists(sciezkaTxt))
                             {
-                                _pominiete++;
-                                AktualizujLiczniki();
-                                DodajLog($"Blad pobierania szczegolow: {t.Title ?? t.Id}");
-                                continue;
+                                await ZapiszJakoTxt(szczegoly, sciezkaTxt);
                             }
                         }
 
-                        // Zapisz do bazy
-                        if (istnieje && nadpiszIstniejace)
+                        // Zapisz do pliku JSON
+                        if (zapiszJson)
                         {
-                            await UsunTranskrypcje(t.Id!);
+                            string sciezkaJson = Path.Combine(_folderDocelowy!, nazwaPliku + ".json");
+                            if (nadpiszPliki || !File.Exists(sciezkaJson))
+                            {
+                                await ZapiszJakoJson(szczegoly, sciezkaJson);
+                            }
                         }
 
-                        await ZapiszTranskrypcje(szczegoly);
+                        // Zapisz do bazy danych
+                        if (zapiszDoBazy)
+                        {
+                            bool istnieje = await CzyTranskrypcjaIstnieje(t.Id!);
+                            if (!istnieje)
+                            {
+                                await ZapiszTranskrypcjeDoBazy(szczegoly);
+                            }
+                        }
+
                         _pobrane++;
                         AktualizujLiczniki();
                         DodajLog($"Pobrano: {t.Title ?? t.Id}");
                     }
                     catch (Exception ex)
                     {
-                        _pominiete++;
+                        _bledy++;
                         AktualizujLiczniki();
                         DodajLog($"Blad: {t.Title ?? t.Id} - {ex.Message}");
                     }
 
                     // Maly delay zeby nie przeciazyc API
-                    await Task.Delay(200, token);
+                    await Task.Delay(300, token);
                 }
 
                 if (token.IsCancellationRequested)
@@ -206,7 +260,12 @@ namespace Kalendarz1.Spotkania.Views
                 else
                 {
                     TxtStatus.Text = $"Zakonczone! Pobrano {_pobrane} transkrypcji";
-                    DodajLog($"=== ZAKONCZONO: Pobrano {_pobrane}, pominieto {_pominiete} ===");
+                    DodajLog($"=== ZAKONCZONO: Pobrano {_pobrane}, bledy: {_bledy} ===");
+                    DodajLog($"Pliki zapisane w: {_folderDocelowy}");
+
+                    MessageBox.Show($"Pobrano {_pobrane} transkrypcji.\n\nPliki zapisane w:\n{_folderDocelowy}",
+                        "Pobieranie zakonczone", MessageBoxButton.OK, MessageBoxImage.Information);
+
                     DialogResult = true;
                 }
             }
@@ -226,11 +285,155 @@ namespace Kalendarz1.Spotkania.Views
             }
         }
 
+        private string PrzygotujNazwePliku(FirefliesTranscriptDto dto, bool dodajDate)
+        {
+            string nazwa = dto.Title ?? dto.Id ?? "transkrypcja";
+
+            // Usun niedozwolone znaki z nazwy pliku
+            foreach (char c in Path.GetInvalidFileNameChars())
+            {
+                nazwa = nazwa.Replace(c, '_');
+            }
+
+            // Skroc jesli za dluga
+            if (nazwa.Length > 100)
+            {
+                nazwa = nazwa.Substring(0, 100);
+            }
+
+            // Dodaj date jesli wybrano
+            if (dodajDate && dto.DateAsDateTime.HasValue)
+            {
+                nazwa = $"{dto.DateAsDateTime.Value:yyyy-MM-dd}_{nazwa}";
+            }
+
+            return nazwa;
+        }
+
+        private async Task ZapiszJakoTxt(FirefliesTranscriptDto dto, string sciezka)
+        {
+            var sb = new StringBuilder();
+
+            // Naglowek
+            sb.AppendLine("================================================================================");
+            sb.AppendLine($"TRANSKRYPCJA: {dto.Title ?? "Brak tytulu"}");
+            sb.AppendLine("================================================================================");
+            sb.AppendLine();
+            sb.AppendLine($"Data:          {dto.DateAsDateTime?.ToString("yyyy-MM-dd HH:mm") ?? "Brak daty"}");
+            sb.AppendLine($"Czas trwania:  {FormatujCzas(dto.Duration ?? 0)}");
+            sb.AppendLine($"Organizator:   {dto.HostEmail ?? "Nieznany"}");
+
+            if (dto.Participants != null && dto.Participants.Count > 0)
+            {
+                sb.AppendLine($"Uczestnicy:    {string.Join(", ", dto.Participants)}");
+            }
+
+            sb.AppendLine();
+
+            // Podsumowanie
+            if (!string.IsNullOrEmpty(dto.Summary?.Overview))
+            {
+                sb.AppendLine("--- PODSUMOWANIE ---");
+                sb.AppendLine(dto.Summary.Overview);
+                sb.AppendLine();
+            }
+
+            // Slowa kluczowe
+            if (dto.Summary?.Keywords != null && dto.Summary.Keywords.Count > 0)
+            {
+                sb.AppendLine($"Slowa kluczowe: {string.Join(", ", dto.Summary.Keywords)}");
+                sb.AppendLine();
+            }
+
+            // Transkrypcja
+            sb.AppendLine("--- TRANSKRYPCJA ---");
+            sb.AppendLine();
+
+            if (dto.Sentences != null && dto.Sentences.Count > 0)
+            {
+                string? aktualnyMowca = null;
+                foreach (var s in dto.Sentences)
+                {
+                    string mowca = s.SpeakerName ?? $"Mowca {s.SpeakerId}";
+
+                    if (mowca != aktualnyMowca)
+                    {
+                        sb.AppendLine();
+                        sb.AppendLine($"[{mowca}]:");
+                        aktualnyMowca = mowca;
+                    }
+
+                    sb.AppendLine($"  {s.Text}");
+                }
+            }
+            else
+            {
+                sb.AppendLine("(Brak transkrypcji)");
+            }
+
+            sb.AppendLine();
+            sb.AppendLine("================================================================================");
+            sb.AppendLine($"Pobrano z Fireflies.ai - {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            sb.AppendLine("================================================================================");
+
+            await File.WriteAllTextAsync(sciezka, sb.ToString(), Encoding.UTF8);
+        }
+
+        private async Task ZapiszJakoJson(FirefliesTranscriptDto dto, string sciezka)
+        {
+            var obiekt = new
+            {
+                id = dto.Id,
+                title = dto.Title,
+                date = dto.DateAsDateTime,
+                duration_seconds = dto.Duration,
+                host_email = dto.HostEmail,
+                participants = dto.Participants,
+                transcript_url = dto.TranscriptUrl,
+                audio_url = dto.AudioUrl,
+                summary = new
+                {
+                    overview = dto.Summary?.Overview,
+                    keywords = dto.Summary?.Keywords
+                },
+                sentences = dto.Sentences?.ConvertAll(s => new
+                {
+                    index = s.Index,
+                    speaker_id = s.SpeakerId,
+                    speaker_name = s.SpeakerName,
+                    text = s.Text,
+                    start_time = s.StartTime,
+                    end_time = s.EndTime
+                }),
+                exported_at = DateTime.Now
+            };
+
+            var options = new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            };
+
+            string json = JsonSerializer.Serialize(obiekt, options);
+            await File.WriteAllTextAsync(sciezka, json, Encoding.UTF8);
+        }
+
+        private string FormatujCzas(int sekundy)
+        {
+            var ts = TimeSpan.FromSeconds(sekundy);
+            if (ts.Hours > 0)
+                return $"{ts.Hours}h {ts.Minutes}m {ts.Seconds}s";
+            else if (ts.Minutes > 0)
+                return $"{ts.Minutes}m {ts.Seconds}s";
+            else
+                return $"{ts.Seconds}s";
+        }
+
         private void AktualizujLiczniki()
         {
             TxtZnalezione.Text = _znalezione.ToString();
             TxtPobrane.Text = _pobrane.ToString();
-            TxtPominiete.Text = _pominiete.ToString();
+            TxtBledy.Text = _bledy.ToString();
         }
 
         private void DodajLog(string message)
@@ -257,18 +460,7 @@ namespace Kalendarz1.Spotkania.Views
             return (int)await cmd.ExecuteScalarAsync() > 0;
         }
 
-        private async Task UsunTranskrypcje(string firefliesId)
-        {
-            using var conn = new SqlConnection(CONNECTION_STRING);
-            await conn.OpenAsync();
-
-            string sql = "DELETE FROM FirefliesTranskrypcje WHERE FirefliesID = @ID";
-            using var cmd = new SqlCommand(sql, conn);
-            cmd.Parameters.AddWithValue("@ID", firefliesId);
-            await cmd.ExecuteNonQueryAsync();
-        }
-
-        private async Task ZapiszTranskrypcje(FirefliesTranscriptDto dto)
+        private async Task ZapiszTranskrypcjeDoBazy(FirefliesTranscriptDto dto)
         {
             using var conn = new SqlConnection(CONNECTION_STRING);
             await conn.OpenAsync();
@@ -321,7 +513,7 @@ namespace Kalendarz1.Spotkania.Views
         {
             if (_cancellationTokenSource != null && !_cancellationTokenSource.IsCancellationRequested)
             {
-                var result = MessageBox.Show("Czy na pewno chcesz anulowac pobieranie?\nJuz pobrane transkrypcje zostana zachowane.",
+                var result = MessageBox.Show("Czy na pewno chcesz anulowac pobieranie?\nJuz pobrane pliki zostana zachowane.",
                     "Anuluj pobieranie", MessageBoxButton.YesNo, MessageBoxImage.Question);
 
                 if (result == MessageBoxResult.Yes)
