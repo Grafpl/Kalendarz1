@@ -300,13 +300,12 @@
     </Window.Resources>
 
     <!-- ============================================ -->
-    <!-- GŁÓWNY LAYOUT - 5 WIERSZY -->
+    <!-- GŁÓWNY LAYOUT - 4 WIERSZE -->
     <!-- ============================================ -->
     <Grid Margin="6">
         <Grid.RowDefinitions>
             <RowDefinition Height="28"/>   <!-- TOP BAR -->
             <RowDefinition Height="36"/>   <!-- KPI STRIP -->
-            <RowDefinition Height="Auto"/> <!-- ALERT STRIP (auto - pokazuje się gdy jest alert) -->
             <RowDefinition Height="*"/>    <!-- MAIN (Sidebar + Table) -->
             <RowDefinition Height="26"/>   <!-- BOTTOM BAR -->
         </Grid.RowDefinitions>
@@ -466,83 +465,9 @@
         </UniformGrid>
 
         <!-- ============================================ -->
-        <!-- ROW 2: ALERT STRIP (Auto - tylko gdy jest alert) -->
+        <!-- ROW 2: MAIN CONTENT (Sidebar + Table) -->
         <!-- ============================================ -->
-        <Border x:Name="borderPrognoza" Grid.Row="2" CornerRadius="4" Padding="10,4" Margin="0,4,0,0"
-                BorderThickness="3,0,0,0" BorderBrush="#ef4444"
-                Visibility="Collapsed">
-            <Border.Background>
-                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                    <GradientStop Color="#7f1d1d" Offset="0"/>
-                    <GradientStop Color="#450a0a" Offset="0.3"/>
-                    <GradientStop Color="#292524" Offset="1"/>
-                </LinearGradientBrush>
-            </Border.Background>
-
-            <Grid VerticalAlignment="Center">
-                <StackPanel Orientation="Horizontal">
-                    <!-- Alert badge -->
-                    <Border x:Name="borderAlertIkona" Background="#ef4444" CornerRadius="3" Padding="6,2">
-                        <TextBlock FontSize="9" FontWeight="Bold" Foreground="White">
-                            <Run Text="⚠️ "/>
-                            <Run x:Name="txtAlertPoziom" Text="UWAGA"/>
-                        </TextBlock>
-                    </Border>
-
-                    <TextBlock Text="Prognoza: " FontSize="10" Foreground="#fca5a5" Margin="10,0,0,0" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="txtAlertTuszkiPrognoza" Text="0" FontSize="10" FontWeight="SemiBold" Foreground="#fca5a5" VerticalAlignment="Center"/>
-                    <TextBlock Text=" kg tuszek" FontSize="10" Foreground="#fca5a5" VerticalAlignment="Center"/>
-
-                    <TextBlock x:Name="txtAlertRedukcja" Text="" FontSize="10" FontWeight="Bold"
-                               Foreground="#fbbf24" Margin="15,0,0,0" VerticalAlignment="Center"/>
-
-                    <!-- Separator -->
-                    <Rectangle Width="1" Height="14" Fill="#44403c" Margin="15,0"/>
-
-                    <!-- Szczegóły -->
-                    <TextBlock Text="Plan:" FontSize="9" Foreground="#78716c" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="txtTuszkiPlan" Text="0" FontSize="9" Foreground="#a8a29e" Margin="3,0,0,0" VerticalAlignment="Center"/>
-                    <TextBlock Text=" kg → Rzecz:" FontSize="9" Foreground="#78716c" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="txtTuszkiRzecz" Text="0" FontSize="9" FontWeight="SemiBold" Foreground="#c084fc" Margin="3,0,0,0" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="txtTuszkiRoznica" Text="" FontSize="9" FontWeight="SemiBold" Foreground="#ef4444" Margin="8,0,0,0" VerticalAlignment="Center"/>
-
-                    <!-- Klasy A/B -->
-                    <Border Background="#166534" CornerRadius="2" Padding="4,1" Margin="12,0,0,0" VerticalAlignment="Center">
-                        <TextBlock FontSize="8" FontWeight="Bold" Foreground="#22c55e">
-                            <Run Text="A "/><Run x:Name="txtPrognozaA" Text="0"/>
-                        </TextBlock>
-                    </Border>
-                    <Border Background="#92400e" CornerRadius="2" Padding="4,1" Margin="4,0,0,0" VerticalAlignment="Center">
-                        <TextBlock FontSize="8" FontWeight="Bold" Foreground="#fbbf24">
-                            <Run Text="B "/><Run x:Name="txtPrognozaB" Text="0"/>
-                        </TextBlock>
-                    </Border>
-
-                    <!-- Dodatkowe info o średnich wagach -->
-                    <Rectangle Width="1" Height="14" Fill="#44403c" Margin="12,0"/>
-                    <TextBlock Text="Śr.waga:" FontSize="9" Foreground="#78716c" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="txtSrWagaPlan" Text="-" FontSize="9" Foreground="#a8a29e" Margin="3,0,0,0" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="txtWagaArrow" Text="→" FontSize="9" Foreground="#44403c" Margin="3,0,3,0" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="txtSrWagaRzecz" Text="-" FontSize="9" FontWeight="SemiBold" Foreground="#22c55e" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="txtWagaInterpretacja" Text="" FontSize="8" FontWeight="Bold" Margin="4,0,0,0" VerticalAlignment="Center"/>
-                </StackPanel>
-
-                <!-- Prawy panel z licznikami -->
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <TextBlock Text="Auta: " FontSize="9" Foreground="#78716c"/>
-                    <TextBlock x:Name="txtAlertAutaZwazone" Text="0" FontSize="9" Foreground="#22c55e"/>
-                    <TextBlock Text="/" FontSize="9" Foreground="#78716c"/>
-                    <TextBlock x:Name="txtAlertAutaOgolem" Text="0" FontSize="9" Foreground="#a8a29e"/>
-                    <TextBlock Text=" | Trend: " FontSize="9" Foreground="#78716c" Margin="8,0,0,0"/>
-                    <TextBlock x:Name="txtAlertTrendProc" Text="0%" FontSize="9" FontWeight="SemiBold" Foreground="#fbbf24"/>
-                </StackPanel>
-            </Grid>
-        </Border>
-
-        <!-- ============================================ -->
-        <!-- ROW 3: MAIN CONTENT (Sidebar + Table) -->
-        <!-- ============================================ -->
-        <Grid Grid.Row="3" Margin="0,4,0,0">
+        <Grid Grid.Row="2" Margin="0,4,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="280"/>  <!-- Sidebar - powiększony -->
                 <ColumnDefinition Width="*"/>    <!-- Table -->
@@ -551,6 +476,34 @@
             <!-- SIDEBAR -->
             <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Margin="0,0,4,0">
                 <StackPanel>
+
+                    <!-- PODSUMOWANIE DOSTAW - na górze -->
+                    <Border Background="#292524" CornerRadius="5" Padding="8,8" Margin="0,0,0,6">
+                        <StackPanel>
+                            <TextBlock Text="📋 DOSTAWY" FontSize="10" FontWeight="Bold"
+                                       Foreground="#f59e0b" Margin="0,0,0,6"/>
+                            <Grid Margin="0,2,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="✅ Zważone:" FontSize="11" Foreground="#78716c" Margin="0,2"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="txtZwazoneCount" Text="0" FontSize="11" FontWeight="Bold" Foreground="#22c55e" Margin="0,2"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="⏳ W trakcie:" FontSize="11" Foreground="#78716c" Margin="0,2"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="txtBruttoCount" Text="0" FontSize="11" FontWeight="Bold" Foreground="#fbbf24" Margin="0,2"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="🔴 Oczekuje:" FontSize="11" Foreground="#78716c" Margin="0,2"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="txtOczekujeCount" Text="0" FontSize="11" FontWeight="Bold" Foreground="#ef4444" Margin="0,2"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
 
                     <!-- HARMONOGRAMY -->
                     <Border Background="#292524" CornerRadius="5" Padding="8,8" Margin="0,0,0,6">
@@ -696,34 +649,6 @@
                                     </StackPanel>
                                 </Border>
                             </UniformGrid>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- PODSUMOWANIE DOSTAW -->
-                    <Border Background="#292524" CornerRadius="5" Padding="8,8" Margin="0,0,0,6">
-                        <StackPanel>
-                            <TextBlock Text="📋 DOSTAWY" FontSize="10" FontWeight="Bold"
-                                       Foreground="#f59e0b" Margin="0,0,0,6"/>
-                            <Grid Margin="0,2,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="✅ Zważone:" FontSize="11" Foreground="#78716c" Margin="0,2"/>
-                                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="txtZwazoneCount" Text="0" FontSize="11" FontWeight="Bold" Foreground="#22c55e" Margin="0,2"/>
-
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="⏳ W trakcie:" FontSize="11" Foreground="#78716c" Margin="0,2"/>
-                                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="txtBruttoCount" Text="0" FontSize="11" FontWeight="Bold" Foreground="#fbbf24" Margin="0,2"/>
-
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="🔴 Oczekuje:" FontSize="11" Foreground="#78716c" Margin="0,2"/>
-                                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="txtOczekujeCount" Text="0" FontSize="11" FontWeight="Bold" Foreground="#ef4444" Margin="0,2"/>
-                            </Grid>
                         </StackPanel>
                     </Border>
 
@@ -969,9 +894,9 @@
         </Grid>
 
         <!-- ============================================ -->
-        <!-- ROW 4: BOTTOM BAR (26px) -->
+        <!-- ROW 3: BOTTOM BAR (26px) -->
         <!-- ============================================ -->
-        <Border Grid.Row="4" Background="#292524" CornerRadius="5" Padding="10,0" Margin="0,4,0,0">
+        <Border Grid.Row="3" Background="#292524" CornerRadius="5" Padding="10,0" Margin="0,4,0,0">
             <Grid VerticalAlignment="Center">
                 <!-- LEGENDA -->
                 <StackPanel Orientation="Horizontal">
@@ -1000,7 +925,7 @@
         <!-- ============================================ -->
         <!-- OVERLAY ŁADOWANIA -->
         <!-- ============================================ -->
-        <Border x:Name="loadingOverlay" Grid.RowSpan="5" Background="#CC1c1917" Visibility="Collapsed">
+        <Border x:Name="loadingOverlay" Grid.RowSpan="4" Background="#CC1c1917" Visibility="Collapsed">
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                 <Ellipse x:Name="spinnerEllipse" Width="40" Height="40" StrokeThickness="3"
                          Stroke="#f59e0b" StrokeDashArray="3,2">
@@ -1027,7 +952,7 @@
         <!-- ============================================ -->
         <!-- OVERLAY BŁĘDU -->
         <!-- ============================================ -->
-        <Border x:Name="errorOverlay" Grid.RowSpan="5" Background="#CC1c1917" Visibility="Collapsed">
+        <Border x:Name="errorOverlay" Grid.RowSpan="4" Background="#CC1c1917" Visibility="Collapsed">
             <Border Background="#292524" CornerRadius="8" Padding="25,20" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="400">
                 <StackPanel>
                     <TextBlock Text="Błąd połączenia" FontSize="16" FontWeight="Bold" Foreground="#ef4444" HorizontalAlignment="Center" Margin="0,0,0,10"/>
