@@ -7,6 +7,18 @@ using Kalendarz1.DashboardPrzychodu.Models;
 
 namespace Kalendarz1.DashboardPrzychodu.Converters
 {
+    // ====================================
+    // PALETA KOLORÓW - WARM INDUSTRIAL
+    // ====================================
+    // Tła: #1c1917, #292524, #44403c, #57534e
+    // Tekst: #e7e5e4, #a8a29e, #78716c
+    // Amber: #f59e0b, #fbbf24
+    // Green: #22c55e
+    // Red: #ef4444, #7f1d1d
+    // Blue: #60a5fa
+    // Purple: #c084fc
+    // ====================================
+
     /// <summary>
     /// Konwertuje StatusDostawy na kolor tła wiersza
     /// </summary>
@@ -18,9 +30,9 @@ namespace Kalendarz1.DashboardPrzychodu.Converters
             {
                 return status switch
                 {
-                    StatusDostawy.Zwazony => new SolidColorBrush(Color.FromArgb(40, 78, 204, 163)),      // Zielony przezroczysty
-                    StatusDostawy.BruttoWpisane => new SolidColorBrush(Color.FromArgb(40, 255, 179, 71)), // Pomarańczowy przezroczysty
-                    _ => new SolidColorBrush(Color.FromArgb(40, 233, 69, 96))                             // Czerwony przezroczysty
+                    StatusDostawy.Zwazony => new SolidColorBrush(Color.FromArgb(30, 34, 197, 94)),       // Zielony przezroczysty #22c55e
+                    StatusDostawy.BruttoWpisane => new SolidColorBrush(Color.FromArgb(30, 251, 191, 36)), // Amber przezroczysty #fbbf24
+                    _ => new SolidColorBrush(Color.FromArgb(30, 239, 68, 68))                             // Czerwony przezroczysty #ef4444
                 };
             }
             return new SolidColorBrush(Colors.Transparent);
@@ -41,12 +53,12 @@ namespace Kalendarz1.DashboardPrzychodu.Converters
             {
                 return status switch
                 {
-                    StatusDostawy.Zwazony => new SolidColorBrush(Color.FromRgb(78, 204, 163)),      // #4ECCA3 - zielony
-                    StatusDostawy.BruttoWpisane => new SolidColorBrush(Color.FromRgb(255, 179, 71)), // #FFB347 - pomarańczowy
-                    _ => new SolidColorBrush(Color.FromRgb(233, 69, 96))                             // #E94560 - czerwony
+                    StatusDostawy.Zwazony => new SolidColorBrush(Color.FromRgb(34, 197, 94)),       // #22c55e - zielony
+                    StatusDostawy.BruttoWpisane => new SolidColorBrush(Color.FromRgb(251, 191, 36)), // #fbbf24 - amber
+                    _ => new SolidColorBrush(Color.FromRgb(239, 68, 68))                             // #ef4444 - czerwony
                 };
             }
-            return new SolidColorBrush(Colors.White);
+            return new SolidColorBrush(Color.FromRgb(231, 229, 228)); // #e7e5e4
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
@@ -64,13 +76,13 @@ namespace Kalendarz1.DashboardPrzychodu.Converters
             {
                 return poziom switch
                 {
-                    PoziomOdchylenia.OK => new SolidColorBrush(Color.FromRgb(78, 204, 163)),      // #4ECCA3 - zielony
-                    PoziomOdchylenia.Uwaga => new SolidColorBrush(Color.FromRgb(255, 179, 71)),   // #FFB347 - pomarańczowy
-                    PoziomOdchylenia.Problem => new SolidColorBrush(Color.FromRgb(233, 69, 96)), // #E94560 - czerwony
-                    _ => new SolidColorBrush(Color.FromRgb(148, 163, 184))                        // #94A3B8 - szary
+                    PoziomOdchylenia.OK => new SolidColorBrush(Color.FromRgb(34, 197, 94)),       // #22c55e - zielony
+                    PoziomOdchylenia.Uwaga => new SolidColorBrush(Color.FromRgb(251, 191, 36)),   // #fbbf24 - amber
+                    PoziomOdchylenia.Problem => new SolidColorBrush(Color.FromRgb(239, 68, 68)), // #ef4444 - czerwony
+                    _ => new SolidColorBrush(Color.FromRgb(168, 162, 158))                        // #a8a29e - szary
                 };
             }
-            return new SolidColorBrush(Color.FromRgb(148, 163, 184));
+            return new SolidColorBrush(Color.FromRgb(168, 162, 158)); // #a8a29e
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
@@ -209,12 +221,12 @@ namespace Kalendarz1.DashboardPrzychodu.Converters
             if (value is int percent)
             {
                 if (percent >= 80)
-                    return new SolidColorBrush(Color.FromRgb(78, 204, 163));  // Zielony
+                    return new SolidColorBrush(Color.FromRgb(34, 197, 94));   // #22c55e Zielony
                 if (percent >= 50)
-                    return new SolidColorBrush(Color.FromRgb(255, 179, 71));  // Pomarańczowy
-                return new SolidColorBrush(Color.FromRgb(233, 69, 96));       // Czerwony
+                    return new SolidColorBrush(Color.FromRgb(251, 191, 36)); // #fbbf24 Amber
+                return new SolidColorBrush(Color.FromRgb(239, 68, 68));       // #ef4444 Czerwony
             }
-            return new SolidColorBrush(Color.FromRgb(148, 163, 184));
+            return new SolidColorBrush(Color.FromRgb(168, 162, 158)); // #a8a29e
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
@@ -278,13 +290,13 @@ namespace Kalendarz1.DashboardPrzychodu.Converters
             {
                 return poziom switch
                 {
-                    PoziomOdchylenia.OK => new SolidColorBrush(Color.FromRgb(78, 204, 163)),       // Zielony #4ECCA3
-                    PoziomOdchylenia.Uwaga => new SolidColorBrush(Color.FromRgb(255, 179, 71)),    // Pomarańczowy #FFB347
-                    PoziomOdchylenia.Problem => new SolidColorBrush(Color.FromRgb(233, 69, 96)),   // Czerwony #E94560
-                    _ => new SolidColorBrush(Color.FromRgb(74, 85, 104))                            // Szary #4A5568
+                    PoziomOdchylenia.OK => new SolidColorBrush(Color.FromRgb(34, 197, 94)),       // #22c55e Zielony
+                    PoziomOdchylenia.Uwaga => new SolidColorBrush(Color.FromRgb(251, 191, 36)),   // #fbbf24 Amber
+                    PoziomOdchylenia.Problem => new SolidColorBrush(Color.FromRgb(239, 68, 68)), // #ef4444 Czerwony
+                    _ => new SolidColorBrush(Color.FromRgb(68, 64, 60))                            // #44403c Szary
                 };
             }
-            return new SolidColorBrush(Color.FromRgb(74, 85, 104));
+            return new SolidColorBrush(Color.FromRgb(68, 64, 60)); // #44403c
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
@@ -317,7 +329,7 @@ namespace Kalendarz1.DashboardPrzychodu.Converters
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
             if (value is bool b && b)
-                return new SolidColorBrush(Color.FromRgb(233, 69, 96)); // Czerwony
+                return new SolidColorBrush(Color.FromRgb(239, 68, 68)); // #ef4444 Czerwony
             return new SolidColorBrush(Colors.Transparent);
         }
 
@@ -344,10 +356,10 @@ namespace Kalendarz1.DashboardPrzychodu.Converters
                 trend = i;
 
             if (trend < 95)
-                return new SolidColorBrush(Color.FromRgb(233, 69, 96));  // Czerwony - mniej niz plan
+                return new SolidColorBrush(Color.FromRgb(239, 68, 68));   // #ef4444 Czerwony - mniej niz plan
             if (trend > 105)
-                return new SolidColorBrush(Color.FromRgb(78, 204, 163)); // Zielony - wiecej niz plan
-            return new SolidColorBrush(Color.FromRgb(156, 163, 175));    // Szary - OK
+                return new SolidColorBrush(Color.FromRgb(34, 197, 94));   // #22c55e Zielony - wiecej niz plan
+            return new SolidColorBrush(Color.FromRgb(168, 162, 158));     // #a8a29e Szary - OK
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
@@ -380,13 +392,13 @@ namespace Kalendarz1.DashboardPrzychodu.Converters
             if (value is string alert)
             {
                 if (alert.Contains("KRYTYCZNY"))
-                    return new SolidColorBrush(Color.FromRgb(220, 38, 38));
+                    return new SolidColorBrush(Color.FromRgb(239, 68, 68));   // #ef4444
                 if (alert.Contains("WYSOKI"))
-                    return new SolidColorBrush(Color.FromRgb(251, 191, 36));
+                    return new SolidColorBrush(Color.FromRgb(251, 191, 36));  // #fbbf24
                 if (alert.Contains("UWAGA"))
-                    return new SolidColorBrush(Color.FromRgb(251, 146, 60));
+                    return new SolidColorBrush(Color.FromRgb(245, 158, 11)); // #f59e0b
             }
-            return new SolidColorBrush(Color.FromRgb(78, 204, 163));
+            return new SolidColorBrush(Color.FromRgb(34, 197, 94)); // #22c55e
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
