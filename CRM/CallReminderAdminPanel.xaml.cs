@@ -35,7 +35,7 @@ namespace Kalendarz1.CRM
                 var cmdOperators = new SqlCommand(
                     @"SELECT CAST(o.ID AS NVARCHAR) as UserID, o.Name
                       FROM operators o
-                      WHERE o.Access >= 1
+                      WHERE o.Name IS NOT NULL AND o.Name <> ''
                       ORDER BY o.Name", conn);
 
                 var operators = new List<(string id, string name)>();
