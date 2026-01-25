@@ -965,8 +965,8 @@
                     </DataGrid.Columns>
                 </DataGrid>
 
-                <!-- Wiersz podsumowania - SUMA -->
-                <Border Grid.Row="2" Background="#1A365D" CornerRadius="0,0,8,8" Padding="10,8" Margin="0,2,0,0" MinHeight="40">
+                <!-- Wiersz podsumowania - SUMA (styl jak zwykły wiersz) -->
+                <Border Grid.Row="2" Background="#151E2B" CornerRadius="0,0,8,8" Padding="10,8" Margin="0,1,0,0" MinHeight="40">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="4"/>
@@ -985,7 +985,10 @@
                             <ColumnDefinition Width="40"/>
                         </Grid.ColumnDefinitions>
 
-                        <TextBlock Grid.Column="1" Text="SUMA" FontWeight="Bold" Foreground="#63B3ED" VerticalAlignment="Center"/>
+                        <!-- Zielony pasek jak w innych wierszach -->
+                        <Border Grid.Column="0" Width="4" Background="#4ECCA3" Margin="-10,0,0,0"/>
+
+                        <TextBlock Grid.Column="1" Text="SUMA" FontWeight="Bold" Foreground="#4ECCA3" VerticalAlignment="Center"/>
                         <TextBlock x:Name="txtSumaDostawy" Grid.Column="2" Text="0 dostaw" Foreground="#A0AEC0" VerticalAlignment="Center" Margin="10,0,0,0"/>
                         <TextBlock x:Name="txtSumaPlan" Grid.Column="3" Text="0" FontWeight="Bold" Foreground="White" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                         <TextBlock x:Name="txtSumaRzecz" Grid.Column="4" Text="0" FontWeight="Bold" Foreground="#4ECCA3" HorizontalAlignment="Right" VerticalAlignment="Center"/>
