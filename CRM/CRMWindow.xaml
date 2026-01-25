@@ -121,6 +121,104 @@
             <ColorAnimation Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
                             To="#7F1D1D" Duration="0:0:1.5"/>
         </Storyboard>
+
+        <!-- Dark ComboBox Style -->
+        <Style x:Key="DarkComboBox" TargetType="ComboBox">
+            <Setter Property="Background" Value="#334155"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="BorderBrush" Value="#475569"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton x:Name="ToggleButton"
+                                          Background="{TemplateBinding Background}"
+                                          BorderBrush="{TemplateBinding BorderBrush}"
+                                          BorderThickness="{TemplateBinding BorderThickness}"
+                                          Focusable="false"
+                                          IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                          ClickMode="Press">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="Border" Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="6">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="20"/>
+                                                </Grid.ColumnDefinitions>
+                                                <ContentPresenter Grid.Column="0"/>
+                                                <Path Grid.Column="1" x:Name="Arrow" Fill="#94A3B8"
+                                                      HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                      Data="M 0 0 L 4 4 L 8 0 Z"/>
+                                            </Grid>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Border" Property="Background" Value="#475569"/>
+                                                <Setter TargetName="Border" Property="BorderBrush" Value="#6366F1"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <ContentPresenter x:Name="ContentSite" IsHitTestVisible="False"
+                                              Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                              ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                              Margin="8,4,24,4"
+                                              VerticalAlignment="Center"
+                                              HorizontalAlignment="Left"/>
+                            <Popup x:Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                                <Grid x:Name="DropDown" SnapsToDevicePixels="True"
+                                      MinWidth="{TemplateBinding ActualWidth}" MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                    <Border x:Name="DropDownBorder" Background="#1E293B" BorderBrush="#475569"
+                                            BorderThickness="1" CornerRadius="6" Margin="0,2,0,0">
+                                        <Border.Effect>
+                                            <DropShadowEffect Color="Black" Opacity="0.3" BlurRadius="10" ShadowDepth="2"/>
+                                        </Border.Effect>
+                                        <ScrollViewer Margin="4" SnapsToDevicePixels="True">
+                                            <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                        </ScrollViewer>
+                                    </Border>
+                                </Grid>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DarkComboBoxItem" TargetType="ComboBoxItem">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                Padding="{TemplateBinding Padding}" CornerRadius="4" Margin="2,1">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#334155"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#6366F1"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid Margin="16">
@@ -261,11 +359,11 @@
                     </StackPanel>
                 </Border>
                 <TextBlock Text="Status:" FontSize="10" Foreground="#94A3B8" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                <ComboBox x:Name="cmbStatus" Width="120" Margin="0,0,8,0" Padding="4" FontSize="11" SelectionChanged="CmbStatus_SelectionChanged" Background="#334155" Foreground="#E2E8F0" BorderBrush="#475569"/>
+                <ComboBox x:Name="cmbStatus" Style="{StaticResource DarkComboBox}" Width="120" Margin="0,0,8,0" SelectionChanged="CmbStatus_SelectionChanged" ItemContainerStyle="{StaticResource DarkComboBoxItem}"/>
                 <TextBlock Text="Woj:" FontSize="10" Foreground="#94A3B8" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                <ComboBox x:Name="cmbWojewodztwo" Width="100" Margin="0,0,8,0" Padding="4" FontSize="11" SelectionChanged="CmbWojewodztwo_SelectionChanged" Background="#334155" Foreground="#E2E8F0" BorderBrush="#475569"/>
+                <ComboBox x:Name="cmbWojewodztwo" Style="{StaticResource DarkComboBox}" Width="100" Margin="0,0,8,0" SelectionChanged="CmbWojewodztwo_SelectionChanged" ItemContainerStyle="{StaticResource DarkComboBoxItem}"/>
                 <TextBlock Text="Branża:" FontSize="10" Foreground="#94A3B8" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                <ComboBox x:Name="cmbBranza" Width="130" Margin="0,0,8,0" Padding="4" FontSize="11" SelectionChanged="CmbBranza_SelectionChanged" Background="#334155" Foreground="#E2E8F0" BorderBrush="#475569"/>
+                <ComboBox x:Name="cmbBranza" Style="{StaticResource DarkComboBox}" Width="130" Margin="0,0,8,0" SelectionChanged="CmbBranza_SelectionChanged" ItemContainerStyle="{StaticResource DarkComboBoxItem}"/>
                 <CheckBox x:Name="chkTylkoMoje" Content="Tylko moi" FontSize="10" Foreground="#6366F1" FontWeight="SemiBold" VerticalContentAlignment="Center" Margin="4,0,0,0" Checked="ChkTylkoMoje_Changed" Unchecked="ChkTylkoMoje_Changed"/>
             </StackPanel>
 
