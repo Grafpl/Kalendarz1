@@ -351,6 +351,26 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 txtTuszkiOdchylenieProcSidebar.Text = "";
                 txtTuszkiOdchylenieSidebar.Foreground = new SolidColorBrush(Color.FromRgb(120, 113, 108)); // #78716c
             }
+
+            // Klasy A/B - sidebar
+            txtKlasaASidebar.Text = _podsumowanie.PrognozaKlasaAKg.ToString("N0");
+            txtKlasaBSidebar.Text = _podsumowanie.PrognozaKlasaBKg.ToString("N0");
+
+            // Auta i trend - sidebar
+            txtAutaSidebar.Text = $"{_podsumowanie.LiczbaZwazonych}/{_podsumowanie.LiczbaDostawOgolem}";
+            txtTrendSidebar.Text = $"{_podsumowanie.ProcentRealizacjiKg}%";
+
+            // Alert redukcji - sidebar
+            if (_prognoza != null && _prognoza.JestAlert)
+            {
+                borderRedukcjaSidebar.Visibility = Visibility.Visible;
+                txtRedukcjaAlertSidebar.Text = _prognoza.PoziomAlertu;
+                txtRedukcjaKgSidebar.Text = _prognoza.RedukcjaDisplay;
+            }
+            else
+            {
+                borderRedukcjaSidebar.Visibility = Visibility.Collapsed;
+            }
         }
 
         /// <summary>
