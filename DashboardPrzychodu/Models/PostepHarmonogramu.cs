@@ -57,6 +57,8 @@ namespace Kalendarz1.DashboardPrzychodu.Models
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(AutaCzekajacych));
                 OnPropertyChanged(nameof(PasekPostepuDisplay));
+                OnPropertyChanged(nameof(CzyZakonczone));
+                OnPropertyChanged(nameof(TileBackground));
             }
         }
 
@@ -72,6 +74,8 @@ namespace Kalendarz1.DashboardPrzychodu.Models
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(AutaCzekajacych));
                 OnPropertyChanged(nameof(PasekPostepuDisplay));
+                OnPropertyChanged(nameof(CzyZakonczone));
+                OnPropertyChanged(nameof(TileBackground));
             }
         }
 
@@ -121,6 +125,7 @@ namespace Kalendarz1.DashboardPrzychodu.Models
                 OnPropertyChanged(nameof(KgPozostalo));
                 OnPropertyChanged(nameof(RealizacjaProc));
                 OnPropertyChanged(nameof(TrendProc));
+                OnPropertyChanged(nameof(TrendDisplay));
             }
         }
 
@@ -156,6 +161,7 @@ namespace Kalendarz1.DashboardPrzychodu.Models
                 OnPropertyChanged(nameof(KgPozostalo));
                 OnPropertyChanged(nameof(RealizacjaProc));
                 OnPropertyChanged(nameof(TrendProc));
+                OnPropertyChanged(nameof(TrendDisplay));
             }
         }
 
@@ -270,6 +276,30 @@ namespace Kalendarz1.DashboardPrzychodu.Models
             > 105 => $"\u2191 {TrendProc:N0}% planu",
             _ => "\u2248 wg planu"
         };
+
+        /// <summary>
+        /// Czy harmonogram jest zakończony (wszystkie auta zważone)
+        /// </summary>
+        public bool CzyZakonczone => AutaOgolem > 0 && AutaZwazone >= AutaOgolem;
+
+        /// <summary>
+        /// Kolor tła kafelka - zielony jeśli zakończone, pomarańczowy jeśli w trakcie
+        /// </summary>
+        public Brush TileBackground => CzyZakonczone
+            ? new SolidColorBrush(Color.FromRgb(34, 197, 94))    // Zielony - zakończone
+            : new SolidColorBrush(Color.FromRgb(217, 119, 6));   // Pomarańczowy - w trakcie
+
+        /// <summary>
+        /// Skrócona nazwa hodowcy (max 10 znaków)
+        /// </summary>
+        public string HodowcaSkrot => string.IsNullOrEmpty(Hodowca)
+            ? "-"
+            : (Hodowca.Length > 10 ? Hodowca.Substring(0, 10) + ".." : Hodowca);
+
+        /// <summary>
+        /// Wyświetlany trend dla kafelka (procent realizacji)
+        /// </summary>
+        public string TrendDisplay => $"{RealizacjaProc:N0}%";
 
         #endregion
 

@@ -469,7 +469,7 @@
         <!-- ============================================ -->
         <Grid Grid.Row="2" Margin="0,4,0,0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="320"/>  <!-- Sidebar - szerszy -->
+                <ColumnDefinition Width="380"/>  <!-- Sidebar - szerszy -->
                 <ColumnDefinition Width="*"/>    <!-- Table -->
             </Grid.ColumnDefinitions>
 
@@ -477,32 +477,39 @@
             <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Margin="0,0,4,0">
                 <StackPanel>
 
-                    <!-- HARMONOGRAMY -->
-                    <Border Background="#292524" CornerRadius="5" Padding="8,8" Margin="0,0,0,6">
+                    <!-- HARMONOGRAMY - kompaktowe kafelki -->
+                    <Border Background="#292524" CornerRadius="5" Padding="8,6" Margin="0,0,0,6">
                         <StackPanel>
-                            <TextBlock Text="📦 HARMONOGRAMY" FontSize="10" FontWeight="Bold"
-                                       Foreground="#f59e0b" Margin="0,0,0,6"/>
+                            <Grid Margin="0,0,0,4">
+                                <TextBlock Text="📦 HARMONOGRAMY" FontSize="10" FontWeight="Bold" Foreground="#f59e0b"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <TextBlock Text="⚖️ " FontSize="9" Foreground="#78716c"/>
+                                    <TextBlock x:Name="txtSrWagaPlanSidebar" Text="-" FontSize="9" FontWeight="SemiBold" Foreground="#a8a29e"/>
+                                    <TextBlock Text=" → " FontSize="9" Foreground="#57534e"/>
+                                    <TextBlock x:Name="txtSrWagaRzeczSidebar" Text="-" FontSize="9" FontWeight="Bold" Foreground="#22c55e"/>
+                                    <TextBlock Text=" kg" FontSize="8" Foreground="#57534e"/>
+                                </StackPanel>
+                            </Grid>
                             <ItemsControl x:Name="icHarmonogramy">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Background="#1c1917" CornerRadius="4" Padding="8,6" Margin="0,0,0,4"
-                                                BorderThickness="3,0,0,0" BorderBrush="{Binding StatusKolor, Mode=OneWay}">
+                                        <Border CornerRadius="4" Padding="6,4" Margin="0,0,4,4" MinWidth="90"
+                                                Background="{Binding TileBackground, Mode=OneWay}">
                                             <StackPanel>
-                                                <Grid>
-                                                    <TextBlock Text="{Binding Hodowca, Mode=OneWay}" FontSize="11"
-                                                               Foreground="#e7e5e4" TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Text="{Binding TrendDisplay, Mode=OneWay}" FontSize="11" FontWeight="Bold"
-                                                               Foreground="{Binding StatusKolor, Mode=OneWay}" HorizontalAlignment="Right"/>
-                                                </Grid>
-                                                <ProgressBar Value="{Binding PostepProc, Mode=OneWay}" Maximum="100"
-                                                             Height="4" Margin="0,4,0,2"
-                                                             Background="#44403c" Foreground="{Binding ProgressKolor, Mode=OneWay}"/>
-                                                <Grid>
-                                                    <TextBlock FontSize="9" Foreground="#78716c">
-                                                        <Run Text="✓ "/><Run Text="{Binding PostepDisplay, Mode=OneWay}"/>
+                                                <TextBlock Text="{Binding HodowcaSkrot, Mode=OneWay}" FontSize="9" FontWeight="SemiBold"
+                                                           Foreground="#fef3c7" TextTrimming="CharacterEllipsis" MaxWidth="85"
+                                                           ToolTip="{Binding Hodowca, Mode=OneWay}"/>
+                                                <Grid Margin="0,2,0,0">
+                                                    <TextBlock FontSize="8" Foreground="#fef3c7" Opacity="0.8">
+                                                        <Run Text="{Binding PostepDisplay, Mode=OneWay}"/>
                                                     </TextBlock>
-                                                    <TextBlock Text="{Binding OdchylenieDisplay, Mode=OneWay}"
-                                                               FontSize="9" Foreground="#78716c" HorizontalAlignment="Right"/>
+                                                    <TextBlock Text="{Binding TrendDisplay, Mode=OneWay}" FontSize="9" FontWeight="Bold"
+                                                               Foreground="#fef3c7" HorizontalAlignment="Right"/>
                                                 </Grid>
                                             </StackPanel>
                                         </Border>
@@ -518,30 +525,30 @@
                             <TextBlock Text="🍗 TUSZKI - PROGNOZA" FontSize="10" FontWeight="Bold"
                                        Foreground="#c084fc" Margin="0,0,0,6"/>
 
-                            <!-- Główne wartości -->
+                            <!-- Główne wartości - DUŻE -->
                             <UniformGrid Columns="3" Margin="0,0,0,8">
-                                <Border Background="#1c1917" CornerRadius="4" Padding="6,8" Margin="0,0,2,0">
+                                <Border Background="#1c1917" CornerRadius="4" Padding="8,10" Margin="0,0,3,0">
                                     <StackPanel HorizontalAlignment="Center">
-                                        <TextBlock Text="PLAN" FontSize="8" Foreground="#78716c" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="PLAN" FontSize="9" Foreground="#78716c" HorizontalAlignment="Center"/>
                                         <TextBlock x:Name="txtTuszkiPlanSidebar" Text="-"
-                                                   FontSize="18" FontWeight="Bold" Foreground="#a8a29e" HorizontalAlignment="Center"/>
-                                        <TextBlock Text="kg" FontSize="8" Foreground="#57534e" HorizontalAlignment="Center"/>
+                                                   FontSize="22" FontWeight="Bold" Foreground="#a8a29e" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="kg" FontSize="9" Foreground="#57534e" HorizontalAlignment="Center"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Background="#1c1917" CornerRadius="4" Padding="6,8" Margin="2,0">
+                                <Border Background="#1c1917" CornerRadius="4" Padding="8,10" Margin="3,0">
                                     <StackPanel HorizontalAlignment="Center">
-                                        <TextBlock Text="RZECZ" FontSize="8" Foreground="#78716c" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="RZECZ" FontSize="9" Foreground="#78716c" HorizontalAlignment="Center"/>
                                         <TextBlock x:Name="txtTuszkiRzeczSidebar" Text="-"
-                                                   FontSize="18" FontWeight="Bold" Foreground="#c084fc" HorizontalAlignment="Center"/>
-                                        <TextBlock Text="kg" FontSize="8" Foreground="#57534e" HorizontalAlignment="Center"/>
+                                                   FontSize="22" FontWeight="Bold" Foreground="#c084fc" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="kg" FontSize="9" Foreground="#57534e" HorizontalAlignment="Center"/>
                                     </StackPanel>
                                 </Border>
-                                <Border x:Name="borderTuszkiOdchylenie" Background="#1c1917" CornerRadius="4" Padding="6,8" Margin="2,0,0,0">
+                                <Border x:Name="borderTuszkiOdchylenie" Background="#1c1917" CornerRadius="4" Padding="8,10" Margin="3,0,0,0">
                                     <StackPanel HorizontalAlignment="Center">
-                                        <TextBlock Text="ODCHYL" FontSize="8" Foreground="#78716c" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="ODCHYL" FontSize="9" Foreground="#78716c" HorizontalAlignment="Center"/>
                                         <TextBlock x:Name="txtTuszkiOdchylenieSidebar" Text="-"
-                                                   FontSize="18" FontWeight="Bold" Foreground="#78716c" HorizontalAlignment="Center"/>
-                                        <TextBlock x:Name="txtTuszkiOdchylenieProcSidebar" Text="" FontSize="9" Foreground="#57534e" HorizontalAlignment="Center"/>
+                                                   FontSize="22" FontWeight="Bold" Foreground="#78716c" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="txtTuszkiOdchylenieProcSidebar" Text="" FontSize="10" Foreground="#57534e" HorizontalAlignment="Center"/>
                                     </StackPanel>
                                 </Border>
                             </UniformGrid>
@@ -560,7 +567,7 @@
                                 </StackPanel>
                             </Border>
 
-                            <!-- Klasy A/B - Plan, Rzecz, Fakt z % -->
+                            <!-- Klasy A/B - Plan, Rzecz, Fakt z % - WIĘKSZE -->
                             <Grid Margin="0,0,0,0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -572,62 +579,62 @@
                                 </Grid.RowDefinitions>
 
                                 <!-- Nagłówki -->
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="KLASA A" FontSize="9" FontWeight="SemiBold"
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="KLASA A" FontSize="10" FontWeight="SemiBold"
                                            Foreground="#22c55e" HorizontalAlignment="Center" Margin="0,0,0,4"/>
-                                <TextBlock Grid.Row="0" Grid.Column="1" Text="KLASA B" FontSize="9" FontWeight="SemiBold"
+                                <TextBlock Grid.Row="0" Grid.Column="1" Text="KLASA B" FontSize="10" FontWeight="SemiBold"
                                            Foreground="#fbbf24" HorizontalAlignment="Center" Margin="0,0,0,4"/>
 
                                 <!-- Klasa A - Plan/Rzecz/Fakt z % -->
-                                <Border Grid.Row="1" Grid.Column="0" Background="#1c1917" CornerRadius="4" Padding="6,6" Margin="0,0,3,0">
+                                <Border Grid.Row="1" Grid.Column="0" Background="#1c1917" CornerRadius="4" Padding="8,8" Margin="0,0,3,0">
                                     <StackPanel>
                                         <Grid>
-                                            <TextBlock Text="Plan:" FontSize="9" Foreground="#78716c"/>
+                                            <TextBlock Text="Plan:" FontSize="10" Foreground="#78716c"/>
                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                                <TextBlock x:Name="txtKlasaAPlanSidebar" Text="-" FontSize="10" FontWeight="SemiBold" Foreground="#a8a29e"/>
-                                                <TextBlock x:Name="txtKlasaAPlanProcSidebar" Text="" FontSize="8" Foreground="#78716c" Margin="3,0,0,0" VerticalAlignment="Center"/>
+                                                <TextBlock x:Name="txtKlasaAPlanSidebar" Text="-" FontSize="13" FontWeight="SemiBold" Foreground="#a8a29e"/>
+                                                <TextBlock x:Name="txtKlasaAPlanProcSidebar" Text="" FontSize="9" Foreground="#78716c" Margin="4,0,0,0" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </Grid>
-                                        <Grid Margin="0,2,0,0">
-                                            <TextBlock Text="Rzecz:" FontSize="9" Foreground="#78716c"/>
+                                        <Grid Margin="0,4,0,0">
+                                            <TextBlock Text="Rzecz:" FontSize="10" Foreground="#78716c"/>
                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                                <TextBlock x:Name="txtKlasaASidebar" Text="-" FontSize="10" FontWeight="Bold" Foreground="#22c55e"/>
-                                                <TextBlock x:Name="txtKlasaAProcSidebar" Text="" FontSize="8" Foreground="#78716c" Margin="3,0,0,0" VerticalAlignment="Center"/>
+                                                <TextBlock x:Name="txtKlasaASidebar" Text="-" FontSize="13" FontWeight="Bold" Foreground="#22c55e"/>
+                                                <TextBlock x:Name="txtKlasaAProcSidebar" Text="" FontSize="9" Foreground="#78716c" Margin="4,0,0,0" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </Grid>
-                                        <Grid Margin="0,2,0,0">
-                                            <TextBlock Text="Fakt:" FontSize="9" Foreground="#78716c"/>
+                                        <Grid Margin="0,4,0,0">
+                                            <TextBlock Text="Fakt:" FontSize="10" Foreground="#78716c"/>
                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                                <TextBlock x:Name="txtKlasaAFaktSidebar" Text="-" FontSize="10" FontWeight="Bold" Foreground="#60a5fa"
+                                                <TextBlock x:Name="txtKlasaAFaktSidebar" Text="-" FontSize="13" FontWeight="Bold" Foreground="#60a5fa"
                                                            ToolTip="Faktyczny przychód z systemu Symfonia (sPWU)"/>
-                                                <TextBlock x:Name="txtKlasaAFaktProcSidebar" Text="" FontSize="8" Foreground="#78716c" Margin="3,0,0,0" VerticalAlignment="Center"/>
+                                                <TextBlock x:Name="txtKlasaAFaktProcSidebar" Text="" FontSize="9" Foreground="#78716c" Margin="4,0,0,0" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </Grid>
                                     </StackPanel>
                                 </Border>
 
                                 <!-- Klasa B - Plan/Rzecz/Fakt z % -->
-                                <Border Grid.Row="1" Grid.Column="1" Background="#1c1917" CornerRadius="4" Padding="6,6" Margin="3,0,0,0">
+                                <Border Grid.Row="1" Grid.Column="1" Background="#1c1917" CornerRadius="4" Padding="8,8" Margin="3,0,0,0">
                                     <StackPanel>
                                         <Grid>
-                                            <TextBlock Text="Plan:" FontSize="9" Foreground="#78716c"/>
+                                            <TextBlock Text="Plan:" FontSize="10" Foreground="#78716c"/>
                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                                <TextBlock x:Name="txtKlasaBPlanSidebar" Text="-" FontSize="10" FontWeight="SemiBold" Foreground="#a8a29e"/>
-                                                <TextBlock x:Name="txtKlasaBPlanProcSidebar" Text="" FontSize="8" Foreground="#78716c" Margin="3,0,0,0" VerticalAlignment="Center"/>
+                                                <TextBlock x:Name="txtKlasaBPlanSidebar" Text="-" FontSize="13" FontWeight="SemiBold" Foreground="#a8a29e"/>
+                                                <TextBlock x:Name="txtKlasaBPlanProcSidebar" Text="" FontSize="9" Foreground="#78716c" Margin="4,0,0,0" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </Grid>
-                                        <Grid Margin="0,2,0,0">
-                                            <TextBlock Text="Rzecz:" FontSize="9" Foreground="#78716c"/>
+                                        <Grid Margin="0,4,0,0">
+                                            <TextBlock Text="Rzecz:" FontSize="10" Foreground="#78716c"/>
                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                                <TextBlock x:Name="txtKlasaBSidebar" Text="-" FontSize="10" FontWeight="Bold" Foreground="#fbbf24"/>
-                                                <TextBlock x:Name="txtKlasaBProcSidebar" Text="" FontSize="8" Foreground="#78716c" Margin="3,0,0,0" VerticalAlignment="Center"/>
+                                                <TextBlock x:Name="txtKlasaBSidebar" Text="-" FontSize="13" FontWeight="Bold" Foreground="#fbbf24"/>
+                                                <TextBlock x:Name="txtKlasaBProcSidebar" Text="" FontSize="9" Foreground="#78716c" Margin="4,0,0,0" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </Grid>
-                                        <Grid Margin="0,2,0,0">
-                                            <TextBlock Text="Fakt:" FontSize="9" Foreground="#78716c"/>
+                                        <Grid Margin="0,4,0,0">
+                                            <TextBlock Text="Fakt:" FontSize="10" Foreground="#78716c"/>
                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                                <TextBlock x:Name="txtKlasaBFaktSidebar" Text="-" FontSize="10" FontWeight="Bold" Foreground="#60a5fa"
+                                                <TextBlock x:Name="txtKlasaBFaktSidebar" Text="-" FontSize="13" FontWeight="Bold" Foreground="#60a5fa"
                                                            ToolTip="Faktyczny przychód z systemu Symfonia (sPWU)"/>
-                                                <TextBlock x:Name="txtKlasaBFaktProcSidebar" Text="" FontSize="8" Foreground="#78716c" Margin="3,0,0,0" VerticalAlignment="Center"/>
+                                                <TextBlock x:Name="txtKlasaBFaktProcSidebar" Text="" FontSize="9" Foreground="#78716c" Margin="4,0,0,0" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </Grid>
                                     </StackPanel>
@@ -649,30 +656,6 @@
                                     <TextBlock x:Name="txtTrendSidebar" Text="0%" FontSize="10" FontWeight="SemiBold" Foreground="#fbbf24"/>
                                 </StackPanel>
                             </Grid>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- ŚREDNIE WAGI -->
-                    <Border Background="#292524" CornerRadius="5" Padding="8,8" Margin="0,0,0,6">
-                        <StackPanel>
-                            <TextBlock Text="⚖️ ŚREDNIE WAGI" FontSize="10" FontWeight="Bold"
-                                       Foreground="#f59e0b" Margin="0,0,0,6"/>
-                            <UniformGrid Columns="2">
-                                <Border Background="#1c1917" CornerRadius="4" Padding="8,6" Margin="0,0,3,0">
-                                    <StackPanel HorizontalAlignment="Center">
-                                        <TextBlock Text="DEKL" FontSize="9" Foreground="#78716c" HorizontalAlignment="Center"/>
-                                        <TextBlock x:Name="txtSrWagaPlanSidebar" Text="-"
-                                                   FontSize="18" FontWeight="Bold" Foreground="#a8a29e" HorizontalAlignment="Center"/>
-                                    </StackPanel>
-                                </Border>
-                                <Border Background="#1c1917" CornerRadius="4" Padding="8,6" Margin="3,0,0,0">
-                                    <StackPanel HorizontalAlignment="Center">
-                                        <TextBlock Text="RZECZ" FontSize="9" Foreground="#78716c" HorizontalAlignment="Center"/>
-                                        <TextBlock x:Name="txtSrWagaRzeczSidebar" Text="-"
-                                                   FontSize="18" FontWeight="Bold" Foreground="#22c55e" HorizontalAlignment="Center"/>
-                                    </StackPanel>
-                                </Border>
-                            </UniformGrid>
                         </StackPanel>
                     </Border>
 
