@@ -320,7 +320,7 @@ namespace Kalendarz1.Spotkania.Views
             sb.AppendLine("================================================================================");
             sb.AppendLine();
             sb.AppendLine($"Data:          {dto.DateAsDateTime?.ToString("yyyy-MM-dd HH:mm") ?? "Brak daty"}");
-            sb.AppendLine($"Czas trwania:  {FormatujCzas(dto.Duration ?? 0)}");
+            sb.AppendLine($"Czas trwania:  {FormatujCzas((int)(dto.Duration ?? 0))}");
             sb.AppendLine($"Organizator:   {dto.HostEmail ?? "Nieznany"}");
 
             if (dto.Participants != null && dto.Participants.Count > 0)
