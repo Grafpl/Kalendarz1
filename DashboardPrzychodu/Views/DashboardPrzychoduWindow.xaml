@@ -469,7 +469,7 @@
         <!-- ============================================ -->
         <Grid Grid.Row="2" Margin="0,4,0,0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="280"/>  <!-- Sidebar - powiększony -->
+                <ColumnDefinition Width="320"/>  <!-- Sidebar - szerszy -->
                 <ColumnDefinition Width="*"/>    <!-- Table -->
             </Grid.ColumnDefinitions>
 
@@ -718,7 +718,7 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTextColumn Header="LP" Binding="{Binding NrKursu}" Width="45">
+                            <DataGridTextColumn Header="LP" Binding="{Binding NrKursu}" Width="50">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="FontWeight" Value="SemiBold"/>
@@ -728,7 +728,7 @@
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
 
-                            <DataGridTextColumn Header="HODOWCA" Binding="{Binding Hodowca}" Width="*" MinWidth="140">
+                            <DataGridTextColumn Header="HODOWCA" Binding="{Binding Hodowca}" Width="*" MinWidth="160">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
@@ -739,7 +739,7 @@
                             </DataGridTextColumn>
 
                             <!-- PLAN NA AUTO -->
-                            <DataGridTemplateColumn Header="PLAN" Width="80">
+                            <DataGridTemplateColumn Header="PLAN" Width="90">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
@@ -752,7 +752,7 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTemplateColumn Header="RZECZ" Width="75">
+                            <DataGridTemplateColumn Header="RZECZ" Width="85">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding KgRzeczywiste, StringFormat=N0}" HorizontalAlignment="Right"
@@ -762,7 +762,7 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTemplateColumn Header="ODCHYL." Width="95">
+                            <DataGridTemplateColumn Header="ODCHYL." Width="105">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding OdchylenieDisplay}"
@@ -773,7 +773,7 @@
                             </DataGridTemplateColumn>
 
                             <!-- POZOSTALO Z HARMONOGRAMU -->
-                            <DataGridTemplateColumn Header="POZOST." Width="85">
+                            <DataGridTemplateColumn Header="POZOST." Width="95">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel VerticalAlignment="Center">
@@ -786,7 +786,7 @@
                             </DataGridTemplateColumn>
 
                             <!-- POSTEP HARMONOGRAMU -->
-                            <DataGridTemplateColumn Header="POST." Width="60">
+                            <DataGridTemplateColumn Header="POST." Width="70">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel VerticalAlignment="Center">
@@ -798,7 +798,7 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTemplateColumn Header="W.DEK" Width="55">
+                            <DataGridTemplateColumn Header="W.DEK" Width="65">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding SredniaWagaPlanCalc, StringFormat=N2}"
@@ -808,7 +808,7 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTemplateColumn Header="W.RZ" Width="55">
+                            <DataGridTemplateColumn Header="W.RZ" Width="65">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding SredniaWagaRzeczywistaCalc, Converter={StaticResource NullToDashConverter}}"
@@ -819,7 +819,7 @@
                             </DataGridTemplateColumn>
 
                             <!-- TUSZKI -->
-                            <DataGridTemplateColumn Header="TUSZKI" Width="65">
+                            <DataGridTemplateColumn Header="TUSZKI" Width="75">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding TuszkiRzeczywisteKg, Converter={StaticResource NullToDashConverter}}"
@@ -830,7 +830,7 @@
                             </DataGridTemplateColumn>
 
                             <!-- Status jako ikona -->
-                            <DataGridTemplateColumn Header="" Width="34">
+                            <DataGridTemplateColumn Header="" Width="38">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding StatusIcon}" FontSize="16"
@@ -840,7 +840,7 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTextColumn Header="GODZ" Binding="{Binding PrzyjazdDisplay}" Width="55">
+                            <DataGridTextColumn Header="GODZ" Binding="{Binding PrzyjazdDisplay}" Width="65">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="HorizontalAlignment" Value="Center"/>
@@ -858,18 +858,18 @@
                             CornerRadius="0,0,5,5" BorderThickness="0,2,0,0" BorderBrush="#f59e0b">
                         <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="45"/>   <!-- LP -->
+                                <ColumnDefinition Width="50"/>   <!-- LP -->
                                 <ColumnDefinition Width="*"/>    <!-- HODOWCA -->
-                                <ColumnDefinition Width="80"/>   <!-- PLAN -->
-                                <ColumnDefinition Width="75"/>   <!-- RZECZ -->
-                                <ColumnDefinition Width="95"/>   <!-- ODCHYLENIE -->
-                                <ColumnDefinition Width="85"/>   <!-- POZOSTAŁO -->
-                                <ColumnDefinition Width="60"/>   <!-- POSTĘP -->
-                                <ColumnDefinition Width="55"/>   <!-- W.DEK -->
-                                <ColumnDefinition Width="55"/>   <!-- W.RZ -->
-                                <ColumnDefinition Width="65"/>   <!-- TUSZKI -->
-                                <ColumnDefinition Width="34"/>   <!-- STATUS -->
-                                <ColumnDefinition Width="55"/>   <!-- GODZ -->
+                                <ColumnDefinition Width="90"/>   <!-- PLAN -->
+                                <ColumnDefinition Width="85"/>   <!-- RZECZ -->
+                                <ColumnDefinition Width="105"/>  <!-- ODCHYLENIE -->
+                                <ColumnDefinition Width="95"/>   <!-- POZOSTAŁO -->
+                                <ColumnDefinition Width="70"/>   <!-- POSTĘP -->
+                                <ColumnDefinition Width="65"/>   <!-- W.DEK -->
+                                <ColumnDefinition Width="65"/>   <!-- W.RZ -->
+                                <ColumnDefinition Width="75"/>   <!-- TUSZKI -->
+                                <ColumnDefinition Width="38"/>   <!-- STATUS -->
+                                <ColumnDefinition Width="65"/>   <!-- GODZ -->
                             </Grid.ColumnDefinitions>
 
                             <TextBlock Grid.Column="0" Text="SUMA" FontSize="11" FontWeight="Bold" Foreground="#fbbf24" VerticalAlignment="Center"/>
