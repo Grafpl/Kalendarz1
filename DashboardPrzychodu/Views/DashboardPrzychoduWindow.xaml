@@ -965,8 +965,8 @@
                     </DataGrid.Columns>
                 </DataGrid>
 
-                <!-- Wiersz podsumowania -->
-                <Border Grid.Row="2" Background="#1A365D" CornerRadius="0,0,8,8" Padding="10,6" Margin="0,0,0,0">
+                <!-- Wiersz podsumowania - SUMA -->
+                <Border Grid.Row="2" Background="#1A365D" CornerRadius="0,0,8,8" Padding="10,8" Margin="0,2,0,0" MinHeight="40">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="4"/>
