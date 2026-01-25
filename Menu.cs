@@ -1947,6 +1947,16 @@ namespace Kalendarz1
             };
             contextMenu.Items.Add(quotesItem);
 
+            // 3. Przypomnienia telefonów CRM
+            var reminderItem = new ToolStripMenuItem("Przypomnienia telefonów");
+            reminderItem.Image = CreateMenuItemImage("⏰");
+            reminderItem.Click += (s, args) =>
+            {
+                var panel = new CRM.CallReminderAdminPanel();
+                panel.ShowDialog();
+            };
+            contextMenu.Items.Add(reminderItem);
+
             // Pokaż menu pod przyciskiem
             if (button != null)
             {
