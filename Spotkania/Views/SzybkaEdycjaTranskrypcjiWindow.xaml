@@ -1,0 +1,212 @@
+<Window x:Class="Kalendarz1.Spotkania.Views.SzybkaEdycjaTranskrypcjiWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Szybka edycja transkrypcji" Height="550" Width="550"
+        WindowStartupLocation="CenterOwner"
+        Background="#F5F5F5" ResizeMode="NoResize">
+
+    <Window.Resources>
+        <Style x:Key="CardBorder" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Margin" Value="0,0,0,15"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect BlurRadius="8" ShadowDepth="1" Opacity="0.15"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="LabelStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#666"/>
+            <Setter Property="Margin" Value="0,0,0,5"/>
+        </Style>
+
+        <Style x:Key="InputStyle" TargetType="TextBox">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="BorderBrush" Value="#E0E0E0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <Style x:Key="BtnPrimary" TargetType="Button">
+            <Setter Property="Background" Value="#4CAF50"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="20,12"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#43A047"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="BtnSecondary" TargetType="Button" BasedOn="{StaticResource BtnPrimary}">
+            <Setter Property="Background" Value="#607D8B"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#546E7A"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="BtnKategoria" TargetType="Button">
+            <Setter Property="Background" Value="#E0E0E0"/>
+            <Setter Property="Foreground" Value="#333"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Margin" Value="0,0,8,8"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="15" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#BDBDBD"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Naglowek -->
+        <Border Grid.Row="0" Background="#1976D2" Padding="20,16">
+            <StackPanel>
+                <TextBlock Text="Szybka edycja" FontSize="20" FontWeight="Bold" Foreground="White"/>
+                <TextBlock x:Name="TxtDataSpotkania" Text="" FontSize="12" Foreground="#BBDEFB" Margin="0,4,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Zawartosc -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="20">
+            <StackPanel>
+                <!-- Nazwa/Tytul -->
+                <Border Style="{StaticResource CardBorder}">
+                    <StackPanel>
+                        <TextBlock Text="Nazwa spotkania" Style="{StaticResource LabelStyle}"/>
+                        <TextBox x:Name="TxtTytul" Style="{StaticResource InputStyle}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Kategoria -->
+                <Border Style="{StaticResource CardBorder}">
+                    <StackPanel>
+                        <TextBlock Text="Kategoria" Style="{StaticResource LabelStyle}"/>
+                        <WrapPanel x:Name="PanelKategorie" Margin="0,5,0,0">
+                            <!-- Kategorie beda dodane programowo -->
+                        </WrapPanel>
+                        <Grid Margin="0,10,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="TxtNowaKategoria" Grid.Column="0" Style="{StaticResource InputStyle}"
+                                     ToolTip="Wpisz nazwe nowej kategorii" VerticalAlignment="Center"/>
+                            <Button x:Name="BtnDodajKategorie" Grid.Column="1" Content="+ Dodaj"
+                                    Style="{StaticResource BtnSecondary}" Margin="10,0,0,0"
+                                    Padding="12,8" Click="BtnDodajKategorie_Click"/>
+                        </Grid>
+                        <TextBlock Text="Wybrana kategoria:" FontSize="11" Foreground="#888" Margin="0,10,0,0"/>
+                        <TextBlock x:Name="TxtWybranaKategoria" Text="(brak)" FontSize="14" FontWeight="SemiBold" Foreground="#1976D2"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Uczestnicy -->
+                <Border Style="{StaticResource CardBorder}">
+                    <StackPanel>
+                        <Grid>
+                            <TextBlock Text="Uczestnicy" Style="{StaticResource LabelStyle}"/>
+                            <Button x:Name="BtnDodajUczestnika" Content="+ Dodaj" HorizontalAlignment="Right"
+                                    Style="{StaticResource BtnSecondary}" Padding="10,5" FontSize="11"
+                                    Click="BtnDodajUczestnika_Click"/>
+                        </Grid>
+
+                        <ItemsControl x:Name="ListaUczestnikow" Margin="0,10,0,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#F5F5F5" CornerRadius="6" Padding="10" Margin="0,0,0,8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="{Binding NazwaFireflies}" FontWeight="SemiBold" FontSize="13"/>
+                                                <TextBlock Text="{Binding PrzypisanyDisplay}" FontSize="11" Foreground="#666"/>
+                                            </StackPanel>
+
+                                            <ComboBox Grid.Column="1" Width="150" Margin="10,0"
+                                                      ItemsSource="{Binding DostepniPracownicy}"
+                                                      DisplayMemberPath="DisplayName"
+                                                      SelectedItem="{Binding WybranyPracownik, Mode=TwoWay}"
+                                                      VerticalAlignment="Center"/>
+
+                                            <Button Grid.Column="2" Content="❌" Padding="8,4"
+                                                    Background="Transparent" BorderThickness="0"
+                                                    Click="BtnUsunUczestnika_Click" Tag="{Binding}"
+                                                    ToolTip="Usun uczestnika" Cursor="Hand"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <TextBlock x:Name="TxtBrakUczestnikow" Text="Brak zdefiniowanych uczestnikow"
+                                   FontSize="12" Foreground="#999" FontStyle="Italic"
+                                   HorizontalAlignment="Center" Margin="0,10,0,0"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Stopka -->
+        <Border Grid.Row="2" Background="#FAFAFA" BorderBrush="#E0E0E0" BorderThickness="0,1,0,0" Padding="20,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <CheckBox x:Name="ChkAktualizujFireflies" Grid.Column="0" Content="Aktualizuj tez w Fireflies.ai"
+                          VerticalAlignment="Center" IsChecked="True"/>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <Button x:Name="BtnZapisz" Content="Zapisz zmiany" Style="{StaticResource BtnPrimary}"
+                            Margin="0,0,10,0" Click="BtnZapisz_Click"/>
+                    <Button x:Name="BtnAnuluj" Content="Anuluj" Style="{StaticResource BtnSecondary}"
+                            Click="BtnAnuluj_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

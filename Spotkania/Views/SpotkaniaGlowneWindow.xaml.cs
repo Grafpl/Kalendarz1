@@ -191,6 +191,13 @@ namespace Kalendarz1.Spotkania.Views
             window.ShowDialog();
         }
 
+        private void BtnDashboard_Click(object sender, RoutedEventArgs e)
+        {
+            var window = new DashboardAnalitykaWindow(_firefliesService);
+            window.Owner = this;
+            window.Show();
+        }
+
         private void BtnNoweSpotkanie_Click(object sender, RoutedEventArgs e)
         {
             var editor = new EdytorSpotkania(_userID);
@@ -413,6 +420,37 @@ namespace Kalendarz1.Spotkania.Views
             }
         }
 
+        private void BtnSzybkaEdycja_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is FirefliesTranskrypcjaListItem item)
+            {
+                OtworzSzybkaEdycje(item);
+            }
+        }
+
+        private void BtnSzybkaEdycjaWybranej_Click(object sender, RoutedEventArgs e)
+        {
+            if (GridTranskrypcje.SelectedItem is FirefliesTranskrypcjaListItem item)
+            {
+                OtworzSzybkaEdycje(item);
+            }
+            else
+            {
+                MessageBox.Show("Wybierz transkrypcje z listy.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private void OtworzSzybkaEdycje(FirefliesTranskrypcjaListItem item)
+        {
+            var window = new SzybkaEdycjaTranskrypcjiWindow(_firefliesService, item.TranskrypcjaID, item.FirefliesID);
+            window.Owner = this;
+
+            if (window.ShowDialog() == true)
+            {
+                _ = LoadTranskrypcjeAsync();
+            }
+        }
+
         private void BtnEdytujTranskrypcje_Click(object sender, RoutedEventArgs e)
         {
             if (GridTranskrypcje.SelectedItem is FirefliesTranskrypcjaListItem item)
@@ -421,7 +459,7 @@ namespace Kalendarz1.Spotkania.Views
             }
             else
             {
-                MessageBox.Show("Wybierz transkrypcję z listy.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("Wybierz transkrypcje z listy.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
 
@@ -472,6 +510,32 @@ namespace Kalendarz1.Spotkania.Views
             else
             {
                 MessageBox.Show("Wybierz transkrypcję z listy.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private void BtnGlobalneSzukanie_Click(object sender, RoutedEventArgs e)
+        {
+            var searchWindow = new GlobalneSzukanieWindow(_firefliesService);
+            searchWindow.Owner = this;
+            searchWindow.TranskrypcjaOtwarta += (firefliesId, transkrypcjaId) =>
+            {
+                var window = new TranskrypcjaSzczegolyWindow(firefliesId, transkrypcjaId);
+                window.Owner = this;
+                if (window.ShowDialog() == true)
+                {
+                    _ = LoadTranskrypcjeAsync();
+                }
+            };
+            searchWindow.Show();
+        }
+
+        private void BtnMasowePobieranie_Click(object sender, RoutedEventArgs e)
+        {
+            var window = new MasowePobieranieWindow(_firefliesService);
+            window.Owner = this;
+            if (window.ShowDialog() == true)
+            {
+                _ = LoadTranskrypcjeAsync();
             }
         }
 

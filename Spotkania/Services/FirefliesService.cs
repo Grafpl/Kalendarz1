@@ -258,6 +258,8 @@ namespace Kalendarz1.Spotkania.Services
                             date
                             duration
                             transcript_url
+                            audio_url
+                            video_url
                             organizer_email
                             participants
                             sentences {
@@ -486,10 +488,21 @@ namespace Kalendarz1.Spotkania.Services
             using var conn = new SqlConnection(CONNECTION_STRING);
             await conn.OpenAsync();
 
+            // Upewnij sie ze kolumna Kategoria istnieje
+            try
+            {
+                string alterSql = @"IF NOT EXISTS (SELECT * FROM sys.columns
+                                    WHERE object_id = OBJECT_ID('FirefliesTranskrypcje') AND name = 'Kategoria')
+                                    ALTER TABLE FirefliesTranskrypcje ADD Kategoria NVARCHAR(100)";
+                using var alterCmd = new SqlCommand(alterSql, conn);
+                await alterCmd.ExecuteNonQueryAsync();
+            }
+            catch { }
+
             var sql = new StringBuilder(@"
                 SELECT
                     TranskrypcjaID, FirefliesID, Tytul, DataSpotkania, CzasTrwaniaSekundy,
-                    Uczestnicy, SpotkaniID, NotatkaID, StatusImportu, DataImportu
+                    Uczestnicy, SpotkaniID, NotatkaID, StatusImportu, DataImportu, Kategoria
                 FROM FirefliesTranskrypcje
                 WHERE 1=1");
 
@@ -521,16 +534,36 @@ namespace Kalendarz1.Spotkania.Services
                     MaSpotkanie = !reader.IsDBNull(6),
                     MaNotatke = !reader.IsDBNull(7),
                     StatusImportu = reader.GetString(8),
-                    DataImportu = reader.GetDateTime(9)
+                    DataImportu = reader.GetDateTime(9),
+                    Kategoria = reader.IsDBNull(10) ? null : reader.GetString(10)
                 };
 
-                // Policz uczestników z JSON
+                // Parsuj uczestnikow z JSON
                 if (!reader.IsDBNull(5))
                 {
                     try
                     {
-                        var uczestnicy = JsonSerializer.Deserialize<List<string>>(reader.GetString(5));
-                        item.LiczbaUczestnikow = uczestnicy?.Count ?? 0;
+                        var json = reader.GetString(5);
+                        // Sprobuj najpierw jako liste obiektow
+                        try
+                        {
+                            var uczestnicyObj = JsonSerializer.Deserialize<List<UczestnikJsonHelper>>(json);
+                            if (uczestnicyObj != null)
+                            {
+                                item.UczestnicyLista = uczestnicyObj.Select(u => u.nazwa ?? u.email ?? "?").ToList();
+                                item.LiczbaUczestnikow = uczestnicyObj.Count;
+                            }
+                        }
+                        catch
+                        {
+                            // Sprobuj jako prosta lista stringow
+                            var uczestnicy = JsonSerializer.Deserialize<List<string>>(json);
+                            if (uczestnicy != null)
+                            {
+                                item.UczestnicyLista = uczestnicy;
+                                item.LiczbaUczestnikow = uczestnicy.Count;
+                            }
+                        }
                     }
                     catch { }
                 }
@@ -539,6 +572,14 @@ namespace Kalendarz1.Spotkania.Services
             }
 
             return lista;
+        }
+
+        private class UczestnikJsonHelper
+        {
+            public string? nazwa { get; set; }
+            public string? email { get; set; }
+            public string? speakerId { get; set; }
+            public string? userId { get; set; }
         }
 
         /// <summary>
@@ -824,7 +865,270 @@ namespace Kalendarz1.Spotkania.Services
             cmd.Parameters.AddWithValue("@Mapowania", mapowaniaJson);
             cmd.Parameters.AddWithValue("@ID", transkrypcjaId);
             await cmd.ExecuteNonQueryAsync();
+
+            // Zapisz również do globalnych mapowań (uczenie się)
+            foreach (var m in mapowania.Where(x => !string.IsNullOrEmpty(x.PrzypisanyUserID)))
+            {
+                await ZapiszGlobalneMapowanie(m.SpeakerNameFireflies, m.PrzypisanyUserID!, m.PrzypisanyUserName);
+            }
         }
+
+        #region Globalne mapowania głosów (auto-dopasowanie)
+
+        /// <summary>
+        /// Upewnia się że tabela globalnych mapowań istnieje
+        /// </summary>
+        private async Task UpewnijSieZeTabelaGlobalnaIstnieje(SqlConnection conn)
+        {
+            string sql = @"
+                IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FirefliesGlobalMowcy')
+                BEGIN
+                    CREATE TABLE FirefliesGlobalMowcy (
+                        ID INT IDENTITY(1,1) PRIMARY KEY,
+                        SpeakerPattern NVARCHAR(200) NOT NULL,
+                        SpeakerPatternNormalized NVARCHAR(200) NOT NULL,
+                        UserID NVARCHAR(50) NOT NULL,
+                        UserName NVARCHAR(200),
+                        EmailFireflies NVARCHAR(200),
+                        LiczbaUzyc INT DEFAULT 1,
+                        Pewnosc FLOAT DEFAULT 50,
+                        OstatnioUzyte DATETIME DEFAULT GETDATE(),
+                        DataUtworzenia DATETIME DEFAULT GETDATE(),
+                        CONSTRAINT UQ_SpeakerPattern_User UNIQUE (SpeakerPatternNormalized, UserID)
+                    );
+                    CREATE INDEX IX_FirefliesGlobalMowcy_Pattern ON FirefliesGlobalMowcy(SpeakerPatternNormalized);
+                END";
+
+            using var cmd = new SqlCommand(sql, conn);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        /// <summary>
+        /// Normalizuje wzorzec nazwy mówcy (małe litery, bez znaków specjalnych)
+        /// </summary>
+        private string NormalizujWzorzec(string? pattern)
+        {
+            if (string.IsNullOrEmpty(pattern)) return "";
+            return pattern.ToLowerInvariant()
+                .Replace("[", "").Replace("]", "")
+                .Replace("(", "").Replace(")", "")
+                .Trim();
+        }
+
+        /// <summary>
+        /// Zapisuje mapowanie do globalnej tabeli (uczenie się)
+        /// </summary>
+        public async Task ZapiszGlobalneMapowanie(string? speakerName, string userId, string? userName, string? email = null)
+        {
+            if (string.IsNullOrEmpty(speakerName) || string.IsNullOrEmpty(userId)) return;
+
+            // Pomijaj ogólne nazwy jak "Speaker 1", "Mówca 1"
+            var patternLower = speakerName.ToLowerInvariant();
+            if (patternLower.StartsWith("speaker") || patternLower.StartsWith("mówca") || patternLower.StartsWith("mowca"))
+                return;
+
+            using var conn = new SqlConnection(CONNECTION_STRING);
+            await conn.OpenAsync();
+            await UpewnijSieZeTabelaGlobalnaIstnieje(conn);
+
+            var normalizedPattern = NormalizujWzorzec(speakerName);
+
+            // Sprawdź czy już istnieje
+            string checkSql = @"SELECT ID, LiczbaUzyc, Pewnosc FROM FirefliesGlobalMowcy
+                               WHERE SpeakerPatternNormalized = @Pattern AND UserID = @UserID";
+            using var checkCmd = new SqlCommand(checkSql, conn);
+            checkCmd.Parameters.AddWithValue("@Pattern", normalizedPattern);
+            checkCmd.Parameters.AddWithValue("@UserID", userId);
+
+            using var reader = await checkCmd.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
+            {
+                // Już istnieje - zaktualizuj licznik i pewność
+                var id = reader.GetInt32(0);
+                var liczbaUzyc = reader.GetInt32(1) + 1;
+                var pewnosc = Math.Min(100, reader.GetDouble(2) + 10); // Zwiększ pewność o 10 (max 100)
+                reader.Close();
+
+                string updateSql = @"UPDATE FirefliesGlobalMowcy
+                                    SET LiczbaUzyc = @Liczba, Pewnosc = @Pewnosc,
+                                        OstatnioUzyte = GETDATE(), UserName = @UserName
+                                    WHERE ID = @ID";
+                using var updateCmd = new SqlCommand(updateSql, conn);
+                updateCmd.Parameters.AddWithValue("@Liczba", liczbaUzyc);
+                updateCmd.Parameters.AddWithValue("@Pewnosc", pewnosc);
+                updateCmd.Parameters.AddWithValue("@UserName", (object?)userName ?? DBNull.Value);
+                updateCmd.Parameters.AddWithValue("@ID", id);
+                await updateCmd.ExecuteNonQueryAsync();
+            }
+            else
+            {
+                reader.Close();
+                // Nowy wpis
+                string insertSql = @"INSERT INTO FirefliesGlobalMowcy
+                                    (SpeakerPattern, SpeakerPatternNormalized, UserID, UserName, EmailFireflies, LiczbaUzyc, Pewnosc)
+                                    VALUES (@Pattern, @Normalized, @UserID, @UserName, @Email, 1, 50)";
+                using var insertCmd = new SqlCommand(insertSql, conn);
+                insertCmd.Parameters.AddWithValue("@Pattern", speakerName);
+                insertCmd.Parameters.AddWithValue("@Normalized", normalizedPattern);
+                insertCmd.Parameters.AddWithValue("@UserID", userId);
+                insertCmd.Parameters.AddWithValue("@UserName", (object?)userName ?? DBNull.Value);
+                insertCmd.Parameters.AddWithValue("@Email", (object?)email ?? DBNull.Value);
+                await insertCmd.ExecuteNonQueryAsync();
+            }
+        }
+
+        /// <summary>
+        /// Pobiera sugestie mapowań na podstawie nazwy mówcy
+        /// </summary>
+        public async Task<List<GlobalMapowanieSugestia>> PobierzSugestieMapowan(string? speakerName)
+        {
+            var sugestie = new List<GlobalMapowanieSugestia>();
+            if (string.IsNullOrEmpty(speakerName)) return sugestie;
+
+            var normalizedPattern = NormalizujWzorzec(speakerName);
+
+            using var conn = new SqlConnection(CONNECTION_STRING);
+            await conn.OpenAsync();
+            await UpewnijSieZeTabelaGlobalnaIstnieje(conn);
+
+            // Szukaj dokładnego dopasowania lub podobnych
+            string sql = @"
+                SELECT TOP 5 UserID, UserName, LiczbaUzyc, Pewnosc, SpeakerPattern,
+                    CASE
+                        WHEN SpeakerPatternNormalized = @Pattern THEN 100
+                        WHEN SpeakerPatternNormalized LIKE @PatternLike THEN 80
+                        WHEN @Pattern LIKE '%' + SpeakerPatternNormalized + '%' THEN 70
+                        WHEN SpeakerPatternNormalized LIKE '%' + @PatternFirst + '%' THEN 60
+                        ELSE 50
+                    END as Dopasowanie
+                FROM FirefliesGlobalMowcy
+                WHERE SpeakerPatternNormalized = @Pattern
+                   OR SpeakerPatternNormalized LIKE @PatternLike
+                   OR @Pattern LIKE '%' + SpeakerPatternNormalized + '%'
+                   OR SpeakerPatternNormalized LIKE '%' + @PatternFirst + '%'
+                ORDER BY Dopasowanie DESC, Pewnosc DESC, LiczbaUzyc DESC";
+
+            using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@Pattern", normalizedPattern);
+            cmd.Parameters.AddWithValue("@PatternLike", $"%{normalizedPattern}%");
+            // Pierwsza część nazwy (np. "jan" z "jan kowalski")
+            var firstPart = normalizedPattern.Split(' ').FirstOrDefault() ?? normalizedPattern;
+            cmd.Parameters.AddWithValue("@PatternFirst", firstPart.Length > 2 ? firstPart : normalizedPattern);
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                sugestie.Add(new GlobalMapowanieSugestia
+                {
+                    UserID = reader.GetString(0),
+                    UserName = reader.IsDBNull(1) ? null : reader.GetString(1),
+                    LiczbaUzyc = reader.GetInt32(2),
+                    Pewnosc = reader.GetDouble(3),
+                    OriginalPattern = reader.GetString(4),
+                    Dopasowanie = reader.GetInt32(5)
+                });
+            }
+
+            return sugestie;
+        }
+
+        /// <summary>
+        /// Pobiera wszystkie globalne mapowania
+        /// </summary>
+        public async Task<List<GlobalMapowanieSugestia>> PobierzWszystkieGlobalneMapowania()
+        {
+            var mapowania = new List<GlobalMapowanieSugestia>();
+
+            using var conn = new SqlConnection(CONNECTION_STRING);
+            await conn.OpenAsync();
+            await UpewnijSieZeTabelaGlobalnaIstnieje(conn);
+
+            string sql = @"SELECT UserID, UserName, LiczbaUzyc, Pewnosc, SpeakerPattern
+                          FROM FirefliesGlobalMowcy
+                          ORDER BY Pewnosc DESC, LiczbaUzyc DESC";
+
+            using var cmd = new SqlCommand(sql, conn);
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                mapowania.Add(new GlobalMapowanieSugestia
+                {
+                    UserID = reader.GetString(0),
+                    UserName = reader.IsDBNull(1) ? null : reader.GetString(1),
+                    LiczbaUzyc = reader.GetInt32(2),
+                    Pewnosc = reader.GetDouble(3),
+                    OriginalPattern = reader.GetString(4),
+                    Dopasowanie = 100
+                });
+            }
+
+            return mapowania;
+        }
+
+        /// <summary>
+        /// Automatycznie aplikuje globalne mapowania do listy mówców
+        /// </summary>
+        public async Task<List<AutoMapowanieWynik>> AutoMapujMowcow(List<string> nazwyMowcow)
+        {
+            var wyniki = new List<AutoMapowanieWynik>();
+
+            foreach (var nazwa in nazwyMowcow)
+            {
+                var sugestie = await PobierzSugestieMapowan(nazwa);
+                var najlepsza = sugestie.FirstOrDefault();
+
+                var wynik = new AutoMapowanieWynik
+                {
+                    SpeakerName = nazwa,
+                    Sugestie = sugestie
+                };
+
+                // Auto-przypisz jeśli pewność >= 70 i dopasowanie >= 80
+                if (najlepsza != null && najlepsza.Pewnosc >= 70 && najlepsza.Dopasowanie >= 80)
+                {
+                    wynik.AutoPrzypisany = true;
+                    wynik.PrzypisanyUserID = najlepsza.UserID;
+                    wynik.PrzypisanyUserName = najlepsza.UserName;
+                    wynik.PewnoscMapowania = najlepsza.Pewnosc;
+                }
+
+                wyniki.Add(wynik);
+            }
+
+            return wyniki;
+        }
+
+        /// <summary>
+        /// Usuwa globalne mapowanie
+        /// </summary>
+        public async Task UsunGlobalneMapowanie(string speakerPattern, string userId)
+        {
+            using var conn = new SqlConnection(CONNECTION_STRING);
+            await conn.OpenAsync();
+
+            var normalizedPattern = NormalizujWzorzec(speakerPattern);
+
+            string sql = "DELETE FROM FirefliesGlobalMowcy WHERE SpeakerPatternNormalized = @Pattern AND UserID = @UserID";
+            using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@Pattern", normalizedPattern);
+            cmd.Parameters.AddWithValue("@UserID", userId);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        /// <summary>
+        /// Resetuje wszystkie globalne mapowania
+        /// </summary>
+        public async Task ResetujGlobalneMapowania()
+        {
+            using var conn = new SqlConnection(CONNECTION_STRING);
+            await conn.OpenAsync();
+
+            string sql = "DELETE FROM FirefliesGlobalMowcy";
+            using var cmd = new SqlCommand(sql, conn);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        #endregion
 
         /// <summary>
         /// Pobiera mapowanie mówców z bazy danych
@@ -980,6 +1284,38 @@ namespace Kalendarz1.Spotkania.Services
 
         public string DisplayFireflies => SpeakerNameFireflies ?? $"Mówca {SpeakerId}";
         public string DisplaySystem => string.IsNullOrEmpty(PrzypisanyUserName) ? "(Nie przypisano)" : PrzypisanyUserName;
+    }
+
+    /// <summary>
+    /// Sugestia mapowania z globalnej bazy wiedzy
+    /// </summary>
+    public class GlobalMapowanieSugestia
+    {
+        public string UserID { get; set; } = "";
+        public string? UserName { get; set; }
+        public int LiczbaUzyc { get; set; }
+        public double Pewnosc { get; set; }
+        public string OriginalPattern { get; set; } = "";
+        public int Dopasowanie { get; set; }
+
+        public string PewnoscDisplay => $"{Pewnosc:F0}%";
+        public string InfoDisplay => $"{UserName} ({LiczbaUzyc}x, {Pewnosc:F0}%)";
+    }
+
+    /// <summary>
+    /// Wynik automatycznego mapowania mówcy
+    /// </summary>
+    public class AutoMapowanieWynik
+    {
+        public string SpeakerName { get; set; } = "";
+        public bool AutoPrzypisany { get; set; }
+        public string? PrzypisanyUserID { get; set; }
+        public string? PrzypisanyUserName { get; set; }
+        public double PewnoscMapowania { get; set; }
+        public List<GlobalMapowanieSugestia> Sugestie { get; set; } = new();
+
+        public bool MaSugestie => Sugestie.Count > 0;
+        public GlobalMapowanieSugestia? NajlepszaSugestia => Sugestie.FirstOrDefault();
     }
 
     /// <summary>

@@ -1,0 +1,237 @@
+<Window x:Class="Kalendarz1.Spotkania.Views.MasowePobieranieWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Masowe pobieranie transkrypcji" Height="600" Width="650"
+        WindowStartupLocation="CenterOwner"
+        Background="#F5F5F5" ResizeMode="NoResize">
+
+    <Window.Resources>
+        <Style x:Key="CardBorder" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect BlurRadius="8" ShadowDepth="1" Opacity="0.15"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="BtnPrimary" TargetType="Button">
+            <Setter Property="Background" Value="#4CAF50"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="20,12"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#43A047"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Background" Value="#BDBDBD"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="BtnSecondary" TargetType="Button" BasedOn="{StaticResource BtnPrimary}">
+            <Setter Property="Background" Value="#607D8B"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#546E7A"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="BtnDanger" TargetType="Button" BasedOn="{StaticResource BtnPrimary}">
+            <Setter Property="Background" Value="#F44336"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#D32F2F"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="BtnSmall" TargetType="Button" BasedOn="{StaticResource BtnPrimary}">
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Naglowek -->
+        <Border Grid.Row="0" Background="#4CAF50" Padding="20,16">
+            <StackPanel>
+                <TextBlock Text="Masowe pobieranie transkrypcji" FontSize="20" FontWeight="Bold" Foreground="White"/>
+                <TextBlock Text="Pobierz wszystkie transkrypcje z konta Fireflies.ai do wybranego folderu"
+                           FontSize="12" Foreground="#C8E6C9" Margin="0,4,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Zawartosc -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="20">
+            <StackPanel>
+                <!-- Folder docelowy -->
+                <Border Style="{StaticResource CardBorder}" Margin="0,0,0,15">
+                    <StackPanel>
+                        <TextBlock Text="Folder docelowy" FontSize="15" FontWeight="SemiBold" Foreground="#4CAF50" Margin="0,0,0,12"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBox x:Name="TxtFolderDocelowy" Grid.Column="0" FontSize="13" Padding="10,8"
+                                     IsReadOnly="True" Background="#FAFAFA"/>
+                            <Button x:Name="BtnWybierzFolder" Grid.Column="1" Content="Wybierz..."
+                                    Style="{StaticResource BtnSmall}" Margin="10,0,0,0"
+                                    Click="BtnWybierzFolder_Click"/>
+                        </Grid>
+
+                        <TextBlock Text="Format zapisu:" FontSize="12" Foreground="#666" Margin="0,12,0,6"/>
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton x:Name="RbFormatTxt" Content="Pliki tekstowe (.txt)" IsChecked="True" Margin="0,0,20,0"/>
+                            <RadioButton x:Name="RbFormatJson" Content="Pliki JSON (.json)" Margin="0,0,20,0"/>
+                            <RadioButton x:Name="RbFormatOba" Content="Oba formaty"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Opcje zakresu dat -->
+                <Border Style="{StaticResource CardBorder}" Margin="0,0,0,15">
+                    <StackPanel>
+                        <TextBlock Text="Zakres dat" FontSize="15" FontWeight="SemiBold" Foreground="#1976D2" Margin="0,0,0,12"/>
+
+                        <RadioButton x:Name="RbWszystkie" Content="Wszystkie transkrypcje" IsChecked="True" Margin="0,0,0,8"
+                                     Checked="ZakresZmieniony"/>
+                        <RadioButton x:Name="RbZakres" Content="Okreslony zakres dat:" Margin="0,0,0,8"
+                                     Checked="ZakresZmieniony"/>
+
+                        <Grid Margin="24,0,0,0" x:Name="PanelZakresDat" IsEnabled="False">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0" Text="Od:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <DatePicker x:Name="DpOdDaty" Grid.Column="1" Margin="0,0,15,0"/>
+                            <TextBlock Grid.Column="2" Text="Do:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <DatePicker x:Name="DpDoDaty" Grid.Column="3"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Opcje pobierania -->
+                <Border Style="{StaticResource CardBorder}" Margin="0,0,0,15">
+                    <StackPanel>
+                        <TextBlock Text="Opcje" FontSize="15" FontWeight="SemiBold" Foreground="#1976D2" Margin="0,0,0,12"/>
+
+                        <CheckBox x:Name="ChkZapiszDoBazy" Content="Zapisz rowniez do bazy danych"
+                                  IsChecked="True" Margin="0,0,0,8"/>
+                        <CheckBox x:Name="ChkNadpiszPliki" Content="Nadpisz istniejace pliki"
+                                  IsChecked="True" Margin="0,0,0,8"/>
+                        <CheckBox x:Name="ChkDodajDate" Content="Dodaj date do nazwy pliku (RRRR-MM-DD_tytul.txt)"
+                                  IsChecked="True" Margin="0,0,0,8"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Status i postep -->
+                <Border Style="{StaticResource CardBorder}" x:Name="PanelStatus" Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock Text="Status pobierania" FontSize="15" FontWeight="SemiBold" Foreground="#1976D2" Margin="0,0,0,12"/>
+
+                        <TextBlock x:Name="TxtStatus" Text="Przygotowanie..." FontSize="13" Margin="0,0,0,8"/>
+                        <ProgressBar x:Name="ProgressPobieranie" Height="20" Margin="0,0,0,8"/>
+
+                        <Grid Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Znalezione:" FontSize="11" Foreground="#888"/>
+                                <TextBlock x:Name="TxtZnalezione" Text="0" FontSize="16" FontWeight="Bold" Foreground="#1976D2"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Pobrane:" FontSize="11" Foreground="#888"/>
+                                <TextBlock x:Name="TxtPobrane" Text="0" FontSize="16" FontWeight="Bold" Foreground="#4CAF50"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Bledy:" FontSize="11" Foreground="#888"/>
+                                <TextBlock x:Name="TxtBledy" Text="0" FontSize="16" FontWeight="Bold" Foreground="#F44336"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Log -->
+                        <TextBlock Text="Dziennik operacji:" FontSize="12" Foreground="#666" Margin="0,15,0,5"/>
+                        <ListBox x:Name="ListaLog" Height="100" FontSize="11" BorderBrush="#E0E0E0">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}" TextWrapping="Wrap"/>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </StackPanel>
+                </Border>
+
+                <!-- Informacja przed rozpoczeciem -->
+                <Border Style="{StaticResource CardBorder}" x:Name="PanelInfo">
+                    <StackPanel>
+                        <TextBlock Text="Informacje" FontSize="15" FontWeight="SemiBold" Foreground="#FF9800" Margin="0,0,0,12"/>
+                        <TextBlock TextWrapping="Wrap" FontSize="13" Foreground="#666">
+                            <Run Text="Ta operacja pobierze WSZYSTKIE transkrypcje z Twojego konta Fireflies.ai i zapisze je jako pliki w wybranym folderze."/>
+                            <LineBreak/><LineBreak/>
+                            <Run Text="Kazda transkrypcja zostanie zapisana jako osobny plik z pelna trescia rozmowy."/>
+                            <LineBreak/><LineBreak/>
+                            <Run Text="Upewnij sie ze masz skonfigurowany klucz API w ustawieniach Fireflies."/>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Stopka -->
+        <Border Grid.Row="2" Background="#FAFAFA" BorderBrush="#E0E0E0" BorderThickness="0,1,0,0" Padding="20,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Button x:Name="BtnAnuluj" Grid.Column="0" Content="Anuluj pobieranie"
+                        Style="{StaticResource BtnDanger}" Visibility="Collapsed"
+                        Click="BtnAnuluj_Click"/>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <Button x:Name="BtnRozpocznij" Content="Rozpocznij pobieranie"
+                            Style="{StaticResource BtnPrimary}" Margin="0,0,10,0"
+                            Click="BtnRozpocznij_Click"/>
+                    <Button x:Name="BtnZamknij" Content="Zamknij" Style="{StaticResource BtnSecondary}"
+                            Click="BtnZamknij_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

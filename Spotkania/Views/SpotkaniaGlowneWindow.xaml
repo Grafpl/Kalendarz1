@@ -133,6 +133,8 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="BtnDashboard" Content="📊 Dashboard" Style="{StaticResource SecondaryButton}"
+                            Margin="0,0,10,0" Click="BtnDashboard_Click" ToolTip="Analityka i statystyki spotkan"/>
                     <Button x:Name="BtnFireflies" Content="🎙️ Fireflies.ai" Style="{StaticResource SecondaryButton}"
                             Margin="0,0,10,0" Click="BtnFireflies_Click"/>
                     <Button x:Name="BtnNoweSpotkanie" Content="+ Nowe spotkanie" Style="{StaticResource SuccessButton}"
@@ -365,6 +367,12 @@
                             <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,15">
                                 <Button x:Name="BtnSynchronizuj" Content="🔄 Synchronizuj z Fireflies"
                                         Style="{StaticResource ActionButton}" Click="BtnSynchronizuj_Click"/>
+                                <Button x:Name="BtnMasowePobieranie" Content="📥 Pobierz wszystkie"
+                                        Style="{StaticResource SuccessButton}" Margin="10,0,0,0"
+                                        Click="BtnMasowePobieranie_Click" ToolTip="Masowe pobieranie transkrypcji z konta Fireflies"/>
+                                <Button x:Name="BtnGlobalneSzukanie" Content="🔍 Szukaj w transkrypcjach"
+                                        Style="{StaticResource SecondaryButton}" Margin="10,0,0,0"
+                                        Click="BtnGlobalneSzukanie_Click" ToolTip="Szukaj we wszystkich transkrypcjach"/>
                                 <TextBlock x:Name="TxtStatusSync" Text="" VerticalAlignment="Center"
                                            Margin="15,0,0,0" Foreground="#666"/>
                                 <ProgressBar x:Name="ProgressSync" Width="200" Height="20"
@@ -377,17 +385,16 @@
                                       BorderThickness="1" BorderBrush="#E0E0E0"
                                       MouseDoubleClick="GridTranskrypcje_DoubleClick">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Data" Binding="{Binding DataSpotkaniaDisplay}" Width="120"/>
-                                    <DataGridTextColumn Header="Tytuł" Binding="{Binding Tytul}" Width="*"/>
-                                    <DataGridTextColumn Header="Czas trwania" Binding="{Binding CzasTrwaniaDisplay}" Width="90"/>
-                                    <DataGridTextColumn Header="Uczestnicy" Binding="{Binding LiczbaUczestnikow}" Width="80"/>
-                                    <DataGridTemplateColumn Header="Powiązane" Width="100">
+                                    <DataGridTextColumn Header="Data" Binding="{Binding DataSpotkaniaDisplay}" Width="100"/>
+                                    <DataGridTextColumn Header="Tytul" Binding="{Binding Tytul}" Width="*"/>
+                                    <DataGridTextColumn Header="Kategoria" Binding="{Binding Kategoria}" Width="100"/>
+                                    <DataGridTextColumn Header="Czas" Binding="{Binding CzasTrwaniaDisplay}" Width="70"/>
+                                    <DataGridTextColumn Header="Uczestnicy" Binding="{Binding UczestnicyDisplay}" Width="150"/>
+                                    <DataGridTemplateColumn Header="Akcje" Width="80">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
-                                                <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Text="📅" Visibility="{Binding MaSpotkanie, Converter={x:Null}}" ToolTip="Powiązane ze spotkaniem"/>
-                                                    <TextBlock Text="📝" Visibility="{Binding MaNotatke, Converter={x:Null}}" ToolTip="Powiązane z notatką"/>
-                                                </StackPanel>
+                                                <Button Content="✏️" ToolTip="Szybka edycja" Padding="8,4"
+                                                        Click="BtnSzybkaEdycja_Click" Tag="{Binding}"/>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
@@ -395,11 +402,13 @@
                             </DataGrid>
 
                             <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
-                                <Button x:Name="BtnEdytujTranskrypcje" Content="✏️ Edytuj transkrypcję" Style="{StaticResource SuccessButton}"
+                                <Button x:Name="BtnSzybkaEdycjaWybranej" Content="✏️ Szybka edycja" Style="{StaticResource ActionButton}"
+                                        Margin="0,0,10,0" Click="BtnSzybkaEdycjaWybranej_Click" ToolTip="Zmien nazwe, kategorie, uczestnikow"/>
+                                <Button x:Name="BtnEdytujTranskrypcje" Content="📄 Pelna edycja" Style="{StaticResource SuccessButton}"
                                         Margin="0,0,10,0" Click="BtnEdytujTranskrypcje_Click"/>
-                                <Button Content="📋 Utwórz notatkę z transkrypcji" Style="{StaticResource ActionButton}"
+                                <Button Content="📋 Utworz notatke" Style="{StaticResource SecondaryButton}"
                                         Margin="0,0,10,0" Click="BtnUtworzNotatkeZTranskrypcji_Click"/>
-                                <Button Content="🔗 Powiąż ze spotkaniem" Style="{StaticResource SecondaryButton}"
+                                <Button Content="🔗 Powiaz" Style="{StaticResource SecondaryButton}"
                                         Click="BtnPowiazTranskrypcje_Click"/>
                             </StackPanel>
                         </Grid>
