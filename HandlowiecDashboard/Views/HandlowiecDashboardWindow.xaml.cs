@@ -1336,20 +1336,35 @@ WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
 
             try
             {
-                // Prosty SQL bez JOINa do ClassificationContractor - unikamy duplikatow
-                var sqlSaldo = @"
+                // Multiple Result Sets - oba zapytania w jednym wykonaniu
+                var sqlCombined = @"
+-- Saldo na date 1
 SELECT
     C.shortcut AS Kontrahent,
     CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN MZ.Ilosc ELSE 0 END), 0) AS DECIMAL(18,0)) AS E2,
     CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta H1' THEN MZ.Ilosc ELSE 0 END), 0) AS DECIMAL(18,0)) AS H1
-FROM [HANDEL].[HM].[MZ] MZ
-INNER JOIN [HANDEL].[HM].[TW] TW ON MZ.idtw = TW.id
-INNER JOIN [HANDEL].[HM].[MG] MG ON MZ.super = MG.id
-INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON MG.khid = C.id
-WHERE MZ.data <= @DataDo AND MG.anulowany = 0
+FROM [HANDEL].[HM].[MZ] MZ WITH (NOLOCK)
+INNER JOIN [HANDEL].[HM].[TW] TW WITH (NOLOCK) ON MZ.idtw = TW.id
+INNER JOIN [HANDEL].[HM].[MG] MG WITH (NOLOCK) ON MZ.super = MG.id
+INNER JOIN [HANDEL].[SSCommon].[STContractors] C WITH (NOLOCK) ON MG.khid = C.id
+WHERE MZ.data <= @DataDo1 AND MG.anulowany = 0
   AND TW.nazwa IN ('Pojemnik Drobiowy E2', 'Paleta H1')
 GROUP BY C.shortcut
-HAVING SUM(MZ.Ilosc) <> 0";
+HAVING SUM(MZ.Ilosc) <> 0;
+
+-- Saldo na date 2
+SELECT
+    C.shortcut AS Kontrahent,
+    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN MZ.Ilosc ELSE 0 END), 0) AS DECIMAL(18,0)) AS E2,
+    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta H1' THEN MZ.Ilosc ELSE 0 END), 0) AS DECIMAL(18,0)) AS H1
+FROM [HANDEL].[HM].[MZ] MZ WITH (NOLOCK)
+INNER JOIN [HANDEL].[HM].[TW] TW WITH (NOLOCK) ON MZ.idtw = TW.id
+INNER JOIN [HANDEL].[HM].[MG] MG WITH (NOLOCK) ON MZ.super = MG.id
+INNER JOIN [HANDEL].[SSCommon].[STContractors] C WITH (NOLOCK) ON MG.khid = C.id
+WHERE MZ.data <= @DataDo2 AND MG.anulowany = 0
+  AND TW.nazwa IN ('Pojemnik Drobiowy E2', 'Paleta H1')
+GROUP BY C.shortcut
+HAVING SUM(MZ.Ilosc) <> 0;";
 
                 var saldoNaData1 = new Dictionary<string, (decimal E2, decimal H1)>();
                 var saldoNaData2 = new Dictionary<string, (decimal E2, decimal H1)>();
@@ -1357,32 +1372,31 @@ HAVING SUM(MZ.Ilosc) <> 0";
                 await using var cn = new SqlConnection(_connectionStringHandel);
                 await cn.OpenAsync();
 
-                // Pobierz saldo na date 1
-                await using (var cmd1 = new SqlCommand(sqlSaldo, cn))
+                // Multiple Result Sets - jedno polaczenie, dwa zestawy wynikow
+                await using var cmd = new SqlCommand(sqlCombined, cn);
+                cmd.CommandTimeout = 60;
+                cmd.Parameters.AddWithValue("@DataDo1", data1);
+                cmd.Parameters.AddWithValue("@DataDo2", data2);
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                // Pierwszy zestaw wynikow - saldo na date 1
+                while (await reader.ReadAsync())
                 {
-                    cmd1.Parameters.AddWithValue("@DataDo", data1);
-                    await using var reader1 = await cmd1.ExecuteReaderAsync();
-                    while (await reader1.ReadAsync())
-                    {
-                        var kontrahent = reader1.GetString(0);
-                        var e2 = reader1.IsDBNull(1) ? 0m : reader1.GetDecimal(1);
-                        var h1 = reader1.IsDBNull(2) ? 0m : reader1.GetDecimal(2);
-                        saldoNaData1[kontrahent] = (e2, h1);
-                    }
+                    var kontrahent = reader.GetString(0);
+                    var e2 = reader.IsDBNull(1) ? 0m : reader.GetDecimal(1);
+                    var h1 = reader.IsDBNull(2) ? 0m : reader.GetDecimal(2);
+                    saldoNaData1[kontrahent] = (e2, h1);
                 }
 
-                // Pobierz saldo na date 2
-                await using (var cmd2 = new SqlCommand(sqlSaldo, cn))
+                // Przejdz do drugiego zestawu wynikow - saldo na date 2
+                await reader.NextResultAsync();
+                while (await reader.ReadAsync())
                 {
-                    cmd2.Parameters.AddWithValue("@DataDo", data2);
-                    await using var reader2 = await cmd2.ExecuteReaderAsync();
-                    while (await reader2.ReadAsync())
-                    {
-                        var kontrahent = reader2.GetString(0);
-                        var e2 = reader2.IsDBNull(1) ? 0m : reader2.GetDecimal(1);
-                        var h1 = reader2.IsDBNull(2) ? 0m : reader2.GetDecimal(2);
-                        saldoNaData2[kontrahent] = (e2, h1);
-                    }
+                    var kontrahent = reader.GetString(0);
+                    var e2 = reader.IsDBNull(1) ? 0m : reader.GetDecimal(1);
+                    var h1 = reader.IsDBNull(2) ? 0m : reader.GetDecimal(2);
+                    saldoNaData2[kontrahent] = (e2, h1);
                 }
 
                 // Polacz wyniki - unikalne kontrahenty
@@ -1540,7 +1554,7 @@ HAVING SUM(MZ.Ilosc) <> 0";
             _wybranyKontrahentOpak = kontrahent;
             txtOpakWybranyKontrahent.Text = $"Wybrany: {kontrahent}";
 
-            // Pobierz dane trendu dla klienta
+            // Pobierz dane trendu dla klienta - Multiple Result Sets
             var trendLabels = new List<string>();
             var valuesE2 = new ChartValues<double>();
             var valuesH1 = new ChartValues<double>();
@@ -1549,29 +1563,43 @@ HAVING SUM(MZ.Ilosc) <> 0";
             await using var cn = new SqlConnection(_connectionStringHandel);
             await cn.OpenAsync();
 
-            var sql = @"
-SELECT
-    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN MZ.Ilosc ELSE 0 END), 0) AS DECIMAL(18,0)) AS E2,
-    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta H1' THEN MZ.Ilosc ELSE 0 END), 0) AS DECIMAL(18,0)) AS H1
-FROM [HANDEL].[HM].[MZ] MZ
-INNER JOIN [HANDEL].[HM].[TW] TW ON MZ.idtw = TW.id
-INNER JOIN [HANDEL].[HM].[MG] MG ON MZ.super = MG.id
-INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON MG.khid = C.id
-WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
-  AND TW.nazwa IN ('Pojemnik Drobiowy E2', 'Paleta H1')
-  AND C.shortcut = @Kontrahent";
-
+            // Build batch query for all 8 weeks - znacznie szybsze niz 8 osobnych zapytan
+            var sqlBuilder = new System.Text.StringBuilder();
+            var dates = new List<DateTime>();
             for (int i = 7; i >= 0; i--)
             {
                 var data = niedziela.AddDays(-7 * i);
+                dates.Add(data);
                 var nrTygodnia = System.Globalization.CultureInfo.CurrentCulture.Calendar.GetWeekOfYear(
                     data, System.Globalization.CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
                 trendLabels.Add($"T{nrTygodnia}");
 
-                await using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@DataDo", data);
-                cmd.Parameters.AddWithValue("@Kontrahent", kontrahent);
-                await using var reader = await cmd.ExecuteReaderAsync();
+                sqlBuilder.AppendLine($@"
+SELECT
+    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN MZ.Ilosc ELSE 0 END), 0) AS DECIMAL(18,0)) AS E2,
+    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta H1' THEN MZ.Ilosc ELSE 0 END), 0) AS DECIMAL(18,0)) AS H1
+FROM [HANDEL].[HM].[MZ] MZ WITH (NOLOCK)
+INNER JOIN [HANDEL].[HM].[TW] TW WITH (NOLOCK) ON MZ.idtw = TW.id
+INNER JOIN [HANDEL].[HM].[MG] MG WITH (NOLOCK) ON MZ.super = MG.id
+INNER JOIN [HANDEL].[SSCommon].[STContractors] C WITH (NOLOCK) ON MG.khid = C.id
+WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo{i} AND MG.anulowany = 0
+  AND TW.nazwa IN ('Pojemnik Drobiowy E2', 'Paleta H1')
+  AND C.shortcut = @Kontrahent;");
+            }
+
+            await using var cmd = new SqlCommand(sqlBuilder.ToString(), cn);
+            cmd.CommandTimeout = 60;
+            cmd.Parameters.AddWithValue("@Kontrahent", kontrahent);
+            for (int i = 7; i >= 0; i--)
+            {
+                cmd.Parameters.AddWithValue($"@DataDo{i}", dates[7 - i]);
+            }
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+            for (int week = 0; week < 8; week++)
+            {
+                if (week > 0) await reader.NextResultAsync();
+
                 if (await reader.ReadAsync())
                 {
                     valuesE2.Add(reader.IsDBNull(0) ? 0 : Convert.ToDouble(reader.GetDecimal(0)));
@@ -1643,17 +1671,18 @@ WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
                 await using var cn = new SqlConnection(_connectionStringHandel);
                 await cn.OpenAsync();
 
-                // Glowne zapytanie z liczba faktur
-                var sql = @"
+                // Multiple Result Sets - oba zapytania w jednym wykonaniu
+                var sqlCombined = @"
+-- Glowne zapytanie z liczba faktur
 WITH PNAgg AS (
     SELECT PN.dkid, SUM(ISNULL(PN.kwotarozl,0)) AS KwotaRozliczona, MAX(PN.Termin) AS TerminPrawdziwy
-    FROM [HANDEL].[HM].[PN] PN GROUP BY PN.dkid
+    FROM [HANDEL].[HM].[PN] PN WITH (NOLOCK) GROUP BY PN.dkid
 ),
 Dokumenty AS (
     SELECT DK.id, DK.khid, DK.walbrutto, DK.plattermin
-    FROM [HANDEL].[HM].[DK] DK
-    INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
-    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+    FROM [HANDEL].[HM].[DK] DK WITH (NOLOCK)
+    INNER JOIN [HANDEL].[SSCommon].[STContractors] C WITH (NOLOCK) ON DK.khid = C.id
+    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM WITH (NOLOCK) ON DK.khid = WYM.ElementId
     WHERE DK.anulowany = 0 AND (@Handlowiec IS NULL OR WYM.CDim_Handlowiec_Val = @Handlowiec)
 ),
 Saldo AS (
@@ -1675,16 +1704,46 @@ SELECT C.Shortcut AS Kontrahent,
        COUNT(*) AS LiczbaFaktur,
        SUM(CASE WHEN S.DniPrzeterminowania > 0 THEN 1 ELSE 0 END) AS LiczbaFakturPrzeterminowanych
 FROM Saldo S
-JOIN [HANDEL].[SSCommon].[STContractors] C ON C.id = S.khid
-LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON C.id = WYM.ElementId
+JOIN [HANDEL].[SSCommon].[STContractors] C WITH (NOLOCK) ON C.id = S.khid
+LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM WITH (NOLOCK) ON C.id = WYM.ElementId
 WHERE (@Handlowiec IS NULL OR WYM.CDim_Handlowiec_Val = @Handlowiec)
 GROUP BY C.Shortcut, WYM.CDim_Handlowiec_Val, C.LimitAmount
-ORDER BY Przeterminowane DESC, DoZaplaty DESC";
+ORDER BY Przeterminowane DESC, DoZaplaty DESC;
 
-                await using var cmd = new SqlCommand(sql, cn);
+-- Aging analysis per faktura
+WITH PNAgg2 AS (
+    SELECT PN.dkid, SUM(ISNULL(PN.kwotarozl,0)) AS KwotaRozliczona, MAX(PN.Termin) AS TerminPrawdziwy
+    FROM [HANDEL].[HM].[PN] PN WITH (NOLOCK) GROUP BY PN.dkid
+),
+FakturyPrzeterminowane AS (
+    SELECT (DK.walbrutto - ISNULL(PA.KwotaRozliczona,0)) AS Kwota,
+           DATEDIFF(day, ISNULL(PA.TerminPrawdziwy, DK.plattermin), GETDATE()) AS DniPrzeterminowania
+    FROM [HANDEL].[HM].[DK] DK WITH (NOLOCK)
+    LEFT JOIN PNAgg2 PA ON PA.dkid = DK.id
+    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM WITH (NOLOCK) ON DK.khid = WYM.ElementId
+    WHERE DK.anulowany = 0
+      AND (DK.walbrutto - ISNULL(PA.KwotaRozliczona,0)) > 0.01
+      AND GETDATE() > ISNULL(PA.TerminPrawdziwy, DK.plattermin)
+      AND (@Handlowiec IS NULL OR WYM.CDim_Handlowiec_Val = @Handlowiec)
+)
+SELECT
+    CAST(SUM(CASE WHEN DniPrzeterminowania BETWEEN 1 AND 30 THEN Kwota ELSE 0 END) AS DECIMAL(18,2)) AS Kwota030,
+    CAST(SUM(CASE WHEN DniPrzeterminowania BETWEEN 31 AND 60 THEN Kwota ELSE 0 END) AS DECIMAL(18,2)) AS Kwota3160,
+    CAST(SUM(CASE WHEN DniPrzeterminowania BETWEEN 61 AND 90 THEN Kwota ELSE 0 END) AS DECIMAL(18,2)) AS Kwota6190,
+    CAST(SUM(CASE WHEN DniPrzeterminowania > 90 THEN Kwota ELSE 0 END) AS DECIMAL(18,2)) AS Kwota90Plus,
+    SUM(CASE WHEN DniPrzeterminowania BETWEEN 1 AND 30 THEN 1 ELSE 0 END) AS Faktur030,
+    SUM(CASE WHEN DniPrzeterminowania BETWEEN 31 AND 60 THEN 1 ELSE 0 END) AS Faktur3160,
+    SUM(CASE WHEN DniPrzeterminowania BETWEEN 61 AND 90 THEN 1 ELSE 0 END) AS Faktur6190,
+    SUM(CASE WHEN DniPrzeterminowania > 90 THEN 1 ELSE 0 END) AS Faktur90Plus
+FROM FakturyPrzeterminowane;";
+
+                await using var cmd = new SqlCommand(sqlCombined, cn);
+                cmd.CommandTimeout = 60;
                 cmd.Parameters.AddWithValue("@Handlowiec", (object)wybranyHandlowiec ?? DBNull.Value);
 
                 await using var reader = await cmd.ExecuteReaderAsync();
+
+                // Pierwszy zestaw wynikow - glowne dane platnosci
                 while (await reader.ReadAsync())
                 {
                     var kontrahent = reader.GetString(0);
@@ -1719,48 +1778,18 @@ ORDER BY Przeterminowane DESC, DoZaplaty DESC";
                     });
                 }
 
-                // Pobierz aging per faktura
-                await reader.CloseAsync();
-                var sqlAging = @"
-WITH PNAgg AS (
-    SELECT PN.dkid, SUM(ISNULL(PN.kwotarozl,0)) AS KwotaRozliczona, MAX(PN.Termin) AS TerminPrawdziwy
-    FROM [HANDEL].[HM].[PN] PN GROUP BY PN.dkid
-),
-FakturyPrzeterminowane AS (
-    SELECT (DK.walbrutto - ISNULL(PA.KwotaRozliczona,0)) AS Kwota,
-           DATEDIFF(day, ISNULL(PA.TerminPrawdziwy, DK.plattermin), GETDATE()) AS DniPrzeterminowania
-    FROM [HANDEL].[HM].[DK] DK
-    LEFT JOIN PNAgg PA ON PA.dkid = DK.id
-    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
-    WHERE DK.anulowany = 0
-      AND (DK.walbrutto - ISNULL(PA.KwotaRozliczona,0)) > 0.01
-      AND GETDATE() > ISNULL(PA.TerminPrawdziwy, DK.plattermin)
-      AND (@Handlowiec IS NULL OR WYM.CDim_Handlowiec_Val = @Handlowiec)
-)
-SELECT
-    CAST(SUM(CASE WHEN DniPrzeterminowania BETWEEN 1 AND 30 THEN Kwota ELSE 0 END) AS DECIMAL(18,2)) AS Kwota030,
-    CAST(SUM(CASE WHEN DniPrzeterminowania BETWEEN 31 AND 60 THEN Kwota ELSE 0 END) AS DECIMAL(18,2)) AS Kwota3160,
-    CAST(SUM(CASE WHEN DniPrzeterminowania BETWEEN 61 AND 90 THEN Kwota ELSE 0 END) AS DECIMAL(18,2)) AS Kwota6190,
-    CAST(SUM(CASE WHEN DniPrzeterminowania > 90 THEN Kwota ELSE 0 END) AS DECIMAL(18,2)) AS Kwota90Plus,
-    SUM(CASE WHEN DniPrzeterminowania BETWEEN 1 AND 30 THEN 1 ELSE 0 END) AS Faktur030,
-    SUM(CASE WHEN DniPrzeterminowania BETWEEN 31 AND 60 THEN 1 ELSE 0 END) AS Faktur3160,
-    SUM(CASE WHEN DniPrzeterminowania BETWEEN 61 AND 90 THEN 1 ELSE 0 END) AS Faktur6190,
-    SUM(CASE WHEN DniPrzeterminowania > 90 THEN 1 ELSE 0 END) AS Faktur90Plus
-FROM FakturyPrzeterminowane";
-
-                await using var cmdAging = new SqlCommand(sqlAging, cn);
-                cmdAging.Parameters.AddWithValue("@Handlowiec", (object)wybranyHandlowiec ?? DBNull.Value);
-                await using var readerAging = await cmdAging.ExecuteReaderAsync();
-                if (await readerAging.ReadAsync())
+                // Drugi zestaw wynikow - aging data
+                await reader.NextResultAsync();
+                if (await reader.ReadAsync())
                 {
-                    agingData.Kwota030 = readerAging.IsDBNull(0) ? 0 : Convert.ToDecimal(readerAging.GetValue(0));
-                    agingData.Kwota3160 = readerAging.IsDBNull(1) ? 0 : Convert.ToDecimal(readerAging.GetValue(1));
-                    agingData.Kwota6190 = readerAging.IsDBNull(2) ? 0 : Convert.ToDecimal(readerAging.GetValue(2));
-                    agingData.Kwota90Plus = readerAging.IsDBNull(3) ? 0 : Convert.ToDecimal(readerAging.GetValue(3));
-                    agingData.Faktur030 = readerAging.IsDBNull(4) ? 0 : Convert.ToInt32(readerAging.GetValue(4));
-                    agingData.Faktur3160 = readerAging.IsDBNull(5) ? 0 : Convert.ToInt32(readerAging.GetValue(5));
-                    agingData.Faktur6190 = readerAging.IsDBNull(6) ? 0 : Convert.ToInt32(readerAging.GetValue(6));
-                    agingData.Faktur90Plus = readerAging.IsDBNull(7) ? 0 : Convert.ToInt32(readerAging.GetValue(7));
+                    agingData.Kwota030 = reader.IsDBNull(0) ? 0 : Convert.ToDecimal(reader.GetValue(0));
+                    agingData.Kwota3160 = reader.IsDBNull(1) ? 0 : Convert.ToDecimal(reader.GetValue(1));
+                    agingData.Kwota6190 = reader.IsDBNull(2) ? 0 : Convert.ToDecimal(reader.GetValue(2));
+                    agingData.Kwota90Plus = reader.IsDBNull(3) ? 0 : Convert.ToDecimal(reader.GetValue(3));
+                    agingData.Faktur030 = reader.IsDBNull(4) ? 0 : Convert.ToInt32(reader.GetValue(4));
+                    agingData.Faktur3160 = reader.IsDBNull(5) ? 0 : Convert.ToInt32(reader.GetValue(5));
+                    agingData.Faktur6190 = reader.IsDBNull(6) ? 0 : Convert.ToInt32(reader.GetValue(6));
+                    agingData.Faktur90Plus = reader.IsDBNull(7) ? 0 : Convert.ToInt32(reader.GetValue(7));
                 }
 
                 // Statystyki glowne
