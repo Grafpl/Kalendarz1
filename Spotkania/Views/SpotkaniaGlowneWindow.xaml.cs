@@ -190,6 +190,13 @@ namespace Kalendarz1.Spotkania.Views
             window.ShowDialog();
         }
 
+        private void BtnDashboard_Click(object sender, RoutedEventArgs e)
+        {
+            var window = new DashboardAnalitykaWindow(_firefliesService);
+            window.Owner = this;
+            window.Show();
+        }
+
         private void BtnNoweSpotkanie_Click(object sender, RoutedEventArgs e)
         {
             var editor = new EdytorSpotkania(_userID);

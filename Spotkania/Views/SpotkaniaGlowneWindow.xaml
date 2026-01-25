@@ -133,6 +133,8 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="BtnDashboard" Content="📊 Dashboard" Style="{StaticResource SecondaryButton}"
+                            Margin="0,0,10,0" Click="BtnDashboard_Click" ToolTip="Analityka i statystyki spotkan"/>
                     <Button x:Name="BtnFireflies" Content="🎙️ Fireflies.ai" Style="{StaticResource SecondaryButton}"
                             Margin="0,0,10,0" Click="BtnFireflies_Click"/>
                     <Button x:Name="BtnNoweSpotkanie" Content="+ Nowe spotkanie" Style="{StaticResource SuccessButton}"
