@@ -50,6 +50,11 @@ namespace Kalendarz1
         private DateTime minData;
         private DateTime maxData;
 
+        // Dane porównawcze PLAN vs FAKT
+        private List<PorownanieModel> danePorownawisze;
+        private decimal sumaPlanKg;
+        private decimal sumaFaktKg;
+
         public TygodniowyPlan()
         {
             InitializeComponent();
@@ -287,6 +292,9 @@ namespace Kalendarz1
 
                 ObliczStatystyki(aktualneDane);
                 ObliczStatystykiPojemnikow(aktualneDane);
+
+                // Oblicz porównanie PLAN vs FAKT
+                ObliczPorownanieWykonania(aktualneDane, dataOd, dataDo);
             }
             catch (Exception ex)
             {
@@ -854,6 +862,254 @@ namespace Kalendarz1
             }
         }
 
+        private List<FaktyczneWykonanieModel> PobierzFaktyczneWykonanie(DateTime dataOd, DateTime dataDo)
+        {
+            var wynik = new List<FaktyczneWykonanieModel>();
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Pobierz dane z In0E: tuszka A klasa A
+                    string query = @"
+                        SELECT
+                            Data,
+                            Weight,
+                            Quantity,
+                            QntInCont
+                        FROM [LibraNet].[dbo].[In0E]
+                        WHERE Data >= @DataOd AND Data <= @DataDo
+                        AND Direction = '1A'
+                        AND ArticleName LIKE '%kurczak%KL.%A%'
+                        ORDER BY Data, QntInCont";
+
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@DataOd", dataOd);
+                        cmd.Parameters.AddWithValue("@DataDo", dataDo);
+
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                var rekord = new FaktyczneWykonanieModel
+                                {
+                                    Data = Convert.ToDateTime(reader["Data"]),
+                                    Weight = reader["Weight"] != DBNull.Value ? Convert.ToDecimal(reader["Weight"]) : 0,
+                                    Quantity = reader["Quantity"] != DBNull.Value ? Convert.ToInt32(reader["Quantity"]) : 0,
+                                    QntInCont = reader["QntInCont"] != DBNull.Value ? Convert.ToInt32(reader["QntInCont"]) : 0
+                                };
+                                wynik.Add(rekord);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd pobierania danych faktycznych: {ex.Message}");
+            }
+
+            return wynik;
+        }
+
+        private void ObliczPorownanieWykonania(List<PlanDziennyModel> planDane, DateTime dataOd, DateTime dataDo)
+        {
+            try
+            {
+                // Pobierz dane faktyczne z In0E
+                var faktyczneDane = PobierzFaktyczneWykonanie(dataOd, dataDo);
+
+                // Inicjalizuj listę porównawczą dla rozmiarów 5-12
+                danePorownawisze = new List<PorownanieModel>();
+                for (int i = 5; i <= 12; i++)
+                {
+                    danePorownawisze.Add(new PorownanieModel { Rozmiar = i });
+                }
+
+                // Oblicz PLAN (z pojemników obliczonych z HarmonogramDostaw)
+                var suma = planDane.FirstOrDefault(x => x.JestSuma);
+                if (suma != null)
+                {
+                    // POJ 5 do 12 - przypisz plan
+                    danePorownawisze.First(x => x.Rozmiar == 12).PlanPojemniki = suma.Pojemniki12;
+                    danePorownawisze.First(x => x.Rozmiar == 11).PlanPojemniki = suma.Pojemniki11;
+                    danePorownawisze.First(x => x.Rozmiar == 10).PlanPojemniki = suma.Pojemniki10;
+                    danePorownawisze.First(x => x.Rozmiar == 9).PlanPojemniki = suma.Pojemniki9;
+                    danePorownawisze.First(x => x.Rozmiar == 8).PlanPojemniki = suma.Pojemniki8;
+                    danePorownawisze.First(x => x.Rozmiar == 7).PlanPojemniki = suma.Pojemniki7;
+                    danePorownawisze.First(x => x.Rozmiar == 6).PlanPojemniki = suma.Pojemniki6;
+                    danePorownawisze.First(x => x.Rozmiar == 5).PlanPojemniki = suma.Pojemniki5;
+
+                    // Oblicz kg dla planu (15kg/pojemnik)
+                    foreach (var por in danePorownawisze)
+                    {
+                        por.PlanKg = por.PlanPojemniki * 15m;
+                    }
+                }
+
+                // Oblicz FAKT (z In0E)
+                foreach (var fakt in faktyczneDane)
+                {
+                    int rozmiar = fakt.QntInCont;
+                    if (rozmiar >= 5 && rozmiar <= 12)
+                    {
+                        var por = danePorownawisze.First(x => x.Rozmiar == rozmiar);
+                        por.FaktKg += fakt.Weight;
+                        por.FaktPojemniki += fakt.Quantity;
+                    }
+                    else if (rozmiar > 12)
+                    {
+                        // Większe niż 12 - doliczy do 12
+                        var por = danePorownawisze.First(x => x.Rozmiar == 12);
+                        por.FaktKg += fakt.Weight;
+                        por.FaktPojemniki += fakt.Quantity;
+                    }
+                    else if (rozmiar < 5 && rozmiar > 0)
+                    {
+                        // Mniejsze niż 5 - doliczy do 5
+                        var por = danePorownawisze.First(x => x.Rozmiar == 5);
+                        por.FaktKg += fakt.Weight;
+                        por.FaktPojemniki += fakt.Quantity;
+                    }
+                }
+
+                // Oblicz sumy
+                sumaPlanKg = danePorownawisze.Sum(x => x.PlanKg);
+                sumaFaktKg = danePorownawisze.Sum(x => x.FaktKg);
+
+                // Aktualizuj UI
+                AktualizujPorownanieUI();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd obliczania porównania: {ex.Message}");
+            }
+        }
+
+        private void AktualizujPorownanieUI()
+        {
+            try
+            {
+                if (danePorownawisze == null) return;
+
+                // Aktualizuj kontrolki dla każdego rozmiaru
+                foreach (var por in danePorownawisze)
+                {
+                    TextBlock txtPlanKg = null, txtFaktKg = null, txtRoznicaKg = null, txtRoznicaProcent = null;
+
+                    switch (por.Rozmiar)
+                    {
+                        case 12:
+                            txtPlanKg = txtPorPlan12;
+                            txtFaktKg = txtPorFakt12;
+                            txtRoznicaKg = txtPorRoznica12;
+                            txtRoznicaProcent = txtPorProcent12;
+                            break;
+                        case 11:
+                            txtPlanKg = txtPorPlan11;
+                            txtFaktKg = txtPorFakt11;
+                            txtRoznicaKg = txtPorRoznica11;
+                            txtRoznicaProcent = txtPorProcent11;
+                            break;
+                        case 10:
+                            txtPlanKg = txtPorPlan10;
+                            txtFaktKg = txtPorFakt10;
+                            txtRoznicaKg = txtPorRoznica10;
+                            txtRoznicaProcent = txtPorProcent10;
+                            break;
+                        case 9:
+                            txtPlanKg = txtPorPlan9;
+                            txtFaktKg = txtPorFakt9;
+                            txtRoznicaKg = txtPorRoznica9;
+                            txtRoznicaProcent = txtPorProcent9;
+                            break;
+                        case 8:
+                            txtPlanKg = txtPorPlan8;
+                            txtFaktKg = txtPorFakt8;
+                            txtRoznicaKg = txtPorRoznica8;
+                            txtRoznicaProcent = txtPorProcent8;
+                            break;
+                        case 7:
+                            txtPlanKg = txtPorPlan7;
+                            txtFaktKg = txtPorFakt7;
+                            txtRoznicaKg = txtPorRoznica7;
+                            txtRoznicaProcent = txtPorProcent7;
+                            break;
+                        case 6:
+                            txtPlanKg = txtPorPlan6;
+                            txtFaktKg = txtPorFakt6;
+                            txtRoznicaKg = txtPorRoznica6;
+                            txtRoznicaProcent = txtPorProcent6;
+                            break;
+                        case 5:
+                            txtPlanKg = txtPorPlan5;
+                            txtFaktKg = txtPorFakt5;
+                            txtRoznicaKg = txtPorRoznica5;
+                            txtRoznicaProcent = txtPorProcent5;
+                            break;
+                    }
+
+                    if (txtPlanKg != null)
+                    {
+                        txtPlanKg.Text = $"{por.PlanKg:N0}";
+                        txtFaktKg.Text = $"{por.FaktKg:N0}";
+                        txtRoznicaKg.Text = $"{por.RoznicaKg:+#,##0;-#,##0;0}";
+                        txtRoznicaProcent.Text = $"{por.RoznicaProcent:+0.0;-0.0;0.0}%";
+
+                        // Kolorowanie różnicy
+                        if (por.RoznicaKg > 0)
+                        {
+                            txtRoznicaKg.Foreground = new SolidColorBrush(Color.FromRgb(76, 175, 80)); // Zielony
+                            txtRoznicaProcent.Foreground = new SolidColorBrush(Color.FromRgb(76, 175, 80));
+                        }
+                        else if (por.RoznicaKg < 0)
+                        {
+                            txtRoznicaKg.Foreground = new SolidColorBrush(Color.FromRgb(244, 67, 54)); // Czerwony
+                            txtRoznicaProcent.Foreground = new SolidColorBrush(Color.FromRgb(244, 67, 54));
+                        }
+                        else
+                        {
+                            txtRoznicaKg.Foreground = new SolidColorBrush(Color.FromRgb(158, 158, 158)); // Szary
+                            txtRoznicaProcent.Foreground = new SolidColorBrush(Color.FromRgb(158, 158, 158));
+                        }
+                    }
+                }
+
+                // Aktualizuj sumy
+                decimal roznicaSumaKg = sumaFaktKg - sumaPlanKg;
+                decimal roznicaSumaProcent = sumaPlanKg > 0 ? (roznicaSumaKg / sumaPlanKg) * 100 : (sumaFaktKg > 0 ? 100 : 0);
+
+                txtPorPlanSuma.Text = $"{sumaPlanKg:N0} kg";
+                txtPorFaktSuma.Text = $"{sumaFaktKg:N0} kg";
+                txtPorRoznicaSuma.Text = $"{roznicaSumaKg:+#,##0;-#,##0;0} kg";
+                txtPorProcentSuma.Text = $"{roznicaSumaProcent:+0.0;-0.0;0.0}%";
+
+                // Kolorowanie sumy
+                if (roznicaSumaKg > 0)
+                {
+                    txtPorRoznicaSuma.Foreground = new SolidColorBrush(Color.FromRgb(76, 175, 80));
+                    txtPorProcentSuma.Foreground = new SolidColorBrush(Color.FromRgb(76, 175, 80));
+                }
+                else if (roznicaSumaKg < 0)
+                {
+                    txtPorRoznicaSuma.Foreground = new SolidColorBrush(Color.FromRgb(244, 67, 54));
+                    txtPorProcentSuma.Foreground = new SolidColorBrush(Color.FromRgb(244, 67, 54));
+                }
+                else
+                {
+                    txtPorRoznicaSuma.Foreground = Brushes.White;
+                    txtPorProcentSuma.Foreground = Brushes.White;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd aktualizacji UI porównania: {ex.Message}");
+            }
+        }
+
         private void DgPlan_LoadingRow(object sender, DataGridRowEventArgs e)
         {
             var plan = e.Row.Item as PlanDziennyModel;
@@ -1256,5 +1512,25 @@ namespace Kalendarz1
         public decimal WspolczynnikTuszki { get; set; }
         public decimal ProcentTuszkaA { get; set; }
         public decimal ProcentTuszkaB { get; set; }
+    }
+
+    // Model do porównania PLAN vs FAKT
+    public class PorownanieModel
+    {
+        public int Rozmiar { get; set; } // 5-12
+        public decimal PlanKg { get; set; }
+        public int PlanPojemniki { get; set; }
+        public decimal FaktKg { get; set; }
+        public int FaktPojemniki { get; set; }
+        public decimal RoznicaKg => FaktKg - PlanKg;
+        public decimal RoznicaProcent => PlanKg > 0 ? (RoznicaKg / PlanKg) * 100 : (FaktKg > 0 ? 100 : 0);
+    }
+
+    public class FaktyczneWykonanieModel
+    {
+        public DateTime Data { get; set; }
+        public decimal Weight { get; set; } // kg faktyczne
+        public int Quantity { get; set; } // ilość pojemników
+        public int QntInCont { get; set; } // rozmiar (sztuk w pojemniku)
     }
 }
