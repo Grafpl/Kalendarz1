@@ -972,27 +972,44 @@
                             <ColumnDefinition Width="4"/>
                             <ColumnDefinition Width="45"/>
                             <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="95"/>
                             <ColumnDefinition Width="90"/>
-                            <ColumnDefinition Width="90"/>
+                            <ColumnDefinition Width="120"/>
                             <ColumnDefinition Width="130"/>
-                            <ColumnDefinition Width="60"/>
+                            <ColumnDefinition Width="70"/>
+                            <ColumnDefinition Width="80"/>
+                            <ColumnDefinition Width="55"/>
                             <ColumnDefinition Width="60"/>
                             <ColumnDefinition Width="70"/>
                             <ColumnDefinition Width="70"/>
                             <ColumnDefinition Width="40"/>
-                            <ColumnDefinition Width="70"/>
-                            <ColumnDefinition Width="90"/>
                         </Grid.ColumnDefinitions>
 
                         <TextBlock Grid.Column="1" Text="SUMA" FontWeight="Bold" Foreground="#63B3ED" VerticalAlignment="Center"/>
                         <TextBlock x:Name="txtSumaDostawy" Grid.Column="2" Text="0 dostaw" Foreground="#A0AEC0" VerticalAlignment="Center" Margin="10,0,0,0"/>
                         <TextBlock x:Name="txtSumaPlan" Grid.Column="3" Text="0" FontWeight="Bold" Foreground="White" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                         <TextBlock x:Name="txtSumaRzecz" Grid.Column="4" Text="0" FontWeight="Bold" Foreground="#4ECCA3" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="txtSumaOdchylenie" Grid.Column="5" Text="-" FontWeight="Bold" Foreground="#A0AEC0" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="txtSumaWagaPlan" Grid.Column="6" Text="-" Foreground="#A0AEC0" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="txtSumaSrWaga" Grid.Column="7" Text="-" Foreground="#A0AEC0" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="txtSumaTuszkiPlan" Grid.Column="8" Text="-" FontWeight="Bold" Foreground="#A78BFA" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="txtSumaTuszkiRzecz" Grid.Column="9" Text="-" FontWeight="Bold" Foreground="#4ECCA3" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="txtSumaOdchylenie" Grid.Column="5" Text="-" FontWeight="Bold" Foreground="#A0AEC0" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+
+                        <!-- POZOSTALO suma z ikonkami -->
+                        <StackPanel Grid.Column="6" VerticalAlignment="Center" Margin="2,0">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="M16,5C15,5 14.14,5.27 13.36,5.73L12.68,5.06L11.27,6.47L11.95,7.14C11.35,7.93 11,8.92 11,10A6,6 0 0,0 17,16C18.08,16 19.07,15.65 19.86,15.05L20.53,15.73L21.94,14.31L21.27,13.64C21.73,12.86 22,11.96 22,11A6,6 0 0,0 16,5M15,10A1,1 0 0,1 16,11A1,1 0 0,1 15,12A1,1 0 0,1 14,11A1,1 0 0,1 15,10M3,12L7,8.5V10H9L10.18,12H9V13.5L3,12Z"
+                                      Fill="White" Width="10" Height="10" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                <TextBlock x:Name="txtSumaPozostaloKg" Text="-" Foreground="#00D9FF" FontSize="10" FontWeight="SemiBold"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="M15.53,7.46C17.49,9.42 17.49,12.58 15.53,14.54C13.57,16.5 10.41,16.5 8.45,14.54L2.39,20.6L1,19.19L7.05,13.13L3.5,9.58C2.5,8.58 2.5,6.92 3.5,5.92C4.5,4.92 6.16,4.92 7.16,5.92L10.71,9.47L15.24,4.93C14.66,3.83 14.81,2.41 15.7,1.48C16.84,0.34 18.69,0.34 19.83,1.48C20.97,2.62 20.97,4.48 19.83,5.62C18.93,6.51 17.55,6.66 16.46,6.1L11.91,10.65L14.21,12.95L7.75,19.44L6.34,18.03L12.79,11.57L10.49,9.26L11.12,8.63L15.53,7.46Z"
+                                      Fill="White" Width="10" Height="10" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                <TextBlock x:Name="txtSumaPozostaloTuszki" Text="-" Foreground="#A78BFA" FontSize="9"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <TextBlock Grid.Column="9" Text="śr:" Foreground="#6B7280" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,2,0"/>
+                        <TextBlock x:Name="txtSumaWagaPlan" Grid.Column="9" Text="-" Foreground="#A0AEC0" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="15,0,0,0"/>
+                        <TextBlock x:Name="txtSumaSrWaga" Grid.Column="10" Text="-" Foreground="#A0AEC0" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="txtSumaTuszkiPlan" Grid.Column="11" Text="-" FontWeight="Bold" Foreground="#A78BFA" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="txtSumaTuszkiRzecz" Grid.Column="12" Text="-" FontWeight="Bold" Foreground="#4ECCA3" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
                 </Border>
 

@@ -600,6 +600,18 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 txtSumaSrWaga.Text = "-";
             }
 
+            // Suma POZOSTAŁO (tylko unikalne harmonogramy - bez duplikatów)
+            var unikatoweHarmonogramy = _dostawy
+                .GroupBy(d => d.LpDostawy)
+                .Select(g => g.First())
+                .ToList();
+
+            decimal sumaPozostaloKg = unikatoweHarmonogramy.Sum(d => d.KgPozostalo);
+            decimal sumaPozostaloTuszki = Math.Round(sumaPozostaloKg * 0.78m, 0);
+
+            txtSumaPozostaloKg.Text = $"{sumaPozostaloKg:N0} kg";
+            txtSumaPozostaloTuszki.Text = $"{sumaPozostaloTuszki:N0} kg";
+
             // Suma tuszek planowanych (78% z kg plan)
             decimal sumaTuszkiPlan = _dostawy.Sum(d => d.TuszkiPlanKg);
             txtSumaTuszkiPlan.Text = sumaTuszkiPlan.ToString("N0");
