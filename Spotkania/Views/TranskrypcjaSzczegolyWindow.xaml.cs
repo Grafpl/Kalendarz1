@@ -1000,7 +1000,7 @@ namespace Kalendarz1.Spotkania.Views
             var przykladBorder = new Border { Background = Brushes.White, CornerRadius = new CornerRadius(6), Padding = new Thickness(12), Margin = new Thickness(0, 8, 0, 0) };
             przykladBorder.Child = new TextBlock
             {
-                Text = $"„{mowca.PrzykladowaWypowiedz}"",
+                Text = $"\"{mowca.PrzykladowaWypowiedz}\"",
                 FontStyle = FontStyles.Italic,
                 TextWrapping = TextWrapping.Wrap,
                 Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#555")),
