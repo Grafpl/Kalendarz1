@@ -128,7 +128,7 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <TextBox x:Name="TxtNowaKategoria" Grid.Column="0" Style="{StaticResource InputStyle}"
-                                     PlaceholderText="Nowa kategoria..." VerticalAlignment="Center"/>
+                                     ToolTip="Wpisz nazwe nowej kategorii" VerticalAlignment="Center"/>
                             <Button x:Name="BtnDodajKategorie" Grid.Column="1" Content="+ Dodaj"
                                     Style="{StaticResource BtnSecondary}" Margin="10,0,0,0"
                                     Padding="12,8" Click="BtnDodajKategorie_Click"/>
