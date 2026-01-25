@@ -331,7 +331,7 @@ namespace Kalendarz1.CRM
         }
 
         // Available options for ComboBoxes
-        public List<string> AvailableTimes { get; } = Enumerable.Range(6, 14).SelectMany(h => new[] { $"{h:D2}:00", $"{h:D2}:30" }).ToList();
+        public List<string> AvailableTimes { get; } = Enumerable.Range(6, 18).SelectMany(h => new[] { $"{h:D2}:00", $"{h:D2}:30" }).ToList();
         public List<int> AvailableCounts { get; } = new List<int> { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
 
         public event PropertyChangedEventHandler PropertyChanged;
