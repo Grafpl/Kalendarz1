@@ -498,18 +498,57 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border CornerRadius="4" Padding="6,4" Margin="0,0,4,4" MinWidth="90"
-                                                Background="{Binding TileBackground, Mode=OneWay}">
+                                        <Border CornerRadius="5" Padding="8,6" Margin="0,0,6,6" MinWidth="170"
+                                                Background="{Binding TileBackground, Mode=OneWay}"
+                                                ToolTip="{Binding Hodowca, Mode=OneWay}">
                                             <StackPanel>
-                                                <TextBlock Text="{Binding HodowcaSkrot, Mode=OneWay}" FontSize="9" FontWeight="SemiBold"
-                                                           Foreground="#fef3c7" TextTrimming="CharacterEllipsis" MaxWidth="85"
-                                                           ToolTip="{Binding Hodowca, Mode=OneWay}"/>
-                                                <Grid Margin="0,2,0,0">
-                                                    <TextBlock FontSize="8" Foreground="#fef3c7" Opacity="0.8">
-                                                        <Run Text="{Binding PostepDisplay, Mode=OneWay}"/>
-                                                    </TextBlock>
-                                                    <TextBlock Text="{Binding TrendDisplay, Mode=OneWay}" FontSize="9" FontWeight="Bold"
+                                                <!-- Nagłówek: Hodowca + Procent -->
+                                                <Grid Margin="0,0,0,4">
+                                                    <TextBlock Text="{Binding Hodowca, Mode=OneWay}" FontSize="10" FontWeight="Bold"
+                                                               Foreground="#fef3c7" TextTrimming="CharacterEllipsis" MaxWidth="120"/>
+                                                    <TextBlock Text="{Binding TrendDisplay, Mode=OneWay}" FontSize="11" FontWeight="Bold"
                                                                Foreground="#fef3c7" HorizontalAlignment="Right"/>
+                                                </Grid>
+                                                <!-- Wiersz 1: kg Plan vs Rzecz -->
+                                                <Grid Margin="0,0,0,2">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel Grid.Column="0">
+                                                        <TextBlock Text="Plan kg" FontSize="7" Foreground="#fef3c7" Opacity="0.7"/>
+                                                        <TextBlock Text="{Binding KgPlanDisplay, Mode=OneWay}" FontSize="11" FontWeight="SemiBold"
+                                                                   Foreground="#fef3c7" Opacity="0.9"/>
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+                                                        <TextBlock Text="Rzecz kg" FontSize="7" Foreground="#fef3c7" Opacity="0.7" HorizontalAlignment="Right"/>
+                                                        <TextBlock Text="{Binding KgRzeczDisplay, Mode=OneWay}" FontSize="11" FontWeight="Bold"
+                                                                   Foreground="#fef3c7" HorizontalAlignment="Right"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                                <!-- Wiersz 2: Waga Plan vs Rzecz -->
+                                                <Grid Margin="0,2,0,0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                                        <TextBlock Text="⚖ " FontSize="8" Foreground="#fef3c7" Opacity="0.6"/>
+                                                        <TextBlock Text="{Binding SredniaWagaPlanDisplay, Mode=OneWay}" FontSize="9"
+                                                                   Foreground="#fef3c7" Opacity="0.8"/>
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                                        <TextBlock Text="→ " FontSize="8" Foreground="#fef3c7" Opacity="0.6"/>
+                                                        <TextBlock Text="{Binding SredniaWagaRzeczDisplay, Mode=OneWay}" FontSize="9" FontWeight="SemiBold"
+                                                                   Foreground="#fef3c7"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                                <!-- Pasek postępu -->
+                                                <Grid Margin="0,4,0,0">
+                                                    <ProgressBar Value="{Binding RealizacjaProc, Mode=OneWay}" Maximum="100"
+                                                                 Height="4" Background="#00000030" Foreground="#fef3c7"/>
+                                                    <TextBlock Text="{Binding PostepDisplay, Mode=OneWay}" FontSize="7"
+                                                               Foreground="#fef3c7" Opacity="0.7" HorizontalAlignment="Right" Margin="0,-1,0,0"/>
                                                 </Grid>
                                             </StackPanel>
                                         </Border>

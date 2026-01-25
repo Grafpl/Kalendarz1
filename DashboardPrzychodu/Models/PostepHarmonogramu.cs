@@ -20,6 +20,8 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         private decimal _planKgLacznie;
         private decimal _sztukiZwazoneSuma;
         private decimal _kgZwazoneSuma;
+        private decimal? _sredniaWagaPlan;
+        private decimal? _sredniaWagaRzecz;
 
         #region Properties - Identyfikacja
 
@@ -126,6 +128,7 @@ namespace Kalendarz1.DashboardPrzychodu.Models
                 OnPropertyChanged(nameof(RealizacjaProc));
                 OnPropertyChanged(nameof(TrendProc));
                 OnPropertyChanged(nameof(TrendDisplay));
+                OnPropertyChanged(nameof(KgPlanDisplay));
             }
         }
 
@@ -162,6 +165,35 @@ namespace Kalendarz1.DashboardPrzychodu.Models
                 OnPropertyChanged(nameof(RealizacjaProc));
                 OnPropertyChanged(nameof(TrendProc));
                 OnPropertyChanged(nameof(TrendDisplay));
+                OnPropertyChanged(nameof(KgRzeczDisplay));
+            }
+        }
+
+        /// <summary>
+        /// Średnia waga planowana [kg/szt]
+        /// </summary>
+        public decimal? SredniaWagaPlan
+        {
+            get => _sredniaWagaPlan;
+            set
+            {
+                _sredniaWagaPlan = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(SredniaWagaPlanDisplay));
+            }
+        }
+
+        /// <summary>
+        /// Średnia waga rzeczywista [kg/szt]
+        /// </summary>
+        public decimal? SredniaWagaRzecz
+        {
+            get => _sredniaWagaRzecz;
+            set
+            {
+                _sredniaWagaRzecz = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(SredniaWagaRzeczDisplay));
             }
         }
 
@@ -300,6 +332,34 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         /// Wyświetlany trend dla kafelka (procent realizacji)
         /// </summary>
         public string TrendDisplay => $"{RealizacjaProc:N0}%";
+
+        /// <summary>
+        /// Wyświetlana średnia waga planowana
+        /// </summary>
+        public string SredniaWagaPlanDisplay => SredniaWagaPlan.HasValue
+            ? $"{SredniaWagaPlan:N2}"
+            : "-";
+
+        /// <summary>
+        /// Wyświetlana średnia waga rzeczywista
+        /// </summary>
+        public string SredniaWagaRzeczDisplay => SredniaWagaRzecz.HasValue
+            ? $"{SredniaWagaRzecz:N2}"
+            : "-";
+
+        /// <summary>
+        /// Wyświetlane kg planowane (skrócone, np. "12.5k")
+        /// </summary>
+        public string KgPlanDisplay => PlanKgLacznie >= 1000
+            ? $"{PlanKgLacznie / 1000:N1}k"
+            : $"{PlanKgLacznie:N0}";
+
+        /// <summary>
+        /// Wyświetlane kg zważone (skrócone, np. "10.2k")
+        /// </summary>
+        public string KgRzeczDisplay => KgZwazoneSuma >= 1000
+            ? $"{KgZwazoneSuma / 1000:N1}k"
+            : $"{KgZwazoneSuma:N0}";
 
         #endregion
 

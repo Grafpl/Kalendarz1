@@ -694,7 +694,11 @@ namespace Kalendarz1.DashboardPrzychodu.Services
                     ISNULL(hd.SztukiDek, 0) AS PlanSztukiLacznie,
                     CAST(ISNULL(hd.SztukiDek, 0) * ISNULL(hd.WagaDek, 0) AS DECIMAL(12,0)) AS PlanKgLacznie,
                     ISNULL(sz.SztukiZwazoneSuma, 0) AS SztukiZwazoneSuma,
-                    ISNULL(sz.KgZwazoneSuma, 0) AS KgZwazoneSuma
+                    ISNULL(sz.KgZwazoneSuma, 0) AS KgZwazoneSuma,
+                    hd.WagaDek AS SredniaWagaPlan,
+                    CASE WHEN ISNULL(sz.SztukiZwazoneSuma, 0) > 0
+                         THEN CAST(sz.KgZwazoneSuma AS DECIMAL(12,3)) / sz.SztukiZwazoneSuma
+                         ELSE NULL END AS SredniaWagaRzecz
                 FROM (SELECT DISTINCT LpDostawy FROM dbo.FarmerCalc WHERE CalcDate = @Data AND ISNULL(Deleted, 0) = 0 AND LpDostawy IS NOT NULL) fc
                 INNER JOIN dbo.HarmonogramDostaw hd ON fc.LpDostawy = hd.Lp
                 LEFT JOIN SumaZwazonychPerHarmonogram sz ON fc.LpDostawy = sz.LpDostawy
@@ -725,7 +729,9 @@ namespace Kalendarz1.DashboardPrzychodu.Services
                                     PlanSztukiLacznie = reader.IsDBNull(reader.GetOrdinal("PlanSztukiLacznie")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("PlanSztukiLacznie"))),
                                     PlanKgLacznie = reader.IsDBNull(reader.GetOrdinal("PlanKgLacznie")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("PlanKgLacznie"))),
                                     SztukiZwazoneSuma = reader.IsDBNull(reader.GetOrdinal("SztukiZwazoneSuma")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("SztukiZwazoneSuma"))),
-                                    KgZwazoneSuma = reader.IsDBNull(reader.GetOrdinal("KgZwazoneSuma")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("KgZwazoneSuma")))
+                                    KgZwazoneSuma = reader.IsDBNull(reader.GetOrdinal("KgZwazoneSuma")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("KgZwazoneSuma"))),
+                                    SredniaWagaPlan = reader.IsDBNull(reader.GetOrdinal("SredniaWagaPlan")) ? null : (decimal?)Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("SredniaWagaPlan"))),
+                                    SredniaWagaRzecz = reader.IsDBNull(reader.GetOrdinal("SredniaWagaRzecz")) ? null : (decimal?)Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("SredniaWagaRzecz")))
                                 };
                                 postepy.Add(item);
                             }
