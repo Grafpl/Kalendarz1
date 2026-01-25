@@ -1,0 +1,155 @@
+<Window x:Class="Kalendarz1.CRM.Dialogs.ChangeStatusDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Zmień status"
+        Width="360" Height="380"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="BgPrimaryBrush" Color="#0F172A"/>
+        <SolidColorBrush x:Key="BgSecondaryBrush" Color="#1E293B"/>
+        <SolidColorBrush x:Key="BgTertiaryBrush" Color="#334155"/>
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#94A3B8"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="#334155"/>
+
+        <Style x:Key="StatusButton" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Margin" Value="0,4"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="bd" Background="#1E293B" CornerRadius="6" Padding="12,10"
+                                BorderThickness="2" BorderBrush="Transparent">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border x:Name="indicator" Width="4" CornerRadius="2" Background="{TemplateBinding Tag}" Margin="0,0,10,0"/>
+                                <ContentPresenter Grid.Column="1" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"/>
+                                <Setter TargetName="bd" Property="Background" Value="#0F172A"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#334155"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ActionButton" TargetType="Button">
+            <Setter Property="Background" Value="#4CAF50"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#66BB6A"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CancelButton" TargetType="Button" BasedOn="{StaticResource ActionButton}">
+            <Setter Property="Background" Value="#475569"/>
+        </Style>
+    </Window.Resources>
+
+    <Border Background="{StaticResource BgPrimaryBrush}" CornerRadius="10" BorderThickness="1" BorderBrush="{StaticResource BorderBrush}">
+        <Border.Effect>
+            <DropShadowEffect ShadowDepth="0" Color="Black" Opacity="0.4" BlurRadius="15"/>
+        </Border.Effect>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Border Grid.Row="0" Background="#3B82F6" CornerRadius="10,10,0,0" Padding="16,14">
+                <StackPanel>
+                    <TextBlock Text="🔄 Zmień status" FontSize="16" FontWeight="Bold" Foreground="White"/>
+                    <TextBlock x:Name="txtContactName" Text="Nazwa firmy" FontSize="12" Foreground="#93C5FD" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Status Options -->
+            <ScrollViewer Grid.Row="1" Padding="16,12" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock x:Name="txtCurrentStatus" Text="Aktualny status: Do zadzwonienia"
+                               Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,12"/>
+
+                    <RadioButton x:Name="rbDoZadzwonienia" Style="{StaticResource StatusButton}" Content="📞 Do zadzwonienia" GroupName="Status">
+                        <RadioButton.Tag>
+                            <SolidColorBrush Color="#64748B"/>
+                        </RadioButton.Tag>
+                    </RadioButton>
+                    <RadioButton x:Name="rbProba" Style="{StaticResource StatusButton}" Content="⏳ Próba kontaktu" GroupName="Status">
+                        <RadioButton.Tag>
+                            <SolidColorBrush Color="#F97316"/>
+                        </RadioButton.Tag>
+                    </RadioButton>
+                    <RadioButton x:Name="rbNawiazano" Style="{StaticResource StatusButton}" Content="✅ Nawiązano kontakt" GroupName="Status">
+                        <RadioButton.Tag>
+                            <SolidColorBrush Color="#22C55E"/>
+                        </RadioButton.Tag>
+                    </RadioButton>
+                    <RadioButton x:Name="rbZgoda" Style="{StaticResource StatusButton}" Content="🤝 Zgoda na dalszy kontakt" GroupName="Status">
+                        <RadioButton.Tag>
+                            <SolidColorBrush Color="#14B8A6"/>
+                        </RadioButton.Tag>
+                    </RadioButton>
+                    <RadioButton x:Name="rbOferta" Style="{StaticResource StatusButton}" Content="📄 Do wysłania oferta" GroupName="Status">
+                        <RadioButton.Tag>
+                            <SolidColorBrush Color="#0891B2"/>
+                        </RadioButton.Tag>
+                    </RadioButton>
+                    <RadioButton x:Name="rbNieZainteresowany" Style="{StaticResource StatusButton}" Content="❌ Nie zainteresowany" GroupName="Status">
+                        <RadioButton.Tag>
+                            <SolidColorBrush Color="#EF4444"/>
+                        </RadioButton.Tag>
+                    </RadioButton>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Buttons -->
+            <Border Grid.Row="2" Background="{StaticResource BgSecondaryBrush}" CornerRadius="0,0,10,10" Padding="16,14">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Button Content="Anuluj" Style="{StaticResource CancelButton}" Click="BtnCancel_Click" Margin="0,0,6,0"/>
+                    <Button Grid.Column="1" Content="Zapisz" Style="{StaticResource ActionButton}" Click="BtnSave_Click" Margin="6,0,0,0"/>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

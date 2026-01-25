@@ -1,0 +1,292 @@
+<Window x:Class="Kalendarz1.CRM.CallReminderAdminPanel"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Konfiguracja przypomnień telefonów"
+        Width="900" Height="650"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="CanResize"
+        MinWidth="700" MinHeight="500">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="BgPrimaryBrush" Color="#0F172A"/>
+        <SolidColorBrush x:Key="BgSecondaryBrush" Color="#1E293B"/>
+        <SolidColorBrush x:Key="BgTertiaryBrush" Color="#334155"/>
+        <SolidColorBrush x:Key="AccentGreenBrush" Color="#4CAF50"/>
+        <SolidColorBrush x:Key="AccentBlueBrush" Color="#3B82F6"/>
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#94A3B8"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="#334155"/>
+
+        <!-- Button Style -->
+        <Style x:Key="ActionButton" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource AccentGreenBrush}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#66BB6A"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource ActionButton}">
+            <Setter Property="Background" Value="{StaticResource BgTertiaryBrush}"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#475569"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- CheckBox Style -->
+        <Style x:Key="DarkCheckBox" TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <StackPanel Orientation="Horizontal">
+                            <Border x:Name="box" Width="18" Height="18" Background="{StaticResource BgTertiaryBrush}"
+                                    BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="4">
+                                <TextBlock x:Name="check" Text="✓" Foreground="#4CAF50" FontWeight="Bold"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
+                            </Border>
+                            <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="check" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="box" Property="BorderBrush" Value="#4CAF50"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ComboBox Style -->
+        <Style x:Key="DarkComboBox" TargetType="ComboBox">
+            <Setter Property="Background" Value="{StaticResource BgTertiaryBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+
+        <!-- DataGrid Styles -->
+        <Style TargetType="DataGrid">
+            <Setter Property="Background" Value="{StaticResource BgSecondaryBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="GridLinesVisibility" Value="None"/>
+            <Setter Property="RowBackground" Value="{StaticResource BgSecondaryBrush}"/>
+            <Setter Property="AlternatingRowBackground" Value="#243447"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+        </Style>
+
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="{StaticResource BgTertiaryBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+        </Style>
+
+        <Style TargetType="DataGridCell">
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#1E40AF"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style TargetType="DataGridRow">
+            <Setter Property="Background" Value="Transparent"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#2D3E53"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Border Background="{StaticResource BgPrimaryBrush}" CornerRadius="10" BorderThickness="1" BorderBrush="{StaticResource BorderBrush}">
+        <Border.Effect>
+            <DropShadowEffect ShadowDepth="0" Color="Black" Opacity="0.4" BlurRadius="20"/>
+        </Border.Effect>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Border Grid.Row="0" Background="#1E3A8A" CornerRadius="10,10,0,0" Padding="20,16" MouseLeftButtonDown="Header_MouseLeftButtonDown">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel>
+                        <TextBlock Text="⏰ Konfiguracja przypomnień telefonów" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                        <TextBlock Text="Zarządzaj przypomnieniami dla handlowców" FontSize="12" Foreground="#93C5FD" Margin="0,4,0,0"/>
+                    </StackPanel>
+
+                    <Button Grid.Column="1" Content="✕" Background="Transparent" Foreground="White"
+                            FontSize="20" Cursor="Hand" Click="BtnClose_Click"
+                            Width="36" Height="36" Padding="0" BorderThickness="0"/>
+                </Grid>
+            </Border>
+
+            <!-- Main Content - DataGrid -->
+            <Border Grid.Row="1" Padding="16">
+                <DataGrid x:Name="dgHandlowcy" AutoGenerateColumns="False" CanUserAddRows="False"
+                          CanUserDeleteRows="False" SelectionMode="Single" IsReadOnly="False">
+                    <DataGrid.Columns>
+                        <DataGridTemplateColumn Header="Włączone" Width="70">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsChecked="{Binding IsEnabled, UpdateSourceTrigger=PropertyChanged}"
+                                              Style="{StaticResource DarkCheckBox}" HorizontalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTextColumn Header="Handlowiec" Binding="{Binding UserName}" Width="*" IsReadOnly="True"/>
+
+                        <DataGridTemplateColumn Header="Godz. 1" Width="80">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <ComboBox SelectedValue="{Binding Time1String, UpdateSourceTrigger=PropertyChanged}"
+                                              ItemsSource="{Binding AvailableTimes}" Style="{StaticResource DarkComboBox}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="Godz. 2" Width="80">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <ComboBox SelectedValue="{Binding Time2String, UpdateSourceTrigger=PropertyChanged}"
+                                              ItemsSource="{Binding AvailableTimes}" Style="{StaticResource DarkComboBox}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="Kontaktów" Width="80">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <ComboBox SelectedValue="{Binding ContactsPerReminder, UpdateSourceTrigger=PropertyChanged}"
+                                              ItemsSource="{Binding AvailableCounts}" Style="{StaticResource DarkComboBox}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="Tylko nowi" Width="80">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsChecked="{Binding ShowOnlyNewContacts, UpdateSourceTrigger=PropertyChanged}"
+                                              Style="{StaticResource DarkCheckBox}" HorizontalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="Przypisani" Width="80">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsChecked="{Binding ShowOnlyAssigned, UpdateSourceTrigger=PropertyChanged}"
+                                              Style="{StaticResource DarkCheckBox}" HorizontalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Border>
+
+            <!-- Stats Section -->
+            <Border Grid.Row="2" Background="{StaticResource BgSecondaryBrush}" Padding="16,12">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                        <TextBlock x:Name="txtStatsDzis" Text="0" FontSize="24" FontWeight="Bold" Foreground="#4CAF50" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Przypomnień dziś" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                        <TextBlock x:Name="txtStatsTelefony" Text="0" FontSize="24" FontWeight="Bold" Foreground="#3B82F6" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Telefonów dziś" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                        <TextBlock x:Name="txtStatsTydzien" Text="0" FontSize="24" FontWeight="Bold" Foreground="#F59E0B" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Ten tydzień" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="3" HorizontalAlignment="Center">
+                        <TextBlock x:Name="txtStatsMiesiac" Text="0" FontSize="24" FontWeight="Bold" Foreground="#8B5CF6" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Ten miesiąc" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Buttons -->
+            <Border Grid.Row="3" Background="{StaticResource BgSecondaryBrush}" CornerRadius="0,0,10,10" Padding="16,14">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Button Content="📋 Zastosuj do wszystkich" Style="{StaticResource SecondaryButton}" Click="BtnApplyToAll_Click"/>
+                    <Button Grid.Column="1" Content="🔄 Odśwież" Style="{StaticResource SecondaryButton}" Click="BtnRefresh_Click" Margin="8,0,0,0"/>
+
+                    <Button Grid.Column="3" Content="🧪 Testuj teraz" Style="{StaticResource SecondaryButton}" Click="BtnTest_Click" Margin="0,0,8,0"/>
+                    <Button Grid.Column="4" Content="💾 Zapisz zmiany" Style="{StaticResource ActionButton}" Click="BtnSave_Click" MinWidth="140"/>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

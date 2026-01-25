@@ -73,6 +73,16 @@ namespace Kalendarz1
             {
                 System.Diagnostics.Debug.WriteLine($"MeetingChangeMonitor error: {ex.Message}");
             }
+
+            // Initialize Call Reminder Service for CRM
+            try
+            {
+                CRM.Services.CallReminderService.Instance.Initialize(App.UserID);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"CallReminderService error: {ex.Message}");
+            }
         }
 
         private void MeetingChangeMonitor_ChangesDetected(object sender, System.Collections.Generic.List<MeetingChange> changes)
@@ -1331,7 +1341,12 @@ namespace Kalendarz1
                     new MenuItemConfig("AdminPermissions", "Zarządzanie Uprawnieniami",
                         "Panel administratora do nadawania i odbierania uprawnień dostępu użytkownikom systemu",
                         Color.FromArgb(183, 28, 28), // Ciemny czerwony #B71C1C
-                        () => new AdminPermissionsForm(), "🔐", "Uprawnienia")
+                        () => new AdminPermissionsForm(), "🔐", "Uprawnienia"),
+
+                    new MenuItemConfig("CallReminders", "Przypomnienia Telefonów",
+                        "Konfiguracja automatycznych przypomnień o telefonach do klientów CRM dla handlowców",
+                        Color.FromArgb(211, 47, 47), // Czerwony #D32F2F
+                        () => new CRM.CallReminderAdminPanel(), "⏰", "Przypomnienia")
                 }
             };
 
