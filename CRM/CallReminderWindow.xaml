@@ -272,8 +272,7 @@
                 <StackPanel>
                     <TextBlock Text="Powód pominięcia:" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,6"/>
                     <TextBox x:Name="txtSkipReason" Style="{StaticResource DarkTextBox}"
-                             TextWrapping="Wrap" AcceptsReturn="False" MaxLength="200"
-                             PlaceholderText="Wpisz powód pominięcia kontaktów..."/>
+                             TextWrapping="Wrap" AcceptsReturn="False" MaxLength="200"/>
                 </StackPanel>
             </Border>
 
