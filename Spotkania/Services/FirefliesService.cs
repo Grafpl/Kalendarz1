@@ -488,10 +488,21 @@ namespace Kalendarz1.Spotkania.Services
             using var conn = new SqlConnection(CONNECTION_STRING);
             await conn.OpenAsync();
 
+            // Upewnij sie ze kolumna Kategoria istnieje
+            try
+            {
+                string alterSql = @"IF NOT EXISTS (SELECT * FROM sys.columns
+                                    WHERE object_id = OBJECT_ID('FirefliesTranskrypcje') AND name = 'Kategoria')
+                                    ALTER TABLE FirefliesTranskrypcje ADD Kategoria NVARCHAR(100)";
+                using var alterCmd = new SqlCommand(alterSql, conn);
+                await alterCmd.ExecuteNonQueryAsync();
+            }
+            catch { }
+
             var sql = new StringBuilder(@"
                 SELECT
                     TranskrypcjaID, FirefliesID, Tytul, DataSpotkania, CzasTrwaniaSekundy,
-                    Uczestnicy, SpotkaniID, NotatkaID, StatusImportu, DataImportu
+                    Uczestnicy, SpotkaniID, NotatkaID, StatusImportu, DataImportu, Kategoria
                 FROM FirefliesTranskrypcje
                 WHERE 1=1");
 
@@ -523,16 +534,36 @@ namespace Kalendarz1.Spotkania.Services
                     MaSpotkanie = !reader.IsDBNull(6),
                     MaNotatke = !reader.IsDBNull(7),
                     StatusImportu = reader.GetString(8),
-                    DataImportu = reader.GetDateTime(9)
+                    DataImportu = reader.GetDateTime(9),
+                    Kategoria = reader.IsDBNull(10) ? null : reader.GetString(10)
                 };
 
-                // Policz uczestników z JSON
+                // Parsuj uczestnikow z JSON
                 if (!reader.IsDBNull(5))
                 {
                     try
                     {
-                        var uczestnicy = JsonSerializer.Deserialize<List<string>>(reader.GetString(5));
-                        item.LiczbaUczestnikow = uczestnicy?.Count ?? 0;
+                        var json = reader.GetString(5);
+                        // Sprobuj najpierw jako liste obiektow
+                        try
+                        {
+                            var uczestnicyObj = JsonSerializer.Deserialize<List<UczestnikJsonHelper>>(json);
+                            if (uczestnicyObj != null)
+                            {
+                                item.UczestnicyLista = uczestnicyObj.Select(u => u.nazwa ?? u.email ?? "?").ToList();
+                                item.LiczbaUczestnikow = uczestnicyObj.Count;
+                            }
+                        }
+                        catch
+                        {
+                            // Sprobuj jako prosta lista stringow
+                            var uczestnicy = JsonSerializer.Deserialize<List<string>>(json);
+                            if (uczestnicy != null)
+                            {
+                                item.UczestnicyLista = uczestnicy;
+                                item.LiczbaUczestnikow = uczestnicy.Count;
+                            }
+                        }
                     }
                     catch { }
                 }
@@ -541,6 +572,14 @@ namespace Kalendarz1.Spotkania.Services
             }
 
             return lista;
+        }
+
+        private class UczestnikJsonHelper
+        {
+            public string? nazwa { get; set; }
+            public string? email { get; set; }
+            public string? speakerId { get; set; }
+            public string? userId { get; set; }
         }
 
         /// <summary>

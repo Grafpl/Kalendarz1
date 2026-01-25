@@ -272,10 +272,15 @@ namespace Kalendarz1.Spotkania.Models
         public bool MaNotatke { get; set; }
         public string StatusImportu { get; set; } = "Zaimportowane";
         public DateTime DataImportu { get; set; }
+        public string? Kategoria { get; set; }
+        public List<string> UczestnicyLista { get; set; } = new();
 
-        public string DataSpotkaniaDisplay => DataSpotkania?.ToString("dd.MM.yyyy HH:mm") ?? "—";
+        public string DataSpotkaniaDisplay => DataSpotkania?.ToString("dd.MM.yyyy HH:mm") ?? "-";
         public string CzasTrwaniaDisplay => CzasTrwaniaSekundy < 60 ? $"{CzasTrwaniaSekundy}s" :
             CzasTrwaniaSekundy < 3600 ? $"{CzasTrwaniaSekundy / 60}min" : $"{CzasTrwaniaSekundy / 3600}h";
+        public string UczestnicyDisplay => UczestnicyLista.Any()
+            ? string.Join(", ", UczestnicyLista.Take(3)) + (UczestnicyLista.Count > 3 ? $" +{UczestnicyLista.Count - 3}" : "")
+            : "-";
     }
 
     #endregion

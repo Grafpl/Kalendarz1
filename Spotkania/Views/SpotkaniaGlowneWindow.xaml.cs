@@ -419,6 +419,37 @@ namespace Kalendarz1.Spotkania.Views
             }
         }
 
+        private void BtnSzybkaEdycja_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is FirefliesTranskrypcjaListItem item)
+            {
+                OtworzSzybkaEdycje(item);
+            }
+        }
+
+        private void BtnSzybkaEdycjaWybranej_Click(object sender, RoutedEventArgs e)
+        {
+            if (GridTranskrypcje.SelectedItem is FirefliesTranskrypcjaListItem item)
+            {
+                OtworzSzybkaEdycje(item);
+            }
+            else
+            {
+                MessageBox.Show("Wybierz transkrypcje z listy.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private void OtworzSzybkaEdycje(FirefliesTranskrypcjaListItem item)
+        {
+            var window = new SzybkaEdycjaTranskrypcjiWindow(_firefliesService, item.TranskrypcjaID, item.FirefliesID);
+            window.Owner = this;
+
+            if (window.ShowDialog() == true)
+            {
+                _ = LoadTranskrypcjeAsync();
+            }
+        }
+
         private void BtnEdytujTranskrypcje_Click(object sender, RoutedEventArgs e)
         {
             if (GridTranskrypcje.SelectedItem is FirefliesTranskrypcjaListItem item)
@@ -427,7 +458,7 @@ namespace Kalendarz1.Spotkania.Views
             }
             else
             {
-                MessageBox.Show("Wybierz transkrypcję z listy.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("Wybierz transkrypcje z listy.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
 
