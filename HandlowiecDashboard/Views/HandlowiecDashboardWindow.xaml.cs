@@ -1978,7 +1978,7 @@ FROM FakturyPrzeterminowane;";
                 txtAging21PlusProcent.Text = $"{(agingTotal > 0 ? agingData.Kwota21Plus / agingTotal * 100 : 0):F0}%";
 
                 // Aktualizuj slupki aging (szerokosci proporcjonalne)
-                var maxBarWidth = 150.0;
+                var maxBarWidth = 100.0;
                 var maxAgingKwota = Math.Max(Math.Max(agingData.Kwota17, agingData.Kwota814), Math.Max(agingData.Kwota1521, agingData.Kwota21Plus));
                 if (maxAgingKwota > 0)
                 {
@@ -1986,6 +1986,45 @@ FROM FakturyPrzeterminowane;";
                     barAging814.Width = (double)(agingData.Kwota814 / maxAgingKwota) * maxBarWidth;
                     barAging1521.Width = (double)(agingData.Kwota1521 / maxAgingKwota) * maxBarWidth;
                     barAging21Plus.Width = (double)(agingData.Kwota21Plus / maxAgingKwota) * maxBarWidth;
+                }
+
+                // Przekroczone limity wg kwoty przeterminowanej klienta
+                var klienciZPrzeterminowanymi = dane.Where(d => d.Przeterminowane > 0).ToList();
+
+                // do 100k
+                var limit100kKwota = klienciZPrzeterminowanymi.Where(d => d.Przeterminowane <= 100000).Sum(d => d.Przeterminowane);
+                var limit100kKlientow = klienciZPrzeterminowanymi.Count(d => d.Przeterminowane <= 100000);
+
+                // 100-300k
+                var limit300kKwota = klienciZPrzeterminowanymi.Where(d => d.Przeterminowane > 100000 && d.Przeterminowane <= 300000).Sum(d => d.Przeterminowane);
+                var limit300kKlientow = klienciZPrzeterminowanymi.Count(d => d.Przeterminowane > 100000 && d.Przeterminowane <= 300000);
+
+                // 300-500k
+                var limit500kKwota = klienciZPrzeterminowanymi.Where(d => d.Przeterminowane > 300000 && d.Przeterminowane <= 500000).Sum(d => d.Przeterminowane);
+                var limit500kKlientow = klienciZPrzeterminowanymi.Count(d => d.Przeterminowane > 300000 && d.Przeterminowane <= 500000);
+
+                // 500k+
+                var limit500kPlusKwota = klienciZPrzeterminowanymi.Where(d => d.Przeterminowane > 500000).Sum(d => d.Przeterminowane);
+                var limit500kPlusKlientow = klienciZPrzeterminowanymi.Count(d => d.Przeterminowane > 500000);
+
+                // Aktualizuj UI przekroczonych limitow
+                txtLimit100k.Text = $"{limit100kKwota:N0} zl";
+                txtLimit100kKlientow.Text = $"{limit100kKlientow} kl.";
+                txtLimit300k.Text = $"{limit300kKwota:N0} zl";
+                txtLimit300kKlientow.Text = $"{limit300kKlientow} kl.";
+                txtLimit500k.Text = $"{limit500kKwota:N0} zl";
+                txtLimit500kKlientow.Text = $"{limit500kKlientow} kl.";
+                txtLimit500kPlus.Text = $"{limit500kPlusKwota:N0} zl";
+                txtLimit500kPlusKlientow.Text = $"{limit500kPlusKlientow} kl.";
+
+                // Aktualizuj slupki limitow
+                var maxLimitKwota = Math.Max(Math.Max(limit100kKwota, limit300kKwota), Math.Max(limit500kKwota, limit500kPlusKwota));
+                if (maxLimitKwota > 0)
+                {
+                    barLimit100k.Width = (double)(limit100kKwota / maxLimitKwota) * maxBarWidth;
+                    barLimit300k.Width = (double)(limit300kKwota / maxLimitKwota) * maxBarWidth;
+                    barLimit500k.Width = (double)(limit500kKwota / maxLimitKwota) * maxBarWidth;
+                    barLimit500kPlus.Width = (double)(limit500kPlusKwota / maxLimitKwota) * maxBarWidth;
                 }
 
                 // Rysuj donut chart

@@ -1000,97 +1000,197 @@
                                         <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
-                                    <!-- Analiza wiekowa - nowe przedzialy -->
-                                    <Border Grid.Row="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="0,0,0,5">
-                                        <Grid>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="*"/>
-                                            </Grid.RowDefinitions>
-                                            <TextBlock Grid.Row="0" Text="ANALIZA WIEKOWA PRZETERMINOWAŃ" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold" Margin="0,0,0,8"/>
+                                    <!-- Analiza wiekowa + Przekroczone limity - dwie kolumny -->
+                                    <Grid Grid.Row="0" Margin="0,0,0,5">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
 
-                                            <Grid Grid.Row="1">
+                                        <!-- LEWA: Analiza wiekowa -->
+                                        <Border Grid.Column="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="0,0,4,0">
+                                            <Grid>
                                                 <Grid.RowDefinitions>
-                                                    <RowDefinition Height="*"/>
-                                                    <RowDefinition Height="*"/>
-                                                    <RowDefinition Height="*"/>
+                                                    <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="*"/>
                                                 </Grid.RowDefinitions>
+                                                <TextBlock Grid.Row="0" Text="ANALIZA WIEKOWA" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold" Margin="0,0,0,8"/>
 
-                                                <!-- 1-7 dni -->
-                                                <Border Grid.Row="0" Background="#1A1D21" CornerRadius="5" Padding="10" Margin="0,0,0,4">
-                                                    <Grid>
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="70"/>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="100"/>
-                                                            <ColumnDefinition Width="50"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <TextBlock Grid.Column="0" Text="1-7 DNI" FontSize="11" Foreground="#FCD34D" FontWeight="Bold" VerticalAlignment="Center"/>
-                                                        <Border Grid.Column="1" Background="#2D333B" CornerRadius="3" Height="16" VerticalAlignment="Center" Margin="10,0">
-                                                            <Border x:Name="barAging17" Background="#FCD34D" CornerRadius="3" HorizontalAlignment="Left" Width="0"/>
-                                                        </Border>
-                                                        <TextBlock Grid.Column="2" x:Name="txtAging17" Text="0 zl" FontSize="13" FontWeight="Bold" Foreground="#FCD34D" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                        <TextBlock Grid.Column="3" x:Name="txtAging17Procent" Text="0%" FontSize="10" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                    </Grid>
-                                                </Border>
+                                                <Grid Grid.Row="1">
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="*"/>
+                                                        <RowDefinition Height="*"/>
+                                                        <RowDefinition Height="*"/>
+                                                        <RowDefinition Height="*"/>
+                                                    </Grid.RowDefinitions>
 
-                                                <!-- 8-14 dni -->
-                                                <Border Grid.Row="1" Background="#1A1D21" CornerRadius="5" Padding="10" Margin="0,0,0,4">
-                                                    <Grid>
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="70"/>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="100"/>
-                                                            <ColumnDefinition Width="50"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <TextBlock Grid.Column="0" Text="8-14 DNI" FontSize="11" Foreground="#F97316" FontWeight="Bold" VerticalAlignment="Center"/>
-                                                        <Border Grid.Column="1" Background="#2D333B" CornerRadius="3" Height="16" VerticalAlignment="Center" Margin="10,0">
-                                                            <Border x:Name="barAging814" Background="#F97316" CornerRadius="3" HorizontalAlignment="Left" Width="0"/>
-                                                        </Border>
-                                                        <TextBlock Grid.Column="2" x:Name="txtAging814" Text="0 zl" FontSize="13" FontWeight="Bold" Foreground="#F97316" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                        <TextBlock Grid.Column="3" x:Name="txtAging814Procent" Text="0%" FontSize="10" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                    </Grid>
-                                                </Border>
+                                                    <!-- 1-7 dni -->
+                                                    <Border Grid.Row="0" Background="#1A1D21" CornerRadius="5" Padding="8" Margin="0,0,0,3">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="55"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="70"/>
+                                                                <ColumnDefinition Width="35"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Grid.Column="0" Text="1-7 DNI" FontSize="10" Foreground="#FCD34D" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                            <Border Grid.Column="1" Background="#2D333B" CornerRadius="3" Height="12" VerticalAlignment="Center" Margin="5,0">
+                                                                <Border x:Name="barAging17" Background="#FCD34D" CornerRadius="3" HorizontalAlignment="Left" Width="0"/>
+                                                            </Border>
+                                                            <TextBlock Grid.Column="2" x:Name="txtAging17" Text="0 zl" FontSize="11" FontWeight="Bold" Foreground="#FCD34D" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                            <TextBlock Grid.Column="3" x:Name="txtAging17Procent" Text="0%" FontSize="9" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                        </Grid>
+                                                    </Border>
 
-                                                <!-- 15-21 dni -->
-                                                <Border Grid.Row="2" Background="#1A1D21" CornerRadius="5" Padding="10" Margin="0,0,0,4">
-                                                    <Grid>
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="70"/>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="100"/>
-                                                            <ColumnDefinition Width="50"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <TextBlock Grid.Column="0" Text="15-21 DNI" FontSize="11" Foreground="#EF4444" FontWeight="Bold" VerticalAlignment="Center"/>
-                                                        <Border Grid.Column="1" Background="#2D333B" CornerRadius="3" Height="16" VerticalAlignment="Center" Margin="10,0">
-                                                            <Border x:Name="barAging1521" Background="#EF4444" CornerRadius="3" HorizontalAlignment="Left" Width="0"/>
-                                                        </Border>
-                                                        <TextBlock Grid.Column="2" x:Name="txtAging1521" Text="0 zl" FontSize="13" FontWeight="Bold" Foreground="#EF4444" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                        <TextBlock Grid.Column="3" x:Name="txtAging1521Procent" Text="0%" FontSize="10" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                    </Grid>
-                                                </Border>
+                                                    <!-- 8-14 dni -->
+                                                    <Border Grid.Row="1" Background="#1A1D21" CornerRadius="5" Padding="8" Margin="0,0,0,3">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="55"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="70"/>
+                                                                <ColumnDefinition Width="35"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Grid.Column="0" Text="8-14 DNI" FontSize="10" Foreground="#F97316" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                            <Border Grid.Column="1" Background="#2D333B" CornerRadius="3" Height="12" VerticalAlignment="Center" Margin="5,0">
+                                                                <Border x:Name="barAging814" Background="#F97316" CornerRadius="3" HorizontalAlignment="Left" Width="0"/>
+                                                            </Border>
+                                                            <TextBlock Grid.Column="2" x:Name="txtAging814" Text="0 zl" FontSize="11" FontWeight="Bold" Foreground="#F97316" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                            <TextBlock Grid.Column="3" x:Name="txtAging814Procent" Text="0%" FontSize="9" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                        </Grid>
+                                                    </Border>
 
-                                                <!-- 21+ dni -->
-                                                <Border Grid.Row="3" Background="#1A1D21" CornerRadius="5" Padding="10">
-                                                    <Grid>
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="70"/>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="100"/>
-                                                            <ColumnDefinition Width="50"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <TextBlock Grid.Column="0" Text="21+ DNI" FontSize="11" Foreground="#DC2626" FontWeight="Bold" VerticalAlignment="Center"/>
-                                                        <Border Grid.Column="1" Background="#2D333B" CornerRadius="3" Height="16" VerticalAlignment="Center" Margin="10,0">
-                                                            <Border x:Name="barAging21Plus" Background="#DC2626" CornerRadius="3" HorizontalAlignment="Left" Width="0"/>
-                                                        </Border>
-                                                        <TextBlock Grid.Column="2" x:Name="txtAging21Plus" Text="0 zl" FontSize="13" FontWeight="Bold" Foreground="#DC2626" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                        <TextBlock Grid.Column="3" x:Name="txtAging21PlusProcent" Text="0%" FontSize="10" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                    </Grid>
-                                                </Border>
+                                                    <!-- 15-21 dni -->
+                                                    <Border Grid.Row="2" Background="#1A1D21" CornerRadius="5" Padding="8" Margin="0,0,0,3">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="55"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="70"/>
+                                                                <ColumnDefinition Width="35"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Grid.Column="0" Text="15-21 DNI" FontSize="10" Foreground="#EF4444" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                            <Border Grid.Column="1" Background="#2D333B" CornerRadius="3" Height="12" VerticalAlignment="Center" Margin="5,0">
+                                                                <Border x:Name="barAging1521" Background="#EF4444" CornerRadius="3" HorizontalAlignment="Left" Width="0"/>
+                                                            </Border>
+                                                            <TextBlock Grid.Column="2" x:Name="txtAging1521" Text="0 zl" FontSize="11" FontWeight="Bold" Foreground="#EF4444" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                            <TextBlock Grid.Column="3" x:Name="txtAging1521Procent" Text="0%" FontSize="9" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                        </Grid>
+                                                    </Border>
+
+                                                    <!-- 21+ dni -->
+                                                    <Border Grid.Row="3" Background="#1A1D21" CornerRadius="5" Padding="8">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="55"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="70"/>
+                                                                <ColumnDefinition Width="35"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Grid.Column="0" Text="21+ DNI" FontSize="10" Foreground="#DC2626" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                            <Border Grid.Column="1" Background="#2D333B" CornerRadius="3" Height="12" VerticalAlignment="Center" Margin="5,0">
+                                                                <Border x:Name="barAging21Plus" Background="#DC2626" CornerRadius="3" HorizontalAlignment="Left" Width="0"/>
+                                                            </Border>
+                                                            <TextBlock Grid.Column="2" x:Name="txtAging21Plus" Text="0 zl" FontSize="11" FontWeight="Bold" Foreground="#DC2626" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                            <TextBlock Grid.Column="3" x:Name="txtAging21PlusProcent" Text="0%" FontSize="9" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                        </Grid>
+                                                    </Border>
+                                                </Grid>
                                             </Grid>
-                                        </Grid>
-                                    </Border>
+                                        </Border>
+
+                                        <!-- PRAWA: Przekroczone limity wg kwoty -->
+                                        <Border Grid.Column="1" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="4,0,0,0">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="*"/>
+                                                </Grid.RowDefinitions>
+                                                <TextBlock Grid.Row="0" Text="PRZEKROCZONE LIMITY" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold" Margin="0,0,0,8"/>
+
+                                                <Grid Grid.Row="1">
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="*"/>
+                                                        <RowDefinition Height="*"/>
+                                                        <RowDefinition Height="*"/>
+                                                        <RowDefinition Height="*"/>
+                                                    </Grid.RowDefinitions>
+
+                                                    <!-- do 100k -->
+                                                    <Border Grid.Row="0" Background="#1A1D21" CornerRadius="5" Padding="8" Margin="0,0,0,3">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="60"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="70"/>
+                                                                <ColumnDefinition Width="40"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Grid.Column="0" Text="do 100k" FontSize="10" Foreground="#10B981" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                            <Border Grid.Column="1" Background="#2D333B" CornerRadius="3" Height="12" VerticalAlignment="Center" Margin="5,0">
+                                                                <Border x:Name="barLimit100k" Background="#10B981" CornerRadius="3" HorizontalAlignment="Left" Width="0"/>
+                                                            </Border>
+                                                            <TextBlock Grid.Column="2" x:Name="txtLimit100k" Text="0 zl" FontSize="11" FontWeight="Bold" Foreground="#10B981" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                            <TextBlock Grid.Column="3" x:Name="txtLimit100kKlientow" Text="0 kl." FontSize="9" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                        </Grid>
+                                                    </Border>
+
+                                                    <!-- 100-300k -->
+                                                    <Border Grid.Row="1" Background="#1A1D21" CornerRadius="5" Padding="8" Margin="0,0,0,3">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="60"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="70"/>
+                                                                <ColumnDefinition Width="40"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Grid.Column="0" Text="100-300k" FontSize="10" Foreground="#F97316" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                            <Border Grid.Column="1" Background="#2D333B" CornerRadius="3" Height="12" VerticalAlignment="Center" Margin="5,0">
+                                                                <Border x:Name="barLimit300k" Background="#F97316" CornerRadius="3" HorizontalAlignment="Left" Width="0"/>
+                                                            </Border>
+                                                            <TextBlock Grid.Column="2" x:Name="txtLimit300k" Text="0 zl" FontSize="11" FontWeight="Bold" Foreground="#F97316" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                            <TextBlock Grid.Column="3" x:Name="txtLimit300kKlientow" Text="0 kl." FontSize="9" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                        </Grid>
+                                                    </Border>
+
+                                                    <!-- 300-500k -->
+                                                    <Border Grid.Row="2" Background="#1A1D21" CornerRadius="5" Padding="8" Margin="0,0,0,3">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="60"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="70"/>
+                                                                <ColumnDefinition Width="40"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Grid.Column="0" Text="300-500k" FontSize="10" Foreground="#EF4444" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                            <Border Grid.Column="1" Background="#2D333B" CornerRadius="3" Height="12" VerticalAlignment="Center" Margin="5,0">
+                                                                <Border x:Name="barLimit500k" Background="#EF4444" CornerRadius="3" HorizontalAlignment="Left" Width="0"/>
+                                                            </Border>
+                                                            <TextBlock Grid.Column="2" x:Name="txtLimit500k" Text="0 zl" FontSize="11" FontWeight="Bold" Foreground="#EF4444" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                            <TextBlock Grid.Column="3" x:Name="txtLimit500kKlientow" Text="0 kl." FontSize="9" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                        </Grid>
+                                                    </Border>
+
+                                                    <!-- 500k+ -->
+                                                    <Border Grid.Row="3" Background="#1A1D21" CornerRadius="5" Padding="8">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="60"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="70"/>
+                                                                <ColumnDefinition Width="40"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Grid.Column="0" Text="500k+" FontSize="10" Foreground="#DC2626" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                            <Border Grid.Column="1" Background="#2D333B" CornerRadius="3" Height="12" VerticalAlignment="Center" Margin="5,0">
+                                                                <Border x:Name="barLimit500kPlus" Background="#DC2626" CornerRadius="3" HorizontalAlignment="Left" Width="0"/>
+                                                            </Border>
+                                                            <TextBlock Grid.Column="2" x:Name="txtLimit500kPlus" Text="0 zl" FontSize="11" FontWeight="Bold" Foreground="#DC2626" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                            <TextBlock Grid.Column="3" x:Name="txtLimit500kPlusKlientow" Text="0 kl." FontSize="9" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                        </Grid>
+                                                    </Border>
+                                                </Grid>
+                                            </Grid>
+                                        </Border>
+                                    </Grid>
 
                                     <!-- Wskazniki platnosci -->
                                     <Border Grid.Row="1" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="15">
