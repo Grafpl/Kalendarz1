@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Windows.Media;
 
 namespace Kalendarz1.DashboardPrzychodu.Models
 {
@@ -36,11 +37,27 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         private DateTime _data;
         private string _hodowca;
         private string _hodowcaSkrot;
+        private int? _lpDostawy;                 // FK do HarmonogramDostaw.Lp
         private int _sztukiPlan;
         private decimal _kgPlan;
         private decimal? _sredniaWagaPlan;
-        private decimal? _wagaDeklHarmonogram;  // Średnia waga z HarmonogramDostaw
+        private decimal? _wagaDeklHarmonogram;  // Srednia waga z HarmonogramDostaw
         private decimal? _sztPojPlan;            // Szt/pojemnik z harmonogramu
+
+        // Plan laczny z harmonogramu
+        private int _planSztukiLacznie;
+        private decimal _planKgLacznie;
+        private int _autaPlanowane;
+
+        // Postep harmonogramu
+        private int _autaZwazone;
+        private int _autaOgolem;
+        private decimal _sztukiZwazoneSuma;
+        private decimal _kgZwazoneSuma;
+        private decimal _sztukiPozostalo;
+        private decimal _kgPozostalo;
+        private decimal _realizacjaProc;
+        private decimal _trendProc;
         private decimal _brutto;
         private decimal _tara;
         private decimal _kgRzeczywiste;
@@ -94,13 +111,332 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         }
 
         /// <summary>
-        /// Wyświetlana nazwa hodowcy - skrót lub pełna nazwa
+        /// Wyswietlana nazwa hodowcy - skrot lub pelna nazwa
         /// </summary>
         public string HodowcaDisplay => !string.IsNullOrWhiteSpace(HodowcaSkrot) ? HodowcaSkrot : Hodowca;
 
+        /// <summary>
+        /// FK do HarmonogramDostaw.Lp
+        /// </summary>
+        public int? LpDostawy
+        {
+            get => _lpDostawy;
+            set { _lpDostawy = value; OnPropertyChanged(); }
+        }
+
         #endregion
 
-        #region Properties - Plan (deklarowane przez hodowcę)
+        #region Properties - Plan laczny z harmonogramu
+
+        /// <summary>
+        /// Plan sztuk LACZNIE z harmonogramu (na wszystkie auta)
+        /// </summary>
+        public int PlanSztukiLacznie
+        {
+            get => _planSztukiLacznie;
+            set
+            {
+                _planSztukiLacznie = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(SztukiPlanNaAuto));
+            }
+        }
+
+        /// <summary>
+        /// Plan kg LACZNIE z harmonogramu (na wszystkie auta)
+        /// </summary>
+        public decimal PlanKgLacznie
+        {
+            get => _planKgLacznie;
+            set
+            {
+                _planKgLacznie = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(KgPlanNaAuto));
+            }
+        }
+
+        /// <summary>
+        /// Ile aut zaplanowano w harmonogramie
+        /// </summary>
+        public int AutaPlanowane
+        {
+            get => _autaPlanowane;
+            set
+            {
+                _autaPlanowane = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(SztukiPlanNaAuto));
+                OnPropertyChanged(nameof(KgPlanNaAuto));
+            }
+        }
+
+        #endregion
+
+        #region Properties - Postep harmonogramu
+
+        /// <summary>
+        /// Ile aut z tego harmonogramu juz zwazono
+        /// </summary>
+        public int AutaZwazone
+        {
+            get => _autaZwazone;
+            set
+            {
+                _autaZwazone = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(AutaCzekajacych));
+                OnPropertyChanged(nameof(PostepDisplay));
+                OnPropertyChanged(nameof(PostepProc));
+                OnPropertyChanged(nameof(TrendHodowcy));
+            }
+        }
+
+        /// <summary>
+        /// Ile aut ogolem (zwazone + oczekujace) z tego harmonogramu
+        /// </summary>
+        public int AutaOgolem
+        {
+            get => _autaOgolem;
+            set
+            {
+                _autaOgolem = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(AutaCzekajacych));
+                OnPropertyChanged(nameof(CzyOstatnieAuto));
+                OnPropertyChanged(nameof(PostepDisplay));
+                OnPropertyChanged(nameof(PostepProc));
+                OnPropertyChanged(nameof(SztukiPlanNaAuto));
+                OnPropertyChanged(nameof(KgPlanNaAuto));
+            }
+        }
+
+        /// <summary>
+        /// Ile aut jeszcze czeka na wazenie
+        /// </summary>
+        public int AutaCzekajacych => Math.Max(0, AutaOgolem - AutaZwazone);
+
+        /// <summary>
+        /// Suma juz zwazonych sztuk z tego harmonogramu
+        /// </summary>
+        public decimal SztukiZwazoneSuma
+        {
+            get => _sztukiZwazoneSuma;
+            set
+            {
+                _sztukiZwazoneSuma = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// Suma juz zwazonych kg z tego harmonogramu
+        /// </summary>
+        public decimal KgZwazoneSuma
+        {
+            get => _kgZwazoneSuma;
+            set
+            {
+                _kgZwazoneSuma = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// Ile sztuk pozostalo do zabrania z harmonogramu
+        /// </summary>
+        public decimal SztukiPozostalo
+        {
+            get => _sztukiPozostalo;
+            set
+            {
+                _sztukiPozostalo = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(SztukiPlanNaAuto));
+            }
+        }
+
+        /// <summary>
+        /// Ile kg pozostalo do zabrania z harmonogramu
+        /// </summary>
+        public decimal KgPozostalo
+        {
+            get => _kgPozostalo;
+            set
+            {
+                _kgPozostalo = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(TuszkiPozostalo));
+                OnPropertyChanged(nameof(PozostaloProc));
+                OnPropertyChanged(nameof(PozostaloKolor));
+                OnPropertyChanged(nameof(KgPlanNaAuto));
+            }
+        }
+
+        /// <summary>
+        /// Procent realizacji harmonogramu
+        /// </summary>
+        public decimal RealizacjaProc
+        {
+            get => _realizacjaProc;
+            set
+            {
+                _realizacjaProc = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// Trend hodowcy: srednia na zwazone auto vs plan na auto (100% = zgodnie z planem)
+        /// </summary>
+        public decimal TrendProc
+        {
+            get => _trendProc;
+            set
+            {
+                _trendProc = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(TrendHodowcy));
+            }
+        }
+
+        #endregion
+
+        #region Properties - Dynamiczny plan na auto
+
+        /// <summary>
+        /// Dynamiczny plan kg NA TO AUTO.
+        /// Jesli to ostatnie oczekujace auto: plan = POZOSTALO (reszta z harmonogramu)
+        /// W przeciwnym razie: plan = lacznie / ilosc aut
+        /// </summary>
+        public decimal KgPlanNaAuto
+        {
+            get
+            {
+                // Jesli to ostatnie oczekujace auto i jeszcze nie zwazone
+                if (CzyOstatnieAuto)
+                {
+                    return KgPozostalo;
+                }
+                // W przeciwnym razie: plan proporcjonalny
+                if (AutaPlanowane > 0)
+                {
+                    return Math.Round(PlanKgLacznie / AutaPlanowane, 0);
+                }
+                // Fallback do starej logiki
+                return KgPlan;
+            }
+        }
+
+        /// <summary>
+        /// Dynamiczny plan sztuk NA TO AUTO
+        /// </summary>
+        public int SztukiPlanNaAuto
+        {
+            get
+            {
+                if (CzyOstatnieAuto)
+                {
+                    return (int)SztukiPozostalo;
+                }
+                if (AutaPlanowane > 0)
+                {
+                    return (int)Math.Round((decimal)PlanSztukiLacznie / AutaPlanowane, 0);
+                }
+                return SztukiPlan;
+            }
+        }
+
+        /// <summary>
+        /// Czy to ostatnie oczekujace auto z harmonogramu (wtedy plan = reszta)
+        /// </summary>
+        public bool CzyOstatnieAuto => AutaCzekajacych <= 1 && Status == StatusDostawy.Oczekuje;
+
+        /// <summary>
+        /// Trend hodowcy tekstowo
+        /// </summary>
+        public string TrendHodowcy => TrendProc switch
+        {
+            < 95 => $"\u2193 {TrendProc:N0}% planu",
+            > 105 => $"\u2191 {TrendProc:N0}% planu",
+            _ => "\u2248 wg planu"
+        };
+
+        /// <summary>
+        /// Postep harmonogramu display
+        /// </summary>
+        public string PostepDisplay => $"{AutaZwazone}/{AutaOgolem} aut";
+
+        /// <summary>
+        /// Postep harmonogramu w procentach (do ProgressBar)
+        /// </summary>
+        public double PostepProc => AutaOgolem > 0 ? (double)AutaZwazone / AutaOgolem * 100 : 0;
+
+        /// <summary>
+        /// Tuszki pozostałe do dostarczenia (kg × 0.78)
+        /// </summary>
+        public decimal TuszkiPozostalo => Math.Round(KgPozostalo * 0.78m, 0);
+
+        /// <summary>
+        /// Procent pozostałego żywca względem planu (KgPozostalo / PlanKgLacznie * 100)
+        /// </summary>
+        public double PozostaloProc => PlanKgLacznie > 0 ? (double)(KgPozostalo / PlanKgLacznie) * 100 : 0;
+
+        /// <summary>
+        /// Kolor dla pozostałego żywca - czerwony gdy < 5%
+        /// </summary>
+        public Brush PozostaloKolor
+        {
+            get
+            {
+                if (PozostaloProc < 5)
+                    return new SolidColorBrush(System.Windows.Media.Color.FromRgb(248, 113, 113)); // Czerwony #F87171
+                return new SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 217, 255)); // Cyan #00D9FF
+            }
+        }
+
+        /// <summary>
+        /// Pozostalo display - kg żywca
+        /// </summary>
+        public string PozostaloKgDisplay => $"{KgPozostalo:N0} kg";
+
+        /// <summary>
+        /// Pozostalo display - tuszki
+        /// </summary>
+        public string PozostaloTuszkiDisplay => $"{TuszkiPozostalo:N0} kg tusz.";
+
+        /// <summary>
+        /// Kolor paska dla odchylenia (do wiazania w XAML)
+        /// Więcej niż plan = zawsze zielony (to dobrze!)
+        /// Mniej niż plan = zielony/żółty/czerwony w zależności od wielkości
+        /// </summary>
+        public Brush PasekKolor
+        {
+            get
+            {
+                var proc = OdchylenieProcCalc ?? OdchylenieProc;
+                if (!proc.HasValue || Status != StatusDostawy.Zwazony)
+                    return new SolidColorBrush(System.Windows.Media.Color.FromRgb(107, 114, 128)); // Szary
+
+                double procValue = (double)proc.Value;
+
+                // Więcej niż plan = zawsze zielony (to dobrze!)
+                if (procValue >= 0)
+                    return new SolidColorBrush(System.Windows.Media.Color.FromRgb(78, 204, 163));  // Zielony
+
+                // Mniej niż plan - sprawdzamy jak dużo brakuje
+                double absProc = Math.Abs(procValue);
+                if (absProc <= 2)
+                    return new SolidColorBrush(System.Windows.Media.Color.FromRgb(78, 204, 163));  // Zielony
+                if (absProc <= 5)
+                    return new SolidColorBrush(System.Windows.Media.Color.FromRgb(251, 191, 36));  // Zolty
+                return new SolidColorBrush(System.Windows.Media.Color.FromRgb(233, 69, 96));       // Czerwony
+            }
+        }
+
+        #endregion
+
+        #region Properties - Plan na pojedyncze auto (stare pola - fallback)
 
         public int SztukiPlan
         {
@@ -152,13 +488,13 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         public decimal Brutto
         {
             get => _brutto;
-            set { _brutto = value; OnPropertyChanged(); OnPropertyChanged(nameof(Status)); OnPropertyChanged(nameof(StatusText)); }
+            set { _brutto = value; OnPropertyChanged(); OnPropertyChanged(nameof(Status)); OnPropertyChanged(nameof(StatusText)); OnPropertyChanged(nameof(RozmiarDisplay)); }
         }
 
         public decimal Tara
         {
             get => _tara;
-            set { _tara = value; OnPropertyChanged(); OnPropertyChanged(nameof(Status)); OnPropertyChanged(nameof(StatusText)); }
+            set { _tara = value; OnPropertyChanged(); OnPropertyChanged(nameof(Status)); OnPropertyChanged(nameof(StatusText)); OnPropertyChanged(nameof(RozmiarDisplay)); }
         }
 
         public decimal KgRzeczywiste
@@ -173,6 +509,9 @@ namespace Kalendarz1.DashboardPrzychodu.Models
                 OnPropertyChanged(nameof(OdchylenieProcCalc));
                 OnPropertyChanged(nameof(OdchylenieDisplay));
                 OnPropertyChanged(nameof(Poziom));
+                OnPropertyChanged(nameof(WagaTuszkiKg));
+                OnPropertyChanged(nameof(SztukWPojemniku));
+                OnPropertyChanged(nameof(RozmiarDisplay));
             }
         }
 
@@ -184,6 +523,9 @@ namespace Kalendarz1.DashboardPrzychodu.Models
                 _sztukiRzeczywiste = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(SredniaWagaRzeczywistaCalc));
+                OnPropertyChanged(nameof(WagaTuszkiKg));
+                OnPropertyChanged(nameof(SztukWPojemniku));
+                OnPropertyChanged(nameof(RozmiarDisplay));
             }
         }
 
@@ -224,6 +566,52 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         public decimal? TuszkiRzeczywisteKg => Status == StatusDostawy.Zwazony && KgRzeczywiste > 0
             ? Math.Round(KgRzeczywiste * 0.78m, 0)
             : null;
+
+        /// <summary>
+        /// Waga tuszki [kg] = średnia waga rzeczywista * 78%
+        /// </summary>
+        public decimal? WagaTuszkiKg => SredniaWagaRzeczywistaCalc.HasValue
+            ? Math.Round(SredniaWagaRzeczywistaCalc.Value * 0.78m, 3)
+            : null;
+
+        /// <summary>
+        /// Obliczona ilość sztuk w pojemniku (15 kg / waga tuszki)
+        /// Rozmiary: 5-12 sztuk w pojemniku
+        /// </summary>
+        public decimal? SztukWPojemniku => WagaTuszkiKg.HasValue && WagaTuszkiKg > 0
+            ? Math.Round(15m / WagaTuszkiKg.Value, 2)
+            : null;
+
+        /// <summary>
+        /// Wyświetlany rozmiar kurczaka (np. "7/6" = dużo 7, trochę 6)
+        /// </summary>
+        public string RozmiarDisplay
+        {
+            get
+            {
+                if (!SztukWPojemniku.HasValue || Status != StatusDostawy.Zwazony)
+                    return "-";
+
+                decimal sztuk = SztukWPojemniku.Value;
+                int rozmiarGlowny = (int)Math.Round(sztuk);
+                decimal czescUlamkowa = sztuk - Math.Floor(sztuk);
+
+                // Jeśli wartość blisko całkowitej, pokaż jeden rozmiar
+                if (czescUlamkowa < 0.2m || czescUlamkowa > 0.8m)
+                {
+                    return rozmiarGlowny.ToString();
+                }
+
+                // Pokaż dwa rozmiary (główny/dodatkowy)
+                int rozmiarDodatkowy = czescUlamkowa >= 0.5m
+                    ? rozmiarGlowny - 1  // np. 6.7 -> "7/6"
+                    : rozmiarGlowny + 1; // np. 6.3 -> "6/7"
+
+                return czescUlamkowa >= 0.5m
+                    ? $"{rozmiarGlowny}/{rozmiarDodatkowy}"
+                    : $"{rozmiarGlowny}/{rozmiarDodatkowy}";
+            }
+        }
 
         #endregion
 
@@ -360,6 +748,8 @@ namespace Kalendarz1.DashboardPrzychodu.Models
 
         /// <summary>
         /// Poziom odchylenia do kolorowania
+        /// Więcej niż plan (>0) = zawsze OK (zielony) - to dobrze
+        /// Mniej niż plan (<0) = OK/Uwaga/Problem w zależności od wielkości
         /// </summary>
         public PoziomOdchylenia Poziom
         {
@@ -370,11 +760,17 @@ namespace Kalendarz1.DashboardPrzychodu.Models
                 if (!proc.HasValue || Status != StatusDostawy.Zwazony)
                     return PoziomOdchylenia.Brak;
 
-                double absProcent = Math.Abs((double)proc);
+                double procValue = (double)proc;
 
-                if (absProcent <= 2.0)
+                // Więcej niż plan = zawsze OK (to dobrze!)
+                if (procValue >= 0)
                     return PoziomOdchylenia.OK;
-                if (absProcent <= 5.0)
+
+                // Mniej niż plan - sprawdzamy jak dużo brakuje
+                double absProc = Math.Abs(procValue);
+                if (absProc <= 2.0)
+                    return PoziomOdchylenia.OK;
+                if (absProc <= 5.0)
                     return PoziomOdchylenia.Uwaga;
                 return PoziomOdchylenia.Problem;
             }

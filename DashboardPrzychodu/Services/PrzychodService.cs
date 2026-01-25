@@ -194,16 +194,74 @@ namespace Kalendarz1.DashboardPrzychodu.Services
         }
 
         /// <summary>
-        /// Pobiera listę dostaw żywca na dany dzień
-        /// PLAN z HarmonogramDostaw, RZECZYWISTE z FarmerCalc
+        /// Pobiera liste dostaw zywca na dany dzien z DYNAMICZNYM PLANEM.
+        /// PLAN z HarmonogramDostaw, RZECZYWISTE z FarmerCalc.
+        /// Ostatnie auto = RESZTA z harmonogramu (nie sztywny plan 1/n)
         /// </summary>
         public async Task<List<DostawaItem>> GetDostawyAsync(DateTime data)
         {
             var dostawy = new List<DostawaItem>();
 
-            // Nowe zapytanie: PLAN z HarmonogramDostaw (przez LpDostawy = Lp)
-            // UWAGA: hd.Auta może zawierać tekst jak '0-1', więc używamy TRY_CAST
+            // Zapytanie z CTE: dynamiczny plan gdzie ostatnie auto = RESZTA z harmonogramu
             const string query = @"
+                WITH SumaZwazonychPerHarmonogram AS (
+                    -- Suma juz zwazonych dla kazdego harmonogramu
+                    SELECT
+                        fc.LpDostawy,
+                        COUNT(*) AS AutaZwazone,
+                        SUM(ISNULL(fc.LumQnt, 0)) AS SztukiZwazoneSuma,
+                        SUM(ISNULL(fc.NettoWeight, 0)) AS KgZwazoneSuma
+                    FROM dbo.FarmerCalc fc
+                    WHERE fc.CalcDate = @Data
+                      AND ISNULL(fc.Deleted, 0) = 0
+                      AND ISNULL(fc.FullWeight, 0) > 0
+                      AND ISNULL(fc.EmptyWeight, 0) > 0  -- tylko zwazone (brutto + tara)
+                    GROUP BY fc.LpDostawy
+                ),
+                SumaWszystkichPerHarmonogram AS (
+                    -- Wszystkie auta (zwazone + oczekujace) dla kazdego harmonogramu
+                    SELECT
+                        fc.LpDostawy,
+                        COUNT(*) AS AutaOgolem
+                    FROM dbo.FarmerCalc fc
+                    WHERE fc.CalcDate = @Data
+                      AND ISNULL(fc.Deleted, 0) = 0
+                    GROUP BY fc.LpDostawy
+                ),
+                PozostaloPerHarmonogram AS (
+                    -- Obliczenie pozostalej ilosci dla kazdego harmonogramu
+                    SELECT
+                        fc.LpDostawy,
+                        hd.Lp AS HarmonogramLp,
+                        hd.Dostawca AS HodowcaHarmonogram,
+                        ISNULL(hd.SztukiDek, 0) AS PlanSztukiLacznie,
+                        CAST(ISNULL(hd.SztukiDek, 0) * ISNULL(hd.WagaDek, 0) AS DECIMAL(12,0)) AS PlanKgLacznie,
+                        ISNULL(hd.WagaDek, 0) AS WagaDekl,
+                        TRY_CAST(hd.SztSzuflada AS DECIMAL(10,2)) AS SztPojPlan,
+                        ISNULL(TRY_CAST(hd.Auta AS INT), 1) AS AutaPlanowane,
+                        ISNULL(sz.AutaZwazone, 0) AS AutaZwazone,
+                        ISNULL(sw.AutaOgolem, 0) AS AutaOgolem,
+                        ISNULL(sz.SztukiZwazoneSuma, 0) AS SztukiZwazoneSuma,
+                        ISNULL(sz.KgZwazoneSuma, 0) AS KgZwazoneSuma,
+                        -- POZOSTALO
+                        ISNULL(hd.SztukiDek, 0) - ISNULL(sz.SztukiZwazoneSuma, 0) AS SztukiPozostalo,
+                        CAST(ISNULL(hd.SztukiDek, 0) * ISNULL(hd.WagaDek, 0) AS DECIMAL(12,0)) - ISNULL(sz.KgZwazoneSuma, 0) AS KgPozostalo,
+                        -- Ile aut jeszcze czeka
+                        ISNULL(sw.AutaOgolem, 0) - ISNULL(sz.AutaZwazone, 0) AS AutaCzekajacych,
+                        -- Procent realizacji
+                        CASE WHEN CAST(ISNULL(hd.SztukiDek, 0) * ISNULL(hd.WagaDek, 0) AS DECIMAL(12,0)) > 0
+                             THEN CAST(ISNULL(sz.KgZwazoneSuma, 0) * 100.0 / (ISNULL(hd.SztukiDek, 0) * ISNULL(hd.WagaDek, 0)) AS DECIMAL(5,1))
+                             ELSE 0 END AS RealizacjaProc,
+                        -- Trend (srednia na zwazone auto vs plan na auto)
+                        CASE WHEN ISNULL(sz.AutaZwazone, 0) > 0 AND ISNULL(TRY_CAST(hd.Auta AS INT), 1) > 0
+                             THEN CAST((ISNULL(sz.KgZwazoneSuma, 0) / sz.AutaZwazone)
+                                  / NULLIF((CAST(ISNULL(hd.SztukiDek, 0) * ISNULL(hd.WagaDek, 0) AS DECIMAL(12,0)) / ISNULL(TRY_CAST(hd.Auta AS INT), 1)), 0) * 100 AS DECIMAL(5,1))
+                             ELSE 100 END AS TrendProc
+                    FROM (SELECT DISTINCT LpDostawy FROM dbo.FarmerCalc WHERE CalcDate = @Data AND ISNULL(Deleted, 0) = 0) fc
+                    LEFT JOIN dbo.HarmonogramDostaw hd ON fc.LpDostawy = hd.Lp
+                    LEFT JOIN SumaZwazonychPerHarmonogram sz ON fc.LpDostawy = sz.LpDostawy
+                    LEFT JOIN SumaWszystkichPerHarmonogram sw ON fc.LpDostawy = sw.LpDostawy
+                )
                 SELECT
                     fc.ID,
                     fc.CarLp AS NrKursu,
@@ -211,28 +269,37 @@ namespace Kalendarz1.DashboardPrzychodu.Services
                     fc.LpDostawy,
 
                     -- Hodowca
-                    ISNULL(d.Name, ISNULL(hd.Dostawca, 'Nieznany')) AS Hodowca,
+                    ISNULL(d.Name, ISNULL(ph.HodowcaHarmonogram, 'Nieznany')) AS Hodowca,
                     ISNULL(d.ShortName, '') AS HodowcaSkrot,
 
-                    -- ========== PLAN (z HarmonogramDostaw) ==========
-                    hd.Lp AS HarmonogramLp,
-                    ISNULL(hd.SztukiDek, 0) AS SztukiPlanLacznie,
-                    ISNULL(TRY_CAST(hd.Auta AS INT), 1) AS IloscAutPlan,
-                    ISNULL(hd.WagaDek, 0) AS WagaDeklHarmonogram,
-                    TRY_CAST(hd.SztSzuflada AS DECIMAL(10,2)) AS SztPojPlan,
+                    -- ========== PLAN LACZNY Z HARMONOGRAMU ==========
+                    ISNULL(ph.PlanSztukiLacznie, 0) AS PlanSztukiLacznie,
+                    ISNULL(ph.PlanKgLacznie, 0) AS PlanKgLacznie,
+                    ISNULL(ph.WagaDekl, 0) AS WagaDeklHarmonogram,
+                    ph.SztPojPlan,
+                    ISNULL(ph.AutaPlanowane, 1) AS AutaPlanowane,
 
-                    -- Plan na JEDNO auto (proporcjonalnie):
-                    -- TRY_CAST dla Auta - może zawierać tekst jak '0-1'
-                    CASE WHEN ISNULL(TRY_CAST(hd.Auta AS INT), 0) > 0
-                         THEN CAST(hd.SztukiDek / TRY_CAST(hd.Auta AS INT) AS INT)
-                         ELSE ISNULL(hd.SztukiDek, ISNULL(fc.DeclI1, 0)) END AS SztukiPlan,
+                    -- ========== POSTEP HARMONOGRAMU ==========
+                    ISNULL(ph.AutaZwazone, 0) AS AutaZwazone,
+                    ISNULL(ph.AutaOgolem, 0) AS AutaOgolem,
+                    ISNULL(ph.AutaCzekajacych, 0) AS AutaCzekajacych,
+                    ISNULL(ph.SztukiZwazoneSuma, 0) AS SztukiZwazoneSuma,
+                    ISNULL(ph.KgZwazoneSuma, 0) AS KgZwazoneSuma,
+                    ISNULL(ph.SztukiPozostalo, 0) AS SztukiPozostalo,
+                    ISNULL(ph.KgPozostalo, 0) AS KgPozostalo,
+                    ISNULL(ph.RealizacjaProc, 0) AS RealizacjaProc,
+                    ISNULL(ph.TrendProc, 100) AS TrendProc,
 
-                    CASE WHEN ISNULL(TRY_CAST(hd.Auta AS INT), 0) > 0
-                         THEN CAST((CAST(hd.SztukiDek AS DECIMAL) / TRY_CAST(hd.Auta AS INT)) * ISNULL(hd.WagaDek, 0) AS DECIMAL(12,0))
-                         ELSE CAST(ISNULL(hd.SztukiDek, ISNULL(fc.DeclI1, 0)) * ISNULL(hd.WagaDek, COALESCE(fc.WagaDek, 0)) AS DECIMAL(12,0)) END AS KgPlan,
+                    -- ========== PLAN NA POJEDYNCZE AUTO (proporcjonalny) ==========
+                    CASE WHEN ISNULL(ph.AutaPlanowane, 0) > 0
+                         THEN CAST(ISNULL(ph.PlanSztukiLacznie, 0) / ph.AutaPlanowane AS INT)
+                         ELSE ISNULL(fc.DeclI1, 0) END AS SztukiPlan,
+                    CASE WHEN ISNULL(ph.AutaPlanowane, 0) > 0
+                         THEN CAST(ISNULL(ph.PlanKgLacznie, 0) / ph.AutaPlanowane AS DECIMAL(12,0))
+                         ELSE CAST(ISNULL(fc.DeclI1, 0) * COALESCE(ph.WagaDekl, fc.WagaDek, 0) AS DECIMAL(12,0)) END AS KgPlan,
 
-                    -- Średnia waga deklarowana (z harmonogramu)
-                    CAST(ISNULL(hd.WagaDek, COALESCE(fc.WagaDek, 0)) AS DECIMAL(10,3)) AS SredniaWagaPlan,
+                    -- Srednia waga deklarowana
+                    CAST(ISNULL(ph.WagaDekl, COALESCE(fc.WagaDek, 0)) AS DECIMAL(10,3)) AS SredniaWagaPlan,
 
                     -- ========== RZECZYWISTE (z FarmerCalc - portier) ==========
                     CAST(ISNULL(fc.FullWeight, 0) AS DECIMAL(18,2)) AS Brutto,
@@ -240,7 +307,7 @@ namespace Kalendarz1.DashboardPrzychodu.Services
                     CAST(ISNULL(fc.NettoWeight, 0) AS DECIMAL(18,2)) AS KgRzeczywiste,
                     ISNULL(fc.LumQnt, 0) AS SztukiRzeczywiste,
 
-                    -- Średnia waga rzeczywista [kg/szt]
+                    -- Srednia waga rzeczywista [kg/szt]
                     CASE WHEN ISNULL(fc.LumQnt, 0) > 0 AND ISNULL(fc.NettoWeight, 0) > 0
                          THEN CAST(fc.NettoWeight / fc.LumQnt AS DECIMAL(10,3))
                          ELSE NULL END AS SredniaWagaRzeczywista,
@@ -248,31 +315,31 @@ namespace Kalendarz1.DashboardPrzychodu.Services
                     -- Rzeczywiste szt/pojemnik
                     TRY_CAST(fc.SztPoj AS DECIMAL(10,2)) AS SztPojRzecz,
 
-                    -- ========== ODCHYLENIE KG ==========
-                    CASE WHEN ISNULL(TRY_CAST(hd.Auta AS INT), 0) > 0 AND ISNULL(fc.NettoWeight, 0) > 0
-                         THEN CAST(fc.NettoWeight - ((CAST(hd.SztukiDek AS DECIMAL) / TRY_CAST(hd.Auta AS INT)) * ISNULL(hd.WagaDek, 0)) AS DECIMAL(12,0))
+                    -- ========== ODCHYLENIE KG (wzgledem planu na auto) ==========
+                    CASE WHEN ISNULL(ph.AutaPlanowane, 0) > 0 AND ISNULL(fc.NettoWeight, 0) > 0
+                         THEN CAST(fc.NettoWeight - (ISNULL(ph.PlanKgLacznie, 0) / ph.AutaPlanowane) AS DECIMAL(12,0))
                          WHEN ISNULL(fc.NettoWeight, 0) > 0 AND COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0) > 0
                          THEN CAST(fc.NettoWeight - COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0) AS DECIMAL(18,2))
                          ELSE NULL END AS OdchylenieKg,
 
                     -- Odchylenie %
-                    CASE WHEN ISNULL(TRY_CAST(hd.Auta AS INT), 0) > 0
+                    CASE WHEN ISNULL(ph.AutaPlanowane, 0) > 0
                               AND ISNULL(fc.NettoWeight, 0) > 0
-                              AND (CAST(hd.SztukiDek AS DECIMAL) / TRY_CAST(hd.Auta AS INT)) * ISNULL(hd.WagaDek, 0) > 0
+                              AND (ISNULL(ph.PlanKgLacznie, 0) / ph.AutaPlanowane) > 0
                          THEN CAST(
-                              (fc.NettoWeight - ((CAST(hd.SztukiDek AS DECIMAL) / TRY_CAST(hd.Auta AS INT)) * hd.WagaDek))
-                              / (((CAST(hd.SztukiDek AS DECIMAL) / TRY_CAST(hd.Auta AS INT)) * hd.WagaDek)) * 100
+                              (fc.NettoWeight - (ISNULL(ph.PlanKgLacznie, 0) / ph.AutaPlanowane))
+                              / (ISNULL(ph.PlanKgLacznie, 0) / ph.AutaPlanowane) * 100
                               AS DECIMAL(5,2))
                          WHEN ISNULL(fc.NettoWeight, 0) > 0 AND COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0) > 0
                          THEN CAST((fc.NettoWeight - COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0))
                               / NULLIF(COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0), 0) * 100 AS DECIMAL(10,2))
                          ELSE NULL END AS OdchylenieProc,
 
-                    -- ========== ODCHYLENIE ŚREDNIEJ WAGI ==========
+                    -- ========== ODCHYLENIE SREDNIEJ WAGI ==========
                     CASE WHEN ISNULL(fc.LumQnt, 0) > 0
                               AND ISNULL(fc.NettoWeight, 0) > 0
-                              AND ISNULL(hd.WagaDek, COALESCE(fc.WagaDek, 0)) > 0
-                         THEN CAST((fc.NettoWeight / fc.LumQnt) - ISNULL(hd.WagaDek, COALESCE(fc.WagaDek, 0)) AS DECIMAL(10,3))
+                              AND ISNULL(ph.WagaDekl, COALESCE(fc.WagaDek, 0)) > 0
+                         THEN CAST((fc.NettoWeight / fc.LumQnt) - ISNULL(ph.WagaDekl, COALESCE(fc.WagaDek, 0)) AS DECIMAL(10,3))
                          ELSE NULL END AS OdchylenieWagi,
 
                     -- ========== STATUS ==========
@@ -292,7 +359,7 @@ namespace Kalendarz1.DashboardPrzychodu.Services
                     fc.SlaughterWeightUser AS KtoWazyl
 
                 FROM dbo.FarmerCalc fc
-                LEFT JOIN dbo.HarmonogramDostaw hd ON fc.LpDostawy = hd.Lp
+                LEFT JOIN PozostaloPerHarmonogram ph ON fc.LpDostawy = ph.LpDostawy
                 LEFT JOIN dbo.Dostawcy d ON LTRIM(RTRIM(CAST(d.ID AS NVARCHAR(20)))) = LTRIM(RTRIM(fc.CustomerGID))
                 WHERE fc.CalcDate = @Data
                   AND ISNULL(fc.Deleted, 0) = 0
@@ -317,14 +384,30 @@ namespace Kalendarz1.DashboardPrzychodu.Services
                                     ID = reader.GetInt32(reader.GetOrdinal("ID")),
                                     NrKursu = reader.IsDBNull(reader.GetOrdinal("NrKursu")) ? 0 : reader.GetInt32(reader.GetOrdinal("NrKursu")),
                                     Data = reader.GetDateTime(reader.GetOrdinal("Data")),
+                                    LpDostawy = reader.IsDBNull(reader.GetOrdinal("LpDostawy")) ? null : reader.GetInt32(reader.GetOrdinal("LpDostawy")),
                                     Hodowca = reader.GetString(reader.GetOrdinal("Hodowca")),
                                     HodowcaSkrot = reader.GetString(reader.GetOrdinal("HodowcaSkrot")),
 
-                                    // Plan z HarmonogramDostaw
+                                    // Plan laczny z harmonogramu
+                                    PlanSztukiLacznie = reader.IsDBNull(reader.GetOrdinal("PlanSztukiLacznie")) ? 0 : Convert.ToInt32(reader.GetValue(reader.GetOrdinal("PlanSztukiLacznie"))),
+                                    PlanKgLacznie = reader.IsDBNull(reader.GetOrdinal("PlanKgLacznie")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("PlanKgLacznie"))),
+                                    AutaPlanowane = reader.IsDBNull(reader.GetOrdinal("AutaPlanowane")) ? 1 : reader.GetInt32(reader.GetOrdinal("AutaPlanowane")),
+
+                                    // Postep harmonogramu
+                                    AutaZwazone = reader.IsDBNull(reader.GetOrdinal("AutaZwazone")) ? 0 : reader.GetInt32(reader.GetOrdinal("AutaZwazone")),
+                                    AutaOgolem = reader.IsDBNull(reader.GetOrdinal("AutaOgolem")) ? 0 : reader.GetInt32(reader.GetOrdinal("AutaOgolem")),
+                                    SztukiZwazoneSuma = reader.IsDBNull(reader.GetOrdinal("SztukiZwazoneSuma")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("SztukiZwazoneSuma"))),
+                                    KgZwazoneSuma = reader.IsDBNull(reader.GetOrdinal("KgZwazoneSuma")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("KgZwazoneSuma"))),
+                                    SztukiPozostalo = reader.IsDBNull(reader.GetOrdinal("SztukiPozostalo")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("SztukiPozostalo"))),
+                                    KgPozostalo = reader.IsDBNull(reader.GetOrdinal("KgPozostalo")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("KgPozostalo"))),
+                                    RealizacjaProc = reader.IsDBNull(reader.GetOrdinal("RealizacjaProc")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("RealizacjaProc"))),
+                                    TrendProc = reader.IsDBNull(reader.GetOrdinal("TrendProc")) ? 100 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("TrendProc"))),
+
+                                    // Plan na pojedyncze auto
                                     SztukiPlan = reader.IsDBNull(reader.GetOrdinal("SztukiPlan")) ? 0 : reader.GetInt32(reader.GetOrdinal("SztukiPlan")),
                                     KgPlan = reader.IsDBNull(reader.GetOrdinal("KgPlan")) ? 0 : reader.GetDecimal(reader.GetOrdinal("KgPlan")),
                                     SredniaWagaPlan = reader.IsDBNull(reader.GetOrdinal("SredniaWagaPlan")) ? null : reader.GetDecimal(reader.GetOrdinal("SredniaWagaPlan")),
-                                    WagaDeklHarmonogram = reader.IsDBNull(reader.GetOrdinal("WagaDeklHarmonogram")) ? null : reader.GetDecimal(reader.GetOrdinal("WagaDeklHarmonogram")),
+                                    WagaDeklHarmonogram = reader.IsDBNull(reader.GetOrdinal("WagaDeklHarmonogram")) ? null : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("WagaDeklHarmonogram"))),
                                     SztPojPlan = reader.IsDBNull(reader.GetOrdinal("SztPojPlan")) ? null : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("SztPojPlan"))),
 
                                     // Rzeczywiste
@@ -505,7 +588,171 @@ namespace Kalendarz1.DashboardPrzychodu.Services
         }
 
         /// <summary>
-        /// Testuje połączenie z bazą danych
+        /// Pobiera prognoze koncowa dnia z alertem redukcji zamowien.
+        /// Prognoza = KgZwazone * (AutaOgolem / AutaZwazone)
+        /// </summary>
+        public async Task<PrognozaDnia> GetPrognozaDniaAsync(DateTime data)
+        {
+            var prognoza = new PrognozaDnia();
+
+            const string query = @"
+                WITH DaneDnia AS (
+                    SELECT
+                        SUM(ISNULL(fc.NettoWeight, 0)) AS KgZwazone,
+                        SUM(CASE WHEN ISNULL(fc.FullWeight,0) > 0 AND ISNULL(fc.EmptyWeight,0) > 0
+                                 THEN 1 ELSE 0 END) AS AutaZwazone,
+                        COUNT(*) AS AutaOgolem
+                    FROM dbo.FarmerCalc fc
+                    WHERE fc.CalcDate = @Data
+                      AND ISNULL(fc.Deleted, 0) = 0
+                ),
+                PlanDnia AS (
+                    SELECT
+                        SUM(CAST(ISNULL(hd.SztukiDek, 0) * ISNULL(hd.WagaDek, 0) AS DECIMAL(12,0))) AS KgPlanLacznie
+                    FROM (SELECT DISTINCT LpDostawy FROM dbo.FarmerCalc WHERE CalcDate = @Data AND ISNULL(Deleted, 0) = 0 AND LpDostawy IS NOT NULL) fc
+                    INNER JOIN dbo.HarmonogramDostaw hd ON fc.LpDostawy = hd.Lp
+                )
+                SELECT
+                    ISNULL(p.KgPlanLacznie, 0) AS KgPlanLacznie,
+                    ISNULL(d.KgZwazone, 0) AS KgZwazone,
+                    ISNULL(d.AutaZwazone, 0) AS AutaZwazone,
+                    ISNULL(d.AutaOgolem, 0) AS AutaOgolem
+                FROM DaneDnia d
+                CROSS JOIN PlanDnia p";
+
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+                    using (var cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Data", data.Date);
+                        cmd.CommandTimeout = 30;
+
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            if (await reader.ReadAsync())
+                            {
+                                prognoza.KgPlanLacznie = reader.IsDBNull(reader.GetOrdinal("KgPlanLacznie")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("KgPlanLacznie")));
+                                prognoza.KgZwazone = reader.IsDBNull(reader.GetOrdinal("KgZwazone")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("KgZwazone")));
+                                prognoza.AutaZwazone = reader.IsDBNull(reader.GetOrdinal("AutaZwazone")) ? 0 : Convert.ToInt32(reader.GetValue(reader.GetOrdinal("AutaZwazone")));
+                                prognoza.AutaOgolem = reader.IsDBNull(reader.GetOrdinal("AutaOgolem")) ? 0 : Convert.ToInt32(reader.GetValue(reader.GetOrdinal("AutaOgolem")));
+                            }
+                        }
+                    }
+                }
+
+                Debug.WriteLine($"[PrzychodService] Prognoza: Plan {prognoza.KgPlanLacznie:N0} kg, Zwazone {prognoza.KgZwazone:N0} kg, Trend {prognoza.TrendProc:N0}%");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[PrzychodService] Blad GetPrognozaDniaAsync: {ex.Message}");
+                LastDiagnosticError = $"Blad prognozy: {ex.Message}\n\nStack trace:\n{ex.StackTrace}";
+                throw;
+            }
+
+            return prognoza;
+        }
+
+        /// <summary>
+        /// Pobiera liste postepow realizacji harmonogramow per hodowca.
+        /// </summary>
+        public async Task<List<PostepHarmonogramu>> GetPostepyHarmonogramowAsync(DateTime data)
+        {
+            var postepy = new List<PostepHarmonogramu>();
+
+            const string query = @"
+                WITH SumaZwazonychPerHarmonogram AS (
+                    SELECT
+                        fc.LpDostawy,
+                        COUNT(*) AS AutaZwazone,
+                        SUM(ISNULL(fc.LumQnt, 0)) AS SztukiZwazoneSuma,
+                        SUM(ISNULL(fc.NettoWeight, 0)) AS KgZwazoneSuma
+                    FROM dbo.FarmerCalc fc
+                    WHERE fc.CalcDate = @Data
+                      AND ISNULL(fc.Deleted, 0) = 0
+                      AND ISNULL(fc.FullWeight, 0) > 0
+                      AND ISNULL(fc.EmptyWeight, 0) > 0
+                    GROUP BY fc.LpDostawy
+                ),
+                SumaWszystkichPerHarmonogram AS (
+                    SELECT
+                        fc.LpDostawy,
+                        COUNT(*) AS AutaOgolem
+                    FROM dbo.FarmerCalc fc
+                    WHERE fc.CalcDate = @Data
+                      AND ISNULL(fc.Deleted, 0) = 0
+                    GROUP BY fc.LpDostawy
+                )
+                SELECT
+                    hd.Lp AS LpDostawy,
+                    ISNULL(hd.Dostawca, 'Nieznany') AS Hodowca,
+                    ISNULL(sz.AutaZwazone, 0) AS AutaZwazone,
+                    ISNULL(sw.AutaOgolem, 0) AS AutaOgolem,
+                    ISNULL(TRY_CAST(hd.Auta AS INT), 1) AS AutaPlanowane,
+                    ISNULL(hd.SztukiDek, 0) AS PlanSztukiLacznie,
+                    CAST(ISNULL(hd.SztukiDek, 0) * ISNULL(hd.WagaDek, 0) AS DECIMAL(12,0)) AS PlanKgLacznie,
+                    ISNULL(sz.SztukiZwazoneSuma, 0) AS SztukiZwazoneSuma,
+                    ISNULL(sz.KgZwazoneSuma, 0) AS KgZwazoneSuma,
+                    hd.WagaDek AS SredniaWagaPlan,
+                    CASE WHEN ISNULL(sz.SztukiZwazoneSuma, 0) > 0
+                         THEN CAST(sz.KgZwazoneSuma AS DECIMAL(12,3)) / sz.SztukiZwazoneSuma
+                         ELSE NULL END AS SredniaWagaRzecz
+                FROM (SELECT DISTINCT LpDostawy FROM dbo.FarmerCalc WHERE CalcDate = @Data AND ISNULL(Deleted, 0) = 0 AND LpDostawy IS NOT NULL) fc
+                INNER JOIN dbo.HarmonogramDostaw hd ON fc.LpDostawy = hd.Lp
+                LEFT JOIN SumaZwazonychPerHarmonogram sz ON fc.LpDostawy = sz.LpDostawy
+                LEFT JOIN SumaWszystkichPerHarmonogram sw ON fc.LpDostawy = sw.LpDostawy
+                ORDER BY hd.Dostawca";
+
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+                    using (var cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Data", data.Date);
+                        cmd.CommandTimeout = 30;
+
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                var item = new PostepHarmonogramu
+                                {
+                                    LpDostawy = reader.GetInt32(reader.GetOrdinal("LpDostawy")),
+                                    Hodowca = reader.GetString(reader.GetOrdinal("Hodowca")),
+                                    AutaZwazone = reader.IsDBNull(reader.GetOrdinal("AutaZwazone")) ? 0 : reader.GetInt32(reader.GetOrdinal("AutaZwazone")),
+                                    AutaOgolem = reader.IsDBNull(reader.GetOrdinal("AutaOgolem")) ? 0 : reader.GetInt32(reader.GetOrdinal("AutaOgolem")),
+                                    AutaPlanowane = reader.IsDBNull(reader.GetOrdinal("AutaPlanowane")) ? 1 : reader.GetInt32(reader.GetOrdinal("AutaPlanowane")),
+                                    PlanSztukiLacznie = reader.IsDBNull(reader.GetOrdinal("PlanSztukiLacznie")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("PlanSztukiLacznie"))),
+                                    PlanKgLacznie = reader.IsDBNull(reader.GetOrdinal("PlanKgLacznie")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("PlanKgLacznie"))),
+                                    SztukiZwazoneSuma = reader.IsDBNull(reader.GetOrdinal("SztukiZwazoneSuma")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("SztukiZwazoneSuma"))),
+                                    KgZwazoneSuma = reader.IsDBNull(reader.GetOrdinal("KgZwazoneSuma")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("KgZwazoneSuma"))),
+                                    SredniaWagaPlan = reader.IsDBNull(reader.GetOrdinal("SredniaWagaPlan")) ? null : (decimal?)Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("SredniaWagaPlan"))),
+                                    SredniaWagaRzecz = reader.IsDBNull(reader.GetOrdinal("SredniaWagaRzecz")) ? null : (decimal?)Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("SredniaWagaRzecz")))
+                                };
+                                postepy.Add(item);
+                            }
+                        }
+                    }
+                }
+
+                Debug.WriteLine($"[PrzychodService] Pobrano {postepy.Count} harmonogramow");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[PrzychodService] Blad GetPostepyHarmonogramowAsync: {ex.Message}");
+                LastDiagnosticError = $"Blad postepow: {ex.Message}\n\nStack trace:\n{ex.StackTrace}";
+                throw;
+            }
+
+            return postepy;
+        }
+
+        /// <summary>
+        /// Testuje polaczenie z baza danych
         /// </summary>
         public async Task<bool> TestConnectionAsync()
         {
@@ -522,6 +769,85 @@ namespace Kalendarz1.DashboardPrzychodu.Services
                 Debug.WriteLine($"[PrzychodService] Test połączenia nieudany: {ex.Message}");
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Pobiera faktyczny przychód produkcji (PWU) z systemu Symfonia (Handel)
+        /// Zwraca (FaktKlasaA, FaktKlasaB) w kg
+        /// Seria sPWU = Przychód Wewnętrzny Uboju
+        /// Kurczak A = produkty z katalogów 67095/67153 gdzie kod zawiera "Kurczak A"
+        /// Kurczak B = produkty z katalogów 67095/67153 gdzie kod zawiera "Kurczak B"
+        /// </summary>
+        public async Task<(decimal KlasaA, decimal KlasaB)> GetFaktycznyPrzychodAsync(DateTime data)
+        {
+            decimal faktA = 0;
+            decimal faktB = 0;
+
+            // Connection string do bazy Handel (Symfonia)
+            const string handelConnStr =
+                "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True;Connection Timeout=10;";
+
+            // Zapytanie pobierające sumy z dokumentów PWU (Przychód Wewnętrzny Uboju)
+            // Grupuje po nazwie produktu - Kurczak A vs Kurczak B
+            const string query = @"
+                SELECT
+                    CASE
+                        WHEN TW.kod LIKE '%Kurczak A%' THEN 'A'
+                        WHEN TW.kod LIKE '%Kurczak B%' THEN 'B'
+                        ELSE 'X'
+                    END AS Klasa,
+                    SUM(ABS(MZ.ilosc)) AS Ilosc
+                FROM [HM].[MZ] MZ
+                JOIN [HM].[MG] MG ON MZ.super = MG.id
+                JOIN [HM].[TW] TW ON MZ.idtw = TW.ID
+                WHERE MG.seria = 'sPWU'
+                  AND MG.aktywny = 1
+                  AND MG.data = @Data
+                  AND TW.katalog IN (67095, 67153)
+                GROUP BY CASE
+                    WHEN TW.kod LIKE '%Kurczak A%' THEN 'A'
+                    WHEN TW.kod LIKE '%Kurczak B%' THEN 'B'
+                    ELSE 'X'
+                END";
+
+            try
+            {
+                using (var conn = new SqlConnection(handelConnStr))
+                {
+                    await conn.OpenAsync();
+                    using (var cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Data", data.Date);
+                        cmd.CommandTimeout = 15;
+
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                string klasa = reader.IsDBNull(reader.GetOrdinal("Klasa"))
+                                    ? "X" : reader.GetString(reader.GetOrdinal("Klasa"));
+                                decimal ilosc = reader.IsDBNull(reader.GetOrdinal("Ilosc"))
+                                    ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("Ilosc")));
+
+                                if (klasa == "A")
+                                    faktA = ilosc;
+                                else if (klasa == "B")
+                                    faktB = ilosc;
+                            }
+                        }
+                    }
+                }
+
+                Debug.WriteLine($"[PrzychodService] Faktyczny przychód Symfonia (sPWU): A={faktA:N0} kg, B={faktB:N0} kg");
+            }
+            catch (Exception ex)
+            {
+                // Nie rzucamy błędu - dane z Symfonia są opcjonalne
+                Debug.WriteLine($"[PrzychodService] Błąd GetFaktycznyPrzychodAsync (Handel): {ex.Message}");
+                // Zwracamy zera - UI pokaże "-"
+            }
+
+            return (faktA, faktB);
         }
     }
 }

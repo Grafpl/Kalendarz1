@@ -1716,6 +1716,7 @@ namespace Kalendarz1
                 new ModuleInfo("PrognozyUboju", "Prognoza Uboju", "Analiza średnich zakupów żywca", "Planowanie i Analizy", "🔮"),
                 new ModuleInfo("PlanTygodniowy", "Plan Tygodniowy", "Harmonogram uboju i krojenia", "Planowanie i Analizy", "🗓️"),
                 new ModuleInfo("AnalizaTygodniowa", "Dashboard Analityczny", "Analiza produkcji i sprzedaży", "Planowanie i Analizy", "📉"),
+                new ModuleInfo("DashboardPrzychodu", "Przychód Żywca LIVE", "Dashboard przyjęć żywca w czasie rzeczywistym", "Planowanie i Analizy", "🐔"),
 
                 // ═══════════════════════════════════════════════════════════════════════
                 // OPAKOWANIA I TRANSPORT - Turkusowy
@@ -1792,7 +1793,8 @@ namespace Kalendarz1
                 [41] = "KontrolaGodzin",
                 [42] = "CentrumSpotkan",
                 [43] = "PanelPaniJola",
-                [44] = "KomunikatorFirmowy"
+                [44] = "KomunikatorFirmowy",
+                [46] = "DashboardPrzychodu"
             };
         }
 

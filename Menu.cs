@@ -1086,7 +1086,8 @@ namespace Kalendarz1
                 [42] = "CentrumSpotkan",
                 [43] = "PanelPaniJola",
                 [44] = "KomunikatorFirmowy",
-                [45] = "RozliczeniaAvilog"
+                [45] = "RozliczeniaAvilog",
+                [46] = "DashboardPrzychodu"
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)

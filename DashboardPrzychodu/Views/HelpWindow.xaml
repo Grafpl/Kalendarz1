@@ -1,0 +1,191 @@
+<Window x:Class="Kalendarz1.DashboardPrzychodu.Views.HelpWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Jak czytac Dashboard Przychodu Zywca"
+        Height="700" Width="900"
+        MinHeight="500" MinWidth="700"
+        WindowStartupLocation="CenterOwner"
+        Background="#1A1A2E"
+        ResizeMode="CanResize">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="CardBackgroundBrush" Color="#1E2A47"/>
+    </Window.Resources>
+
+    <Border Background="#1A1A2E" Padding="20">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <!-- NAGLOWEK -->
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+                    <TextBlock Text="?" FontSize="24" FontWeight="Bold" Foreground="White"
+                               Background="#0F3460" Padding="12,6" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                    <TextBlock Text="JAK CZYTAC TEN DASHBOARD?" FontSize="20" FontWeight="Bold"
+                               Foreground="White" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- SEKCJA 1: KAFELKI -->
+                <Border Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="20" Margin="0,0,0,15">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                            <!-- Ikona zywca - ptak -->
+                            <Path Data="M16,5C15,5 14.14,5.27 13.36,5.73L12.68,5.06L11.27,6.47L11.95,7.14C11.35,7.93 11,8.92 11,10A6,6 0 0,0 17,16C18.08,16 19.07,15.65 19.86,15.05L20.53,15.73L21.94,14.31L21.27,13.64C21.73,12.86 22,11.96 22,11A6,6 0 0,0 16,5M15,10A1,1 0 0,1 16,11A1,1 0 0,1 15,12A1,1 0 0,1 14,11A1,1 0 0,1 15,10M3,12L7,8.5V10H9L10.18,12H9V13.5L3,12Z"
+                                  Fill="White" Width="24" Height="24" Stretch="Uniform" Margin="0,0,10,0"/>
+                            <TextBlock Text="KAFELKI ZYWCA" FontWeight="Bold" Foreground="White" FontSize="14" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock TextWrapping="Wrap" Foreground="#E2E8F0" FontSize="12" LineHeight="22">
+                            <Run FontWeight="Bold" Foreground="#6B7280">PLANOWANE</Run>
+                            <Run> - ile kg zywca hodowcy zadeklarowali na dzis</Run>
+                            <LineBreak/>
+                            <Run FontWeight="Bold" Foreground="#4ECCA3">ZWAZONE</Run>
+                            <Run> - ile kg juz przyjeto i zwazono</Run>
+                            <LineBreak/>
+                            <Run FontWeight="Bold" Foreground="#00D9FF">POZOSTALO</Run>
+                            <Run> - ile kg jeszcze czeka na wazenie</Run>
+                            <LineBreak/>
+                            <Run FontWeight="Bold" Foreground="#A0AEC0">ODCHYLENIE</Run>
+                            <Run> - roznica miedzy planem a rzeczywistoscia</Run>
+                            <LineBreak/>
+                            <Run FontWeight="Bold" Foreground="#A78BFA">SR.WAGA DEKL.</Run>
+                            <Run> - srednia waga sztuki wg hodowcy</Run>
+                            <LineBreak/>
+                            <Run FontWeight="Bold" Foreground="#4ECCA3">SR.WAGA RZECZ.</Run>
+                            <Run> - faktyczna srednia waga z wagi</Run>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+
+                <!-- SEKCJA 2: TUSZKI -->
+                <Border Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="20" Margin="0,0,0,15">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                            <!-- Ikona tuszki - udko kurczaka -->
+                            <Path Data="M15.53,7.46C17.49,9.42 17.49,12.58 15.53,14.54C13.57,16.5 10.41,16.5 8.45,14.54L2.39,20.6L1,19.19L7.05,13.13L3.5,9.58C2.5,8.58 2.5,6.92 3.5,5.92C4.5,4.92 6.16,4.92 7.16,5.92L10.71,9.47L15.24,4.93C14.66,3.83 14.81,2.41 15.7,1.48C16.84,0.34 18.69,0.34 19.83,1.48C20.97,2.62 20.97,4.48 19.83,5.62C18.93,6.51 17.55,6.66 16.46,6.1L11.91,10.65L14.21,12.95L7.75,19.44L6.34,18.03L12.79,11.57L10.49,9.26L11.12,8.63L15.53,7.46Z"
+                                  Fill="White" Width="24" Height="24" Stretch="Uniform" Margin="0,0,10,0"/>
+                            <TextBlock Text="PROGNOZA TUSZEK" FontWeight="Bold" Foreground="White" FontSize="14" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock TextWrapping="Wrap" Foreground="#E2E8F0" FontSize="12" LineHeight="22">
+                            <Run>Ile kg tuszek dostaniemy po uboju:</Run>
+                            <LineBreak/>
+                            <Run>• </Run><Run FontWeight="Bold">78%</Run><Run> wydajnosc uboju (zywiec -> tuszka)</Run>
+                            <LineBreak/>
+                            <Run>• </Run><Run FontWeight="Bold" Foreground="#4ECCA3">Klasa A (80%)</Run><Run> - tuszki pierwszej jakosci</Run>
+                            <LineBreak/>
+                            <Run>• </Run><Run FontWeight="Bold" Foreground="#FFB347">Klasa B (20%)</Run><Run> - tuszki drugiej jakosci</Run>
+                            <LineBreak/><LineBreak/>
+                            <Run FontWeight="Bold" Foreground="#4ECCA3">+X kg tuszek</Run><Run> = hodowca przywiozl WIECEJ niz deklarowal</Run>
+                            <LineBreak/>
+                            <Run FontWeight="Bold" Foreground="#F87171">-X kg tuszek</Run><Run> = hodowca przywiozl MNIEJ niz deklarowal</Run>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+
+                <!-- SEKCJA 3: KOLORY -->
+                <Border Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="20" Margin="0,0,0,15">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                            <TextBlock Text="▶" FontSize="18" Foreground="White" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="ZNACZENIE KOLOROW" FontWeight="Bold" Foreground="White" FontSize="14" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock TextWrapping="Wrap" Foreground="#E2E8F0" FontSize="12" LineHeight="22">
+                            <Run>Kolorowy pasek przy wierszu pokazuje odchylenie:</Run>
+                            <LineBreak/>
+                            <Run>• </Run><Run FontWeight="Bold" Foreground="#4ECCA3">ZIELONY (±2%)</Run><Run> - OK, norma</Run>
+                            <LineBreak/>
+                            <Run>• </Run><Run FontWeight="Bold" Foreground="#FFB347">POMARANCZOWY (±5%)</Run><Run> - Uwaga</Run>
+                            <LineBreak/>
+                            <Run>• </Run><Run FontWeight="Bold" Foreground="#F87171">CZERWONY (>5%)</Run><Run> - Problem!</Run>
+                            <LineBreak/><LineBreak/>
+                            <Run FontWeight="Bold">Statusy w tabeli:</Run>
+                            <LineBreak/>
+                            <Run>✓ Zwazony (gotowe)</Run>
+                            <LineBreak/>
+                            <Run>⏳ Tylko brutto (w trakcie)</Run>
+                            <LineBreak/>
+                            <Run>● Oczekuje (brak wag)</Run>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+
+                <!-- SEKCJA 4: PROGNOZA I REDUKCJA -->
+                <Border Background="#0F172A" CornerRadius="8" Padding="20" Margin="0,0,0,15">
+                    <StackPanel>
+                        <TextBlock Text="PROGNOZA I REDUKCJA ZAMOWIEN" FontWeight="Bold" Foreground="#F59E0B" FontSize="14" Margin="0,0,0,15"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="0,0,15,0">
+                                <TextBlock TextWrapping="Wrap" Foreground="#E2E8F0" FontSize="12" LineHeight="22">
+                                    <Run FontWeight="Bold" Foreground="#60A5FA">Jak dziala prognoza?</Run>
+                                    <LineBreak/>
+                                    <Run>System analizuje ile kg przywoza zwazone auta i prognozuje ile bedzie na koniec dnia.</Run>
+                                    <LineBreak/>
+                                    <Run>Jesli hodowcy daja MNIEJ niz deklarowali - zobaczysz alert z kwota redukcji zamowien.</Run>
+                                    <LineBreak/><LineBreak/>
+                                    <Run FontWeight="Bold" Foreground="#60A5FA">Co oznaczaja kolory alertu?</Run>
+                                    <LineBreak/>
+                                    <Run>• </Run><Run FontWeight="Bold" Foreground="#DC2626">KRYTYCZNY (&lt;90%)</Run><Run> - natychmiast redukuj zamowienia!</Run>
+                                    <LineBreak/>
+                                    <Run>• </Run><Run FontWeight="Bold" Foreground="#FBBF24">WYSOKI (90-95%)</Run><Run> - przygotuj sie na redukcje</Run>
+                                    <LineBreak/>
+                                    <Run>• </Run><Run FontWeight="Bold" Foreground="#FB923C">UWAGA (95-98%)</Run><Run> - obserwuj trend</Run>
+                                    <LineBreak/>
+                                    <Run>• </Run><Run FontWeight="Bold" Foreground="#4ECCA3">OK (>98%)</Run><Run> - plan realizowany</Run>
+                                </TextBlock>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Margin="15,0,0,0">
+                                <TextBlock TextWrapping="Wrap" Foreground="#E2E8F0" FontSize="12" LineHeight="22">
+                                    <Run FontWeight="Bold" Foreground="#F59E0B">CO ROBIC GDY JEST ALERT?</Run>
+                                    <LineBreak/>
+                                    <Run>1. Sprawdz ktory hodowca daje mniej (kolumna TREND)</Run>
+                                    <LineBreak/>
+                                    <Run>2. Zadzwon do hodowcy - moze ma problemy z zaladunkiem</Run>
+                                    <LineBreak/>
+                                    <Run>3. Jesli potwierdzi brak - DZWON DO KLIENTOW i redukuj zamowienia</Run>
+                                    <LineBreak/>
+                                    <Run>4. Priorytet: klienci z najwiekszymi zamowieniami</Run>
+                                    <LineBreak/><LineBreak/>
+                                    <Run FontWeight="Bold" Foreground="#60A5FA">Symbol (R) przy PLANIE</Run>
+                                    <LineBreak/>
+                                    <Run>Oznacza OSTATNIE auto hodowcy - jego plan to RESZTA z harmonogramu.</Run>
+                                    <LineBreak/><LineBreak/>
+                                    <Run FontWeight="Bold" Foreground="#60A5FA">Kolumna POZOSTALO</Run>
+                                    <LineBreak/>
+                                    <Run>Pokazuje ile kg/szt zostalo jeszcze do zabrania z danego harmonogramu.</Run>
+                                </TextBlock>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- PRZYCISK ZAMKNIJ -->
+                <Button Content="Zamknij" Click="BtnClose_Click" HorizontalAlignment="Right"
+                        Padding="30,10" FontSize="14" FontWeight="SemiBold"
+                        Background="#0F3460" Foreground="White" BorderThickness="0" Cursor="Hand">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#1E4A7A"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </StackPanel>
+        </ScrollViewer>
+    </Border>
+</Window>

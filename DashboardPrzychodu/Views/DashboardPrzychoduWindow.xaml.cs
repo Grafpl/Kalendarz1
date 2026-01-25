@@ -21,14 +21,17 @@ namespace Kalendarz1.DashboardPrzychodu.Views
     /// <summary>
     /// Dashboard Przychodu Żywca - okno pokazujące w czasie rzeczywistym
     /// plan vs rzeczywiste przyjęcia żywca z prognozą produkcji
+    /// Styl: Warm Industrial Ultra Kompaktowy
     /// </summary>
     public partial class DashboardPrzychoduWindow : Window
     {
         private readonly PrzychodService _przychodService;
         private readonly ObservableCollection<DostawaItem> _dostawy;
+        private readonly ObservableCollection<PostepHarmonogramu> _postepyHarmonogramow;
         private readonly DispatcherTimer _autoRefreshTimer;
         private readonly DispatcherTimer _countdownTimer;
         private PodsumowanieDnia _podsumowanie;
+        private PrognozaDnia _prognoza;
         private ICollectionView _dostawyView;
         private int _secondsToRefresh = 30;
         private bool _isLoading = false;
@@ -38,6 +41,9 @@ namespace Kalendarz1.DashboardPrzychodu.Views
         private DateTime? _trendStartTime = null;
         private Storyboard _pulseStoryboard;
 
+        // KPI icon customization
+        private string _currentKpiTarget;
+
         private const int AUTO_REFRESH_SECONDS = 30;
 
         public DashboardPrzychoduWindow()
@@ -46,11 +52,16 @@ namespace Kalendarz1.DashboardPrzychodu.Views
 
             _przychodService = new PrzychodService();
             _dostawy = new ObservableCollection<DostawaItem>();
+            _postepyHarmonogramow = new ObservableCollection<PostepHarmonogramu>();
             _podsumowanie = new PodsumowanieDnia();
+            _prognoza = new PrognozaDnia();
 
             // Konfiguracja DataGrid
             dgDostawy.ItemsSource = _dostawy;
             _dostawyView = CollectionViewSource.GetDefaultView(_dostawy);
+
+            // Konfiguracja listy harmonogramow
+            icHarmonogramy.ItemsSource = _postepyHarmonogramow;
 
             // Timer auto-odświeżania (co 30 sekund)
             _autoRefreshTimer = new DispatcherTimer
@@ -77,7 +88,7 @@ namespace Kalendarz1.DashboardPrzychodu.Views
         }
 
         /// <summary>
-        /// Inicjalizacja animacji pulsowania dla kafelka odchylenia
+        /// Inicjalizacja animacji pulsowania dla kafelka odchylenia (styl Warm Industrial)
         /// </summary>
         private void InitializePulseAnimation()
         {
@@ -87,8 +98,8 @@ namespace Kalendarz1.DashboardPrzychodu.Views
 
             var colorAnimation = new ColorAnimation
             {
-                From = Color.FromRgb(233, 69, 96),    // #E94560
-                To = Color.FromRgb(255, 107, 107),    // #FF6B6B
+                From = Color.FromRgb(239, 68, 68),    // #ef4444 (red)
+                To = Color.FromRgb(252, 165, 165),    // #fca5a5 (light red)
                 Duration = TimeSpan.FromMilliseconds(700)
             };
 
@@ -146,35 +157,55 @@ namespace Kalendarz1.DashboardPrzychodu.Views
 
                 Debug.WriteLine($"[DashboardPrzychodu] Pobieranie danych na {selectedDate:yyyy-MM-dd}");
 
-                // Pobierz dane równolegle
+                // Pobierz dane rownolegle
                 var dostawyTask = _przychodService.GetDostawyAsync(selectedDate);
                 var podsumowanieTask = _przychodService.GetPodsumowanieAsync(selectedDate);
+                var prognozaTask = _przychodService.GetPrognozaDniaAsync(selectedDate);
+                var harmonogramyTask = _przychodService.GetPostepyHarmonogramowAsync(selectedDate);
+                var faktycznyTask = _przychodService.GetFaktycznyPrzychodAsync(selectedDate);
 
-                await System.Threading.Tasks.Task.WhenAll(dostawyTask, podsumowanieTask);
+                await System.Threading.Tasks.Task.WhenAll(dostawyTask, podsumowanieTask, prognozaTask, harmonogramyTask, faktycznyTask);
 
                 var noweDostawy = await dostawyTask;
                 _podsumowanie = await podsumowanieTask;
+                _prognoza = await prognozaTask;
+                var noweHarmonogramy = await harmonogramyTask;
+                var faktyczny = await faktycznyTask;
 
-                // Aktualizuj UI w wątku UI
+                // Uzupełnij podsumowanie o faktyczny przychód z Symfonia
+                _podsumowanie.FaktKlasaAKg = faktyczny.KlasaA;
+                _podsumowanie.FaktKlasaBKg = faktyczny.KlasaB;
+
+                // Aktualizuj UI w watku UI
                 await Dispatcher.InvokeAsync(() =>
                 {
-                    // Aktualizuj kolekcję dostaw
+                    // Aktualizuj kolekcje dostaw
                     _dostawy.Clear();
                     foreach (var dostawa in noweDostawy)
                     {
                         _dostawy.Add(dostawa);
                     }
 
+                    // Aktualizuj kolekcje harmonogramow
+                    _postepyHarmonogramow.Clear();
+                    foreach (var harmonogram in noweHarmonogramy)
+                    {
+                        _postepyHarmonogramow.Add(harmonogram);
+                    }
+
                     // Aktualizuj podsumowanie
                     UpdateSummaryUI();
+
+                    // Aktualizuj prognoze redukcji
+                    UpdatePrognozaUI();
 
                     // Aktualizuj wiersz podsumowania tabeli
                     UpdateTableSummary();
 
-                    // Aktualizuj pasek postępu
+                    // Aktualizuj pasek postepu
                     UpdateProgressBar();
 
-                    // Aktualizuj licznik wyników
+                    // Aktualizuj licznik wynikow
                     txtLiczbaWynikow.Text = $"Wyniki: {_dostawy.Count}";
 
                     // Aktualizuj czas ostatniej aktualizacji
@@ -202,43 +233,40 @@ namespace Kalendarz1.DashboardPrzychodu.Views
         }
 
         /// <summary>
-        /// Aktualizacja UI podsumowania
+        /// Aktualizacja UI podsumowania (KPI Strip + Sidebar)
         /// </summary>
         private void UpdateSummaryUI()
         {
-            // Planowane
+            // Planowane - KPI Strip
             txtKgPlan.Text = _podsumowanie.KgPlanSuma.ToString("N0");
-            txtSztPlan.Text = $"{_podsumowanie.SztukiPlanSuma:N0} szt";
 
-            // Zważone z trendem
+            // Zważone z trendem - KPI Strip
             decimal noweZwazone = _podsumowanie.KgZwazoneSuma;
             txtKgZwazone.Text = noweZwazone.ToString("N0");
-            txtSztZwazone.Text = $"{_podsumowanie.SztukiZwazoneSuma:N0} szt";
 
             // Aktualizuj trend
             UpdateTrend(noweZwazone);
 
-            // Pozostałe
+            // Pozostałe - KPI Strip
             txtKgPozostalo.Text = _podsumowanie.KgPozostalo.ToString("N0");
-            txtSztPozostalo.Text = $"{_podsumowanie.SztukiPozostalo:N0} szt";
 
-            // Odchylenie
+            // Odchylenie - KPI Strip
             if (_podsumowanie.KgZwazoneSuma > 0)
             {
                 string znak = _podsumowanie.OdchylenieKgSuma > 0 ? "+" : "";
                 txtOdchylenie.Text = $"{znak}{_podsumowanie.OdchylenieKgSuma:N0}";
-                txtOdchylenieProc.Text = $"{znak}{_podsumowanie.OdchylenieProc:N1}%";
+                txtOdchylenieProc.Text = $"({znak}{_podsumowanie.OdchylenieProc:N1}%)";
 
                 // Kolorowanie odchylenia
                 var brush = _podsumowanie.Poziom switch
                 {
-                    PoziomOdchylenia.OK => FindResource("StatusOKBrush") as SolidColorBrush,
-                    PoziomOdchylenia.Uwaga => FindResource("StatusWarningBrush") as SolidColorBrush,
-                    PoziomOdchylenia.Problem => FindResource("StatusErrorBrush") as SolidColorBrush,
-                    _ => FindResource("TextSecondaryBrush") as SolidColorBrush
+                    PoziomOdchylenia.OK => new SolidColorBrush(Color.FromRgb(34, 197, 94)),      // #22c55e
+                    PoziomOdchylenia.Uwaga => new SolidColorBrush(Color.FromRgb(251, 191, 36)), // #fbbf24
+                    PoziomOdchylenia.Problem => new SolidColorBrush(Color.FromRgb(239, 68, 68)), // #ef4444
+                    _ => new SolidColorBrush(Color.FromRgb(168, 162, 158)) // #a8a29e
                 };
                 txtOdchylenie.Foreground = brush;
-                txtOdchylenieProc.Foreground = brush;
+                txtOdchylenieProc.Foreground = new SolidColorBrush(Color.FromRgb(120, 113, 108)); // #78716c
 
                 // Pulsujące obramowanie przy problemie
                 UpdatePulseAnimation(_podsumowanie.Poziom == PoziomOdchylenia.Problem);
@@ -247,129 +275,141 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             {
                 txtOdchylenie.Text = "-";
                 txtOdchylenieProc.Text = "";
-                txtOdchylenie.Foreground = FindResource("TextSecondaryBrush") as SolidColorBrush;
+                txtOdchylenie.Foreground = new SolidColorBrush(Color.FromRgb(168, 162, 158)); // #a8a29e
                 UpdatePulseAnimation(false);
             }
 
-            // Realizacja
+            // Realizacja - KPI Strip
             txtRealizacja.Text = $"{_podsumowanie.ProcentRealizacjiKg}%";
-            txtDostawyStatus.Text = $"({_podsumowanie.LiczbaZwazonych}/{_podsumowanie.LiczbaDostawOgolem} dostaw)";
+            txtDostawyStatus.Text = $"({_podsumowanie.LiczbaZwazonych}/{_podsumowanie.LiczbaDostawOgolem})";
 
-            // Liczniki statusów dostaw (mini panel)
-            int zwazoneCount = _dostawy.Count(d => d.Status == StatusDostawy.Zwazony);
-            int bruttoCount = _dostawy.Count(d => d.Status == StatusDostawy.BruttoWpisane);
-            int oczekujeCount = _dostawy.Count(d => d.Status == StatusDostawy.Oczekuje);
-            txtZwazoneCount.Text = zwazoneCount.ToString();
-            txtBruttoCount.Text = bruttoCount.ToString();
-            txtOczekujeCount.Text = oczekujeCount.ToString();
+            // Tuszki - KPI Strip
+            txtPrognozaTuszek.Text = _podsumowanie.PrognozaTuszekKg.ToString("N0");
 
-            // Prognoza produkcji - tuszki planowane vs rzeczywiste
-            // Używamy TuszkiPlanKg z modelu (obliczone z KgPlanSuma * 78%)
-            decimal tuszkiPlan = _podsumowanie.TuszkiPlanKg;
-            decimal tuszkiRzecz = _podsumowanie.PrognozaTuszekKg;
-
-            txtTuszkiPlan.Text = tuszkiPlan.ToString("N0");
-            txtPrognozaTuszek.Text = tuszkiRzecz.ToString("N0");
-
-            // Wzór obliczeniowy
-            txtWzorTuszki.Text = $"{_podsumowanie.KgZwazoneSuma:N0} kg × 78% = {tuszkiRzecz:N0} kg";
-
-            txtPrognozaA.Text = $"{_podsumowanie.PrognozaKlasaAKg:N0} kg";
-            txtPrognozaB.Text = $"{_podsumowanie.PrognozaKlasaBKg:N0} kg";
-
-            // Różnica tuszek (rzeczywiste - planowane)
-            decimal roznicaTuszek = tuszkiRzecz - tuszkiPlan;
-            if (roznicaTuszek != 0 && _podsumowanie.KgZwazoneSuma > 0)
-            {
-                string znak = roznicaTuszek > 0 ? "+" : "";
-                txtTuszkiRoznica.Text = $"{znak}{roznicaTuszek:N0} kg tuszek";
-                txtTuszkiRoznica.Foreground = roznicaTuszek > 0
-                    ? new SolidColorBrush(Color.FromRgb(78, 204, 163))   // Zielony - więcej
-                    : new SolidColorBrush(Color.FromRgb(252, 129, 129)); // Czerwony - mniej
-            }
-            else
-            {
-                txtTuszkiRoznica.Text = "";
-            }
-
-            // Średnia waga planowana - z HarmonogramDostaw (WagaDek)
-            // Używamy SrWagaPlanSrednia z modelu (obliczone w SQL z HarmonogramDostaw)
+            // Średnie wagi - sidebar
             if (_podsumowanie.SrWagaPlanSrednia.HasValue)
             {
-                txtSrWagaPlan.Text = _podsumowanie.SrWagaPlanSrednia.Value.ToString("N2");
+                txtSrWagaPlanSidebar.Text = _podsumowanie.SrWagaPlanSrednia.Value.ToString("N2");
             }
             else if (_podsumowanie.SztukiPlanSuma > 0)
             {
-                // Fallback: oblicz z kg/szt jeśli brak danych z harmonogramu
                 decimal srWagaPlan = _podsumowanie.KgPlanSuma / _podsumowanie.SztukiPlanSuma;
-                txtSrWagaPlan.Text = srWagaPlan.ToString("N2");
+                txtSrWagaPlanSidebar.Text = srWagaPlan.ToString("N2");
             }
             else
             {
-                txtSrWagaPlan.Text = "-";
+                txtSrWagaPlanSidebar.Text = "-";
             }
 
-            // Średnia waga rzeczywista - z FarmerCalc (NettoWeight / LumQnt)
-            // Używamy SrWagaRzeczSrednia z modelu (obliczone w SQL)
             if (_podsumowanie.SrWagaRzeczSrednia.HasValue)
             {
-                txtSrWagaRzecz.Text = _podsumowanie.SrWagaRzeczSrednia.Value.ToString("N2");
+                txtSrWagaRzeczSidebar.Text = _podsumowanie.SrWagaRzeczSrednia.Value.ToString("N2");
             }
             else
             {
-                txtSrWagaRzecz.Text = "-";
+                txtSrWagaRzeczSidebar.Text = "-";
             }
 
-            // Porównanie wag - używamy wartości z modelu (z HarmonogramDostaw)
-            UpdateWeightComparison(_podsumowanie.SrWagaPlanSrednia, _podsumowanie.SrWagaRzeczSrednia);
+            // Tuszki - sidebar (duże cyfry)
+            decimal tuszkiPlan = _podsumowanie.TuszkiPlanKg;
+            decimal tuszkiRzecz = _podsumowanie.PrognozaTuszekKg;
+            decimal tuszkiOdchylenie = tuszkiRzecz - tuszkiPlan;
+
+            txtTuszkiPlanSidebar.Text = tuszkiPlan > 0 ? tuszkiPlan.ToString("N0") : "-";
+            txtTuszkiRzeczSidebar.Text = tuszkiRzecz > 0 ? tuszkiRzecz.ToString("N0") : "-";
+
+            if (tuszkiPlan > 0 && tuszkiRzecz > 0)
+            {
+                string znak = tuszkiOdchylenie > 0 ? "+" : "";
+                txtTuszkiOdchylenieSidebar.Text = $"{znak}{tuszkiOdchylenie:N0}";
+
+                decimal procent = (tuszkiOdchylenie / tuszkiPlan) * 100;
+                txtTuszkiOdchylenieProcSidebar.Text = $"({znak}{procent:N1}%)";
+
+                // Kolorowanie odchylenia
+                if (tuszkiOdchylenie >= 0)
+                {
+                    txtTuszkiOdchylenieSidebar.Foreground = new SolidColorBrush(Color.FromRgb(34, 197, 94)); // #22c55e - zielony
+                    txtTuszkiOdchylenieProcSidebar.Foreground = new SolidColorBrush(Color.FromRgb(34, 197, 94));
+                }
+                else if (Math.Abs(procent) <= 5)
+                {
+                    txtTuszkiOdchylenieSidebar.Foreground = new SolidColorBrush(Color.FromRgb(251, 191, 36)); // #fbbf24 - żółty
+                    txtTuszkiOdchylenieProcSidebar.Foreground = new SolidColorBrush(Color.FromRgb(251, 191, 36));
+                }
+                else
+                {
+                    txtTuszkiOdchylenieSidebar.Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // #ef4444 - czerwony
+                    txtTuszkiOdchylenieProcSidebar.Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68));
+                }
+            }
+            else
+            {
+                txtTuszkiOdchylenieSidebar.Text = "-";
+                txtTuszkiOdchylenieProcSidebar.Text = "";
+                txtTuszkiOdchylenieSidebar.Foreground = new SolidColorBrush(Color.FromRgb(120, 113, 108)); // #78716c
+            }
+
+            // Klasy A/B - sidebar (Plan, Rzecz, Fakt z %)
+            decimal tuszkiPlanTotal = _podsumowanie.TuszkiPlanKg;
+            decimal planKlasaA = Math.Round(tuszkiPlanTotal * 0.80m, 0);
+            decimal planKlasaB = Math.Round(tuszkiPlanTotal * 0.20m, 0);
+            decimal planSuma = planKlasaA + planKlasaB;
+
+            decimal rzeczKlasaA = _podsumowanie.PrognozaKlasaAKg;
+            decimal rzeczKlasaB = _podsumowanie.PrognozaKlasaBKg;
+            decimal rzeczSuma = rzeczKlasaA + rzeczKlasaB;
+
+            decimal faktKlasaA = _podsumowanie.FaktKlasaAKg;
+            decimal faktKlasaB = _podsumowanie.FaktKlasaBKg;
+            decimal faktSuma = faktKlasaA + faktKlasaB;
+
+            // Plan - wartości i %
+            txtKlasaAPlanSidebar.Text = planKlasaA > 0 ? planKlasaA.ToString("N0") : "-";
+            txtKlasaBPlanSidebar.Text = planKlasaB > 0 ? planKlasaB.ToString("N0") : "-";
+            txtKlasaAPlanProcSidebar.Text = planSuma > 0 ? $"({Math.Round(planKlasaA / planSuma * 100, 0)}%)" : "";
+            txtKlasaBPlanProcSidebar.Text = planSuma > 0 ? $"({Math.Round(planKlasaB / planSuma * 100, 0)}%)" : "";
+
+            // Rzecz - wartości i %
+            txtKlasaASidebar.Text = rzeczKlasaA.ToString("N0");
+            txtKlasaBSidebar.Text = rzeczKlasaB.ToString("N0");
+            txtKlasaAProcSidebar.Text = rzeczSuma > 0 ? $"({Math.Round(rzeczKlasaA / rzeczSuma * 100, 0)}%)" : "";
+            txtKlasaBProcSidebar.Text = rzeczSuma > 0 ? $"({Math.Round(rzeczKlasaB / rzeczSuma * 100, 0)}%)" : "";
+
+            // Fakt - faktyczny przychód z Symfonia (sPWU) - wartości i %
+            txtKlasaAFaktSidebar.Text = faktKlasaA > 0 ? faktKlasaA.ToString("N0") : "-";
+            txtKlasaBFaktSidebar.Text = faktKlasaB > 0 ? faktKlasaB.ToString("N0") : "-";
+            txtKlasaAFaktProcSidebar.Text = faktSuma > 0 ? $"({Math.Round(faktKlasaA / faktSuma * 100, 0)}%)" : "";
+            txtKlasaBFaktProcSidebar.Text = faktSuma > 0 ? $"({Math.Round(faktKlasaB / faktSuma * 100, 0)}%)" : "";
+
+            // Auta i trend - sidebar
+            txtAutaSidebar.Text = $"{_podsumowanie.LiczbaZwazonych}/{_podsumowanie.LiczbaDostawOgolem}";
+            txtTrendSidebar.Text = $"{_podsumowanie.ProcentRealizacjiKg}%";
+
+            // Alert redukcji - sidebar
+            if (_prognoza != null && _prognoza.JestAlert)
+            {
+                borderRedukcjaSidebar.Visibility = Visibility.Visible;
+                txtRedukcjaAlertSidebar.Text = _prognoza.PoziomAlertu;
+                txtRedukcjaKgSidebar.Text = _prognoza.RedukcjaDisplay;
+            }
+            else
+            {
+                borderRedukcjaSidebar.Visibility = Visibility.Collapsed;
+            }
         }
 
         /// <summary>
-        /// Aktualizacja kafelka porównania wag (zintegrowany w kafelku ŚREDNIE WAGI)
-        /// Używa danych z HarmonogramDostaw (WagaDek) vs FarmerCalc (NettoWeight/LumQnt)
+        /// Aktualizacja prognozy - informacje wyświetlane teraz w sidebarze
         /// </summary>
-        private void UpdateWeightComparison(decimal? wagaPlan, decimal? wagaRzecz)
+        private void UpdatePrognozaUI()
         {
-            if (!wagaPlan.HasValue || !wagaRzecz.HasValue)
-            {
-                txtWagaArrow.Text = "→";
-                txtWagaArrow.Foreground = new SolidColorBrush(Color.FromRgb(74, 85, 104));
-                txtWagaInterpretacja.Text = "";
-                return;
-            }
-
-            // Używamy OdchylenieWagiSrednie z modelu (obliczone jako różnica wag)
-            decimal? odchylenie = _podsumowanie.OdchylenieWagiSrednie;
-            decimal roznica = odchylenie ?? (wagaRzecz.Value - wagaPlan.Value);
-
-            if (roznica > 0.02m)
-            {
-                // Ptaki cięższe niż deklarowane (>0.02 kg/szt)
-                txtWagaArrow.Text = "↑";
-                txtWagaArrow.Foreground = new SolidColorBrush(Color.FromRgb(78, 204, 163)); // Zielony
-                txtWagaInterpretacja.Text = $"+{roznica:N2}kg";
-                txtWagaInterpretacja.Foreground = new SolidColorBrush(Color.FromRgb(78, 204, 163));
-            }
-            else if (roznica < -0.02m)
-            {
-                // Ptaki lżejsze niż deklarowane (<-0.02 kg/szt)
-                txtWagaArrow.Text = "↓";
-                txtWagaArrow.Foreground = new SolidColorBrush(Color.FromRgb(248, 113, 113)); // Czerwony
-                txtWagaInterpretacja.Text = $"{roznica:N2}kg";
-                txtWagaInterpretacja.Foreground = new SolidColorBrush(Color.FromRgb(248, 113, 113));
-            }
-            else
-            {
-                // Zgodne (±0.02 kg/szt)
-                txtWagaArrow.Text = "≈";
-                txtWagaArrow.Foreground = new SolidColorBrush(Color.FromRgb(34, 211, 238)); // Cyan
-                txtWagaInterpretacja.Text = "OK";
-                txtWagaInterpretacja.Foreground = new SolidColorBrush(Color.FromRgb(34, 211, 238));
-            }
+            // Wszystkie informacje o prognozie są teraz w sidebarze (UpdateSummaryUI)
+            // Ta metoda pozostaje dla kompatybilności
         }
 
         /// <summary>
-        /// Aktualizacja trendu dla kafelka ZWAŻONE
+        /// Aktualizacja trendu dla kafelka ZWAŻONE w KPI Strip
         /// </summary>
         private void UpdateTrend(decimal noweZwazone)
         {
@@ -377,35 +417,29 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             {
                 // Pierwsze ładowanie
                 txtTrendZwazone.Text = "";
-                txtTrendInfo.Text = "";
                 _trendStartTime = DateTime.Now;
             }
             else if (noweZwazone > _poprzednieZwazone)
             {
                 txtTrendZwazone.Text = "↑";
-                txtTrendZwazone.Foreground = new SolidColorBrush(Color.FromRgb(78, 204, 163));
-                decimal roznica = noweZwazone - _poprzednieZwazone;
-                txtTrendInfo.Text = $"+{roznica:N0}";
+                txtTrendZwazone.Foreground = new SolidColorBrush(Color.FromRgb(34, 197, 94)); // #22c55e
             }
             else if (noweZwazone < _poprzednieZwazone)
             {
                 txtTrendZwazone.Text = "↓";
-                txtTrendZwazone.Foreground = new SolidColorBrush(Color.FromRgb(233, 69, 96));
-                decimal roznica = _poprzednieZwazone - noweZwazone;
-                txtTrendInfo.Text = $"-{roznica:N0}";
+                txtTrendZwazone.Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // #ef4444
             }
             else
             {
                 txtTrendZwazone.Text = "→";
-                txtTrendZwazone.Foreground = new SolidColorBrush(Color.FromRgb(113, 128, 150));
-                txtTrendInfo.Text = "";
+                txtTrendZwazone.Foreground = new SolidColorBrush(Color.FromRgb(120, 113, 108)); // #78716c
             }
 
             _poprzednieZwazone = noweZwazone;
         }
 
         /// <summary>
-        /// Włącza/wyłącza animację pulsowania obramowania
+        /// Włącza/wyłącza animację pulsowania obramowania kafelka ODCHYLENIE
         /// </summary>
         private void UpdatePulseAnimation(bool enable)
         {
@@ -413,13 +447,13 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             {
                 if (enable)
                 {
-                    borderOdchylenie.BorderBrush = new SolidColorBrush(Color.FromRgb(233, 69, 96));
+                    borderOdchylenie.BorderBrush = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // #ef4444
                     _pulseStoryboard.Begin();
                 }
                 else
                 {
                     _pulseStoryboard.Stop();
-                    borderOdchylenie.BorderBrush = new SolidColorBrush(Colors.Transparent);
+                    borderOdchylenie.BorderBrush = new SolidColorBrush(Color.FromRgb(120, 113, 108)); // #78716c
                 }
             }
             catch (Exception ex)
@@ -430,44 +464,13 @@ namespace Kalendarz1.DashboardPrzychodu.Views
 
         /// <summary>
         /// Aktualizacja paska postępu realizacji
+        /// W nowym layoucie pasek postępu jest zintegrowany w KPI Strip (REALIZACJA)
         /// </summary>
         private void UpdateProgressBar()
         {
-            if (_podsumowanie.KgPlanSuma > 0)
-            {
-                double procent = (double)_podsumowanie.ProcentRealizacjiKg;
-                double maxWidth = progressFill.Parent is Border parentBorder ? parentBorder.ActualWidth : 800;
-
-                if (maxWidth <= 0) maxWidth = 800;
-
-                double targetWidth = Math.Min(100, procent) / 100.0 * maxWidth;
-
-                // Animacja paska
-                var animation = new DoubleAnimation
-                {
-                    To = targetWidth,
-                    Duration = TimeSpan.FromMilliseconds(500),
-                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
-                };
-                progressFill.BeginAnimation(WidthProperty, animation);
-
-                // Zmiana koloru w zależności od postępu
-                if (procent >= 80)
-                    progressFill.Background = new SolidColorBrush(Color.FromRgb(78, 204, 163)); // Zielony
-                else if (procent >= 50)
-                    progressFill.Background = new SolidColorBrush(Color.FromRgb(255, 179, 71)); // Pomarańczowy
-                else
-                    progressFill.Background = new SolidColorBrush(Color.FromRgb(233, 69, 96)); // Czerwony
-
-                txtProgressPercent.Text = $"{procent:N0}%";
-                txtProgressMax.Text = $"{_podsumowanie.KgPlanSuma:N0} kg";
-            }
-            else
-            {
-                progressFill.Width = 0;
-                txtProgressPercent.Text = "0%";
-                txtProgressMax.Text = "0 kg";
-            }
+            // Pasek postępu został usunięty z nowego layoutu "Warm Industrial"
+            // Realizacja jest teraz pokazywana jako % w kafelku KPI
+            // Ta metoda pozostaje dla kompatybilności, ale nie wykonuje już żadnych operacji
         }
 
         /// <summary>
@@ -492,9 +495,14 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 string znak = sumaOdchylenie > 0 ? "+" : "";
                 txtSumaOdchylenie.Text = $"{znak}{sumaOdchylenie:N0} kg";
 
-                // Kolor
-                if (sumaPlan > 0)
+                // Kolor - więcej niż plan = zawsze zielony (to dobrze!)
+                if (sumaOdchylenie > 0)
                 {
+                    txtSumaOdchylenie.Foreground = FindResource("StatusOKBrush") as SolidColorBrush;
+                }
+                else if (sumaPlan > 0)
+                {
+                    // Mniej niż plan - sprawdzamy jak dużo brakuje
                     decimal procent = Math.Abs(sumaOdchylenie.Value / sumaPlan * 100);
                     if (procent <= 2)
                         txtSumaOdchylenie.Foreground = FindResource("StatusOKBrush") as SolidColorBrush;
@@ -507,7 +515,7 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             else
             {
                 txtSumaOdchylenie.Text = "-";
-                txtSumaOdchylenie.Foreground = new SolidColorBrush(Color.FromRgb(160, 174, 192));
+                txtSumaOdchylenie.Foreground = new SolidColorBrush(Color.FromRgb(120, 113, 108)); // #78716c
             }
 
             // Średnia waga planowana
@@ -534,9 +542,17 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 txtSumaSrWaga.Text = "-";
             }
 
-            // Suma tuszek planowanych (78% z kg plan)
-            decimal sumaTuszkiPlan = _dostawy.Sum(d => d.TuszkiPlanKg);
-            txtSumaTuszkiPlan.Text = sumaTuszkiPlan.ToString("N0");
+            // Suma POZOSTAŁO (tylko unikalne harmonogramy - bez duplikatów)
+            var unikatoweHarmonogramy = _dostawy
+                .GroupBy(d => d.LpDostawy)
+                .Select(g => g.First())
+                .ToList();
+
+            decimal sumaPozostaloKg = unikatoweHarmonogramy.Sum(d => d.KgPozostalo);
+            decimal sumaPozostaloTuszki = Math.Round(sumaPozostaloKg * 0.78m, 0);
+
+            txtSumaPozostaloKg.Text = $"{sumaPozostaloKg:N0} kg";
+            txtSumaPozostaloTuszki.Text = $"{sumaPozostaloTuszki:N0} kg";
 
             // Suma tuszek rzeczywistych (78% z kg rzeczywiste, tylko zważone)
             decimal sumaTuszkiRzecz = _dostawy
@@ -610,7 +626,7 @@ namespace Kalendarz1.DashboardPrzychodu.Views
         }
 
         /// <summary>
-        /// Pokazuje szczegóły dostawy w oknie popup
+        /// Pokazuje szczegóły dostawy w oknie popup (styl Warm Industrial)
         /// </summary>
         private void ShowDeliveryDetails(DostawaItem dostawa)
         {
@@ -621,7 +637,7 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 Height = 450,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 Owner = this,
-                Background = new SolidColorBrush(Color.FromRgb(26, 26, 46)),
+                Background = new SolidColorBrush(Color.FromRgb(28, 25, 23)), // #1c1917
                 ResizeMode = ResizeMode.NoResize
             };
 
@@ -634,9 +650,9 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             var header = new TextBlock
             {
                 Text = $"Dostawa #{dostawa.NrKursu}",
-                FontSize = 20,
+                FontSize = 18,
                 FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White,
+                Foreground = new SolidColorBrush(Color.FromRgb(251, 191, 36)), // #fbbf24
                 Margin = new Thickness(0, 0, 0, 15)
             };
             Grid.SetRow(header, 0);
@@ -648,20 +664,20 @@ namespace Kalendarz1.DashboardPrzychodu.Views
 
             void AddDetailRow(string label, string value, Brush valueBrush = null)
             {
-                var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 5, 0, 5) };
+                var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
                 row.Children.Add(new TextBlock
                 {
                     Text = label,
-                    Width = 150,
-                    Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)),
-                    FontSize = 13
+                    Width = 140,
+                    Foreground = new SolidColorBrush(Color.FromRgb(120, 113, 108)), // #78716c
+                    FontSize = 12
                 });
                 row.Children.Add(new TextBlock
                 {
                     Text = value,
-                    Foreground = valueBrush ?? Brushes.White,
+                    Foreground = valueBrush ?? new SolidColorBrush(Color.FromRgb(231, 229, 228)), // #e7e5e4
                     FontWeight = FontWeights.SemiBold,
-                    FontSize = 13
+                    FontSize = 12
                 });
                 details.Children.Add(row);
             }
@@ -669,26 +685,26 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             AddDetailRow("Hodowca:", dostawa.Hodowca);
             AddDetailRow("Data:", dostawa.Data.ToString("dd.MM.yyyy"));
             AddDetailRow("Nr kursu:", dostawa.NrKursu.ToString());
-            details.Children.Add(new Border { Height = 1, Background = new SolidColorBrush(Color.FromRgb(45, 58, 92)), Margin = new Thickness(0, 10, 0, 10) });
+            details.Children.Add(new Border { Height = 1, Background = new SolidColorBrush(Color.FromRgb(68, 64, 60)), Margin = new Thickness(0, 8, 0, 8) }); // #44403c
 
             AddDetailRow("Plan [kg]:", dostawa.KgPlan.ToString("N0"));
             AddDetailRow("Plan [szt]:", dostawa.SztukiPlan.ToString("N0"));
             AddDetailRow("Rzeczywiste [kg]:", dostawa.KgRzeczywiste.ToString("N0"),
-                dostawa.Status == StatusDostawy.Zwazony ? new SolidColorBrush(Color.FromRgb(78, 204, 163)) : null);
+                dostawa.Status == StatusDostawy.Zwazony ? new SolidColorBrush(Color.FromRgb(34, 197, 94)) : null); // #22c55e
             AddDetailRow("Rzeczywiste [szt]:", dostawa.SztukiRzeczywiste.ToString("N0"));
-            details.Children.Add(new Border { Height = 1, Background = new SolidColorBrush(Color.FromRgb(45, 58, 92)), Margin = new Thickness(0, 10, 0, 10) });
+            details.Children.Add(new Border { Height = 1, Background = new SolidColorBrush(Color.FromRgb(68, 64, 60)), Margin = new Thickness(0, 8, 0, 8) });
 
             var odchylenieBrush = dostawa.Poziom switch
             {
-                PoziomOdchylenia.OK => new SolidColorBrush(Color.FromRgb(78, 204, 163)),
-                PoziomOdchylenia.Uwaga => new SolidColorBrush(Color.FromRgb(255, 179, 71)),
-                PoziomOdchylenia.Problem => new SolidColorBrush(Color.FromRgb(233, 69, 96)),
-                _ => new SolidColorBrush(Color.FromRgb(148, 163, 184))
+                PoziomOdchylenia.OK => new SolidColorBrush(Color.FromRgb(34, 197, 94)),      // #22c55e
+                PoziomOdchylenia.Uwaga => new SolidColorBrush(Color.FromRgb(251, 191, 36)), // #fbbf24
+                PoziomOdchylenia.Problem => new SolidColorBrush(Color.FromRgb(239, 68, 68)), // #ef4444
+                _ => new SolidColorBrush(Color.FromRgb(168, 162, 158)) // #a8a29e
             };
             AddDetailRow("Odchylenie:", dostawa.OdchylenieDisplay, odchylenieBrush);
             AddDetailRow("Średnia waga:", dostawa.SredniaWagaRzeczywistaCalc?.ToString("N3") ?? "-");
             AddDetailRow("Status:", dostawa.StatusText);
-            details.Children.Add(new Border { Height = 1, Background = new SolidColorBrush(Color.FromRgb(45, 58, 92)), Margin = new Thickness(0, 10, 0, 10) });
+            details.Children.Add(new Border { Height = 1, Background = new SolidColorBrush(Color.FromRgb(68, 64, 60)), Margin = new Thickness(0, 8, 0, 8) });
 
             AddDetailRow("Brutto:", dostawa.Brutto.ToString("N0"));
             AddDetailRow("Tara:", dostawa.Tara.ToString("N0"));
@@ -697,15 +713,16 @@ namespace Kalendarz1.DashboardPrzychodu.Views
 
             grid.Children.Add(details);
 
-            // Przycisk zamknij
+            // Przycisk zamknij (styl Amber)
             var closeButton = new Button
             {
                 Content = "Zamknij",
                 Padding = new Thickness(20, 8, 20, 8),
-                Background = new SolidColorBrush(Color.FromRgb(15, 52, 96)),
-                Foreground = Brushes.White,
+                Background = new SolidColorBrush(Color.FromRgb(245, 158, 11)), // #f59e0b
+                Foreground = new SolidColorBrush(Color.FromRgb(28, 25, 23)),   // #1c1917
                 BorderThickness = new Thickness(0),
                 Cursor = Cursors.Hand,
+                FontWeight = FontWeights.SemiBold,
                 HorizontalAlignment = HorizontalAlignment.Right,
                 Margin = new Thickness(0, 15, 0, 0)
             };
@@ -725,6 +742,15 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             Debug.WriteLine("[DashboardPrzychodu] Ręczne odświeżenie");
             _secondsToRefresh = AUTO_REFRESH_SECONDS;
             await LoadDataAsync();
+        }
+
+        /// <summary>
+        /// Otwiera okno pomocy
+        /// </summary>
+        private void BtnHelp_Click(object sender, RoutedEventArgs e)
+        {
+            var helpWindow = new HelpWindow { Owner = this };
+            helpWindow.ShowDialog();
         }
 
         /// <summary>
@@ -1011,7 +1037,7 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                     Height = 700,
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     Owner = this,
-                    Background = new SolidColorBrush(Color.FromRgb(26, 26, 46))
+                    Background = new SolidColorBrush(Color.FromRgb(28, 25, 23)) // #1c1917
                 };
 
                 var scrollViewer = new ScrollViewer
@@ -1027,8 +1053,8 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                     IsReadOnly = true,
                     FontFamily = new FontFamily("Consolas"),
                     FontSize = 12,
-                    Background = new SolidColorBrush(Color.FromRgb(22, 33, 62)),
-                    Foreground = Brushes.White,
+                    Background = new SolidColorBrush(Color.FromRgb(41, 37, 36)), // #292524
+                    Foreground = new SolidColorBrush(Color.FromRgb(231, 229, 228)), // #e7e5e4
                     BorderThickness = new Thickness(0),
                     TextWrapping = TextWrapping.NoWrap,
                     AcceptsReturn = true
@@ -1045,5 +1071,327 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                     "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
+        #region Context Menus - Logo i Ikony KPI
+
+        /// <summary>
+        /// Prawy przycisk myszy na logo - pokazuje menu wyboru logo
+        /// </summary>
+        private void LogoBox_RightClick(object sender, MouseButtonEventArgs e)
+        {
+            var menu = (ContextMenu)FindResource("LogoContextMenu");
+            menu.PlacementTarget = sender as UIElement;
+            menu.IsOpen = true;
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// Ustawia emoji jako logo
+        /// </summary>
+        private void Logo_SetEmoji(object sender, RoutedEventArgs e)
+        {
+            var emoji = (sender as MenuItem)?.Tag?.ToString();
+            if (!string.IsNullOrEmpty(emoji))
+            {
+                // Jeśli LogoBox zawiera Image, przywróć TextBlock
+                if (!(LogoBox.Child is TextBlock))
+                {
+                    LogoBox.Child = LogoIcon;
+                }
+
+                LogoIcon.Text = emoji;
+                Debug.WriteLine($"[DashboardPrzychodu] Ustawiono emoji logo: {emoji}");
+                // Można zapisać do ustawień: SaveSetting("Logo", emoji);
+            }
+        }
+
+        /// <summary>
+        /// Wybiera logo z dostępnych plików w projekcie
+        /// </summary>
+        private void Logo_SelectFile(object sender, RoutedEventArgs e)
+        {
+            // Znajdź dostępne pliki logo
+            var logoFiles = FindLogoFiles();
+
+            if (logoFiles.Count == 0)
+            {
+                MessageBox.Show("Nie znaleziono plików logo w katalogu aplikacji.\n\nDostępne są emoji - użyj menu kontekstowego.",
+                    "Brak logo", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // Stwórz okno wyboru logo
+            var selectWindow = new Window
+            {
+                Title = "Wybierz logo",
+                Width = 500,
+                Height = 400,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Background = new SolidColorBrush(Color.FromRgb(28, 25, 23)), // #1c1917
+                ResizeMode = ResizeMode.NoResize
+            };
+
+            var mainGrid = new Grid { Margin = new Thickness(15) };
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            // Nagłówek
+            var header = new TextBlock
+            {
+                Text = "Wybierz logo firmy",
+                FontSize = 14,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(251, 191, 36)), // #fbbf24
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+            Grid.SetRow(header, 0);
+            mainGrid.Children.Add(header);
+
+            // Lista logo
+            var listBox = new ListBox
+            {
+                Background = new SolidColorBrush(Color.FromRgb(41, 37, 36)), // #292524
+                Foreground = new SolidColorBrush(Color.FromRgb(231, 229, 228)), // #e7e5e4
+                BorderBrush = new SolidColorBrush(Color.FromRgb(68, 64, 60)), // #44403c
+                BorderThickness = new Thickness(1)
+            };
+
+            foreach (var logoPath in logoFiles)
+            {
+                var item = new ListBoxItem
+                {
+                    Tag = logoPath,
+                    Padding = new Thickness(8, 6, 8, 6)
+                };
+
+                var panel = new StackPanel { Orientation = Orientation.Horizontal };
+
+                // Podgląd obrazka
+                try
+                {
+                    var bitmap = new System.Windows.Media.Imaging.BitmapImage();
+                    bitmap.BeginInit();
+                    bitmap.UriSource = new Uri(logoPath);
+                    bitmap.DecodePixelHeight = 32;
+                    bitmap.EndInit();
+
+                    var img = new Image
+                    {
+                        Source = bitmap,
+                        Width = 32,
+                        Height = 32,
+                        Margin = new Thickness(0, 0, 10, 0)
+                    };
+                    panel.Children.Add(img);
+                }
+                catch
+                {
+                    panel.Children.Add(new TextBlock { Text = "📁", FontSize = 20, Margin = new Thickness(0, 0, 10, 0) });
+                }
+
+                panel.Children.Add(new TextBlock
+                {
+                    Text = Path.GetFileName(logoPath),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Foreground = new SolidColorBrush(Color.FromRgb(231, 229, 228))
+                });
+
+                item.Content = panel;
+                listBox.Items.Add(item);
+            }
+
+            Grid.SetRow(listBox, 1);
+            mainGrid.Children.Add(listBox);
+
+            // Przyciski
+            var buttonPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 10, 0, 0)
+            };
+
+            var btnSelect = new Button
+            {
+                Content = "Wybierz",
+                Padding = new Thickness(15, 6, 15, 6),
+                Background = new SolidColorBrush(Color.FromRgb(245, 158, 11)), // #f59e0b
+                Foreground = new SolidColorBrush(Color.FromRgb(28, 25, 23)),
+                BorderThickness = new Thickness(0),
+                Margin = new Thickness(0, 0, 8, 0),
+                Cursor = Cursors.Hand
+            };
+            btnSelect.Click += (s, args) =>
+            {
+                if (listBox.SelectedItem is ListBoxItem selected && selected.Tag is string path)
+                {
+                    SetLogoFromFile(path);
+                    selectWindow.Close();
+                }
+                else
+                {
+                    MessageBox.Show("Wybierz logo z listy", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            };
+            buttonPanel.Children.Add(btnSelect);
+
+            var btnCancel = new Button
+            {
+                Content = "Anuluj",
+                Padding = new Thickness(15, 6, 15, 6),
+                Background = new SolidColorBrush(Color.FromRgb(68, 64, 60)), // #44403c
+                Foreground = new SolidColorBrush(Color.FromRgb(168, 162, 158)),
+                BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand
+            };
+            btnCancel.Click += (s, args) => selectWindow.Close();
+            buttonPanel.Children.Add(btnCancel);
+
+            Grid.SetRow(buttonPanel, 2);
+            mainGrid.Children.Add(buttonPanel);
+
+            selectWindow.Content = mainGrid;
+            selectWindow.ShowDialog();
+        }
+
+        /// <summary>
+        /// Znajduje dostępne pliki logo w katalogu aplikacji
+        /// </summary>
+        private List<string> FindLogoFiles()
+        {
+            var logoFiles = new List<string>();
+            var extensions = new[] { "*.png", "*.jpg", "*.jpeg", "*.ico", "*.bmp" };
+
+            // Przeszukaj katalog aplikacji i nadrzędne
+            var searchDirs = new[]
+            {
+                AppDomain.CurrentDomain.BaseDirectory,
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".."),
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", ".."),
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", ".."),
+                Environment.CurrentDirectory,
+                "/home/user/Kalendarz1"
+            };
+
+            foreach (var dir in searchDirs)
+            {
+                try
+                {
+                    string fullDir = Path.GetFullPath(dir);
+                    if (Directory.Exists(fullDir))
+                    {
+                        foreach (var ext in extensions)
+                        {
+                            var files = Directory.GetFiles(fullDir, ext, SearchOption.TopDirectoryOnly)
+                                .Where(f => f.ToLower().Contains("logo"))
+                                .ToList();
+                            logoFiles.AddRange(files);
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            // Usuń duplikaty
+            return logoFiles.Select(f => Path.GetFullPath(f)).Distinct().ToList();
+        }
+
+        /// <summary>
+        /// Ustawia logo z pliku graficznego
+        /// </summary>
+        private void SetLogoFromFile(string logoPath)
+        {
+            try
+            {
+                // Zamień TextBlock na Image w LogoBox
+                LogoBox.Child = null;
+
+                var bitmap = new System.Windows.Media.Imaging.BitmapImage();
+                bitmap.BeginInit();
+                bitmap.UriSource = new Uri(logoPath);
+                bitmap.DecodePixelHeight = 20;
+                bitmap.EndInit();
+
+                var image = new Image
+                {
+                    Source = bitmap,
+                    Width = 20,
+                    Height = 20,
+                    Stretch = System.Windows.Media.Stretch.Uniform
+                };
+
+                LogoBox.Child = image;
+
+                Debug.WriteLine($"[DashboardPrzychodu] Ustawiono logo z pliku: {logoPath}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[DashboardPrzychodu] Błąd ładowania logo: {ex.Message}");
+                // Przywróć domyślne emoji
+                LogoBox.Child = LogoIcon;
+                MessageBox.Show($"Nie można załadować obrazka:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Prawy przycisk myszy na kafelku KPI - pokazuje menu wyboru ikony
+        /// </summary>
+        private void KpiIcon_RightClick(object sender, MouseButtonEventArgs e)
+        {
+            var border = sender as Border;
+            _currentKpiTarget = border?.Tag?.ToString();
+
+            var menu = (ContextMenu)FindResource("IconContextMenu");
+
+            // Aktualizuj tytuł menu
+            var names = new Dictionary<string, string>
+            {
+                {"plan", "PLAN"},
+                {"zwazone", "ZWAŻONE"},
+                {"pozostalo", "POZOSTAŁO"},
+                {"odchylenie", "ODCHYLENIE"},
+                {"tuszki", "TUSZKI"},
+                {"realizacja", "REALIZACJA"}
+            };
+
+            if (names.TryGetValue(_currentKpiTarget ?? "", out var name))
+            {
+                // Menu title is the first item
+                if (menu.Items[0] is MenuItem titleItem)
+                {
+                    titleItem.Header = $"Wybierz ikonę dla: {name}";
+                }
+            }
+
+            menu.PlacementTarget = border;
+            menu.IsOpen = true;
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// Ustawia emoji jako ikonę KPI
+        /// </summary>
+        private void Icon_SetEmoji(object sender, RoutedEventArgs e)
+        {
+            var emoji = (sender as MenuItem)?.Tag?.ToString();
+            if (string.IsNullOrEmpty(emoji) || string.IsNullOrEmpty(_currentKpiTarget)) return;
+
+            switch (_currentKpiTarget)
+            {
+                case "plan": IcoPlan.Text = emoji; break;
+                case "zwazone": IcoZwazone.Text = emoji; break;
+                case "pozostalo": IcoPozostalo.Text = emoji; break;
+                case "odchylenie": IcoOdchylenie.Text = emoji; break;
+                case "tuszki": IcoTuszki.Text = emoji; break;
+                case "realizacja": IcoRealizacja.Text = emoji; break;
+            }
+
+            // Można zapisać do ustawień: SaveSetting($"Icon_{_currentKpiTarget}", emoji);
+        }
+
+        #endregion
     }
 }

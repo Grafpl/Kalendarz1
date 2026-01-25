@@ -198,6 +198,8 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         /// <summary>
         /// Poziom odchylenia do kolorowania
         /// </summary>
+        /// Więcej niż plan = zawsze OK (to dobrze!)
+        /// Mniej niż plan = OK/Uwaga/Problem w zależności od wielkości
         public PoziomOdchylenia Poziom
         {
             get
@@ -205,8 +207,14 @@ namespace Kalendarz1.DashboardPrzychodu.Models
                 if (KgZwazoneSuma == 0)
                     return PoziomOdchylenia.Brak;
 
-                double absProc = Math.Abs((double)OdchylenieProc);
+                double procValue = (double)OdchylenieProc;
 
+                // Więcej niż plan = zawsze OK (to dobrze!)
+                if (procValue >= 0)
+                    return PoziomOdchylenia.OK;
+
+                // Mniej niż plan - sprawdzamy jak dużo brakuje
+                double absProc = Math.Abs(procValue);
                 if (absProc <= 2.0)
                     return PoziomOdchylenia.OK;
                 if (absProc <= 5.0)
@@ -243,6 +251,38 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         /// Info o przelicznikach
         /// </summary>
         public string PrognozaInfo => $"Tuszki: {WspolczynnikTuszek:P0} żywca | A: {WspolczynnikKlasaA:P0} | B: {WspolczynnikKlasaB:P0}";
+
+        #endregion
+
+        #region Properties - Faktyczny przychód z Symfonia (PWU)
+
+        private decimal _faktKlasaAKg;
+        private decimal _faktKlasaBKg;
+
+        /// <summary>
+        /// Faktyczny przychód klasy A z systemu Symfonia (dokumenty sPWU) [kg]
+        /// Produkty gdzie kod zawiera "Kurczak A"
+        /// </summary>
+        public decimal FaktKlasaAKg
+        {
+            get => _faktKlasaAKg;
+            set { _faktKlasaAKg = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>
+        /// Faktyczny przychód klasy B z systemu Symfonia (dokumenty sPWU) [kg]
+        /// Produkty gdzie kod zawiera "Kurczak B"
+        /// </summary>
+        public decimal FaktKlasaBKg
+        {
+            get => _faktKlasaBKg;
+            set { _faktKlasaBKg = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>
+        /// Suma faktycznego przychodu A + B [kg]
+        /// </summary>
+        public decimal FaktSumaKg => FaktKlasaAKg + FaktKlasaBKg;
 
         #endregion
 
