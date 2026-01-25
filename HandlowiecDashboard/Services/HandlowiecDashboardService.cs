@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Globalization;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
 using Kalendarz1.HandlowiecDashboard.Models;
@@ -9,13 +11,23 @@ using Kalendarz1.HandlowiecDashboard.Models;
 namespace Kalendarz1.HandlowiecDashboard.Services
 {
     /// <summary>
-    /// Serwis danych dla Dashboard Handlowca
+    /// Serwis danych dla Dashboard Handlowca - zoptymalizowany pod kątem wydajności
     /// </summary>
-    public class HandlowiecDashboardService
+    public class HandlowiecDashboardService : IDisposable
     {
         private readonly string _connectionStringHandel;
         private readonly string _connectionStringLibraNet;
         private static readonly CultureInfo _pl = new CultureInfo("pl-PL");
+
+        // Connection pool - utrzymuj otwarte połączenia
+        private SqlConnection _pooledConnectionLibraNet;
+        private SqlConnection _pooledConnectionHandel;
+        private readonly SemaphoreSlim _connectionLockLibraNet = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim _connectionLockHandel = new SemaphoreSlim(1, 1);
+        private bool _disposed = false;
+
+        // Domyślny timeout dla komend SQL (60 sekund)
+        private const int DefaultCommandTimeout = 60;
 
         private static readonly string[] _miesiace = {
             "", "Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec",
@@ -28,10 +40,100 @@ namespace Kalendarz1.HandlowiecDashboard.Services
             _connectionStringLibraNet = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         }
 
+        #region Connection Pooling
+
+        /// <summary>
+        /// Zwraca otwarte połączenie z puli dla LibraNet
+        /// </summary>
+        private async Task<SqlConnection> GetConnectionLibraNetAsync(CancellationToken ct = default)
+        {
+            await _connectionLockLibraNet.WaitAsync(ct);
+            try
+            {
+                if (_pooledConnectionLibraNet == null || _pooledConnectionLibraNet.State != ConnectionState.Open)
+                {
+                    _pooledConnectionLibraNet?.Dispose();
+                    _pooledConnectionLibraNet = new SqlConnection(_connectionStringLibraNet);
+                    await _pooledConnectionLibraNet.OpenAsync(ct);
+                }
+                return _pooledConnectionLibraNet;
+            }
+            finally
+            {
+                _connectionLockLibraNet.Release();
+            }
+        }
+
+        /// <summary>
+        /// Zwraca otwarte połączenie z puli dla Handel
+        /// </summary>
+        private async Task<SqlConnection> GetConnectionHandelAsync(CancellationToken ct = default)
+        {
+            await _connectionLockHandel.WaitAsync(ct);
+            try
+            {
+                if (_pooledConnectionHandel == null || _pooledConnectionHandel.State != ConnectionState.Open)
+                {
+                    _pooledConnectionHandel?.Dispose();
+                    _pooledConnectionHandel = new SqlConnection(_connectionStringHandel);
+                    await _pooledConnectionHandel.OpenAsync(ct);
+                }
+                return _pooledConnectionHandel;
+            }
+            finally
+            {
+                _connectionLockHandel.Release();
+            }
+        }
+
+        /// <summary>
+        /// Zamyka połączenia z puli - wywołaj przy zamykaniu okna
+        /// </summary>
+        public void CloseConnections()
+        {
+            _pooledConnectionLibraNet?.Dispose();
+            _pooledConnectionHandel?.Dispose();
+            _pooledConnectionLibraNet = null;
+            _pooledConnectionHandel = null;
+        }
+
+        /// <summary>
+        /// Tworzy nowe połączenie do LibraNet (dla równoległych zapytań)
+        /// </summary>
+        private async Task<SqlConnection> CreateNewConnectionLibraNetAsync(CancellationToken ct = default)
+        {
+            var cn = new SqlConnection(_connectionStringLibraNet);
+            await cn.OpenAsync(ct);
+            return cn;
+        }
+
+        /// <summary>
+        /// Tworzy nowe połączenie do Handel (dla równoległych zapytań)
+        /// </summary>
+        private async Task<SqlConnection> CreateNewConnectionHandelAsync(CancellationToken ct = default)
+        {
+            var cn = new SqlConnection(_connectionStringHandel);
+            await cn.OpenAsync(ct);
+            return cn;
+        }
+
+        public void Dispose()
+        {
+            if (!_disposed)
+            {
+                CloseConnections();
+                _connectionLockLibraNet?.Dispose();
+                _connectionLockHandel?.Dispose();
+                _disposed = true;
+            }
+        }
+
+        #endregion
+
         /// <summary>
         /// Pobiera KPI dla handlowca (bieżący miesiąc vs poprzedni)
         /// </summary>
-        public async Task<HandlowiecKPI> PobierzKPIAsync(string handlowiec = null)
+        public async Task<HandlowiecKPI> PobierzKPIAsync(string handlowiec = null, CancellationToken ct = default)
         {
             var kpi = new HandlowiecKPI();
             var dzis = DateTime.Today;
@@ -40,62 +142,70 @@ namespace Kalendarz1.HandlowiecDashboard.Services
 
             try
             {
-                await using var cn = new SqlConnection(_connectionStringLibraNet);
-                await cn.OpenAsync();
+                await using var cn = await CreateNewConnectionLibraNetAsync(ct);
 
-                // Bieżący miesiąc
-                var sqlBiezacy = @"
+                // Multiple Result Sets - jedno zapytanie dla obu miesięcy
+                var sql = @"
+                    -- Result Set 1: Bieżący miesiąc
                     SELECT
                         COUNT(DISTINCT z.Id) as LiczbaZamowien,
                         ISNULL(SUM(zp.Ilosc), 0) as SumaKg,
                         ISNULL(SUM(zp.Ilosc * ISNULL(TRY_CAST(NULLIF(zp.Cena, '') AS DECIMAL(18,2)), 0)), 0) as SumaWartosc,
                         COUNT(DISTINCT z.KlientId) as LiczbaOdbiorcow
-                    FROM ZamowieniaMieso z
-                    LEFT JOIN ZamowieniaMiesoTowar zp ON z.Id = zp.ZamowienieId
-                    WHERE z.DataZamowienia >= @DataOd AND z.DataZamowienia < @DataDo
-                        AND z.AnulowanePrzez IS NULL";
+                    FROM ZamowieniaMieso z WITH (NOLOCK)
+                    LEFT JOIN ZamowieniaMiesoTowar zp WITH (NOLOCK) ON z.Id = zp.ZamowienieId
+                    WHERE z.DataZamowienia >= @DataOdBiezacy AND z.DataZamowienia < @DataDoBiezacy
+                        AND z.AnulowanePrzez IS NULL" +
+                    (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —" ? " AND z.IdUser = @Handlowiec" : "") + @";
 
+                    -- Result Set 2: Poprzedni miesiąc
+                    SELECT
+                        COUNT(DISTINCT z.Id) as LiczbaZamowien,
+                        ISNULL(SUM(zp.Ilosc), 0) as SumaKg,
+                        ISNULL(SUM(zp.Ilosc * ISNULL(TRY_CAST(NULLIF(zp.Cena, '') AS DECIMAL(18,2)), 0)), 0) as SumaWartosc,
+                        COUNT(DISTINCT z.KlientId) as LiczbaOdbiorcow
+                    FROM ZamowieniaMieso z WITH (NOLOCK)
+                    LEFT JOIN ZamowieniaMiesoTowar zp WITH (NOLOCK) ON z.Id = zp.ZamowienieId
+                    WHERE z.DataZamowienia >= @DataOdPoprzedni AND z.DataZamowienia < @DataDoPoprzedni
+                        AND z.AnulowanePrzez IS NULL" +
+                    (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —" ? " AND z.IdUser = @Handlowiec" : "");
+
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.CommandTimeout = DefaultCommandTimeout;
+                cmd.Parameters.AddWithValue("@DataOdBiezacy", pierwszyDzienMiesiaca);
+                cmd.Parameters.AddWithValue("@DataDoBiezacy", pierwszyDzienMiesiaca.AddMonths(1));
+                cmd.Parameters.AddWithValue("@DataOdPoprzedni", pierwszyDzienPoprzedniego);
+                cmd.Parameters.AddWithValue("@DataDoPoprzedni", pierwszyDzienMiesiaca);
                 if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
-                    sqlBiezacy += " AND z.IdUser = @Handlowiec";
+                    cmd.Parameters.AddWithValue("@Handlowiec", handlowiec);
 
-                await using (var cmd = new SqlCommand(sqlBiezacy, cn))
+                await using var reader = await cmd.ExecuteReaderAsync(ct);
+
+                // Result Set 1: Bieżący miesiąc
+                if (await reader.ReadAsync(ct))
                 {
-                    cmd.Parameters.AddWithValue("@DataOd", pierwszyDzienMiesiaca);
-                    cmd.Parameters.AddWithValue("@DataDo", pierwszyDzienMiesiaca.AddMonths(1));
-                    if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
-                        cmd.Parameters.AddWithValue("@Handlowiec", handlowiec);
-
-                    await using var reader = await cmd.ExecuteReaderAsync();
-                    if (await reader.ReadAsync())
-                    {
-                        kpi.LiczbaZamowienMiesiac = reader.IsDBNull(0) ? 0 : reader.GetInt32(0);
-                        kpi.SumaKgMiesiac = reader.IsDBNull(1) ? 0 : reader.GetDecimal(1);
-                        kpi.SumaWartoscMiesiac = reader.IsDBNull(2) ? 0 : reader.GetDecimal(2);
-                        kpi.LiczbaOdbiorcowMiesiac = reader.IsDBNull(3) ? 0 : reader.GetInt32(3);
-                        kpi.SredniWartoscZamowienia = kpi.LiczbaZamowienMiesiac > 0
-                            ? kpi.SumaWartoscMiesiac / kpi.LiczbaZamowienMiesiac
-                            : 0;
-                    }
+                    kpi.LiczbaZamowienMiesiac = reader.IsDBNull(0) ? 0 : reader.GetInt32(0);
+                    kpi.SumaKgMiesiac = reader.IsDBNull(1) ? 0 : reader.GetDecimal(1);
+                    kpi.SumaWartoscMiesiac = reader.IsDBNull(2) ? 0 : reader.GetDecimal(2);
+                    kpi.LiczbaOdbiorcowMiesiac = reader.IsDBNull(3) ? 0 : reader.GetInt32(3);
+                    kpi.SredniWartoscZamowienia = kpi.LiczbaZamowienMiesiac > 0
+                        ? kpi.SumaWartoscMiesiac / kpi.LiczbaZamowienMiesiac
+                        : 0;
                 }
 
-                // Poprzedni miesiąc
-                var sqlPoprzedni = sqlBiezacy;
-                await using (var cmd = new SqlCommand(sqlPoprzedni, cn))
+                // Result Set 2: Poprzedni miesiąc
+                await reader.NextResultAsync(ct);
+                if (await reader.ReadAsync(ct))
                 {
-                    cmd.Parameters.AddWithValue("@DataOd", pierwszyDzienPoprzedniego);
-                    cmd.Parameters.AddWithValue("@DataDo", pierwszyDzienMiesiaca);
-                    if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
-                        cmd.Parameters.AddWithValue("@Handlowiec", handlowiec);
-
-                    await using var reader = await cmd.ExecuteReaderAsync();
-                    if (await reader.ReadAsync())
-                    {
-                        kpi.LiczbaZamowienPoprzedni = reader.IsDBNull(0) ? 0 : reader.GetInt32(0);
-                        kpi.SumaKgPoprzedni = reader.IsDBNull(1) ? 0 : reader.GetDecimal(1);
-                        kpi.SumaWartoscPoprzedni = reader.IsDBNull(2) ? 0 : reader.GetDecimal(2);
-                        kpi.LiczbaOdbiorcowPoprzedni = reader.IsDBNull(3) ? 0 : reader.GetInt32(3);
-                    }
+                    kpi.LiczbaZamowienPoprzedni = reader.IsDBNull(0) ? 0 : reader.GetInt32(0);
+                    kpi.SumaKgPoprzedni = reader.IsDBNull(1) ? 0 : reader.GetDecimal(1);
+                    kpi.SumaWartoscPoprzedni = reader.IsDBNull(2) ? 0 : reader.GetDecimal(2);
+                    kpi.LiczbaOdbiorcowPoprzedni = reader.IsDBNull(3) ? 0 : reader.GetInt32(3);
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                // Anulowano - ignoruj
             }
             catch (Exception ex)
             {
@@ -108,7 +218,7 @@ namespace Kalendarz1.HandlowiecDashboard.Services
         /// <summary>
         /// Pobiera dane miesięczne dla wykresów (ostatnie 12 miesięcy)
         /// </summary>
-        public async Task<List<DaneMiesieczne>> PobierzDaneMiesieczneAsync(string handlowiec = null, int liczbaMiesiecy = 12)
+        public async Task<List<DaneMiesieczne>> PobierzDaneMiesieczneAsync(string handlowiec = null, int liczbaMiesiecy = 12, CancellationToken ct = default)
         {
             var dane = new List<DaneMiesieczne>();
             var dzis = DateTime.Today;
@@ -116,8 +226,7 @@ namespace Kalendarz1.HandlowiecDashboard.Services
 
             try
             {
-                await using var cn = new SqlConnection(_connectionStringLibraNet);
-                await cn.OpenAsync();
+                await using var cn = await CreateNewConnectionLibraNetAsync(ct);
 
                 var sql = @"
                     SELECT
@@ -127,8 +236,8 @@ namespace Kalendarz1.HandlowiecDashboard.Services
                         ISNULL(SUM(zp.Ilosc), 0) as SumaKg,
                         ISNULL(SUM(zp.Ilosc * ISNULL(TRY_CAST(NULLIF(zp.Cena, '') AS DECIMAL(18,2)), 0)), 0) as SumaWartosc,
                         COUNT(DISTINCT z.KlientId) as LiczbaOdbiorcow
-                    FROM ZamowieniaMieso z
-                    LEFT JOIN ZamowieniaMiesoTowar zp ON z.Id = zp.ZamowienieId
+                    FROM ZamowieniaMieso z WITH (NOLOCK)
+                    LEFT JOIN ZamowieniaMiesoTowar zp WITH (NOLOCK) ON z.Id = zp.ZamowienieId
                     WHERE z.DataZamowienia >= @DataStart
                         AND z.AnulowanePrzez IS NULL";
 
@@ -140,12 +249,13 @@ namespace Kalendarz1.HandlowiecDashboard.Services
                     ORDER BY Rok, Miesiac";
 
                 await using var cmd = new SqlCommand(sql, cn);
+                cmd.CommandTimeout = DefaultCommandTimeout;
                 cmd.Parameters.AddWithValue("@DataStart", dataStart);
                 if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
                     cmd.Parameters.AddWithValue("@Handlowiec", handlowiec);
 
-                await using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
+                await using var reader = await cmd.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct))
                 {
                     var rok = reader.GetInt32(0);
                     var miesiac = reader.GetInt32(1);
@@ -162,6 +272,10 @@ namespace Kalendarz1.HandlowiecDashboard.Services
                     });
                 }
             }
+            catch (OperationCanceledException)
+            {
+                // Anulowano - ignoruj
+            }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Błąd pobierania danych miesięcznych: {ex.Message}");
@@ -173,7 +287,7 @@ namespace Kalendarz1.HandlowiecDashboard.Services
         /// <summary>
         /// Pobiera top odbiorców handlowca
         /// </summary>
-        public async Task<List<TopOdbiorca>> PobierzTopOdbiorcowAsync(string handlowiec = null, int limit = 10, int miesiecy = 3)
+        public async Task<List<TopOdbiorca>> PobierzTopOdbiorcowAsync(string handlowiec = null, int limit = 10, int miesiecy = 3, CancellationToken ct = default)
         {
             var odbiorcy = new List<TopOdbiorca>();
             var dataStart = DateTime.Today.AddMonths(-miesiecy);
@@ -181,8 +295,7 @@ namespace Kalendarz1.HandlowiecDashboard.Services
 
             try
             {
-                await using var cn = new SqlConnection(_connectionStringLibraNet);
-                await cn.OpenAsync();
+                await using var cn = await CreateNewConnectionLibraNetAsync(ct);
 
                 var sql = @"
                     SELECT TOP (@Limit)
@@ -191,8 +304,8 @@ namespace Kalendarz1.HandlowiecDashboard.Services
                         COUNT(DISTINCT z.Id) as LiczbaZamowien,
                         ISNULL(SUM(zp.Ilosc), 0) as SumaKg,
                         ISNULL(SUM(zp.Ilosc * ISNULL(TRY_CAST(NULLIF(zp.Cena, '') AS DECIMAL(18,2)), 0)), 0) as SumaWartosc
-                    FROM ZamowieniaMieso z
-                    LEFT JOIN ZamowieniaMiesoTowar zp ON z.Id = zp.ZamowienieId
+                    FROM ZamowieniaMieso z WITH (NOLOCK)
+                    LEFT JOIN ZamowieniaMiesoTowar zp WITH (NOLOCK) ON z.Id = zp.ZamowienieId
                     WHERE z.DataZamowienia >= @DataStart
                         AND z.AnulowanePrzez IS NULL";
 
@@ -204,14 +317,15 @@ namespace Kalendarz1.HandlowiecDashboard.Services
                     ORDER BY SumaWartosc DESC";
 
                 await using var cmd = new SqlCommand(sql, cn);
+                cmd.CommandTimeout = DefaultCommandTimeout;
                 cmd.Parameters.AddWithValue("@Limit", limit);
                 cmd.Parameters.AddWithValue("@DataStart", dataStart);
                 if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
                     cmd.Parameters.AddWithValue("@Handlowiec", handlowiec);
 
-                await using var reader = await cmd.ExecuteReaderAsync();
+                await using var reader = await cmd.ExecuteReaderAsync(ct);
                 int pozycja = 1;
-                while (await reader.ReadAsync())
+                while (await reader.ReadAsync(ct))
                 {
                     var odbiorca = new TopOdbiorca
                     {
@@ -232,6 +346,10 @@ namespace Kalendarz1.HandlowiecDashboard.Services
                 {
                     o.UdzialProcent = sumaCalkowita > 0 ? (o.SumaWartosc / sumaCalkowita) * 100 : 0;
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                // Anulowano - ignoruj
             }
             catch (Exception ex)
             {

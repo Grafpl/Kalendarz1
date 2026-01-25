@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -9,6 +10,7 @@ using System.Windows.Media;
 using Microsoft.Data.SqlClient;
 using LiveCharts;
 using LiveCharts.Wpf;
+using Kalendarz1.HandlowiecDashboard.Models;
 
 namespace Kalendarz1.HandlowiecDashboard.Views
 {
@@ -35,6 +37,35 @@ namespace Kalendarz1.HandlowiecDashboard.Views
         private readonly string _connectionStringHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
         private readonly CultureInfo _kulturaPL = new CultureInfo("pl-PL");
         private bool _isInitialized = false;
+
+        #region Performance Optimization Fields
+
+        /// <summary>
+        /// Cache dla danych dashboardu - przechowuje dane przez 5 minut
+        /// </summary>
+        private readonly DashboardCache _cache = new DashboardCache { DefaultExpiry = TimeSpan.FromMinutes(5) };
+
+        /// <summary>
+        /// Token anulowania dla bieżącej operacji ładowania
+        /// </summary>
+        private CancellationTokenSource _loadingCts;
+
+        /// <summary>
+        /// Token anulowania dla debounce'a na ComboBoxach
+        /// </summary>
+        private CancellationTokenSource _debounceTokenSource;
+
+        /// <summary>
+        /// Czas opóźnienia debounce'a (300ms)
+        /// </summary>
+        private readonly TimeSpan _debounceDelay = TimeSpan.FromMilliseconds(300);
+
+        /// <summary>
+        /// Zestaw załadowanych zakładek - dla lazy loading
+        /// </summary>
+        private readonly HashSet<int> _loadedTabs = new HashSet<int>();
+
+        #endregion
 
         private static readonly string[] _nazwyMiesiecy = {
             "", "Sty", "Lut", "Mar", "Kwi", "Maj", "Cze",
@@ -71,7 +102,95 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
             DataContext = this;
             Loaded += Window_Loaded;
+            Closed += Window_Closed;
         }
+
+        #region Performance Optimization Methods
+
+        /// <summary>
+        /// Debounce - czeka 300ms po ostatniej zmianie przed wykonaniem akcji
+        /// </summary>
+        private async Task DebounceAsync(Func<Task> action)
+        {
+            _debounceTokenSource?.Cancel();
+            _debounceTokenSource = new CancellationTokenSource();
+
+            try
+            {
+                await Task.Delay(_debounceDelay, _debounceTokenSource.Token);
+                await action();
+            }
+            catch (TaskCanceledException)
+            {
+                // Użytkownik zmienił wartość ponownie - ignoruj
+            }
+        }
+
+        /// <summary>
+        /// Generuje klucz cache dla danej zakładki
+        /// </summary>
+        private string GetCacheKeyForTab(int tabIndex)
+        {
+            var rok = DateTime.Now.Year;
+            var miesiac = DateTime.Now.Month;
+
+            return tabIndex switch
+            {
+                0 => $"SprzedazMiesieczna_{rok}_{miesiac}",
+                1 => $"Top10_{rok}_{miesiac}",
+                2 => $"UdzialHandlowcow_{rok}_{miesiac}",
+                3 => $"AnalizaCen_{rok}_{miesiac}",
+                4 => $"SwiezeMrozone_{rok}_{miesiac}",
+                5 => $"Porownanie_{rok}",
+                6 => $"Trend_{rok}_{miesiac}",
+                7 => $"Opakowania_{rok}_{miesiac}",
+                8 => $"Platnosci_{rok}_{miesiac}",
+                _ => $"Unknown_{tabIndex}"
+            };
+        }
+
+        /// <summary>
+        /// Ładuje dane pozostałych zakładek w tle (niski priorytet)
+        /// </summary>
+        private async Task PreloadDataInBackgroundAsync()
+        {
+            await Task.Delay(500); // Poczekaj aż UI się ustabilizuje
+
+            try
+            {
+                await Task.Run(async () =>
+                {
+                    // Preload z niskim priorytetem - nie blokuj UI
+                    System.Diagnostics.Debug.WriteLine("Background preload started...");
+
+                    // Nic nie robimy tutaj - dane będą ładowane lazy przy pierwszym otwarciu zakładki
+                    // Ten hook może być użyty w przyszłości do preloadowania krytycznych danych
+
+                    await Task.Delay(100); // Placeholder
+                    System.Diagnostics.Debug.WriteLine("Background preload completed.");
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Preload error: {ex.Message}");
+                // Nie pokazuj błędu - to tylko preload
+            }
+        }
+
+        /// <summary>
+        /// Cleanup przy zamykaniu okna - zwalnia zasoby
+        /// </summary>
+        private void Window_Closed(object sender, EventArgs e)
+        {
+            _loadingCts?.Cancel();
+            _loadingCts?.Dispose();
+            _debounceTokenSource?.Cancel();
+            _debounceTokenSource?.Dispose();
+            _cache?.Invalidate();
+            _loadedTabs?.Clear();
+        }
+
+        #endregion
 
         private async void Window_Loaded(object sender, RoutedEventArgs e)
         {
@@ -90,14 +209,18 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
                 WypelnijLataIMiesiace();
                 _isInitialized = true;
+
+                // 1. Najpierw załaduj pierwszą zakładkę (widoczną)
                 await OdswiezSprzedazMiesiecznaAsync();
+                _loadedTabs.Add(0);
+                loadingOverlay.Visibility = Visibility.Collapsed;
+
+                // 2. W tle załaduj pozostałe dane do cache (opcjonalnie)
+                _ = PreloadDataInBackgroundAsync();
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Blad inicjalizacji: {ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-            finally
-            {
                 loadingOverlay.Visibility = Visibility.Collapsed;
             }
         }
@@ -248,37 +371,74 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
         #region Event Handlers
 
-        private async void BtnOdswiez_Click(object sender, RoutedEventArgs e) => OdswiezAktualnaZakladke();
+        private async void BtnOdswiez_Click(object sender, RoutedEventArgs e)
+        {
+            // Przy ręcznym odświeżeniu - unieważnij cache dla aktualnej zakładki
+            var cacheKey = GetCacheKeyForTab(tabControl.SelectedIndex);
+            _cache.Invalidate(cacheKey);
+            await OdswiezAktualnaZakladkeAsync();
+        }
 
-        private void TabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private async void TabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (!_isInitialized || e.Source != tabControl) return;
-            OdswiezAktualnaZakladke();
+
+            var tabIndex = tabControl.SelectedIndex;
+
+            // Jeśli zakładka już była załadowana i dane są w cache - użyj ich
+            if (_loadedTabs.Contains(tabIndex))
+            {
+                var cacheKey = GetCacheKeyForTab(tabIndex);
+                if (_cache.Contains(cacheKey))
+                {
+                    // Dane w cache - szybkie wyświetlenie bez ponownego ładowania
+                    return;
+                }
+            }
+
+            await DebounceAsync(async () =>
+            {
+                await OdswiezAktualnaZakladkeAsync();
+                _loadedTabs.Add(tabIndex);
+            });
         }
 
-        private void CmbRokSprzedaz_SelectionChanged(object sender, SelectionChangedEventArgs e) => OdswiezJesliGotowe();
-        private void CmbMiesiacSprzedaz_SelectionChanged(object sender, SelectionChangedEventArgs e) => OdswiezJesliGotowe();
-        private void CmbTop10_SelectionChanged(object sender, SelectionChangedEventArgs e) => OdswiezJesliGotowe();
-        private void CmbUdzial_SelectionChanged(object sender, SelectionChangedEventArgs e) => OdswiezJesliGotowe();
-        private void CmbCeny_SelectionChanged(object sender, SelectionChangedEventArgs e) => OdswiezJesliGotowe();
-        private void CmbSM_SelectionChanged(object sender, SelectionChangedEventArgs e) => OdswiezJesliGotowe();
-        private void CmbPorown_SelectionChanged(object sender, SelectionChangedEventArgs e) => OdswiezJesliGotowe();
-        private void CmbTrend_SelectionChanged(object sender, SelectionChangedEventArgs e) => OdswiezJesliGotowe();
-        private void CmbOpakowania_SelectionChanged(object sender, SelectionChangedEventArgs e) => OdswiezJesliGotowe();
-        private void CmbPlatnosci_SelectionChanged(object sender, SelectionChangedEventArgs e) => OdswiezJesliGotowe();
+        private async void CmbRokSprzedaz_SelectionChanged(object sender, SelectionChangedEventArgs e) => await OdswiezJesliGotoweAsync();
+        private async void CmbMiesiacSprzedaz_SelectionChanged(object sender, SelectionChangedEventArgs e) => await OdswiezJesliGotoweAsync();
+        private async void CmbTop10_SelectionChanged(object sender, SelectionChangedEventArgs e) => await OdswiezJesliGotoweAsync();
+        private async void CmbUdzial_SelectionChanged(object sender, SelectionChangedEventArgs e) => await OdswiezJesliGotoweAsync();
+        private async void CmbCeny_SelectionChanged(object sender, SelectionChangedEventArgs e) => await OdswiezJesliGotoweAsync();
+        private async void CmbSM_SelectionChanged(object sender, SelectionChangedEventArgs e) => await OdswiezJesliGotoweAsync();
+        private async void CmbPorown_SelectionChanged(object sender, SelectionChangedEventArgs e) => await OdswiezJesliGotoweAsync();
+        private async void CmbTrend_SelectionChanged(object sender, SelectionChangedEventArgs e) => await OdswiezJesliGotoweAsync();
+        private async void CmbOpakowania_SelectionChanged(object sender, SelectionChangedEventArgs e) => await OdswiezJesliGotoweAsync();
+        private async void CmbPlatnosci_SelectionChanged(object sender, SelectionChangedEventArgs e) => await OdswiezJesliGotoweAsync();
 
-        private void OdswiezJesliGotowe()
+        /// <summary>
+        /// Odświeża zakładkę z debounce'em - zapobiega wielokrotnym zapytaniom przy szybkich zmianach
+        /// </summary>
+        private async Task OdswiezJesliGotoweAsync()
         {
             if (!_isInitialized) return;
-            OdswiezAktualnaZakladke();
+            await DebounceAsync(async () => await OdswiezAktualnaZakladkeAsync());
         }
 
-        private async void OdswiezAktualnaZakladke()
+        /// <summary>
+        /// Odświeża aktualną zakładkę z obsługą anulowania i cache'owania
+        /// </summary>
+        private async Task OdswiezAktualnaZakladkeAsync()
         {
             if (!_isInitialized) return;
+
+            // Anuluj poprzednie ładowanie jeśli trwa
+            _loadingCts?.Cancel();
+            _loadingCts = new CancellationTokenSource();
+            var ct = _loadingCts.Token;
+
             try
             {
                 loadingOverlay.Visibility = Visibility.Visible;
+
                 switch (tabControl.SelectedIndex)
                 {
                     case 0: await OdswiezSprzedazMiesiecznaAsync(); break;
@@ -292,13 +452,23 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     case 8: await OdswiezPlatnosciAsync(); break;
                 }
             }
+            catch (OperationCanceledException)
+            {
+                // Anulowano - ignoruj
+            }
             catch (Exception ex)
             {
-                MessageBox.Show($"Blad: {ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+                if (!ct.IsCancellationRequested)
+                {
+                    MessageBox.Show($"Blad: {ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
             finally
             {
-                loadingOverlay.Visibility = Visibility.Collapsed;
+                if (!ct.IsCancellationRequested)
+                {
+                    loadingOverlay.Visibility = Visibility.Collapsed;
+                }
             }
         }
 

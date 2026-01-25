@@ -256,7 +256,10 @@
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
                                     <TextBlock Grid.Row="0" Text="Szczegoly per handlowiec (kliknij aby rozwinac)" FontWeight="Bold" Foreground="#C0392B" Margin="10,10,10,5"/>
-                                    <TreeView Grid.Row="1" x:Name="treeSprzedaz" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF"/>
+                                    <TreeView Grid.Row="1" x:Name="treeSprzedaz" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF"
+                                              VirtualizingPanel.IsVirtualizing="True"
+                                              VirtualizingPanel.VirtualizationMode="Recycling"
+                                              ScrollViewer.IsDeferredScrollingEnabled="True"/>
                                 </Grid>
                             </Border>
                         </Grid>
@@ -408,7 +411,13 @@
                                       RowBackground="#252A31" AlternatingRowBackground="#2D333B"
                                       Foreground="#FFFFFF" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#30363D"
                                       HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False"
-                                      MaxHeight="200" MouseDoubleClick="GridAnalizaCeny_MouseDoubleClick">
+                                      MaxHeight="200" MouseDoubleClick="GridAnalizaCeny_MouseDoubleClick"
+                                      VirtualizingPanel.IsVirtualizing="True"
+                                      VirtualizingPanel.VirtualizationMode="Recycling"
+                                      VirtualizingPanel.ScrollUnit="Item"
+                                      EnableRowVirtualization="True"
+                                      EnableColumnVirtualization="True"
+                                      ScrollViewer.IsDeferredScrollingEnabled="True">
                                 <DataGrid.ColumnHeaderStyle>
                                     <Style TargetType="DataGridColumnHeader">
                                         <Setter Property="Background" Value="#1A1D21"/>
@@ -1015,7 +1024,13 @@
                                       HorizontalGridLinesBrush="#444444" VerticalGridLinesBrush="#444444"
                                       HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False"
                                       CanUserSortColumns="True" Sorting="GridPlatnosci_Sorting"
-                                      MouseDoubleClick="GridPlatnosci_MouseDoubleClick">
+                                      MouseDoubleClick="GridPlatnosci_MouseDoubleClick"
+                                      VirtualizingPanel.IsVirtualizing="True"
+                                      VirtualizingPanel.VirtualizationMode="Recycling"
+                                      VirtualizingPanel.ScrollUnit="Item"
+                                      EnableRowVirtualization="True"
+                                      EnableColumnVirtualization="True"
+                                      ScrollViewer.IsDeferredScrollingEnabled="True">
                                 <DataGrid.RowStyle>
                                     <Style TargetType="DataGridRow">
                                         <Setter Property="Cursor" Value="Hand"/>
