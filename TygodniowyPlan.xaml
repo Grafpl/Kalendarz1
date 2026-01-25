@@ -211,7 +211,6 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -422,23 +421,25 @@
             </StackPanel>
         </Grid>
 
-        <!-- NOWA SEKCJA: Statystyki pojemników -->
-        <Border Grid.Row="2" 
-                Background="White" 
-                BorderBrush="#BDC3C7" 
+        <!-- NOWA SEKCJA: Statystyki pojemników + Porównanie PLAN vs FAKT -->
+        <Border Grid.Row="2"
+                Background="White"
+                BorderBrush="#BDC3C7"
                 BorderThickness="0,1,0,1"
-                Padding="15,12">
+                Padding="15,10">
             <Grid>
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="8"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="10"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
                 <!-- Nagłówek sekcji -->
-                <TextBlock Grid.Row="0" 
-                           Text="📦 STATYSTYKI POJEMNIKÓW (15kg/poj | 36 poj/paleta)" 
-                           FontSize="13" 
+                <TextBlock Grid.Row="0"
+                           Text="📦 STATYSTYKI POJEMNIKÓW (15kg/poj | 36 poj/paleta)"
+                           FontSize="13"
                            FontWeight="Bold"
                            Foreground="#2C3E50"
                            HorizontalAlignment="Left"/>
@@ -789,41 +790,12 @@
                         </StackPanel>
                     </Border>
                 </Grid>
-            </Grid>
-        </Border>
 
-        <!-- SEKCJA PORÓWNANIA PLAN vs FAKT -->
-        <Border Grid.Row="3"
-                Background="#FAFAFA"
-                BorderBrush="#9C27B0"
-                BorderThickness="0,2,0,0"
-                Padding="15,10">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="8"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-
-                <!-- Nagłówek sekcji porównania -->
-                <StackPanel Grid.Row="0" Orientation="Horizontal">
-                    <TextBlock Text="📊 PORÓWNANIE: PLAN vs FAKT (Tuszka A)"
-                               FontSize="13"
-                               FontWeight="Bold"
-                               Foreground="#9C27B0"
-                               VerticalAlignment="Center"/>
-                    <Border Background="#9C27B0" CornerRadius="10" Padding="8,3" Margin="15,0,0,0">
-                        <TextBlock Text="kg wg rozmiarów POJ 5-12"
-                                   FontSize="10"
-                                   Foreground="White"/>
-                    </Border>
-                </StackPanel>
-
-                <!-- Tabela porównawcza -->
-                <Border Grid.Row="2"
+                <!-- PORÓWNANIE PLAN vs FAKT -->
+                <Border Grid.Row="4"
                         Background="White"
-                        BorderBrush="#E0E0E0"
-                        BorderThickness="1"
+                        BorderBrush="#9C27B0"
+                        BorderThickness="2"
                         CornerRadius="6">
                     <Grid>
                         <Grid.RowDefinitions>
@@ -831,11 +803,11 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <!-- Nagłówki kolumn -->
-                        <Border Grid.Row="0" Background="#9C27B0" CornerRadius="6,6,0,0">
+                        <!-- Nagłówek porównania -->
+                        <Border Grid.Row="0" Background="#9C27B0" CornerRadius="4,4,0,0">
                             <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="70"/>
+                                    <ColumnDefinition Width="60"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
@@ -844,29 +816,29 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="90"/>
                                 </Grid.ColumnDefinitions>
 
-                                <TextBlock Grid.Column="0" Text="" FontWeight="Bold" Foreground="White"
-                                           Padding="8,6" HorizontalAlignment="Center"/>
-                                <TextBlock Grid.Column="1" Text="POJ 12" FontWeight="Bold" Foreground="White"
-                                           Padding="8,6" HorizontalAlignment="Center" FontSize="11"/>
-                                <TextBlock Grid.Column="2" Text="POJ 11" FontWeight="Bold" Foreground="White"
-                                           Padding="8,6" HorizontalAlignment="Center" FontSize="11"/>
-                                <TextBlock Grid.Column="3" Text="POJ 10" FontWeight="Bold" Foreground="White"
-                                           Padding="8,6" HorizontalAlignment="Center" FontSize="11"/>
-                                <TextBlock Grid.Column="4" Text="POJ 9" FontWeight="Bold" Foreground="White"
-                                           Padding="8,6" HorizontalAlignment="Center" FontSize="11"/>
-                                <TextBlock Grid.Column="5" Text="POJ 8" FontWeight="Bold" Foreground="White"
-                                           Padding="8,6" HorizontalAlignment="Center" FontSize="11"/>
-                                <TextBlock Grid.Column="6" Text="POJ 7" FontWeight="Bold" Foreground="White"
-                                           Padding="8,6" HorizontalAlignment="Center" FontSize="11"/>
-                                <TextBlock Grid.Column="7" Text="POJ 6" FontWeight="Bold" Foreground="White"
-                                           Padding="8,6" HorizontalAlignment="Center" FontSize="11"/>
-                                <TextBlock Grid.Column="8" Text="POJ 5" FontWeight="Bold" Foreground="White"
-                                           Padding="8,6" HorizontalAlignment="Center" FontSize="11"/>
+                                <TextBlock Grid.Column="0" Text="📊" FontWeight="Bold" Foreground="White"
+                                           Padding="6,4" HorizontalAlignment="Center" FontSize="12"/>
+                                <TextBlock Grid.Column="1" Text="POJ12" FontWeight="Bold" Foreground="White"
+                                           Padding="4,4" HorizontalAlignment="Center" FontSize="10"/>
+                                <TextBlock Grid.Column="2" Text="POJ11" FontWeight="Bold" Foreground="White"
+                                           Padding="4,4" HorizontalAlignment="Center" FontSize="10"/>
+                                <TextBlock Grid.Column="3" Text="POJ10" FontWeight="Bold" Foreground="White"
+                                           Padding="4,4" HorizontalAlignment="Center" FontSize="10"/>
+                                <TextBlock Grid.Column="4" Text="POJ9" FontWeight="Bold" Foreground="White"
+                                           Padding="4,4" HorizontalAlignment="Center" FontSize="10"/>
+                                <TextBlock Grid.Column="5" Text="POJ8" FontWeight="Bold" Foreground="White"
+                                           Padding="4,4" HorizontalAlignment="Center" FontSize="10"/>
+                                <TextBlock Grid.Column="6" Text="POJ7" FontWeight="Bold" Foreground="White"
+                                           Padding="4,4" HorizontalAlignment="Center" FontSize="10"/>
+                                <TextBlock Grid.Column="7" Text="POJ6" FontWeight="Bold" Foreground="White"
+                                           Padding="4,4" HorizontalAlignment="Center" FontSize="10"/>
+                                <TextBlock Grid.Column="8" Text="POJ5" FontWeight="Bold" Foreground="White"
+                                           Padding="4,4" HorizontalAlignment="Center" FontSize="10"/>
                                 <TextBlock Grid.Column="9" Text="SUMA" FontWeight="Bold" Foreground="White"
-                                           Padding="8,6" HorizontalAlignment="Center"/>
+                                           Padding="4,4" HorizontalAlignment="Center" FontSize="10"/>
                             </Grid>
                         </Border>
 
@@ -875,7 +847,7 @@
                             <!-- Wiersz PLAN -->
                             <Grid Background="#E8F5E9">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="70"/>
+                                    <ColumnDefinition Width="60"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
@@ -884,37 +856,37 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="90"/>
                                 </Grid.ColumnDefinitions>
 
-                                <TextBlock Grid.Column="0" Text="📋 PLAN" FontWeight="Bold" Foreground="#2E7D32"
-                                           Padding="8,5" HorizontalAlignment="Left" FontSize="11"/>
+                                <TextBlock Grid.Column="0" Text="PLAN" FontWeight="Bold" Foreground="#2E7D32"
+                                           Padding="6,3" HorizontalAlignment="Left" FontSize="10"/>
                                 <TextBlock Grid.Column="1" x:Name="txtPorPlan12" Text="0" FontWeight="SemiBold"
-                                           Foreground="#424242" Padding="8,5" HorizontalAlignment="Center" FontSize="11"/>
+                                           Foreground="#424242" Padding="4,3" HorizontalAlignment="Center" FontSize="10"/>
                                 <TextBlock Grid.Column="2" x:Name="txtPorPlan11" Text="0" FontWeight="SemiBold"
-                                           Foreground="#424242" Padding="8,5" HorizontalAlignment="Center" FontSize="11"/>
+                                           Foreground="#424242" Padding="4,3" HorizontalAlignment="Center" FontSize="10"/>
                                 <TextBlock Grid.Column="3" x:Name="txtPorPlan10" Text="0" FontWeight="SemiBold"
-                                           Foreground="#424242" Padding="8,5" HorizontalAlignment="Center" FontSize="11"/>
+                                           Foreground="#424242" Padding="4,3" HorizontalAlignment="Center" FontSize="10"/>
                                 <TextBlock Grid.Column="4" x:Name="txtPorPlan9" Text="0" FontWeight="SemiBold"
-                                           Foreground="#424242" Padding="8,5" HorizontalAlignment="Center" FontSize="11"/>
+                                           Foreground="#424242" Padding="4,3" HorizontalAlignment="Center" FontSize="10"/>
                                 <TextBlock Grid.Column="5" x:Name="txtPorPlan8" Text="0" FontWeight="SemiBold"
-                                           Foreground="#424242" Padding="8,5" HorizontalAlignment="Center" FontSize="11"/>
+                                           Foreground="#424242" Padding="4,3" HorizontalAlignment="Center" FontSize="10"/>
                                 <TextBlock Grid.Column="6" x:Name="txtPorPlan7" Text="0" FontWeight="SemiBold"
-                                           Foreground="#424242" Padding="8,5" HorizontalAlignment="Center" FontSize="11"/>
+                                           Foreground="#424242" Padding="4,3" HorizontalAlignment="Center" FontSize="10"/>
                                 <TextBlock Grid.Column="7" x:Name="txtPorPlan6" Text="0" FontWeight="SemiBold"
-                                           Foreground="#424242" Padding="8,5" HorizontalAlignment="Center" FontSize="11"/>
+                                           Foreground="#424242" Padding="4,3" HorizontalAlignment="Center" FontSize="10"/>
                                 <TextBlock Grid.Column="8" x:Name="txtPorPlan5" Text="0" FontWeight="SemiBold"
-                                           Foreground="#424242" Padding="8,5" HorizontalAlignment="Center" FontSize="11"/>
-                                <Border Grid.Column="9" Background="#2E7D32" Margin="2">
+                                           Foreground="#424242" Padding="4,3" HorizontalAlignment="Center" FontSize="10"/>
+                                <Border Grid.Column="9" Background="#2E7D32" Margin="1">
                                     <TextBlock x:Name="txtPorPlanSuma" Text="0 kg" FontWeight="Bold"
-                                               Foreground="White" Padding="8,4" HorizontalAlignment="Center" FontSize="11"/>
+                                               Foreground="White" Padding="4,2" HorizontalAlignment="Center" FontSize="10"/>
                                 </Border>
                             </Grid>
 
                             <!-- Wiersz FAKT -->
                             <Grid Background="#E3F2FD">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="70"/>
+                                    <ColumnDefinition Width="60"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
@@ -923,37 +895,37 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="90"/>
                                 </Grid.ColumnDefinitions>
 
-                                <TextBlock Grid.Column="0" Text="✓ FAKT" FontWeight="Bold" Foreground="#1565C0"
-                                           Padding="8,5" HorizontalAlignment="Left" FontSize="11"/>
+                                <TextBlock Grid.Column="0" Text="FAKT" FontWeight="Bold" Foreground="#1565C0"
+                                           Padding="6,3" HorizontalAlignment="Left" FontSize="10"/>
                                 <TextBlock Grid.Column="1" x:Name="txtPorFakt12" Text="0" FontWeight="SemiBold"
-                                           Foreground="#424242" Padding="8,5" HorizontalAlignment="Center" FontSize="11"/>
+                                           Foreground="#424242" Padding="4,3" HorizontalAlignment="Center" FontSize="10"/>
                                 <TextBlock Grid.Column="2" x:Name="txtPorFakt11" Text="0" FontWeight="SemiBold"
-                                           Foreground="#424242" Padding="8,5" HorizontalAlignment="Center" FontSize="11"/>
+                                           Foreground="#424242" Padding="4,3" HorizontalAlignment="Center" FontSize="10"/>
                                 <TextBlock Grid.Column="3" x:Name="txtPorFakt10" Text="0" FontWeight="SemiBold"
-                                           Foreground="#424242" Padding="8,5" HorizontalAlignment="Center" FontSize="11"/>
+                                           Foreground="#424242" Padding="4,3" HorizontalAlignment="Center" FontSize="10"/>
                                 <TextBlock Grid.Column="4" x:Name="txtPorFakt9" Text="0" FontWeight="SemiBold"
-                                           Foreground="#424242" Padding="8,5" HorizontalAlignment="Center" FontSize="11"/>
+                                           Foreground="#424242" Padding="4,3" HorizontalAlignment="Center" FontSize="10"/>
                                 <TextBlock Grid.Column="5" x:Name="txtPorFakt8" Text="0" FontWeight="SemiBold"
-                                           Foreground="#424242" Padding="8,5" HorizontalAlignment="Center" FontSize="11"/>
+                                           Foreground="#424242" Padding="4,3" HorizontalAlignment="Center" FontSize="10"/>
                                 <TextBlock Grid.Column="6" x:Name="txtPorFakt7" Text="0" FontWeight="SemiBold"
-                                           Foreground="#424242" Padding="8,5" HorizontalAlignment="Center" FontSize="11"/>
+                                           Foreground="#424242" Padding="4,3" HorizontalAlignment="Center" FontSize="10"/>
                                 <TextBlock Grid.Column="7" x:Name="txtPorFakt6" Text="0" FontWeight="SemiBold"
-                                           Foreground="#424242" Padding="8,5" HorizontalAlignment="Center" FontSize="11"/>
+                                           Foreground="#424242" Padding="4,3" HorizontalAlignment="Center" FontSize="10"/>
                                 <TextBlock Grid.Column="8" x:Name="txtPorFakt5" Text="0" FontWeight="SemiBold"
-                                           Foreground="#424242" Padding="8,5" HorizontalAlignment="Center" FontSize="11"/>
-                                <Border Grid.Column="9" Background="#1565C0" Margin="2">
+                                           Foreground="#424242" Padding="4,3" HorizontalAlignment="Center" FontSize="10"/>
+                                <Border Grid.Column="9" Background="#1565C0" Margin="1">
                                     <TextBlock x:Name="txtPorFaktSuma" Text="0 kg" FontWeight="Bold"
-                                               Foreground="White" Padding="8,4" HorizontalAlignment="Center" FontSize="11"/>
+                                               Foreground="White" Padding="4,2" HorizontalAlignment="Center" FontSize="10"/>
                                 </Border>
                             </Grid>
 
                             <!-- Wiersz RÓŻNICA -->
                             <Grid Background="#FFF8E1">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="70"/>
+                                    <ColumnDefinition Width="60"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
@@ -962,37 +934,37 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="90"/>
                                 </Grid.ColumnDefinitions>
 
-                                <TextBlock Grid.Column="0" Text="± RÓŻN." FontWeight="Bold" Foreground="#F57C00"
-                                           Padding="8,5" HorizontalAlignment="Left" FontSize="11"/>
+                                <TextBlock Grid.Column="0" Text="RÓŻN." FontWeight="Bold" Foreground="#F57C00"
+                                           Padding="6,3" HorizontalAlignment="Left" FontSize="10"/>
                                 <TextBlock Grid.Column="1" x:Name="txtPorRoznica12" Text="0" FontWeight="SemiBold"
-                                           Foreground="#9E9E9E" Padding="8,5" HorizontalAlignment="Center" FontSize="11"/>
+                                           Foreground="#9E9E9E" Padding="4,3" HorizontalAlignment="Center" FontSize="10"/>
                                 <TextBlock Grid.Column="2" x:Name="txtPorRoznica11" Text="0" FontWeight="SemiBold"
-                                           Foreground="#9E9E9E" Padding="8,5" HorizontalAlignment="Center" FontSize="11"/>
+                                           Foreground="#9E9E9E" Padding="4,3" HorizontalAlignment="Center" FontSize="10"/>
                                 <TextBlock Grid.Column="3" x:Name="txtPorRoznica10" Text="0" FontWeight="SemiBold"
-                                           Foreground="#9E9E9E" Padding="8,5" HorizontalAlignment="Center" FontSize="11"/>
+                                           Foreground="#9E9E9E" Padding="4,3" HorizontalAlignment="Center" FontSize="10"/>
                                 <TextBlock Grid.Column="4" x:Name="txtPorRoznica9" Text="0" FontWeight="SemiBold"
-                                           Foreground="#9E9E9E" Padding="8,5" HorizontalAlignment="Center" FontSize="11"/>
+                                           Foreground="#9E9E9E" Padding="4,3" HorizontalAlignment="Center" FontSize="10"/>
                                 <TextBlock Grid.Column="5" x:Name="txtPorRoznica8" Text="0" FontWeight="SemiBold"
-                                           Foreground="#9E9E9E" Padding="8,5" HorizontalAlignment="Center" FontSize="11"/>
+                                           Foreground="#9E9E9E" Padding="4,3" HorizontalAlignment="Center" FontSize="10"/>
                                 <TextBlock Grid.Column="6" x:Name="txtPorRoznica7" Text="0" FontWeight="SemiBold"
-                                           Foreground="#9E9E9E" Padding="8,5" HorizontalAlignment="Center" FontSize="11"/>
+                                           Foreground="#9E9E9E" Padding="4,3" HorizontalAlignment="Center" FontSize="10"/>
                                 <TextBlock Grid.Column="7" x:Name="txtPorRoznica6" Text="0" FontWeight="SemiBold"
-                                           Foreground="#9E9E9E" Padding="8,5" HorizontalAlignment="Center" FontSize="11"/>
+                                           Foreground="#9E9E9E" Padding="4,3" HorizontalAlignment="Center" FontSize="10"/>
                                 <TextBlock Grid.Column="8" x:Name="txtPorRoznica5" Text="0" FontWeight="SemiBold"
-                                           Foreground="#9E9E9E" Padding="8,5" HorizontalAlignment="Center" FontSize="11"/>
-                                <Border Grid.Column="9" Background="#F57C00" Margin="2">
+                                           Foreground="#9E9E9E" Padding="4,3" HorizontalAlignment="Center" FontSize="10"/>
+                                <Border Grid.Column="9" Background="#F57C00" Margin="1">
                                     <TextBlock x:Name="txtPorRoznicaSuma" Text="0 kg" FontWeight="Bold"
-                                               Foreground="White" Padding="8,4" HorizontalAlignment="Center" FontSize="11"/>
+                                               Foreground="White" Padding="4,2" HorizontalAlignment="Center" FontSize="10"/>
                                 </Border>
                             </Grid>
 
                             <!-- Wiersz PROCENT -->
-                            <Grid Background="#FCE4EC" Margin="0,0,0,0">
+                            <Grid Background="#FCE4EC">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="70"/>
+                                    <ColumnDefinition Width="60"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
@@ -1001,30 +973,30 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="90"/>
                                 </Grid.ColumnDefinitions>
 
                                 <TextBlock Grid.Column="0" Text="% RÓŻN." FontWeight="Bold" Foreground="#C2185B"
-                                           Padding="8,5" HorizontalAlignment="Left" FontSize="11"/>
+                                           Padding="6,3" HorizontalAlignment="Left" FontSize="9"/>
                                 <TextBlock Grid.Column="1" x:Name="txtPorProcent12" Text="0%" FontWeight="SemiBold"
-                                           Foreground="#9E9E9E" Padding="8,5" HorizontalAlignment="Center" FontSize="10"/>
+                                           Foreground="#9E9E9E" Padding="4,3" HorizontalAlignment="Center" FontSize="9"/>
                                 <TextBlock Grid.Column="2" x:Name="txtPorProcent11" Text="0%" FontWeight="SemiBold"
-                                           Foreground="#9E9E9E" Padding="8,5" HorizontalAlignment="Center" FontSize="10"/>
+                                           Foreground="#9E9E9E" Padding="4,3" HorizontalAlignment="Center" FontSize="9"/>
                                 <TextBlock Grid.Column="3" x:Name="txtPorProcent10" Text="0%" FontWeight="SemiBold"
-                                           Foreground="#9E9E9E" Padding="8,5" HorizontalAlignment="Center" FontSize="10"/>
+                                           Foreground="#9E9E9E" Padding="4,3" HorizontalAlignment="Center" FontSize="9"/>
                                 <TextBlock Grid.Column="4" x:Name="txtPorProcent9" Text="0%" FontWeight="SemiBold"
-                                           Foreground="#9E9E9E" Padding="8,5" HorizontalAlignment="Center" FontSize="10"/>
+                                           Foreground="#9E9E9E" Padding="4,3" HorizontalAlignment="Center" FontSize="9"/>
                                 <TextBlock Grid.Column="5" x:Name="txtPorProcent8" Text="0%" FontWeight="SemiBold"
-                                           Foreground="#9E9E9E" Padding="8,5" HorizontalAlignment="Center" FontSize="10"/>
+                                           Foreground="#9E9E9E" Padding="4,3" HorizontalAlignment="Center" FontSize="9"/>
                                 <TextBlock Grid.Column="6" x:Name="txtPorProcent7" Text="0%" FontWeight="SemiBold"
-                                           Foreground="#9E9E9E" Padding="8,5" HorizontalAlignment="Center" FontSize="10"/>
+                                           Foreground="#9E9E9E" Padding="4,3" HorizontalAlignment="Center" FontSize="9"/>
                                 <TextBlock Grid.Column="7" x:Name="txtPorProcent6" Text="0%" FontWeight="SemiBold"
-                                           Foreground="#9E9E9E" Padding="8,5" HorizontalAlignment="Center" FontSize="10"/>
+                                           Foreground="#9E9E9E" Padding="4,3" HorizontalAlignment="Center" FontSize="9"/>
                                 <TextBlock Grid.Column="8" x:Name="txtPorProcent5" Text="0%" FontWeight="SemiBold"
-                                           Foreground="#9E9E9E" Padding="8,5" HorizontalAlignment="Center" FontSize="10"/>
-                                <Border Grid.Column="9" Background="#C2185B" Margin="2" CornerRadius="0,0,4,4">
+                                           Foreground="#9E9E9E" Padding="4,3" HorizontalAlignment="Center" FontSize="9"/>
+                                <Border Grid.Column="9" Background="#C2185B" Margin="1" CornerRadius="0,0,4,4">
                                     <TextBlock x:Name="txtPorProcentSuma" Text="0%" FontWeight="Bold"
-                                               Foreground="White" Padding="8,4" HorizontalAlignment="Center" FontSize="11"/>
+                                               Foreground="White" Padding="4,2" HorizontalAlignment="Center" FontSize="10"/>
                                 </Border>
                             </Grid>
                         </StackPanel>
@@ -1034,7 +1006,7 @@
         </Border>
 
         <!-- JEDNA TABELA - zakres od min daty dostawy -5 dni do max daty +5 dni -->
-        <Grid Grid.Row="4" Margin="10">
+        <Grid Grid.Row="3" Margin="10">
             <Border BorderBrush="#5C8A3A"
                     BorderThickness="3"
                     CornerRadius="8">
@@ -1279,93 +1251,6 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-
-                            <!-- Kolumna akcji - przyciski strzałka i kosz -->
-                            <DataGridTemplateColumn Header="Akcje" Width="90">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                            <StackPanel.Style>
-                                                <Style TargetType="StackPanel">
-                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding JestSuma}" Value="True">
-                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                        </DataTrigger>
-                                                        <DataTrigger Binding="{Binding ZywiecKg}" Value="0">
-                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </StackPanel.Style>
-                                            <!-- Przycisk strzałki - idź do kalendarza dostaw -->
-                                            <Button Click="BtnGoToDelivery_Click" ToolTip="Pokaż w kalendarzu dostaw"
-                                                    Width="32" Height="26" Margin="2,0" Cursor="Hand">
-                                                <Button.Style>
-                                                    <Style TargetType="Button">
-                                                        <Setter Property="Background" Value="#1976D2"/>
-                                                        <Setter Property="BorderThickness" Value="0"/>
-                                                        <Setter Property="Template">
-                                                            <Setter.Value>
-                                                                <ControlTemplate TargetType="Button">
-                                                                    <Border x:Name="btnBorder" Background="{TemplateBinding Background}"
-                                                                            CornerRadius="4" Padding="4">
-                                                                        <TextBlock Text="➜" FontSize="14" FontWeight="Bold"
-                                                                                   Foreground="White" HorizontalAlignment="Center"
-                                                                                   VerticalAlignment="Center"/>
-                                                                    </Border>
-                                                                    <ControlTemplate.Triggers>
-                                                                        <Trigger Property="IsMouseOver" Value="True">
-                                                                            <Setter TargetName="btnBorder" Property="Background" Value="#1565C0"/>
-                                                                        </Trigger>
-                                                                        <EventTrigger RoutedEvent="Loaded">
-                                                                            <BeginStoryboard>
-                                                                                <Storyboard RepeatBehavior="Forever">
-                                                                                    <ColorAnimation Storyboard.TargetName="btnBorder"
-                                                                                                    Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                                                                                    From="#1976D2" To="#64B5F6" Duration="0:0:0.6"
-                                                                                                    AutoReverse="True"/>
-                                                                                </Storyboard>
-                                                                            </BeginStoryboard>
-                                                                        </EventTrigger>
-                                                                    </ControlTemplate.Triggers>
-                                                                </ControlTemplate>
-                                                            </Setter.Value>
-                                                        </Setter>
-                                                    </Style>
-                                                </Button.Style>
-                                            </Button>
-                                            <!-- Przycisk kosza - usun dostawy -->
-                                            <Button Click="BtnDeleteDelivery_Click" ToolTip="Usuń dostawy z tego dnia"
-                                                    Width="32" Height="26" Margin="2,0" Cursor="Hand">
-                                                <Button.Style>
-                                                    <Style TargetType="Button">
-                                                        <Setter Property="Background" Value="#E53935"/>
-                                                        <Setter Property="BorderThickness" Value="0"/>
-                                                        <Setter Property="Template">
-                                                            <Setter.Value>
-                                                                <ControlTemplate TargetType="Button">
-                                                                    <Border x:Name="btnBorder" Background="{TemplateBinding Background}"
-                                                                            CornerRadius="4" Padding="4">
-                                                                        <TextBlock Text="🗑" FontSize="12"
-                                                                                   Foreground="White" HorizontalAlignment="Center"
-                                                                                   VerticalAlignment="Center"/>
-                                                                    </Border>
-                                                                    <ControlTemplate.Triggers>
-                                                                        <Trigger Property="IsMouseOver" Value="True">
-                                                                            <Setter TargetName="btnBorder" Property="Background" Value="#C62828"/>
-                                                                        </Trigger>
-                                                                    </ControlTemplate.Triggers>
-                                                                </ControlTemplate>
-                                                            </Setter.Value>
-                                                        </Setter>
-                                                    </Style>
-                                                </Button.Style>
-                                            </Button>
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>
@@ -1373,7 +1258,7 @@
         </Grid>
 
         <!-- Stopka z podsumowaniem -->
-        <Border Grid.Row="5" Background="#34495E" Padding="15,10">
+        <Border Grid.Row="4" Background="#34495E" Padding="15,10">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>

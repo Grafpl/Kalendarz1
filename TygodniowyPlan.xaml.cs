@@ -1418,59 +1418,6 @@ namespace Kalendarz1
             }
         }
 
-        private void BtnGoToDelivery_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                var button = sender as Button;
-                var plan = button?.DataContext as PlanDziennyModel;
-
-                if (plan != null && !plan.JestSuma && plan.ZywiecKg > 0)
-                {
-                    DateTime dataWybrana = DateTime.Parse(plan.Data);
-
-                    // Otwórz WidokKalendarzaWPF z wybraną datą
-                    var oknoKalendarza = new Zywiec.Kalendarz.WidokKalendarzaWPF();
-                    oknoKalendarza.Show();
-
-                    // Pokaż informację o nawigacji
-                    MessageBox.Show($"Otwarto kalendarz dostaw.\n\nData: {dataWybrana:dd.MM.yyyy}\nŻywiec: {plan.ZywiecKg:N0} kg\nAuta: {plan.LiczbaAut}",
-                                  "Nawigacja do kalendarza", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd nawigacji: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private void BtnDeleteDelivery_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                var button = sender as Button;
-                var plan = button?.DataContext as PlanDziennyModel;
-
-                if (plan != null && !plan.JestSuma && plan.ZywiecKg > 0)
-                {
-                    DateTime dataWybrana = DateTime.Parse(plan.Data);
-
-                    var result = MessageBox.Show($"Czy na pewno chcesz usunąć wszystkie dostawy z dnia {dataWybrana:dd.MM.yyyy}?\n\nŻywiec: {plan.ZywiecKg:N0} kg\nAuta: {plan.LiczbaAut}",
-                                                "Potwierdzenie usunięcia", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-
-                    if (result == MessageBoxResult.Yes)
-                    {
-                        // Tutaj logika usuwania dostaw
-                        MessageBox.Show("Funkcja usuwania dostaw nie jest jeszcze zaimplementowana.\n\nUżyj kalendarza dostaw do zarządzania dostawami.",
-                                      "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd usuwania: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
     }
 
     public class PlanDziennyModel
