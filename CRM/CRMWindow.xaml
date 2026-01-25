@@ -5,35 +5,68 @@
         WindowState="Maximized"
         WindowStartupLocation="CenterScreen"
         x:Name="mainWindow"
-        Background="#FAFAFA"
+        Background="#0F172A"
         FontFamily="Segoe UI">
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
 
-        <!-- MOTYW BIAŁO-CZERWONO-ZIELONY -->
-        <SolidColorBrush x:Key="PrimaryColor" Color="#16A34A"/>
-        <SolidColorBrush x:Key="PrimaryLight" Color="#DCFCE7"/>
-        <SolidColorBrush x:Key="AccentRed" Color="#DC2626"/>
-        <SolidColorBrush x:Key="AccentRedLight" Color="#FEE2E2"/>
-        <SolidColorBrush x:Key="DangerColor" Color="#DC2626"/>
-        <SolidColorBrush x:Key="TextDark" Color="#111827"/>
-        <SolidColorBrush x:Key="TextGray" Color="#6B7280"/>
-        <SolidColorBrush x:Key="BorderColor" Color="#E5E7EB"/>
+        <!-- DARK CORPORATE THEME -->
+        <SolidColorBrush x:Key="BgPrimary" Color="#0F172A"/>
+        <SolidColorBrush x:Key="BgSecondary" Color="#1E293B"/>
+        <SolidColorBrush x:Key="BgTertiary" Color="#334155"/>
+        <SolidColorBrush x:Key="BgElevated" Color="#475569"/>
+
+        <SolidColorBrush x:Key="AccentPrimary" Color="#6366F1"/>
+        <SolidColorBrush x:Key="AccentLight" Color="#A5B4FC"/>
+        <SolidColorBrush x:Key="AccentBg" Color="#312E81"/>
+
+        <SolidColorBrush x:Key="TextPrimary" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#94A3B8"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#64748B"/>
+
+        <SolidColorBrush x:Key="BorderDefault" Color="#334155"/>
+        <SolidColorBrush x:Key="BorderLight" Color="#475569"/>
+        <SolidColorBrush x:Key="BorderAccent" Color="#6366F1"/>
+
+        <!-- Statusy z ciemnym tłem -->
+        <SolidColorBrush x:Key="StatusSuccess" Color="#22C55E"/>
+        <SolidColorBrush x:Key="StatusSuccessBg" Color="#14532D"/>
+        <SolidColorBrush x:Key="StatusWarning" Color="#F59E0B"/>
+        <SolidColorBrush x:Key="StatusWarningBg" Color="#78350F"/>
+        <SolidColorBrush x:Key="StatusInfo" Color="#3B82F6"/>
+        <SolidColorBrush x:Key="StatusInfoBg" Color="#1E3A8A"/>
+        <SolidColorBrush x:Key="StatusDanger" Color="#EF4444"/>
+        <SolidColorBrush x:Key="StatusDangerBg" Color="#7F1D1D"/>
+        <SolidColorBrush x:Key="StatusNeutral" Color="#94A3B8"/>
+        <SolidColorBrush x:Key="StatusNeutralBg" Color="#374151"/>
+        <SolidColorBrush x:Key="StatusTeal" Color="#14B8A6"/>
+        <SolidColorBrush x:Key="StatusTealBg" Color="#134E4A"/>
+
+        <!-- Stare nazwy dla kompatybilności -->
+        <SolidColorBrush x:Key="PrimaryColor" Color="#6366F1"/>
+        <SolidColorBrush x:Key="PrimaryLight" Color="#312E81"/>
+        <SolidColorBrush x:Key="TextDark" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="TextGray" Color="#94A3B8"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#334155"/>
+        <SolidColorBrush x:Key="AccentRed" Color="#EF4444"/>
+        <SolidColorBrush x:Key="AccentRedLight" Color="#7F1D1D"/>
+        <SolidColorBrush x:Key="DangerColor" Color="#EF4444"/>
 
         <Style x:Key="CardStyle" TargetType="Border">
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+            <Setter Property="Background" Value="#1E293B"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="BorderBrush" Value="#334155"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Effect">
                 <Setter.Value>
-                    <DropShadowEffect Color="Black" Opacity="0.04" BlurRadius="10" ShadowDepth="2" Direction="270"/>
+                    <DropShadowEffect Color="Black" Opacity="0.25" BlurRadius="15" ShadowDepth="0" Direction="270"/>
                 </Setter.Value>
             </Setter>
         </Style>
 
         <Style x:Key="KpiCard" TargetType="Border" BasedOn="{StaticResource CardStyle}">
+            <Setter Property="Background" Value="#1E293B"/>
             <Setter Property="Padding" Value="15,10"/>
             <Setter Property="Margin" Value="0,0,12,0"/>
             <Setter Property="MinWidth" Value="150"/>
@@ -41,6 +74,7 @@
 
         <Style x:Key="BtnIcon" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#94A3B8"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Padding" Value="8"/>
@@ -52,7 +86,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#E5E7EB"/>
+                                <Setter TargetName="bd" Property="Background" Value="#334155"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -61,7 +95,7 @@
         </Style>
 
         <Style x:Key="BtnPrimary" TargetType="Button">
-            <Setter Property="Background" Value="{StaticResource PrimaryColor}"/>
+            <Setter Property="Background" Value="#6366F1"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="Padding" Value="15,8"/>
@@ -70,12 +104,12 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" CornerRadius="6">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Opacity" Value="0.9"/>
+                                <Setter TargetName="bd" Property="Background" Value="#4F46E5"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -85,7 +119,7 @@
 
         <Storyboard x:Key="PulseAnimation" RepeatBehavior="Forever" AutoReverse="True">
             <ColorAnimation Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                            To="#FEF2F2" Duration="0:0:1.5"/>
+                            To="#7F1D1D" Duration="0:0:1.5"/>
         </Storyboard>
     </Window.Resources>
 
@@ -97,9 +131,9 @@
         </Grid.RowDefinitions>
 
         <!-- HEADER -->
-        <Border Grid.Row="0" CornerRadius="12" Margin="0,0,0,16" Padding="12" Background="White">
+        <Border Grid.Row="0" CornerRadius="12" Margin="0,0,0,16" Padding="12" Background="#1E293B">
             <Border.Effect>
-                <DropShadowEffect Color="#000000" Opacity="0.08" BlurRadius="12" ShadowDepth="2" Direction="270"/>
+                <DropShadowEffect Color="#000000" Opacity="0.25" BlurRadius="15" ShadowDepth="0" Direction="270"/>
             </Border.Effect>
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -109,16 +143,16 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,20,0">
-                    <Border Width="44" Height="44" CornerRadius="8" Margin="5,0,15,0" Background="#16A34A">
+                    <Border Width="44" Height="44" CornerRadius="8" Margin="5,0,15,0" Background="#6366F1">
                         <TextBlock Text="CRM" FontWeight="Black" FontSize="12" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="CRM" FontWeight="Black" FontSize="20" Foreground="#16A34A"/>
-                        <TextBlock Text="Manager Pro" FontSize="10" Foreground="{StaticResource TextGray}"/>
+                        <TextBlock Text="CRM" FontWeight="Black" FontSize="20" Foreground="#A5B4FC"/>
+                        <TextBlock Text="Manager Pro" FontSize="10" Foreground="#64748B"/>
                     </StackPanel>
                 </StackPanel>
 
-                <Border Grid.Column="1" Margin="20,0" Padding="20,0" BorderBrush="{StaticResource BorderColor}" BorderThickness="1,0,0,0">
+                <Border Grid.Column="1" Margin="20,0" Padding="20,0" BorderBrush="#334155" BorderThickness="1,0,0,0">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -128,22 +162,22 @@
 
                         <StackPanel VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="AKTYWNY:" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextGray}" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                                <TextBlock x:Name="txtHeaderKlient" Text="Wybierz z listy..." FontWeight="Bold" FontSize="15" Foreground="{StaticResource TextDark}" TextTrimming="CharacterEllipsis" MaxWidth="200"/>
+                                <TextBlock Text="AKTYWNY:" FontSize="10" FontWeight="Bold" Foreground="#64748B" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="txtHeaderKlient" Text="Wybierz z listy..." FontWeight="Bold" FontSize="15" Foreground="#E2E8F0" TextTrimming="CharacterEllipsis" MaxWidth="200"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                                <TextBlock x:Name="txtHeaderMiasto" Text="" FontSize="12" Foreground="{StaticResource TextGray}" Margin="0,0,15,0"/>
-                                <TextBlock x:Name="txtHeaderTelefon" Text="" FontSize="13" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}"/>
+                                <TextBlock x:Name="txtHeaderMiasto" Text="" FontSize="12" Foreground="#94A3B8" Margin="0,0,15,0"/>
+                                <TextBlock x:Name="txtHeaderTelefon" Text="" FontSize="13" FontWeight="Bold" Foreground="#A5B4FC"/>
                             </StackPanel>
                         </StackPanel>
 
                         <!-- Planowany kontakt -->
-                        <Border x:Name="panelNastepnyKontakt" Grid.Column="1" Background="#F3F4F6" CornerRadius="6" Padding="10,6" Margin="15,0" VerticalAlignment="Center">
+                        <Border x:Name="panelNastepnyKontakt" Grid.Column="1" Background="#334155" CornerRadius="6" Padding="10,6" Margin="15,0" VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="📅" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                 <StackPanel>
-                                    <TextBlock Text="KONTAKT" FontSize="8" FontWeight="Bold" Foreground="{StaticResource TextGray}"/>
-                                    <TextBlock x:Name="txtKlientNastepnyKontakt" Text="Brak" FontWeight="Bold" FontSize="11" Foreground="{StaticResource TextDark}"/>
+                                    <TextBlock Text="KONTAKT" FontSize="8" FontWeight="Bold" Foreground="#64748B"/>
+                                    <TextBlock x:Name="txtKlientNastepnyKontakt" Text="Brak" FontWeight="Bold" FontSize="11" Foreground="#E2E8F0"/>
                                 </StackPanel>
                                 <Button Content="📅" Style="{StaticResource BtnIcon}" ToolTip="Zmień datę kontaktu" Click="MenuUstawDate_Click" Padding="4" Margin="6,0,0,0"/>
                             </StackPanel>
@@ -160,10 +194,10 @@
 
                     <StackPanel VerticalAlignment="Center" Margin="0,0,20,0" Width="120">
                         <Grid Margin="0,0,0,4">
-                            <TextBlock Text="CEL DNIA (15)" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextGray}"/>
-                            <TextBlock x:Name="txtTargetInfo" Text="0/15" FontSize="10" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}" HorizontalAlignment="Right"/>
+                            <TextBlock Text="CEL DNIA (15)" FontSize="9" FontWeight="Bold" Foreground="#64748B"/>
+                            <TextBlock x:Name="txtTargetInfo" Text="0/15" FontSize="10" FontWeight="Bold" Foreground="#6366F1" HorizontalAlignment="Right"/>
                         </Grid>
-                        <ProgressBar x:Name="pbTarget" Height="6" BorderThickness="0" Background="#F3F4F6" Foreground="{StaticResource PrimaryColor}" Maximum="15" Value="0">
+                        <ProgressBar x:Name="pbTarget" Height="6" BorderThickness="0" Background="#334155" Foreground="#6366F1" Maximum="15" Value="0">
                             <ProgressBar.Clip>
                                 <RectangleGeometry Rect="0,0,120,6" RadiusX="3" RadiusY="3"/>
                             </ProgressBar.Clip>
@@ -171,20 +205,20 @@
                     </StackPanel>
 
                     <Button Content="📊 Kanban" Style="{StaticResource BtnIcon}" Click="BtnKanban_Click"/>
-                    <Button Content="📈 Dashboard" Style="{StaticResource BtnIcon}" Click="BtnDashboard_Click" Foreground="#DC2626" FontWeight="Bold"/>
-                    <Button x:Name="btnManager" Content="👔 Szef" Style="{StaticResource BtnIcon}" Click="BtnManager_Click" Foreground="{StaticResource DangerColor}" FontWeight="Bold"/>
+                    <Button Content="📈 Dashboard" Style="{StaticResource BtnIcon}" Click="BtnDashboard_Click" Foreground="#EF4444" FontWeight="Bold"/>
+                    <Button x:Name="btnManager" Content="👔 Szef" Style="{StaticResource BtnIcon}" Click="BtnManager_Click" Foreground="#EF4444" FontWeight="Bold"/>
                     <Button Content="🗺️ Mapa" Style="{StaticResource BtnIcon}" Click="BtnMapa_Click"/>
                     <Button x:Name="btnAdmin" Content="⚙️" Style="{StaticResource BtnIcon}" Click="BtnAdmin_Click" Visibility="Collapsed"/>
 
                     <Button Content="+ Nowy" Click="BtnDodaj_Click" Margin="10,0,0,0" Padding="15,8" BorderThickness="0" Cursor="Hand" Foreground="White" FontWeight="Bold">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
-                                <Border x:Name="bd" CornerRadius="6" Background="#16A34A">
+                                <Border x:Name="bd" CornerRadius="6" Background="#6366F1">
                                     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
                                 </Border>
                                 <ControlTemplate.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Opacity" Value="0.9"/>
+                                        <Setter TargetName="bd" Property="Background" Value="#4F46E5"/>
                                     </Trigger>
                                 </ControlTemplate.Triggers>
                             </ControlTemplate>
@@ -202,36 +236,36 @@
 
             <!-- LEWA STRONA: Filtry i ComboBox -->
             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                <Border x:Name="chipVIP" Background="#FEF3C7" CornerRadius="12" Padding="8,4" Margin="0,0,6,0" Cursor="Hand" MouseLeftButtonDown="Chip_Click" Tag="VIP">
+                <Border x:Name="chipVIP" Background="#78350F" CornerRadius="12" Padding="8,4" Margin="0,0,6,0" Cursor="Hand" MouseLeftButtonDown="Chip_Click" Tag="VIP">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="⭐" FontSize="10" VerticalAlignment="Center"/>
-                        <TextBlock Text="VIP" FontSize="9" FontWeight="Bold" Foreground="#92400E" Margin="3,0,0,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="VIP" FontSize="9" FontWeight="Bold" Foreground="#FBBF24" Margin="3,0,0,0" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Border>
-                <Border x:Name="chipPilne" Background="#FEE2E2" CornerRadius="12" Padding="8,4" Margin="0,0,6,0" Cursor="Hand" MouseLeftButtonDown="Chip_Click" Tag="Pilne">
+                <Border x:Name="chipPilne" Background="#7F1D1D" CornerRadius="12" Padding="8,4" Margin="0,0,6,0" Cursor="Hand" MouseLeftButtonDown="Chip_Click" Tag="Pilne">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="🔥" FontSize="10" VerticalAlignment="Center"/>
-                        <TextBlock Text="Pilne" FontSize="9" FontWeight="Bold" Foreground="#991B1B" Margin="3,0,0,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="Pilne" FontSize="9" FontWeight="Bold" Foreground="#FCA5A5" Margin="3,0,0,0" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Border>
-                <Border x:Name="chipPremium" Background="#E0E7FF" CornerRadius="12" Padding="8,4" Margin="0,0,6,0" Cursor="Hand" MouseLeftButtonDown="Chip_Click" Tag="Premium">
+                <Border x:Name="chipPremium" Background="#312E81" CornerRadius="12" Padding="8,4" Margin="0,0,6,0" Cursor="Hand" MouseLeftButtonDown="Chip_Click" Tag="Premium">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="💎" FontSize="10" VerticalAlignment="Center"/>
-                        <TextBlock Text="Premi" FontSize="9" FontWeight="Bold" Foreground="#3730A3" Margin="3,0,0,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="Premi" FontSize="9" FontWeight="Bold" Foreground="#A5B4FC" Margin="3,0,0,0" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Border>
-                <Border x:Name="chipZalegle" Background="#FEE2E2" CornerRadius="12" Padding="8,4" Margin="0,0,12,0" Cursor="Hand" MouseLeftButtonDown="ChipZalegle_Click">
+                <Border x:Name="chipZalegle" Background="#7F1D1D" CornerRadius="12" Padding="8,4" Margin="0,0,12,0" Cursor="Hand" MouseLeftButtonDown="ChipZalegle_Click">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="⚠️" FontSize="10" VerticalAlignment="Center"/>
-                        <TextBlock Text="Zaleg" FontSize="9" FontWeight="Bold" Foreground="#991B1B" Margin="3,0,0,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="Zaleg" FontSize="9" FontWeight="Bold" Foreground="#FCA5A5" Margin="3,0,0,0" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Border>
-                <TextBlock Text="Status:" FontSize="10" Foreground="#6B7280" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                <ComboBox x:Name="cmbStatus" Width="120" Margin="0,0,8,0" Padding="4" FontSize="11" SelectionChanged="CmbStatus_SelectionChanged"/>
-                <TextBlock Text="Woj:" FontSize="10" Foreground="#6B7280" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                <ComboBox x:Name="cmbWojewodztwo" Width="100" Margin="0,0,8,0" Padding="4" FontSize="11" SelectionChanged="CmbWojewodztwo_SelectionChanged"/>
-                <TextBlock Text="Branża:" FontSize="10" Foreground="#6B7280" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                <ComboBox x:Name="cmbBranza" Width="130" Margin="0,0,8,0" Padding="4" FontSize="11" SelectionChanged="CmbBranza_SelectionChanged"/>
+                <TextBlock Text="Status:" FontSize="10" Foreground="#94A3B8" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                <ComboBox x:Name="cmbStatus" Width="120" Margin="0,0,8,0" Padding="4" FontSize="11" SelectionChanged="CmbStatus_SelectionChanged" Background="#334155" Foreground="#E2E8F0" BorderBrush="#475569"/>
+                <TextBlock Text="Woj:" FontSize="10" Foreground="#94A3B8" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                <ComboBox x:Name="cmbWojewodztwo" Width="100" Margin="0,0,8,0" Padding="4" FontSize="11" SelectionChanged="CmbWojewodztwo_SelectionChanged" Background="#334155" Foreground="#E2E8F0" BorderBrush="#475569"/>
+                <TextBlock Text="Branża:" FontSize="10" Foreground="#94A3B8" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                <ComboBox x:Name="cmbBranza" Width="130" Margin="0,0,8,0" Padding="4" FontSize="11" SelectionChanged="CmbBranza_SelectionChanged" Background="#334155" Foreground="#E2E8F0" BorderBrush="#475569"/>
                 <CheckBox x:Name="chkTylkoMoje" Content="Tylko moi" FontSize="10" Foreground="#6366F1" FontWeight="SemiBold" VerticalContentAlignment="Center" Margin="4,0,0,0" Checked="ChkTylkoMoje_Changed" Unchecked="ChkTylkoMoje_Changed"/>
             </StackPanel>
 
@@ -239,28 +273,28 @@
             <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                 <Border Style="{StaticResource KpiCard}">
                     <StackPanel>
-                        <TextBlock Text="DO ZADZWONIENIA" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextGray}"/>
+                        <TextBlock Text="DO ZADZWONIENIA" FontSize="10" FontWeight="Bold" Foreground="#64748B"/>
                         <Grid Margin="0,5,0,0">
                             <TextBlock Text="📞" FontSize="18" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="txtKpiDzisiaj" Text="0" FontSize="22" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}" HorizontalAlignment="Right"/>
+                            <TextBlock x:Name="txtKpiDzisiaj" Text="0" FontSize="22" FontWeight="Bold" Foreground="#6366F1" HorizontalAlignment="Right"/>
                         </Grid>
                     </StackPanel>
                 </Border>
                 <Border Style="{StaticResource KpiCard}">
                     <StackPanel>
-                        <TextBlock Text="ZALEGŁE" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextGray}"/>
+                        <TextBlock Text="ZALEGŁE" FontSize="10" FontWeight="Bold" Foreground="#64748B"/>
                         <Grid Margin="0,5,0,0">
                             <TextBlock Text="⚠️" FontSize="18" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="txtKpiZalegle" Text="0" FontSize="22" FontWeight="Bold" Foreground="{StaticResource DangerColor}" HorizontalAlignment="Right"/>
+                            <TextBlock x:Name="txtKpiZalegle" Text="0" FontSize="22" FontWeight="Bold" Foreground="#EF4444" HorizontalAlignment="Right"/>
                         </Grid>
                     </StackPanel>
                 </Border>
                 <Border Style="{StaticResource KpiCard}">
                     <StackPanel>
-                        <TextBlock Text="OTWARTE OFERTY" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextGray}"/>
+                        <TextBlock Text="OTWARTE OFERTY" FontSize="10" FontWeight="Bold" Foreground="#64748B"/>
                         <Grid Margin="0,5,0,0">
                             <TextBlock Text="📄" FontSize="18" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="txtKpiOferty" Text="0" FontSize="22" FontWeight="Bold" Foreground="#2563EB" HorizontalAlignment="Right"/>
+                            <TextBlock x:Name="txtKpiOferty" Text="0" FontSize="22" FontWeight="Bold" Foreground="#3B82F6" HorizontalAlignment="Right"/>
                         </Grid>
                     </StackPanel>
                 </Border>
@@ -273,7 +307,7 @@
                 <ColumnDefinition Width="460"/>
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0" Background="White" CornerRadius="8" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" Margin="0,0,16,0" ClipToBounds="True">
+            <Border Grid.Column="0" Background="#1E293B" CornerRadius="8" BorderBrush="#334155" BorderThickness="1" Margin="0,0,16,0" ClipToBounds="True">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -286,38 +320,38 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="Baza Odbiorców" FontWeight="Bold" FontSize="16" Foreground="{StaticResource TextDark}" VerticalAlignment="Center"/>
-                        <Border Grid.Column="1" Background="#F3F4F6" CornerRadius="8" VerticalAlignment="Center" Height="36" Margin="20,0">
+                        <TextBlock Text="Baza Odbiorców" FontWeight="Bold" FontSize="16" Foreground="#E2E8F0" VerticalAlignment="Center"/>
+                        <Border Grid.Column="1" Background="#0F172A" CornerRadius="8" VerticalAlignment="Center" Height="36" Margin="20,0" BorderBrush="#334155" BorderThickness="1">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="36"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="🔍" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource TextGray}" FontSize="14"/>
+                                <TextBlock Text="🔍" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="#64748B" FontSize="14"/>
                                 <TextBox x:Name="txtSzukaj" Grid.Column="1" Background="Transparent" BorderThickness="0"
-                                         VerticalContentAlignment="Center" FontSize="13" Padding="0,0,10,0"
+                                         VerticalContentAlignment="Center" FontSize="13" Padding="0,0,10,0" Foreground="#E2E8F0" CaretBrush="#E2E8F0"
                                          TextChanged="TxtSzukaj_TextChanged" Tag="Szukaj firmy..."/>
                             </Grid>
                         </Border>
-                        <TextBlock x:Name="txtLiczbaWynikow" Grid.Column="2" Text="0 klientów" HorizontalAlignment="Right" FontSize="12" Foreground="{StaticResource TextGray}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="txtLiczbaWynikow" Grid.Column="2" Text="0 klientów" HorizontalAlignment="Right" FontSize="12" Foreground="#64748B" VerticalAlignment="Center"/>
                     </Grid>
 
                     <DataGrid x:Name="dgKontakty" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True"
                               HeadersVisibility="Column" GridLinesVisibility="None"
-                              BorderThickness="0" Background="White" RowHeaderWidth="0"
+                              BorderThickness="0" Background="#1E293B" RowBackground="#1E293B" AlternatingRowBackground="#273548" RowHeaderWidth="0"
                               SelectionMode="Single" SelectionUnit="FullRow"
                               SelectionChanged="DgKontakty_SelectionChanged"
                               MouseDoubleClick="DgKontakty_MouseDoubleClick">
 
                         <DataGrid.ColumnHeaderStyle>
                             <Style TargetType="DataGridColumnHeader">
-                                <Setter Property="Background" Value="#F9FAFB"/>
-                                <Setter Property="Foreground" Value="{StaticResource TextGray}"/>
+                                <Setter Property="Background" Value="#0F172A"/>
+                                <Setter Property="Foreground" Value="#94A3B8"/>
                                 <Setter Property="Padding" Value="12,14"/>
                                 <Setter Property="FontWeight" Value="SemiBold"/>
                                 <Setter Property="FontSize" Value="13"/>
-                                <Setter Property="BorderThickness" Value="0,0,0,1"/>
-                                <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+                                <Setter Property="BorderThickness" Value="0,0,0,2"/>
+                                <Setter Property="BorderBrush" Value="#334155"/>
                                 <Setter Property="HorizontalContentAlignment" Value="Center"/>
                             </Style>
                         </DataGrid.ColumnHeaderStyle>
@@ -328,6 +362,7 @@
                                 <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
                                 <Setter Property="Padding" Value="8,4"/>
                                 <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="Foreground" Value="#E2E8F0"/>
                             </Style>
                         </DataGrid.CellStyle>
 
@@ -335,14 +370,14 @@
                             <Style TargetType="DataGridRow">
                                 <Setter Property="Height" Value="60"/>
                                 <Setter Property="FontSize" Value="14"/>
-                                <Setter Property="Background" Value="White"/>
+                                <Setter Property="Background" Value="#1E293B"/>
                                 <Setter Property="BorderThickness" Value="0"/>
                                 <Style.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Background" Value="#F0FDF4"/>
+                                        <Setter Property="Background" Value="#334155"/>
                                     </Trigger>
                                     <Trigger Property="IsSelected" Value="True">
-                                        <Setter Property="Background" Value="{StaticResource PrimaryColor}"/>
+                                        <Setter Property="Background" Value="#6366F1"/>
                                     </Trigger>
                                 </Style.Triggers>
                             </Style>
@@ -355,25 +390,25 @@
                                         <Border CornerRadius="4" Padding="6,4" HorizontalAlignment="Left" VerticalAlignment="Center">
                                             <Border.Style>
                                                 <Style TargetType="Border">
-                                                    <Setter Property="Background" Value="#F1F5F9"/>
+                                                    <Setter Property="Background" Value="#374151"/>
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding Status}" Value="Do zadzwonienia">
-                                                            <Setter Property="Background" Value="#F1F5F9"/>
+                                                            <Setter Property="Background" Value="#374151"/>
                                                         </DataTrigger>
                                                         <DataTrigger Binding="{Binding Status}" Value="Próba kontaktu">
-                                                            <Setter Property="Background" Value="#FFEDD5"/>
+                                                            <Setter Property="Background" Value="#78350F"/>
                                                         </DataTrigger>
                                                         <DataTrigger Binding="{Binding Status}" Value="Nawiązano kontakt">
-                                                            <Setter Property="Background" Value="#DCFCE7"/>
+                                                            <Setter Property="Background" Value="#14532D"/>
                                                         </DataTrigger>
                                                         <DataTrigger Binding="{Binding Status}" Value="Zgoda na dalszy kontakt">
-                                                            <Setter Property="Background" Value="#CCFBF1"/>
+                                                            <Setter Property="Background" Value="#134E4A"/>
                                                         </DataTrigger>
                                                         <DataTrigger Binding="{Binding Status}" Value="Do wysłania oferta">
-                                                            <Setter Property="Background" Value="#DBEAFE"/>
+                                                            <Setter Property="Background" Value="#1E3A8A"/>
                                                         </DataTrigger>
                                                         <DataTrigger Binding="{Binding Status}" Value="Nie zainteresowany">
-                                                            <Setter Property="Background" Value="#FEE2E2"/>
+                                                            <Setter Property="Background" Value="#7F1D1D"/>
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
@@ -409,25 +444,25 @@
                                                 <TextBlock Text="{Binding Status}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
-                                                            <Setter Property="Foreground" Value="#64748B"/>
+                                                            <Setter Property="Foreground" Value="#94A3B8"/>
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding Status}" Value="Do zadzwonienia">
-                                                                    <Setter Property="Foreground" Value="#64748B"/>
+                                                                    <Setter Property="Foreground" Value="#94A3B8"/>
                                                                 </DataTrigger>
                                                                 <DataTrigger Binding="{Binding Status}" Value="Próba kontaktu">
-                                                                    <Setter Property="Foreground" Value="#9A3412"/>
+                                                                    <Setter Property="Foreground" Value="#FCD34D"/>
                                                                 </DataTrigger>
                                                                 <DataTrigger Binding="{Binding Status}" Value="Nawiązano kontakt">
-                                                                    <Setter Property="Foreground" Value="#166534"/>
+                                                                    <Setter Property="Foreground" Value="#4ADE80"/>
                                                                 </DataTrigger>
                                                                 <DataTrigger Binding="{Binding Status}" Value="Zgoda na dalszy kontakt">
-                                                                    <Setter Property="Foreground" Value="#0D9488"/>
+                                                                    <Setter Property="Foreground" Value="#2DD4BF"/>
                                                                 </DataTrigger>
                                                                 <DataTrigger Binding="{Binding Status}" Value="Do wysłania oferta">
-                                                                    <Setter Property="Foreground" Value="#1E40AF"/>
+                                                                    <Setter Property="Foreground" Value="#60A5FA"/>
                                                                 </DataTrigger>
                                                                 <DataTrigger Binding="{Binding Status}" Value="Nie zainteresowany">
-                                                                    <Setter Property="Foreground" Value="#991B1B"/>
+                                                                    <Setter Property="Foreground" Value="#FCA5A5"/>
                                                                 </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>
@@ -446,7 +481,7 @@
                                                    TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="{StaticResource TextDark}"/>
+                                                    <Setter Property="Foreground" Value="#E2E8F0"/>
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
                                                             <Setter Property="Foreground" Value="White"/>
@@ -467,7 +502,7 @@
                                                    ToolTip="{Binding OstatniHandlowiec}">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="#6366F1"/>
+                                                    <Setter Property="Foreground" Value="#A5B4FC"/>
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
                                                             <Setter Property="Foreground" Value="White"/>
@@ -483,8 +518,8 @@
                             <DataGridTemplateColumn Header="Tagi" Width="Auto">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Border Background="#FEF3C7" CornerRadius="4" Padding="6,2" HorizontalAlignment="Center" Visibility="{Binding MaTagi, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                            <TextBlock Text="{Binding Tagi}" FontSize="10" Foreground="#92400E" FontWeight="Bold" TextAlignment="Center"/>
+                                        <Border Background="#78350F" CornerRadius="4" Padding="6,2" HorizontalAlignment="Center" Visibility="{Binding MaTagi, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                            <TextBlock Text="{Binding Tagi}" FontSize="10" Foreground="#FBBF24" FontWeight="Bold" TextAlignment="Center"/>
                                         </Border>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
@@ -497,7 +532,7 @@
                                                    HorizontalAlignment="Center" VerticalAlignment="Center">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="{StaticResource TextDark}"/>
+                                                    <Setter Property="Foreground" Value="#E2E8F0"/>
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
                                                             <Setter Property="Foreground" Value="White"/>
@@ -517,7 +552,7 @@
                                                    HorizontalAlignment="Center" VerticalAlignment="Center">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="{StaticResource TextDark}"/>
+                                                    <Setter Property="Foreground" Value="#E2E8F0"/>
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
                                                             <Setter Property="Foreground" Value="White"/>
@@ -537,7 +572,7 @@
                                                    HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip="{Binding PKD_Opis}">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="{StaticResource TextDark}"/>
+                                                    <Setter Property="Foreground" Value="#E2E8F0"/>
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
                                                             <Setter Property="Foreground" Value="White"/>
@@ -557,7 +592,7 @@
                                                    HorizontalAlignment="Center" VerticalAlignment="Center">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="{StaticResource TextDark}"/>
+                                                    <Setter Property="Foreground" Value="#E2E8F0"/>
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
                                                             <Setter Property="Foreground" Value="White"/>
@@ -578,7 +613,7 @@
                                                    HorizontalAlignment="Center" VerticalAlignment="Center">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="{StaticResource TextGray}"/>
+                                                    <Setter Property="Foreground" Value="#94A3B8"/>
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
                                                             <Setter Property="Foreground" Value="White"/>
@@ -598,7 +633,7 @@
                                                    HorizontalAlignment="Center" VerticalAlignment="Center">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="#2563EB"/>
+                                                    <Setter Property="Foreground" Value="#60A5FA"/>
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
                                                             <Setter Property="Foreground" Value="White"/>
@@ -618,7 +653,7 @@
                                                    HorizontalAlignment="Center" VerticalAlignment="Center">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="{StaticResource TextDark}"/>
+                                                    <Setter Property="Foreground" Value="#E2E8F0"/>
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
                                                             <Setter Property="Foreground" Value="White"/>
@@ -670,13 +705,13 @@
 
                         <Border Style="{StaticResource CardStyle}" Padding="12,10" Margin="0,0,0,10">
                             <StackPanel>
-                                <TextBlock Text="NOTATKI / HISTORIA" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextGray}" Margin="0,0,0,10"/>
-                                <Border Background="#F9FAFB" CornerRadius="6" Height="320" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" Padding="4">
+                                <TextBlock Text="NOTATKI / HISTORIA" FontSize="12" FontWeight="Bold" Foreground="#64748B" Margin="0,0,0,10"/>
+                                <Border Background="#0F172A" CornerRadius="6" Height="320" BorderBrush="#334155" BorderThickness="1" Padding="4">
                                     <ScrollViewer>
                                         <ItemsControl x:Name="listaNotatek">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <Border Background="White" CornerRadius="4" Padding="6,4" Margin="2" BorderBrush="{StaticResource BorderColor}" BorderThickness="1">
+                                                    <Border Background="#1E293B" CornerRadius="4" Padding="6,4" Margin="2" BorderBrush="#334155" BorderThickness="1">
                                                         <Grid>
                                                             <Grid.ColumnDefinitions>
                                                                 <ColumnDefinition Width="*"/>
@@ -685,12 +720,12 @@
                                                             <StackPanel>
                                                                 <StackPanel Orientation="Horizontal">
                                                                     <TextBlock Text="{Binding Typ}" FontSize="11" Margin="0,0,5,0"/>
-                                                                    <TextBlock Text="{Binding Tresc}" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource TextDark}"/>
+                                                                    <TextBlock Text="{Binding Tresc}" TextWrapping="Wrap" FontSize="11" Foreground="#E2E8F0"/>
                                                                 </StackPanel>
                                                                 <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
-                                                                    <TextBlock Text="{Binding Operator}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}"/>
-                                                                    <TextBlock Text=" • " FontSize="9" Foreground="{StaticResource TextGray}"/>
-                                                                    <TextBlock Text="{Binding DataUtworzenia, StringFormat='dd.MM HH:mm'}" FontSize="9" Foreground="{StaticResource TextGray}"/>
+                                                                    <TextBlock Text="{Binding Operator}" FontSize="9" FontWeight="Bold" Foreground="#6366F1"/>
+                                                                    <TextBlock Text=" • " FontSize="9" Foreground="#64748B"/>
+                                                                    <TextBlock Text="{Binding DataUtworzenia, StringFormat='dd.MM HH:mm'}" FontSize="9" Foreground="#64748B"/>
                                                                 </StackPanel>
                                                             </StackPanel>
                                                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top"
@@ -714,7 +749,7 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBox x:Name="txtNowaNotatka" Background="#F3F4F6" BorderThickness="0" Padding="6" VerticalContentAlignment="Center" FontSize="11" Tag="Wpisz notatkę..."/>
+                                    <TextBox x:Name="txtNowaNotatka" Background="#334155" Foreground="#E2E8F0" BorderThickness="0" Padding="6" VerticalContentAlignment="Center" FontSize="11" CaretBrush="#E2E8F0" Tag="Wpisz notatkę..."/>
                                     <Button x:Name="btnDodajNotatke" Grid.Column="1" Content="+" Style="{StaticResource BtnPrimary}" Margin="6,0,0,0" Padding="10,4" Click="BtnDodajNotatke_Click"/>
                                 </Grid>
                             </StackPanel>
@@ -730,12 +765,12 @@
                                 <!-- Nagłówek kompaktowy -->
                                 <Grid Margin="0,0,0,10">
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock x:Name="txtRankingTytul" Text="RANKING AKTYWNOŚCI" FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextGray}" VerticalAlignment="Center"/>
-                                        <TextBlock Text=" (30 dni)" FontSize="12" Foreground="#9CA3AF" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="txtRankingTytul" Text="RANKING AKTYWNOŚCI" FontSize="14" FontWeight="Bold" Foreground="#E2E8F0" VerticalAlignment="Center"/>
+                                        <TextBlock Text=" (30 dni)" FontSize="12" Foreground="#64748B" VerticalAlignment="Center"/>
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                        <RadioButton x:Name="rb30Dni" Content="30d" IsChecked="True" GroupName="OkresRankingu" Margin="0,0,6,0" FontSize="12" Checked="RbOkresRankingu_Checked"/>
-                                        <RadioButton x:Name="rbWszystkie" Content="Wszystko" GroupName="OkresRankingu" FontSize="12" Checked="RbOkresRankingu_Checked"/>
+                                        <RadioButton x:Name="rb30Dni" Content="30d" IsChecked="True" GroupName="OkresRankingu" Margin="0,0,6,0" FontSize="12" Foreground="#94A3B8" Checked="RbOkresRankingu_Checked"/>
+                                        <RadioButton x:Name="rbWszystkie" Content="Wszystko" GroupName="OkresRankingu" FontSize="12" Foreground="#94A3B8" Checked="RbOkresRankingu_Checked"/>
                                     </StackPanel>
                                 </Grid>
 
@@ -745,7 +780,7 @@
                                          ScrollViewer.VerticalScrollBarVisibility="Auto">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Background="#FAFAFA" CornerRadius="8" Padding="10,8" Margin="0,0,0,6" BorderBrush="#E5E7EB" BorderThickness="1">
+                                            <Border Background="#0F172A" CornerRadius="8" Padding="10,8" Margin="0,0,0,6" BorderBrush="#334155" BorderThickness="1">
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="30"/>
@@ -754,48 +789,48 @@
                                                     </Grid.ColumnDefinitions>
 
                                                     <!-- Pozycja -->
-                                                    <Border Background="{StaticResource PrimaryLight}" Width="26" Height="26" CornerRadius="13" VerticalAlignment="Center">
-                                                        <TextBlock Text="{Binding Pozycja}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}"/>
+                                                    <Border Background="#312E81" Width="26" Height="26" CornerRadius="13" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Pozycja}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" FontWeight="Bold" Foreground="#A5B4FC"/>
                                                     </Border>
 
                                                     <!-- Nazwa i statystyki w jednym wierszu -->
                                                     <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
-                                                        <TextBlock Text="{Binding Operator}" FontWeight="SemiBold" FontSize="14" Foreground="{StaticResource TextDark}" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Text="{Binding Operator}" FontWeight="SemiBold" FontSize="14" Foreground="#E2E8F0" TextTrimming="CharacterEllipsis"/>
                                                         <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                                            <Border Background="#F1F5F9" CornerRadius="4" Padding="5,2" Margin="0,0,4,0" ToolTip="Do zadzwonienia">
+                                                            <Border Background="#374151" CornerRadius="4" Padding="5,2" Margin="0,0,4,0" ToolTip="Do zadzwonienia">
                                                                 <StackPanel Orientation="Horizontal">
                                                                     <TextBlock Text="📞" FontSize="12"/>
-                                                                    <TextBlock Text="{Binding DoZadzwonienia}" FontSize="11" FontWeight="Bold" Foreground="#64748B" Margin="3,0,0,0"/>
+                                                                    <TextBlock Text="{Binding DoZadzwonienia}" FontSize="11" FontWeight="Bold" Foreground="#94A3B8" Margin="3,0,0,0"/>
                                                                 </StackPanel>
                                                             </Border>
-                                                            <Border Background="#FFEDD5" CornerRadius="4" Padding="5,2" Margin="0,0,4,0" ToolTip="Próba">
+                                                            <Border Background="#78350F" CornerRadius="4" Padding="5,2" Margin="0,0,4,0" ToolTip="Próba">
                                                                 <StackPanel Orientation="Horizontal">
                                                                     <TextBlock Text="⏳" FontSize="12"/>
-                                                                    <TextBlock Text="{Binding Proby}" FontSize="11" FontWeight="Bold" Foreground="#9A3412" Margin="3,0,0,0"/>
+                                                                    <TextBlock Text="{Binding Proby}" FontSize="11" FontWeight="Bold" Foreground="#FCD34D" Margin="3,0,0,0"/>
                                                                 </StackPanel>
                                                             </Border>
-                                                            <Border Background="#DCFCE7" CornerRadius="4" Padding="5,2" Margin="0,0,4,0" ToolTip="Nawiązano">
+                                                            <Border Background="#14532D" CornerRadius="4" Padding="5,2" Margin="0,0,4,0" ToolTip="Nawiązano">
                                                                 <StackPanel Orientation="Horizontal">
                                                                     <TextBlock Text="✅" FontSize="12"/>
-                                                                    <TextBlock Text="{Binding Nawiazano}" FontSize="11" FontWeight="Bold" Foreground="#166534" Margin="3,0,0,0"/>
+                                                                    <TextBlock Text="{Binding Nawiazano}" FontSize="11" FontWeight="Bold" Foreground="#4ADE80" Margin="3,0,0,0"/>
                                                                 </StackPanel>
                                                             </Border>
-                                                            <Border Background="#CCFBF1" CornerRadius="4" Padding="5,2" Margin="0,0,4,0" ToolTip="Zgoda">
+                                                            <Border Background="#134E4A" CornerRadius="4" Padding="5,2" Margin="0,0,4,0" ToolTip="Zgoda">
                                                                 <StackPanel Orientation="Horizontal">
                                                                     <TextBlock Text="🤝" FontSize="12"/>
-                                                                    <TextBlock Text="{Binding Zgoda}" FontSize="11" FontWeight="Bold" Foreground="#0D9488" Margin="3,0,0,0"/>
+                                                                    <TextBlock Text="{Binding Zgoda}" FontSize="11" FontWeight="Bold" Foreground="#2DD4BF" Margin="3,0,0,0"/>
                                                                 </StackPanel>
                                                             </Border>
-                                                            <Border Background="#DBEAFE" CornerRadius="4" Padding="5,2" Margin="0,0,4,0" ToolTip="Oferta">
+                                                            <Border Background="#1E3A8A" CornerRadius="4" Padding="5,2" Margin="0,0,4,0" ToolTip="Oferta">
                                                                 <StackPanel Orientation="Horizontal">
                                                                     <TextBlock Text="📄" FontSize="12"/>
-                                                                    <TextBlock Text="{Binding Oferty}" FontSize="11" FontWeight="Bold" Foreground="#1E40AF" Margin="3,0,0,0"/>
+                                                                    <TextBlock Text="{Binding Oferty}" FontSize="11" FontWeight="Bold" Foreground="#60A5FA" Margin="3,0,0,0"/>
                                                                 </StackPanel>
                                                             </Border>
-                                                            <Border Background="#FEE2E2" CornerRadius="4" Padding="5,2" ToolTip="Odmowa">
+                                                            <Border Background="#7F1D1D" CornerRadius="4" Padding="5,2" ToolTip="Odmowa">
                                                                 <StackPanel Orientation="Horizontal">
                                                                     <TextBlock Text="❌" FontSize="12"/>
-                                                                    <TextBlock Text="{Binding NieZainteresowany}" FontSize="11" FontWeight="Bold" Foreground="#991B1B" Margin="3,0,0,0"/>
+                                                                    <TextBlock Text="{Binding NieZainteresowany}" FontSize="11" FontWeight="Bold" Foreground="#FCA5A5" Margin="3,0,0,0"/>
                                                                 </StackPanel>
                                                             </Border>
                                                         </StackPanel>
@@ -803,8 +838,8 @@
 
                                                     <!-- Suma -->
                                                     <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="10,0,0,0">
-                                                        <TextBlock Text="{Binding Suma}" FontSize="20" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}" HorizontalAlignment="Center"/>
-                                                        <TextBlock Text="SUMA" FontSize="10" Foreground="{StaticResource TextGray}" HorizontalAlignment="Center" FontWeight="Bold"/>
+                                                        <TextBlock Text="{Binding Suma}" FontSize="20" FontWeight="Bold" Foreground="#6366F1" HorizontalAlignment="Center"/>
+                                                        <TextBlock Text="SUMA" FontSize="10" Foreground="#64748B" HorizontalAlignment="Center" FontWeight="Bold"/>
                                                     </StackPanel>
                                                 </Grid>
                                             </Border>
@@ -834,22 +869,22 @@
             </Border>
         </Grid>
 
-        <Border x:Name="toastPopup" Grid.Row="2" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,40" 
-                Background="#1F2937" CornerRadius="25" Padding="25,12" Opacity="0" IsHitTestVisible="False">
+        <Border x:Name="toastPopup" Grid.Row="2" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,40"
+                Background="#1E293B" CornerRadius="25" Padding="25,12" Opacity="0" IsHitTestVisible="False" BorderBrush="#334155" BorderThickness="1">
             <Border.Effect>
                 <DropShadowEffect Color="Black" Opacity="0.3" BlurRadius="10"/>
             </Border.Effect>
             <StackPanel Orientation="Horizontal">
-                <TextBlock Text="✅ " Foreground="{StaticResource PrimaryColor}" FontSize="14"/>
-                <TextBlock x:Name="toastText" Text="Wykonano" Foreground="White" FontWeight="SemiBold" FontSize="14"/>
+                <TextBlock Text="✅ " Foreground="#22C55E" FontSize="14"/>
+                <TextBlock x:Name="toastText" Text="Wykonano" Foreground="#E2E8F0" FontWeight="SemiBold" FontSize="14"/>
             </StackPanel>
         </Border>
 
 
-        <Border x:Name="loadingOverlay" Grid.RowSpan="3" Background="#95FFFFFF" Visibility="Collapsed">
+        <Border x:Name="loadingOverlay" Grid.RowSpan="3" Background="#E60F172A" Visibility="Collapsed">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                <ProgressBar IsIndeterminate="True" Width="150" Height="4" Foreground="{StaticResource PrimaryColor}" Background="#E5E7EB" BorderThickness="0"/>
-                <TextBlock Text="Wczytywanie bazy..." Foreground="{StaticResource TextGray}" Margin="0,15,0,0" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                <ProgressBar IsIndeterminate="True" Width="150" Height="4" Foreground="#6366F1" Background="#334155" BorderThickness="0"/>
+                <TextBlock Text="Wczytywanie bazy..." Foreground="#94A3B8" Margin="0,15,0,0" HorizontalAlignment="Center" FontWeight="SemiBold"/>
             </StackPanel>
         </Border>
     </Grid>

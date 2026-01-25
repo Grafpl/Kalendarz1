@@ -8,7 +8,7 @@
         FontFamily="Segoe UI">
 
     <Window.Resources>
-        <SolidColorBrush x:Key="PrimaryColor" Color="#10B981"/>
+        <SolidColorBrush x:Key="PrimaryColor" Color="#6366F1"/>
         <SolidColorBrush x:Key="TextLight" Color="#F1F5F9"/>
         <SolidColorBrush x:Key="TextGray" Color="#94A3B8"/>
         <SolidColorBrush x:Key="BorderColor" Color="#334155"/>
@@ -35,7 +35,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#10B981"/>
+                                <Setter TargetName="border" Property="Background" Value="#6366F1"/>
                                 <Setter Property="Foreground" Value="White"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -83,7 +83,7 @@
             <Style.Triggers>
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="#334155"/>
-                    <Setter Property="Foreground" Value="#10B981"/>
+                    <Setter Property="Foreground" Value="#6366F1"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -112,24 +112,24 @@
         <Border Grid.Row="0" CornerRadius="12" Padding="24,16" Margin="0,0,0,16">
             <Border.Background>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                    <GradientStop Color="#065F46" Offset="0"/>
-                    <GradientStop Color="#047857" Offset="1"/>
+                    <GradientStop Color="#312E81" Offset="0"/>
+                    <GradientStop Color="#6366F1" Offset="1"/>
                 </LinearGradientBrush>
             </Border.Background>
             <Grid>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="DASHBOARD AKTYWNOSCI" FontSize="24" FontWeight="Bold" Foreground="White"/>
-                    <TextBlock x:Name="txtPodtytul" Text=" - Statystyki zespolu" FontSize="16" Foreground="#A7F3D0" VerticalAlignment="Bottom" Margin="8,0,0,2"/>
+                    <TextBlock x:Name="txtPodtytul" Text=" - Statystyki zespolu" FontSize="16" Foreground="#A5B4FC" VerticalAlignment="Bottom" Margin="8,0,0,2"/>
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                     <!-- Filtry czasowe -->
-                    <TextBlock Text="Rok:" FontSize="12" Foreground="#A7F3D0" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                    <TextBlock Text="Rok:" FontSize="12" Foreground="#A5B4FC" VerticalAlignment="Center" Margin="0,0,6,0"/>
                     <Border Background="#1E293B" CornerRadius="6" Padding="2">
                         <ComboBox x:Name="cmbRok" Width="70" Padding="6,4" FontSize="11" BorderThickness="0" SelectionChanged="CmbZakres_SelectionChanged"/>
                     </Border>
 
-                    <TextBlock Text="od:" FontSize="12" Foreground="#A7F3D0" VerticalAlignment="Center" Margin="12,0,6,0"/>
+                    <TextBlock Text="od:" FontSize="12" Foreground="#A5B4FC" VerticalAlignment="Center" Margin="12,0,6,0"/>
                     <Border Background="#1E293B" CornerRadius="6" Padding="2">
                         <ComboBox x:Name="cmbMiesiacOd" Width="90" Padding="6,4" FontSize="11" BorderThickness="0" SelectionChanged="CmbZakres_SelectionChanged">
                             <ComboBoxItem Content="Styczen" Tag="1"/>
@@ -147,7 +147,7 @@
                         </ComboBox>
                     </Border>
 
-                    <TextBlock Text="do:" FontSize="12" Foreground="#A7F3D0" VerticalAlignment="Center" Margin="6,0,6,0"/>
+                    <TextBlock Text="do:" FontSize="12" Foreground="#A5B4FC" VerticalAlignment="Center" Margin="6,0,6,0"/>
                     <Border Background="#1E293B" CornerRadius="6" Padding="2">
                         <ComboBox x:Name="cmbMiesiacDo" Width="90" Padding="6,4" FontSize="11" BorderThickness="0" SelectionChanged="CmbZakres_SelectionChanged">
                             <ComboBoxItem Content="Styczen" Tag="1"/>
@@ -182,7 +182,7 @@
                         </StackPanel>
                     </Border>
 
-                    <Button Content="Odswiez" Padding="14,6" Margin="12,0,0,0" Background="#10B981"
+                    <Button Content="Odswiez" Padding="14,6" Margin="12,0,0,0" Background="#6366F1"
                             Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand" Click="BtnOdswiez_Click" FontSize="12">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">

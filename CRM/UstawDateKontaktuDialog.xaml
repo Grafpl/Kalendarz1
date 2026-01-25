@@ -5,18 +5,18 @@
         Width="380" Height="420"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
-        Background="#F0F2F5"
+        Background="#0F172A"
         FontFamily="Segoe UI">
 
     <Window.Resources>
         <Style x:Key="QuickButton" TargetType="Button">
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="Foreground" Value="#374151"/>
+            <Setter Property="Background" Value="#334155"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Padding" Value="12,10"/>
             <Setter Property="Margin" Value="0,0,8,8"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="BorderBrush" Value="#E5E7EB"/>
+            <Setter Property="BorderBrush" Value="#475569"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -29,8 +29,8 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#DBEAFE"/>
-                                <Setter TargetName="border" Property="BorderBrush" Value="#2563EB"/>
+                                <Setter TargetName="border" Property="Background" Value="#475569"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#6366F1"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -60,6 +60,30 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Dark Calendar Style -->
+        <Style TargetType="Calendar">
+            <Setter Property="Background" Value="#1E293B"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="BorderBrush" Value="#334155"/>
+        </Style>
+
+        <Style TargetType="CalendarDayButton">
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Style.Triggers>
+                <Trigger Property="IsToday" Value="True">
+                    <Setter Property="Background" Value="#334155"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#6366F1"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#475569"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
 
     <Grid Margin="20">
@@ -74,12 +98,12 @@
 
         <!-- Nagłówek -->
         <StackPanel Grid.Row="0" Margin="0,0,0,16">
-            <TextBlock Text="Kiedy zadzwonić?" FontSize="18" FontWeight="Bold" Foreground="#1F2937"/>
-            <TextBlock x:Name="txtNazwaKlienta" Text="" FontSize="12" Foreground="#6B7280" TextWrapping="Wrap" Margin="0,4,0,0"/>
+            <TextBlock Text="Kiedy zadzwonić?" FontSize="18" FontWeight="Bold" Foreground="#E2E8F0"/>
+            <TextBlock x:Name="txtNazwaKlienta" Text="" FontSize="12" Foreground="#94A3B8" TextWrapping="Wrap" Margin="0,4,0,0"/>
         </StackPanel>
 
         <!-- Szybkie opcje -->
-        <TextBlock Grid.Row="1" Text="Szybki wybór:" FontSize="11" Foreground="#6B7280" FontWeight="Medium" Margin="0,0,0,8"/>
+        <TextBlock Grid.Row="1" Text="Szybki wybór:" FontSize="11" Foreground="#64748B" FontWeight="Medium" Margin="0,0,0,8"/>
 
         <WrapPanel Grid.Row="2" Margin="0,0,0,16">
             <Button Content="Dziś" Style="{StaticResource QuickButton}" Click="BtnDzis_Click"/>
@@ -92,11 +116,12 @@
         </WrapPanel>
 
         <!-- Kalendarz -->
-        <TextBlock Grid.Row="3" Text="Lub wybierz datę:" FontSize="11" Foreground="#6B7280" FontWeight="Medium" Margin="0,0,0,8"/>
+        <TextBlock Grid.Row="3" Text="Lub wybierz datę:" FontSize="11" Foreground="#64748B" FontWeight="Medium" Margin="0,0,0,8"/>
 
-        <Border Grid.Row="4" Background="White" CornerRadius="10" Padding="8" BorderBrush="#E5E7EB" BorderThickness="1">
+        <Border Grid.Row="4" Background="#1E293B" CornerRadius="10" Padding="8" BorderBrush="#334155" BorderThickness="1">
             <Calendar x:Name="calendar" HorizontalAlignment="Center" SelectedDatesChanged="Calendar_SelectedDatesChanged"
-                      DisplayDateStart="{x:Static sys:DateTime.Today}" xmlns:sys="clr-namespace:System;assembly=mscorlib"/>
+                      DisplayDateStart="{x:Static sys:DateTime.Today}" xmlns:sys="clr-namespace:System;assembly=mscorlib"
+                      Background="#1E293B" Foreground="#E2E8F0" BorderBrush="#334155"/>
         </Border>
 
         <!-- Podsumowanie i przyciski -->
@@ -108,15 +133,15 @@
             </Grid.ColumnDefinitions>
 
             <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                <TextBlock Text="Wybrana data:" FontSize="10" Foreground="#6B7280"/>
-                <TextBlock x:Name="txtWybranaData" Text="-" FontSize="14" FontWeight="Bold" Foreground="#2563EB"/>
+                <TextBlock Text="Wybrana data:" FontSize="10" Foreground="#64748B"/>
+                <TextBlock x:Name="txtWybranaData" Text="-" FontSize="14" FontWeight="Bold" Foreground="#6366F1"/>
             </StackPanel>
 
             <Button Grid.Column="1" Content="Anuluj" Style="{StaticResource ActionButton}"
-                    Background="#E5E7EB" Foreground="#374151" Margin="0,0,8,0"
+                    Background="#334155" Foreground="#94A3B8" Margin="0,0,8,0"
                     Click="BtnAnuluj_Click"/>
             <Button Grid.Column="2" Content="Zapisz" Style="{StaticResource ActionButton}"
-                    Background="#2563EB" Foreground="White"
+                    Background="#6366F1" Foreground="White"
                     Click="BtnZapisz_Click"/>
         </Grid>
     </Grid>

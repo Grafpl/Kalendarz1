@@ -5,23 +5,24 @@
         Title="Mapa Kontaktów CRM"
         Width="1400" Height="900"
         WindowStartupLocation="CenterScreen"
-        Background="#F8FAF8"
+        Background="#0F172A"
         FontFamily="Segoe UI">
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
 
-        <SolidColorBrush x:Key="ColorPrimary" Color="#16A34A"/>
-        <SolidColorBrush x:Key="ColorPrimaryDark" Color="#15803D"/>
-        <SolidColorBrush x:Key="ColorDanger" Color="#DC2626"/>
-        <SolidColorBrush x:Key="ColorWarning" Color="#0891B2"/>
-        <SolidColorBrush x:Key="ColorText" Color="#111827"/>
-        <SolidColorBrush x:Key="ColorTextMuted" Color="#9CA3AF"/>
-        <SolidColorBrush x:Key="ColorBorder" Color="#E5E7EB"/>
+        <!-- DARK CORPORATE THEME -->
+        <SolidColorBrush x:Key="ColorPrimary" Color="#6366F1"/>
+        <SolidColorBrush x:Key="ColorPrimaryDark" Color="#4F46E5"/>
+        <SolidColorBrush x:Key="ColorDanger" Color="#EF4444"/>
+        <SolidColorBrush x:Key="ColorWarning" Color="#F59E0B"/>
+        <SolidColorBrush x:Key="ColorText" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="ColorTextMuted" Color="#64748B"/>
+        <SolidColorBrush x:Key="ColorBorder" Color="#334155"/>
 
         <LinearGradientBrush x:Key="HeaderGradient" StartPoint="0,0" EndPoint="1,0">
-            <GradientStop Color="#166534" Offset="0"/>
-            <GradientStop Color="#22C55E" Offset="1"/>
+            <GradientStop Color="#312E81" Offset="0"/>
+            <GradientStop Color="#6366F1" Offset="1"/>
         </LinearGradientBrush>
 
         <Style x:Key="KpiBorder" TargetType="Border">
@@ -35,7 +36,7 @@
 
         <Style x:Key="KpiLabel" TargetType="TextBlock">
             <Setter Property="FontSize" Value="9"/>
-            <Setter Property="Foreground" Value="#D1FAE5"/>
+            <Setter Property="Foreground" Value="#A5B4FC"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Opacity" Value="0.9"/>
         </Style>
@@ -75,7 +76,7 @@
         </Style>
 
         <Style x:Key="ButtonSecondary" TargetType="Button" BasedOn="{StaticResource ButtonPrimary}">
-            <Setter Property="Background" Value="#64748B"/>
+            <Setter Property="Background" Value="#334155"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -96,9 +97,10 @@
         <Style x:Key="ModernComboBox" TargetType="ComboBox">
             <Setter Property="Padding" Value="10,6"/>
             <Setter Property="FontSize" Value="12"/>
-            <Setter Property="BorderBrush" Value="{StaticResource ColorBorder}"/>
+            <Setter Property="BorderBrush" Value="#475569"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Background" Value="White"/>
+            <Setter Property="Background" Value="#334155"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
             <Setter Property="MinHeight" Value="32"/>
             <Setter Property="MinWidth" Value="140"/>
         </Style>
@@ -123,14 +125,14 @@
                     <TextBlock Text="🗺️" FontSize="24" Margin="0,0,12,0" VerticalAlignment="Center"/>
                     <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="Mapa Handlowca" FontSize="18" FontWeight="Bold" Foreground="White"/>
-                        <TextBlock Text="Koziołki 40, 95-061 Dmosin" FontSize="11" Foreground="#BBF7D0" Margin="0,2,0,0" FontStyle="Italic"/>
+                        <TextBlock Text="Koziołki 40, 95-061 Dmosin" FontSize="11" Foreground="#A5B4FC" Margin="0,2,0,0" FontStyle="Italic"/>
                     </StackPanel>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                     <Border Style="{StaticResource KpiBorder}">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="📍" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center" Foreground="#A7F3D0"/>
+                            <TextBlock Text="📍" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center" Foreground="#A5B4FC"/>
                             <StackPanel>
                                 <TextBlock Text="NA MAPIE" Style="{StaticResource KpiLabel}"/>
                                 <TextBlock x:Name="txtNaMapie" Text="0" Style="{StaticResource KpiValue}"/>
@@ -139,7 +141,7 @@
                     </Border>
                     <Border Style="{StaticResource KpiBorder}">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="📞" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center" Foreground="#A7F3D0"/>
+                            <TextBlock Text="📞" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center" Foreground="#A5B4FC"/>
                             <StackPanel>
                                 <TextBlock Text="DO ZADZW." Style="{StaticResource KpiLabel}"/>
                                 <TextBlock x:Name="txtDoZadzwonienia" Text="0" Style="{StaticResource KpiValue}"/>
@@ -148,7 +150,7 @@
                     </Border>
                     <Border Style="{StaticResource KpiBorder}">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="✅" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center" Foreground="#A7F3D0"/>
+                            <TextBlock Text="✅" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center" Foreground="#A5B4FC"/>
                             <StackPanel>
                                 <TextBlock Text="KONTAKT" Style="{StaticResource KpiLabel}"/>
                                 <TextBlock x:Name="txtKontakt" Text="0" Style="{StaticResource KpiValue}"/>
@@ -159,8 +161,8 @@
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="⭐" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center" Foreground="#FCA5A5"/>
                             <StackPanel>
-                                <TextBlock Text="PRIORYTET" Style="{StaticResource KpiLabel}" Foreground="#FECACA"/>
-                                <TextBlock x:Name="txtPriorytet" Text="0" Style="{StaticResource KpiValue}" Foreground="#FEF2F2"/>
+                                <TextBlock Text="PRIORYTET" Style="{StaticResource KpiLabel}" Foreground="#FCA5A5"/>
+                                <TextBlock x:Name="txtPriorytet" Text="0" Style="{StaticResource KpiValue}"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>
@@ -168,18 +170,18 @@
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                     <StackPanel Margin="0,0,12,0" VerticalAlignment="Center">
-                        <TextBlock Text="Google API Key:" FontSize="9" Foreground="#A7F3D0" Margin="2,0,0,2"/>
-                        <TextBox x:Name="txtApiKey" Width="180" FontSize="11" Padding="6,4" Background="#20FFFFFF" Foreground="White" BorderBrush="#40FFFFFF" 
+                        <TextBlock Text="Google API Key:" FontSize="9" Foreground="#A5B4FC" Margin="2,0,0,2"/>
+                        <TextBox x:Name="txtApiKey" Width="180" FontSize="11" Padding="6,4" Background="#20FFFFFF" Foreground="White" BorderBrush="#40FFFFFF"
                                  ToolTip="Wprowadź klucz Google Maps API" Text="AIzaSyCFXL2NYDnLBpiih1pG27SbsY62ZYsKdgo"/>
                     </StackPanel>
-                    <Button x:Name="btnGeokoduj" Content="📍 Geokoduj" Style="{StaticResource ButtonPrimary}" Click="BtnGeokoduj_Click" Margin="0,0,8,0" Background="#065F46"/>
-                    <Button x:Name="btnOdswiez" Content="🔄 Odśwież" Style="{StaticResource ButtonSecondary}" Click="BtnOdswiez_Click" Margin="0,0,8,0" Background="#ffffff30"/>
-                    <Button x:Name="btnZamknij" Content="✕" Style="{StaticResource ButtonSecondary}" Click="BtnZamknij_Click" Width="32" Padding="0" Background="#ffffff15"/>
+                    <Button x:Name="btnGeokoduj" Content="📍 Geokoduj" Style="{StaticResource ButtonPrimary}" Click="BtnGeokoduj_Click" Margin="0,0,8,0" Background="#312E81"/>
+                    <Button x:Name="btnOdswiez" Content="🔄 Odśwież" Style="{StaticResource ButtonSecondary}" Click="BtnOdswiez_Click" Margin="0,0,8,0"/>
+                    <Button x:Name="btnZamknij" Content="✕" Style="{StaticResource ButtonSecondary}" Click="BtnZamknij_Click" Width="32" Padding="0"/>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <Border Grid.Row="1" Background="White" Padding="16,10" BorderBrush="{StaticResource ColorBorder}" BorderThickness="0,0,0,1">
+        <Border Grid.Row="1" Background="#1E293B" Padding="16,10" BorderBrush="{StaticResource ColorBorder}" BorderThickness="0,0,0,1">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -188,11 +190,11 @@
 
                 <!-- LEWA STRONA: Filtry i ComboBox -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Padding="4,2" Margin="0,0,12,0">
+                    <Border Background="#0F172A" BorderBrush="#334155" BorderThickness="1" CornerRadius="6" Padding="4,2" Margin="0,0,12,0">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="🔍" VerticalAlignment="Center" Margin="4,0" Foreground="#9CA3AF"/>
+                            <TextBlock Text="🔍" VerticalAlignment="Center" Margin="4,0" Foreground="#64748B"/>
                             <TextBox x:Name="txtSzukaj" Width="140" BorderThickness="0" VerticalContentAlignment="Center"
-                                     FontSize="12" Background="Transparent" TextChanged="Filtr_Changed"
+                                     FontSize="12" Background="Transparent" Foreground="#E2E8F0" CaretBrush="#E2E8F0" TextChanged="Filtr_Changed"
                                      ToolTip="Szukaj po nazwie, mieście, telefonie..."/>
                         </StackPanel>
                     </Border>
@@ -200,20 +202,20 @@
                     <ComboBox x:Name="cmbWojewodztwo" Style="{StaticResource ModernComboBox}" Width="100" SelectionChanged="Filtr_Changed"/>
                     <TextBlock Text="Branża:" FontSize="11" Foreground="{StaticResource ColorTextMuted}" VerticalAlignment="Center" Margin="10,0,4,0"/>
                     <ComboBox x:Name="cmbBranza" Style="{StaticResource ModernComboBox}" Width="140" SelectionChanged="Filtr_Changed"/>
-                    <CheckBox x:Name="chkTylkoPriorytetowe" Content="⭐ Priorytet" Foreground="#DC2626" FontWeight="SemiBold" FontSize="11" Margin="12,0,0,0" VerticalContentAlignment="Center" Checked="Filtr_Changed" Unchecked="Filtr_Changed"/>
+                    <CheckBox x:Name="chkTylkoPriorytetowe" Content="⭐ Priorytet" Foreground="#EF4444" FontWeight="SemiBold" FontSize="11" Margin="12,0,0,0" VerticalContentAlignment="Center" Checked="Filtr_Changed" Unchecked="Filtr_Changed"/>
                 </StackPanel>
 
                 <!-- PRAWA STRONA: Checkboxy statusów -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                     <TextBlock Text="Statusy:" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource ColorTextMuted}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <Border Background="#F8FAF8" CornerRadius="6" Padding="4" BorderBrush="#E5E7EB" BorderThickness="1">
+                    <Border Background="#0F172A" CornerRadius="6" Padding="4" BorderBrush="#334155" BorderThickness="1">
                         <StackPanel Orientation="Horizontal">
-                            <CheckBox x:Name="chkDoZadzwonienia" Content="Do zadzw." IsChecked="True" Foreground="#475569" FontSize="10" Margin="6,0" VerticalContentAlignment="Center" Checked="Filtr_Changed" Unchecked="Filtr_Changed"/>
-                            <CheckBox x:Name="chkProba" Content="Próba" IsChecked="True" Foreground="#EA580C" FontSize="10" Margin="6,0" VerticalContentAlignment="Center" Checked="Filtr_Changed" Unchecked="Filtr_Changed"/>
-                            <CheckBox x:Name="chkNawiazano" Content="Nawiązano" IsChecked="True" Foreground="#16A34A" FontSize="10" Margin="6,0" VerticalContentAlignment="Center" Checked="Filtr_Changed" Unchecked="Filtr_Changed"/>
-                            <CheckBox x:Name="chkZgoda" Content="Zgoda" IsChecked="True" Foreground="#0D9488" FontSize="10" Margin="6,0" VerticalContentAlignment="Center" Checked="Filtr_Changed" Unchecked="Filtr_Changed"/>
-                            <CheckBox x:Name="chkOferta" Content="Oferta" IsChecked="True" Foreground="#0891B2" FontSize="10" Margin="6,0" VerticalContentAlignment="Center" Checked="Filtr_Changed" Unchecked="Filtr_Changed"/>
-                            <CheckBox x:Name="chkNieZainteresowany" Content="Nie zaint." IsChecked="False" Foreground="#DC2626" FontSize="10" Margin="6,0" VerticalContentAlignment="Center" Checked="Filtr_Changed" Unchecked="Filtr_Changed"/>
+                            <CheckBox x:Name="chkDoZadzwonienia" Content="Do zadzw." IsChecked="True" Foreground="#94A3B8" FontSize="10" Margin="6,0" VerticalContentAlignment="Center" Checked="Filtr_Changed" Unchecked="Filtr_Changed"/>
+                            <CheckBox x:Name="chkProba" Content="Próba" IsChecked="True" Foreground="#FCD34D" FontSize="10" Margin="6,0" VerticalContentAlignment="Center" Checked="Filtr_Changed" Unchecked="Filtr_Changed"/>
+                            <CheckBox x:Name="chkNawiazano" Content="Nawiązano" IsChecked="True" Foreground="#4ADE80" FontSize="10" Margin="6,0" VerticalContentAlignment="Center" Checked="Filtr_Changed" Unchecked="Filtr_Changed"/>
+                            <CheckBox x:Name="chkZgoda" Content="Zgoda" IsChecked="True" Foreground="#2DD4BF" FontSize="10" Margin="6,0" VerticalContentAlignment="Center" Checked="Filtr_Changed" Unchecked="Filtr_Changed"/>
+                            <CheckBox x:Name="chkOferta" Content="Oferta" IsChecked="True" Foreground="#60A5FA" FontSize="10" Margin="6,0" VerticalContentAlignment="Center" Checked="Filtr_Changed" Unchecked="Filtr_Changed"/>
+                            <CheckBox x:Name="chkNieZainteresowany" Content="Nie zaint." IsChecked="False" Foreground="#FCA5A5" FontSize="10" Margin="6,0" VerticalContentAlignment="Center" Checked="Filtr_Changed" Unchecked="Filtr_Changed"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>
@@ -226,58 +228,58 @@
                 <ColumnDefinition Width="320"/>
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0" Background="White" Margin="8" CornerRadius="12" ClipToBounds="True">
+            <Border Grid.Column="0" Background="#1E293B" Margin="8" CornerRadius="12" ClipToBounds="True" BorderBrush="#334155" BorderThickness="1">
                 <Border.Effect>
-                    <DropShadowEffect ShadowDepth="0" Color="#000000" Opacity="0.08" BlurRadius="16"/>
+                    <DropShadowEffect ShadowDepth="0" Color="#000000" Opacity="0.25" BlurRadius="16"/>
                 </Border.Effect>
                 <Grid>
                     <wv2:WebView2 x:Name="webView" />
 
-                    <Border Background="White" CornerRadius="8" Padding="12" Margin="12" HorizontalAlignment="Left" VerticalAlignment="Top">
+                    <Border Background="#1E293B" CornerRadius="8" Padding="12" Margin="12" HorizontalAlignment="Left" VerticalAlignment="Top" BorderBrush="#334155" BorderThickness="1">
                         <Border.Effect>
-                            <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.15" BlurRadius="8"/>
+                            <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.25" BlurRadius="8"/>
                         </Border.Effect>
                         <StackPanel>
-                            <TextBlock Text="LEGENDA STATUSÓW" FontSize="9" FontWeight="Bold" Foreground="{StaticResource ColorTextMuted}" Margin="0,0,0,8"/>
+                            <TextBlock Text="LEGENDA STATUSÓW" FontSize="9" FontWeight="Bold" Foreground="#64748B" Margin="0,0,0,8"/>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                                 <Ellipse Width="12" Height="12" Fill="#64748B" Margin="0,0,8,0"/>
-                                <TextBlock Text="Do zadzwonienia" FontSize="10" Foreground="{StaticResource ColorText}"/>
+                                <TextBlock Text="Do zadzwonienia" FontSize="10" Foreground="#E2E8F0"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                <Ellipse Width="12" Height="12" Fill="#F97316" Margin="0,0,8,0"/>
-                                <TextBlock Text="Próba kontaktu" FontSize="10" Foreground="{StaticResource ColorText}"/>
+                                <Ellipse Width="12" Height="12" Fill="#F59E0B" Margin="0,0,8,0"/>
+                                <TextBlock Text="Próba kontaktu" FontSize="10" Foreground="#E2E8F0"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                                 <Ellipse Width="12" Height="12" Fill="#22C55E" Margin="0,0,8,0"/>
-                                <TextBlock Text="Nawiązano kontakt" FontSize="10" Foreground="{StaticResource ColorText}"/>
+                                <TextBlock Text="Nawiązano kontakt" FontSize="10" Foreground="#E2E8F0"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                                 <Ellipse Width="12" Height="12" Fill="#14B8A6" Margin="0,0,8,0"/>
-                                <TextBlock Text="Zgoda na dalszy kontakt" FontSize="10" Foreground="{StaticResource ColorText}"/>
+                                <TextBlock Text="Zgoda na dalszy kontakt" FontSize="10" Foreground="#E2E8F0"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                <Ellipse Width="12" Height="12" Fill="#0891B2" Margin="0,0,8,0"/>
-                                <TextBlock Text="Do wysłania oferta" FontSize="10" Foreground="{StaticResource ColorText}"/>
+                                <Ellipse Width="12" Height="12" Fill="#3B82F6" Margin="0,0,8,0"/>
+                                <TextBlock Text="Do wysłania oferta" FontSize="10" Foreground="#E2E8F0"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal">
                                 <Ellipse Width="12" Height="12" Fill="#EF4444" Margin="0,0,8,0"/>
-                                <TextBlock Text="Nie zainteresowany" FontSize="10" Foreground="{StaticResource ColorText}"/>
+                                <TextBlock Text="Nie zainteresowany" FontSize="10" Foreground="#E2E8F0"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>
 
-                    <Border x:Name="loadingOverlay" Background="#E0FFFFFF" Visibility="Visible">
+                    <Border x:Name="loadingOverlay" Background="#E60F172A" Visibility="Visible">
                         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <ProgressBar IsIndeterminate="True" Width="200" Height="6" Foreground="{StaticResource ColorPrimary}"/>
-                            <TextBlock x:Name="txtLoadingStatus" Text="Ładowanie mapy..." FontSize="12" Foreground="{StaticResource ColorText}" Margin="0,12,0,0" HorizontalAlignment="Center"/>
+                            <ProgressBar IsIndeterminate="True" Width="200" Height="6" Foreground="#6366F1" Background="#334155" BorderThickness="0"/>
+                            <TextBlock x:Name="txtLoadingStatus" Text="Ładowanie mapy..." FontSize="12" Foreground="#94A3B8" Margin="0,12,0,0" HorizontalAlignment="Center"/>
                         </StackPanel>
                     </Border>
                 </Grid>
             </Border>
 
-            <Border Grid.Column="1" Background="White" Margin="0,8,8,8" CornerRadius="12" Padding="12">
+            <Border Grid.Column="1" Background="#1E293B" Margin="0,8,8,8" CornerRadius="12" Padding="12" BorderBrush="#334155" BorderThickness="1">
                 <Border.Effect>
-                    <DropShadowEffect ShadowDepth="0" Color="#000000" Opacity="0.08" BlurRadius="16"/>
+                    <DropShadowEffect ShadowDepth="0" Color="#000000" Opacity="0.25" BlurRadius="16"/>
                 </Border.Effect>
                 <Grid>
                     <Grid.RowDefinitions>
@@ -286,21 +288,21 @@
                     </Grid.RowDefinitions>
 
                     <StackPanel Grid.Row="0" Margin="0,0,0,12">
-                        <TextBlock Text="KONTAKTY NA MAPIE" FontSize="11" FontWeight="Bold" Foreground="{StaticResource ColorTextMuted}"/>
-                        <TextBlock x:Name="txtLiczbaKontaktow" Text="0 kontaktów" FontSize="10" Foreground="{StaticResource ColorTextMuted}" Margin="0,4,0,0"/>
+                        <TextBlock Text="KONTAKTY NA MAPIE" FontSize="11" FontWeight="Bold" Foreground="#64748B"/>
+                        <TextBlock x:Name="txtLiczbaKontaktow" Text="0 kontaktów" FontSize="10" Foreground="#64748B" Margin="0,4,0,0"/>
                     </StackPanel>
 
-                    <Border Grid.Row="1" Background="#F8FAF8" CornerRadius="8">
+                    <Border Grid.Row="1" Background="#0F172A" CornerRadius="8" BorderBrush="#334155" BorderThickness="1">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="4">
                             <ItemsControl x:Name="listaKontaktow">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Background="White" CornerRadius="8" Padding="10" Margin="4,2" Cursor="Hand" MouseLeftButtonUp="KontaktItem_Click">
+                                        <Border Background="#1E293B" CornerRadius="8" Padding="10" Margin="4,2" Cursor="Hand" MouseLeftButtonUp="KontaktItem_Click" BorderBrush="#334155" BorderThickness="1">
                                             <Border.Style>
                                                 <Style TargetType="Border">
                                                     <Style.Triggers>
                                                         <Trigger Property="IsMouseOver" Value="True">
-                                                            <Setter Property="Background" Value="#F0FDF4"/>
+                                                            <Setter Property="Background" Value="#334155"/>
                                                         </Trigger>
                                                     </Style.Triggers>
                                                 </Style>
@@ -314,18 +316,18 @@
                                                 <Ellipse Grid.Column="0" Width="10" Height="10" Fill="{Binding KolorStatusu}" VerticalAlignment="Top" Margin="0,4,10,0"/>
 
                                                 <StackPanel Grid.Column="1">
-                                                    <TextBlock Text="{Binding Nazwa}" FontSize="11" FontWeight="SemiBold" Foreground="#111827" TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Text="{Binding Miasto}" FontSize="9" Foreground="#6B7280" Margin="0,2,0,0"/>
+                                                    <TextBlock Text="{Binding Nazwa}" FontSize="11" FontWeight="SemiBold" Foreground="#E2E8F0" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding Miasto}" FontSize="9" Foreground="#94A3B8" Margin="0,2,0,0"/>
                                                     <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
                                                         <TextBlock Text="📍 " FontSize="9"/>
-                                                        <TextBlock Text="{Binding DystansKm}" FontSize="9" FontWeight="Bold" Foreground="#475569"/>
-                                                        <TextBlock Text=" km" FontSize="9" Foreground="#9CA3AF"/>
+                                                        <TextBlock Text="{Binding DystansKm}" FontSize="9" FontWeight="Bold" Foreground="#A5B4FC"/>
+                                                        <TextBlock Text=" km" FontSize="9" Foreground="#64748B"/>
                                                     </StackPanel>
                                                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                                                         <Border Background="{Binding TloStatusu}" CornerRadius="4" Padding="6,2">
                                                             <TextBlock Text="{Binding Status}" FontSize="8" Foreground="{Binding KolorStatusuTekst}" FontWeight="SemiBold"/>
                                                         </Border>
-                                                        <TextBlock Text="{Binding Telefon}" FontSize="9" Foreground="#16A34A" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding Telefon}" FontSize="9" Foreground="#6366F1" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"/>
                                                     </StackPanel>
                                                 </StackPanel>
                                             </Grid>

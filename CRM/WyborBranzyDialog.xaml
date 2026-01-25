@@ -4,23 +4,24 @@
         Title="Wybór priorytetowych branż"
         Width="700" Height="600"
         WindowStartupLocation="CenterOwner"
-        Background="#F8FAF8"
+        Background="#0F172A"
         FontFamily="Segoe UI">
 
     <Window.Resources>
-        <SolidColorBrush x:Key="ColorPrimary" Color="#16A34A"/>
-        <SolidColorBrush x:Key="ColorDanger" Color="#DC2626"/>
-        <SolidColorBrush x:Key="ColorText" Color="#111827"/>
-        <SolidColorBrush x:Key="ColorTextMuted" Color="#9CA3AF"/>
-        <SolidColorBrush x:Key="ColorBorder" Color="#E5E7EB"/>
+        <!-- DARK CORPORATE THEME -->
+        <SolidColorBrush x:Key="ColorPrimary" Color="#6366F1"/>
+        <SolidColorBrush x:Key="ColorDanger" Color="#EF4444"/>
+        <SolidColorBrush x:Key="ColorText" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="ColorTextMuted" Color="#64748B"/>
+        <SolidColorBrush x:Key="ColorBorder" Color="#334155"/>
 
         <LinearGradientBrush x:Key="HeaderGradient" StartPoint="0,0" EndPoint="1,0">
-            <GradientStop Color="#166534" Offset="0"/>
-            <GradientStop Color="#22C55E" Offset="1"/>
+            <GradientStop Color="#312E81" Offset="0"/>
+            <GradientStop Color="#6366F1" Offset="1"/>
         </LinearGradientBrush>
 
         <Style x:Key="ButtonPrimary" TargetType="Button">
-            <Setter Property="Background" Value="{StaticResource ColorPrimary}"/>
+            <Setter Property="Background" Value="#6366F1"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="FontSize" Value="13"/>
@@ -36,7 +37,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#15803D"/>
+                                <Setter TargetName="border" Property="Background" Value="#4F46E5"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -45,8 +46,8 @@
         </Style>
 
         <Style x:Key="ButtonSecondary" TargetType="Button">
-            <Setter Property="Background" Value="#64748B"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="#334155"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="Padding" Value="20,12"/>
@@ -72,9 +73,11 @@
         <Style x:Key="ModernTextBox" TargetType="TextBox">
             <Setter Property="Padding" Value="12,10"/>
             <Setter Property="FontSize" Value="13"/>
-            <Setter Property="BorderBrush" Value="{StaticResource ColorBorder}"/>
+            <Setter Property="BorderBrush" Value="#475569"/>
             <Setter Property="BorderThickness" Value="1.5"/>
-            <Setter Property="Background" Value="White"/>
+            <Setter Property="Background" Value="#334155"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="CaretBrush" Value="#E2E8F0"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TextBox">
@@ -86,7 +89,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsFocused" Value="True">
-                                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource ColorPrimary}"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#6366F1"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -107,7 +110,7 @@
             <StackPanel>
                 <TextBlock Text="Wybór priorytetowych branż" FontSize="18" FontWeight="Bold" Foreground="White"/>
                 <TextBlock Text="Zaznacz branże, które mają być wyróżnione na czerwono i pojawiać się pierwsze na liście"
-                           FontSize="11" Foreground="#BBF7D0" Margin="0,4,0,0"/>
+                           FontSize="11" Foreground="#A5B4FC" Margin="0,4,0,0"/>
             </StackPanel>
         </Border>
 
@@ -120,42 +123,42 @@
             </Grid.RowDefinitions>
 
             <!-- Wyszukiwanie -->
-            <Border Grid.Row="0" Background="White" CornerRadius="8" Padding="4" Margin="0,0,0,12">
+            <Border Grid.Row="0" Background="#1E293B" CornerRadius="8" Padding="4" Margin="0,0,0,12" BorderBrush="#334155" BorderThickness="1">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="🔍" FontSize="14" VerticalAlignment="Center" Margin="10,0,8,0" Foreground="{StaticResource ColorTextMuted}"/>
+                    <TextBlock Text="🔍" FontSize="14" VerticalAlignment="Center" Margin="10,0,8,0" Foreground="#64748B"/>
                     <TextBox x:Name="txtSzukaj" Grid.Column="1" BorderThickness="0" Padding="4,10"
-                             FontSize="13" Background="Transparent" VerticalAlignment="Center"
+                             FontSize="13" Background="Transparent" Foreground="#E2E8F0" CaretBrush="#E2E8F0" VerticalAlignment="Center"
                              TextChanged="TxtSzukaj_TextChanged"/>
                 </Grid>
             </Border>
 
             <!-- Statystyki -->
             <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
-                <Border Background="#DCFCE7" CornerRadius="6" Padding="10,6" Margin="0,0,10,0">
+                <Border Background="#14532D" CornerRadius="6" Padding="10,6" Margin="0,0,10,0">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Zaznaczone: " FontSize="11" Foreground="#166534"/>
-                        <TextBlock x:Name="txtZaznaczone" Text="0" FontSize="11" FontWeight="Bold" Foreground="#166534"/>
+                        <TextBlock Text="Zaznaczone: " FontSize="11" Foreground="#4ADE80"/>
+                        <TextBlock x:Name="txtZaznaczone" Text="0" FontSize="11" FontWeight="Bold" Foreground="#4ADE80"/>
                     </StackPanel>
                 </Border>
-                <Border Background="#FEE2E2" CornerRadius="6" Padding="10,6">
+                <Border Background="#7F1D1D" CornerRadius="6" Padding="10,6">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Priorytetowe branże będą " FontSize="11" Foreground="#991B1B"/>
-                        <TextBlock Text="CZERWONE" FontSize="11" FontWeight="Bold" Foreground="#DC2626"/>
+                        <TextBlock Text="Priorytetowe branże będą " FontSize="11" Foreground="#FCA5A5"/>
+                        <TextBlock Text="CZERWONE" FontSize="11" FontWeight="Bold" Foreground="#EF4444"/>
                     </StackPanel>
                 </Border>
             </StackPanel>
 
             <!-- Lista branż -->
-            <Border Grid.Row="2" Background="White" CornerRadius="12" BorderBrush="{StaticResource ColorBorder}" BorderThickness="1">
+            <Border Grid.Row="2" Background="#1E293B" CornerRadius="12" BorderBrush="#334155" BorderThickness="1">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="4">
                     <ItemsControl x:Name="listaBranzy">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border x:Name="itemBorder" Background="White" CornerRadius="8" Padding="12,10" Margin="4,2"
+                                <Border x:Name="itemBorder" Background="#1E293B" CornerRadius="8" Padding="12,10" Margin="4,2"
                                         Cursor="Hand" MouseLeftButtonUp="BranzaItem_Click">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
@@ -169,24 +172,24 @@
                                                   Checked="ChkBranza_Changed" Unchecked="ChkBranza_Changed"/>
 
                                         <TextBlock x:Name="txtNazwa" Grid.Column="1" Text="{Binding Nazwa}" FontSize="12"
-                                                   VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                                   VerticalAlignment="Center" TextWrapping="Wrap" Foreground="#E2E8F0"/>
 
-                                        <Border x:Name="badgeLiczba" Grid.Column="2" Background="#F1F5F9" CornerRadius="4"
+                                        <Border x:Name="badgeLiczba" Grid.Column="2" Background="#334155" CornerRadius="4"
                                                 Padding="8,4" Margin="8,0,0,0" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding LiczbaFirm}" FontSize="10" Foreground="#64748B"/>
+                                            <TextBlock Text="{Binding LiczbaFirm}" FontSize="10" Foreground="#94A3B8"/>
                                         </Border>
                                     </Grid>
                                 </Border>
                                 <DataTemplate.Triggers>
                                     <DataTrigger Binding="{Binding CzyPriorytetowa}" Value="True">
-                                        <Setter TargetName="itemBorder" Property="Background" Value="#FEF2F2"/>
-                                        <Setter TargetName="itemBorder" Property="BorderBrush" Value="#DC2626"/>
+                                        <Setter TargetName="itemBorder" Property="Background" Value="#7F1D1D"/>
+                                        <Setter TargetName="itemBorder" Property="BorderBrush" Value="#EF4444"/>
                                         <Setter TargetName="itemBorder" Property="BorderThickness" Value="2"/>
-                                        <Setter TargetName="txtNazwa" Property="Foreground" Value="#DC2626"/>
+                                        <Setter TargetName="txtNazwa" Property="Foreground" Value="#FCA5A5"/>
                                         <Setter TargetName="txtNazwa" Property="FontWeight" Value="Bold"/>
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding CzyPriorytetowa}" Value="False">
-                                        <Setter TargetName="txtNazwa" Property="Foreground" Value="#374151"/>
+                                        <Setter TargetName="txtNazwa" Property="Foreground" Value="#E2E8F0"/>
                                     </DataTrigger>
                                 </DataTemplate.Triggers>
                             </DataTemplate>
@@ -197,7 +200,7 @@
         </Grid>
 
         <!-- Przyciski -->
-        <Border Grid.Row="2" Background="White" Padding="20,16" BorderBrush="{StaticResource ColorBorder}" BorderThickness="0,1,0,0">
+        <Border Grid.Row="2" Background="#1E293B" Padding="20,16" BorderBrush="#334155" BorderThickness="0,1,0,0">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
