@@ -280,14 +280,6 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             // Tuszki - KPI Strip
             txtPrognozaTuszek.Text = _podsumowanie.PrognozaTuszekKg.ToString("N0");
 
-            // Liczniki statusów dostaw (sidebar)
-            int zwazoneCount = _dostawy.Count(d => d.Status == StatusDostawy.Zwazony);
-            int bruttoCount = _dostawy.Count(d => d.Status == StatusDostawy.BruttoWpisane);
-            int oczekujeCount = _dostawy.Count(d => d.Status == StatusDostawy.Oczekuje);
-            txtZwazoneCount.Text = zwazoneCount.ToString();
-            txtBruttoCount.Text = bruttoCount.ToString();
-            txtOczekujeCount.Text = oczekujeCount.ToString();
-
             // Średnie wagi - sidebar
             if (_podsumowanie.SrWagaPlanSrednia.HasValue)
             {
@@ -352,7 +344,13 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 txtTuszkiOdchylenieSidebar.Foreground = new SolidColorBrush(Color.FromRgb(120, 113, 108)); // #78716c
             }
 
-            // Klasy A/B - sidebar
+            // Klasy A/B - sidebar (Plan i Rzecz)
+            decimal tuszkiPlanTotal = _podsumowanie.TuszkiPlanKg;
+            decimal planKlasaA = Math.Round(tuszkiPlanTotal * 0.80m, 0);
+            decimal planKlasaB = Math.Round(tuszkiPlanTotal * 0.20m, 0);
+
+            txtKlasaAPlanSidebar.Text = planKlasaA > 0 ? planKlasaA.ToString("N0") : "-";
+            txtKlasaBPlanSidebar.Text = planKlasaB > 0 ? planKlasaB.ToString("N0") : "-";
             txtKlasaASidebar.Text = _podsumowanie.PrognozaKlasaAKg.ToString("N0");
             txtKlasaBSidebar.Text = _podsumowanie.PrognozaKlasaBKg.ToString("N0");
 
