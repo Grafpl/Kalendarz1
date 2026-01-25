@@ -138,7 +138,6 @@
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="Foreground" Value="{StaticResource AccentPrimary}"/>
             <Setter Property="Margin" Value="0,8,0,12"/>
-            <Setter Property="LetterSpacing" Value="1"/>
         </Style>
 
         <Style x:Key="CardStyle" TargetType="Border">
