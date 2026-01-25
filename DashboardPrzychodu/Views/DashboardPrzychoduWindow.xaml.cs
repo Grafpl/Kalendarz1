@@ -350,19 +350,37 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 txtTuszkiOdchylenieSidebar.Foreground = new SolidColorBrush(Color.FromRgb(120, 113, 108)); // #78716c
             }
 
-            // Klasy A/B - sidebar (Plan, Rzecz, Fakt)
+            // Klasy A/B - sidebar (Plan, Rzecz, Fakt z %)
             decimal tuszkiPlanTotal = _podsumowanie.TuszkiPlanKg;
             decimal planKlasaA = Math.Round(tuszkiPlanTotal * 0.80m, 0);
             decimal planKlasaB = Math.Round(tuszkiPlanTotal * 0.20m, 0);
+            decimal planSuma = planKlasaA + planKlasaB;
 
+            decimal rzeczKlasaA = _podsumowanie.PrognozaKlasaAKg;
+            decimal rzeczKlasaB = _podsumowanie.PrognozaKlasaBKg;
+            decimal rzeczSuma = rzeczKlasaA + rzeczKlasaB;
+
+            decimal faktKlasaA = _podsumowanie.FaktKlasaAKg;
+            decimal faktKlasaB = _podsumowanie.FaktKlasaBKg;
+            decimal faktSuma = faktKlasaA + faktKlasaB;
+
+            // Plan - wartości i %
             txtKlasaAPlanSidebar.Text = planKlasaA > 0 ? planKlasaA.ToString("N0") : "-";
             txtKlasaBPlanSidebar.Text = planKlasaB > 0 ? planKlasaB.ToString("N0") : "-";
-            txtKlasaASidebar.Text = _podsumowanie.PrognozaKlasaAKg.ToString("N0");
-            txtKlasaBSidebar.Text = _podsumowanie.PrognozaKlasaBKg.ToString("N0");
+            txtKlasaAPlanProcSidebar.Text = planSuma > 0 ? $"({Math.Round(planKlasaA / planSuma * 100, 0)}%)" : "";
+            txtKlasaBPlanProcSidebar.Text = planSuma > 0 ? $"({Math.Round(planKlasaB / planSuma * 100, 0)}%)" : "";
 
-            // Fakt - faktyczny przychód z Symfonia (PWP)
-            txtKlasaAFaktSidebar.Text = _podsumowanie.FaktKlasaAKg > 0 ? _podsumowanie.FaktKlasaAKg.ToString("N0") : "-";
-            txtKlasaBFaktSidebar.Text = _podsumowanie.FaktKlasaBKg > 0 ? _podsumowanie.FaktKlasaBKg.ToString("N0") : "-";
+            // Rzecz - wartości i %
+            txtKlasaASidebar.Text = rzeczKlasaA.ToString("N0");
+            txtKlasaBSidebar.Text = rzeczKlasaB.ToString("N0");
+            txtKlasaAProcSidebar.Text = rzeczSuma > 0 ? $"({Math.Round(rzeczKlasaA / rzeczSuma * 100, 0)}%)" : "";
+            txtKlasaBProcSidebar.Text = rzeczSuma > 0 ? $"({Math.Round(rzeczKlasaB / rzeczSuma * 100, 0)}%)" : "";
+
+            // Fakt - faktyczny przychód z Symfonia (sPWU) - wartości i %
+            txtKlasaAFaktSidebar.Text = faktKlasaA > 0 ? faktKlasaA.ToString("N0") : "-";
+            txtKlasaBFaktSidebar.Text = faktKlasaB > 0 ? faktKlasaB.ToString("N0") : "-";
+            txtKlasaAFaktProcSidebar.Text = faktSuma > 0 ? $"({Math.Round(faktKlasaA / faktSuma * 100, 0)}%)" : "";
+            txtKlasaBFaktProcSidebar.Text = faktSuma > 0 ? $"({Math.Round(faktKlasaB / faktSuma * 100, 0)}%)" : "";
 
             // Auta i trend - sidebar
             txtAutaSidebar.Text = $"{_podsumowanie.LiczbaZwazonych}/{_podsumowanie.LiczbaDostawOgolem}";
