@@ -206,40 +206,6 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             txtAging1521Faktury.Text = $"{count1521} faktur";
             txtAging21Plus.Text = $"{aging21Plus:N0} zl";
             txtAging21PlusFaktury.Text = $"{count21Plus} faktur";
-
-            // Oblicz przekroczone limity wg kwoty (przeterminowane faktury)
-            ObliczPrzekroczoneLimity(faktury);
-        }
-
-        private void ObliczPrzekroczoneLimity(List<FakturaRow> faktury)
-        {
-            // Grupuj przeterminowane faktury wg kwoty DoZaplaty
-            var przeterminowane = faktury.Where(f => f.JestPrzeterminowana).ToList();
-
-            // do 100k
-            var limit100k = przeterminowane.Where(f => f.DoZaplaty <= 100000).Sum(f => f.DoZaplaty);
-            var count100k = przeterminowane.Count(f => f.DoZaplaty <= 100000);
-
-            // 100k - 300k
-            var limit300k = przeterminowane.Where(f => f.DoZaplaty > 100000 && f.DoZaplaty <= 300000).Sum(f => f.DoZaplaty);
-            var count300k = przeterminowane.Count(f => f.DoZaplaty > 100000 && f.DoZaplaty <= 300000);
-
-            // 300k - 500k
-            var limit500k = przeterminowane.Where(f => f.DoZaplaty > 300000 && f.DoZaplaty <= 500000).Sum(f => f.DoZaplaty);
-            var count500k = przeterminowane.Count(f => f.DoZaplaty > 300000 && f.DoZaplaty <= 500000);
-
-            // 500k+
-            var limit500kPlus = przeterminowane.Where(f => f.DoZaplaty > 500000).Sum(f => f.DoZaplaty);
-            var count500kPlus = przeterminowane.Count(f => f.DoZaplaty > 500000);
-
-            txtLimit100k.Text = $"{limit100k:N0} zl";
-            txtLimit100kKlientow.Text = $"{count100k} fakt.";
-            txtLimit300k.Text = $"{limit300k:N0} zl";
-            txtLimit300kKlientow.Text = $"{count300k} fakt.";
-            txtLimit500k.Text = $"{limit500k:N0} zl";
-            txtLimit500kKlientow.Text = $"{count500k} fakt.";
-            txtLimit500kPlus.Text = $"{limit500kPlus:N0} zl";
-            txtLimit500kPlusKlientow.Text = $"{count500kPlus} fakt.";
         }
 
         private async Task PobierzTrendAsync(SqlConnection cn)
