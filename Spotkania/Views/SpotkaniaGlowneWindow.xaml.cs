@@ -490,6 +490,16 @@ namespace Kalendarz1.Spotkania.Views
             searchWindow.Show();
         }
 
+        private void BtnMasowePobieranie_Click(object sender, RoutedEventArgs e)
+        {
+            var window = new MasowePobieranieWindow(_firefliesService);
+            window.Owner = this;
+            if (window.ShowDialog() == true)
+            {
+                _ = LoadTranskrypcjeAsync();
+            }
+        }
+
         #endregion
     }
 }
