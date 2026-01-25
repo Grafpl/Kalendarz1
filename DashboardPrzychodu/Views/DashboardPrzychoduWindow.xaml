@@ -560,7 +560,7 @@
                                 </StackPanel>
                             </Border>
 
-                            <!-- Klasy A/B - Plan i Rzecz -->
+                            <!-- Klasy A/B - Plan, Rzecz, Fakt -->
                             <Grid Margin="0,0,0,0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -577,7 +577,7 @@
                                 <TextBlock Grid.Row="0" Grid.Column="1" Text="KLASA B" FontSize="9" FontWeight="SemiBold"
                                            Foreground="#fbbf24" HorizontalAlignment="Center" Margin="0,0,0,4"/>
 
-                                <!-- Klasa A - Plan/Rzecz -->
+                                <!-- Klasa A - Plan/Rzecz/Fakt -->
                                 <Border Grid.Row="1" Grid.Column="0" Background="#1c1917" CornerRadius="4" Padding="6,6" Margin="0,0,3,0">
                                     <StackPanel>
                                         <Grid>
@@ -590,10 +590,16 @@
                                             <TextBlock x:Name="txtKlasaASidebar" Text="-" FontSize="10" FontWeight="Bold"
                                                        Foreground="#22c55e" HorizontalAlignment="Right"/>
                                         </Grid>
+                                        <Grid Margin="0,2,0,0">
+                                            <TextBlock Text="Fakt:" FontSize="9" Foreground="#78716c"/>
+                                            <TextBlock x:Name="txtKlasaAFaktSidebar" Text="-" FontSize="10" FontWeight="Bold"
+                                                       Foreground="#60a5fa" HorizontalAlignment="Right"
+                                                       ToolTip="Faktyczny przychód z systemu Symfonia (PWP)"/>
+                                        </Grid>
                                     </StackPanel>
                                 </Border>
 
-                                <!-- Klasa B - Plan/Rzecz -->
+                                <!-- Klasa B - Plan/Rzecz/Fakt -->
                                 <Border Grid.Row="1" Grid.Column="1" Background="#1c1917" CornerRadius="4" Padding="6,6" Margin="3,0,0,0">
                                     <StackPanel>
                                         <Grid>
@@ -605,6 +611,12 @@
                                             <TextBlock Text="Rzecz:" FontSize="9" Foreground="#78716c"/>
                                             <TextBlock x:Name="txtKlasaBSidebar" Text="-" FontSize="10" FontWeight="Bold"
                                                        Foreground="#fbbf24" HorizontalAlignment="Right"/>
+                                        </Grid>
+                                        <Grid Margin="0,2,0,0">
+                                            <TextBlock Text="Fakt:" FontSize="9" Foreground="#78716c"/>
+                                            <TextBlock x:Name="txtKlasaBFaktSidebar" Text="-" FontSize="10" FontWeight="Bold"
+                                                       Foreground="#60a5fa" HorizontalAlignment="Right"
+                                                       ToolTip="Faktyczny przychód z systemu Symfonia (PWP)"/>
                                         </Grid>
                                     </StackPanel>
                                 </Border>

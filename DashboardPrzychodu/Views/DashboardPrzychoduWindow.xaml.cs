@@ -162,13 +162,19 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 var podsumowanieTask = _przychodService.GetPodsumowanieAsync(selectedDate);
                 var prognozaTask = _przychodService.GetPrognozaDniaAsync(selectedDate);
                 var harmonogramyTask = _przychodService.GetPostepyHarmonogramowAsync(selectedDate);
+                var faktycznyTask = _przychodService.GetFaktycznyPrzychodAsync(selectedDate);
 
-                await System.Threading.Tasks.Task.WhenAll(dostawyTask, podsumowanieTask, prognozaTask, harmonogramyTask);
+                await System.Threading.Tasks.Task.WhenAll(dostawyTask, podsumowanieTask, prognozaTask, harmonogramyTask, faktycznyTask);
 
                 var noweDostawy = await dostawyTask;
                 _podsumowanie = await podsumowanieTask;
                 _prognoza = await prognozaTask;
                 var noweHarmonogramy = await harmonogramyTask;
+                var faktyczny = await faktycznyTask;
+
+                // Uzupełnij podsumowanie o faktyczny przychód z Symfonia
+                _podsumowanie.FaktKlasaAKg = faktyczny.KlasaA;
+                _podsumowanie.FaktKlasaBKg = faktyczny.KlasaB;
 
                 // Aktualizuj UI w watku UI
                 await Dispatcher.InvokeAsync(() =>
@@ -344,7 +350,7 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 txtTuszkiOdchylenieSidebar.Foreground = new SolidColorBrush(Color.FromRgb(120, 113, 108)); // #78716c
             }
 
-            // Klasy A/B - sidebar (Plan i Rzecz)
+            // Klasy A/B - sidebar (Plan, Rzecz, Fakt)
             decimal tuszkiPlanTotal = _podsumowanie.TuszkiPlanKg;
             decimal planKlasaA = Math.Round(tuszkiPlanTotal * 0.80m, 0);
             decimal planKlasaB = Math.Round(tuszkiPlanTotal * 0.20m, 0);
@@ -353,6 +359,10 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             txtKlasaBPlanSidebar.Text = planKlasaB > 0 ? planKlasaB.ToString("N0") : "-";
             txtKlasaASidebar.Text = _podsumowanie.PrognozaKlasaAKg.ToString("N0");
             txtKlasaBSidebar.Text = _podsumowanie.PrognozaKlasaBKg.ToString("N0");
+
+            // Fakt - faktyczny przychód z Symfonia (PWP)
+            txtKlasaAFaktSidebar.Text = _podsumowanie.FaktKlasaAKg > 0 ? _podsumowanie.FaktKlasaAKg.ToString("N0") : "-";
+            txtKlasaBFaktSidebar.Text = _podsumowanie.FaktKlasaBKg > 0 ? _podsumowanie.FaktKlasaBKg.ToString("N0") : "-";
 
             // Auta i trend - sidebar
             txtAutaSidebar.Text = $"{_podsumowanie.LiczbaZwazonych}/{_podsumowanie.LiczbaDostawOgolem}";

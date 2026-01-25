@@ -254,6 +254,38 @@ namespace Kalendarz1.DashboardPrzychodu.Models
 
         #endregion
 
+        #region Properties - Faktyczny przychód z Symfonia (PWP)
+
+        private decimal _faktKlasaAKg;
+        private decimal _faktKlasaBKg;
+
+        /// <summary>
+        /// Faktyczny przychód klasy A z systemu Symfonia (dokumenty PWP) [kg]
+        /// Katalog 67095 = Kurczak A
+        /// </summary>
+        public decimal FaktKlasaAKg
+        {
+            get => _faktKlasaAKg;
+            set { _faktKlasaAKg = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>
+        /// Faktyczny przychód klasy B z systemu Symfonia (dokumenty PWP) [kg]
+        /// Katalog 67153 = Kurczak B (elementy)
+        /// </summary>
+        public decimal FaktKlasaBKg
+        {
+            get => _faktKlasaBKg;
+            set { _faktKlasaBKg = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>
+        /// Suma faktycznego przychodu A + B [kg]
+        /// </summary>
+        public decimal FaktSumaKg => FaktKlasaAKg + FaktKlasaBKg;
+
+        #endregion
+
         #region Properties - Liczniki dostaw
 
         /// <summary>

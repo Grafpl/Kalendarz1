@@ -764,5 +764,74 @@ namespace Kalendarz1.DashboardPrzychodu.Services
                 return false;
             }
         }
+
+        /// <summary>
+        /// Pobiera faktyczny przychód produkcji (PWP) z systemu Symfonia (Handel)
+        /// Zwraca (FaktKlasaA, FaktKlasaB) w kg
+        /// Katalog 67095 = Kurczak A, Katalog 67153 = Kurczak B
+        /// </summary>
+        public async Task<(decimal KlasaA, decimal KlasaB)> GetFaktycznyPrzychodAsync(DateTime data)
+        {
+            decimal faktA = 0;
+            decimal faktB = 0;
+
+            // Connection string do bazy Handel (Symfonia)
+            const string handelConnStr =
+                "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True;Connection Timeout=10;";
+
+            // Zapytanie pobierające sumy z dokumentów PWP per katalog produktu
+            // Katalog 67095 = Kurczak A (tuszki całe)
+            // Katalog 67153 = Kurczak B (elementy do krojenia)
+            const string query = @"
+                SELECT
+                    TW.katalog AS Katalog,
+                    SUM(ABS(MZ.ilosc)) AS Ilosc
+                FROM [HM].[MZ] MZ
+                JOIN [HM].[MG] MG ON MZ.super = MG.id
+                JOIN [HM].[TW] TW ON MZ.idtw = TW.ID
+                WHERE MG.seria IN ('sPWP', 'PWP')
+                  AND MG.aktywny = 1
+                  AND MG.data = @Data
+                  AND TW.katalog IN (67095, 67153)
+                GROUP BY TW.katalog";
+
+            try
+            {
+                using (var conn = new SqlConnection(handelConnStr))
+                {
+                    await conn.OpenAsync();
+                    using (var cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Data", data.Date);
+                        cmd.CommandTimeout = 15;
+
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                int katalog = reader.GetInt32(reader.GetOrdinal("Katalog"));
+                                decimal ilosc = reader.IsDBNull(reader.GetOrdinal("Ilosc"))
+                                    ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("Ilosc")));
+
+                                if (katalog == 67095)
+                                    faktA = ilosc;
+                                else if (katalog == 67153)
+                                    faktB = ilosc;
+                            }
+                        }
+                    }
+                }
+
+                Debug.WriteLine($"[PrzychodService] Faktyczny przychód Symfonia: A={faktA:N0} kg, B={faktB:N0} kg");
+            }
+            catch (Exception ex)
+            {
+                // Nie rzucamy błędu - dane z Symfonia są opcjonalne
+                Debug.WriteLine($"[PrzychodService] Błąd GetFaktycznyPrzychodAsync (Handel): {ex.Message}");
+                // Zwracamy zera - UI pokaże "-"
+            }
+
+            return (faktA, faktB);
+        }
     }
 }
