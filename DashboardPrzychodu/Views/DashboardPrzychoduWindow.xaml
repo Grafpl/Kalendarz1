@@ -104,9 +104,9 @@
         <Style x:Key="SidebarBtn" TargetType="Button">
             <Setter Property="Background" Value="#1c1917"/>
             <Setter Property="Foreground" Value="#a8a29e"/>
-            <Setter Property="FontSize" Value="9"/>
-            <Setter Property="Padding" Value="6,5"/>
-            <Setter Property="Margin" Value="0,0,0,3"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
             <Setter Property="HorizontalContentAlignment" Value="Left"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="BorderBrush" Value="#44403c"/>
@@ -169,9 +169,9 @@
         <Style x:Key="DgHeader" TargetType="DataGridColumnHeader">
             <Setter Property="Background" Value="#44403c"/>
             <Setter Property="Foreground" Value="#a8a29e"/>
-            <Setter Property="FontSize" Value="9"/>
+            <Setter Property="FontSize" Value="11"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Padding" Value="6,5"/>
+            <Setter Property="Padding" Value="8,6"/>
             <Setter Property="BorderThickness" Value="0,0,0,1"/>
             <Setter Property="BorderBrush" Value="#57534e"/>
         </Style>
@@ -181,7 +181,7 @@
             <Setter Property="Foreground" Value="#e7e5e4"/>
             <Setter Property="BorderThickness" Value="3,0,0,0"/>
             <Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontSize" Value="12"/>
             <Style.Triggers>
                 <Trigger Property="AlternationIndex" Value="1">
                     <Setter Property="Background" Value="#292524"/>
@@ -200,7 +200,7 @@
 
         <Style x:Key="DgCell" TargetType="DataGridCell">
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="5,0"/>
+            <Setter Property="Padding" Value="6,2"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="DataGridCell">
@@ -225,8 +225,8 @@
             <Setter Property="AlternatingRowBackground" Value="#292524"/>
             <Setter Property="AlternationCount" Value="2"/>
             <Setter Property="GridLinesVisibility" Value="None"/>
-            <Setter Property="RowHeight" Value="26"/>
-            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="RowHeight" Value="34"/>
+            <Setter Property="FontSize" Value="12"/>
             <Setter Property="HeadersVisibility" Value="Column"/>
             <Setter Property="CanUserAddRows" Value="False"/>
             <Setter Property="CanUserDeleteRows" Value="False"/>
@@ -544,7 +544,7 @@
         <!-- ============================================ -->
         <Grid Grid.Row="3" Margin="0,4,0,0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="160"/>  <!-- Sidebar -->
+                <ColumnDefinition Width="220"/>  <!-- Sidebar - powiększony -->
                 <ColumnDefinition Width="*"/>    <!-- Table -->
             </Grid.ColumnDefinitions>
 
@@ -553,31 +553,31 @@
                 <StackPanel>
 
                     <!-- HARMONOGRAMY -->
-                    <Border Background="#292524" CornerRadius="5" Padding="6,6" Margin="0,0,0,4">
+                    <Border Background="#292524" CornerRadius="5" Padding="8,8" Margin="0,0,0,6">
                         <StackPanel>
-                            <TextBlock Text="📦 HARMONOGRAMY" FontSize="8" FontWeight="Bold"
-                                       Foreground="#f59e0b" Margin="0,0,0,4"/>
+                            <TextBlock Text="📦 HARMONOGRAMY" FontSize="10" FontWeight="Bold"
+                                       Foreground="#f59e0b" Margin="0,0,0,6"/>
                             <ItemsControl x:Name="icHarmonogramy">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Background="#1c1917" CornerRadius="3" Padding="5,4" Margin="0,0,0,2"
-                                                BorderThickness="2,0,0,0" BorderBrush="{Binding StatusKolor, Mode=OneWay}">
+                                        <Border Background="#1c1917" CornerRadius="4" Padding="8,6" Margin="0,0,0,4"
+                                                BorderThickness="3,0,0,0" BorderBrush="{Binding StatusKolor, Mode=OneWay}">
                                             <StackPanel>
                                                 <Grid>
-                                                    <TextBlock Text="{Binding Hodowca, Mode=OneWay}" FontSize="9"
+                                                    <TextBlock Text="{Binding Hodowca, Mode=OneWay}" FontSize="11"
                                                                Foreground="#e7e5e4" TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Text="{Binding TrendDisplay, Mode=OneWay}" FontSize="9" FontWeight="Bold"
+                                                    <TextBlock Text="{Binding TrendDisplay, Mode=OneWay}" FontSize="11" FontWeight="Bold"
                                                                Foreground="{Binding StatusKolor, Mode=OneWay}" HorizontalAlignment="Right"/>
                                                 </Grid>
                                                 <ProgressBar Value="{Binding PostepProc, Mode=OneWay}" Maximum="100"
-                                                             Height="2" Margin="0,2,0,1"
+                                                             Height="4" Margin="0,4,0,2"
                                                              Background="#44403c" Foreground="{Binding ProgressKolor, Mode=OneWay}"/>
                                                 <Grid>
-                                                    <TextBlock FontSize="7" Foreground="#78716c">
+                                                    <TextBlock FontSize="9" Foreground="#78716c">
                                                         <Run Text="✓ "/><Run Text="{Binding PostepDisplay, Mode=OneWay}"/>
                                                     </TextBlock>
                                                     <TextBlock Text="{Binding OdchylenieDisplay, Mode=OneWay}"
-                                                               FontSize="7" Foreground="#78716c" HorizontalAlignment="Right"/>
+                                                               FontSize="9" Foreground="#78716c" HorizontalAlignment="Right"/>
                                                 </Grid>
                                             </StackPanel>
                                         </Border>
@@ -588,23 +588,23 @@
                     </Border>
 
                     <!-- ŚREDNIE WAGI -->
-                    <Border Background="#292524" CornerRadius="5" Padding="6,6" Margin="0,0,0,4">
+                    <Border Background="#292524" CornerRadius="5" Padding="8,8" Margin="0,0,0,6">
                         <StackPanel>
-                            <TextBlock Text="⚖️ ŚREDNIE WAGI" FontSize="8" FontWeight="Bold"
-                                       Foreground="#f59e0b" Margin="0,0,0,4"/>
+                            <TextBlock Text="⚖️ ŚREDNIE WAGI" FontSize="10" FontWeight="Bold"
+                                       Foreground="#f59e0b" Margin="0,0,0,6"/>
                             <UniformGrid Columns="2">
-                                <Border Background="#1c1917" CornerRadius="3" Padding="4" Margin="0,0,2,0">
+                                <Border Background="#1c1917" CornerRadius="4" Padding="8,6" Margin="0,0,3,0">
                                     <StackPanel HorizontalAlignment="Center">
-                                        <TextBlock Text="DEKL" FontSize="7" Foreground="#78716c" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="DEKL" FontSize="9" Foreground="#78716c" HorizontalAlignment="Center"/>
                                         <TextBlock x:Name="txtSrWagaPlanSidebar" Text="-"
-                                                   FontSize="14" FontWeight="Bold" Foreground="#a8a29e" HorizontalAlignment="Center"/>
+                                                   FontSize="18" FontWeight="Bold" Foreground="#a8a29e" HorizontalAlignment="Center"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Background="#1c1917" CornerRadius="3" Padding="4" Margin="2,0,0,0">
+                                <Border Background="#1c1917" CornerRadius="4" Padding="8,6" Margin="3,0,0,0">
                                     <StackPanel HorizontalAlignment="Center">
-                                        <TextBlock Text="RZECZ" FontSize="7" Foreground="#78716c" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="RZECZ" FontSize="9" Foreground="#78716c" HorizontalAlignment="Center"/>
                                         <TextBlock x:Name="txtSrWagaRzeczSidebar" Text="-"
-                                                   FontSize="14" FontWeight="Bold" Foreground="#22c55e" HorizontalAlignment="Center"/>
+                                                   FontSize="18" FontWeight="Bold" Foreground="#22c55e" HorizontalAlignment="Center"/>
                                     </StackPanel>
                                 </Border>
                             </UniformGrid>
@@ -612,10 +612,10 @@
                     </Border>
 
                     <!-- PODSUMOWANIE DOSTAW -->
-                    <Border Background="#292524" CornerRadius="5" Padding="6,6" Margin="0,0,0,4">
+                    <Border Background="#292524" CornerRadius="5" Padding="8,8" Margin="0,0,0,6">
                         <StackPanel>
-                            <TextBlock Text="📋 DOSTAWY" FontSize="8" FontWeight="Bold"
-                                       Foreground="#f59e0b" Margin="0,0,0,4"/>
+                            <TextBlock Text="📋 DOSTAWY" FontSize="10" FontWeight="Bold"
+                                       Foreground="#f59e0b" Margin="0,0,0,6"/>
                             <Grid Margin="0,2,0,0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -627,23 +627,23 @@
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="✅ Zważone:" FontSize="9" Foreground="#78716c"/>
-                                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="txtZwazoneCount" Text="0" FontSize="9" FontWeight="Bold" Foreground="#22c55e"/>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="✅ Zważone:" FontSize="11" Foreground="#78716c" Margin="0,2"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="txtZwazoneCount" Text="0" FontSize="11" FontWeight="Bold" Foreground="#22c55e" Margin="0,2"/>
 
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="⏳ W trakcie:" FontSize="9" Foreground="#78716c"/>
-                                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="txtBruttoCount" Text="0" FontSize="9" FontWeight="Bold" Foreground="#fbbf24"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="⏳ W trakcie:" FontSize="11" Foreground="#78716c" Margin="0,2"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="txtBruttoCount" Text="0" FontSize="11" FontWeight="Bold" Foreground="#fbbf24" Margin="0,2"/>
 
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="🔴 Oczekuje:" FontSize="9" Foreground="#78716c"/>
-                                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="txtOczekujeCount" Text="0" FontSize="9" FontWeight="Bold" Foreground="#ef4444"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="🔴 Oczekuje:" FontSize="11" Foreground="#78716c" Margin="0,2"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="txtOczekujeCount" Text="0" FontSize="11" FontWeight="Bold" Foreground="#ef4444" Margin="0,2"/>
                             </Grid>
                         </StackPanel>
                     </Border>
 
                     <!-- SZYBKIE AKCJE -->
-                    <Border Background="#292524" CornerRadius="5" Padding="6,6">
+                    <Border Background="#292524" CornerRadius="5" Padding="8,8">
                         <StackPanel>
-                            <TextBlock Text="⚡ AKCJE" FontSize="8" FontWeight="Bold"
-                                       Foreground="#f59e0b" Margin="0,0,0,4"/>
+                            <TextBlock Text="⚡ AKCJE" FontSize="10" FontWeight="Bold"
+                                       Foreground="#f59e0b" Margin="0,0,0,6"/>
                             <Button Content="📋 Eksport Excel" Style="{StaticResource SidebarBtn}" Click="BtnExportExcel_Click"/>
                             <Button Content="🖨️ Drukuj raport" Style="{StaticResource SidebarBtn}" Click="BtnPrint_Click"/>
                             <Button Content="❓ Jak czytać?" Style="{StaticResource SidebarBtn}" Click="BtnHelp_Click"/>
@@ -659,20 +659,20 @@
             <Border Grid.Column="1" Background="#292524" CornerRadius="5">
                 <Grid>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="24"/>   <!-- Header -->
+                        <RowDefinition Height="32"/>   <!-- Header -->
                         <RowDefinition Height="*"/>    <!-- DataGrid -->
                         <RowDefinition Height="Auto"/> <!-- SUMA -->
                     </Grid.RowDefinitions>
 
                     <!-- TABLE HEADER -->
-                    <Border Grid.Row="0" Background="#44403c" CornerRadius="5,5,0,0" Padding="10,0">
+                    <Border Grid.Row="0" Background="#44403c" CornerRadius="5,5,0,0" Padding="12,0">
                         <Grid VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="SZCZEGÓŁY DOSTAW" FontSize="10" FontWeight="Bold" Foreground="#fbbf24"/>
-                                <TextBlock x:Name="txtLiczbaWynikow" Text=" (0 wyników)" FontSize="9" Foreground="#78716c"
-                                           VerticalAlignment="Center" Margin="5,0,0,0"/>
+                                <TextBlock Text="SZCZEGÓŁY DOSTAW" FontSize="12" FontWeight="Bold" Foreground="#fbbf24"/>
+                                <TextBlock x:Name="txtLiczbaWynikow" Text=" (0 wyników)" FontSize="11" Foreground="#78716c"
+                                           VerticalAlignment="Center" Margin="6,0,0,0"/>
                             </StackPanel>
-                            <TextBlock x:Name="txtLastUpdate" Text="-" FontSize="9" Foreground="#78716c"
+                            <TextBlock x:Name="txtLastUpdate" Text="-" FontSize="10" Foreground="#78716c"
                                        HorizontalAlignment="Right" VerticalAlignment="Center"/>
                         </Grid>
                     </Border>
@@ -687,40 +687,42 @@
                               MouseDoubleClick="DataGrid_MouseDoubleClick">
                         <DataGrid.Columns>
                             <!-- Kolorowy pasek -->
-                            <DataGridTemplateColumn Width="4" CanUserResize="False">
+                            <DataGridTemplateColumn Width="5" CanUserResize="False">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Border Width="4" Margin="-5,0,0,0"
+                                        <Border Width="5" Margin="-6,0,0,0"
                                                 Background="{Binding Poziom, Converter={StaticResource OdchylenieToBarColorConverter}}"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTextColumn Header="LP" Binding="{Binding NrKursu}" Width="35">
+                            <DataGridTextColumn Header="LP" Binding="{Binding NrKursu}" Width="45">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="FontWeight" Value="SemiBold"/>
+                                        <Setter Property="FontSize" Value="12"/>
                                         <Setter Property="VerticalAlignment" Value="Center"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
 
-                            <DataGridTextColumn Header="HODOWCA" Binding="{Binding Hodowca}" Width="*" MinWidth="120">
+                            <DataGridTextColumn Header="HODOWCA" Binding="{Binding Hodowca}" Width="*" MinWidth="140">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                        <Setter Property="FontSize" Value="12"/>
                                         <Setter Property="VerticalAlignment" Value="Center"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
 
                             <!-- PLAN NA AUTO -->
-                            <DataGridTemplateColumn Header="PLAN" Width="70">
+                            <DataGridTemplateColumn Header="PLAN" Width="80">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding KgPlanNaAuto, StringFormat=N0}" Foreground="#a8a29e"/>
-                                            <TextBlock Text=" (R)" Foreground="#f59e0b" FontSize="8" FontWeight="Bold"
+                                            <TextBlock Text="{Binding KgPlanNaAuto, StringFormat=N0}" Foreground="#a8a29e" FontSize="12"/>
+                                            <TextBlock Text=" (R)" Foreground="#f59e0b" FontSize="10" FontWeight="Bold"
                                                        Visibility="{Binding CzyOstatnieAuto, Converter={StaticResource BoolToVisibilityConverter}}"
                                                        ToolTip="Reszta z harmonogramu"/>
                                         </StackPanel>
@@ -728,32 +730,32 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTemplateColumn Header="RZECZ" Width="65">
+                            <DataGridTemplateColumn Header="RZECZ" Width="75">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding KgRzeczywiste, StringFormat=N0}" HorizontalAlignment="Right"
                                                    Foreground="{Binding Status, Converter={StaticResource StatusToColorConverter}}"
-                                                   VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                                   VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTemplateColumn Header="ODCHYL." Width="85">
+                            <DataGridTemplateColumn Header="ODCHYL." Width="95">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding OdchylenieDisplay}"
                                                    Foreground="{Binding Poziom, Converter={StaticResource OdchylenieToColorConverter}}"
-                                                   VerticalAlignment="Center" FontSize="9"/>
+                                                   VerticalAlignment="Center" FontSize="11"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
                             <!-- POZOSTALO Z HARMONOGRAMU -->
-                            <DataGridTemplateColumn Header="POZOST." Width="75">
+                            <DataGridTemplateColumn Header="POZOST." Width="85">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel VerticalAlignment="Center">
-                                            <TextBlock Foreground="{Binding PozostaloKolor}" FontSize="9">
+                                            <TextBlock Foreground="{Binding PozostaloKolor}" FontSize="11">
                                                 <Run Text="{Binding KgPozostalo, StringFormat=N0}"/><Run Text=" kg"/>
                                             </TextBlock>
                                         </StackPanel>
@@ -762,67 +764,67 @@
                             </DataGridTemplateColumn>
 
                             <!-- POSTEP HARMONOGRAMU -->
-                            <DataGridTemplateColumn Header="POST." Width="50">
+                            <DataGridTemplateColumn Header="POST." Width="60">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding PostepDisplay}" FontSize="8" Foreground="#78716c" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="{Binding PostepDisplay}" FontSize="10" Foreground="#78716c" HorizontalAlignment="Center"/>
                                             <ProgressBar Value="{Binding PostepProc, Mode=OneWay}" Maximum="100"
-                                                         Height="2" Background="#44403c" Foreground="#22c55e"/>
+                                                         Height="3" Background="#44403c" Foreground="#22c55e"/>
                                         </StackPanel>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTemplateColumn Header="W.DEK" Width="45">
+                            <DataGridTemplateColumn Header="W.DEK" Width="55">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding SredniaWagaPlanCalc, StringFormat=N2}"
-                                                   Foreground="#78716c" FontSize="9"
+                                                   Foreground="#78716c" FontSize="11"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTemplateColumn Header="W.RZ" Width="45">
+                            <DataGridTemplateColumn Header="W.RZ" Width="55">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding SredniaWagaRzeczywistaCalc, Converter={StaticResource NullToDashConverter}}"
                                                    Foreground="{Binding Status, Converter={StaticResource StatusToColorConverter}}"
-                                                   FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                   FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
                             <!-- TUSZKI -->
-                            <DataGridTemplateColumn Header="TUSZKI" Width="55">
+                            <DataGridTemplateColumn Header="TUSZKI" Width="65">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding TuszkiRzeczywisteKg, Converter={StaticResource NullToDashConverter}}"
-                                                   Foreground="#c084fc" FontSize="9" FontWeight="SemiBold"
+                                                   Foreground="#c084fc" FontSize="11" FontWeight="SemiBold"
                                                    HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
                             <!-- Status jako ikona -->
-                            <DataGridTemplateColumn Header="" Width="28">
+                            <DataGridTemplateColumn Header="" Width="34">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock Text="{Binding StatusIcon}" FontSize="14"
+                                        <TextBlock Text="{Binding StatusIcon}" FontSize="16"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center"
                                                    ToolTip="{Binding StatusText}"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTextColumn Header="GODZ" Binding="{Binding PrzyjazdDisplay}" Width="45">
+                            <DataGridTextColumn Header="GODZ" Binding="{Binding PrzyjazdDisplay}" Width="55">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="HorizontalAlignment" Value="Center"/>
                                         <Setter Property="Foreground" Value="#78716c"/>
                                         <Setter Property="VerticalAlignment" Value="Center"/>
-                                        <Setter Property="FontSize" Value="9"/>
+                                        <Setter Property="FontSize" Value="11"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
@@ -830,39 +832,39 @@
                     </DataGrid>
 
                     <!-- WIERSZ SUMA -->
-                    <Border Grid.Row="2" Background="#92400e" Padding="6,6"
+                    <Border Grid.Row="2" Background="#92400e" Padding="8,10"
                             CornerRadius="0,0,5,5" BorderThickness="0,2,0,0" BorderBrush="#f59e0b">
                         <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="39"/>   <!-- LP -->
+                                <ColumnDefinition Width="45"/>   <!-- LP -->
                                 <ColumnDefinition Width="*"/>    <!-- HODOWCA -->
-                                <ColumnDefinition Width="70"/>   <!-- PLAN -->
-                                <ColumnDefinition Width="65"/>   <!-- RZECZ -->
-                                <ColumnDefinition Width="85"/>   <!-- ODCHYLENIE -->
-                                <ColumnDefinition Width="75"/>   <!-- POZOSTAŁO -->
-                                <ColumnDefinition Width="50"/>   <!-- POSTĘP -->
-                                <ColumnDefinition Width="45"/>   <!-- W.DEK -->
-                                <ColumnDefinition Width="45"/>   <!-- W.RZ -->
-                                <ColumnDefinition Width="55"/>   <!-- TUSZKI -->
-                                <ColumnDefinition Width="28"/>   <!-- STATUS -->
-                                <ColumnDefinition Width="45"/>   <!-- GODZ -->
+                                <ColumnDefinition Width="80"/>   <!-- PLAN -->
+                                <ColumnDefinition Width="75"/>   <!-- RZECZ -->
+                                <ColumnDefinition Width="95"/>   <!-- ODCHYLENIE -->
+                                <ColumnDefinition Width="85"/>   <!-- POZOSTAŁO -->
+                                <ColumnDefinition Width="60"/>   <!-- POSTĘP -->
+                                <ColumnDefinition Width="55"/>   <!-- W.DEK -->
+                                <ColumnDefinition Width="55"/>   <!-- W.RZ -->
+                                <ColumnDefinition Width="65"/>   <!-- TUSZKI -->
+                                <ColumnDefinition Width="34"/>   <!-- STATUS -->
+                                <ColumnDefinition Width="55"/>   <!-- GODZ -->
                             </Grid.ColumnDefinitions>
 
-                            <TextBlock Grid.Column="0" Text="SUMA" FontSize="9" FontWeight="Bold" Foreground="#fbbf24" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="1" x:Name="txtSumaDostawy" Text="0 dostaw" FontSize="9" Foreground="#a8a29e" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="2" x:Name="txtSumaPlan" Text="0" FontSize="10" FontWeight="SemiBold" Foreground="#e7e5e4" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="3" x:Name="txtSumaRzecz" Text="0" FontSize="10" FontWeight="Bold" Foreground="#22c55e" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="4" x:Name="txtSumaOdchylenie" Text="-" FontSize="9" FontWeight="SemiBold" Foreground="#fbbf24" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Column="0" Text="SUMA" FontSize="11" FontWeight="Bold" Foreground="#fbbf24" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" x:Name="txtSumaDostawy" Text="0 dostaw" FontSize="11" Foreground="#a8a29e" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="2" x:Name="txtSumaPlan" Text="0" FontSize="12" FontWeight="SemiBold" Foreground="#e7e5e4" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="3" x:Name="txtSumaRzecz" Text="0" FontSize="12" FontWeight="Bold" Foreground="#22c55e" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="4" x:Name="txtSumaOdchylenie" Text="-" FontSize="11" FontWeight="SemiBold" Foreground="#fbbf24" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                             <StackPanel Grid.Column="5" VerticalAlignment="Center">
-                                <TextBlock x:Name="txtSumaPozostaloKg" Text="-" Foreground="#60a5fa" FontSize="9" FontWeight="SemiBold"/>
-                                <TextBlock x:Name="txtSumaPozostaloTuszki" Text="-" Foreground="#c084fc" FontSize="8"/>
+                                <TextBlock x:Name="txtSumaPozostaloKg" Text="-" Foreground="#60a5fa" FontSize="11" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="txtSumaPozostaloTuszki" Text="-" Foreground="#c084fc" FontSize="10"/>
                             </StackPanel>
-                            <TextBlock Grid.Column="6" Text="-" FontSize="9" Foreground="#78716c" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="7" x:Name="txtSumaWagaPlan" Text="-" FontSize="9" Foreground="#78716c" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="8" x:Name="txtSumaSrWaga" Text="-" FontSize="9" Foreground="#e7e5e4" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="9" x:Name="txtSumaTuszkiRzecz" Text="-" FontSize="10" FontWeight="Bold" Foreground="#c084fc" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="10" Text="-" FontSize="9" Foreground="#78716c" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="11" Text="-" FontSize="9" Foreground="#78716c" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="6" Text="-" FontSize="11" Foreground="#78716c" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="7" x:Name="txtSumaWagaPlan" Text="-" FontSize="11" Foreground="#78716c" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="8" x:Name="txtSumaSrWaga" Text="-" FontSize="11" Foreground="#e7e5e4" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="9" x:Name="txtSumaTuszkiRzecz" Text="-" FontSize="12" FontWeight="Bold" Foreground="#c084fc" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="10" Text="-" FontSize="11" Foreground="#78716c" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="11" Text="-" FontSize="11" Foreground="#78716c" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Grid>
                     </Border>
                 </Grid>

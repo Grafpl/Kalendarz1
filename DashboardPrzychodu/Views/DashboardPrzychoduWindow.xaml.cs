@@ -1135,34 +1135,246 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             var emoji = (sender as MenuItem)?.Tag?.ToString();
             if (!string.IsNullOrEmpty(emoji))
             {
+                // Jeśli LogoBox zawiera Image, przywróć TextBlock
+                if (!(LogoBox.Child is TextBlock))
+                {
+                    LogoBox.Child = LogoIcon;
+                }
+
                 LogoIcon.Text = emoji;
+                Debug.WriteLine($"[DashboardPrzychodu] Ustawiono emoji logo: {emoji}");
                 // Można zapisać do ustawień: SaveSetting("Logo", emoji);
             }
         }
 
         /// <summary>
-        /// Wybiera logo z pliku
+        /// Wybiera logo z dostępnych plików w projekcie
         /// </summary>
         private void Logo_SelectFile(object sender, RoutedEventArgs e)
         {
-            var dlg = new Microsoft.Win32.OpenFileDialog
-            {
-                Title = "Wybierz logo firmy",
-                Filter = "Obrazy|*.png;*.jpg;*.jpeg;*.ico;*.bmp|Wszystkie|*.*"
-            };
+            // Znajdź dostępne pliki logo
+            var logoFiles = FindLogoFiles();
 
-            // Sprawdź czy folder logo istnieje
-            string logoDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "menu1", "logo");
-            if (Directory.Exists(logoDir))
+            if (logoFiles.Count == 0)
             {
-                dlg.InitialDirectory = logoDir;
+                MessageBox.Show("Nie znaleziono plików logo w katalogu aplikacji.\n\nDostępne są emoji - użyj menu kontekstowego.",
+                    "Brak logo", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
             }
 
-            if (dlg.ShowDialog() == true)
+            // Stwórz okno wyboru logo
+            var selectWindow = new Window
             {
-                // Na razie tylko informacja - można rozbudować o Image zamiast TextBlock
-                MessageBox.Show($"Wybrano plik: {dlg.FileName}\n\nObsługa obrazków logo zostanie dodana w przyszłej wersji.",
-                    "Logo", MessageBoxButton.OK, MessageBoxImage.Information);
+                Title = "Wybierz logo",
+                Width = 500,
+                Height = 400,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Background = new SolidColorBrush(Color.FromRgb(28, 25, 23)), // #1c1917
+                ResizeMode = ResizeMode.NoResize
+            };
+
+            var mainGrid = new Grid { Margin = new Thickness(15) };
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            // Nagłówek
+            var header = new TextBlock
+            {
+                Text = "Wybierz logo firmy",
+                FontSize = 14,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(251, 191, 36)), // #fbbf24
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+            Grid.SetRow(header, 0);
+            mainGrid.Children.Add(header);
+
+            // Lista logo
+            var listBox = new ListBox
+            {
+                Background = new SolidColorBrush(Color.FromRgb(41, 37, 36)), // #292524
+                Foreground = new SolidColorBrush(Color.FromRgb(231, 229, 228)), // #e7e5e4
+                BorderBrush = new SolidColorBrush(Color.FromRgb(68, 64, 60)), // #44403c
+                BorderThickness = new Thickness(1)
+            };
+
+            foreach (var logoPath in logoFiles)
+            {
+                var item = new ListBoxItem
+                {
+                    Tag = logoPath,
+                    Padding = new Thickness(8, 6, 8, 6)
+                };
+
+                var panel = new StackPanel { Orientation = Orientation.Horizontal };
+
+                // Podgląd obrazka
+                try
+                {
+                    var bitmap = new System.Windows.Media.Imaging.BitmapImage();
+                    bitmap.BeginInit();
+                    bitmap.UriSource = new Uri(logoPath);
+                    bitmap.DecodePixelHeight = 32;
+                    bitmap.EndInit();
+
+                    var img = new Image
+                    {
+                        Source = bitmap,
+                        Width = 32,
+                        Height = 32,
+                        Margin = new Thickness(0, 0, 10, 0)
+                    };
+                    panel.Children.Add(img);
+                }
+                catch
+                {
+                    panel.Children.Add(new TextBlock { Text = "📁", FontSize = 20, Margin = new Thickness(0, 0, 10, 0) });
+                }
+
+                panel.Children.Add(new TextBlock
+                {
+                    Text = Path.GetFileName(logoPath),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Foreground = new SolidColorBrush(Color.FromRgb(231, 229, 228))
+                });
+
+                item.Content = panel;
+                listBox.Items.Add(item);
+            }
+
+            Grid.SetRow(listBox, 1);
+            mainGrid.Children.Add(listBox);
+
+            // Przyciski
+            var buttonPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 10, 0, 0)
+            };
+
+            var btnSelect = new Button
+            {
+                Content = "Wybierz",
+                Padding = new Thickness(15, 6, 15, 6),
+                Background = new SolidColorBrush(Color.FromRgb(245, 158, 11)), // #f59e0b
+                Foreground = new SolidColorBrush(Color.FromRgb(28, 25, 23)),
+                BorderThickness = new Thickness(0),
+                Margin = new Thickness(0, 0, 8, 0),
+                Cursor = Cursors.Hand
+            };
+            btnSelect.Click += (s, args) =>
+            {
+                if (listBox.SelectedItem is ListBoxItem selected && selected.Tag is string path)
+                {
+                    SetLogoFromFile(path);
+                    selectWindow.Close();
+                }
+                else
+                {
+                    MessageBox.Show("Wybierz logo z listy", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            };
+            buttonPanel.Children.Add(btnSelect);
+
+            var btnCancel = new Button
+            {
+                Content = "Anuluj",
+                Padding = new Thickness(15, 6, 15, 6),
+                Background = new SolidColorBrush(Color.FromRgb(68, 64, 60)), // #44403c
+                Foreground = new SolidColorBrush(Color.FromRgb(168, 162, 158)),
+                BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand
+            };
+            btnCancel.Click += (s, args) => selectWindow.Close();
+            buttonPanel.Children.Add(btnCancel);
+
+            Grid.SetRow(buttonPanel, 2);
+            mainGrid.Children.Add(buttonPanel);
+
+            selectWindow.Content = mainGrid;
+            selectWindow.ShowDialog();
+        }
+
+        /// <summary>
+        /// Znajduje dostępne pliki logo w katalogu aplikacji
+        /// </summary>
+        private List<string> FindLogoFiles()
+        {
+            var logoFiles = new List<string>();
+            var extensions = new[] { "*.png", "*.jpg", "*.jpeg", "*.ico", "*.bmp" };
+
+            // Przeszukaj katalog aplikacji i nadrzędne
+            var searchDirs = new[]
+            {
+                AppDomain.CurrentDomain.BaseDirectory,
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".."),
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", ".."),
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", ".."),
+                Environment.CurrentDirectory,
+                "/home/user/Kalendarz1"
+            };
+
+            foreach (var dir in searchDirs)
+            {
+                try
+                {
+                    string fullDir = Path.GetFullPath(dir);
+                    if (Directory.Exists(fullDir))
+                    {
+                        foreach (var ext in extensions)
+                        {
+                            var files = Directory.GetFiles(fullDir, ext, SearchOption.TopDirectoryOnly)
+                                .Where(f => f.ToLower().Contains("logo"))
+                                .ToList();
+                            logoFiles.AddRange(files);
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            // Usuń duplikaty
+            return logoFiles.Select(f => Path.GetFullPath(f)).Distinct().ToList();
+        }
+
+        /// <summary>
+        /// Ustawia logo z pliku graficznego
+        /// </summary>
+        private void SetLogoFromFile(string logoPath)
+        {
+            try
+            {
+                // Zamień TextBlock na Image w LogoBox
+                LogoBox.Child = null;
+
+                var bitmap = new System.Windows.Media.Imaging.BitmapImage();
+                bitmap.BeginInit();
+                bitmap.UriSource = new Uri(logoPath);
+                bitmap.DecodePixelHeight = 20;
+                bitmap.EndInit();
+
+                var image = new Image
+                {
+                    Source = bitmap,
+                    Width = 20,
+                    Height = 20,
+                    Stretch = System.Windows.Media.Stretch.Uniform
+                };
+
+                LogoBox.Child = image;
+
+                Debug.WriteLine($"[DashboardPrzychodu] Ustawiono logo z pliku: {logoPath}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[DashboardPrzychodu] Błąd ładowania logo: {ex.Message}");
+                // Przywróć domyślne emoji
+                LogoBox.Child = LogoIcon;
+                MessageBox.Show($"Nie można załadować obrazka:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
