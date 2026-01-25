@@ -488,13 +488,13 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         public decimal Brutto
         {
             get => _brutto;
-            set { _brutto = value; OnPropertyChanged(); OnPropertyChanged(nameof(Status)); OnPropertyChanged(nameof(StatusText)); }
+            set { _brutto = value; OnPropertyChanged(); OnPropertyChanged(nameof(Status)); OnPropertyChanged(nameof(StatusText)); OnPropertyChanged(nameof(RozmiarDisplay)); }
         }
 
         public decimal Tara
         {
             get => _tara;
-            set { _tara = value; OnPropertyChanged(); OnPropertyChanged(nameof(Status)); OnPropertyChanged(nameof(StatusText)); }
+            set { _tara = value; OnPropertyChanged(); OnPropertyChanged(nameof(Status)); OnPropertyChanged(nameof(StatusText)); OnPropertyChanged(nameof(RozmiarDisplay)); }
         }
 
         public decimal KgRzeczywiste
@@ -509,6 +509,9 @@ namespace Kalendarz1.DashboardPrzychodu.Models
                 OnPropertyChanged(nameof(OdchylenieProcCalc));
                 OnPropertyChanged(nameof(OdchylenieDisplay));
                 OnPropertyChanged(nameof(Poziom));
+                OnPropertyChanged(nameof(WagaTuszkiKg));
+                OnPropertyChanged(nameof(SztukWPojemniku));
+                OnPropertyChanged(nameof(RozmiarDisplay));
             }
         }
 
@@ -520,6 +523,9 @@ namespace Kalendarz1.DashboardPrzychodu.Models
                 _sztukiRzeczywiste = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(SredniaWagaRzeczywistaCalc));
+                OnPropertyChanged(nameof(WagaTuszkiKg));
+                OnPropertyChanged(nameof(SztukWPojemniku));
+                OnPropertyChanged(nameof(RozmiarDisplay));
             }
         }
 
@@ -560,6 +566,52 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         public decimal? TuszkiRzeczywisteKg => Status == StatusDostawy.Zwazony && KgRzeczywiste > 0
             ? Math.Round(KgRzeczywiste * 0.78m, 0)
             : null;
+
+        /// <summary>
+        /// Waga tuszki [kg] = średnia waga rzeczywista * 78%
+        /// </summary>
+        public decimal? WagaTuszkiKg => SredniaWagaRzeczywistaCalc.HasValue
+            ? Math.Round(SredniaWagaRzeczywistaCalc.Value * 0.78m, 3)
+            : null;
+
+        /// <summary>
+        /// Obliczona ilość sztuk w pojemniku (15 kg / waga tuszki)
+        /// Rozmiary: 5-12 sztuk w pojemniku
+        /// </summary>
+        public decimal? SztukWPojemniku => WagaTuszkiKg.HasValue && WagaTuszkiKg > 0
+            ? Math.Round(15m / WagaTuszkiKg.Value, 2)
+            : null;
+
+        /// <summary>
+        /// Wyświetlany rozmiar kurczaka (np. "7/6" = dużo 7, trochę 6)
+        /// </summary>
+        public string RozmiarDisplay
+        {
+            get
+            {
+                if (!SztukWPojemniku.HasValue || Status != StatusDostawy.Zwazony)
+                    return "-";
+
+                decimal sztuk = SztukWPojemniku.Value;
+                int rozmiarGlowny = (int)Math.Round(sztuk);
+                decimal czescUlamkowa = sztuk - Math.Floor(sztuk);
+
+                // Jeśli wartość blisko całkowitej, pokaż jeden rozmiar
+                if (czescUlamkowa < 0.2m || czescUlamkowa > 0.8m)
+                {
+                    return rozmiarGlowny.ToString();
+                }
+
+                // Pokaż dwa rozmiary (główny/dodatkowy)
+                int rozmiarDodatkowy = czescUlamkowa >= 0.5m
+                    ? rozmiarGlowny - 1  // np. 6.7 -> "7/6"
+                    : rozmiarGlowny + 1; // np. 6.3 -> "6/7"
+
+                return czescUlamkowa >= 0.5m
+                    ? $"{rozmiarGlowny}/{rozmiarDodatkowy}"
+                    : $"{rozmiarGlowny}/{rozmiarDodatkowy}";
+            }
+        }
 
         #endregion
 

@@ -802,7 +802,7 @@
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding KgRzeczywiste, StringFormat=N0}" HorizontalAlignment="Right"
-                                                   Foreground="{Binding Status, Converter={StaticResource StatusToColorConverter}}"
+                                                   Foreground="#f59e0b"
                                                    VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
@@ -875,6 +875,17 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
+                            <!-- ROZMIAR kurczaka (5-12 szt/pojemnik) -->
+                            <DataGridTemplateColumn Header="ROZM." Width="55"
+                                                    ToolTipService.ToolTip="Rozmiar kurczaka (szt/pojemnik 15kg)">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding RozmiarDisplay}" FontSize="11" FontWeight="Bold"
+                                                   Foreground="#60a5fa" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
                             <!-- Status jako ikona -->
                             <DataGridTemplateColumn Header="" Width="42">
                                 <DataGridTemplateColumn.CellTemplate>
@@ -914,6 +925,7 @@
                                 <ColumnDefinition Width="75"/>   <!-- W.DEK -->
                                 <ColumnDefinition Width="75"/>   <!-- W.RZ -->
                                 <ColumnDefinition Width="85"/>   <!-- TUSZKI -->
+                                <ColumnDefinition Width="55"/>   <!-- ROZMIAR -->
                                 <ColumnDefinition Width="42"/>   <!-- STATUS -->
                                 <ColumnDefinition Width="75"/>   <!-- GODZ -->
                             </Grid.ColumnDefinitions>
@@ -931,8 +943,9 @@
                             <TextBlock Grid.Column="7" x:Name="txtSumaWagaPlan" Text="-" FontSize="11" Foreground="#78716c" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="8" x:Name="txtSumaSrWaga" Text="-" FontSize="11" Foreground="#e7e5e4" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="9" x:Name="txtSumaTuszkiRzecz" Text="-" FontSize="12" FontWeight="Bold" Foreground="#c084fc" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="10" Text="-" FontSize="11" Foreground="#78716c" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="10" Text="-" FontSize="11" Foreground="#60a5fa" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="11" Text="-" FontSize="11" Foreground="#78716c" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="12" Text="-" FontSize="11" Foreground="#78716c" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Grid>
                     </Border>
                 </Grid>
