@@ -587,6 +587,40 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- TUSZKI - PROGNOZA -->
+                    <Border Background="#292524" CornerRadius="5" Padding="8,8" Margin="0,0,0,6">
+                        <StackPanel>
+                            <TextBlock Text="🍗 TUSZKI" FontSize="10" FontWeight="Bold"
+                                       Foreground="#c084fc" Margin="0,0,0,6"/>
+                            <UniformGrid Columns="3">
+                                <Border Background="#1c1917" CornerRadius="4" Padding="6,8" Margin="0,0,2,0">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="PLAN" FontSize="8" Foreground="#78716c" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="txtTuszkiPlanSidebar" Text="-"
+                                                   FontSize="16" FontWeight="Bold" Foreground="#a8a29e" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="kg" FontSize="8" Foreground="#57534e" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="#1c1917" CornerRadius="4" Padding="6,8" Margin="2,0">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="RZECZ" FontSize="8" Foreground="#78716c" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="txtTuszkiRzeczSidebar" Text="-"
+                                                   FontSize="16" FontWeight="Bold" Foreground="#c084fc" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="kg" FontSize="8" Foreground="#57534e" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border x:Name="borderTuszkiOdchylenie" Background="#1c1917" CornerRadius="4" Padding="6,8" Margin="2,0,0,0">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="ODCHYL" FontSize="8" Foreground="#78716c" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="txtTuszkiOdchylenieSidebar" Text="-"
+                                                   FontSize="16" FontWeight="Bold" Foreground="#78716c" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="txtTuszkiOdchylenieProcSidebar" Text="" FontSize="8" Foreground="#57534e" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                            </UniformGrid>
+                        </StackPanel>
+                    </Border>
+
                     <!-- ŚREDNIE WAGI -->
                     <Border Background="#292524" CornerRadius="5" Padding="8,8" Margin="0,0,0,6">
                         <StackPanel>

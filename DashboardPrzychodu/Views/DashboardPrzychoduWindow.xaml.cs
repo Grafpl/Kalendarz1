@@ -311,6 +311,46 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             {
                 txtSrWagaRzeczSidebar.Text = "-";
             }
+
+            // Tuszki - sidebar (duże cyfry)
+            decimal tuszkiPlan = _podsumowanie.TuszkiPlanKg;
+            decimal tuszkiRzecz = _podsumowanie.PrognozaTuszekKg;
+            decimal tuszkiOdchylenie = tuszkiRzecz - tuszkiPlan;
+
+            txtTuszkiPlanSidebar.Text = tuszkiPlan > 0 ? tuszkiPlan.ToString("N0") : "-";
+            txtTuszkiRzeczSidebar.Text = tuszkiRzecz > 0 ? tuszkiRzecz.ToString("N0") : "-";
+
+            if (tuszkiPlan > 0 && tuszkiRzecz > 0)
+            {
+                string znak = tuszkiOdchylenie > 0 ? "+" : "";
+                txtTuszkiOdchylenieSidebar.Text = $"{znak}{tuszkiOdchylenie:N0}";
+
+                decimal procent = (tuszkiOdchylenie / tuszkiPlan) * 100;
+                txtTuszkiOdchylenieProcSidebar.Text = $"({znak}{procent:N1}%)";
+
+                // Kolorowanie odchylenia
+                if (tuszkiOdchylenie >= 0)
+                {
+                    txtTuszkiOdchylenieSidebar.Foreground = new SolidColorBrush(Color.FromRgb(34, 197, 94)); // #22c55e - zielony
+                    txtTuszkiOdchylenieProcSidebar.Foreground = new SolidColorBrush(Color.FromRgb(34, 197, 94));
+                }
+                else if (Math.Abs(procent) <= 5)
+                {
+                    txtTuszkiOdchylenieSidebar.Foreground = new SolidColorBrush(Color.FromRgb(251, 191, 36)); // #fbbf24 - żółty
+                    txtTuszkiOdchylenieProcSidebar.Foreground = new SolidColorBrush(Color.FromRgb(251, 191, 36));
+                }
+                else
+                {
+                    txtTuszkiOdchylenieSidebar.Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // #ef4444 - czerwony
+                    txtTuszkiOdchylenieProcSidebar.Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68));
+                }
+            }
+            else
+            {
+                txtTuszkiOdchylenieSidebar.Text = "-";
+                txtTuszkiOdchylenieProcSidebar.Text = "";
+                txtTuszkiOdchylenieSidebar.Foreground = new SolidColorBrush(Color.FromRgb(120, 113, 108)); // #78716c
+            }
         }
 
         /// <summary>
