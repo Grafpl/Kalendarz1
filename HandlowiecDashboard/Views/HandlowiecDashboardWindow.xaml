@@ -609,6 +609,7 @@
                     <Grid Margin="10">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="150"/>
                         </Grid.RowDefinitions>
@@ -623,6 +624,67 @@
                                     <DatePicker x:Name="dpOpakOd" Width="110" SelectedDateChanged="DpOpakowania_SelectedDateChanged"/>
                                     <TextBlock Text="vs" Style="{StaticResource FilterLabelStyle}" Margin="10,0,8,0" FontWeight="Bold" Foreground="#17A589"/>
                                     <DatePicker x:Name="dpOpakDo" Width="110" SelectedDateChanged="DpOpakowania_SelectedDateChanged"/>
+
+                                    <!-- Przelacznik E2 / H1 / RAZEM -->
+                                    <Border Background="#1F2937" CornerRadius="6" Padding="3" Margin="20,0,0,0">
+                                        <StackPanel Orientation="Horizontal">
+                                            <RadioButton x:Name="rbOpakE2" Content="E2" GroupName="OpakTryb" Checked="RbOpakTryb_Checked"
+                                                         Foreground="#10B981" FontSize="11" FontWeight="SemiBold" Cursor="Hand" Margin="0,0,2,0">
+                                                <RadioButton.Template>
+                                                    <ControlTemplate TargetType="RadioButton">
+                                                        <Border x:Name="border" Background="Transparent" CornerRadius="4" Padding="10,5" Cursor="Hand">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsChecked" Value="True">
+                                                                <Setter TargetName="border" Property="Background" Value="#10B981"/>
+                                                            </Trigger>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="border" Property="Background" Value="#374151"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </RadioButton.Template>
+                                            </RadioButton>
+                                            <RadioButton x:Name="rbOpakH1" Content="H1" GroupName="OpakTryb" Checked="RbOpakTryb_Checked"
+                                                         Foreground="#3B82F6" FontSize="11" FontWeight="SemiBold" Cursor="Hand" Margin="0,0,2,0">
+                                                <RadioButton.Template>
+                                                    <ControlTemplate TargetType="RadioButton">
+                                                        <Border x:Name="border" Background="Transparent" CornerRadius="4" Padding="10,5" Cursor="Hand">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsChecked" Value="True">
+                                                                <Setter TargetName="border" Property="Background" Value="#3B82F6"/>
+                                                            </Trigger>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="border" Property="Background" Value="#374151"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </RadioButton.Template>
+                                            </RadioButton>
+                                            <RadioButton x:Name="rbOpakRazem" Content="RAZEM" GroupName="OpakTryb" IsChecked="True" Checked="RbOpakTryb_Checked"
+                                                         Foreground="#8B5CF6" FontSize="11" FontWeight="SemiBold" Cursor="Hand">
+                                                <RadioButton.Template>
+                                                    <ControlTemplate TargetType="RadioButton">
+                                                        <Border x:Name="border" Background="Transparent" CornerRadius="4" Padding="10,5" Cursor="Hand">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsChecked" Value="True">
+                                                                <Setter TargetName="border" Property="Background" Value="#8B5CF6"/>
+                                                            </Trigger>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="border" Property="Background" Value="#374151"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </RadioButton.Template>
+                                            </RadioButton>
+                                        </StackPanel>
+                                    </Border>
+
                                     <TextBlock x:Name="txtOpakZmiana" Text="" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Margin="15,0,0,0"/>
                                     <TextBlock x:Name="txtOpakWybranyKontrahent" Text="" FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentOrangeBrush}" VerticalAlignment="Center" Margin="20,0,0,0"/>
                                 </StackPanel>
@@ -641,44 +703,75 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Gorny panel - dwa wykresy slupkowe poziome -->
+                        <!-- KPI Cards - 4 karty -->
                         <Grid Grid.Row="1" Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Karta: SALDO -->
+                            <Border Grid.Column="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="0,0,5,0">
+                                <StackPanel>
+                                    <TextBlock Text="SALDO" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
+                                    <TextBlock x:Name="txtOpakSaldo" Text="0" FontSize="22" FontWeight="Bold" Foreground="#8B5CF6" Margin="0,3,0,0"/>
+                                    <TextBlock x:Name="txtOpakSaldoZmiana" Text="" FontSize="10" Foreground="#8B949E" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Karta: WARTOSC -->
+                            <Border Grid.Column="1" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,5,0">
+                                <StackPanel>
+                                    <TextBlock Text="WARTOSC" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
+                                    <TextBlock x:Name="txtOpakWartosc" Text="0 zl" FontSize="22" FontWeight="Bold" Foreground="#FFE66D" Margin="0,3,0,0"/>
+                                    <TextBlock x:Name="txtOpakWartoscSkladowe" Text="E2 + H1" FontSize="10" Foreground="#8B949E" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Karta: ROSNIE U -->
+                            <Border Grid.Column="2" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,5,0">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="ROSNIE U" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
+                                        <TextBlock Text=" (zle)" FontSize="9" Foreground="#EF4444" FontWeight="Normal"/>
+                                    </StackPanel>
+                                    <TextBlock x:Name="txtOpakRosnie" Text="0 klientow" FontSize="22" FontWeight="Bold" Foreground="#EF4444" Margin="0,3,0,0"/>
+                                    <TextBlock x:Name="txtOpakRosnieSuma" Text="+0 szt" FontSize="10" Foreground="#EF4444" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Karta: MALEJE U -->
+                            <Border Grid.Column="3" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,0,0">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="MALEJE U" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
+                                        <TextBlock Text=" (dobrze)" FontSize="9" Foreground="#10B981" FontWeight="Normal"/>
+                                    </StackPanel>
+                                    <TextBlock x:Name="txtOpakMaleje" Text="0 klientow" FontSize="22" FontWeight="Bold" Foreground="#10B981" Margin="0,3,0,0"/>
+                                    <TextBlock x:Name="txtOpakMalejeSuma" Text="-0 szt" FontSize="10" Foreground="#10B981" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <!-- Gorny panel - dwa wykresy slupkowe poziome -->
+                        <Grid Grid.Row="2" Margin="0,0,0,10">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
 
-                            <!-- Wykres slupkowy E2 per kontrahent -->
-                            <Border x:Name="borderChartE2" Grid.Column="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="10" Margin="0,0,5,0"
-                                    RenderTransformOrigin="0.5,0.5">
-                                <Border.RenderTransform>
-                                    <ScaleTransform ScaleX="1" ScaleY="1"/>
-                                </Border.RenderTransform>
-                                <Border.Triggers>
-                                    <EventTrigger RoutedEvent="MouseEnter">
-                                        <BeginStoryboard>
-                                            <Storyboard>
-                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleX)" To="1.01" Duration="0:0:0.15"/>
-                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleY)" To="1.01" Duration="0:0:0.15"/>
-                                            </Storyboard>
-                                        </BeginStoryboard>
-                                    </EventTrigger>
-                                    <EventTrigger RoutedEvent="MouseLeave">
-                                        <BeginStoryboard>
-                                            <Storyboard>
-                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleX)" To="1" Duration="0:0:0.15"/>
-                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleY)" To="1" Duration="0:0:0.15"/>
-                                            </Storyboard>
-                                        </BeginStoryboard>
-                                    </EventTrigger>
-                                </Border.Triggers>
+                            <!-- Wykres slupkowy per kontrahent (Top 12) -->
+                            <Border x:Name="borderChartE2" Grid.Column="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="10" Margin="0,0,5,0">
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="*"/>
+                                        <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
                                     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="5,0,0,5">
-                                        <TextBlock Text="Saldo E2 wg Kontrahenta" FontSize="12" FontWeight="Bold" Foreground="#17A589"/>
+                                        <TextBlock x:Name="txtOpakChartKlienciTytul" Text="SALDO WG KLIENTA (Top 12)" FontSize="12" FontWeight="Bold" Foreground="#8B5CF6"/>
                                         <TextBlock x:Name="txtOpakE2Suma" Text="" FontSize="11" Foreground="#8B949E" Margin="15,0,0,0" VerticalAlignment="Center"/>
                                     </StackPanel>
                                     <lvc:CartesianChart Grid.Row="1" x:Name="chartOpakowaniaE2" Margin="0" DataClick="ChartOpakowaniaE2_DataClick"
@@ -694,40 +787,25 @@
                                             </lvc:Axis>
                                         </lvc:CartesianChart.AxisY>
                                     </lvc:CartesianChart>
+                                    <!-- Legenda -->
+                                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,5,0,0">
+                                        <Rectangle Width="12" Height="12" Fill="#10B981" RadiusX="2" RadiusY="2"/>
+                                        <TextBlock Text=" E2" FontSize="10" Foreground="#10B981" VerticalAlignment="Center" Margin="3,0,15,0"/>
+                                        <Rectangle Width="12" Height="12" Fill="#3B82F6" RadiusX="2" RadiusY="2"/>
+                                        <TextBlock Text=" H1" FontSize="10" Foreground="#3B82F6" VerticalAlignment="Center" Margin="3,0,0,0"/>
+                                    </StackPanel>
                                 </Grid>
                             </Border>
 
-                            <!-- Wykres slupkowy H1 per kontrahent -->
-                            <Border x:Name="borderChartH1" Grid.Column="1" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="10" Margin="5,0,0,0"
-                                    RenderTransformOrigin="0.5,0.5">
-                                <Border.RenderTransform>
-                                    <ScaleTransform ScaleX="1" ScaleY="1"/>
-                                </Border.RenderTransform>
-                                <Border.Triggers>
-                                    <EventTrigger RoutedEvent="MouseEnter">
-                                        <BeginStoryboard>
-                                            <Storyboard>
-                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleX)" To="1.01" Duration="0:0:0.15"/>
-                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleY)" To="1.01" Duration="0:0:0.15"/>
-                                            </Storyboard>
-                                        </BeginStoryboard>
-                                    </EventTrigger>
-                                    <EventTrigger RoutedEvent="MouseLeave">
-                                        <BeginStoryboard>
-                                            <Storyboard>
-                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleX)" To="1" Duration="0:0:0.15"/>
-                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleY)" To="1" Duration="0:0:0.15"/>
-                                            </Storyboard>
-                                        </BeginStoryboard>
-                                    </EventTrigger>
-                                </Border.Triggers>
+                            <!-- Wykres slupkowy per handlowiec -->
+                            <Border x:Name="borderChartH1" Grid.Column="1" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="10" Margin="5,0,0,0">
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
                                     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="5,0,0,5">
-                                        <TextBlock Text="Saldo H1 wg Kontrahenta" FontSize="12" FontWeight="Bold" Foreground="#C0392B"/>
+                                        <TextBlock Text="SALDO WG HANDLOWCA" FontSize="12" FontWeight="Bold" Foreground="#F97316"/>
                                         <TextBlock x:Name="txtOpakH1Suma" Text="" FontSize="11" Foreground="#8B949E" Margin="15,0,0,0" VerticalAlignment="Center"/>
                                     </StackPanel>
                                     <lvc:CartesianChart Grid.Row="1" x:Name="chartOpakowaniaH1" Margin="0" DataClick="ChartOpakowaniaH1_DataClick"
@@ -748,7 +826,7 @@
                         </Grid>
 
                         <!-- Dolny panel - jeden wykres liniowy z dwoma liniami (E2 i H1) -->
-                        <Border Grid.Row="2" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="10">
+                        <Border Grid.Row="3" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="10">
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
@@ -758,10 +836,10 @@
                                     <TextBlock Text="Trend oddawania opakowan" FontSize="11" FontWeight="Bold" Foreground="#FFFFFF"/>
                                     <TextBlock x:Name="txtOpakTrendKlient" Text="(kliknij slupek)" FontSize="11" Foreground="#8B949E" Margin="10,0,0,0"/>
                                     <TextBlock Text="  |  " FontSize="11" Foreground="#8B949E" Margin="5,0,5,0"/>
-                                    <Ellipse Width="10" Height="10" Fill="#17A589" VerticalAlignment="Center"/>
-                                    <TextBlock Text=" E2" FontSize="10" Foreground="#17A589" VerticalAlignment="Center" Margin="3,0,10,0"/>
-                                    <Ellipse Width="10" Height="10" Fill="#C0392B" VerticalAlignment="Center"/>
-                                    <TextBlock Text=" H1" FontSize="10" Foreground="#C0392B" VerticalAlignment="Center" Margin="3,0,0,0"/>
+                                    <Ellipse Width="10" Height="10" Fill="#10B981" VerticalAlignment="Center"/>
+                                    <TextBlock Text=" E2" FontSize="10" Foreground="#10B981" VerticalAlignment="Center" Margin="3,0,10,0"/>
+                                    <Ellipse Width="10" Height="10" Fill="#3B82F6" VerticalAlignment="Center"/>
+                                    <TextBlock Text=" H1" FontSize="10" Foreground="#3B82F6" VerticalAlignment="Center" Margin="3,0,0,0"/>
                                 </StackPanel>
                                 <lvc:CartesianChart Grid.Row="1" x:Name="chartOpakTrend" Margin="0"
                                                     AnimationsSpeed="0:0:0.5" Hoverable="True" DisableAnimations="False">
@@ -870,40 +948,147 @@
                                 </Border>
                             </Grid>
 
-                            <!-- Wykresy po lewej + Analiza wiekowa po prawej -->
+                            <!-- Wykresy: Donut + Analiza wiekowa + Top przeterminowani -->
                             <Grid Grid.Row="2" Margin="0,0,0,10">
                                 <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="180"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="280"/>
                                 </Grid.ColumnDefinitions>
 
-                                <!-- LEWA STRONA: Wykresy -->
-                                <Grid Grid.Column="0" Margin="0,0,5,0">
+                                <!-- LEWA STRONA: Donut Chart -->
+                                <Border Grid.Column="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="0,0,5,0">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Text="STRUKTURA" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+
+                                        <!-- Donut Chart Canvas -->
+                                        <Canvas x:Name="canvasDonut" Grid.Row="1" Width="120" Height="120" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <!-- Donut segments będą rysowane w C# -->
+                                        </Canvas>
+
+                                        <!-- Środek donuta - tekst -->
+                                        <Grid Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
+                                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <TextBlock x:Name="txtDonutProcent" Text="0%" FontSize="24" FontWeight="Bold" Foreground="#17A589" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="terminowe" FontSize="9" Foreground="#8B949E" HorizontalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- Legenda -->
+                                        <StackPanel Grid.Row="2" Orientation="Vertical" HorizontalAlignment="Center" Margin="0,10,0,0">
+                                            <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                <Rectangle Width="10" Height="10" Fill="#17A589" RadiusX="2" RadiusY="2"/>
+                                                <TextBlock x:Name="txtDonutTerminowe" Text=" Term. 0%" FontSize="10" Foreground="#17A589" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                <Rectangle Width="10" Height="10" Fill="#EF4444" RadiusX="2" RadiusY="2"/>
+                                                <TextBlock x:Name="txtDonutPrzeterminowane" Text=" Przet. 0%" FontSize="10" Foreground="#EF4444" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- SRODEK: Analiza wiekowa + Top przeterminowani -->
+                                <Grid Grid.Column="1" Margin="5,0,5,0">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="*"/>
                                         <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
-                                    <!-- Przeterminowane per Handlowiec -->
-                                    <Border Grid.Row="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="10" Margin="0,0,0,5">
+                                    <!-- Analiza wiekowa - nowe przedzialy -->
+                                    <Border Grid.Row="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="0,0,0,5">
                                         <Grid>
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="Auto"/>
                                                 <RowDefinition Height="*"/>
                                             </Grid.RowDefinitions>
-                                            <TextBlock Grid.Row="0" Text="PRZETERMINOWANE WG HANDLOWCA" FontSize="10" Foreground="{StaticResource AccentOrangeBrush}" FontWeight="Bold" Margin="5,0,0,5"/>
-                                            <lvc:CartesianChart Grid.Row="1" x:Name="chartPrzeterminowaneHandlowiec" Margin="0" MinHeight="150">
-                                                <lvc:CartesianChart.AxisX>
-                                                    <lvc:Axis x:Name="axisXPrzeterminowaneHandlowiec" Title="" MinValue="0" Foreground="#FFFFFF" FontSize="9">
-                                                        <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
-                                                    </lvc:Axis>
-                                                </lvc:CartesianChart.AxisX>
-                                                <lvc:CartesianChart.AxisY>
-                                                    <lvc:Axis x:Name="axisYPrzeterminowaneHandlowiec" ShowLabels="True" FontSize="9" Foreground="#FFFFFF" IsMerged="False">
-                                                        <lvc:Axis.Separator><lvc:Separator StrokeThickness="0" Step="1"/></lvc:Axis.Separator>
-                                                    </lvc:Axis>
-                                                </lvc:CartesianChart.AxisY>
-                                            </lvc:CartesianChart>
+                                            <TextBlock Grid.Row="0" Text="ANALIZA WIEKOWA PRZETERMINOWAŃ" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold" Margin="0,0,0,8"/>
+
+                                            <Grid Grid.Row="1">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="*"/>
+                                                    <RowDefinition Height="*"/>
+                                                    <RowDefinition Height="*"/>
+                                                    <RowDefinition Height="*"/>
+                                                </Grid.RowDefinitions>
+
+                                                <!-- 1-7 dni -->
+                                                <Border Grid.Row="0" Background="#1A1D21" CornerRadius="5" Padding="10" Margin="0,0,0,4">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="70"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="100"/>
+                                                            <ColumnDefinition Width="50"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="1-7 DNI" FontSize="11" Foreground="#FCD34D" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                        <Border Grid.Column="1" Background="#2D333B" CornerRadius="3" Height="16" VerticalAlignment="Center" Margin="10,0">
+                                                            <Border x:Name="barAging17" Background="#FCD34D" CornerRadius="3" HorizontalAlignment="Left" Width="0"/>
+                                                        </Border>
+                                                        <TextBlock Grid.Column="2" x:Name="txtAging17" Text="0 zl" FontSize="13" FontWeight="Bold" Foreground="#FCD34D" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="3" x:Name="txtAging17Procent" Text="0%" FontSize="10" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                    </Grid>
+                                                </Border>
+
+                                                <!-- 8-14 dni -->
+                                                <Border Grid.Row="1" Background="#1A1D21" CornerRadius="5" Padding="10" Margin="0,0,0,4">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="70"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="100"/>
+                                                            <ColumnDefinition Width="50"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="8-14 DNI" FontSize="11" Foreground="#F97316" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                        <Border Grid.Column="1" Background="#2D333B" CornerRadius="3" Height="16" VerticalAlignment="Center" Margin="10,0">
+                                                            <Border x:Name="barAging814" Background="#F97316" CornerRadius="3" HorizontalAlignment="Left" Width="0"/>
+                                                        </Border>
+                                                        <TextBlock Grid.Column="2" x:Name="txtAging814" Text="0 zl" FontSize="13" FontWeight="Bold" Foreground="#F97316" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="3" x:Name="txtAging814Procent" Text="0%" FontSize="10" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                    </Grid>
+                                                </Border>
+
+                                                <!-- 15-21 dni -->
+                                                <Border Grid.Row="2" Background="#1A1D21" CornerRadius="5" Padding="10" Margin="0,0,0,4">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="70"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="100"/>
+                                                            <ColumnDefinition Width="50"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="15-21 DNI" FontSize="11" Foreground="#EF4444" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                        <Border Grid.Column="1" Background="#2D333B" CornerRadius="3" Height="16" VerticalAlignment="Center" Margin="10,0">
+                                                            <Border x:Name="barAging1521" Background="#EF4444" CornerRadius="3" HorizontalAlignment="Left" Width="0"/>
+                                                        </Border>
+                                                        <TextBlock Grid.Column="2" x:Name="txtAging1521" Text="0 zl" FontSize="13" FontWeight="Bold" Foreground="#EF4444" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="3" x:Name="txtAging1521Procent" Text="0%" FontSize="10" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                    </Grid>
+                                                </Border>
+
+                                                <!-- 21+ dni -->
+                                                <Border Grid.Row="3" Background="#1A1D21" CornerRadius="5" Padding="10">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="70"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="100"/>
+                                                            <ColumnDefinition Width="50"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="21+ DNI" FontSize="11" Foreground="#DC2626" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                        <Border Grid.Column="1" Background="#2D333B" CornerRadius="3" Height="16" VerticalAlignment="Center" Margin="10,0">
+                                                            <Border x:Name="barAging21Plus" Background="#DC2626" CornerRadius="3" HorizontalAlignment="Left" Width="0"/>
+                                                        </Border>
+                                                        <TextBlock Grid.Column="2" x:Name="txtAging21Plus" Text="0 zl" FontSize="13" FontWeight="Bold" Foreground="#DC2626" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="3" x:Name="txtAging21PlusProcent" Text="0%" FontSize="10" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                    </Grid>
+                                                </Border>
+                                            </Grid>
                                         </Grid>
                                     </Border>
 
@@ -942,73 +1127,39 @@
                                     </Border>
                                 </Grid>
 
-                                <!-- PRAWA STRONA: Analiza wiekowa - pionowy uklad -->
-                                <Border Grid.Column="1" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,0,0">
+                                <!-- PRAWA STRONA: Top przeterminowani -->
+                                <Border Grid.Column="2" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,0,0">
                                     <Grid>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="*"/>
-                                            <RowDefinition Height="*"/>
-                                            <RowDefinition Height="*"/>
-                                            <RowDefinition Height="*"/>
                                         </Grid.RowDefinitions>
-                                        <TextBlock Grid.Row="0" Text="ANALIZA WIEKOWA" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold" Margin="0,0,0,8"/>
+                                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                                            <TextBlock Text="🔥" FontSize="12"/>
+                                            <TextBlock Text=" TOP PRZETERMINOWANI" FontSize="10" Foreground="#EF4444" FontWeight="Bold" VerticalAlignment="Center"/>
+                                        </StackPanel>
 
-                                        <!-- 1-30 dni -->
-                                        <Border Grid.Row="1" Background="#1A1D21" CornerRadius="5" Padding="10" Margin="0,0,0,4">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0" Text="1-30 DNI" FontSize="11" Foreground="#17A589" FontWeight="Bold" VerticalAlignment="Center"/>
-                                                <TextBlock Grid.Column="1" x:Name="txtAging030" Text="0 zl" FontSize="14" FontWeight="Bold" Foreground="#17A589" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="10,0"/>
-                                                <TextBlock Grid.Column="2" x:Name="txtAging030Procent" Text="0%" FontSize="9" Foreground="#8B949E" VerticalAlignment="Center"/>
-                                            </Grid>
-                                        </Border>
-
-                                        <!-- 31-60 dni -->
-                                        <Border Grid.Row="2" Background="#1A1D21" CornerRadius="5" Padding="10" Margin="0,0,0,4">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0" Text="31-60 DNI" FontSize="11" Foreground="#FFE66D" FontWeight="Bold" VerticalAlignment="Center"/>
-                                                <TextBlock Grid.Column="1" x:Name="txtAging3160" Text="0 zl" FontSize="14" FontWeight="Bold" Foreground="#FFE66D" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="10,0"/>
-                                                <TextBlock Grid.Column="2" x:Name="txtAging3160Procent" Text="0%" FontSize="9" Foreground="#8B949E" VerticalAlignment="Center"/>
-                                            </Grid>
-                                        </Border>
-
-                                        <!-- 61-90 dni -->
-                                        <Border Grid.Row="3" Background="#1A1D21" CornerRadius="5" Padding="10" Margin="0,0,0,4">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0" Text="61-90 DNI" FontSize="11" Foreground="#C0392B" FontWeight="Bold" VerticalAlignment="Center"/>
-                                                <TextBlock Grid.Column="1" x:Name="txtAging6190" Text="0 zl" FontSize="14" FontWeight="Bold" Foreground="#C0392B" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="10,0"/>
-                                                <TextBlock Grid.Column="2" x:Name="txtAging6190Procent" Text="0%" FontSize="9" Foreground="#8B949E" VerticalAlignment="Center"/>
-                                            </Grid>
-                                        </Border>
-
-                                        <!-- 90+ dni -->
-                                        <Border Grid.Row="4" Background="#1A1D21" CornerRadius="5" Padding="10">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0" Text="90+ DNI" FontSize="11" Foreground="#FF6B6B" FontWeight="Bold" VerticalAlignment="Center"/>
-                                                <TextBlock Grid.Column="1" x:Name="txtAging90Plus" Text="0 zl" FontSize="14" FontWeight="Bold" Foreground="#FF6B6B" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="10,0"/>
-                                                <TextBlock Grid.Column="2" x:Name="txtAging90PlusProcent" Text="0%" FontSize="9" Foreground="#8B949E" VerticalAlignment="Center"/>
-                                            </Grid>
-                                        </Border>
+                                        <ItemsControl x:Name="listTopPrzeterminowani" Grid.Row="1">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="#1A1D21" CornerRadius="5" Padding="10,8" Margin="0,0,0,4">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="20"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Grid.Column="0" Text="{Binding Pozycja}" FontSize="11" Foreground="#8B949E" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding Kontrahent}" FontSize="11" Foreground="#FFFFFF" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                                <TextBlock Text="{Binding DniTekst}" FontSize="9" Foreground="#EF4444"/>
+                                                            </StackPanel>
+                                                            <TextBlock Grid.Column="2" Text="{Binding KwotaTekst}" FontSize="12" FontWeight="Bold" Foreground="#EF4444" VerticalAlignment="Center" Margin="5,0,0,0"/>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
                                     </Grid>
                                 </Border>
                             </Grid>

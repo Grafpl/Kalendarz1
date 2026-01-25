@@ -415,6 +415,21 @@ namespace Kalendarz1.HandlowiecDashboard.Views
         private async void CmbPlatnosci_SelectionChanged(object sender, SelectionChangedEventArgs e) => await OdswiezJesliGotoweAsync();
 
         /// <summary>
+        /// Obsluga przelacznika E2/H1/RAZEM - tylko odswiezenie UI bez pobierania danych
+        /// </summary>
+        private void RbOpakTryb_Checked(object sender, RoutedEventArgs e)
+        {
+            if (!_isInitialized) return;
+
+            if (rbOpakE2?.IsChecked == true) _opakTryb = "E2";
+            else if (rbOpakH1?.IsChecked == true) _opakTryb = "H1";
+            else _opakTryb = "RAZEM";
+
+            // Tylko odswiezamy UI - dane juz mamy
+            OdswiezOpakowaniaUI();
+        }
+
+        /// <summary>
         /// Odświeża zakładkę z debounce'em - zapobiega wielokrotnym zapytaniom przy szybkich zmianach
         /// </summary>
         private async Task OdswiezJesliGotoweAsync()
@@ -1273,6 +1288,7 @@ WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
         private List<OpakowanieRow> _opakowaniaData = new List<OpakowanieRow>();
         private string _wybranyKontrahentOpak = null;
         private Dictionary<string, Color> _handlowiecKolory = new Dictionary<string, Color>();
+        private string _opakTryb = "RAZEM"; // E2, H1 lub RAZEM
 
 
         private Color GetHandlowiecColor(string handlowiec)
@@ -1412,116 +1428,246 @@ HAVING SUM(MZ.Ilosc) <> 0;";
                         Handlowiec = "",
                         PojemnikiE2 = d2.E2,
                         PaletaH1 = d2.H1,
+                        Razem = d2.E2 + d2.H1,
                         E2Zmiana = d2.E2 - d1.E2,
-                        H1Zmiana = d2.H1 - d1.H1
+                        H1Zmiana = d2.H1 - d1.H1,
+                        ZmianaE2Tydzien = d2.E2 - d1.E2,
+                        ZmianaH1Tydzien = d2.H1 - d1.H1
                     });
                 }
 
-                // Sumy
-                var sumaE2Data1 = saldoNaData1.Values.Sum(v => v.E2);
-                var sumaE2Data2 = saldoNaData2.Values.Sum(v => v.E2);
-                var sumaH1Data1 = saldoNaData1.Values.Sum(v => v.H1);
-                var sumaH1Data2 = saldoNaData2.Values.Sum(v => v.H1);
-                var zmianaE2 = sumaE2Data2 - sumaE2Data1;
-                var zmianaH1 = sumaH1Data2 - sumaH1Data1;
-                var signE2 = zmianaE2 >= 0 ? "+" : "";
-                var signH1 = zmianaH1 >= 0 ? "+" : "";
-                txtOpakZmiana.Text = $"Zmiana E2: {signE2}{zmianaE2:N0} | H1: {signH1}{zmianaH1:N0}";
-
-                // Wykres E2 - Top 15 kontrahentow z dodatnim saldem
-                var top15E2 = _opakowaniaData
-                    .Where(d => d.PojemnikiE2 > 0)
-                    .OrderByDescending(d => d.PojemnikiE2)
-                    .Take(15)
-                    .Reverse()
-                    .ToList();
-
-                var listaE2 = new List<double>();
-                var etykietyE2 = new List<string>();
-                foreach (var d in top15E2)
-                {
-                    listaE2.Add((double)d.PojemnikiE2);
-                    var sign = d.E2Zmiana >= 0 ? "+" : "";
-                    var nazwa = d.Kontrahent.Length > 15 ? d.Kontrahent.Substring(0, 15) + ".." : d.Kontrahent;
-                    etykietyE2.Add($"{d.PojemnikiE2:N0} ({sign}{d.E2Zmiana:N0}) | {nazwa}");
-                }
-
-                // Wylacz animacje, wyczysc, ustaw dane
-                chartOpakowaniaE2.DisableAnimations = true;
-                chartOpakowaniaE2.Series = new SeriesCollection();
-                axisYOpakE2.Labels = null;
-                axisYOpakE2.MinValue = 0;
-                axisYOpakE2.MaxValue = listaE2.Count;
-                axisYOpakE2.Separator.Step = 1;
-
-                var seriesE2 = new SeriesCollection
-                {
-                    new RowSeries
-                    {
-                        Title = "E2",
-                        Values = new ChartValues<double>(listaE2),
-                        Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(23, 165, 137)),
-                        DataLabels = false,
-                        Foreground = Brushes.White
-                    }
-                };
-                chartOpakowaniaE2.Series = seriesE2;
-                axisYOpakE2.Labels = etykietyE2.ToArray();
-                chartOpakowaniaE2.DisableAnimations = false;
-                txtOpakE2Suma.Text = $"Razem: {sumaE2Data2:N0} (zmiana: {signE2}{zmianaE2:N0})";
-
-                // Wykres H1 - Top 15 kontrahentow z dodatnim saldem
-                var top15H1 = _opakowaniaData
-                    .Where(d => d.PaletaH1 > 0)
-                    .OrderByDescending(d => d.PaletaH1)
-                    .Take(15)
-                    .Reverse()
-                    .ToList();
-
-                var listaH1 = new List<double>();
-                var etykietyH1 = new List<string>();
-                foreach (var d in top15H1)
-                {
-                    listaH1.Add((double)d.PaletaH1);
-                    var sign = d.H1Zmiana >= 0 ? "+" : "";
-                    var nazwa = d.Kontrahent.Length > 15 ? d.Kontrahent.Substring(0, 15) + ".." : d.Kontrahent;
-                    etykietyH1.Add($"{d.PaletaH1:N0} ({sign}{d.H1Zmiana:N0}) | {nazwa}");
-                }
-
-                // Wylacz animacje, wyczysc, ustaw dane
-                chartOpakowaniaH1.DisableAnimations = true;
-                chartOpakowaniaH1.Series = new SeriesCollection();
-                axisYOpakH1.Labels = null;
-                axisYOpakH1.MinValue = 0;
-                axisYOpakH1.MaxValue = listaH1.Count;
-                axisYOpakH1.Separator.Step = 1;
-
-                var seriesH1 = new SeriesCollection
-                {
-                    new RowSeries
-                    {
-                        Title = "H1",
-                        Values = new ChartValues<double>(listaH1),
-                        Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(192, 57, 43)),
-                        DataLabels = false,
-                        Foreground = Brushes.White
-                    }
-                };
-                chartOpakowaniaH1.Series = seriesH1;
-                axisYOpakH1.Labels = etykietyH1.ToArray();
-                chartOpakowaniaH1.DisableAnimations = false;
-                txtOpakH1Suma.Text = $"Razem: {sumaH1Data2:N0} (zmiana: {signH1}{zmianaH1:N0})";
-
-                // Wyczysc wykres liniowy trendu
-                txtOpakWybranyKontrahent.Text = "";
-                txtOpakTrendKlient.Text = "(kliknij slupek)";
-                chartOpakTrend.Series = new SeriesCollection();
-                axisXOpakTrend.Labels = new string[0];
+                // Odswiezamy UI
+                OdswiezOpakowaniaUI();
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Blad wczytywania opakowan:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        /// <summary>
+        /// Odswiezenie UI dla zakladki Opakowania - bez pobierania danych z SQL
+        /// Obsluguje przelacznik E2/H1/RAZEM
+        /// </summary>
+        private void OdswiezOpakowaniaUI()
+        {
+            if (_opakowaniaData == null || !_opakowaniaData.Any()) return;
+
+            // Oblicz wartosci w zaleznosci od wybranego trybu
+            Func<OpakowanieRow, decimal> getSaldo = _opakTryb switch
+            {
+                "E2" => d => d.PojemnikiE2,
+                "H1" => d => d.PaletaH1,
+                _ => d => d.PojemnikiE2 + d.PaletaH1
+            };
+            Func<OpakowanieRow, decimal> getZmiana = _opakTryb switch
+            {
+                "E2" => d => d.E2Zmiana,
+                "H1" => d => d.H1Zmiana,
+                _ => d => d.E2Zmiana + d.H1Zmiana
+            };
+
+            // Sumy globalne
+            var sumaSaldo = _opakowaniaData.Sum(d => getSaldo(d));
+            var sumaZmiana = _opakowaniaData.Sum(d => getZmiana(d));
+            var sumaE2 = _opakowaniaData.Sum(d => d.PojemnikiE2);
+            var sumaH1 = _opakowaniaData.Sum(d => d.PaletaH1);
+
+            // Wartosc: E2 × 30 zł + H1 × 60 zł
+            var wartosc = sumaE2 * 30 + sumaH1 * 60;
+
+            // Klienci gdzie rosnie / maleje
+            var klienciRosnie = _opakowaniaData.Where(d => getZmiana(d) > 0).ToList();
+            var klienciMaleje = _opakowaniaData.Where(d => getZmiana(d) < 0).ToList();
+            var sumaRosnie = klienciRosnie.Sum(d => getZmiana(d));
+            var sumaMaleje = klienciMaleje.Sum(d => getZmiana(d));
+
+            // Aktualizuj KPI Cards
+            var sign = sumaZmiana >= 0 ? "+" : "";
+            var kolorSaldo = _opakTryb switch
+            {
+                "E2" => "#10B981",
+                "H1" => "#3B82F6",
+                _ => "#8B5CF6"
+            };
+            txtOpakSaldo.Text = $"{sumaSaldo:N0}";
+            txtOpakSaldo.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(kolorSaldo));
+            txtOpakSaldoZmiana.Text = $"{sign}{sumaZmiana:N0} vs poprzedni okres";
+            txtOpakSaldoZmiana.Foreground = sumaZmiana >= 0
+                ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444"))
+                : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10B981"));
+
+            txtOpakWartosc.Text = $"{wartosc:N0} zl";
+            txtOpakWartoscSkladowe.Text = $"E2({sumaE2:N0}×30) + H1({sumaH1:N0}×60)";
+
+            txtOpakRosnie.Text = $"{klienciRosnie.Count} klientow";
+            txtOpakRosnieSuma.Text = $"+{sumaRosnie:N0} szt";
+
+            txtOpakMaleje.Text = $"{klienciMaleje.Count} klientow";
+            txtOpakMalejeSuma.Text = $"{sumaMaleje:N0} szt";
+
+            // Zmiana w naglowku
+            var zmianaE2 = _opakowaniaData.Sum(d => d.E2Zmiana);
+            var zmianaH1 = _opakowaniaData.Sum(d => d.H1Zmiana);
+            var signE2 = zmianaE2 >= 0 ? "+" : "";
+            var signH1 = zmianaH1 >= 0 ? "+" : "";
+            txtOpakZmiana.Text = $"Zmiana E2: {signE2}{zmianaE2:N0} | H1: {signH1}{zmianaH1:N0}";
+
+            // Wykres klientow - Top 12 wg wybranego trybu
+            var top12 = _opakowaniaData
+                .Where(d => getSaldo(d) > 0)
+                .OrderByDescending(d => getSaldo(d))
+                .Take(12)
+                .Reverse()
+                .ToList();
+
+            var listaWartosci = new List<double>();
+            var listaWartosciE2 = new List<double>();
+            var listaWartosciH1 = new List<double>();
+            var etykiety = new List<string>();
+            foreach (var d in top12)
+            {
+                var saldo = getSaldo(d);
+                var zmiana = getZmiana(d);
+                listaWartosci.Add((double)saldo);
+                listaWartosciE2.Add((double)d.PojemnikiE2);
+                listaWartosciH1.Add((double)d.PaletaH1);
+                var signZ = zmiana >= 0 ? "+" : "";
+                var nazwa = d.Kontrahent.Length > 15 ? d.Kontrahent.Substring(0, 15) + ".." : d.Kontrahent;
+                etykiety.Add($"{saldo:N0} ({signZ}{zmiana:N0}) | {nazwa}");
+            }
+
+            // Aktualizuj tytul wykresu klientow
+            txtOpakChartKlienciTytul.Text = _opakTryb switch
+            {
+                "E2" => "SALDO E2 WG KLIENTA (Top 12)",
+                "H1" => "SALDO H1 WG KLIENTA (Top 12)",
+                _ => "SALDO RAZEM WG KLIENTA (Top 12)"
+            };
+            txtOpakChartKlienciTytul.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(kolorSaldo));
+
+            // Wylacz animacje, wyczysc, ustaw dane
+            chartOpakowaniaE2.DisableAnimations = true;
+            chartOpakowaniaE2.Series = new SeriesCollection();
+            axisYOpakE2.Labels = null;
+            axisYOpakE2.MinValue = 0;
+            axisYOpakE2.MaxValue = listaWartosci.Count;
+            axisYOpakE2.Separator.Step = 1;
+
+            SeriesCollection seriesKlienci;
+            if (_opakTryb == "RAZEM")
+            {
+                // Dwie serie obok siebie (stacked)
+                seriesKlienci = new SeriesCollection
+                {
+                    new StackedRowSeries
+                    {
+                        Title = "E2",
+                        Values = new ChartValues<double>(listaWartosciE2),
+                        Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10B981")),
+                        DataLabels = false
+                    },
+                    new StackedRowSeries
+                    {
+                        Title = "H1",
+                        Values = new ChartValues<double>(listaWartosciH1),
+                        Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3B82F6")),
+                        DataLabels = false
+                    }
+                };
+            }
+            else
+            {
+                var kolor = _opakTryb == "E2" ? "#10B981" : "#3B82F6";
+                seriesKlienci = new SeriesCollection
+                {
+                    new RowSeries
+                    {
+                        Title = _opakTryb,
+                        Values = new ChartValues<double>(listaWartosci),
+                        Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(kolor)),
+                        DataLabels = false,
+                        Foreground = Brushes.White
+                    }
+                };
+            }
+            chartOpakowaniaE2.Series = seriesKlienci;
+            axisYOpakE2.Labels = etykiety.ToArray();
+            chartOpakowaniaE2.DisableAnimations = false;
+
+            var sumaData2 = _opakTryb switch
+            {
+                "E2" => sumaE2,
+                "H1" => sumaH1,
+                _ => sumaE2 + sumaH1
+            };
+            var zmianaWyswietl = _opakTryb switch
+            {
+                "E2" => zmianaE2,
+                "H1" => zmianaH1,
+                _ => zmianaE2 + zmianaH1
+            };
+            var signWyswietl = zmianaWyswietl >= 0 ? "+" : "";
+            txtOpakE2Suma.Text = $"Razem: {sumaData2:N0} (zmiana: {signWyswietl}{zmianaWyswietl:N0})";
+
+            // Wykres per handlowiec - grupowanie danych
+            var perHandlowiec = _opakowaniaData
+                .GroupBy(d => string.IsNullOrEmpty(d.Handlowiec) ? "Nieprzypisany" : d.Handlowiec)
+                .Select(g => new
+                {
+                    Handlowiec = g.Key,
+                    E2 = g.Sum(x => x.PojemnikiE2),
+                    H1 = g.Sum(x => x.PaletaH1),
+                    Razem = g.Sum(x => x.PojemnikiE2 + x.PaletaH1),
+                    Klientow = g.Count()
+                })
+                .OrderByDescending(h => _opakTryb == "E2" ? h.E2 : _opakTryb == "H1" ? h.H1 : h.Razem)
+                .Take(10)
+                .Reverse()
+                .ToList();
+
+            var listaH = new List<double>();
+            var etykietyH = new List<string>();
+            foreach (var h in perHandlowiec)
+            {
+                var saldo = _opakTryb switch
+                {
+                    "E2" => h.E2,
+                    "H1" => h.H1,
+                    _ => h.Razem
+                };
+                listaH.Add((double)saldo);
+                etykietyH.Add($"{h.Handlowiec} ({h.Klientow} kl.)");
+            }
+
+            chartOpakowaniaH1.DisableAnimations = true;
+            chartOpakowaniaH1.Series = new SeriesCollection();
+            axisYOpakH1.Labels = null;
+            axisYOpakH1.MinValue = 0;
+            axisYOpakH1.MaxValue = listaH.Count;
+            axisYOpakH1.Separator.Step = 1;
+
+            var seriesHandlowiec = new SeriesCollection
+            {
+                new RowSeries
+                {
+                    Title = "Handlowiec",
+                    Values = new ChartValues<double>(listaH),
+                    Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F97316")),
+                    DataLabels = false,
+                    Foreground = Brushes.White
+                }
+            };
+            chartOpakowaniaH1.Series = seriesHandlowiec;
+            axisYOpakH1.Labels = etykietyH.ToArray();
+            chartOpakowaniaH1.DisableAnimations = false;
+            txtOpakH1Suma.Text = "";
+
+            // Wyczysc wykres liniowy trendu
+            txtOpakWybranyKontrahent.Text = "";
+            txtOpakTrendKlient.Text = "(kliknij slupek)";
+            chartOpakTrend.Series = new SeriesCollection();
+            axisXOpakTrend.Labels = new string[0];
         }
 
         private async void ChartOpakowaniaE2_DataClick(object sender, ChartPoint chartPoint)
@@ -1710,7 +1856,7 @@ WHERE (@Handlowiec IS NULL OR WYM.CDim_Handlowiec_Val = @Handlowiec)
 GROUP BY C.Shortcut, WYM.CDim_Handlowiec_Val, C.LimitAmount
 ORDER BY Przeterminowane DESC, DoZaplaty DESC;
 
--- Aging analysis per faktura
+-- Aging analysis per faktura - NOWE PRZEDZIALY: 1-7, 8-14, 15-21, 21+
 WITH PNAgg2 AS (
     SELECT PN.dkid, SUM(ISNULL(PN.kwotarozl,0)) AS KwotaRozliczona, MAX(PN.Termin) AS TerminPrawdziwy
     FROM [HANDEL].[HM].[PN] PN WITH (NOLOCK) GROUP BY PN.dkid
@@ -1727,14 +1873,14 @@ FakturyPrzeterminowane AS (
       AND (@Handlowiec IS NULL OR WYM.CDim_Handlowiec_Val = @Handlowiec)
 )
 SELECT
-    CAST(SUM(CASE WHEN DniPrzeterminowania BETWEEN 1 AND 30 THEN Kwota ELSE 0 END) AS DECIMAL(18,2)) AS Kwota030,
-    CAST(SUM(CASE WHEN DniPrzeterminowania BETWEEN 31 AND 60 THEN Kwota ELSE 0 END) AS DECIMAL(18,2)) AS Kwota3160,
-    CAST(SUM(CASE WHEN DniPrzeterminowania BETWEEN 61 AND 90 THEN Kwota ELSE 0 END) AS DECIMAL(18,2)) AS Kwota6190,
-    CAST(SUM(CASE WHEN DniPrzeterminowania > 90 THEN Kwota ELSE 0 END) AS DECIMAL(18,2)) AS Kwota90Plus,
-    SUM(CASE WHEN DniPrzeterminowania BETWEEN 1 AND 30 THEN 1 ELSE 0 END) AS Faktur030,
-    SUM(CASE WHEN DniPrzeterminowania BETWEEN 31 AND 60 THEN 1 ELSE 0 END) AS Faktur3160,
-    SUM(CASE WHEN DniPrzeterminowania BETWEEN 61 AND 90 THEN 1 ELSE 0 END) AS Faktur6190,
-    SUM(CASE WHEN DniPrzeterminowania > 90 THEN 1 ELSE 0 END) AS Faktur90Plus
+    CAST(SUM(CASE WHEN DniPrzeterminowania BETWEEN 1 AND 7 THEN Kwota ELSE 0 END) AS DECIMAL(18,2)) AS Kwota17,
+    CAST(SUM(CASE WHEN DniPrzeterminowania BETWEEN 8 AND 14 THEN Kwota ELSE 0 END) AS DECIMAL(18,2)) AS Kwota814,
+    CAST(SUM(CASE WHEN DniPrzeterminowania BETWEEN 15 AND 21 THEN Kwota ELSE 0 END) AS DECIMAL(18,2)) AS Kwota1521,
+    CAST(SUM(CASE WHEN DniPrzeterminowania > 21 THEN Kwota ELSE 0 END) AS DECIMAL(18,2)) AS Kwota21Plus,
+    SUM(CASE WHEN DniPrzeterminowania BETWEEN 1 AND 7 THEN 1 ELSE 0 END) AS Faktur17,
+    SUM(CASE WHEN DniPrzeterminowania BETWEEN 8 AND 14 THEN 1 ELSE 0 END) AS Faktur814,
+    SUM(CASE WHEN DniPrzeterminowania BETWEEN 15 AND 21 THEN 1 ELSE 0 END) AS Faktur1521,
+    SUM(CASE WHEN DniPrzeterminowania > 21 THEN 1 ELSE 0 END) AS Faktur21Plus
 FROM FakturyPrzeterminowane;";
 
                 await using var cmd = new SqlCommand(sqlCombined, cn);
@@ -1778,18 +1924,18 @@ FROM FakturyPrzeterminowane;";
                     });
                 }
 
-                // Drugi zestaw wynikow - aging data
+                // Drugi zestaw wynikow - aging data z nowymi przedzialami
                 await reader.NextResultAsync();
                 if (await reader.ReadAsync())
                 {
-                    agingData.Kwota030 = reader.IsDBNull(0) ? 0 : Convert.ToDecimal(reader.GetValue(0));
-                    agingData.Kwota3160 = reader.IsDBNull(1) ? 0 : Convert.ToDecimal(reader.GetValue(1));
-                    agingData.Kwota6190 = reader.IsDBNull(2) ? 0 : Convert.ToDecimal(reader.GetValue(2));
-                    agingData.Kwota90Plus = reader.IsDBNull(3) ? 0 : Convert.ToDecimal(reader.GetValue(3));
-                    agingData.Faktur030 = reader.IsDBNull(4) ? 0 : Convert.ToInt32(reader.GetValue(4));
-                    agingData.Faktur3160 = reader.IsDBNull(5) ? 0 : Convert.ToInt32(reader.GetValue(5));
-                    agingData.Faktur6190 = reader.IsDBNull(6) ? 0 : Convert.ToInt32(reader.GetValue(6));
-                    agingData.Faktur90Plus = reader.IsDBNull(7) ? 0 : Convert.ToInt32(reader.GetValue(7));
+                    agingData.Kwota17 = reader.IsDBNull(0) ? 0 : Convert.ToDecimal(reader.GetValue(0));
+                    agingData.Kwota814 = reader.IsDBNull(1) ? 0 : Convert.ToDecimal(reader.GetValue(1));
+                    agingData.Kwota1521 = reader.IsDBNull(2) ? 0 : Convert.ToDecimal(reader.GetValue(2));
+                    agingData.Kwota21Plus = reader.IsDBNull(3) ? 0 : Convert.ToDecimal(reader.GetValue(3));
+                    agingData.Faktur17 = reader.IsDBNull(4) ? 0 : Convert.ToInt32(reader.GetValue(4));
+                    agingData.Faktur814 = reader.IsDBNull(5) ? 0 : Convert.ToInt32(reader.GetValue(5));
+                    agingData.Faktur1521 = reader.IsDBNull(6) ? 0 : Convert.ToInt32(reader.GetValue(6));
+                    agingData.Faktur21PlusNew = reader.IsDBNull(7) ? 0 : Convert.ToInt32(reader.GetValue(7));
                 }
 
                 // Statystyki glowne
@@ -1818,60 +1964,47 @@ FROM FakturyPrzeterminowane;";
                 txtPlatMaxDni.Text = $"{maxDni} dni";
                 txtPlatMaxDniKlient.Text = maxDniKlient;
 
-                // Aging analysis - z prawidlowym podzialem per faktura
-                var agingTotal = agingData.Kwota030 + agingData.Kwota3160 + agingData.Kwota6190 + agingData.Kwota90Plus;
+                // Aging analysis - NOWE PRZEDZIALY: 1-7, 8-14, 15-21, 21+
+                var agingTotal = agingData.Kwota17 + agingData.Kwota814 + agingData.Kwota1521 + agingData.Kwota21Plus;
 
-                txtAging030.Text = $"{agingData.Kwota030:N0} zl";
-                txtAging030Procent.Text = $"{(agingTotal > 0 ? agingData.Kwota030 / agingTotal * 100 : 0):F0}%";
-                txtAging3160.Text = $"{agingData.Kwota3160:N0} zl";
-                txtAging3160Procent.Text = $"{(agingTotal > 0 ? agingData.Kwota3160 / agingTotal * 100 : 0):F0}%";
-                txtAging6190.Text = $"{agingData.Kwota6190:N0} zl";
-                txtAging6190Procent.Text = $"{(agingTotal > 0 ? agingData.Kwota6190 / agingTotal * 100 : 0):F0}%";
-                txtAging90Plus.Text = $"{agingData.Kwota90Plus:N0} zl";
-                txtAging90PlusProcent.Text = $"{(agingTotal > 0 ? agingData.Kwota90Plus / agingTotal * 100 : 0):F0}%";
+                // Aktualizuj teksty
+                txtAging17.Text = $"{agingData.Kwota17:N0} zl";
+                txtAging17Procent.Text = $"{(agingTotal > 0 ? agingData.Kwota17 / agingTotal * 100 : 0):F0}%";
+                txtAging814.Text = $"{agingData.Kwota814:N0} zl";
+                txtAging814Procent.Text = $"{(agingTotal > 0 ? agingData.Kwota814 / agingTotal * 100 : 0):F0}%";
+                txtAging1521.Text = $"{agingData.Kwota1521:N0} zl";
+                txtAging1521Procent.Text = $"{(agingTotal > 0 ? agingData.Kwota1521 / agingTotal * 100 : 0):F0}%";
+                txtAging21Plus.Text = $"{agingData.Kwota21Plus:N0} zl";
+                txtAging21PlusProcent.Text = $"{(agingTotal > 0 ? agingData.Kwota21Plus / agingTotal * 100 : 0):F0}%";
 
-                // Wykres przeterminowanych per handlowiec - jednolity kolor
-                var przeterminowanePerHandlowiec = dane
-                    .Where(d => d.Przeterminowane > 0)
-                    .GroupBy(d => d.Handlowiec)
-                    .Select(g => new { Handlowiec = g.Key, Kwota = g.Sum(x => x.Przeterminowane), Klientow = g.Count() })
-                    .OrderByDescending(x => x.Kwota)
+                // Aktualizuj slupki aging (szerokosci proporcjonalne)
+                var maxBarWidth = 150.0;
+                var maxAgingKwota = Math.Max(Math.Max(agingData.Kwota17, agingData.Kwota814), Math.Max(agingData.Kwota1521, agingData.Kwota21Plus));
+                if (maxAgingKwota > 0)
+                {
+                    barAging17.Width = (double)(agingData.Kwota17 / maxAgingKwota) * maxBarWidth;
+                    barAging814.Width = (double)(agingData.Kwota814 / maxAgingKwota) * maxBarWidth;
+                    barAging1521.Width = (double)(agingData.Kwota1521 / maxAgingKwota) * maxBarWidth;
+                    barAging21Plus.Width = (double)(agingData.Kwota21Plus / maxAgingKwota) * maxBarWidth;
+                }
+
+                // Rysuj donut chart
+                RysujDonut(sumaTerminowe, sumaPrzeterminowane);
+
+                // Top przeterminowani - 6 najgorszych
+                var topPrzeterminowani = dane
+                    .Where(d => d.Przeterminowane > 0 && d.DniPrzeterminowania.HasValue)
+                    .OrderByDescending(d => d.Przeterminowane)
+                    .Take(6)
+                    .Select((d, idx) => new TopPrzeterminowanyRow
+                    {
+                        Pozycja = idx + 1,
+                        Kontrahent = d.Kontrahent,
+                        Kwota = d.Przeterminowane,
+                        Dni = d.DniPrzeterminowania.Value
+                    })
                     .ToList();
-
-                if (przeterminowanePerHandlowiec.Any())
-                {
-                    var seriesHandlowiec = new SeriesCollection();
-                    var labelsHandlowiec = new List<string>();
-                    var wartosciHandlowiec = new ChartValues<double>();
-
-                    // Odwroc kolejnosc dla wyswietlania (najwyzszy na gorze = ostatni w liscie)
-                    for (int i = przeterminowanePerHandlowiec.Count - 1; i >= 0; i--)
-                    {
-                        var h = przeterminowanePerHandlowiec[i];
-                        labelsHandlowiec.Add($"{h.Handlowiec} ({h.Klientow})");
-                        wartosciHandlowiec.Add((double)h.Kwota);
-                    }
-
-                    // Jedna seria z jednolitym kolorem
-                    seriesHandlowiec.Add(new RowSeries
-                    {
-                        Title = "Przeterminowane",
-                        Values = wartosciHandlowiec,
-                        Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF6B6B")),
-                        DataLabels = true,
-                        LabelPoint = p => $"{p.X:N0} zl",
-                        Foreground = Brushes.White,
-                        MaxRowHeigth = 25
-                    });
-
-                    chartPrzeterminowaneHandlowiec.Series = seriesHandlowiec;
-                    axisYPrzeterminowaneHandlowiec.Labels = labelsHandlowiec;
-                }
-                else
-                {
-                    chartPrzeterminowaneHandlowiec.Series = new SeriesCollection();
-                    axisYPrzeterminowaneHandlowiec.Labels = new List<string>();
-                }
+                listTopPrzeterminowani.ItemsSource = topPrzeterminowani;
 
                 // Wskazniki platnosci
                 var daneZPrzeterminowaniem = dane.Where(d => d.DniPrzeterminowania.HasValue && d.DniPrzeterminowania.Value > 0).ToList();
@@ -1899,6 +2032,114 @@ FROM FakturyPrzeterminowane;";
             }
 
             gridPlatnosci.ItemsSource = dane;
+        }
+
+        /// <summary>
+        /// Rysuje wykres donut na Canvas
+        /// </summary>
+        private void RysujDonut(decimal terminowe, decimal przeterminowane)
+        {
+            canvasDonut.Children.Clear();
+
+            var total = terminowe + przeterminowane;
+            if (total <= 0)
+            {
+                txtDonutProcent.Text = "0%";
+                txtDonutTerminowe.Text = " Term. 0%";
+                txtDonutPrzeterminowane.Text = " Przet. 0%";
+                return;
+            }
+
+            var procentTerminowe = (double)(terminowe / total);
+            var procentPrzeterminowane = (double)(przeterminowane / total);
+
+            // Parametry donuta
+            var centerX = canvasDonut.Width / 2;
+            var centerY = canvasDonut.Height / 2;
+            var outerRadius = Math.Min(centerX, centerY) - 5;
+            var innerRadius = outerRadius * 0.6;
+
+            // Segment terminowe (zielony)
+            if (terminowe > 0)
+            {
+                var startAngle = -90.0; // Start od gory
+                var sweepAngle = procentTerminowe * 360.0;
+                var path = CreateArcPath(centerX, centerY, outerRadius, innerRadius, startAngle, sweepAngle, "#17A589");
+                canvasDonut.Children.Add(path);
+            }
+
+            // Segment przeterminowane (czerwony)
+            if (przeterminowane > 0)
+            {
+                var startAngle = -90.0 + procentTerminowe * 360.0;
+                var sweepAngle = procentPrzeterminowane * 360.0;
+                var path = CreateArcPath(centerX, centerY, outerRadius, innerRadius, startAngle, sweepAngle, "#EF4444");
+                canvasDonut.Children.Add(path);
+            }
+
+            // Aktualizuj teksty
+            txtDonutProcent.Text = $"{procentTerminowe * 100:F0}%";
+            txtDonutTerminowe.Text = $" Term. {procentTerminowe * 100:F0}%";
+            txtDonutPrzeterminowane.Text = $" Przet. {procentPrzeterminowane * 100:F0}%";
+        }
+
+        /// <summary>
+        /// Tworzy Path dla segmentu donuta
+        /// </summary>
+        private System.Windows.Shapes.Path CreateArcPath(double centerX, double centerY, double outerRadius, double innerRadius, double startAngle, double sweepAngle, string colorHex)
+        {
+            if (sweepAngle >= 360) sweepAngle = 359.99; // Unikaj problemu z pelnym kolem
+
+            var startRad = startAngle * Math.PI / 180;
+            var endRad = (startAngle + sweepAngle) * Math.PI / 180;
+
+            var outerStartX = centerX + outerRadius * Math.Cos(startRad);
+            var outerStartY = centerY + outerRadius * Math.Sin(startRad);
+            var outerEndX = centerX + outerRadius * Math.Cos(endRad);
+            var outerEndY = centerY + outerRadius * Math.Sin(endRad);
+
+            var innerStartX = centerX + innerRadius * Math.Cos(startRad);
+            var innerStartY = centerY + innerRadius * Math.Sin(startRad);
+            var innerEndX = centerX + innerRadius * Math.Cos(endRad);
+            var innerEndY = centerY + innerRadius * Math.Sin(endRad);
+
+            var isLargeArc = sweepAngle > 180;
+
+            var figure = new PathFigure
+            {
+                StartPoint = new Point(outerStartX, outerStartY),
+                IsClosed = true
+            };
+
+            // Zewnetrzny luk
+            figure.Segments.Add(new ArcSegment
+            {
+                Point = new Point(outerEndX, outerEndY),
+                Size = new Size(outerRadius, outerRadius),
+                IsLargeArc = isLargeArc,
+                SweepDirection = SweepDirection.Clockwise
+            });
+
+            // Linia do wewnetrznego konca
+            figure.Segments.Add(new LineSegment { Point = new Point(innerEndX, innerEndY) });
+
+            // Wewnetrzny luk (odwrotny kierunek)
+            figure.Segments.Add(new ArcSegment
+            {
+                Point = new Point(innerStartX, innerStartY),
+                Size = new Size(innerRadius, innerRadius),
+                IsLargeArc = isLargeArc,
+                SweepDirection = SweepDirection.Counterclockwise
+            });
+
+            var geometry = new PathGeometry();
+            geometry.Figures.Add(figure);
+
+            return new System.Windows.Shapes.Path
+            {
+                Data = geometry,
+                Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(colorHex))
+            };
         }
 
         private void GridPlatnosci_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
@@ -2014,9 +2255,10 @@ FROM FakturyPrzeterminowane;";
             : "";
     }
 
-    // Klasa do przechowywania danych aging per faktura
+    // Klasa do przechowywania danych aging per faktura - NOWE PRZEDZIALY
     public class AgingData
     {
+        // Stare przedzialy (dla kompatybilnosci)
         public decimal Kwota030 { get; set; }
         public decimal Kwota3160 { get; set; }
         public decimal Kwota6190 { get; set; }
@@ -2025,6 +2267,30 @@ FROM FakturyPrzeterminowane;";
         public int Faktur3160 { get; set; }
         public int Faktur6190 { get; set; }
         public int Faktur90Plus { get; set; }
+
+        // Nowe przedzialy: 1-7, 8-14, 15-21, 21+
+        public decimal Kwota17 { get; set; }
+        public decimal Kwota814 { get; set; }
+        public decimal Kwota1521 { get; set; }
+        public decimal Kwota21Plus { get; set; }
+        public int Faktur17 { get; set; }
+        public int Faktur814 { get; set; }
+        public int Faktur1521 { get; set; }
+        public int Faktur21PlusNew { get; set; }
+    }
+
+    // Klasa dla listy Top Przeterminowani
+    public class TopPrzeterminowanyRow
+    {
+        public int Pozycja { get; set; }
+        public string Kontrahent { get; set; }
+        public decimal Kwota { get; set; }
+        public int Dni { get; set; }
+
+        public string KwotaTekst => Kwota >= 1000000 ? $"{Kwota / 1000000:F1}M zl" :
+                                    Kwota >= 1000 ? $"{Kwota / 1000:F0}k zl" :
+                                    $"{Kwota:N0} zl";
+        public string DniTekst => $"{Dni} dni po terminie";
     }
 
     // Klasa danych dla tabeli analizy cen handlowcow
