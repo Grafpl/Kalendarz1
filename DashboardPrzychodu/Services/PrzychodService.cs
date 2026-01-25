@@ -766,9 +766,11 @@ namespace Kalendarz1.DashboardPrzychodu.Services
         }
 
         /// <summary>
-        /// Pobiera faktyczny przychód produkcji (PWP) z systemu Symfonia (Handel)
+        /// Pobiera faktyczny przychód produkcji (PWU) z systemu Symfonia (Handel)
         /// Zwraca (FaktKlasaA, FaktKlasaB) w kg
-        /// Katalog 67095 = Kurczak A, Katalog 67153 = Kurczak B
+        /// Seria sPWU = Przychód Wewnętrzny Uboju
+        /// Kurczak A = produkty z katalogów 67095/67153 gdzie kod zawiera "Kurczak A"
+        /// Kurczak B = produkty z katalogów 67095/67153 gdzie kod zawiera "Kurczak B"
         /// </summary>
         public async Task<(decimal KlasaA, decimal KlasaB)> GetFaktycznyPrzychodAsync(DateTime data)
         {
@@ -779,21 +781,28 @@ namespace Kalendarz1.DashboardPrzychodu.Services
             const string handelConnStr =
                 "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True;Connection Timeout=10;";
 
-            // Zapytanie pobierające sumy z dokumentów PWP per katalog produktu
-            // Katalog 67095 = Kurczak A (tuszki całe)
-            // Katalog 67153 = Kurczak B (elementy do krojenia)
+            // Zapytanie pobierające sumy z dokumentów PWU (Przychód Wewnętrzny Uboju)
+            // Grupuje po nazwie produktu - Kurczak A vs Kurczak B
             const string query = @"
                 SELECT
-                    TW.katalog AS Katalog,
+                    CASE
+                        WHEN TW.kod LIKE '%Kurczak A%' THEN 'A'
+                        WHEN TW.kod LIKE '%Kurczak B%' THEN 'B'
+                        ELSE 'X'
+                    END AS Klasa,
                     SUM(ABS(MZ.ilosc)) AS Ilosc
                 FROM [HM].[MZ] MZ
                 JOIN [HM].[MG] MG ON MZ.super = MG.id
                 JOIN [HM].[TW] TW ON MZ.idtw = TW.ID
-                WHERE MG.seria IN ('sPWP', 'PWP')
+                WHERE MG.seria = 'sPWU'
                   AND MG.aktywny = 1
                   AND MG.data = @Data
                   AND TW.katalog IN (67095, 67153)
-                GROUP BY TW.katalog";
+                GROUP BY CASE
+                    WHEN TW.kod LIKE '%Kurczak A%' THEN 'A'
+                    WHEN TW.kod LIKE '%Kurczak B%' THEN 'B'
+                    ELSE 'X'
+                END";
 
             try
             {
@@ -809,20 +818,21 @@ namespace Kalendarz1.DashboardPrzychodu.Services
                         {
                             while (await reader.ReadAsync())
                             {
-                                int katalog = reader.GetInt32(reader.GetOrdinal("Katalog"));
+                                string klasa = reader.IsDBNull(reader.GetOrdinal("Klasa"))
+                                    ? "X" : reader.GetString(reader.GetOrdinal("Klasa"));
                                 decimal ilosc = reader.IsDBNull(reader.GetOrdinal("Ilosc"))
                                     ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("Ilosc")));
 
-                                if (katalog == 67095)
+                                if (klasa == "A")
                                     faktA = ilosc;
-                                else if (katalog == 67153)
+                                else if (klasa == "B")
                                     faktB = ilosc;
                             }
                         }
                     }
                 }
 
-                Debug.WriteLine($"[PrzychodService] Faktyczny przychód Symfonia: A={faktA:N0} kg, B={faktB:N0} kg");
+                Debug.WriteLine($"[PrzychodService] Faktyczny przychód Symfonia (sPWU): A={faktA:N0} kg, B={faktB:N0} kg");
             }
             catch (Exception ex)
             {

@@ -594,7 +594,7 @@
                                             <TextBlock Text="Fakt:" FontSize="9" Foreground="#78716c"/>
                                             <TextBlock x:Name="txtKlasaAFaktSidebar" Text="-" FontSize="10" FontWeight="Bold"
                                                        Foreground="#60a5fa" HorizontalAlignment="Right"
-                                                       ToolTip="Faktyczny przychód z systemu Symfonia (PWP)"/>
+                                                       ToolTip="Faktyczny przychód z systemu Symfonia (sPWU)"/>
                                         </Grid>
                                     </StackPanel>
                                 </Border>
@@ -616,7 +616,7 @@
                                             <TextBlock Text="Fakt:" FontSize="9" Foreground="#78716c"/>
                                             <TextBlock x:Name="txtKlasaBFaktSidebar" Text="-" FontSize="10" FontWeight="Bold"
                                                        Foreground="#60a5fa" HorizontalAlignment="Right"
-                                                       ToolTip="Faktyczny przychód z systemu Symfonia (PWP)"/>
+                                                       ToolTip="Faktyczny przychód z systemu Symfonia (sPWU)"/>
                                         </Grid>
                                     </StackPanel>
                                 </Border>
