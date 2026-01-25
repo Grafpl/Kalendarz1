@@ -1,0 +1,221 @@
+<Window x:Class="Kalendarz1.CRM.ImportCSVWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Import klientów z CSV"
+        Width="900" Height="650"
+        WindowStartupLocation="CenterScreen"
+        Background="#FAFAFA"
+        FontFamily="Segoe UI">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="PrimaryColor" Color="#16A34A"/>
+        <SolidColorBrush x:Key="TextDark" Color="#111827"/>
+        <SolidColorBrush x:Key="TextGray" Color="#6B7280"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E5E7EB"/>
+
+        <Style x:Key="BtnPrimary" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource PrimaryColor}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.9"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="BtnSecondary" TargetType="Button">
+            <Setter Property="Background" Value="#F3F4F6"/>
+            <Setter Property="Foreground" Value="{StaticResource TextDark}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#E5E7EB"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,20">
+            <TextBlock Text="Import klientów z CSV" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextDark}"/>
+            <TextBlock Text="Przyporządkuj kolumny z pliku CSV do pól w bazie danych" FontSize="13" Foreground="{StaticResource TextGray}" Margin="0,5,0,0"/>
+        </StackPanel>
+
+        <!-- Mapowanie kolumn -->
+        <Border Grid.Row="1" Background="White" CornerRadius="8" Padding="15" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" Margin="0,0,0,15">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Row 1 -->
+                <StackPanel Grid.Row="0" Grid.Column="0" Margin="5">
+                    <TextBlock Text="Nazwa firmy *" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextGray}" Margin="0,0,0,4"/>
+                    <ComboBox x:Name="cmbNazwa" Height="30"/>
+                </StackPanel>
+                <StackPanel Grid.Row="0" Grid.Column="1" Margin="5">
+                    <TextBlock Text="Telefon" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextGray}" Margin="0,0,0,4"/>
+                    <ComboBox x:Name="cmbTelefon" Height="30"/>
+                </StackPanel>
+                <StackPanel Grid.Row="0" Grid.Column="2" Margin="5">
+                    <TextBlock Text="Email" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextGray}" Margin="0,0,0,4"/>
+                    <ComboBox x:Name="cmbEmail" Height="30"/>
+                </StackPanel>
+                <StackPanel Grid.Row="0" Grid.Column="3" Margin="5">
+                    <TextBlock Text="Miasto" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextGray}" Margin="0,0,0,4"/>
+                    <ComboBox x:Name="cmbMiasto" Height="30"/>
+                </StackPanel>
+
+                <!-- Row 2 -->
+                <StackPanel Grid.Row="1" Grid.Column="0" Margin="5">
+                    <TextBlock Text="Ulica" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextGray}" Margin="0,0,0,4"/>
+                    <ComboBox x:Name="cmbUlica" Height="30"/>
+                </StackPanel>
+                <StackPanel Grid.Row="1" Grid.Column="1" Margin="5">
+                    <TextBlock Text="Kod pocztowy" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextGray}" Margin="0,0,0,4"/>
+                    <ComboBox x:Name="cmbKod" Height="30"/>
+                </StackPanel>
+                <StackPanel Grid.Row="1" Grid.Column="2" Margin="5">
+                    <TextBlock Text="Województwo" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextGray}" Margin="0,0,0,4"/>
+                    <ComboBox x:Name="cmbWojewodztwo" Height="30"/>
+                </StackPanel>
+                <StackPanel Grid.Row="1" Grid.Column="3" Margin="5">
+                    <TextBlock Text="Branża (PKD)" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextGray}" Margin="0,0,0,4"/>
+                    <ComboBox x:Name="cmbBranza" Height="30"/>
+                </StackPanel>
+
+                <!-- Row 3 -->
+                <StackPanel Grid.Row="2" Grid.Column="0" Margin="5">
+                    <TextBlock Text="NIP" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextGray}" Margin="0,0,0,4"/>
+                    <ComboBox x:Name="cmbNIP" Height="30"/>
+                </StackPanel>
+                <StackPanel Grid.Row="2" Grid.Column="1" Margin="5">
+                    <TextBlock Text="Osoba kontaktowa" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextGray}" Margin="0,0,0,4"/>
+                    <ComboBox x:Name="cmbOsoba" Height="30"/>
+                </StackPanel>
+                <StackPanel Grid.Row="2" Grid.Column="2" Margin="5">
+                    <TextBlock Text="WWW" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextGray}" Margin="0,0,0,4"/>
+                    <ComboBox x:Name="cmbWWW" Height="30"/>
+                </StackPanel>
+                <StackPanel Grid.Row="2" Grid.Column="3" Margin="5">
+                    <TextBlock Text="Separator" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextGray}" Margin="0,0,0,4"/>
+                    <ComboBox x:Name="cmbSeparator" Height="30" SelectedIndex="0" SelectionChanged="CmbSeparator_Changed">
+                        <ComboBoxItem Content="Średnik (;)"/>
+                        <ComboBoxItem Content="Przecinek (,)"/>
+                        <ComboBoxItem Content="Tabulacja"/>
+                    </ComboBox>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Podgląd danych -->
+        <Border Grid.Row="2" Background="White" CornerRadius="8" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" ClipToBounds="True">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Background="#F9FAFB" Padding="12,8" BorderBrush="{StaticResource BorderColor}" BorderThickness="0,0,0,1">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Podgląd danych" FontWeight="Bold" FontSize="13" Foreground="{StaticResource TextDark}"/>
+                        <TextBlock x:Name="txtLiczbaWierszy" Text=" (0 wierszy)" FontSize="13" Foreground="{StaticResource TextGray}"/>
+                    </StackPanel>
+                </Border>
+
+                <DataGrid x:Name="dgPreview" Grid.Row="1" AutoGenerateColumns="True" IsReadOnly="True"
+                          HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                          BorderThickness="0" Background="White" RowHeaderWidth="0"
+                          CanUserAddRows="False" CanUserDeleteRows="False">
+                    <DataGrid.ColumnHeaderStyle>
+                        <Style TargetType="DataGridColumnHeader">
+                            <Setter Property="Background" Value="#F3F4F6"/>
+                            <Setter Property="Foreground" Value="{StaticResource TextGray}"/>
+                            <Setter Property="Padding" Value="10,8"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                            <Setter Property="FontSize" Value="11"/>
+                        </Style>
+                    </DataGrid.ColumnHeaderStyle>
+                    <DataGrid.RowStyle>
+                        <Style TargetType="DataGridRow">
+                            <Setter Property="Height" Value="35"/>
+                            <Setter Property="FontSize" Value="12"/>
+                        </Style>
+                    </DataGrid.RowStyle>
+                </DataGrid>
+            </Grid>
+        </Border>
+
+        <!-- Opcje -->
+        <Border Grid.Row="3" Background="#FEF3C7" CornerRadius="6" Padding="12,10" Margin="0,15,0,0">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="!" FontWeight="Bold" FontSize="14" Foreground="#92400E" Margin="0,0,10,0"/>
+                <CheckBox x:Name="chkPominDuplikaty" Content="Pomiń duplikaty (firmy o tej samej nazwie)" IsChecked="True" FontSize="12" Foreground="#92400E" VerticalContentAlignment="Center"/>
+                <CheckBox x:Name="chkPrzypisz" Content="Przypisz do mnie" IsChecked="True" FontSize="12" Foreground="#92400E" VerticalContentAlignment="Center" Margin="20,0,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Przyciski -->
+        <Grid Grid.Row="4" Margin="0,20,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                <TextBlock x:Name="txtStatus" Text="" FontSize="12" Foreground="{StaticResource TextGray}" VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <Button Grid.Column="1" Content="Anuluj" Style="{StaticResource BtnSecondary}" Click="BtnAnuluj_Click" Margin="0,0,10,0"/>
+            <Button x:Name="btnImportuj" Grid.Column="2" Content="Importuj" Style="{StaticResource BtnPrimary}" Click="BtnImportuj_Click"/>
+        </Grid>
+    </Grid>
+</Window>

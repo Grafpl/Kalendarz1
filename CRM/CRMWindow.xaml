@@ -170,6 +170,13 @@
                         </ProgressBar>
                     </StackPanel>
 
+                    <!-- Eksport/Import -->
+                    <Button Content="📥 Import" Style="{StaticResource BtnIcon}" Click="BtnImportCSV_Click" ToolTip="Importuj klientów z CSV"/>
+                    <Button Content="📤 Excel" Style="{StaticResource BtnIcon}" Click="BtnExportExcel_Click" ToolTip="Eksportuj do Excel"/>
+                    <Button x:Name="btnKalendarz" Content="📅 Kalendarz" Style="{StaticResource BtnIcon}" Click="BtnKalendarz_Click" ToolTip="Kalendarz kontaktów"/>
+
+                    <Border Width="1" Height="24" Background="{StaticResource BorderColor}" Margin="8,0"/>
+
                     <Button Content="📊 Kanban" Style="{StaticResource BtnIcon}" Click="BtnKanban_Click"/>
                     <Button Content="📈 Dashboard" Style="{StaticResource BtnIcon}" Click="BtnDashboard_Click" Foreground="#DC2626" FontWeight="Bold"/>
                     <Button x:Name="btnManager" Content="👔 Szef" Style="{StaticResource BtnIcon}" Click="BtnManager_Click" Foreground="{StaticResource DangerColor}" FontWeight="Bold"/>

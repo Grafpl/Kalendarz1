@@ -1,10 +1,14 @@
 using Kalendarz1.OfertaCenowa;
 using Microsoft.Data.SqlClient;
+using Microsoft.Win32;
+using ClosedXML.Excel;
 using System;
 using System.Collections.ObjectModel;
 using System.Data;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -683,6 +687,128 @@ namespace Kalendarz1.CRM
                 string origin = System.Net.WebUtility.UrlEncode("Koziołki 40, 95-061 Dmosin");
                 Process.Start(new ProcessStartInfo($"https://www.google.com/maps/dir/{origin}/{query}") { UseShellExecute = true });
             }
+        }
+        #endregion
+
+        #region Eksport / Import
+        private void BtnExportExcel_Click(object sender, RoutedEventArgs e)
+        {
+            if (dtKontakty == null || dtKontakty.Rows.Count == 0)
+            {
+                MessageBox.Show("Brak danych do eksportu.", "Eksport", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var saveDialog = new SaveFileDialog
+            {
+                Filter = "Excel Files (*.xlsx)|*.xlsx",
+                FileName = $"CRM_Eksport_{DateTime.Now:yyyy-MM-dd_HHmm}.xlsx",
+                Title = "Zapisz eksport do Excel"
+            };
+
+            if (saveDialog.ShowDialog() == true)
+            {
+                try
+                {
+                    using (var workbook = new XLWorkbook())
+                    {
+                        var worksheet = workbook.Worksheets.Add("Klienci CRM");
+
+                        // Nagłówki
+                        string[] headers = { "ID", "Nazwa", "Status", "Telefon", "Email", "Miasto", "Ulica", "Kod", "Województwo", "Branża", "Tagi", "Handlowiec", "Data kontaktu", "Km" };
+                        for (int i = 0; i < headers.Length; i++)
+                        {
+                            worksheet.Cell(1, i + 1).Value = headers[i];
+                            worksheet.Cell(1, i + 1).Style.Font.Bold = true;
+                            worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = XLColor.FromHtml("#16A34A");
+                            worksheet.Cell(1, i + 1).Style.Font.FontColor = XLColor.White;
+                        }
+
+                        // Dane - eksportuj przefiltrowane dane
+                        var view = dtKontakty.DefaultView;
+                        int row = 2;
+                        foreach (DataRowView drv in view)
+                        {
+                            worksheet.Cell(row, 1).Value = drv["ID"]?.ToString();
+                            worksheet.Cell(row, 2).Value = drv["NAZWA"]?.ToString();
+                            worksheet.Cell(row, 3).Value = drv["Status"]?.ToString();
+                            worksheet.Cell(row, 4).Value = drv["TELEFON_K"]?.ToString();
+                            worksheet.Cell(row, 5).Value = drv["Email"]?.ToString();
+                            worksheet.Cell(row, 6).Value = drv["MIASTO"]?.ToString();
+                            worksheet.Cell(row, 7).Value = drv["ULICA"]?.ToString();
+                            worksheet.Cell(row, 8).Value = drv["KOD"]?.ToString();
+                            worksheet.Cell(row, 9).Value = drv["Wojewodztwo"]?.ToString();
+                            worksheet.Cell(row, 10).Value = drv["PKD_Opis"]?.ToString();
+                            worksheet.Cell(row, 11).Value = drv["Tagi"]?.ToString();
+                            worksheet.Cell(row, 12).Value = drv["OstatniHandlowiec"]?.ToString();
+                            if (drv["DataNastepnegoKontaktu"] != DBNull.Value)
+                                worksheet.Cell(row, 13).Value = ((DateTime)drv["DataNastepnegoKontaktu"]).ToString("yyyy-MM-dd");
+                            worksheet.Cell(row, 14).Value = drv["Km"]?.ToString();
+                            row++;
+                        }
+
+                        // Autofit kolumn
+                        worksheet.Columns().AdjustToContents();
+
+                        // Dodaj filtry
+                        worksheet.RangeUsed().SetAutoFilter();
+
+                        workbook.SaveAs(saveDialog.FileName);
+                    }
+
+                    ShowToast($"Wyeksportowano {dtKontakty.DefaultView.Count} klientów do Excel!");
+
+                    // Otwórz plik
+                    if (MessageBox.Show("Eksport zakończony. Czy chcesz otworzyć plik?", "Eksport", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                    {
+                        Process.Start(new ProcessStartInfo(saveDialog.FileName) { UseShellExecute = true });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd podczas eksportu: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        private void BtnImportCSV_Click(object sender, RoutedEventArgs e)
+        {
+            var openDialog = new OpenFileDialog
+            {
+                Filter = "CSV Files (*.csv)|*.csv|Text Files (*.txt)|*.txt",
+                Title = "Wybierz plik CSV do importu"
+            };
+
+            if (openDialog.ShowDialog() == true)
+            {
+                try
+                {
+                    var lines = File.ReadAllLines(openDialog.FileName, Encoding.UTF8);
+                    if (lines.Length < 2)
+                    {
+                        MessageBox.Show("Plik jest pusty lub zawiera tylko nagłówki.", "Import", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+
+                    // Okno podglądu i mapowania
+                    var importWindow = new ImportCSVWindow(lines, connectionString, operatorID);
+                    if (importWindow.ShowDialog() == true)
+                    {
+                        WczytajDane();
+                        ShowToast($"Zaimportowano {importWindow.ImportedCount} klientów!");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd podczas wczytywania pliku: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        private void BtnKalendarz_Click(object sender, RoutedEventArgs e)
+        {
+            var kalendarz = new KalendarzCRMWindow(connectionString, operatorID);
+            kalendarz.Show();
         }
         #endregion
     }
