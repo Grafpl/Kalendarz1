@@ -92,8 +92,8 @@ BEGIN
         o.Wojewodztwo,
         ISNULL(o.Status, 'Do zadzwonienia') as Status,
         o.PKD_Opis as Branza,
-        (SELECT TOP 1 n.Tresc FROM NotatkiCRM n WHERE n.IDOdbiorcy = o.ID ORDER BY n.DataDodania DESC) as OstatniaNota,
-        (SELECT TOP 1 n.DataDodania FROM NotatkiCRM n WHERE n.IDOdbiorcy = o.ID ORDER BY n.DataDodania DESC) as DataOstatniejNotatki
+        (SELECT TOP 1 n.Tresc FROM NotatkiCRM n WHERE n.IDOdbiorcy = o.ID ORDER BY n.DataUtworzenia DESC) as OstatniaNota,
+        (SELECT TOP 1 n.DataUtworzenia FROM NotatkiCRM n WHERE n.IDOdbiorcy = o.ID ORDER BY n.DataUtworzenia DESC) as DataOstatniejNotatki
     FROM OdbiorcyCRM o
     LEFT JOIN WlascicieleOdbiorcow w ON o.ID = w.IDOdbiorcy
     WHERE
