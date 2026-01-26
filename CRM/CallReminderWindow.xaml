@@ -11,6 +11,9 @@
         ResizeMode="NoResize">
 
     <Window.Resources>
+        <!-- Converters -->
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+
         <!-- Colors -->
         <Color x:Key="BgPrimary">#0F172A</Color>
         <Color x:Key="BgSecondary">#1E293B</Color>

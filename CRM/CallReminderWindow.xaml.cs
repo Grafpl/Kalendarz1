@@ -31,9 +31,6 @@ namespace Kalendarz1.CRM
             _userID = userID;
             _config = config;
 
-            // Add BoolToVisibility converter
-            Resources.Add("BoolToVisibility", new BooleanToVisibilityConverter());
-
             txtTime.Text = DateTime.Now.ToString("HH:mm");
             LoadContacts();
         }
