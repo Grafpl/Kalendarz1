@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Input;
+using System.Windows.Media;
 using Microsoft.Data.SqlClient;
 using Kalendarz1.CRM.Models;
 using Kalendarz1.CRM.Services;
@@ -17,29 +20,17 @@ namespace Kalendarz1.CRM
         private readonly string _connectionString;
         private readonly string _userID;
         private readonly CallReminderConfig _config;
-        private List<ContactToCall> _contacts;
+        private ObservableCollection<ContactToCall> _contacts;
+        private ContactToCall _selectedContact;
         private int _reminderLogID;
         private int _callsCount = 0;
         private int _notesCount = 0;
         private int _statusChangesCount = 0;
-        private int _currentTipIndex = 0;
 
-        private static readonly string[] Tips = new[]
+        private static readonly string[] Statuses = new[]
         {
-            "Uśmiechnij się przed połączeniem - rozmówca to wyczuje!",
-            "Przygotuj 2-3 pytania przed każdą rozmową.",
-            "Słuchaj więcej niż mówisz - to klucz do sukcesu.",
-            "Notuj kluczowe informacje podczas rozmowy.",
-            "Najlepszy czas na telefony to 10:00-11:30 i 14:00-16:00.",
-            "Zawsze podsumuj ustalenia na koniec rozmowy.",
-            "Personalizuj rozmowę - wspomnij o branży klienta.",
-            "Bądź cierpliwy - nie wszyscy odbierają za pierwszym razem.",
-            "Używaj imienia rozmówcy - buduje to relację.",
-            "Po każdej rozmowie zapisz notatkę - pomaga w kolejnych kontaktach.",
-            "Zadawaj pytania otwarte, żeby poznać potrzeby klienta.",
-            "Mów spokojnie i wyraźnie - to buduje zaufanie.",
-            "Przygotuj krótką prezentację swojej oferty.",
-            "Pamiętaj o uprzejmym pożegnaniu nawet przy odmowie."
+            "Nowy", "W trakcie", "Gorący", "Oferta wysłana", "Negocjacje",
+            "Zgoda na dalszy kontakt", "Nie zainteresowany", "Zamknięty"
         };
 
         public CallReminderWindow(string connectionString, string userID, CallReminderConfig config)
@@ -50,44 +41,24 @@ namespace Kalendarz1.CRM
             _userID = userID;
             _config = config;
 
-            InitializeUI();
-            LoadContacts();
-            LoadTodayStats();
-        }
+            _contacts = new ObservableCollection<ContactToCall>();
 
-        private void InitializeUI()
-        {
-            // Set current time and date
-            txtTime.Text = DateTime.Now.ToString("HH:mm");
-
-            var culture = new CultureInfo("pl-PL");
-            var dayName = culture.DateTimeFormat.GetDayName(DateTime.Now.DayOfWeek);
-            dayName = char.ToUpper(dayName[0]) + dayName.Substring(1);
-            txtDate.Text = $"{dayName}, {DateTime.Now:dd MMMM}";
-
-            // Set random tip
-            var random = new Random();
-            _currentTipIndex = random.Next(Tips.Length);
-            txtTip.Text = Tips[_currentTipIndex];
-
-            // Set motivational messages
-            var motivations = new[]
+            // Enable window dragging
+            this.MouseLeftButtonDown += (s, e) =>
             {
-                "💪 Każdy telefon to szansa na sukces!",
-                "🎯 Dzisiaj może być Twój najlepszy dzień!",
-                "⭐ Każda rozmowa to krok do celu!",
-                "🚀 Czas podbijać świat telefonami!",
-                "💼 Profesjonalizm to Twoja supermoc!",
-                "🏆 Sukces jest tuż za rogiem!"
+                if (e.LeftButton == MouseButtonState.Pressed)
+                    this.DragMove();
             };
-            txtMotivation.Text = motivations[random.Next(motivations.Length)];
+
+            LoadContacts();
+            InitializeStatusButtons();
         }
 
         private void LoadContacts()
         {
-            _contacts = CallReminderService.Instance.GetRandomContacts(_config?.ContactsPerReminder ?? 5);
+            var contacts = CallReminderService.Instance.GetRandomContacts(_config?.ContactsPerReminder ?? 5);
 
-            if (_contacts.Count == 0)
+            if (contacts.Count == 0)
             {
                 MessageBox.Show("Brak kontaktów do wyświetlenia.\nWszystkie kontakty zostały już dziś obsłużone lub nie ma kontaktów spełniających kryteria.",
                     "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -95,215 +66,462 @@ namespace Kalendarz1.CRM
                 return;
             }
 
+            _contacts.Clear();
+            foreach (var contact in contacts)
+            {
+                _contacts.Add(contact);
+            }
+
             contactsList.ItemsSource = _contacts;
-            txtSubtitle.Text = $"Zadzwoń do {_contacts.Count} losowych kontaktów";
-            txtProgress.Text = $"0 / {_contacts.Count} obsłużonych";
-            progressBar.Maximum = 100;
-            progressBar.Value = 0;
-            txtProgressPercent.Text = " 0%";
+            txtContactsCount.Text = $"Kontakty ({_contacts.Count})";
+            UpdateProgress();
 
             // Create reminder log
             _reminderLogID = CallReminderService.Instance.CreateReminderLog(_contacts.Count);
+
+            // Select first contact
+            if (_contacts.Count > 0)
+            {
+                SelectContact(_contacts[0]);
+            }
+
+            // Add click handlers to contact items
+            contactsList.AddHandler(UIElement.MouseLeftButtonUpEvent, new MouseButtonEventHandler(ContactItem_Click), true);
         }
 
-        private void LoadTodayStats()
+        private void ContactItem_Click(object sender, MouseButtonEventArgs e)
         {
-            try
+            // Find the clicked contact
+            var element = e.OriginalSource as FrameworkElement;
+            while (element != null && !(element.DataContext is ContactToCall))
             {
-                using var conn = new SqlConnection(_connectionString);
-                conn.Open();
-
-                // Today's contacts shown
-                var cmdContacts = new SqlCommand(
-                    "SELECT ISNULL(SUM(ContactsShown), 0) FROM CallReminderLog WHERE UserID = @user AND CAST(ReminderTime AS DATE) = CAST(GETDATE() AS DATE)", conn);
-                cmdContacts.Parameters.AddWithValue("@user", _userID);
-                var contactsToday = Convert.ToInt32(cmdContacts.ExecuteScalar());
-                txtStatContactsToday.Text = contactsToday.ToString();
-
-                // Today's calls made
-                var cmdCalls = new SqlCommand(
-                    "SELECT ISNULL(SUM(ContactsCalled), 0) FROM CallReminderLog WHERE UserID = @user AND CAST(ReminderTime AS DATE) = CAST(GETDATE() AS DATE)", conn);
-                cmdCalls.Parameters.AddWithValue("@user", _userID);
-                var callsToday = Convert.ToInt32(cmdCalls.ExecuteScalar());
-                txtStatCallsMade.Text = callsToday.ToString();
-
-                // Today's notes added
-                var cmdNotes = new SqlCommand(
-                    "SELECT ISNULL(SUM(NotesAdded), 0) FROM CallReminderLog WHERE UserID = @user AND CAST(ReminderTime AS DATE) = CAST(GETDATE() AS DATE)", conn);
-                cmdNotes.Parameters.AddWithValue("@user", _userID);
-                var notesToday = Convert.ToInt32(cmdNotes.ExecuteScalar());
-                txtStatNotesAdded.Text = notesToday.ToString();
-
-                // Success rate (this week)
-                var cmdRate = new SqlCommand(
-                    @"SELECT
-                        CASE WHEN ISNULL(SUM(ContactsShown), 0) > 0
-                        THEN CAST(SUM(ContactsCalled) * 100.0 / SUM(ContactsShown) AS DECIMAL(5,0))
-                        ELSE 0 END
-                      FROM CallReminderLog
-                      WHERE UserID = @user AND ReminderTime >= DATEADD(DAY, -7, GETDATE())", conn);
-                cmdRate.Parameters.AddWithValue("@user", _userID);
-                var rate = Convert.ToInt32(cmdRate.ExecuteScalar());
-                txtStatSuccessRate.Text = $"{rate}%";
+                element = VisualTreeHelper.GetParent(element) as FrameworkElement;
             }
-            catch
+
+            if (element?.DataContext is ContactToCall contact)
             {
-                // Stats are optional, ignore errors
+                SelectContact(contact);
             }
+        }
+
+        private void SelectContact(ContactToCall contact)
+        {
+            // Deselect previous
+            if (_selectedContact != null)
+            {
+                _selectedContact.IsSelected = false;
+            }
+
+            _selectedContact = contact;
+            contact.IsSelected = true;
+
+            // Update details panel
+            txtCompanyName.Text = contact.Nazwa ?? "Brak nazwy";
+            txtAddress.Text = contact.FullAddress;
+            txtNIP.Text = contact.HasNIP ? $"NIP: {contact.NIP}" : "";
+
+            // PKD Section
+            if (contact.HasPKD)
+            {
+                pkdSection.Visibility = Visibility.Visible;
+                txtPKDCode.Text = contact.PKD;
+                txtPKDName.Text = contact.PKDNazwa ?? contact.Branza ?? "";
+            }
+            else
+            {
+                pkdSection.Visibility = Visibility.Collapsed;
+            }
+
+            // Phone section
+            txtMainPhone.Text = FormatPhoneNumber(contact.Telefon);
+            txtPhone2.Text = contact.Telefon2 ?? "";
+            txtEmail.Text = contact.Email ?? "-";
+            emailStack.Visibility = contact.HasEmail ? Visibility.Visible : Visibility.Collapsed;
+            btnCall.IsEnabled = !string.IsNullOrWhiteSpace(contact.Telefon);
+
+            // Status badge
+            UpdateStatusBadge(contact.Status);
+
+            // Last note
+            if (contact.HasLastNote)
+            {
+                lastNoteSection.Visibility = Visibility.Visible;
+                txtLastNote.Text = contact.OstatniaNota;
+                txtLastNoteAuthor.Text = $"{contact.OstatniaNotaAutor ?? ""} • {contact.LastNoteDate}";
+            }
+            else
+            {
+                lastNoteSection.Visibility = Visibility.Collapsed;
+            }
+
+            // Clear new note
+            txtNewNote.Text = "";
+
+            // Footer stats
+            txtCallCount.Text = $"{contact.CallCount} połączeń";
+            txtLastCall.Text = contact.LastCallFormatted;
+            txtAssignedTo.Text = contact.AssignedTo ?? "-";
+
+            // Update status buttons selection
+            UpdateStatusButtonsSelection(contact.Status);
+
+            // Refresh list to show selection
+            contactsList.Items.Refresh();
+        }
+
+        private string FormatPhoneNumber(string phone)
+        {
+            if (string.IsNullOrWhiteSpace(phone)) return "-";
+            var clean = phone.Replace(" ", "").Replace("-", "");
+            if (clean.Length == 9)
+            {
+                return $"+48 {clean.Substring(0, 3)} {clean.Substring(3, 3)} {clean.Substring(6, 3)}";
+            }
+            return phone;
+        }
+
+        private void UpdateStatusBadge(string status)
+        {
+            var contact = new ContactToCall { Status = status };
+            statusBadgeMain.Background = contact.StatusBackground;
+            txtStatusMain.Text = status ?? "-";
+            txtStatusMain.Foreground = contact.StatusColor;
+        }
+
+        private void InitializeStatusButtons()
+        {
+            statusButtons.Children.Clear();
+
+            foreach (var status in Statuses)
+            {
+                var btn = new RadioButton
+                {
+                    Content = status,
+                    Tag = status,
+                    GroupName = "StatusGroup",
+                    Margin = new Thickness(0, 0, 8, 8)
+                };
+
+                // Style the button
+                var contact = new ContactToCall { Status = status };
+                btn.Style = CreateStatusButtonStyle(contact.StatusColor, contact.StatusBackground);
+                btn.Checked += StatusButton_Checked;
+
+                statusButtons.Children.Add(btn);
+            }
+        }
+
+        private Style CreateStatusButtonStyle(SolidColorBrush textColor, SolidColorBrush bgColor)
+        {
+            var style = new Style(typeof(RadioButton));
+
+            style.Setters.Add(new Setter(RadioButton.BackgroundProperty, new SolidColorBrush(Color.FromArgb(8, 255, 255, 255))));
+            style.Setters.Add(new Setter(RadioButton.ForegroundProperty, new SolidColorBrush(Color.FromArgb(102, 255, 255, 255))));
+            style.Setters.Add(new Setter(RadioButton.PaddingProperty, new Thickness(16, 8, 16, 8)));
+            style.Setters.Add(new Setter(RadioButton.FontSizeProperty, 12.0));
+            style.Setters.Add(new Setter(RadioButton.CursorProperty, Cursors.Hand));
+
+            var template = new ControlTemplate(typeof(RadioButton));
+            var borderFactory = new FrameworkElementFactory(typeof(Border));
+            borderFactory.Name = "bd";
+            borderFactory.SetValue(Border.BackgroundProperty, new TemplateBindingExtension(RadioButton.BackgroundProperty));
+            borderFactory.SetValue(Border.BorderBrushProperty, new SolidColorBrush(Color.FromArgb(20, 255, 255, 255)));
+            borderFactory.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+            borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(8));
+            borderFactory.SetValue(Border.PaddingProperty, new TemplateBindingExtension(RadioButton.PaddingProperty));
+
+            var contentPresenter = new FrameworkElementFactory(typeof(ContentPresenter));
+            contentPresenter.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            contentPresenter.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
+            borderFactory.AppendChild(contentPresenter);
+
+            template.VisualTree = borderFactory;
+
+            // Triggers
+            var checkedTrigger = new Trigger { Property = RadioButton.IsCheckedProperty, Value = true };
+            checkedTrigger.Setters.Add(new Setter(RadioButton.BackgroundProperty, bgColor, "bd"));
+            checkedTrigger.Setters.Add(new Setter(RadioButton.ForegroundProperty, textColor));
+            checkedTrigger.Setters.Add(new Setter(Border.BorderBrushProperty, textColor, "bd"));
+            template.Triggers.Add(checkedTrigger);
+
+            var hoverTrigger = new Trigger { Property = RadioButton.IsMouseOverProperty, Value = true };
+            hoverTrigger.Setters.Add(new Setter(RadioButton.BackgroundProperty, new SolidColorBrush(Color.FromArgb(20, 255, 255, 255)), "bd"));
+            template.Triggers.Add(hoverTrigger);
+
+            style.Setters.Add(new Setter(RadioButton.TemplateProperty, template));
+
+            return style;
+        }
+
+        private void UpdateStatusButtonsSelection(string status)
+        {
+            foreach (RadioButton btn in statusButtons.Children)
+            {
+                btn.IsChecked = btn.Tag?.ToString() == status;
+            }
+        }
+
+        private void StatusButton_Checked(object sender, RoutedEventArgs e)
+        {
+            if (sender is RadioButton btn && _selectedContact != null)
+            {
+                var newStatus = btn.Tag?.ToString();
+                if (newStatus != _selectedContact.Status)
+                {
+                    ChangeContactStatus(_selectedContact, newStatus);
+                }
+            }
+        }
+
+        private void StatusBadge_Click(object sender, MouseButtonEventArgs e)
+        {
+            // Could show a dropdown here, for now just scroll to status section
         }
 
         private void UpdateProgress()
         {
             int completed = _contacts.Count(c => c.IsCompleted);
-            int percent = (int)((completed / (double)_contacts.Count) * 100);
-            progressBar.Value = percent;
-            txtProgress.Text = $"{completed} / {_contacts.Count} obsłużonych";
-            txtProgressPercent.Text = $" {percent}%";
+            int total = _contacts.Count;
+            double percent = total > 0 ? (completed / (double)total) * 100 : 0;
 
-            // Update local stats
-            txtStatCallsMade.Text = (int.Parse(txtStatCallsMade.Text) + (_callsCount > 0 ? 1 : 0)).ToString();
-            txtStatNotesAdded.Text = (int.Parse(txtStatNotesAdded.Text) + (_notesCount > 0 ? 1 : 0)).ToString();
+            txtProgressCount.Text = $"{completed}/{total}";
 
-            // Enable close button if at least 50% completed
-            btnClose.IsEnabled = completed >= (_contacts.Count / 2.0) || !string.IsNullOrWhiteSpace(txtSkipReason.Text);
-
-            // Refresh the list to show completed indicators
-            contactsList.Items.Refresh();
+            // Animate progress bar width
+            var containerWidth = 348.0; // approximate width of container
+            var targetWidth = (percent / 100) * containerWidth;
+            progressFill.Width = Math.Max(0, targetWidth);
         }
 
-        private void BtnCall_Click(object sender, RoutedEventArgs e)
+        private void FilterTab_Checked(object sender, RoutedEventArgs e)
         {
-            if (sender is Button btn && btn.Tag is ContactToCall contact)
+            if (sender is ToggleButton tb)
             {
-                // Open phone dialer
-                try
-                {
-                    var phone = contact.Telefon?.Replace(" ", "").Replace("-", "");
-                    if (!string.IsNullOrEmpty(phone))
-                    {
-                        Process.Start(new ProcessStartInfo
-                        {
-                            FileName = $"tel:{phone}",
-                            UseShellExecute = true
-                        });
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error opening phone: {ex.Message}");
-                }
+                // Uncheck other tabs
+                if (tb == tabAll) { tabNew.IsChecked = false; tabHot.IsChecked = false; }
+                else if (tb == tabNew) { tabAll.IsChecked = false; tabHot.IsChecked = false; }
+                else if (tb == tabHot) { tabAll.IsChecked = false; tabNew.IsChecked = false; }
 
-                // Show call result dialog
-                var dialog = new CallResultDialog(contact.Nazwa);
-                dialog.Owner = this;
-                if (dialog.ShowDialog() == true)
-                {
-                    contact.WasCalled = true;
-                    _callsCount++;
-
-                    // Handle status change from dialog
-                    if (!string.IsNullOrEmpty(dialog.SelectedStatus) && dialog.SelectedStatus != contact.Status)
-                    {
-                        ChangeContactStatus(contact, dialog.SelectedStatus);
-                    }
-
-                    // Handle note from dialog
-                    if (!string.IsNullOrWhiteSpace(dialog.Note))
-                    {
-                        AddNoteToContact(contact, dialog.Note);
-                    }
-
-                    // Log action
-                    CallReminderService.Instance.LogContactAction(_reminderLogID, contact.ID,
-                        true, !string.IsNullOrWhiteSpace(dialog.Note), contact.StatusChanged, contact.NewStatus);
-
-                    UpdateProgress();
-                }
+                // Filter contacts
+                FilterContacts();
             }
         }
 
-        private void BtnNote_Click(object sender, RoutedEventArgs e)
+        private void FilterContacts()
         {
-            if (sender is Button btn && btn.Tag is ContactToCall contact)
+            var allContacts = CallReminderService.Instance.GetRandomContacts(_config?.ContactsPerReminder ?? 10);
+            IEnumerable<ContactToCall> filtered = allContacts;
+
+            if (tabNew?.IsChecked == true)
             {
-                var dialog = new AddNoteDialog(contact.Nazwa);
-                dialog.Owner = this;
-                if (dialog.ShowDialog() == true && !string.IsNullOrWhiteSpace(dialog.NoteText))
-                {
-                    AddNoteToContact(contact, dialog.NoteText);
-                    contact.NoteAdded = true;
-
-                    CallReminderService.Instance.LogContactAction(_reminderLogID, contact.ID,
-                        false, true, false, null);
-
-                    UpdateProgress();
-                }
+                filtered = allContacts.Where(c => c.Status == "Nowy" || c.Status == "Do zadzwonienia");
             }
-        }
-
-        private void BtnStatus_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button btn && btn.Tag is ContactToCall contact)
+            else if (tabHot?.IsChecked == true)
             {
-                var dialog = new ChangeStatusDialog(contact.Nazwa, contact.Status);
-                dialog.Owner = this;
-                if (dialog.ShowDialog() == true && !string.IsNullOrEmpty(dialog.SelectedStatus))
-                {
-                    ChangeContactStatus(contact, dialog.SelectedStatus);
-
-                    CallReminderService.Instance.LogContactAction(_reminderLogID, contact.ID,
-                        false, false, true, dialog.SelectedStatus);
-
-                    UpdateProgress();
-                }
+                filtered = allContacts.Where(c => c.Status == "Gorący" || c.Priority == "urgent" || c.Priority == "high");
             }
-        }
 
-        private void BtnGoogle_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button btn && btn.Tag is ContactToCall contact)
+            _contacts.Clear();
+            foreach (var contact in filtered.Take(_config?.ContactsPerReminder ?? 5))
             {
-                try
-                {
-                    var query = System.Net.WebUtility.UrlEncode($"{contact.Nazwa} {contact.Miasto}");
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = $"https://www.google.com/search?q={query}",
-                        UseShellExecute = true
-                    });
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error opening Google: {ex.Message}");
-                }
+                _contacts.Add(contact);
             }
-        }
 
-        private void BtnNextTip_Click(object sender, RoutedEventArgs e)
-        {
-            _currentTipIndex = (_currentTipIndex + 1) % Tips.Length;
-            txtTip.Text = Tips[_currentTipIndex];
+            txtContactsCount.Text = $"Kontakty ({_contacts.Count})";
+            UpdateProgress();
+
+            if (_contacts.Count > 0)
+            {
+                SelectContact(_contacts[0]);
+            }
         }
 
         private void BtnRefresh_Click(object sender, RoutedEventArgs e)
         {
             var result = MessageBox.Show(
-                "Czy chcesz pobrać nowe losowe kontakty?\nAktualne kontakty zostaną zastąpione.",
+                "Czy chcesz pobrać nowe losowe kontakty?",
                 "Nowe kontakty",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question);
 
             if (result == MessageBoxResult.Yes)
             {
-                // Reset counters
                 _callsCount = 0;
                 _notesCount = 0;
                 _statusChangesCount = 0;
-
-                // Load new contacts
                 LoadContacts();
-                LoadTodayStats();
             }
+        }
+
+        private void BtnCall_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedContact == null) return;
+
+            // Open phone dialer
+            try
+            {
+                var phone = _selectedContact.Telefon?.Replace(" ", "").Replace("-", "");
+                if (!string.IsNullOrEmpty(phone))
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = $"tel:{phone}",
+                        UseShellExecute = true
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error opening phone: {ex.Message}");
+            }
+
+            // Show call result dialog
+            var dialog = new CallResultDialog(_selectedContact.Nazwa);
+            dialog.Owner = this;
+            if (dialog.ShowDialog() == true)
+            {
+                _selectedContact.WasCalled = true;
+                _callsCount++;
+
+                // Handle status change from dialog
+                if (!string.IsNullOrEmpty(dialog.SelectedStatus) && dialog.SelectedStatus != _selectedContact.Status)
+                {
+                    ChangeContactStatus(_selectedContact, dialog.SelectedStatus);
+                }
+
+                // Handle note from dialog
+                if (!string.IsNullOrWhiteSpace(dialog.Note))
+                {
+                    AddNoteToContact(_selectedContact, dialog.Note);
+                }
+
+                // Log action
+                CallReminderService.Instance.LogContactAction(_reminderLogID, _selectedContact.ID,
+                    true, !string.IsNullOrWhiteSpace(dialog.Note), _selectedContact.StatusChanged, _selectedContact.NewStatus);
+
+                UpdateProgress();
+                contactsList.Items.Refresh();
+            }
+        }
+
+        private void BtnSaveNote_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedContact == null || string.IsNullOrWhiteSpace(txtNewNote.Text)) return;
+
+            AddNoteToContact(_selectedContact, txtNewNote.Text);
+            _selectedContact.NoteAdded = true;
+
+            CallReminderService.Instance.LogContactAction(_reminderLogID, _selectedContact.ID,
+                false, true, false, null);
+
+            txtNewNote.Text = "";
+            UpdateProgress();
+            contactsList.Items.Refresh();
+
+            // Show the new note in last note section
+            _selectedContact.OstatniaNota = txtNewNote.Text;
+            _selectedContact.OstatniaNotaAutor = _userID;
+            _selectedContact.DataOstatniejNotatki = DateTime.Now;
+            SelectContact(_selectedContact); // Refresh display
+        }
+
+        private void TxtNewNote_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            var length = txtNewNote.Text?.Length ?? 0;
+            txtNoteCharCount.Text = $"{length}/500 znaków";
+            btnSaveNote.IsEnabled = length > 0 && _selectedContact != null;
+        }
+
+        private void BtnGoogle_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedContact == null) return;
+
+            try
+            {
+                var query = System.Net.WebUtility.UrlEncode($"{_selectedContact.Nazwa} {_selectedContact.Miasto}");
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = $"https://www.google.com/search?q={query}",
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error opening Google: {ex.Message}");
+            }
+        }
+
+        private void BtnHistory_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedContact == null) return;
+
+            MessageBox.Show($"Historia kontaktu: {_selectedContact.Nazwa}\n\nTa funkcja zostanie wkrótce dodana.",
+                "Historia", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void BtnEmail_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedContact == null || !_selectedContact.HasEmail) return;
+
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = $"mailto:{_selectedContact.Email}",
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error opening email: {ex.Message}");
+            }
+        }
+
+        private void BtnSkip_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedContact == null) return;
+
+            // Mark as completed (skipped)
+            _selectedContact.StatusChanged = true;
+            _selectedContact.NewStatus = "Pominięty";
+
+            CallReminderService.Instance.LogContactAction(_reminderLogID, _selectedContact.ID,
+                false, false, false, "Pominięty");
+
+            UpdateProgress();
+            contactsList.Items.Refresh();
+
+            // Select next contact
+            var currentIndex = _contacts.IndexOf(_selectedContact);
+            if (currentIndex < _contacts.Count - 1)
+            {
+                SelectContact(_contacts[currentIndex + 1]);
+            }
+        }
+
+        private void BtnCloseWindow_Click(object sender, RoutedEventArgs e)
+        {
+            int completed = _contacts.Count(c => c.IsCompleted);
+
+            if (completed < (_contacts.Count / 2.0))
+            {
+                var result = MessageBox.Show(
+                    "Nie obsłużyłeś jeszcze połowy kontaktów. Czy na pewno chcesz zamknąć okno?",
+                    "Potwierdzenie", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+                if (result != MessageBoxResult.Yes) return;
+            }
+
+            // Complete reminder log
+            CallReminderService.Instance.CompleteReminder(
+                _reminderLogID,
+                _callsCount,
+                _notesCount,
+                _statusChangesCount,
+                completed < (_contacts.Count / 2.0),
+                null
+            );
+
+            Close();
         }
 
         private void AddNoteToContact(ContactToCall contact, string note)
@@ -356,80 +574,16 @@ namespace Kalendarz1.CRM
                 contact.StatusChanged = true;
                 contact.NewStatus = newStatus;
                 contact.Status = newStatus;
+
+                // Update UI
+                UpdateStatusBadge(newStatus);
+                UpdateProgress();
+                contactsList.Items.Refresh();
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd zmiany statusu: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
-        }
-
-        private void BtnSkip_Click(object sender, RoutedEventArgs e)
-        {
-            // Toggle skip reason panel and tips panel
-            if (skipReasonPanel.Visibility == Visibility.Visible)
-            {
-                skipReasonPanel.Visibility = Visibility.Collapsed;
-                tipsPanel.Visibility = Visibility.Visible;
-            }
-            else
-            {
-                skipReasonPanel.Visibility = Visibility.Visible;
-                tipsPanel.Visibility = Visibility.Collapsed;
-                txtSkipReason.Focus();
-            }
-
-            // Enable close if reason provided
-            btnClose.IsEnabled = !string.IsNullOrWhiteSpace(txtSkipReason.Text) ||
-                                _contacts.Count(c => c.IsCompleted) >= (_contacts.Count / 2.0);
-        }
-
-        private void BtnClose_Click(object sender, RoutedEventArgs e)
-        {
-            int completed = _contacts.Count(c => c.IsCompleted);
-            bool hasSkipReason = !string.IsNullOrWhiteSpace(txtSkipReason.Text);
-
-            // Validate
-            if (completed < (_contacts.Count / 2.0) && !hasSkipReason)
-            {
-                MessageBox.Show("Obsłuż przynajmniej połowę kontaktów lub podaj powód pominięcia!",
-                    "Wymagana akcja", MessageBoxButton.OK, MessageBoxImage.Warning);
-                skipReasonPanel.Visibility = Visibility.Visible;
-                tipsPanel.Visibility = Visibility.Collapsed;
-                txtSkipReason.Focus();
-                return;
-            }
-
-            // Complete reminder log
-            CallReminderService.Instance.CompleteReminder(
-                _reminderLogID,
-                _callsCount,
-                _notesCount,
-                _statusChangesCount,
-                hasSkipReason && completed < (_contacts.Count / 2.0),
-                txtSkipReason.Text
-            );
-
-            Close();
-        }
-
-        protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
-        {
-            int completed = _contacts?.Count(c => c.IsCompleted) ?? 0;
-            bool hasSkipReason = !string.IsNullOrWhiteSpace(txtSkipReason?.Text);
-            int total = _contacts?.Count ?? 1;
-
-            // Prevent closing without action
-            if (completed < (total / 2.0) && !hasSkipReason)
-            {
-                e.Cancel = true;
-                MessageBox.Show("Obsłuż przynajmniej połowę kontaktów lub podaj powód pominięcia!",
-                    "Nie można zamknąć", MessageBoxButton.OK, MessageBoxImage.Warning);
-                skipReasonPanel.Visibility = Visibility.Visible;
-                tipsPanel.Visibility = Visibility.Collapsed;
-                txtSkipReason?.Focus();
-            }
-
-            base.OnClosing(e);
         }
     }
 }
