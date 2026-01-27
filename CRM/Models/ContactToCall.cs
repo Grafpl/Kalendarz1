@@ -24,6 +24,32 @@ namespace Kalendarz1.CRM.Models
 
         public bool IsCompleted => WasCalled || NoteAdded || StatusChanged;
 
+        // Enhanced UI helpers
+        public bool HasBranza => !string.IsNullOrWhiteSpace(Branza);
+        public bool HasLastNote => !string.IsNullOrWhiteSpace(OstatniaNota);
+
+        public string LastNotePreview
+        {
+            get
+            {
+                if (string.IsNullOrWhiteSpace(OstatniaNota)) return string.Empty;
+                return OstatniaNota.Length > 80 ? OstatniaNota.Substring(0, 80) + "..." : OstatniaNota;
+            }
+        }
+
+        public string LastNoteDate
+        {
+            get
+            {
+                if (!DataOstatniejNotatki.HasValue) return string.Empty;
+                var diff = DateTime.Now - DataOstatniejNotatki.Value;
+                if (diff.TotalDays < 1) return "dzisiaj";
+                if (diff.TotalDays < 2) return "wczoraj";
+                if (diff.TotalDays < 7) return $"{(int)diff.TotalDays} dni temu";
+                return DataOstatniejNotatki.Value.ToString("dd.MM.yyyy");
+            }
+        }
+
         public SolidColorBrush StatusColor
         {
             get

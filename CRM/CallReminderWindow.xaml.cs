@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
 using Microsoft.Data.SqlClient;
 using Kalendarz1.CRM.Models;
 using Kalendarz1.CRM.Services;
@@ -22,6 +22,25 @@ namespace Kalendarz1.CRM
         private int _callsCount = 0;
         private int _notesCount = 0;
         private int _statusChangesCount = 0;
+        private int _currentTipIndex = 0;
+
+        private static readonly string[] Tips = new[]
+        {
+            "Uśmiechnij się przed połączeniem - rozmówca to wyczuje!",
+            "Przygotuj 2-3 pytania przed każdą rozmową.",
+            "Słuchaj więcej niż mówisz - to klucz do sukcesu.",
+            "Notuj kluczowe informacje podczas rozmowy.",
+            "Najlepszy czas na telefony to 10:00-11:30 i 14:00-16:00.",
+            "Zawsze podsumuj ustalenia na koniec rozmowy.",
+            "Personalizuj rozmowę - wspomnij o branży klienta.",
+            "Bądź cierpliwy - nie wszyscy odbierają za pierwszym razem.",
+            "Używaj imienia rozmówcy - buduje to relację.",
+            "Po każdej rozmowie zapisz notatkę - pomaga w kolejnych kontaktach.",
+            "Zadawaj pytania otwarte, żeby poznać potrzeby klienta.",
+            "Mów spokojnie i wyraźnie - to buduje zaufanie.",
+            "Przygotuj krótką prezentację swojej oferty.",
+            "Pamiętaj o uprzejmym pożegnaniu nawet przy odmowie."
+        };
 
         public CallReminderWindow(string connectionString, string userID, CallReminderConfig config)
         {
@@ -31,8 +50,37 @@ namespace Kalendarz1.CRM
             _userID = userID;
             _config = config;
 
-            txtTime.Text = DateTime.Now.ToString("HH:mm");
+            InitializeUI();
             LoadContacts();
+            LoadTodayStats();
+        }
+
+        private void InitializeUI()
+        {
+            // Set current time and date
+            txtTime.Text = DateTime.Now.ToString("HH:mm");
+
+            var culture = new CultureInfo("pl-PL");
+            var dayName = culture.DateTimeFormat.GetDayName(DateTime.Now.DayOfWeek);
+            dayName = char.ToUpper(dayName[0]) + dayName.Substring(1);
+            txtDate.Text = $"{dayName}, {DateTime.Now:dd MMMM}";
+
+            // Set random tip
+            var random = new Random();
+            _currentTipIndex = random.Next(Tips.Length);
+            txtTip.Text = Tips[_currentTipIndex];
+
+            // Set motivational messages
+            var motivations = new[]
+            {
+                "💪 Każdy telefon to szansa na sukces!",
+                "🎯 Dzisiaj może być Twój najlepszy dzień!",
+                "⭐ Każda rozmowa to krok do celu!",
+                "🚀 Czas podbijać świat telefonami!",
+                "💼 Profesjonalizm to Twoja supermoc!",
+                "🏆 Sukces jest tuż za rogiem!"
+            };
+            txtMotivation.Text = motivations[random.Next(motivations.Length)];
         }
 
         private void LoadContacts()
@@ -50,17 +98,71 @@ namespace Kalendarz1.CRM
             contactsList.ItemsSource = _contacts;
             txtSubtitle.Text = $"Zadzwoń do {_contacts.Count} losowych kontaktów";
             txtProgress.Text = $"0 / {_contacts.Count} obsłużonych";
-            progressBar.Maximum = _contacts.Count;
+            progressBar.Maximum = 100;
+            progressBar.Value = 0;
+            txtProgressPercent.Text = " 0%";
 
             // Create reminder log
             _reminderLogID = CallReminderService.Instance.CreateReminderLog(_contacts.Count);
         }
 
+        private void LoadTodayStats()
+        {
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                conn.Open();
+
+                // Today's contacts shown
+                var cmdContacts = new SqlCommand(
+                    "SELECT ISNULL(SUM(ContactsShown), 0) FROM CallReminderLog WHERE UserID = @user AND CAST(ReminderTime AS DATE) = CAST(GETDATE() AS DATE)", conn);
+                cmdContacts.Parameters.AddWithValue("@user", _userID);
+                var contactsToday = Convert.ToInt32(cmdContacts.ExecuteScalar());
+                txtStatContactsToday.Text = contactsToday.ToString();
+
+                // Today's calls made
+                var cmdCalls = new SqlCommand(
+                    "SELECT ISNULL(SUM(ContactsCalled), 0) FROM CallReminderLog WHERE UserID = @user AND CAST(ReminderTime AS DATE) = CAST(GETDATE() AS DATE)", conn);
+                cmdCalls.Parameters.AddWithValue("@user", _userID);
+                var callsToday = Convert.ToInt32(cmdCalls.ExecuteScalar());
+                txtStatCallsMade.Text = callsToday.ToString();
+
+                // Today's notes added
+                var cmdNotes = new SqlCommand(
+                    "SELECT ISNULL(SUM(NotesAdded), 0) FROM CallReminderLog WHERE UserID = @user AND CAST(ReminderTime AS DATE) = CAST(GETDATE() AS DATE)", conn);
+                cmdNotes.Parameters.AddWithValue("@user", _userID);
+                var notesToday = Convert.ToInt32(cmdNotes.ExecuteScalar());
+                txtStatNotesAdded.Text = notesToday.ToString();
+
+                // Success rate (this week)
+                var cmdRate = new SqlCommand(
+                    @"SELECT
+                        CASE WHEN ISNULL(SUM(ContactsShown), 0) > 0
+                        THEN CAST(SUM(ContactsCalled) * 100.0 / SUM(ContactsShown) AS DECIMAL(5,0))
+                        ELSE 0 END
+                      FROM CallReminderLog
+                      WHERE UserID = @user AND ReminderTime >= DATEADD(DAY, -7, GETDATE())", conn);
+                cmdRate.Parameters.AddWithValue("@user", _userID);
+                var rate = Convert.ToInt32(cmdRate.ExecuteScalar());
+                txtStatSuccessRate.Text = $"{rate}%";
+            }
+            catch
+            {
+                // Stats are optional, ignore errors
+            }
+        }
+
         private void UpdateProgress()
         {
             int completed = _contacts.Count(c => c.IsCompleted);
-            progressBar.Value = completed;
+            int percent = (int)((completed / (double)_contacts.Count) * 100);
+            progressBar.Value = percent;
             txtProgress.Text = $"{completed} / {_contacts.Count} obsłużonych";
+            txtProgressPercent.Text = $" {percent}%";
+
+            // Update local stats
+            txtStatCallsMade.Text = (int.Parse(txtStatCallsMade.Text) + (_callsCount > 0 ? 1 : 0)).ToString();
+            txtStatNotesAdded.Text = (int.Parse(txtStatNotesAdded.Text) + (_notesCount > 0 ? 1 : 0)).ToString();
 
             // Enable close button if at least 50% completed
             btnClose.IsEnabled = completed >= (_contacts.Count / 2.0) || !string.IsNullOrWhiteSpace(txtSkipReason.Text);
@@ -177,6 +279,33 @@ namespace Kalendarz1.CRM
             }
         }
 
+        private void BtnNextTip_Click(object sender, RoutedEventArgs e)
+        {
+            _currentTipIndex = (_currentTipIndex + 1) % Tips.Length;
+            txtTip.Text = Tips[_currentTipIndex];
+        }
+
+        private void BtnRefresh_Click(object sender, RoutedEventArgs e)
+        {
+            var result = MessageBox.Show(
+                "Czy chcesz pobrać nowe losowe kontakty?\nAktualne kontakty zostaną zastąpione.",
+                "Nowe kontakty",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                // Reset counters
+                _callsCount = 0;
+                _notesCount = 0;
+                _statusChangesCount = 0;
+
+                // Load new contacts
+                LoadContacts();
+                LoadTodayStats();
+            }
+        }
+
         private void AddNoteToContact(ContactToCall contact, string note)
         {
             try
@@ -236,13 +365,16 @@ namespace Kalendarz1.CRM
 
         private void BtnSkip_Click(object sender, RoutedEventArgs e)
         {
-            // Toggle skip reason panel
-            skipReasonPanel.Visibility = skipReasonPanel.Visibility == Visibility.Visible
-                ? Visibility.Collapsed
-                : Visibility.Visible;
-
+            // Toggle skip reason panel and tips panel
             if (skipReasonPanel.Visibility == Visibility.Visible)
             {
+                skipReasonPanel.Visibility = Visibility.Collapsed;
+                tipsPanel.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                skipReasonPanel.Visibility = Visibility.Visible;
+                tipsPanel.Visibility = Visibility.Collapsed;
                 txtSkipReason.Focus();
             }
 
@@ -262,6 +394,7 @@ namespace Kalendarz1.CRM
                 MessageBox.Show("Obsłuż przynajmniej połowę kontaktów lub podaj powód pominięcia!",
                     "Wymagana akcja", MessageBoxButton.OK, MessageBoxImage.Warning);
                 skipReasonPanel.Visibility = Visibility.Visible;
+                tipsPanel.Visibility = Visibility.Collapsed;
                 txtSkipReason.Focus();
                 return;
             }
@@ -292,6 +425,7 @@ namespace Kalendarz1.CRM
                 MessageBox.Show("Obsłuż przynajmniej połowę kontaktów lub podaj powód pominięcia!",
                     "Nie można zamknąć", MessageBoxButton.OK, MessageBoxImage.Warning);
                 skipReasonPanel.Visibility = Visibility.Visible;
+                tipsPanel.Visibility = Visibility.Collapsed;
                 txtSkipReason?.Focus();
             }
 
