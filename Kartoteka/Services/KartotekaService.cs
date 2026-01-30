@@ -160,10 +160,10 @@ ORDER BY C.Name;
                     Ulica = reader["Ulica"]?.ToString() ?? "",
                     KodPocztowy = reader["KodPocztowy"]?.ToString() ?? "",
                     NIP = reader["NIP"]?.ToString() ?? "",
-                    LimitKupiecki = reader.IsDBNull(reader.GetOrdinal("LimitKupiecki")) ? 0 : reader.GetDecimal(reader.GetOrdinal("LimitKupiecki")),
+                    LimitKupiecki = reader.IsDBNull(reader.GetOrdinal("LimitKupiecki")) ? 0 : Convert.ToDecimal(reader["LimitKupiecki"]),
                     Handlowiec = reader["Handlowiec"]?.ToString() ?? "",
-                    WykorzystanoLimit = reader.IsDBNull(reader.GetOrdinal("WykorzystanoLimit")) ? 0 : reader.GetDecimal(reader.GetOrdinal("WykorzystanoLimit")),
-                    KwotaPrzeterminowana = reader.IsDBNull(reader.GetOrdinal("KwotaPrzeterminowana")) ? 0 : reader.GetDecimal(reader.GetOrdinal("KwotaPrzeterminowana"))
+                    WykorzystanoLimit = reader.IsDBNull(reader.GetOrdinal("WykorzystanoLimit")) ? 0 : Convert.ToDecimal(reader["WykorzystanoLimit"]),
+                    KwotaPrzeterminowana = reader.IsDBNull(reader.GetOrdinal("KwotaPrzeterminowana")) ? 0 : Convert.ToDecimal(reader["KwotaPrzeterminowana"])
                 });
             }
 
@@ -414,13 +414,13 @@ WHEN NOT MATCHED THEN
             {
                 result.Add(new FakturaOdbiorcy
                 {
-                    KontrahentId = reader.GetInt32(reader.GetOrdinal("khid")),
-                    Brutto = reader.IsDBNull(reader.GetOrdinal("brutto")) ? 0 : reader.GetDecimal(reader.GetOrdinal("brutto")),
-                    Rozliczono = reader.IsDBNull(reader.GetOrdinal("rozliczono")) ? 0 : reader.GetDecimal(reader.GetOrdinal("rozliczono")),
-                    Typ = reader.IsDBNull(reader.GetOrdinal("typ")) ? 0 : reader.GetInt32(reader.GetOrdinal("typ")),
-                    Anulowany = reader.IsDBNull(reader.GetOrdinal("anulowany")) ? false : reader.GetBoolean(reader.GetOrdinal("anulowany")),
-                    DataFaktury = reader.GetDateTime(reader.GetOrdinal("data_faktury")),
-                    TerminPlatnosci = reader.GetDateTime(reader.GetOrdinal("termin_platnosci"))
+                    KontrahentId = Convert.ToInt32(reader["khid"]),
+                    Brutto = reader.IsDBNull(reader.GetOrdinal("brutto")) ? 0 : Convert.ToDecimal(reader["brutto"]),
+                    Rozliczono = reader.IsDBNull(reader.GetOrdinal("rozliczono")) ? 0 : Convert.ToDecimal(reader["rozliczono"]),
+                    Typ = reader.IsDBNull(reader.GetOrdinal("typ")) ? 0 : Convert.ToInt32(reader["typ"]),
+                    Anulowany = reader.IsDBNull(reader.GetOrdinal("anulowany")) ? false : Convert.ToBoolean(reader["anulowany"]),
+                    DataFaktury = Convert.ToDateTime(reader["data_faktury"]),
+                    TerminPlatnosci = Convert.ToDateTime(reader["termin_platnosci"])
                 });
             }
 
