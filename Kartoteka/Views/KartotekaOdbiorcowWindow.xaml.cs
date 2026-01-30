@@ -117,6 +117,7 @@ namespace Kalendarz1.Kartoteka.Views
 
                 UpdateStatystyki();
                 UpdateLicznik();
+                AutoFitColumns();
             }
             catch (Exception ex)
             {
@@ -207,6 +208,7 @@ namespace Kalendarz1.Kartoteka.Views
             {
                 filtered = filtered.Where(o =>
                     (o.NazwaFirmy?.ToLower().Contains(szukaj) ?? false) ||
+                    (o.Skrot?.ToLower().Contains(szukaj) ?? false) ||
                     (o.Miasto?.ToLower().Contains(szukaj) ?? false) ||
                     (o.NIP?.Contains(szukaj) ?? false) ||
                     (o.OsobaKontaktowa?.ToLower().Contains(szukaj) ?? false) ||
@@ -1181,6 +1183,24 @@ namespace Kalendarz1.Kartoteka.Views
             System.IO.Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 "ZPSP", "KartotekaColumnWidths.json");
+
+        private void AutoFitColumns()
+        {
+            try
+            {
+                foreach (var col in DataGridOdbiorcy.Columns)
+                {
+                    col.Width = new DataGridLength(1, DataGridLengthUnitType.Auto);
+                }
+                DataGridOdbiorcy.UpdateLayout();
+                foreach (var col in DataGridOdbiorcy.Columns)
+                {
+                    var desiredWidth = col.ActualWidth;
+                    col.Width = new DataGridLength(desiredWidth, DataGridLengthUnitType.Pixel);
+                }
+            }
+            catch { }
+        }
 
         private void SaveColumnWidths()
         {

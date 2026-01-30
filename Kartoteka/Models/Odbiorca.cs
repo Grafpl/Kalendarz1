@@ -62,7 +62,7 @@ namespace Kalendarz1.Kartoteka.Models
 
         public decimal Bilans => LimitKupiecki - WykorzystanoLimit;
 
-        public string OstatniaFaktura { get; set; }
+        public DateTime? OstatniaFakturaData { get; set; }
 
         public string AsortymentSkrocony =>
             string.IsNullOrEmpty(Asortyment) ? "" :

@@ -151,15 +151,15 @@ SELECT
           AND (DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0)) > 0.01
           AND GETDATE() > ISNULL(PN.TerminPrawdziwy, DK.plattermin)
     ), 0) AS KwotaPrzeterminowana,
-    ISNULL((
-        SELECT TOP 1 DK.kod
+    (
+        SELECT TOP 1 DK.data
         FROM [HM].[DK] DK
         WHERE DK.khid = C.Id
           AND DK.typ_dk = 'FVS'
           AND DK.aktywny = 1
           AND DK.anulowany = 0
         ORDER BY DK.data DESC
-    ), '') AS OstatniaFaktura
+    ) AS OstatniaFakturaData
 FROM [SSCommon].[STContractors] C
 LEFT JOIN [SSCommon].[STPostOfficeAddresses] POA
     ON POA.ContactGuid = C.ContactGuid
@@ -190,7 +190,7 @@ ORDER BY C.Name;
                     Handlowiec = reader["Handlowiec"]?.ToString() ?? "",
                     WykorzystanoLimit = reader.IsDBNull(reader.GetOrdinal("WykorzystanoLimit")) ? 0 : Convert.ToDecimal(reader["WykorzystanoLimit"]),
                     KwotaPrzeterminowana = reader.IsDBNull(reader.GetOrdinal("KwotaPrzeterminowana")) ? 0 : Convert.ToDecimal(reader["KwotaPrzeterminowana"]),
-                    OstatniaFaktura = reader["OstatniaFaktura"]?.ToString() ?? ""
+                    OstatniaFakturaData = reader.IsDBNull(reader.GetOrdinal("OstatniaFakturaData")) ? null : (DateTime?)Convert.ToDateTime(reader["OstatniaFakturaData"])
                 });
             }
 

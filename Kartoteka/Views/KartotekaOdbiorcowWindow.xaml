@@ -279,13 +279,13 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
 
-                <!-- Ostatnia faktura -->
-                <DataGridTextColumn Header="Ost. faktura" Binding="{Binding OstatniaFaktura}" Width="110">
+                <!-- Ostatnia faktura (data) -->
+                <DataGridTextColumn Header="Ost. faktura" Binding="{Binding OstatniaFakturaData, StringFormat=dd.MM.yyyy}" Width="85">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
-                            <Setter Property="FontFamily" Value="Consolas"/>
                             <Setter Property="FontSize" Value="10"/>
                             <Setter Property="Foreground" Value="#6B7280"/>
+                            <Setter Property="HorizontalAlignment" Value="Center"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
