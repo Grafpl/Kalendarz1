@@ -114,9 +114,10 @@ SELECT
             GROUP BY dkid
         ) PN ON PN.dkid = DK.id
         WHERE DK.khid = C.Id
-          AND DK.seria IN ('sFV', 'sFKOR')
+          AND DK.typ_dk IN ('FVS', 'FVR', 'FVZ')
           AND DK.aktywny = 1
           AND DK.anulowany = 0
+          AND DK.ok = 0
           AND (DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0)) > 0.01
     ), 0) AS WykorzystanoLimit,
     ISNULL((
@@ -129,9 +130,10 @@ SELECT
             GROUP BY dkid
         ) PN ON PN.dkid = DK.id
         WHERE DK.khid = C.Id
-          AND DK.seria IN ('sFV', 'sFKOR')
+          AND DK.typ_dk IN ('FVS', 'FVR', 'FVZ')
           AND DK.aktywny = 1
           AND DK.anulowany = 0
+          AND DK.ok = 0
           AND (DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0)) > 0.01
           AND GETDATE() > ISNULL(PN.TerminPrawdziwy, DK.plattermin)
     ), 0) AS KwotaPrzeterminowana
@@ -400,7 +402,7 @@ WHEN NOT MATCHED THEN
                             GROUP BY dkid
                         ) PN ON PN.dkid = DK.id
                         WHERE DK.khid = @IdSymfonia
-                          AND DK.seria IN ('sFV', 'sFKOR')
+                          AND DK.typ_dk IN ('FVS', 'FVR', 'FVZ')
                           AND DK.aktywny = 1
                           AND DK.data >= DATEADD(MONTH, -@Miesiace, GETDATE())
                         ORDER BY DK.data DESC";
