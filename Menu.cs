@@ -1367,7 +1367,7 @@ namespace Kalendarz1
                         "Pełna baza danych klientów z danymi kontaktowymi, warunkami handlowymi i historią zamówień",
                         Color.FromArgb(100, 181, 246), // #64B5F6
                         () => {
-                            var window = new Kalendarz1.KartotekaOdbiorcowWindow();
+                            var window = new Kalendarz1.Kartoteka.Views.KartotekaOdbiorcowWindow();
                             window.UserID = App.UserID;
                             return window;
                         }, "👤", "Klienci"),
