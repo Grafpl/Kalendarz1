@@ -8,6 +8,7 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Shapes;
 using ClosedXML.Excel;
 using Microsoft.Win32;
 using Newtonsoft.Json;
@@ -21,6 +22,7 @@ namespace Kalendarz1.Kartoteka.Views
         private KartotekaService _service;
         private string _userId;
         private string _userName;
+        private List<FakturaOdbiorcy> _currentFaktury = new();
 
         private readonly string _libraNetConn = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private readonly string _handelConn = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
@@ -237,13 +239,15 @@ namespace Kalendarz1.Kartoteka.Views
             }
             catch { }
 
-            // Finanse
+            // Finanse + Historia
             try
             {
                 var faktury = await _service.PobierzFakturyAsync(odbiorca.IdSymfonia);
+                _currentFaktury = faktury;
                 WypelnijFinanse(odbiorca, faktury);
-                DataGridFaktury.ItemsSource = faktury;
-                DataGridHistoria.ItemsSource = faktury;
+                DataGridFaktury.ItemsSource = faktury.Take(10).ToList();
+                ApplyHistoriaFilters();
+                WypelnijHistoriaKontaktow(faktury);
             }
             catch { }
 
@@ -263,26 +267,33 @@ namespace Kalendarz1.Kartoteka.Views
                 DataGridAsortyment.ItemsSource = asortymentSzczegoly;
 
                 // Podsumowanie
-                TextAsortymentIloscProduktow.Text = asortymentSzczegoly.Count.ToString();
                 var sumaKg = asortymentSzczegoly.Sum(a => a.SumaKg);
                 var sumaWartosc = asortymentSzczegoly.Sum(a => a.SumaWartosc);
-                TextAsortymentSumaKg.Text = sumaKg.ToString("N0");
+                TextAsortymentIloscProduktow.Text = $"{asortymentSzczegoly.Count} produktów";
+                TextAsortymentSumaKg.Text = $"{sumaKg:N0} kg";
                 TextAsortymentSumaWartosc.Text = $"{sumaWartosc:N0} zł";
                 TextAsortymentSredniaCena.Text = sumaKg > 0
-                    ? $"{(sumaWartosc / sumaKg):N2} zł"
+                    ? $"{(sumaWartosc / sumaKg):N2} zł/kg"
                     : "-";
+
+                // Struktura zakupów (wykres słupkowy)
+                BuildStrukturaZakupow(asortymentSzczegoly);
             }
             catch
             {
                 DataGridAsortyment.ItemsSource = null;
-                TextAsortymentIloscProduktow.Text = "0";
-                TextAsortymentSumaKg.Text = "0";
+                PanelStrukturaZakupow.Children.Clear();
+                TextAsortymentIloscProduktow.Text = "0 produktów";
+                TextAsortymentSumaKg.Text = "0 kg";
                 TextAsortymentSumaWartosc.Text = "0 zł";
                 TextAsortymentSredniaCena.Text = "-";
             }
 
             // Notatki
             TextBoxNotatki.Text = odbiorca.Notatki ?? "";
+            TextNotatkaInfo.Text = odbiorca.DataModyfikacji.HasValue
+                ? $"Ost. zmiana: {odbiorca.DataModyfikacji:dd.MM.yyyy}, {odbiorca.ModyfikowalPrzez ?? ""}"
+                : "";
 
             // Dostawy
             TextDostawyDni.Text = $"Preferowane dni: {(string.IsNullOrEmpty(odbiorca.PreferowanyDzienDostawy) ? "-" : odbiorca.PreferowanyDzienDostawy)}";
@@ -293,6 +304,209 @@ namespace Kalendarz1.Kartoteka.Views
             TextDostawyUlica.Text = odbiorca.Ulica ?? "-";
             TextDostawyMiasto.Text = $"{odbiorca.KodPocztowy} {odbiorca.Miasto}";
             TextDostawyNIP.Text = $"NIP: {odbiorca.NIP ?? "-"}";
+        }
+
+        private void BuildStrukturaZakupow(List<AsortymentPozycja> pozycje)
+        {
+            PanelStrukturaZakupow.Children.Clear();
+            if (pozycje == null || pozycje.Count == 0) return;
+
+            var totalKg = pozycje.Sum(p => p.SumaKg);
+            if (totalKg <= 0) return;
+
+            // Top N produktów (max 8)
+            var top = pozycje.OrderByDescending(p => p.SumaKg).Take(8).ToList();
+
+            foreach (var p in top)
+            {
+                var procentVal = (double)(p.SumaKg / totalKg * 100);
+                var barWidth = Math.Max(procentVal, 2);
+
+                var item = new StackPanel { Margin = new Thickness(0, 0, 0, 6) };
+
+                var header = new DockPanel();
+                var nameText = new TextBlock
+                {
+                    Text = string.IsNullOrEmpty(p.ProduktNazwa) ? p.ProduktKod : p.ProduktNazwa,
+                    FontSize = 11,
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    MaxWidth = 150
+                };
+                var pctText = new TextBlock
+                {
+                    Text = $"{procentVal:F0}%",
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                    FontWeight = FontWeights.Medium,
+                    FontSize = 11
+                };
+                DockPanel.SetDock(pctText, Dock.Right);
+                header.Children.Add(pctText);
+                header.Children.Add(nameText);
+                item.Children.Add(header);
+
+                // Progress bar
+                var barGrid = new Grid { Height = 6, Margin = new Thickness(0, 2, 0, 0) };
+                barGrid.Children.Add(new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(229, 231, 235)),
+                    CornerRadius = new CornerRadius(3)
+                });
+                barGrid.Children.Add(new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(34, 197, 94)),
+                    CornerRadius = new CornerRadius(3),
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    Width = barWidth * 1.5 // scale to fit
+                });
+                item.Children.Add(barGrid);
+
+                PanelStrukturaZakupow.Children.Add(item);
+            }
+        }
+
+        // ═══════════════════════════════════════════
+        // HISTORIA - Filtry
+        // ═══════════════════════════════════════════
+
+        private void ComboHistoriaOkres_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (IsLoaded) ApplyHistoriaFilters();
+        }
+
+        private void ComboHistoriaTyp_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (IsLoaded) ApplyHistoriaFilters();
+        }
+
+        private void ComboHistoriaStatus_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (IsLoaded) ApplyHistoriaFilters();
+        }
+
+        private void ApplyHistoriaFilters()
+        {
+            if (_currentFaktury == null || DataGridHistoria == null) return;
+
+            var filtered = _currentFaktury.AsEnumerable();
+
+            // Filtr okresu
+            if (ComboHistoriaOkres?.SelectedIndex >= 0)
+            {
+                var teraz = DateTime.Now;
+                switch (ComboHistoriaOkres.SelectedIndex)
+                {
+                    case 0: filtered = filtered.Where(f => f.DataFaktury >= teraz.AddDays(-30)); break;
+                    case 1: filtered = filtered.Where(f => f.DataFaktury >= teraz.AddDays(-90)); break;
+                    case 2: filtered = filtered.Where(f => f.DataFaktury >= teraz.AddYears(-1)); break;
+                    // case 3: Wszystko - brak filtra
+                }
+            }
+
+            // Filtr typu
+            if (ComboHistoriaTyp?.SelectedIndex > 0)
+            {
+                var typText = (ComboHistoriaTyp.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
+                var typCode = typText.Split(' ')[0]; // "FVS", "FVZ", "FVR"
+                filtered = filtered.Where(f => f.Typ == typCode);
+            }
+
+            // Filtr statusu
+            if (ComboHistoriaStatus?.SelectedIndex > 0)
+            {
+                switch (ComboHistoriaStatus.SelectedIndex)
+                {
+                    case 1: filtered = filtered.Where(f => f.Status == "Zapłacona"); break;
+                    case 2: filtered = filtered.Where(f => f.Status == "Nieopłacona"); break;
+                    case 3: filtered = filtered.Where(f => f.Przeterminowana); break;
+                }
+            }
+
+            var result = filtered.ToList();
+            DataGridHistoria.ItemsSource = result;
+
+            // Aktualizuj podsumowanie
+            if (TextHistoriaLiczba != null)
+                TextHistoriaLiczba.Text = result.Count.ToString();
+            if (TextHistoriaSuma != null)
+                TextHistoriaSuma.Text = $"{result.Where(f => !f.Anulowany).Sum(f => f.Brutto):N0} zł";
+        }
+
+        private void WypelnijHistoriaKontaktow(List<FakturaOdbiorcy> faktury)
+        {
+            PanelHistoriaKontaktow.Children.Clear();
+
+            // Generuj timeline z faktur (ostatnie 20)
+            var ostatnie = faktury.OrderByDescending(f => f.DataFaktury).Take(20).ToList();
+
+            foreach (var f in ostatnie)
+            {
+                Color borderColor, bgColor;
+                string ikona;
+
+                if (f.Anulowany)
+                {
+                    borderColor = Color.FromRgb(156, 163, 175); // gray
+                    bgColor = Color.FromRgb(243, 244, 246);
+                    ikona = "⚪";
+                }
+                else if (f.Status == "Zapłacona")
+                {
+                    borderColor = Color.FromRgb(74, 222, 128); // green
+                    bgColor = Color.FromRgb(220, 252, 231);
+                    ikona = "🟢";
+                }
+                else if (f.Przeterminowana)
+                {
+                    borderColor = Color.FromRgb(248, 113, 113); // red
+                    bgColor = Color.FromRgb(254, 226, 226);
+                    ikona = "🔴";
+                }
+                else
+                {
+                    borderColor = Color.FromRgb(96, 165, 250); // blue
+                    bgColor = Color.FromRgb(219, 234, 254);
+                    ikona = "🔵";
+                }
+
+                var card = new Border
+                {
+                    Padding = new Thickness(8),
+                    Margin = new Thickness(0, 0, 0, 4),
+                    CornerRadius = new CornerRadius(4),
+                    BorderThickness = new Thickness(4, 0, 0, 0),
+                    BorderBrush = new SolidColorBrush(borderColor),
+                    Background = new SolidColorBrush(bgColor)
+                };
+
+                var stack = new StackPanel();
+                stack.Children.Add(new TextBlock
+                {
+                    Text = f.DataFaktury.ToString("dd.MM.yyyy"),
+                    Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                    FontSize = 10
+                });
+                stack.Children.Add(new TextBlock
+                {
+                    Text = $"{ikona} {f.Typ} {f.NumerDokumentu} - {f.Brutto:N2} zł ({f.Status})",
+                    FontSize = 11,
+                    TextWrapping = TextWrapping.Wrap
+                });
+
+                card.Child = stack;
+                PanelHistoriaKontaktow.Children.Add(card);
+            }
+
+            if (ostatnie.Count == 0)
+            {
+                PanelHistoriaKontaktow.Children.Add(new TextBlock
+                {
+                    Text = "Brak historii dokumentów",
+                    Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)),
+                    FontSize = 11,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 20, 0, 0)
+                });
+            }
         }
 
         private void WypelnijKontakty(List<KontaktOdbiorcy> kontakty, int idSymfonia)
@@ -466,33 +680,85 @@ namespace Kalendarz1.Kartoteka.Views
 
         private void WypelnijFinanse(OdbiorcaHandlowca odbiorca, List<FakturaOdbiorcy> faktury)
         {
+            // Kolumna 1: Limit kupiecki (gradient card)
             TextFinanseLimitKwota.Text = $"{odbiorca.LimitKupiecki:N0} zł";
             var procent = odbiorca.ProcentWykorzystania;
             ProgressFinanseLimit.Value = Math.Min(procent, 100);
-            if (procent > 100)
-                ProgressFinanseLimit.Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68));
-            else if (procent > 80)
-                ProgressFinanseLimit.Foreground = new SolidColorBrush(Color.FromRgb(234, 179, 8));
-            else
-                ProgressFinanseLimit.Foreground = new SolidColorBrush(Color.FromRgb(34, 197, 94));
+            TextFinanseProcentLabel.Text = $"{procent:F0}%";
+            TextFinanseWolne.Text = $"{odbiorca.WolnyLimit:N0} zł";
+            TextFinanseZajete.Text = $"{odbiorca.WykorzystanoLimit:N0} zł";
 
-            TextFinanseWolne.Text = $"Wolne: {odbiorca.WolnyLimit:N0} zł ({procent:F0}% wykorzystane)";
-            TextFinansePlatnosc.Text = $"{odbiorca.FormaPlatnosci} {odbiorca.TerminPlatnosci} dni";
+            // Kolumna 2: Warunki płatności
+            TextFinansePlatnosc.Text = $"{odbiorca.TerminPlatnosci} dni";
+            TextFinanseFormaPlatnosci.Text = string.IsNullOrEmpty(odbiorca.FormaPlatnosci) ? "-" : odbiorca.FormaPlatnosci;
 
             var doZaplaty = faktury.Where(f => !f.Anulowany && f.DoZaplaty > 0).Sum(f => f.DoZaplaty);
-            TextFinanseDoZaplaty.Text = $"Do zapłaty: {doZaplaty:N0} zł";
-            TextFinanseDoZaplaty.Foreground = doZaplaty > 0
-                ? new SolidColorBrush(Color.FromRgb(202, 138, 4))
-                : new SolidColorBrush(Color.FromRgb(22, 163, 74));
+            TextFinanseDoZaplaty.Text = $"{doZaplaty:N0} zł";
 
-            TextFinansePrzeteminowane.Text = $"Przeterminowane: {odbiorca.KwotaPrzeterminowana:N0} zł";
-            TextFinansePrzeteminowane.Foreground = odbiorca.KwotaPrzeterminowana > 0
-                ? new SolidColorBrush(Color.FromRgb(220, 38, 38))
-                : new SolidColorBrush(Color.FromRgb(22, 163, 74));
+            TextFinansePrzeteminowane.Text = $"{odbiorca.KwotaPrzeterminowana:N0} zł";
 
-            var obrot = faktury.Where(f => !f.Anulowany).Sum(f => f.Brutto);
+            // Kolumna 3: Wykres obrotów miesięcznych
+            var aktywne = faktury.Where(f => !f.Anulowany).ToList();
+            var obrot = aktywne.Sum(f => f.Brutto);
+            var fakturCount = aktywne.Count;
             TextFinanseObrot.Text = $"{obrot:N0} zł";
-            TextFinanseFakturCount.Text = $"Faktur: {faktury.Count(f => !f.Anulowany)}";
+            TextFinanseFakturCount.Text = $"Obrót 12m - {fakturCount} faktur";
+
+            BuildObrotyWykres(aktywne);
+
+            // Kolumna 4: Status płatności
+            var nieoplacone = faktury.Count(f => !f.Anulowany && f.DoZaplaty > 0);
+            TextFinanseStatusPlatnosci.Text = nieoplacone == 0
+                ? "Wszystkie faktury opłacone ✓"
+                : $"{nieoplacone} nieopłaconych faktur";
+            TextFinanseStatusPlatnosci.Foreground = nieoplacone == 0
+                ? new SolidColorBrush(Color.FromRgb(22, 163, 74))
+                : new SolidColorBrush(Color.FromRgb(220, 38, 38));
+        }
+
+        private void BuildObrotyWykres(List<FakturaOdbiorcy> faktury)
+        {
+            GridObrotyWykres.Children.Clear();
+            GridObrotyWykres.ColumnDefinitions.Clear();
+
+            // Oblicz obroty na miesiąc (ostatnie 12 miesięcy)
+            var teraz = DateTime.Now;
+            var miesieczne = new decimal[12];
+            for (int i = 0; i < 12; i++)
+            {
+                var miesiac = teraz.AddMonths(-11 + i);
+                miesieczne[i] = faktury
+                    .Where(f => f.DataFaktury.Year == miesiac.Year && f.DataFaktury.Month == miesiac.Month)
+                    .Sum(f => f.Brutto);
+            }
+
+            var maxVal = miesieczne.Max();
+            if (maxVal <= 0) maxVal = 1;
+
+            for (int i = 0; i < 12; i++)
+            {
+                GridObrotyWykres.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+                var miesiac = teraz.AddMonths(-11 + i);
+                var height = (double)(miesieczne[i] / maxVal) * 80;
+                if (height < 2 && miesieczne[i] > 0) height = 2;
+
+                var rect = new Rectangle
+                {
+                    Fill = new SolidColorBrush(Color.FromRgb(187, 247, 208)), // #BBF7D0
+                    Margin = new Thickness(1, 0, 1, 0),
+                    Height = height,
+                    VerticalAlignment = VerticalAlignment.Bottom,
+                    ToolTip = $"{miesiac:MMM yyyy}: {miesieczne[i]:N0} zł",
+                    RadiusX = 2,
+                    RadiusY = 2
+                };
+                rect.MouseEnter += (s, e) => ((Rectangle)s).Fill = new SolidColorBrush(Color.FromRgb(34, 197, 94));
+                rect.MouseLeave += (s, e) => ((Rectangle)s).Fill = new SolidColorBrush(Color.FromRgb(187, 247, 208));
+
+                Grid.SetColumn(rect, i);
+                GridObrotyWykres.Children.Add(rect);
+            }
         }
 
         // ═══════════════════════════════════════════
