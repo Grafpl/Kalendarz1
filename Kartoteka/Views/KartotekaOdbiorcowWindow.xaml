@@ -90,6 +90,13 @@
                               Foreground="White" Margin="12,0,0,0"
                               VerticalAlignment="Center"
                               Checked="CheckBoxAlerty_Changed" Unchecked="CheckBoxAlerty_Changed"/>
+
+                    <Button x:Name="ButtonDebug" Content="🐛 Debug"
+                            Background="#7C3AED" Foreground="White" FontSize="11"
+                            Padding="8,4" Margin="12,0,0,0" Cursor="Hand"
+                            BorderThickness="0" FontWeight="SemiBold"
+                            Click="ButtonDebug_Click"
+                            ToolTip="Uruchom test wydajności ładowania danych"/>
                 </StackPanel>
 
                 <!-- Przyciski -->
@@ -410,21 +417,78 @@
                                 </Border>
                             </Grid>
 
-                            <!-- Tabela asortymentu z historii sprzedaży -->
+                            <!-- Podsumowanie asortymentu -->
                             <TextBlock Text="📊 Historia kupowanych produktów (ostatnie 12 mies.)" FontWeight="Bold" FontSize="14" Margin="0,16,0,8"/>
+
+                            <Border Background="#F0FDF4" CornerRadius="8" Padding="12" Margin="0,0,0,8" BorderBrush="#BBF7D0" BorderThickness="1">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                                        <TextBlock Text="Produktów" Foreground="#6B7280" FontSize="11" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="TextAsortymentIloscProduktow" Text="0" FontWeight="Bold" FontSize="18" Foreground="#059669" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                                        <TextBlock Text="Łącznie kg" Foreground="#6B7280" FontSize="11" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="TextAsortymentSumaKg" Text="0" FontWeight="Bold" FontSize="18" Foreground="#059669" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                                        <TextBlock Text="Wartość netto" Foreground="#6B7280" FontSize="11" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="TextAsortymentSumaWartosc" Text="0 zł" FontWeight="Bold" FontSize="18" Foreground="#059669" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="3" HorizontalAlignment="Center">
+                                        <TextBlock Text="Śr. cena/kg" Foreground="#6B7280" FontSize="11" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="TextAsortymentSredniaCena" Text="0 zł" FontWeight="Bold" FontSize="18" Foreground="#059669" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <!-- Tabela produktów -->
                             <DataGrid x:Name="DataGridAsortyment"
                                       Style="{StaticResource KartotekaDataGrid}"
                                       ColumnHeaderStyle="{StaticResource KartotekaColumnHeader}"
                                       CellStyle="{StaticResource KartotekaDataGridCell}"
                                       MaxHeight="300">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Produkt" Binding="{Binding ProduktKod}" Width="120"/>
-                                    <DataGridTextColumn Header="Nazwa" Binding="{Binding ProduktNazwa}" Width="200"/>
-                                    <DataGridTextColumn Header="Ilość (kg)" Binding="{Binding SumaKg, StringFormat=N0}" Width="90"/>
-                                    <DataGridTextColumn Header="Wartość netto" Binding="{Binding SumaWartosc, StringFormat=N0}" Width="110"/>
-                                    <DataGridTextColumn Header="Śr. cena/kg" Binding="{Binding SredniaCena, StringFormat=N2}" Width="90"/>
-                                    <DataGridTextColumn Header="Faktur" Binding="{Binding LiczbaFaktur}" Width="60"/>
-                                    <DataGridTextColumn Header="Ostatnia sprzedaż" Binding="{Binding OstatniaSprzedaz, StringFormat=dd.MM.yyyy}" Width="110"/>
+                                    <DataGridTextColumn Header="Produkt" Binding="{Binding ProduktKod}" Width="130"/>
+                                    <DataGridTextColumn Header="Nazwa" Binding="{Binding ProduktNazwa}" Width="*"/>
+                                    <DataGridTextColumn Header="Ilość (kg)" Binding="{Binding SumaKg, StringFormat=N0}" Width="90">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Wartość netto" Binding="{Binding SumaWartosc, StringFormat=N0}" Width="110">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Śr. cena/kg" Binding="{Binding SredniaCena, StringFormat=N2}" Width="90">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Faktur" Binding="{Binding LiczbaFaktur}" Width="60">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Ostatnia sprzedaż" Binding="{Binding OstatniaSprzedaz, StringFormat=dd.MM.yyyy}" Width="120"/>
                                 </DataGrid.Columns>
                             </DataGrid>
                         </StackPanel>

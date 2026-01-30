@@ -246,8 +246,25 @@ namespace Kalendarz1.Kartoteka.Views
             {
                 var asortymentSzczegoly = await _service.PobierzAsortymentSzczegolyAsync(odbiorca.IdSymfonia, 12);
                 DataGridAsortyment.ItemsSource = asortymentSzczegoly;
+
+                // Podsumowanie
+                TextAsortymentIloscProduktow.Text = asortymentSzczegoly.Count.ToString();
+                var sumaKg = asortymentSzczegoly.Sum(a => a.SumaKg);
+                var sumaWartosc = asortymentSzczegoly.Sum(a => a.SumaWartosc);
+                TextAsortymentSumaKg.Text = sumaKg.ToString("N0");
+                TextAsortymentSumaWartosc.Text = $"{sumaWartosc:N0} zł";
+                TextAsortymentSredniaCena.Text = sumaKg > 0
+                    ? $"{(sumaWartosc / sumaKg):N2} zł"
+                    : "-";
             }
-            catch { DataGridAsortyment.ItemsSource = null; }
+            catch
+            {
+                DataGridAsortyment.ItemsSource = null;
+                TextAsortymentIloscProduktow.Text = "0";
+                TextAsortymentSumaKg.Text = "0";
+                TextAsortymentSumaWartosc.Text = "0 zł";
+                TextAsortymentSredniaCena.Text = "-";
+            }
 
             // Notatki
             TextBoxNotatki.Text = odbiorca.Notatki ?? "";
@@ -743,6 +760,105 @@ namespace Kalendarz1.Kartoteka.Views
                 }
             }
             catch { }
+        }
+
+        // ═══════════════════════════════════════════
+        // DEBUG / PROFILER
+        // ═══════════════════════════════════════════
+
+        private async void ButtonDebug_Click(object sender, RoutedEventArgs e)
+        {
+            ButtonDebug.IsEnabled = false;
+            ButtonDebug.Content = "⏳ Test...";
+
+            try
+            {
+                var sw = new System.Diagnostics.Stopwatch();
+                var log = new System.Text.StringBuilder();
+                log.AppendLine("══════════════════════════════════════════");
+                log.AppendLine("  KARTOTEKA ODBIORCÓW - PROFILER DEBUG");
+                log.AppendLine($"  Data: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                log.AppendLine($"  User: {_userName} (ID: {_userId})");
+                log.AppendLine("══════════════════════════════════════════");
+                log.AppendLine();
+
+                var totalSw = System.Diagnostics.Stopwatch.StartNew();
+
+                // 1. EnsureTablesExist
+                sw.Restart();
+                await _service.EnsureTablesExistAsync();
+                sw.Stop();
+                log.AppendLine($"[1] EnsureTablesExist:     {sw.ElapsedMilliseconds,6} ms");
+
+                // 2. PobierzOdbiorcow (główne zapytanie + limity + przeterminowane)
+                sw.Restart();
+                var odbiorcy = await _service.PobierzOdbiorcowAsync(null, true);
+                sw.Stop();
+                log.AppendLine($"[2] PobierzOdbiorcow:      {sw.ElapsedMilliseconds,6} ms  ({odbiorcy.Count} rekordów)");
+
+                // 3. WczytajDaneWlasne (LibraNet)
+                sw.Restart();
+                await _service.WczytajDaneWlasneAsync(odbiorcy);
+                sw.Stop();
+                log.AppendLine($"[3] WczytajDaneWlasne:     {sw.ElapsedMilliseconds,6} ms");
+
+                // 4. PobierzAsortyment (bulk DK→DP→TW)
+                sw.Restart();
+                var khids = odbiorcy.Select(o => o.IdSymfonia).ToList();
+                var asortyment = await _service.PobierzAsortymentAsync(khids, 6);
+                sw.Stop();
+                log.AppendLine($"[4] PobierzAsortyment:     {sw.ElapsedMilliseconds,6} ms  ({asortyment.Count} z asortymentem)");
+
+                // 5. PobierzHandlowcow
+                sw.Restart();
+                var handlowcy = await _service.PobierzHandlowcowAsync();
+                sw.Stop();
+                log.AppendLine($"[5] PobierzHandlowcow:     {sw.ElapsedMilliseconds,6} ms  ({handlowcy.Count} handlowców)");
+
+                // 6. PobierzKontakty (dla pierwszego odbiorcy)
+                if (odbiorcy.Count > 0)
+                {
+                    var testId = odbiorcy[0].IdSymfonia;
+                    sw.Restart();
+                    var kontakty = await _service.PobierzKontaktyAsync(testId);
+                    sw.Stop();
+                    log.AppendLine($"[6] PobierzKontakty:       {sw.ElapsedMilliseconds,6} ms  (test: {odbiorcy[0].NazwaFirmy}, {kontakty.Count} kontaktów)");
+
+                    // 7. PobierzFaktury
+                    sw.Restart();
+                    var faktury = await _service.PobierzFakturyAsync(testId);
+                    sw.Stop();
+                    log.AppendLine($"[7] PobierzFaktury:        {sw.ElapsedMilliseconds,6} ms  ({faktury.Count} faktur)");
+
+                    // 8. PobierzAsortymentSzczegoly
+                    sw.Restart();
+                    var asSzczeg = await _service.PobierzAsortymentSzczegolyAsync(testId, 12);
+                    sw.Stop();
+                    log.AppendLine($"[8] AsortymentSzczegoly:   {sw.ElapsedMilliseconds,6} ms  ({asSzczeg.Count} produktów)");
+                }
+
+                totalSw.Stop();
+                log.AppendLine();
+                log.AppendLine($"══════════════════════════════════════════");
+                log.AppendLine($"  TOTAL:                   {totalSw.ElapsedMilliseconds,6} ms");
+                log.AppendLine($"══════════════════════════════════════════");
+
+                // Pokaż wynik i skopiuj do schowka
+                var result = log.ToString();
+                Clipboard.SetText(result);
+                MessageBox.Show(result + "\n\n(Skopiowano do schowka)", "Debug Profiler",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd debuggera:\n{ex.Message}\n\n{ex.StackTrace}", "Debug Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                ButtonDebug.IsEnabled = true;
+                ButtonDebug.Content = "🐛 Debug";
+            }
         }
 
         private void Window_Closing(object sender, CancelEventArgs e)
