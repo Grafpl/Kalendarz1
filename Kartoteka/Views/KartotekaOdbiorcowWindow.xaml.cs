@@ -97,23 +97,7 @@ namespace Kalendarz1.Kartoteka.Views
                 var odbiorcy = await _service.PobierzOdbiorcowAsync(handlowiec, pokazWszystkich);
                 await _service.WczytajDaneWlasneAsync(odbiorcy);
 
-                // Załaduj asortyment z historii sprzedaży
-                try
-                {
-                    var khids = odbiorcy.Select(o => o.IdSymfonia).ToList();
-                    var asortyment = await _service.PobierzAsortymentAsync(khids, 6);
-                    foreach (var o in odbiorcy)
-                    {
-                        if (asortyment.TryGetValue(o.IdSymfonia, out var produkty))
-                        {
-                            // Tylko jeśli nie ma ręcznie wpisanego asortymentu
-                            if (string.IsNullOrEmpty(o.Asortyment))
-                                o.Asortyment = produkty;
-                        }
-                    }
-                }
-                catch { }
-
+                // Pokaż dane natychmiast (bez asortymentu)
                 DataGridOdbiorcy.ItemsSource = odbiorcy;
                 _allOdbiorcy = odbiorcy;
 
@@ -139,6 +123,36 @@ namespace Kalendarz1.Kartoteka.Views
             finally
             {
                 LoadingOverlay.Visibility = Visibility.Collapsed;
+            }
+
+            // Ładuj asortyment w tle (nie blokuje UI)
+            _ = LoadAsortymentInBackground();
+        }
+
+        private async System.Threading.Tasks.Task LoadAsortymentInBackground()
+        {
+            try
+            {
+                if (_allOdbiorcy == null || _allOdbiorcy.Count == 0) return;
+
+                var khids = _allOdbiorcy.Select(o => o.IdSymfonia).ToList();
+                var asortyment = await _service.PobierzAsortymentAsync(khids, 6);
+
+                // Przypisz asortyment do odbiorców
+                foreach (var odbiorca in _allOdbiorcy)
+                {
+                    if (asortyment.TryGetValue(odbiorca.IdSymfonia, out var lista))
+                    {
+                        odbiorca.Asortyment = string.Join(", ", lista);
+                    }
+                }
+
+                // Odśwież DataGrid aby pokazać nowe dane asortymentu
+                DataGridOdbiorcy.Items.Refresh();
+            }
+            catch
+            {
+                // Asortyment w tle - nie pokazuj błędu użytkownikowi
             }
         }
 
