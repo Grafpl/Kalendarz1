@@ -114,7 +114,7 @@ SELECT
             GROUP BY dkid
         ) PN ON PN.dkid = DK.id
         WHERE DK.khid = C.Id
-          AND DK.seria LIKE 'FV%'
+          AND DK.seria IN ('sFV', 'sFKOR')
           AND DK.aktywny = 1
           AND DK.anulowany = 0
           AND (DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0)) > 0.01
@@ -129,7 +129,7 @@ SELECT
             GROUP BY dkid
         ) PN ON PN.dkid = DK.id
         WHERE DK.khid = C.Id
-          AND DK.seria LIKE 'FV%'
+          AND DK.seria IN ('sFV', 'sFKOR')
           AND DK.aktywny = 1
           AND DK.anulowany = 0
           AND (DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0)) > 0.01
@@ -400,7 +400,7 @@ WHEN NOT MATCHED THEN
                             GROUP BY dkid
                         ) PN ON PN.dkid = DK.id
                         WHERE DK.khid = @IdSymfonia
-                          AND DK.seria LIKE 'FV%'
+                          AND DK.seria IN ('sFV', 'sFKOR')
                           AND DK.aktywny = 1
                           AND DK.data >= DATEADD(MONTH, -@Miesiace, GETDATE())
                         ORDER BY DK.data DESC";
@@ -415,12 +415,15 @@ WHEN NOT MATCHED THEN
                 result.Add(new FakturaOdbiorcy
                 {
                     KontrahentId = Convert.ToInt32(reader["khid"]),
+                    NumerDokumentu = reader["NumerDokumentu"]?.ToString() ?? "",
                     Brutto = reader.IsDBNull(reader.GetOrdinal("brutto")) ? 0 : Convert.ToDecimal(reader["brutto"]),
                     Rozliczono = reader.IsDBNull(reader.GetOrdinal("rozliczono")) ? 0 : Convert.ToDecimal(reader["rozliczono"]),
-                    Typ = reader.IsDBNull(reader.GetOrdinal("typ")) ? 0 : Convert.ToInt32(reader["typ"]),
-                    Anulowany = reader.IsDBNull(reader.GetOrdinal("anulowany")) ? false : Convert.ToBoolean(reader["anulowany"]),
+                    Typ = reader["typ"]?.ToString() ?? "",
+                    Anulowany = Convert.ToInt16(reader["anulowany"]) != 0,
                     DataFaktury = Convert.ToDateTime(reader["data_faktury"]),
-                    TerminPlatnosci = Convert.ToDateTime(reader["termin_platnosci"])
+                    TerminPlatnosci = reader.IsDBNull(reader.GetOrdinal("termin_platnosci"))
+                        ? Convert.ToDateTime(reader["data_faktury"])
+                        : Convert.ToDateTime(reader["termin_platnosci"])
                 });
             }
 

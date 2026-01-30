@@ -433,9 +433,9 @@ namespace Kalendarz1.Kartoteka.Views
                 ? new SolidColorBrush(Color.FromRgb(220, 38, 38))
                 : new SolidColorBrush(Color.FromRgb(22, 163, 74));
 
-            var obrot = faktury.Where(f => !f.Anulowany && f.Typ == 1).Sum(f => f.Brutto);
+            var obrot = faktury.Where(f => !f.Anulowany).Sum(f => f.Brutto);
             TextFinanseObrot.Text = $"{obrot:N0} zł";
-            TextFinanseFakturCount.Text = $"Faktur: {faktury.Count(f => !f.Anulowany && f.Typ == 1)}";
+            TextFinanseFakturCount.Text = $"Faktur: {faktury.Count(f => !f.Anulowany)}";
         }
 
         // ═══════════════════════════════════════════

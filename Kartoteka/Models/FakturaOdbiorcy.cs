@@ -6,11 +6,12 @@ namespace Kalendarz1.Kartoteka.Models
     {
         public int Id { get; set; }
         public int KontrahentId { get; set; }
+        public string NumerDokumentu { get; set; }
         public DateTime DataFaktury { get; set; }
         public DateTime TerminPlatnosci { get; set; }
         public decimal Brutto { get; set; }
         public decimal Rozliczono { get; set; }
-        public int Typ { get; set; }
+        public string Typ { get; set; }
         public bool Anulowany { get; set; }
 
         public decimal DoZaplaty => Brutto - Rozliczono;
