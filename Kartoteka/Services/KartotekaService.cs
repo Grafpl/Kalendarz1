@@ -68,6 +68,18 @@ BEGIN
     CREATE INDEX IX_KartotekaOdbiorcyKontakty_IdSymfonia ON dbo.KartotekaOdbiorcyKontakty(IdSymfonia);
 END;
 
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'KartotekaOdbiorcyNotatki')
+BEGIN
+    CREATE TABLE dbo.KartotekaOdbiorcyNotatki (
+        Id INT IDENTITY(1,1) PRIMARY KEY,
+        IdSymfonia INT NOT NULL,
+        Tresc NVARCHAR(MAX) NOT NULL,
+        Autor NVARCHAR(100),
+        DataUtworzenia DATETIME DEFAULT GETDATE()
+    );
+    CREATE INDEX IX_KartotekaOdbiorcyNotatki_IdSymfonia ON dbo.KartotekaOdbiorcyNotatki(IdSymfonia);
+END;
+
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'KartotekaTypyKontaktow')
 BEGIN
     CREATE TABLE dbo.KartotekaTypyKontaktow (
@@ -100,6 +112,7 @@ END;
 SELECT
     C.Id AS IdSymfonia,
     C.Name AS NazwaFirmy,
+    ISNULL(C.Shortcut, '') AS Skrot,
     ISNULL(POA.Place, '') AS Miasto,
     ISNULL(POA.Street, '') AS Ulica,
     ISNULL(POA.PostCode, '') AS KodPocztowy,
@@ -137,7 +150,16 @@ SELECT
           AND DK.ok = 0
           AND (DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0)) > 0.01
           AND GETDATE() > ISNULL(PN.TerminPrawdziwy, DK.plattermin)
-    ), 0) AS KwotaPrzeterminowana
+    ), 0) AS KwotaPrzeterminowana,
+    ISNULL((
+        SELECT TOP 1 DK.kod
+        FROM [HM].[DK] DK
+        WHERE DK.khid = C.Id
+          AND DK.typ_dk = 'FVS'
+          AND DK.aktywny = 1
+          AND DK.anulowany = 0
+        ORDER BY DK.data DESC
+    ), '') AS OstatniaFaktura
 FROM [SSCommon].[STContractors] C
 LEFT JOIN [SSCommon].[STPostOfficeAddresses] POA
     ON POA.ContactGuid = C.ContactGuid
@@ -159,6 +181,7 @@ ORDER BY C.Name;
                 {
                     IdSymfonia = reader.GetInt32(reader.GetOrdinal("IdSymfonia")),
                     NazwaFirmy = reader["NazwaFirmy"]?.ToString() ?? "",
+                    Skrot = reader["Skrot"]?.ToString() ?? "",
                     Miasto = reader["Miasto"]?.ToString() ?? "",
                     Ulica = reader["Ulica"]?.ToString() ?? "",
                     KodPocztowy = reader["KodPocztowy"]?.ToString() ?? "",
@@ -166,7 +189,8 @@ ORDER BY C.Name;
                     LimitKupiecki = reader.IsDBNull(reader.GetOrdinal("LimitKupiecki")) ? 0 : Convert.ToDecimal(reader["LimitKupiecki"]),
                     Handlowiec = reader["Handlowiec"]?.ToString() ?? "",
                     WykorzystanoLimit = reader.IsDBNull(reader.GetOrdinal("WykorzystanoLimit")) ? 0 : Convert.ToDecimal(reader["WykorzystanoLimit"]),
-                    KwotaPrzeterminowana = reader.IsDBNull(reader.GetOrdinal("KwotaPrzeterminowana")) ? 0 : Convert.ToDecimal(reader["KwotaPrzeterminowana"])
+                    KwotaPrzeterminowana = reader.IsDBNull(reader.GetOrdinal("KwotaPrzeterminowana")) ? 0 : Convert.ToDecimal(reader["KwotaPrzeterminowana"]),
+                    OstatniaFaktura = reader["OstatniaFaktura"]?.ToString() ?? ""
                 });
             }
 
@@ -393,7 +417,8 @@ WHEN NOT MATCHED THEN
                                ISNULL(PN.KwotaRozliczona, 0) AS rozliczono,
                                DK.typ_dk AS typ, DK.anulowany,
                                DK.data AS data_faktury,
-                               ISNULL(PN.TerminPrawdziwy, DK.plattermin) AS termin_platnosci
+                               ISNULL(PN.TerminPrawdziwy, DK.plattermin) AS termin_platnosci,
+                               ISNULL(GT.GlownyTowar, '') AS GlownyTowar
                         FROM [HM].[DK] DK
                         LEFT JOIN (
                             SELECT dkid,
@@ -402,6 +427,13 @@ WHEN NOT MATCHED THEN
                             FROM [HM].[PN]
                             GROUP BY dkid
                         ) PN ON PN.dkid = DK.id
+                        OUTER APPLY (
+                            SELECT TOP 1 TW.nazwa AS GlownyTowar
+                            FROM [HM].[DP] DP
+                            INNER JOIN [HM].[TW] TW ON DP.idtw = TW.ID
+                            WHERE DP.super = DK.id AND DP.ilosc > 0
+                            ORDER BY DP.cena * DP.ilosc DESC
+                        ) GT
                         WHERE DK.khid = @IdSymfonia
                           AND DK.typ_dk IN ('FVS', 'FVR', 'FVZ')
                           AND DK.aktywny = 1
@@ -422,6 +454,7 @@ WHEN NOT MATCHED THEN
                     Brutto = reader.IsDBNull(reader.GetOrdinal("brutto")) ? 0 : Convert.ToDecimal(reader["brutto"]),
                     Rozliczono = reader.IsDBNull(reader.GetOrdinal("rozliczono")) ? 0 : Convert.ToDecimal(reader["rozliczono"]),
                     Typ = reader["typ"]?.ToString() ?? "",
+                    GlownyTowar = reader["GlownyTowar"]?.ToString() ?? "",
                     Anulowany = Convert.ToInt16(reader["anulowany"]) != 0,
                     DataFaktury = Convert.ToDateTime(reader["data_faktury"]),
                     TerminPlatnosci = reader.IsDBNull(reader.GetOrdinal("termin_platnosci"))
@@ -562,6 +595,93 @@ ORDER BY SumaWartosc DESC";
                     SredniaCena = Convert.ToDecimal(reader["SredniaCena"]),
                     LiczbaFaktur = Convert.ToInt32(reader["LiczbaFaktur"]),
                     OstatniaSprzedaz = Convert.ToDateTime(reader["OstatniaSprzedaz"])
+                });
+            }
+
+            return result;
+        }
+
+        public async Task<List<NotatkaPozycja>> PobierzNotatkiAsync(int idSymfonia)
+        {
+            var result = new List<NotatkaPozycja>();
+
+            using var conn = new SqlConnection(_libraNetConnectionString);
+            await conn.OpenAsync();
+
+            var sql = @"SELECT Id, IdSymfonia, Tresc, Autor, DataUtworzenia
+                        FROM dbo.KartotekaOdbiorcyNotatki
+                        WHERE IdSymfonia = @IdSymfonia
+                        ORDER BY DataUtworzenia DESC";
+
+            using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@IdSymfonia", idSymfonia);
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                result.Add(new NotatkaPozycja
+                {
+                    Id = reader.GetInt32(reader.GetOrdinal("Id")),
+                    IdSymfonia = reader.GetInt32(reader.GetOrdinal("IdSymfonia")),
+                    Tresc = reader["Tresc"]?.ToString() ?? "",
+                    Autor = reader["Autor"]?.ToString() ?? "",
+                    DataUtworzenia = reader.GetDateTime(reader.GetOrdinal("DataUtworzenia"))
+                });
+            }
+
+            return result;
+        }
+
+        public async Task DodajNotatkeAsync(int idSymfonia, string tresc, string autor)
+        {
+            using var conn = new SqlConnection(_libraNetConnectionString);
+            await conn.OpenAsync();
+
+            var sql = @"INSERT INTO dbo.KartotekaOdbiorcyNotatki (IdSymfonia, Tresc, Autor)
+                        VALUES (@IdSymfonia, @Tresc, @Autor)";
+
+            using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@IdSymfonia", idSymfonia);
+            cmd.Parameters.AddWithValue("@Tresc", tresc ?? "");
+            cmd.Parameters.AddWithValue("@Autor", autor ?? "");
+
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        public async Task UsunNotatkeAsync(int id)
+        {
+            using var conn = new SqlConnection(_libraNetConnectionString);
+            await conn.OpenAsync();
+
+            using var cmd = new SqlCommand("DELETE FROM dbo.KartotekaOdbiorcyNotatki WHERE Id = @Id", conn);
+            cmd.Parameters.AddWithValue("@Id", id);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        public async Task<List<TowarKatalog>> PobierzTowaryKatalogAsync()
+        {
+            var result = new List<TowarKatalog>();
+
+            using var conn = new SqlConnection(_handelConnectionString);
+            await conn.OpenAsync();
+
+            var sql = @"SELECT TW.ID, TW.kod, TW.nazwa,
+                               CASE WHEN TW.katalog = 67153 THEN N'Mrożonki' ELSE N'Świeże' END AS Katalog
+                        FROM [HM].[TW] TW
+                        WHERE TW.katalog IN (67095, 67153)
+                          AND TW.aktywny = 1
+                        ORDER BY TW.nazwa";
+
+            using var cmd = new SqlCommand(sql, conn);
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                result.Add(new TowarKatalog
+                {
+                    Id = Convert.ToInt32(reader["ID"]),
+                    Kod = reader["kod"]?.ToString() ?? "",
+                    Nazwa = reader["nazwa"]?.ToString() ?? "",
+                    Katalog = reader["Katalog"]?.ToString() ?? ""
                 });
             }
 

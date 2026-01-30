@@ -12,6 +12,7 @@ namespace Kalendarz1.Kartoteka.Models
         public decimal Brutto { get; set; }
         public decimal Rozliczono { get; set; }
         public string Typ { get; set; }
+        public string GlownyTowar { get; set; }
         public bool Anulowany { get; set; }
 
         public decimal DoZaplaty => Brutto - Rozliczono;

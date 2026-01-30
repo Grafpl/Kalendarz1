@@ -127,8 +127,9 @@ namespace Kalendarz1.Kartoteka.Views
                 LoadingOverlay.Visibility = Visibility.Collapsed;
             }
 
-            // Ładuj asortyment w tle (nie blokuje UI)
+            // Ładuj asortyment i towary w tle (nie blokuje UI)
             _ = LoadAsortymentInBackground();
+            _ = LoadTowaryAsync();
         }
 
         private async System.Threading.Tasks.Task LoadAsortymentInBackground()
@@ -160,6 +161,39 @@ namespace Kalendarz1.Kartoteka.Views
         }
 
         private List<OdbiorcaHandlowca> _allOdbiorcy = new();
+        private List<TowarKatalog> _towary = new();
+        private Dictionary<int, HashSet<string>> _odbiorcyTowary = new();
+
+        private async System.Threading.Tasks.Task LoadTowaryAsync()
+        {
+            try
+            {
+                _towary = await _service.PobierzTowaryKatalogAsync();
+
+                ComboBoxTowar.Items.Clear();
+                ComboBoxTowar.Items.Add(new ComboBoxItem { Content = "Towar (wszystkie)", IsSelected = true });
+
+                // Grupy
+                var swieze = _towary.Where(t => t.Katalog == "Świeże").ToList();
+                var mrozonki = _towary.Where(t => t.Katalog == "Mrożonki").ToList();
+
+                ComboBoxTowar.Items.Add(new ComboBoxItem { Content = "── Świeże ──", IsEnabled = false, FontWeight = FontWeights.Bold });
+                foreach (var t in swieze)
+                    ComboBoxTowar.Items.Add(new ComboBoxItem { Content = $"{t.Kod} - {t.Nazwa}", Tag = t.Kod });
+
+                ComboBoxTowar.Items.Add(new ComboBoxItem { Content = "── Mrożonki ──", IsEnabled = false, FontWeight = FontWeights.Bold });
+                foreach (var t in mrozonki)
+                    ComboBoxTowar.Items.Add(new ComboBoxItem { Content = $"{t.Kod} - {t.Nazwa}", Tag = t.Kod });
+
+                ComboBoxTowar.SelectedIndex = 0;
+            }
+            catch { }
+        }
+
+        private void ComboBoxTowar_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (IsLoaded) ApplyFilters();
+        }
 
         private void ApplyFilters()
         {
@@ -185,6 +219,15 @@ namespace Kalendarz1.Kartoteka.Views
                 var kat = (ComboBoxKategoria.SelectedItem as ComboBoxItem)?.Content?.ToString();
                 if (!string.IsNullOrEmpty(kat))
                     filtered = filtered.Where(o => o.KategoriaHandlowca == kat);
+            }
+
+            // Filtr towaru
+            var selectedTowar = ComboBoxTowar.SelectedItem as ComboBoxItem;
+            var towarKod = selectedTowar?.Tag?.ToString();
+            if (!string.IsNullOrEmpty(towarKod))
+            {
+                filtered = filtered.Where(o =>
+                    !string.IsNullOrEmpty(o.Asortyment) && o.Asortyment.Contains(towarKod));
             }
 
             // Filtr alertów
@@ -248,7 +291,6 @@ namespace Kalendarz1.Kartoteka.Views
                 DataGridFaktury.ItemsSource = faktury.Take(10).ToList();
                 ApplyHistoriaFilters();
                 WypelnijPlatnosci(faktury);
-                WypelnijHistoriaKontaktow(faktury);
             }
             catch { }
 
@@ -291,10 +333,12 @@ namespace Kalendarz1.Kartoteka.Views
             }
 
             // Notatki
-            TextBoxNotatki.Text = odbiorca.Notatki ?? "";
+            TextBoxNotatki.Text = "";
+            TextNotatkaAutor.Text = $"Autor: {_userName}";
             TextNotatkaInfo.Text = odbiorca.DataModyfikacji.HasValue
-                ? $"Ost. zmiana: {odbiorca.DataModyfikacji:dd.MM.yyyy}, {odbiorca.ModyfikowalPrzez ?? ""}"
+                ? $"Ost. zmiana: {odbiorca.DataModyfikacji:dd.MM.yyyy}"
                 : "";
+            await LoadNotatki(odbiorca.IdSymfonia);
 
             // Dostawy
             TextDostawyDni.Text = $"Preferowane dni: {(string.IsNullOrEmpty(odbiorca.PreferowanyDzienDostawy) ? "-" : odbiorca.PreferowanyDzienDostawy)}";
@@ -502,83 +546,7 @@ namespace Kalendarz1.Kartoteka.Views
                 TextPlatnosciSuma.Text = $"{result.Where(f => !f.Anulowany).Sum(f => f.Brutto):N0} zł";
         }
 
-        private void WypelnijHistoriaKontaktow(List<FakturaOdbiorcy> faktury)
-        {
-            PanelHistoriaKontaktow.Children.Clear();
-
-            // Generuj timeline z faktur (ostatnie 20)
-            var ostatnie = faktury.OrderByDescending(f => f.DataFaktury).Take(20).ToList();
-
-            foreach (var f in ostatnie)
-            {
-                Color borderColor, bgColor;
-                string ikona;
-
-                if (f.Anulowany)
-                {
-                    borderColor = Color.FromRgb(156, 163, 175); // gray
-                    bgColor = Color.FromRgb(243, 244, 246);
-                    ikona = "⚪";
-                }
-                else if (f.Status == "Zapłacona")
-                {
-                    borderColor = Color.FromRgb(74, 222, 128); // green
-                    bgColor = Color.FromRgb(220, 252, 231);
-                    ikona = "🟢";
-                }
-                else if (f.Przeterminowana)
-                {
-                    borderColor = Color.FromRgb(248, 113, 113); // red
-                    bgColor = Color.FromRgb(254, 226, 226);
-                    ikona = "🔴";
-                }
-                else
-                {
-                    borderColor = Color.FromRgb(96, 165, 250); // blue
-                    bgColor = Color.FromRgb(219, 234, 254);
-                    ikona = "🔵";
-                }
-
-                var card = new Border
-                {
-                    Padding = new Thickness(8),
-                    Margin = new Thickness(0, 0, 0, 4),
-                    CornerRadius = new CornerRadius(4),
-                    BorderThickness = new Thickness(4, 0, 0, 0),
-                    BorderBrush = new SolidColorBrush(borderColor),
-                    Background = new SolidColorBrush(bgColor)
-                };
-
-                var stack = new StackPanel();
-                stack.Children.Add(new TextBlock
-                {
-                    Text = f.DataFaktury.ToString("dd.MM.yyyy"),
-                    Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
-                    FontSize = 10
-                });
-                stack.Children.Add(new TextBlock
-                {
-                    Text = $"{ikona} {f.Typ} {f.NumerDokumentu} - {f.Brutto:N2} zł ({f.Status})",
-                    FontSize = 11,
-                    TextWrapping = TextWrapping.Wrap
-                });
-
-                card.Child = stack;
-                PanelHistoriaKontaktow.Children.Add(card);
-            }
-
-            if (ostatnie.Count == 0)
-            {
-                PanelHistoriaKontaktow.Children.Add(new TextBlock
-                {
-                    Text = "Brak historii dokumentów",
-                    Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)),
-                    FontSize = 11,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    Margin = new Thickness(0, 20, 0, 0)
-                });
-            }
-        }
+        // WypelnijHistorieNotatek is now used instead of the old WypelnijHistoriaKontaktow
 
         private void WypelnijKontakty(List<KontaktOdbiorcy> kontakty, int idSymfonia)
         {
@@ -791,6 +759,10 @@ namespace Kalendarz1.Kartoteka.Views
         {
             GridObrotyWykres.Children.Clear();
             GridObrotyWykres.ColumnDefinitions.Clear();
+            GridObrotyLabels.Children.Clear();
+            GridObrotyLabels.ColumnDefinitions.Clear();
+            GridObrotyValues.Children.Clear();
+            GridObrotyValues.ColumnDefinitions.Clear();
 
             // Oblicz obroty na miesiąc (ostatnie 12 miesięcy)
             var teraz = DateTime.Now;
@@ -806,9 +778,13 @@ namespace Kalendarz1.Kartoteka.Views
             var maxVal = miesieczne.Max();
             if (maxVal <= 0) maxVal = 1;
 
+            string[] nazwyMiesiecy = { "Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru" };
+
             for (int i = 0; i < 12; i++)
             {
                 GridObrotyWykres.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                GridObrotyLabels.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                GridObrotyValues.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
                 var miesiac = teraz.AddMonths(-11 + i);
                 var height = (double)(miesieczne[i] / maxVal) * 80;
@@ -820,7 +796,7 @@ namespace Kalendarz1.Kartoteka.Views
                     Margin = new Thickness(1, 0, 1, 0),
                     Height = height,
                     VerticalAlignment = VerticalAlignment.Bottom,
-                    ToolTip = $"{miesiac:MMM yyyy}: {miesieczne[i]:N0} zł",
+                    ToolTip = $"{nazwyMiesiecy[miesiac.Month - 1]} {miesiac.Year}: {miesieczne[i]:N0} zł",
                     RadiusX = 2,
                     RadiusY = 2
                 };
@@ -829,6 +805,32 @@ namespace Kalendarz1.Kartoteka.Views
 
                 Grid.SetColumn(rect, i);
                 GridObrotyWykres.Children.Add(rect);
+
+                // Etykieta miesiąca
+                var labelMiesiac = new TextBlock
+                {
+                    Text = nazwyMiesiecy[miesiac.Month - 1],
+                    FontSize = 8,
+                    Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    TextAlignment = TextAlignment.Center
+                };
+                Grid.SetColumn(labelMiesiac, i);
+                GridObrotyLabels.Children.Add(labelMiesiac);
+
+                // Wartość
+                var valText = miesieczne[i] >= 1000 ? $"{miesieczne[i] / 1000:N0}k" : $"{miesieczne[i]:N0}";
+                var labelWartosc = new TextBlock
+                {
+                    Text = miesieczne[i] > 0 ? valText : "",
+                    FontSize = 7,
+                    Foreground = new SolidColorBrush(Color.FromRgb(22, 163, 74)),
+                    FontWeight = FontWeights.Medium,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    TextAlignment = TextAlignment.Center
+                };
+                Grid.SetColumn(labelWartosc, i);
+                GridObrotyValues.Children.Add(labelWartosc);
             }
         }
 
@@ -875,15 +877,117 @@ namespace Kalendarz1.Kartoteka.Views
             var odbiorca = DataGridOdbiorcy.SelectedItem as OdbiorcaHandlowca;
             if (odbiorca == null) return;
 
+            var tresc = TextBoxNotatki.Text?.Trim();
+            if (string.IsNullOrEmpty(tresc))
+            {
+                MessageBox.Show("Wpisz treść notatki.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             try
             {
-                odbiorca.Notatki = TextBoxNotatki.Text;
-                await _service.ZapiszDaneWlasneAsync(odbiorca, _userName);
-                MessageBox.Show("Notatki zapisane.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                await _service.DodajNotatkeAsync(odbiorca.IdSymfonia, tresc, _userName);
+                TextBoxNotatki.Text = "";
+                await LoadNotatki(odbiorca.IdSymfonia);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd zapisu: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Błąd zapisu notatki: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async System.Threading.Tasks.Task LoadNotatki(int idSymfonia)
+        {
+            try
+            {
+                var notatki = await _service.PobierzNotatkiAsync(idSymfonia);
+                WypelnijHistorieNotatek(notatki, idSymfonia);
+            }
+            catch { }
+        }
+
+        private void WypelnijHistorieNotatek(List<NotatkaPozycja> notatki, int idSymfonia)
+        {
+            PanelHistoriaNotatek.Children.Clear();
+            TextNotatekCount.Text = $"{notatki.Count} notatek";
+
+            foreach (var n in notatki)
+            {
+                var card = new Border
+                {
+                    Padding = new Thickness(10),
+                    Margin = new Thickness(0, 0, 0, 6),
+                    CornerRadius = new CornerRadius(6),
+                    BorderThickness = new Thickness(3, 0, 0, 0),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(34, 197, 94)),
+                    Background = new SolidColorBrush(Color.FromRgb(240, 253, 244))
+                };
+                card.Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    ShadowDepth = 0, Color = Colors.Black, Opacity = 0.04, BlurRadius = 4
+                };
+
+                var stack = new StackPanel();
+
+                // Nagłówek: autor + data
+                var header = new DockPanel { Margin = new Thickness(0, 0, 0, 4) };
+                header.Children.Add(new TextBlock
+                {
+                    Text = n.Autor,
+                    FontWeight = FontWeights.SemiBold,
+                    FontSize = 11,
+                    Foreground = new SolidColorBrush(Color.FromRgb(22, 101, 52))
+                });
+                var dataBlock = new TextBlock
+                {
+                    Text = n.DataUtworzenia.ToString("dd.MM.yyyy HH:mm"),
+                    Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                    FontSize = 10,
+                    HorizontalAlignment = HorizontalAlignment.Right
+                };
+                DockPanel.SetDock(dataBlock, Dock.Right);
+                header.Children.Insert(0, dataBlock);
+                stack.Children.Add(header);
+
+                // Treść notatki
+                stack.Children.Add(new TextBlock
+                {
+                    Text = n.Tresc,
+                    TextWrapping = TextWrapping.Wrap,
+                    FontSize = 11,
+                    Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81))
+                });
+
+                card.Child = stack;
+
+                // Context menu - usuwanie
+                card.ContextMenu = new ContextMenu();
+                var deleteItem = new MenuItem { Header = "Usuń notatkę" };
+                var noteId = n.Id;
+                deleteItem.Click += async (s, ev) =>
+                {
+                    if (MessageBox.Show("Usunąć tę notatkę?", "Potwierdź", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+                    {
+                        await _service.UsunNotatkeAsync(noteId);
+                        await LoadNotatki(idSymfonia);
+                    }
+                };
+                card.ContextMenu.Items.Add(deleteItem);
+
+                PanelHistoriaNotatek.Children.Add(card);
+            }
+
+            if (notatki.Count == 0)
+            {
+                PanelHistoriaNotatek.Children.Add(new TextBlock
+                {
+                    Text = "Brak notatek dla tego odbiorcy.\nDodaj pierwszą notatkę po lewej stronie.",
+                    Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)),
+                    FontSize = 11,
+                    TextWrapping = TextWrapping.Wrap,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 30, 0, 0)
+                });
             }
         }
 

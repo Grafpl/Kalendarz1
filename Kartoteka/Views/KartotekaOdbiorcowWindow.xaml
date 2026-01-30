@@ -86,6 +86,12 @@
                               Visibility="Collapsed"
                               SelectionChanged="ComboBoxHandlowiec_SelectionChanged"/>
 
+                    <ComboBox x:Name="ComboBoxTowar" Width="200" Margin="8,0,0,0"
+                              IsEditable="True" IsTextSearchEnabled="True"
+                              SelectionChanged="ComboBoxTowar_SelectionChanged">
+                        <ComboBoxItem Content="Towar (wszystkie)" IsSelected="True"/>
+                    </ComboBox>
+
                     <CheckBox x:Name="CheckBoxAlerty" Content="⚠️ Tylko alerty"
                               Foreground="White" Margin="12,0,0,0"
                               VerticalAlignment="Center"
@@ -157,15 +163,16 @@
             </DataGrid.ContextMenu>
 
             <DataGrid.Columns>
-                <!-- Alert icon + Firma -->
-                <DataGridTemplateColumn Header="Firma" Width="220" SortMemberPath="NazwaFirmy" CanUserSort="True">
+                <!-- Alert icon + Skrót firmy -->
+                <DataGridTemplateColumn Header="Firma" Width="180" SortMemberPath="Skrot" CanUserSort="True">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="{Binding AlertType, Converter={StaticResource AlertToIconConverter}}"
                                            FontSize="12" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="{Binding NazwaFirmy}" FontWeight="SemiBold"
-                                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding Skrot}" FontWeight="SemiBold"
+                                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                           ToolTip="{Binding NazwaFirmy}"/>
                             </StackPanel>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
@@ -249,6 +256,39 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
+
+                <!-- Bilans (Limit - Wykorzystano) -->
+                <DataGridTemplateColumn Header="Bilans" Width="90" SortMemberPath="Bilans" CanUserSort="True">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Bilans, StringFormat=N0}"
+                                       TextAlignment="Right" HorizontalAlignment="Right">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="Foreground" Value="#16A34A"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding PrzekroczonyLimit}" Value="True">
+                                                <Setter Property="Foreground" Value="#DC2626"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <!-- Ostatnia faktura -->
+                <DataGridTextColumn Header="Ost. faktura" Binding="{Binding OstatniaFaktura}" Width="110">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="FontFamily" Value="Consolas"/>
+                            <Setter Property="FontSize" Value="10"/>
+                            <Setter Property="Foreground" Value="#6B7280"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
 
                 <!-- Kategoria (kółko) -->
                 <DataGridTemplateColumn Header="Kat." Width="50">
@@ -340,14 +380,14 @@
                                 </Grid>
 
                                 <UniformGrid Grid.Row="3" Columns="2" Margin="0,4,0,0">
-                                    <Border Background="#FFFFFF33" CornerRadius="6" Padding="10,8" Margin="0,0,3,0">
+                                    <Border Background="#FFFFFF22" CornerRadius="6" Padding="10,8" Margin="0,0,3,0">
                                         <StackPanel>
                                             <TextBlock Text="Wolne" Foreground="#BBF7D0" FontSize="11"/>
                                             <TextBlock x:Name="TextFinanseWolne" Text="-"
                                                        Foreground="White" FontWeight="Bold" FontSize="16"/>
                                         </StackPanel>
                                     </Border>
-                                    <Border Background="#FFFFFF33" CornerRadius="6" Padding="10,8" Margin="3,0,0,0">
+                                    <Border Background="#FFFFFF22" CornerRadius="6" Padding="10,8" Margin="3,0,0,0">
                                         <StackPanel>
                                             <TextBlock Text="Zajęte" Foreground="#BBF7D0" FontSize="11"/>
                                             <TextBlock x:Name="TextFinanseZajete" Text="-"
@@ -426,8 +466,21 @@
                                                    VerticalAlignment="Center"/>
                                     </DockPanel>
 
-                                    <Grid Grid.Row="1" x:Name="GridObrotyWykres" ClipToBounds="True">
-                                        <!-- Słupki generowane w code-behind -->
+                                    <Grid Grid.Row="1" ClipToBounds="True">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <Grid Grid.Row="0" x:Name="GridObrotyWykres" ClipToBounds="True">
+                                            <!-- Słupki generowane w code-behind -->
+                                        </Grid>
+                                        <Grid Grid.Row="1" x:Name="GridObrotyLabels" Margin="0,2,0,0">
+                                            <!-- Etykiety miesięcy generowane w code-behind -->
+                                        </Grid>
+                                        <Grid Grid.Row="2" x:Name="GridObrotyValues" Margin="0,0,0,0">
+                                            <!-- Wartości generowane w code-behind -->
+                                        </Grid>
                                     </Grid>
 
                                     <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,6,0,0">
@@ -663,9 +716,9 @@
                                             <Setter Property="BorderBrush" Value="Transparent"/>
                                             <Style.Triggers>
                                                 <Trigger Property="IsSelected" Value="True">
-                                                    <Setter Property="Background" Value="#BBF7D0"/>
-                                                    <Setter Property="BorderBrush" Value="#16A34A"/>
-                                                    <Setter Property="Foreground" Value="#14532D"/>
+                                                    <Setter Property="Background" Value="#16A34A"/>
+                                                    <Setter Property="BorderBrush" Value="#15803D"/>
+                                                    <Setter Property="Foreground" Value="White"/>
                                                 </Trigger>
                                                 <Trigger Property="IsMouseOver" Value="True">
                                                     <Setter Property="Background" Value="#DCFCE7"/>
@@ -677,8 +730,7 @@
                                         <DataGridTextColumn Header="Kod" Binding="{Binding ProduktKod}" Width="80">
                                             <DataGridTextColumn.ElementStyle>
                                                 <Style TargetType="TextBlock">
-                                                    <Setter Property="FontWeight" Value="Medium"/>
-                                                    <Setter Property="Foreground" Value="#15803D"/>
+                                                    <Setter Property="FontWeight" Value="SemiBold"/>
                                                 </Style>
                                             </DataGridTextColumn.ElementStyle>
                                         </DataGridTextColumn>
@@ -773,11 +825,19 @@
                                       Background="Transparent" CanUserResizeRows="False">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Data" Binding="{Binding DataFaktury, StringFormat=dd.MM.yyyy}" Width="75"/>
-                                    <DataGridTextColumn Header="Nr dokumentu" Binding="{Binding NumerDokumentu}" Width="*">
+                                    <DataGridTextColumn Header="Nr dokumentu" Binding="{Binding NumerDokumentu}" Width="140">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="FontFamily" Value="Consolas"/>
                                                 <Setter Property="FontWeight" Value="Medium"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Towar (główny)" Binding="{Binding GlownyTowar}" Width="*">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="#374151"/>
+                                                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
@@ -846,9 +906,12 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
-                        <!-- ═══ KOLUMNA 1: Notatki handlowca ═══ -->
+                        <!-- ═══ KOLUMNA 1: Dodaj nową notatkę ═══ -->
                         <Border Grid.Column="0" Background="White" BorderBrush="#E5E7EB" BorderThickness="1"
-                                CornerRadius="4" Margin="0,0,4,0" ClipToBounds="True">
+                                CornerRadius="6" Margin="0,0,4,0" ClipToBounds="True">
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="1" Color="Black" Opacity="0.06" BlurRadius="6"/>
+                            </Border.Effect>
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
@@ -856,48 +919,63 @@
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
-                                <Border Grid.Row="0" Background="#F9FAFB" BorderBrush="#E5E7EB"
-                                        BorderThickness="0,0,0,1" Padding="8,6">
-                                    <TextBlock Text="📝 Notatki handlowca" FontWeight="SemiBold" FontSize="11"/>
+                                <Border Grid.Row="0" Background="#F0FDF4" BorderBrush="#BBF7D0"
+                                        BorderThickness="0,0,0,1" Padding="10,8">
+                                    <DockPanel>
+                                        <TextBlock Text="📝 Nowa notatka" FontWeight="SemiBold" FontSize="12"
+                                                   Foreground="#166534"/>
+                                        <TextBlock x:Name="TextNotatkaInfo" Foreground="#6B7280" FontSize="10"
+                                                   VerticalAlignment="Center" HorizontalAlignment="Right" Text=""/>
+                                    </DockPanel>
                                 </Border>
 
                                 <TextBox Grid.Row="1" x:Name="TextBoxNotatki"
                                          AcceptsReturn="True" TextWrapping="Wrap"
-                                         BorderThickness="0" Padding="8" FontSize="11"
-                                         VerticalScrollBarVisibility="Auto"/>
+                                         BorderThickness="0" Padding="10" FontSize="12"
+                                         VerticalScrollBarVisibility="Auto"
+                                         Tag="Wpisz treść notatki o kliencie..."/>
 
                                 <Border Grid.Row="2" Background="#F9FAFB" BorderBrush="#E5E7EB"
-                                        BorderThickness="0,1,0,0" Padding="8,6">
+                                        BorderThickness="0,1,0,0" Padding="10,8">
                                     <DockPanel>
-                                        <TextBlock x:Name="TextNotatkaInfo" Foreground="#6B7280" FontSize="10"
+                                        <TextBlock x:Name="TextNotatkaAutor" Foreground="#6B7280" FontSize="10"
                                                    VerticalAlignment="Center" Text=""/>
-                                        <Button Content="💾 Zapisz notatki" HorizontalAlignment="Right"
+                                        <Button Content="💾 Dodaj notatkę" HorizontalAlignment="Right"
                                                 Background="#16A34A" Foreground="White"
-                                                Padding="12,4" FontSize="11" Cursor="Hand"
-                                                BorderThickness="0"
+                                                Padding="16,6" FontSize="12" Cursor="Hand"
+                                                BorderThickness="0" FontWeight="SemiBold"
                                                 Click="ButtonZapiszNotatki_Click"/>
                                     </DockPanel>
                                 </Border>
                             </Grid>
                         </Border>
 
-                        <!-- ═══ KOLUMNA 2: Historia kontaktów ═══ -->
+                        <!-- ═══ KOLUMNA 2: Historia notatek ═══ -->
                         <Border Grid.Column="1" Background="White" BorderBrush="#E5E7EB" BorderThickness="1"
-                                CornerRadius="4" Margin="4,0,0,0" ClipToBounds="True">
+                                CornerRadius="6" Margin="4,0,0,0" ClipToBounds="True">
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="1" Color="Black" Opacity="0.06" BlurRadius="6"/>
+                            </Border.Effect>
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
 
-                                <Border Grid.Row="0" Background="#F9FAFB" BorderBrush="#E5E7EB"
-                                        BorderThickness="0,0,0,1" Padding="8,6">
-                                    <TextBlock Text="📅 Historia dokumentów klienta" FontWeight="SemiBold" FontSize="11"/>
+                                <Border Grid.Row="0" Background="#F0FDF4" BorderBrush="#BBF7D0"
+                                        BorderThickness="0,0,0,1" Padding="10,8">
+                                    <DockPanel>
+                                        <TextBlock Text="📅 Historia notatek" FontWeight="SemiBold" FontSize="12"
+                                                   Foreground="#166534"/>
+                                        <TextBlock x:Name="TextNotatekCount" Text="0 notatek"
+                                                   Foreground="#6B7280" FontSize="10"
+                                                   VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                                    </DockPanel>
                                 </Border>
 
                                 <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                                    <StackPanel x:Name="PanelHistoriaKontaktow" Margin="8">
-                                        <!-- Generowane z code-behind na podstawie faktur -->
+                                    <StackPanel x:Name="PanelHistoriaNotatek" Margin="8">
+                                        <!-- Generowane z code-behind -->
                                     </StackPanel>
                                 </ScrollViewer>
                             </Grid>

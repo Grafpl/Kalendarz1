@@ -8,6 +8,7 @@ namespace Kalendarz1.Kartoteka.Models
     {
         public int IdSymfonia { get; set; }
         public string NazwaFirmy { get; set; }
+        public string Skrot { get; set; }
         public string Miasto { get; set; }
         public string Ulica { get; set; }
         public string KodPocztowy { get; set; }
@@ -58,6 +59,10 @@ namespace Kalendarz1.Kartoteka.Models
 
         public int DniOdOstatniegoZamowienia =>
             OstatnieZamowienie.HasValue ? (int)(DateTime.Now - OstatnieZamowienie.Value).TotalDays : 999;
+
+        public decimal Bilans => LimitKupiecki - WykorzystanoLimit;
+
+        public string OstatniaFaktura { get; set; }
 
         public string AsortymentSkrocony =>
             string.IsNullOrEmpty(Asortyment) ? "" :
