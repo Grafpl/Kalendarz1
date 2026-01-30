@@ -99,43 +99,50 @@ END;
 SELECT
     C.Id AS IdSymfonia,
     C.Name AS NazwaFirmy,
-    C.City AS Miasto,
-    C.Street AS Ulica,
-    C.PostCode AS KodPocztowy,
-    C.TaxId AS NIP,
-    CASE C.PaymentType
-        WHEN 0 THEN N'Gotówka'
-        WHEN 1 THEN N'Przelew'
-        WHEN 2 THEN N'Przedpłata'
-        ELSE N'Inny'
-    END AS FormaPlatnosci,
-    C.PaymentDays AS TerminPlatnosci,
-    ISNULL(C.CreditLimit, 0) AS LimitKupiecki,
-    C.IsActive,
+    ISNULL(POA.Place, '') AS Miasto,
+    ISNULL(POA.Street, '') AS Ulica,
+    ISNULL(POA.PostCode, '') AS KodPocztowy,
+    ISNULL(C.NIP, '') AS NIP,
+    ISNULL(C.LimitAmount, 0) AS LimitKupiecki,
     ISNULL(WYM.CDim_Handlowiec_Val, N'Nieprzypisany') AS Handlowiec,
     ISNULL((
-        SELECT SUM(FK.brutto - ISNULL(FK.rozliczono, 0))
-        FROM [HM].[FakturaKontrahent] FK
-        WHERE FK.khid = C.Id
-          AND FK.typ = 1
-          AND FK.anulowany = 0
-          AND FK.brutto > ISNULL(FK.rozliczono, 0)
+        SELECT SUM(DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0))
+        FROM [HM].[DK] DK
+        LEFT JOIN (
+            SELECT dkid, SUM(kwotarozl) AS KwotaRozliczona
+            FROM [HM].[PN]
+            GROUP BY dkid
+        ) PN ON PN.dkid = DK.id
+        WHERE DK.khid = C.Id
+          AND DK.seria LIKE 'FV%'
+          AND DK.aktywny = 1
+          AND DK.anulowany = 0
+          AND (DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0)) > 0.01
     ), 0) AS WykorzystanoLimit,
     ISNULL((
-        SELECT SUM(FK.brutto - ISNULL(FK.rozliczono, 0))
-        FROM [HM].[FakturaKontrahent] FK
-        WHERE FK.khid = C.Id
-          AND FK.typ = 1
-          AND FK.anulowany = 0
-          AND FK.brutto > ISNULL(FK.rozliczono, 0)
-          AND FK.termin_platnosci < GETDATE()
+        SELECT SUM(DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0))
+        FROM [HM].[DK] DK
+        LEFT JOIN (
+            SELECT dkid, SUM(kwotarozl) AS KwotaRozliczona,
+                   MAX(Termin) AS TerminPrawdziwy
+            FROM [HM].[PN]
+            GROUP BY dkid
+        ) PN ON PN.dkid = DK.id
+        WHERE DK.khid = C.Id
+          AND DK.seria LIKE 'FV%'
+          AND DK.aktywny = 1
+          AND DK.anulowany = 0
+          AND (DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0)) > 0.01
+          AND GETDATE() > ISNULL(PN.TerminPrawdziwy, DK.plattermin)
     ), 0) AS KwotaPrzeterminowana
 FROM [SSCommon].[STContractors] C
+LEFT JOIN [SSCommon].[STPostOfficeAddresses] POA
+    ON POA.ContactGuid = C.ContactGuid
+    AND POA.AddressName = N'adres domyślny'
 LEFT JOIN [SSCommon].[ContractorClassification] WYM
     ON C.Id = WYM.ElementId
 WHERE
-    C.IsActive = 1
-    AND (@PokazWszystkich = 1 OR ISNULL(WYM.CDim_Handlowiec_Val, '') = @Handlowiec)
+    (@PokazWszystkich = 1 OR ISNULL(WYM.CDim_Handlowiec_Val, '') = @Handlowiec)
 ORDER BY C.Name;
 ";
             using var cmd = new SqlCommand(sql, conn);
@@ -153,10 +160,7 @@ ORDER BY C.Name;
                     Ulica = reader["Ulica"]?.ToString() ?? "",
                     KodPocztowy = reader["KodPocztowy"]?.ToString() ?? "",
                     NIP = reader["NIP"]?.ToString() ?? "",
-                    FormaPlatnosci = reader["FormaPlatnosci"]?.ToString() ?? "",
-                    TerminPlatnosci = reader.IsDBNull(reader.GetOrdinal("TerminPlatnosci")) ? 0 : reader.GetInt32(reader.GetOrdinal("TerminPlatnosci")),
                     LimitKupiecki = reader.IsDBNull(reader.GetOrdinal("LimitKupiecki")) ? 0 : reader.GetDecimal(reader.GetOrdinal("LimitKupiecki")),
-                    IsActive = reader.IsDBNull(reader.GetOrdinal("IsActive")) ? true : reader.GetBoolean(reader.GetOrdinal("IsActive")),
                     Handlowiec = reader["Handlowiec"]?.ToString() ?? "",
                     WykorzystanoLimit = reader.IsDBNull(reader.GetOrdinal("WykorzystanoLimit")) ? 0 : reader.GetDecimal(reader.GetOrdinal("WykorzystanoLimit")),
                     KwotaPrzeterminowana = reader.IsDBNull(reader.GetOrdinal("KwotaPrzeterminowana")) ? 0 : reader.GetDecimal(reader.GetOrdinal("KwotaPrzeterminowana"))
@@ -381,12 +385,25 @@ WHEN NOT MATCHED THEN
             using var conn = new SqlConnection(_handelConnectionString);
             await conn.OpenAsync();
 
-            var sql = @"SELECT FK.khid, FK.brutto, ISNULL(FK.rozliczono, 0) AS rozliczono,
-                               FK.typ, FK.anulowany, FK.data_faktury, FK.termin_platnosci
-                        FROM [HM].[FakturaKontrahent] FK
-                        WHERE FK.khid = @IdSymfonia
-                          AND FK.data_faktury >= DATEADD(MONTH, -@Miesiace, GETDATE())
-                        ORDER BY FK.data_faktury DESC";
+            var sql = @"SELECT DK.khid, DK.kod AS NumerDokumentu,
+                               CAST(DK.walbrutto AS DECIMAL(18,2)) AS brutto,
+                               ISNULL(PN.KwotaRozliczona, 0) AS rozliczono,
+                               DK.typ_dk AS typ, DK.anulowany,
+                               DK.data AS data_faktury,
+                               ISNULL(PN.TerminPrawdziwy, DK.plattermin) AS termin_platnosci
+                        FROM [HM].[DK] DK
+                        LEFT JOIN (
+                            SELECT dkid,
+                                   SUM(kwotarozl) AS KwotaRozliczona,
+                                   MAX(Termin) AS TerminPrawdziwy
+                            FROM [HM].[PN]
+                            GROUP BY dkid
+                        ) PN ON PN.dkid = DK.id
+                        WHERE DK.khid = @IdSymfonia
+                          AND DK.seria LIKE 'FV%'
+                          AND DK.aktywny = 1
+                          AND DK.data >= DATEADD(MONTH, -@Miesiace, GETDATE())
+                        ORDER BY DK.data DESC";
 
             using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("@IdSymfonia", idSymfonia);
