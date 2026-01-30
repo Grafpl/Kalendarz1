@@ -247,6 +247,7 @@ namespace Kalendarz1.Kartoteka.Views
                 WypelnijFinanse(odbiorca, faktury);
                 DataGridFaktury.ItemsSource = faktury.Take(10).ToList();
                 ApplyHistoriaFilters();
+                WypelnijPlatnosci(faktury);
                 WypelnijHistoriaKontaktow(faktury);
             }
             catch { }
@@ -378,16 +379,11 @@ namespace Kalendarz1.Kartoteka.Views
             if (IsLoaded) ApplyHistoriaFilters();
         }
 
-        private void ComboHistoriaStatus_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (IsLoaded) ApplyHistoriaFilters();
-        }
-
         private void ApplyHistoriaFilters()
         {
             if (_currentFaktury == null || DataGridHistoria == null) return;
 
-            var filtered = _currentFaktury.AsEnumerable();
+            var filtered = _currentFaktury.Where(f => !f.Anulowany).AsEnumerable();
 
             // Filtr okresu
             if (ComboHistoriaOkres?.SelectedIndex >= 0)
@@ -410,10 +406,86 @@ namespace Kalendarz1.Kartoteka.Views
                 filtered = filtered.Where(f => f.Typ == typCode);
             }
 
-            // Filtr statusu
-            if (ComboHistoriaStatus?.SelectedIndex > 0)
+            var result = filtered.ToList();
+            DataGridHistoria.ItemsSource = result;
+
+            // Aktualizuj podsumowanie
+            if (TextHistoriaLiczba != null)
+                TextHistoriaLiczba.Text = result.Count.ToString();
+            if (TextHistoriaSuma != null)
+                TextHistoriaSuma.Text = $"{result.Sum(f => f.Brutto):N0} zł";
+        }
+
+        // ═══════════════════════════════════════════
+        // PŁATNOŚCI - tab
+        // ═══════════════════════════════════════════
+
+        private void WypelnijPlatnosci(List<FakturaOdbiorcy> faktury)
+        {
+            // KPI: Do zapłaty
+            var nieoplacone = faktury.Where(f => !f.Anulowany && f.DoZaplaty > 0).ToList();
+            TextPlatnosciDoZaplaty.Text = $"{nieoplacone.Sum(f => f.DoZaplaty):N0} zł";
+            TextPlatnosciDoZaplatyCount.Text = $"{nieoplacone.Count} faktur";
+
+            // KPI: Przeterminowane
+            var przeterminowane = faktury.Where(f => !f.Anulowany && f.Przeterminowana).ToList();
+            TextPlatnosciPrzeterminowane.Text = $"{przeterminowane.Sum(f => f.DoZaplaty):N0} zł";
+            TextPlatnosciPrzeterminowaneCount.Text = $"{przeterminowane.Count} faktur";
+
+            // KPI: Zapłacono 12m
+            var zaplacone12m = faktury.Where(f => !f.Anulowany && f.DoZaplaty <= 0 && f.DataFaktury >= DateTime.Now.AddYears(-1)).ToList();
+            TextPlatnosciZaplacono.Text = $"{zaplacone12m.Sum(f => f.Brutto):N0} zł";
+            TextPlatnosciZaplaconoCount.Text = $"{zaplacone12m.Count} faktur";
+
+            // KPI: Średnie dni płatności (oblicz z zapłaconych faktur)
+            var zTerminem = zaplacone12m.Where(f => f.TerminPlatnosci > DateTime.MinValue).ToList();
+            if (zTerminem.Count > 0)
             {
-                switch (ComboHistoriaStatus.SelectedIndex)
+                // Uproszczone - dni od wystawienia do terminu jako przybliżenie
+                var srednie = zTerminem.Average(f => (f.TerminPlatnosci - f.DataFaktury).TotalDays);
+                TextPlatnosciSrednieDni.Text = $"{srednie:F0} dni";
+            }
+            else
+            {
+                TextPlatnosciSrednieDni.Text = "-";
+            }
+
+            ApplyPlatnosciFilters();
+        }
+
+        private void ComboPlatnosciOkres_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (IsLoaded) ApplyPlatnosciFilters();
+        }
+
+        private void ComboPlatnosciStatus_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (IsLoaded) ApplyPlatnosciFilters();
+        }
+
+        private void ApplyPlatnosciFilters()
+        {
+            if (_currentFaktury == null || DataGridPlatnosci == null) return;
+
+            var filtered = _currentFaktury.AsEnumerable();
+
+            // Filtr okresu
+            if (ComboPlatnosciOkres?.SelectedIndex >= 0)
+            {
+                var teraz = DateTime.Now;
+                switch (ComboPlatnosciOkres.SelectedIndex)
+                {
+                    case 0: filtered = filtered.Where(f => f.DataFaktury >= teraz.AddDays(-30)); break;
+                    case 1: filtered = filtered.Where(f => f.DataFaktury >= teraz.AddDays(-90)); break;
+                    case 2: filtered = filtered.Where(f => f.DataFaktury >= teraz.AddYears(-1)); break;
+                    // case 3: Wszystko
+                }
+            }
+
+            // Filtr statusu płatności
+            if (ComboPlatnosciStatus?.SelectedIndex > 0)
+            {
+                switch (ComboPlatnosciStatus.SelectedIndex)
                 {
                     case 1: filtered = filtered.Where(f => f.Status == "Zapłacona"); break;
                     case 2: filtered = filtered.Where(f => f.Status == "Nieopłacona"); break;
@@ -422,13 +494,12 @@ namespace Kalendarz1.Kartoteka.Views
             }
 
             var result = filtered.ToList();
-            DataGridHistoria.ItemsSource = result;
+            DataGridPlatnosci.ItemsSource = result;
 
-            // Aktualizuj podsumowanie
-            if (TextHistoriaLiczba != null)
-                TextHistoriaLiczba.Text = result.Count.ToString();
-            if (TextHistoriaSuma != null)
-                TextHistoriaSuma.Text = $"{result.Where(f => !f.Anulowany).Sum(f => f.Brutto):N0} zł";
+            if (TextPlatnosciLiczba != null)
+                TextPlatnosciLiczba.Text = result.Count.ToString();
+            if (TextPlatnosciSuma != null)
+                TextPlatnosciSuma.Text = $"{result.Where(f => !f.Anulowany).Sum(f => f.Brutto):N0} zł";
         }
 
         private void WypelnijHistoriaKontaktow(List<FakturaOdbiorcy> faktury)
