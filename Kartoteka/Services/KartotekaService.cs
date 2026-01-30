@@ -88,9 +88,9 @@ END;
             await cmd.ExecuteNonQueryAsync();
         }
 
-        public async Task<List<Odbiorca>> PobierzOdbiorcowAsync(string handlowiec = null, bool pokazWszystkich = false)
+        public async Task<List<OdbiorcaHandlowca>> PobierzOdbiorcowAsync(string handlowiec = null, bool pokazWszystkich = false)
         {
-            var result = new List<Odbiorca>();
+            var result = new List<OdbiorcaHandlowca>();
 
             using var conn = new SqlConnection(_handelConnectionString);
             await conn.OpenAsync();
@@ -145,7 +145,7 @@ ORDER BY C.Name;
             using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
-                result.Add(new Odbiorca
+                result.Add(new OdbiorcaHandlowca
                 {
                     IdSymfonia = reader.GetInt32(reader.GetOrdinal("IdSymfonia")),
                     NazwaFirmy = reader["NazwaFirmy"]?.ToString() ?? "",
@@ -166,7 +166,7 @@ ORDER BY C.Name;
             return result;
         }
 
-        public async Task WczytajDaneWlasneAsync(List<Odbiorca> odbiorcy)
+        public async Task WczytajDaneWlasneAsync(List<OdbiorcaHandlowca> odbiorcy)
         {
             if (odbiorcy == null || odbiorcy.Count == 0) return;
 
@@ -179,14 +179,14 @@ ORDER BY C.Name;
                                Trasa, KategoriaHandlowca, Notatki, DataModyfikacji, ModyfikowalPrzez
                         FROM dbo.KartotekaOdbiorcyDane";
 
-            var dane = new Dictionary<int, Odbiorca>();
+            var dane = new Dictionary<int, OdbiorcaHandlowca>();
             using (var cmd = new SqlCommand(sql, conn))
             using (var reader = await cmd.ExecuteReaderAsync())
             {
                 while (await reader.ReadAsync())
                 {
                     var id = reader.GetInt32(reader.GetOrdinal("IdSymfonia"));
-                    dane[id] = new Odbiorca
+                    dane[id] = new OdbiorcaHandlowca
                     {
                         OsobaKontaktowa = reader["OsobaKontaktowa"]?.ToString(),
                         TelefonKontakt = reader["TelefonKontakt"]?.ToString(),
@@ -230,7 +230,7 @@ ORDER BY C.Name;
             }
         }
 
-        public async Task ZapiszDaneWlasneAsync(Odbiorca odbiorca, string uzytkownik)
+        public async Task ZapiszDaneWlasneAsync(OdbiorcaHandlowca odbiorca, string uzytkownik)
         {
             using var conn = new SqlConnection(_libraNetConnectionString);
             await conn.OpenAsync();

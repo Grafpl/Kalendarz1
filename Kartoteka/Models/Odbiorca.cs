@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 
 namespace Kalendarz1.Kartoteka.Models
 {
-    public class Odbiorca : INotifyPropertyChanged
+    public class OdbiorcaHandlowca : INotifyPropertyChanged
     {
         public int IdSymfonia { get; set; }
         public string NazwaFirmy { get; set; }

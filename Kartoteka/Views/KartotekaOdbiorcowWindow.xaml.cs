@@ -47,7 +47,6 @@ namespace Kalendarz1.Kartoteka.Views
         private async void Window_Loaded(object sender, RoutedEventArgs e)
         {
             _service = new KartotekaService(_libraNetConn, _handelConn);
-            _viewModel = new KartotekaViewModel(_service, _userId, _userName);
 
             // Konfiguracja admin
             bool isAdmin = _userId == "11111";
@@ -126,7 +125,7 @@ namespace Kalendarz1.Kartoteka.Views
             }
         }
 
-        private List<Odbiorca> _allOdbiorcy = new();
+        private List<OdbiorcaHandlowca> _allOdbiorcy = new();
 
         private void ApplyFilters()
         {
@@ -168,7 +167,7 @@ namespace Kalendarz1.Kartoteka.Views
 
         private void UpdateStatystyki()
         {
-            var items = DataGridOdbiorcy.ItemsSource as IEnumerable<Odbiorca>;
+            var items = DataGridOdbiorcy.ItemsSource as IEnumerable<OdbiorcaHandlowca>;
             if (items == null) return;
 
             var list = items.ToList();
@@ -180,7 +179,7 @@ namespace Kalendarz1.Kartoteka.Views
 
         private void UpdateLicznik()
         {
-            var count = (DataGridOdbiorcy.ItemsSource as IEnumerable<Odbiorca>)?.Count() ?? 0;
+            var count = (DataGridOdbiorcy.ItemsSource as IEnumerable<OdbiorcaHandlowca>)?.Count() ?? 0;
             TextBlockLicznik.Text = $"Wyświetlono: {count} z {_allOdbiorcy?.Count ?? 0} odbiorców";
         }
 
@@ -190,13 +189,13 @@ namespace Kalendarz1.Kartoteka.Views
 
         private async void DataGridOdbiorcy_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            var odbiorca = DataGridOdbiorcy.SelectedItem as Odbiorca;
+            var odbiorca = DataGridOdbiorcy.SelectedItem as OdbiorcaHandlowca;
             if (odbiorca == null) return;
 
             await LoadSzczegoly(odbiorca);
         }
 
-        private async System.Threading.Tasks.Task LoadSzczegoly(Odbiorca odbiorca)
+        private async System.Threading.Tasks.Task LoadSzczegoly(OdbiorcaHandlowca odbiorca)
         {
             // Kontakty
             try
@@ -408,7 +407,7 @@ namespace Kalendarz1.Kartoteka.Views
             WypelnijKontakty(kontakty, idSymfonia);
         }
 
-        private void WypelnijFinanse(Odbiorca odbiorca, List<FakturaOdbiorcy> faktury)
+        private void WypelnijFinanse(OdbiorcaHandlowca odbiorca, List<FakturaOdbiorcy> faktury)
         {
             TextFinanseLimitKwota.Text = $"{odbiorca.LimitKupiecki:N0} zł";
             var procent = odbiorca.ProcentWykorzystania;
@@ -479,7 +478,7 @@ namespace Kalendarz1.Kartoteka.Views
 
         private async void ButtonZapiszNotatki_Click(object sender, RoutedEventArgs e)
         {
-            var odbiorca = DataGridOdbiorcy.SelectedItem as Odbiorca;
+            var odbiorca = DataGridOdbiorcy.SelectedItem as OdbiorcaHandlowca;
             if (odbiorca == null) return;
 
             try
@@ -505,7 +504,7 @@ namespace Kalendarz1.Kartoteka.Views
 
         private void OtworzEdycje()
         {
-            var odbiorca = DataGridOdbiorcy.SelectedItem as Odbiorca;
+            var odbiorca = DataGridOdbiorcy.SelectedItem as OdbiorcaHandlowca;
             if (odbiorca == null) return;
 
             var edycja = new OdbiorcaEdycjaWindow(odbiorca, _service, _userName);
@@ -523,7 +522,7 @@ namespace Kalendarz1.Kartoteka.Views
 
         private void MenuZadzwon_Click(object sender, RoutedEventArgs e)
         {
-            var odbiorca = DataGridOdbiorcy.SelectedItem as Odbiorca;
+            var odbiorca = DataGridOdbiorcy.SelectedItem as OdbiorcaHandlowca;
             if (odbiorca != null && !string.IsNullOrEmpty(odbiorca.TelefonKontakt))
             {
                 try { Process.Start(new ProcessStartInfo { FileName = $"tel:{odbiorca.TelefonKontakt}", UseShellExecute = true }); } catch { }
@@ -532,7 +531,7 @@ namespace Kalendarz1.Kartoteka.Views
 
         private void MenuEmail_Click(object sender, RoutedEventArgs e)
         {
-            var odbiorca = DataGridOdbiorcy.SelectedItem as Odbiorca;
+            var odbiorca = DataGridOdbiorcy.SelectedItem as OdbiorcaHandlowca;
             if (odbiorca != null && !string.IsNullOrEmpty(odbiorca.EmailKontakt))
             {
                 try { Process.Start(new ProcessStartInfo { FileName = $"mailto:{odbiorca.EmailKontakt}", UseShellExecute = true }); } catch { }
@@ -541,7 +540,7 @@ namespace Kalendarz1.Kartoteka.Views
 
         private void MenuKopiuj_Click(object sender, RoutedEventArgs e)
         {
-            var odbiorca = DataGridOdbiorcy.SelectedItem as Odbiorca;
+            var odbiorca = DataGridOdbiorcy.SelectedItem as OdbiorcaHandlowca;
             if (odbiorca == null) return;
 
             var text = $"{odbiorca.NazwaFirmy}\n{odbiorca.Ulica}\n{odbiorca.KodPocztowy} {odbiorca.Miasto}\nNIP: {odbiorca.NIP}\nTel: {odbiorca.TelefonKontakt}\nEmail: {odbiorca.EmailKontakt}";
@@ -607,7 +606,7 @@ namespace Kalendarz1.Kartoteka.Views
 
         private void ExportToExcel()
         {
-            var items = DataGridOdbiorcy.ItemsSource as IEnumerable<Odbiorca>;
+            var items = DataGridOdbiorcy.ItemsSource as IEnumerable<OdbiorcaHandlowca>;
             if (items == null || !items.Any())
             {
                 MessageBox.Show("Brak danych do eksportu.", "Export", MessageBoxButton.OK, MessageBoxImage.Information);

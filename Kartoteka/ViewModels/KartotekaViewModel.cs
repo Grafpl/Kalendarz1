@@ -18,9 +18,9 @@ namespace Kalendarz1.Kartoteka.ViewModels
         private readonly string _userId;
         private readonly string _userName;
 
-        private ObservableCollection<Odbiorca> _odbiorcy = new();
+        private ObservableCollection<OdbiorcaHandlowca> _odbiorcy = new();
         private ICollectionView _odbiorcyView;
-        private Odbiorca _wybranyOdbiorca;
+        private OdbiorcaHandlowca _wybranyOdbiorca;
         private ObservableCollection<KontaktOdbiorcy> _kontakty = new();
         private ObservableCollection<FakturaOdbiorcy> _faktury = new();
 
@@ -46,7 +46,7 @@ namespace Kalendarz1.Kartoteka.ViewModels
         public bool IsAdmin => _userId == "11111";
         public string TekstHandlowca => IsAdmin ? "Administrator - wszystkie dane" : $"Handlowiec: {_userName}";
 
-        public ObservableCollection<Odbiorca> Odbiorcy
+        public ObservableCollection<OdbiorcaHandlowca> Odbiorcy
         {
             get => _odbiorcy;
             set { _odbiorcy = value; OnPropertyChanged(); SetupFiltering(); }
@@ -58,7 +58,7 @@ namespace Kalendarz1.Kartoteka.ViewModels
             private set { _odbiorcyView = value; OnPropertyChanged(); }
         }
 
-        public Odbiorca WybranyOdbiorca
+        public OdbiorcaHandlowca WybranyOdbiorca
         {
             get => _wybranyOdbiorca;
             set
@@ -160,7 +160,7 @@ namespace Kalendarz1.Kartoteka.ViewModels
 
         private bool FiltrujOdbiorcow(object obj)
         {
-            if (obj is not Odbiorca o) return false;
+            if (obj is not OdbiorcaHandlowca o) return false;
 
             // Filtr tekstu
             if (!string.IsNullOrWhiteSpace(TekstSzukaj))
@@ -208,7 +208,7 @@ namespace Kalendarz1.Kartoteka.ViewModels
                 var odbiorcy = await _service.PobierzOdbiorcowAsync(handlowiec, pokazWszystkich);
                 await _service.WczytajDaneWlasneAsync(odbiorcy);
 
-                Odbiorcy = new ObservableCollection<Odbiorca>(odbiorcy);
+                Odbiorcy = new ObservableCollection<OdbiorcaHandlowca>(odbiorcy);
 
                 if (IsAdmin && Handlowcy.Count == 0)
                 {
@@ -255,7 +255,7 @@ namespace Kalendarz1.Kartoteka.ViewModels
             }
         }
 
-        public async Task ZapiszDaneOdbiorcy(Odbiorca odbiorca)
+        public async Task ZapiszDaneOdbiorcy(OdbiorcaHandlowca odbiorca)
         {
             await _service.ZapiszDaneWlasneAsync(odbiorca, _userName);
         }

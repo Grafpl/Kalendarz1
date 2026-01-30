@@ -7,11 +7,11 @@ namespace Kalendarz1.Kartoteka.Views
 {
     public partial class OdbiorcaEdycjaWindow : Window
     {
-        private readonly Odbiorca _odbiorca;
+        private readonly OdbiorcaHandlowca _odbiorca;
         private readonly KartotekaService _service;
         private readonly string _userName;
 
-        public OdbiorcaEdycjaWindow(Odbiorca odbiorca, KartotekaService service, string userName)
+        public OdbiorcaEdycjaWindow(OdbiorcaHandlowca odbiorca, KartotekaService service, string userName)
         {
             InitializeComponent();
             _odbiorca = odbiorca;
