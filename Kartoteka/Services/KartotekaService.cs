@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
 using Kalendarz1.Kartoteka.Models;
@@ -449,6 +450,119 @@ WHEN NOT MATCHED THEN
             while (await reader.ReadAsync())
             {
                 result.Add(reader.GetString(0));
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Pobiera asortyment (listę produktów) kupowanych przez kontrahentów z ostatnich N miesięcy.
+        /// Zwraca słownik: khid -> lista nazw produktów (posortowana wg wartości malejąco).
+        /// </summary>
+        public async Task<Dictionary<int, string>> PobierzAsortymentAsync(List<int> khids, int ostatnieMiesiecy = 6)
+        {
+            var result = new Dictionary<int, string>();
+            if (khids == null || khids.Count == 0) return result;
+
+            using var conn = new SqlConnection(_handelConnectionString);
+            await conn.OpenAsync();
+
+            // Przetwarzaj w partiach po 500
+            const int batch = 500;
+            for (int i = 0; i < khids.Count; i += batch)
+            {
+                var batchIds = khids.Skip(i).Take(batch).ToList();
+                var idParams = string.Join(",", batchIds);
+
+                var sql = $@"
+SELECT
+    DK.khid,
+    TW.kod AS ProduktKod,
+    CAST(SUM(DP.ilosc) AS DECIMAL(18,2)) AS SumaKg
+FROM [HM].[DK] DK
+INNER JOIN [HM].[DP] DP ON DK.id = DP.super
+INNER JOIN [HM].[TW] TW ON DP.idtw = TW.ID
+WHERE DK.khid IN ({idParams})
+  AND DK.typ_dk IN ('FVS', 'FVR')
+  AND DK.aktywny = 1
+  AND DK.anulowany = 0
+  AND DK.data >= DATEADD(MONTH, -{ostatnieMiesiecy}, GETDATE())
+  AND DP.ilosc > 0
+  AND TW.katalog IN (67095, 67153)
+GROUP BY DK.khid, TW.kod
+ORDER BY DK.khid, SumaKg DESC";
+
+                using var cmd = new SqlCommand(sql, conn);
+                using var reader = await cmd.ExecuteReaderAsync();
+
+                var perCustomer = new Dictionary<int, List<string>>();
+                while (await reader.ReadAsync())
+                {
+                    var khid = Convert.ToInt32(reader["khid"]);
+                    var kod = reader["ProduktKod"]?.ToString() ?? "";
+                    if (!perCustomer.ContainsKey(khid))
+                        perCustomer[khid] = new List<string>();
+                    perCustomer[khid].Add(kod);
+                }
+
+                foreach (var kv in perCustomer)
+                {
+                    result[kv.Key] = string.Join(", ", kv.Value);
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Pobiera szczegółowy asortyment dla jednego kontrahenta (do zakładki Asortyment).
+        /// </summary>
+        public async Task<List<AsortymentPozycja>> PobierzAsortymentSzczegolyAsync(int khid, int ostatnieMiesiecy = 12)
+        {
+            var result = new List<AsortymentPozycja>();
+
+            using var conn = new SqlConnection(_handelConnectionString);
+            await conn.OpenAsync();
+
+            var sql = @"
+SELECT
+    TW.kod AS ProduktKod,
+    ISNULL(TW.nazwa, '') AS ProduktNazwa,
+    CAST(SUM(DP.ilosc) AS DECIMAL(18,2)) AS SumaKg,
+    CAST(SUM(DP.wartn) AS DECIMAL(18,2)) AS SumaWartosc,
+    CAST(CASE WHEN SUM(DP.ilosc) > 0 THEN SUM(DP.wartn) / SUM(DP.ilosc) ELSE 0 END AS DECIMAL(18,2)) AS SredniaCena,
+    COUNT(DISTINCT DK.id) AS LiczbaFaktur,
+    MAX(DK.data) AS OstatniaSprzedaz
+FROM [HM].[DK] DK
+INNER JOIN [HM].[DP] DP ON DK.id = DP.super
+INNER JOIN [HM].[TW] TW ON DP.idtw = TW.ID
+WHERE DK.khid = @KhId
+  AND DK.typ_dk IN ('FVS', 'FVR')
+  AND DK.aktywny = 1
+  AND DK.anulowany = 0
+  AND DK.data >= DATEADD(MONTH, -@Miesiace, GETDATE())
+  AND DP.ilosc > 0
+  AND TW.katalog IN (67095, 67153)
+GROUP BY TW.kod, TW.nazwa
+ORDER BY SumaWartosc DESC";
+
+            using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@KhId", khid);
+            cmd.Parameters.AddWithValue("@Miesiace", ostatnieMiesiecy);
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                result.Add(new AsortymentPozycja
+                {
+                    ProduktKod = reader["ProduktKod"]?.ToString() ?? "",
+                    ProduktNazwa = reader["ProduktNazwa"]?.ToString() ?? "",
+                    SumaKg = Convert.ToDecimal(reader["SumaKg"]),
+                    SumaWartosc = Convert.ToDecimal(reader["SumaWartosc"]),
+                    SredniaCena = Convert.ToDecimal(reader["SredniaCena"]),
+                    LiczbaFaktur = Convert.ToInt32(reader["LiczbaFaktur"]),
+                    OstatniaSprzedaz = Convert.ToDateTime(reader["OstatniaSprzedaz"])
+                });
             }
 
             return result;

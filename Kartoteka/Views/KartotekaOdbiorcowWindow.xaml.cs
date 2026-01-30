@@ -97,6 +97,23 @@ namespace Kalendarz1.Kartoteka.Views
                 var odbiorcy = await _service.PobierzOdbiorcowAsync(handlowiec, pokazWszystkich);
                 await _service.WczytajDaneWlasneAsync(odbiorcy);
 
+                // Załaduj asortyment z historii sprzedaży
+                try
+                {
+                    var khids = odbiorcy.Select(o => o.IdSymfonia).ToList();
+                    var asortyment = await _service.PobierzAsortymentAsync(khids, 6);
+                    foreach (var o in odbiorcy)
+                    {
+                        if (asortyment.TryGetValue(o.IdSymfonia, out var produkty))
+                        {
+                            // Tylko jeśli nie ma ręcznie wpisanego asortymentu
+                            if (string.IsNullOrEmpty(o.Asortyment))
+                                o.Asortyment = produkty;
+                        }
+                    }
+                }
+                catch { }
+
                 DataGridOdbiorcy.ItemsSource = odbiorcy;
                 _allOdbiorcy = odbiorcy;
 
@@ -215,7 +232,7 @@ namespace Kalendarz1.Kartoteka.Views
             }
             catch { }
 
-            // Asortyment
+            // Asortyment - preferencje
             TextAsortymentPakowanie.Text = string.IsNullOrEmpty(odbiorca.PreferencjePakowania) ? "-" : odbiorca.PreferencjePakowania;
             TextAsortymentJakosc.Text = string.IsNullOrEmpty(odbiorca.PreferencjeJakosci) ? "-" : odbiorca.PreferencjeJakosci;
             TextAsortymentLista.Text = string.IsNullOrEmpty(odbiorca.Asortyment) ? "-" : odbiorca.Asortyment;
@@ -223,6 +240,14 @@ namespace Kalendarz1.Kartoteka.Views
             TextAsortymentGodzina.Text = string.IsNullOrEmpty(odbiorca.PreferowanaGodzinaDostawy) ? "-" : odbiorca.PreferowanaGodzinaDostawy;
             TextAsortymentAdres.Text = string.IsNullOrEmpty(odbiorca.AdresDostawyInny) ? "= adres główny" : odbiorca.AdresDostawyInny;
             TextAsortymentTrasa.Text = string.IsNullOrEmpty(odbiorca.Trasa) ? "-" : odbiorca.Trasa;
+
+            // Asortyment - szczegóły z historii sprzedaży
+            try
+            {
+                var asortymentSzczegoly = await _service.PobierzAsortymentSzczegolyAsync(odbiorca.IdSymfonia, 12);
+                DataGridAsortyment.ItemsSource = asortymentSzczegoly;
+            }
+            catch { DataGridAsortyment.ItemsSource = null; }
 
             // Notatki
             TextBoxNotatki.Text = odbiorca.Notatki ?? "";

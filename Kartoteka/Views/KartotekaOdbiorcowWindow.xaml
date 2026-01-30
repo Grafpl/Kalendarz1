@@ -360,54 +360,74 @@
                 <!-- ===== ASORTYMENT ===== -->
                 <TabItem Header="🍗 Asortyment" Style="{StaticResource KartotekaTabItem}">
                     <ScrollViewer Padding="12">
-                        <Grid Margin="8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
+                        <StackPanel Margin="8">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
 
-                            <!-- Preferencje -->
-                            <Border Grid.Column="0" Style="{StaticResource StatCard}">
-                                <StackPanel>
-                                    <TextBlock Text="⚙️ Preferencje klienta" FontWeight="Bold" FontSize="14" Margin="0,0,0,12"/>
-                                    <StackPanel Margin="0,0,0,8">
-                                        <TextBlock Text="📦 Pakowanie:" Foreground="#6B7280" FontSize="11"/>
-                                        <TextBlock x:Name="TextAsortymentPakowanie" Text="-" FontWeight="SemiBold" Margin="0,2,0,0"/>
+                                <!-- Preferencje -->
+                                <Border Grid.Column="0" Style="{StaticResource StatCard}">
+                                    <StackPanel>
+                                        <TextBlock Text="⚙️ Preferencje klienta" FontWeight="Bold" FontSize="14" Margin="0,0,0,12"/>
+                                        <StackPanel Margin="0,0,0,8">
+                                            <TextBlock Text="📦 Pakowanie:" Foreground="#6B7280" FontSize="11"/>
+                                            <TextBlock x:Name="TextAsortymentPakowanie" Text="-" FontWeight="SemiBold" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                        <StackPanel Margin="0,0,0,8">
+                                            <TextBlock Text="⭐ Jakość:" Foreground="#6B7280" FontSize="11"/>
+                                            <TextBlock x:Name="TextAsortymentJakosc" Text="-" FontWeight="SemiBold" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                        <StackPanel Margin="0,0,0,8">
+                                            <TextBlock Text="🍗 Asortyment:" Foreground="#6B7280" FontSize="11"/>
+                                            <TextBlock x:Name="TextAsortymentLista" Text="-" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                        </StackPanel>
                                     </StackPanel>
-                                    <StackPanel Margin="0,0,0,8">
-                                        <TextBlock Text="⭐ Jakość:" Foreground="#6B7280" FontSize="11"/>
-                                        <TextBlock x:Name="TextAsortymentJakosc" Text="-" FontWeight="SemiBold" Margin="0,2,0,0"/>
-                                    </StackPanel>
-                                    <StackPanel Margin="0,0,0,8">
-                                        <TextBlock Text="🍗 Asortyment:" Foreground="#6B7280" FontSize="11"/>
-                                        <TextBlock x:Name="TextAsortymentLista" Text="-" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,2,0,0"/>
-                                    </StackPanel>
-                                </StackPanel>
-                            </Border>
+                                </Border>
 
-                            <!-- Dostawy -->
-                            <Border Grid.Column="1" Style="{StaticResource StatCard}">
-                                <StackPanel>
-                                    <TextBlock Text="🚚 Preferencje dostawy" FontWeight="Bold" FontSize="14" Margin="0,0,0,12"/>
-                                    <StackPanel Margin="0,0,0,8">
-                                        <TextBlock Text="📅 Preferowane dni:" Foreground="#6B7280" FontSize="11"/>
-                                        <TextBlock x:Name="TextAsortymentDni" Text="-" FontWeight="SemiBold" Margin="0,2,0,0"/>
+                                <!-- Dostawy -->
+                                <Border Grid.Column="1" Style="{StaticResource StatCard}">
+                                    <StackPanel>
+                                        <TextBlock Text="🚚 Preferencje dostawy" FontWeight="Bold" FontSize="14" Margin="0,0,0,12"/>
+                                        <StackPanel Margin="0,0,0,8">
+                                            <TextBlock Text="📅 Preferowane dni:" Foreground="#6B7280" FontSize="11"/>
+                                            <TextBlock x:Name="TextAsortymentDni" Text="-" FontWeight="SemiBold" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                        <StackPanel Margin="0,0,0,8">
+                                            <TextBlock Text="🕐 Godzina:" Foreground="#6B7280" FontSize="11"/>
+                                            <TextBlock x:Name="TextAsortymentGodzina" Text="-" FontWeight="SemiBold" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                        <StackPanel Margin="0,0,0,8">
+                                            <TextBlock Text="📍 Adres dostawy (inny):" Foreground="#6B7280" FontSize="11"/>
+                                            <TextBlock x:Name="TextAsortymentAdres" Text="= adres główny" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                        <StackPanel Margin="0,0,0,8">
+                                            <TextBlock Text="🛣️ Trasa:" Foreground="#6B7280" FontSize="11"/>
+                                            <TextBlock x:Name="TextAsortymentTrasa" Text="-" FontWeight="SemiBold" Margin="0,2,0,0"/>
+                                        </StackPanel>
                                     </StackPanel>
-                                    <StackPanel Margin="0,0,0,8">
-                                        <TextBlock Text="🕐 Godzina:" Foreground="#6B7280" FontSize="11"/>
-                                        <TextBlock x:Name="TextAsortymentGodzina" Text="-" FontWeight="SemiBold" Margin="0,2,0,0"/>
-                                    </StackPanel>
-                                    <StackPanel Margin="0,0,0,8">
-                                        <TextBlock Text="📍 Adres dostawy (inny):" Foreground="#6B7280" FontSize="11"/>
-                                        <TextBlock x:Name="TextAsortymentAdres" Text="= adres główny" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,2,0,0"/>
-                                    </StackPanel>
-                                    <StackPanel Margin="0,0,0,8">
-                                        <TextBlock Text="🛣️ Trasa:" Foreground="#6B7280" FontSize="11"/>
-                                        <TextBlock x:Name="TextAsortymentTrasa" Text="-" FontWeight="SemiBold" Margin="0,2,0,0"/>
-                                    </StackPanel>
-                                </StackPanel>
-                            </Border>
-                        </Grid>
+                                </Border>
+                            </Grid>
+
+                            <!-- Tabela asortymentu z historii sprzedaży -->
+                            <TextBlock Text="📊 Historia kupowanych produktów (ostatnie 12 mies.)" FontWeight="Bold" FontSize="14" Margin="0,16,0,8"/>
+                            <DataGrid x:Name="DataGridAsortyment"
+                                      Style="{StaticResource KartotekaDataGrid}"
+                                      ColumnHeaderStyle="{StaticResource KartotekaColumnHeader}"
+                                      CellStyle="{StaticResource KartotekaDataGridCell}"
+                                      MaxHeight="300">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Produkt" Binding="{Binding ProduktKod}" Width="120"/>
+                                    <DataGridTextColumn Header="Nazwa" Binding="{Binding ProduktNazwa}" Width="200"/>
+                                    <DataGridTextColumn Header="Ilość (kg)" Binding="{Binding SumaKg, StringFormat=N0}" Width="90"/>
+                                    <DataGridTextColumn Header="Wartość netto" Binding="{Binding SumaWartosc, StringFormat=N0}" Width="110"/>
+                                    <DataGridTextColumn Header="Śr. cena/kg" Binding="{Binding SredniaCena, StringFormat=N2}" Width="90"/>
+                                    <DataGridTextColumn Header="Faktur" Binding="{Binding LiczbaFaktur}" Width="60"/>
+                                    <DataGridTextColumn Header="Ostatnia sprzedaż" Binding="{Binding OstatniaSprzedaz, StringFormat=dd.MM.yyyy}" Width="110"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </StackPanel>
                     </ScrollViewer>
                 </TabItem>
 
