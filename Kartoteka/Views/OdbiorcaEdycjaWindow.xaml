@@ -1,0 +1,155 @@
+<Window x:Class="Kalendarz1.Kartoteka.Views.OdbiorcaEdycjaWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Edycja odbiorcy"
+        Width="700" Height="650"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResizeWithGrip">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../Resources/KartotekaStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Nagłówek -->
+        <Border Grid.Row="0" Padding="16,12">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#166534" Offset="0"/>
+                    <GradientStop Color="#059669" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <StackPanel>
+                <TextBlock x:Name="TextNazwaFirmy" Text="Edycja odbiorcy" FontSize="16" FontWeight="Bold" Foreground="White"/>
+                <TextBlock x:Name="TextDodatkoweInfo" Text="" FontSize="11" Foreground="#A7F3D0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Formularz -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="16">
+            <StackPanel Margin="16">
+                <!-- Kontakt główny -->
+                <TextBlock Text="📞 KONTAKT GŁÓWNY" FontWeight="Bold" FontSize="13" Foreground="#166534" Margin="0,0,0,8"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition/>
+                        <RowDefinition/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Column="0" Grid.Row="0" Margin="0,0,8,8">
+                        <TextBlock Text="Osoba kontaktowa" FontSize="11" Foreground="#6B7280" Margin="0,0,0,4"/>
+                        <TextBox x:Name="TxtOsobaKontaktowa" Padding="8,6" BorderBrush="#BBF7D0"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Grid.Row="0" Margin="8,0,0,8">
+                        <TextBlock Text="Telefon" FontSize="11" Foreground="#6B7280" Margin="0,0,0,4"/>
+                        <TextBox x:Name="TxtTelefon" Padding="8,6" BorderBrush="#BBF7D0"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2" Margin="0,0,0,8">
+                        <TextBlock Text="Email" FontSize="11" Foreground="#6B7280" Margin="0,0,0,4"/>
+                        <TextBox x:Name="TxtEmail" Padding="8,6" BorderBrush="#BBF7D0"/>
+                    </StackPanel>
+                </Grid>
+
+                <Border Height="1" Background="#E5E7EB" Margin="0,8,0,16"/>
+
+                <!-- Preferencje -->
+                <TextBlock Text="⚙️ PREFERENCJE" FontWeight="Bold" FontSize="13" Foreground="#166534" Margin="0,0,0,8"/>
+
+                <TextBlock Text="Asortyment (np. filet, skrzydło, ćwiartka)" FontSize="11" Foreground="#6B7280" Margin="0,0,0,4"/>
+                <TextBox x:Name="TxtAsortyment" Padding="8,6" BorderBrush="#BBF7D0" Margin="0,0,0,8"/>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Margin="0,0,8,8">
+                        <TextBlock Text="Pakowanie" FontSize="11" Foreground="#6B7280" Margin="0,0,0,4"/>
+                        <TextBox x:Name="TxtPakowanie" Padding="8,6" BorderBrush="#BBF7D0"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Margin="8,0,0,8">
+                        <TextBlock Text="Jakość" FontSize="11" Foreground="#6B7280" Margin="0,0,0,4"/>
+                        <TextBox x:Name="TxtJakosc" Padding="8,6" BorderBrush="#BBF7D0"/>
+                    </StackPanel>
+                </Grid>
+
+                <Border Height="1" Background="#E5E7EB" Margin="0,8,0,16"/>
+
+                <!-- Dostawa -->
+                <TextBlock Text="🚚 DOSTAWA" FontWeight="Bold" FontSize="13" Foreground="#166534" Margin="0,0,0,8"/>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Margin="0,0,8,8">
+                        <TextBlock Text="Preferowane dni" FontSize="11" Foreground="#6B7280" Margin="0,0,0,4"/>
+                        <TextBox x:Name="TxtDniDostawy" Padding="8,6" BorderBrush="#BBF7D0"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Margin="8,0,8,8">
+                        <TextBlock Text="Godzina" FontSize="11" Foreground="#6B7280" Margin="0,0,0,4"/>
+                        <TextBox x:Name="TxtGodzinaDostawy" Padding="8,6" BorderBrush="#BBF7D0"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Margin="8,0,0,8">
+                        <TextBlock Text="Trasa" FontSize="11" Foreground="#6B7280" Margin="0,0,0,4"/>
+                        <TextBox x:Name="TxtTrasa" Padding="8,6" BorderBrush="#BBF7D0"/>
+                    </StackPanel>
+                </Grid>
+
+                <TextBlock Text="Adres dostawy (jeśli inny niż główny)" FontSize="11" Foreground="#6B7280" Margin="0,0,0,4"/>
+                <TextBox x:Name="TxtAdresDostawy" Padding="8,6" BorderBrush="#BBF7D0" Margin="0,0,0,8"/>
+
+                <TextBlock Text="Preferencje dostawy (notatka)" FontSize="11" Foreground="#6B7280" Margin="0,0,0,4"/>
+                <TextBox x:Name="TxtPreferencjeDostawy" Padding="8,6" BorderBrush="#BBF7D0" Margin="0,0,0,8"/>
+
+                <Border Height="1" Background="#E5E7EB" Margin="0,8,0,16"/>
+
+                <!-- Kategoria -->
+                <TextBlock Text="⭐ KATEGORIA" FontWeight="Bold" FontSize="13" Foreground="#166534" Margin="0,0,0,8"/>
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                    <RadioButton x:Name="RadioKatA" Content="A (kluczowy)" GroupName="Kategoria"
+                                 Margin="0,0,16,0" FontWeight="SemiBold"/>
+                    <RadioButton x:Name="RadioKatB" Content="B (regularny)" GroupName="Kategoria"
+                                 Margin="0,0,16,0" FontWeight="SemiBold"/>
+                    <RadioButton x:Name="RadioKatC" Content="C (sporadyczny)" GroupName="Kategoria"
+                                 IsChecked="True" FontWeight="SemiBold"/>
+                </StackPanel>
+
+                <Border Height="1" Background="#E5E7EB" Margin="0,8,0,16"/>
+
+                <!-- Notatki -->
+                <TextBlock Text="📝 NOTATKI" FontWeight="Bold" FontSize="13" Foreground="#166534" Margin="0,0,0,8"/>
+                <TextBox x:Name="TxtNotatki" TextWrapping="Wrap" AcceptsReturn="True"
+                         MinHeight="80" MaxHeight="200" VerticalScrollBarVisibility="Auto"
+                         Padding="8,6" BorderBrush="#BBF7D0"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Przyciski -->
+        <Border Grid.Row="2" Background="#F0FDF4" Padding="16,10" BorderBrush="#BBF7D0" BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Anuluj" Padding="20,8" Margin="0,0,8,0"
+                        Click="ButtonAnuluj_Click" Cursor="Hand"/>
+                <Button Content="💾 Zapisz" Style="{StaticResource KartotekaPrimaryButton}"
+                        Padding="20,8" Click="ButtonZapisz_Click"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
