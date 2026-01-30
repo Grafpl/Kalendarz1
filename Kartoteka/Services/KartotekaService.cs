@@ -529,8 +529,8 @@ SELECT
     TW.kod AS ProduktKod,
     ISNULL(TW.nazwa, '') AS ProduktNazwa,
     CAST(SUM(DP.ilosc) AS DECIMAL(18,2)) AS SumaKg,
-    CAST(SUM(DP.wartn) AS DECIMAL(18,2)) AS SumaWartosc,
-    CAST(CASE WHEN SUM(DP.ilosc) > 0 THEN SUM(DP.wartn) / SUM(DP.ilosc) ELSE 0 END AS DECIMAL(18,2)) AS SredniaCena,
+    CAST(SUM(DP.cena * DP.ilosc) AS DECIMAL(18,2)) AS SumaWartosc,
+    CAST(CASE WHEN SUM(DP.ilosc) > 0 THEN SUM(DP.cena * DP.ilosc) / SUM(DP.ilosc) ELSE 0 END AS DECIMAL(18,2)) AS SredniaCena,
     COUNT(DISTINCT DK.id) AS LiczbaFaktur,
     MAX(DK.data) AS OstatniaSprzedaz
 FROM [HM].[DK] DK
