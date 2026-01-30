@@ -141,9 +141,10 @@ namespace Kalendarz1.Kartoteka.Views
                 // Przypisz asortyment do odbiorców
                 foreach (var odbiorca in _allOdbiorcy)
                 {
-                    if (asortyment.TryGetValue(odbiorca.IdSymfonia, out var lista))
+                    if (asortyment.TryGetValue(odbiorca.IdSymfonia, out var produkty))
                     {
-                        odbiorca.Asortyment = string.Join(", ", lista);
+                        if (string.IsNullOrEmpty(odbiorca.Asortyment))
+                            odbiorca.Asortyment = produkty;
                     }
                 }
 
