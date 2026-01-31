@@ -1095,6 +1095,9 @@ namespace Kalendarz1.Kartoteka.Views
                 TextDostawyAnulowane.Text = "-";
                 PanelDostawyDni.Children.Clear();
                 PanelDostawyCzas.Children.Clear();
+                PanelDostawyGodziny.Children.Clear();
+                PanelDostawyTransport.Children.Clear();
+                PanelDostawyWspol.Children.Clear();
                 DataGridDostawyZamowienia.ItemsSource = null;
             }
         }
@@ -1120,6 +1123,9 @@ namespace Kalendarz1.Kartoteka.Views
                 TextDostawyAnulowaneInfo.Text = "";
                 PanelDostawyDni.Children.Clear();
                 PanelDostawyCzas.Children.Clear();
+                PanelDostawyGodziny.Children.Clear();
+                PanelDostawyTransport.Children.Clear();
+                PanelDostawyWspol.Children.Clear();
                 TextAsortymentDostawaAnaliza.Text = "Brak danych z zamówień";
                 return;
             }
@@ -1347,6 +1353,181 @@ namespace Kalendarz1.Kartoteka.Views
                 TextAsortymentDostawaAnaliza.Text = nieAnulowane.Count > 0
                     ? $"Zamówień: {nieAnulowane.Count} (brak awizacji)"
                     : "Brak danych z zamówień";
+            }
+
+            // ═══ PANEL: Godziny awizacji ═══
+            PanelDostawyGodziny.Children.Clear();
+            var zGodzina = zAwizacja.Where(z => z.GodzinaAwizacji != null).ToList();
+            if (zGodzina.Count > 0)
+            {
+                // Group by hour ranges
+                var godzinoweGrupy = new[]
+                {
+                    ("Noc (0-5)", 0, 5), ("Rano (5-8)", 5, 8), ("Przedpołudnie (8-11)", 8, 11),
+                    ("Południe (11-14)", 11, 14), ("Popołudnie (14-17)", 14, 17), ("Wieczór (17-22)", 17, 22)
+                };
+
+                int maxGodz = 1;
+                var countPerGodz = new List<int>();
+                foreach (var g in godzinoweGrupy)
+                {
+                    var cnt = zGodzina.Count(z => z.DataPrzyjazdu!.Value.Hour >= g.Item2 && z.DataPrzyjazdu!.Value.Hour < g.Item3);
+                    countPerGodz.Add(cnt);
+                    if (cnt > maxGodz) maxGodz = cnt;
+                }
+
+                for (int i = 0; i < godzinoweGrupy.Length; i++)
+                {
+                    var cnt = countPerGodz[i];
+                    if (cnt == 0) continue;
+                    var pct = (double)cnt / zGodzina.Count * 100;
+
+                    var row = new Grid { Margin = new Thickness(0, 0, 0, 2) };
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(45) });
+
+                    var label = new TextBlock { Text = godzinoweGrupy[i].Item1, FontSize = 9, VerticalAlignment = VerticalAlignment.Center, Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)) };
+                    Grid.SetColumn(label, 0);
+
+                    var barBorder = new Border
+                    {
+                        Height = 12, CornerRadius = new CornerRadius(2),
+                        Background = new SolidColorBrush(Color.FromRgb(191, 219, 254)),
+                        HorizontalAlignment = HorizontalAlignment.Left,
+                        Width = (double)cnt / maxGodz * 80,
+                        Margin = new Thickness(0, 0, 4, 0)
+                    };
+                    if (cnt > 0)
+                        barBorder.Child = new TextBlock { Text = cnt.ToString(), FontSize = 7, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(30, 64, 175)), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+                    Grid.SetColumn(barBorder, 1);
+
+                    var pctText = new TextBlock { Text = $"{pct:N0}%", FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(37, 99, 235)), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
+                    Grid.SetColumn(pctText, 2);
+
+                    row.Children.Add(label);
+                    row.Children.Add(barBorder);
+                    row.Children.Add(pctText);
+                    PanelDostawyGodziny.Children.Add(row);
+                }
+
+                // Show most common exact hours
+                var topGodziny = zGodzina
+                    .GroupBy(z => z.DataPrzyjazdu!.Value.Hour)
+                    .OrderByDescending(g => g.Count())
+                    .Take(3)
+                    .Select(g => $"{g.Key}:00 ({g.Count()}x)");
+                PanelDostawyGodziny.Children.Add(new TextBlock
+                {
+                    Text = $"Najczęściej: {string.Join(", ", topGodziny)}",
+                    FontSize = 9, Foreground = new SolidColorBrush(Color.FromRgb(37, 99, 235)),
+                    FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 6, 0, 0)
+                });
+            }
+            else
+            {
+                PanelDostawyGodziny.Children.Add(new TextBlock { Text = "Brak danych godzinowych", Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)), FontSize = 10 });
+            }
+
+            // ═══ PANEL: Transport (kierowcy, pojazdy, współklienci) ═══
+            PanelDostawyTransport.Children.Clear();
+            PanelDostawyWspol.Children.Clear();
+            try
+            {
+                var transport = await _service.PobierzTransportAnalizaAsync(odbiorca.IdSymfonia, 12);
+                LoadTransportPanel(transport);
+            }
+            catch
+            {
+                PanelDostawyTransport.Children.Add(new TextBlock { Text = "Brak danych transportowych", Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)), FontSize = 10 });
+                PanelDostawyWspol.Children.Add(new TextBlock { Text = "Brak danych", Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)), FontSize = 10 });
+            }
+        }
+
+        private void LoadTransportPanel(TransportAnaliza transport)
+        {
+            PanelDostawyTransport.Children.Clear();
+            PanelDostawyWspol.Children.Clear();
+
+            if (transport.LiczbaKursow == 0)
+            {
+                PanelDostawyTransport.Children.Add(new TextBlock { Text = "Brak przypisanych kursów", Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)), FontSize = 10 });
+                PanelDostawyWspol.Children.Add(new TextBlock { Text = "Brak danych", Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)), FontSize = 10 });
+                return;
+            }
+
+            PanelDostawyTransport.Children.Add(new TextBlock
+            {
+                Text = $"Łącznie {transport.LiczbaKursow} kursów (12m)",
+                FontSize = 9, Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                Margin = new Thickness(0, 0, 0, 6)
+            });
+
+            // Kierowcy
+            if (transport.Kierowcy.Count > 0)
+            {
+                PanelDostawyTransport.Children.Add(new TextBlock { Text = "Kierowcy:", FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)), Margin = new Thickness(0, 0, 0, 2) });
+                foreach (var k in transport.Kierowcy)
+                {
+                    var pct = (double)k.LiczbaKursow / transport.LiczbaKursow * 100;
+                    var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 1) };
+                    row.Children.Add(new TextBlock { Text = $"👤 {k.Nazwa}", FontSize = 10, FontWeight = FontWeights.Medium });
+                    row.Children.Add(new TextBlock { Text = $" — {k.LiczbaKursow}x ({pct:N0}%)", FontSize = 9, Foreground = new SolidColorBrush(Color.FromRgb(22, 163, 74)), VerticalAlignment = VerticalAlignment.Center });
+                    if (!string.IsNullOrEmpty(k.Telefon))
+                        row.Children.Add(new TextBlock { Text = $" ☎ {k.Telefon}", FontSize = 9, Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)), VerticalAlignment = VerticalAlignment.Center });
+                    PanelDostawyTransport.Children.Add(row);
+                }
+            }
+
+            // Pojazdy
+            if (transport.Pojazdy.Count > 0)
+            {
+                PanelDostawyTransport.Children.Add(new TextBlock { Text = "Pojazdy:", FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)), Margin = new Thickness(0, 6, 0, 2) });
+                foreach (var p in transport.Pojazdy)
+                {
+                    var pct = (double)p.LiczbaKursow / transport.LiczbaKursow * 100;
+                    var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 1) };
+                    row.Children.Add(new TextBlock { Text = $"🚛 {p.Nazwa}", FontSize = 10, FontWeight = FontWeights.Medium });
+                    row.Children.Add(new TextBlock { Text = $" — {p.LiczbaKursow}x ({pct:N0}%)", FontSize = 9, Foreground = new SolidColorBrush(Color.FromRgb(37, 99, 235)), VerticalAlignment = VerticalAlignment.Center });
+                    PanelDostawyTransport.Children.Add(row);
+                }
+            }
+
+            // Trasy
+            if (transport.Trasy.Count > 0)
+            {
+                PanelDostawyTransport.Children.Add(new TextBlock { Text = "Trasy:", FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)), Margin = new Thickness(0, 6, 0, 2) });
+                foreach (var t in transport.Trasy)
+                {
+                    var pct = (double)t.LiczbaKursow / transport.LiczbaKursow * 100;
+                    PanelDostawyTransport.Children.Add(new TextBlock { Text = $"📍 {t.Nazwa} — {t.LiczbaKursow}x ({pct:N0}%)", FontSize = 10, Margin = new Thickness(0, 0, 0, 1) });
+                }
+            }
+
+            // Współtransportowani klienci
+            if (transport.WspolKlienci.Count > 0)
+            {
+                foreach (var wk in transport.WspolKlienci)
+                {
+                    var pct = (double)wk.LiczbaWspolnychKursow / transport.LiczbaKursow * 100;
+                    var row = new Grid { Margin = new Thickness(0, 0, 0, 2) };
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });
+
+                    var nameText = new TextBlock { Text = wk.Nazwa, FontSize = 10, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center, ToolTip = wk.Nazwa };
+                    Grid.SetColumn(nameText, 0);
+
+                    var countText = new TextBlock { Text = $"{wk.LiczbaWspolnychKursow}x ({pct:N0}%)", FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(124, 58, 237)), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
+                    Grid.SetColumn(countText, 1);
+
+                    row.Children.Add(nameText);
+                    row.Children.Add(countText);
+                    PanelDostawyWspol.Children.Add(row);
+                }
+            }
+            else
+            {
+                PanelDostawyWspol.Children.Add(new TextBlock { Text = "Brak współtransportowanych", Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)), FontSize = 10 });
             }
         }
 

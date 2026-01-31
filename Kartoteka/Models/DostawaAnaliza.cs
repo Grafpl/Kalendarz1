@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace Kalendarz1.Kartoteka.Models
 {
@@ -28,35 +29,51 @@ namespace Kalendarz1.Kartoteka.Models
         /// Dzień tygodnia awizacji
         /// </summary>
         public DayOfWeek? DzienDostawy => DataPrzyjazdu?.DayOfWeek;
+
+        /// <summary>
+        /// Godzina awizacji (HH:mm)
+        /// </summary>
+        public string GodzinaAwizacji =>
+            DataPrzyjazdu.HasValue && DataPrzyjazdu.Value.TimeOfDay.TotalMinutes > 0
+                ? DataPrzyjazdu.Value.ToString("HH:mm")
+                : null;
     }
 
     /// <summary>
-    /// Podsumowanie statystyk dostaw dla klienta
+    /// Analiza transportu - kierowcy, pojazdy, współtransportowani klienci
     /// </summary>
-    public class DostawaStatystyki
+    public class TransportAnaliza
     {
-        public int LiczbaZamowien { get; set; }
-        public int LiczbaZrealizowanych { get; set; }
-        public int LiczbaAnulowanych { get; set; }
-        public decimal SumaKg { get; set; }
-        public decimal SumaPalet { get; set; }
-        public int SumaPojemnikow { get; set; }
+        public int LiczbaKursow { get; set; }
+        public List<TransportOsobaStats> Kierowcy { get; set; } = new();
+        public List<TransportPojazdStats> Pojazdy { get; set; } = new();
+        public List<TransportTrasaStats> Trasy { get; set; } = new();
+        public List<TransportWspolKlient> WspolKlienci { get; set; } = new();
+    }
 
-        // Terminy dostaw
-        public double SredniDniDoDostawy { get; set; }
-        public int MinDniDoDostawy { get; set; }
-        public int MaxDniDoDostawy { get; set; }
+    public class TransportOsobaStats
+    {
+        public string Nazwa { get; set; }
+        public string Telefon { get; set; }
+        public int LiczbaKursow { get; set; }
+    }
 
-        // Preferowane dni (% zamówień na dany dzień)
-        public int ZamowieniaPoniedzialek { get; set; }
-        public int ZamowieniaWtorek { get; set; }
-        public int ZamowieniaSroda { get; set; }
-        public int ZamowieniaCzwartek { get; set; }
-        public int ZamowieniaPiatek { get; set; }
-        public int ZamowieniaSobota { get; set; }
+    public class TransportPojazdStats
+    {
+        public string Nazwa { get; set; }
+        public int PaletyH1 { get; set; }
+        public int LiczbaKursow { get; set; }
+    }
 
-        // Częstotliwość
-        public double SredniOdstepDni { get; set; }       // Średni odstęp między zamówieniami
-        public int ZamowieniaMiesiecznie { get; set; }     // Średnia zamówień/msc (12m)
+    public class TransportTrasaStats
+    {
+        public string Nazwa { get; set; }
+        public int LiczbaKursow { get; set; }
+    }
+
+    public class TransportWspolKlient
+    {
+        public string Nazwa { get; set; }
+        public int LiczbaWspolnychKursow { get; set; }
     }
 }

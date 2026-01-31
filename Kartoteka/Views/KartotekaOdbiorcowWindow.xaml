@@ -822,6 +822,7 @@
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
                                     <!-- ROW 0: KPI cards -->
@@ -926,8 +927,47 @@
                                         </Border>
                                     </Grid>
 
-                                    <!-- ROW 2: Ostatnie zamówienia DataGrid -->
-                                    <Border Grid.Row="2" Background="White" BorderBrush="#E5E7EB" BorderThickness="1"
+                                    <!-- ROW 2: Godziny + Transport -->
+                                    <Grid Grid.Row="2" Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Godziny awizacji -->
+                                        <Border Grid.Column="0" Background="White" BorderBrush="#E5E7EB" BorderThickness="1"
+                                                CornerRadius="6" Padding="10" Margin="0,0,4,0">
+                                            <StackPanel>
+                                                <TextBlock Text="🕐 GODZINY AWIZACJI" FontWeight="SemiBold"
+                                                           Foreground="#6B7280" FontSize="10" Margin="0,0,0,8"/>
+                                                <StackPanel x:Name="PanelDostawyGodziny" Margin="0"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Kierowcy + Pojazdy -->
+                                        <Border Grid.Column="1" Background="White" BorderBrush="#E5E7EB" BorderThickness="1"
+                                                CornerRadius="6" Padding="10" Margin="4,0,4,0">
+                                            <StackPanel>
+                                                <TextBlock Text="🚛 KIEROWCY / POJAZDY" FontWeight="SemiBold"
+                                                           Foreground="#6B7280" FontSize="10" Margin="0,0,0,8"/>
+                                                <StackPanel x:Name="PanelDostawyTransport" Margin="0"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Współtransportowani klienci -->
+                                        <Border Grid.Column="2" Background="White" BorderBrush="#E5E7EB" BorderThickness="1"
+                                                CornerRadius="6" Padding="10" Margin="4,0,0,0">
+                                            <StackPanel>
+                                                <TextBlock Text="🤝 WSPÓŁTRANSPORTOWANI" FontWeight="SemiBold"
+                                                           Foreground="#6B7280" FontSize="10" Margin="0,0,0,8"/>
+                                                <StackPanel x:Name="PanelDostawyWspol" Margin="0"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+
+                                    <!-- ROW 3: Ostatnie zamówienia DataGrid -->
+                                    <Border Grid.Row="3" Background="White" BorderBrush="#E5E7EB" BorderThickness="1"
                                             CornerRadius="6" Padding="10" Margin="0,0,0,4">
                                         <Grid>
                                             <Grid.RowDefinitions>

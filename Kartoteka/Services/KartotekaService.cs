@@ -11,11 +11,13 @@ namespace Kalendarz1.Kartoteka.Services
     {
         private readonly string _libraNetConnectionString;
         private readonly string _handelConnectionString;
+        private readonly string _transportConnectionString;
 
-        public KartotekaService(string libraNetConnectionString, string handelConnectionString)
+        public KartotekaService(string libraNetConnectionString, string handelConnectionString, string transportConnectionString = null)
         {
             _libraNetConnectionString = libraNetConnectionString;
             _handelConnectionString = handelConnectionString;
+            _transportConnectionString = transportConnectionString ?? "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         }
 
         public async Task EnsureTablesExistAsync()
@@ -739,6 +741,222 @@ ORDER BY zm.DataUboju DESC";
                     Nazwa = reader["nazwa"]?.ToString() ?? "",
                     Katalog = reader["Katalog"]?.ToString() ?? ""
                 });
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Pobiera analizę transportu dla klienta: najczęstszy kierowca, pojazd,
+        /// klienci współtransportowani, na podstawie TransportPL + LibraNet.
+        /// </summary>
+        public async Task<TransportAnaliza> PobierzTransportAnalizaAsync(int klientId, int ostatnieMiesiecy = 12)
+        {
+            var result = new TransportAnaliza();
+
+            // 1. Pobierz KursID z zamówień klienta
+            var kursIds = new List<long>();
+            using (var connLib = new SqlConnection(_libraNetConnectionString))
+            {
+                await connLib.OpenAsync();
+                var sqlKursy = @"
+SELECT DISTINCT zm.TransportKursID
+FROM dbo.ZamowieniaMieso zm
+WHERE zm.KlientId = @KlientId
+  AND zm.TransportKursID IS NOT NULL
+  AND zm.Status <> 'Anulowane'
+  AND zm.DataUboju >= DATEADD(MONTH, -@Miesiace, GETDATE())";
+
+                using var cmdK = new SqlCommand(sqlKursy, connLib);
+                cmdK.Parameters.AddWithValue("@KlientId", klientId);
+                cmdK.Parameters.AddWithValue("@Miesiace", ostatnieMiesiecy);
+                using var rdr = await cmdK.ExecuteReaderAsync();
+                while (await rdr.ReadAsync())
+                {
+                    kursIds.Add(Convert.ToInt64(rdr["TransportKursID"]));
+                }
+            }
+
+            result.LiczbaKursow = kursIds.Count;
+            if (kursIds.Count == 0) return result;
+
+            // 2. Pobierz dane kursów z TransportPL
+            using var connTr = new SqlConnection(_transportConnectionString);
+            await connTr.OpenAsync();
+
+            var idList = string.Join(",", kursIds);
+
+            // Kierowcy
+            var sqlKierowcy = $@"
+SELECT TOP 5
+    CONCAT(ki.Imie, ' ', ki.Nazwisko) AS Kierowca,
+    ki.Telefon,
+    COUNT(*) AS Ile
+FROM dbo.Kurs k
+JOIN dbo.Kierowca ki ON k.KierowcaID = ki.KierowcaID
+WHERE k.KursID IN ({idList})
+GROUP BY ki.Imie, ki.Nazwisko, ki.Telefon
+ORDER BY Ile DESC";
+
+            using (var cmdKi = new SqlCommand(sqlKierowcy, connTr))
+            using (var rdr = await cmdKi.ExecuteReaderAsync())
+            {
+                while (await rdr.ReadAsync())
+                {
+                    result.Kierowcy.Add(new TransportOsobaStats
+                    {
+                        Nazwa = rdr["Kierowca"]?.ToString() ?? "",
+                        Telefon = rdr["Telefon"]?.ToString() ?? "",
+                        LiczbaKursow = Convert.ToInt32(rdr["Ile"])
+                    });
+                }
+            }
+
+            // Pojazdy
+            var sqlPojazdy = $@"
+SELECT TOP 5
+    CONCAT(p.Marka, ' ', p.Model, ' [', p.Rejestracja, ']') AS Pojazd,
+    p.PaletyH1,
+    COUNT(*) AS Ile
+FROM dbo.Kurs k
+JOIN dbo.Pojazd p ON k.PojazdID = p.PojazdID
+WHERE k.KursID IN ({idList})
+GROUP BY p.Marka, p.Model, p.Rejestracja, p.PaletyH1
+ORDER BY Ile DESC";
+
+            using (var cmdP = new SqlCommand(sqlPojazdy, connTr))
+            using (var rdr = await cmdP.ExecuteReaderAsync())
+            {
+                while (await rdr.ReadAsync())
+                {
+                    result.Pojazdy.Add(new TransportPojazdStats
+                    {
+                        Nazwa = rdr["Pojazd"]?.ToString() ?? "",
+                        PaletyH1 = Convert.ToInt32(rdr["PaletyH1"]),
+                        LiczbaKursow = Convert.ToInt32(rdr["Ile"])
+                    });
+                }
+            }
+
+            // Trasy
+            var sqlTrasy = $@"
+SELECT TOP 5 k.Trasa, COUNT(*) AS Ile
+FROM dbo.Kurs k
+WHERE k.KursID IN ({idList}) AND k.Trasa IS NOT NULL AND k.Trasa <> ''
+GROUP BY k.Trasa
+ORDER BY Ile DESC";
+
+            using (var cmdT = new SqlCommand(sqlTrasy, connTr))
+            using (var rdr = await cmdT.ExecuteReaderAsync())
+            {
+                while (await rdr.ReadAsync())
+                {
+                    result.Trasy.Add(new TransportTrasaStats
+                    {
+                        Nazwa = rdr["Trasa"]?.ToString() ?? "",
+                        LiczbaKursow = Convert.ToInt32(rdr["Ile"])
+                    });
+                }
+            }
+
+            // Współtransportowani klienci (z tabeli Ladunek)
+            var sqlWspol = $@"
+SELECT
+    sub.KlientNazwa,
+    COUNT(*) AS IleRazy
+FROM (
+    SELECT DISTINCT
+        l2.KodKlienta,
+        CASE
+            WHEN l2.KodKlienta LIKE 'ZAM_%' THEN l2.KodKlienta
+            ELSE l2.KodKlienta
+        END AS KlientNazwa,
+        l1.KursID
+    FROM dbo.Ladunek l1
+    JOIN dbo.Ladunek l2 ON l1.KursID = l2.KursID AND l1.LadunekID <> l2.LadunekID
+    WHERE l1.KursID IN ({idList})
+      AND l1.KodKlienta LIKE 'ZAM_%'
+) sub
+WHERE sub.KlientNazwa IS NOT NULL
+GROUP BY sub.KlientNazwa
+ORDER BY IleRazy DESC";
+
+            var zamIds = new List<int>();
+            var wspolRaw = new Dictionary<string, int>();
+
+            using (var cmdW = new SqlCommand(sqlWspol, connTr))
+            using (var rdr = await cmdW.ExecuteReaderAsync())
+            {
+                while (await rdr.ReadAsync())
+                {
+                    var kod = rdr["KlientNazwa"]?.ToString() ?? "";
+                    var ile = Convert.ToInt32(rdr["IleRazy"]);
+                    wspolRaw[kod] = ile;
+
+                    if (kod.StartsWith("ZAM_") && int.TryParse(kod.Substring(4), out int zamId))
+                        zamIds.Add(zamId);
+                }
+            }
+
+            // Rozwiąż nazwy klientów z ZAM_* → nazwa odbiorcy (2 kroki: LibraNet → Handel)
+            if (zamIds.Count > 0)
+            {
+                var zamIdList = string.Join(",", zamIds.Distinct());
+
+                // Krok 1: ZamowieniaMieso.Id → KlientId (z LibraNet)
+                var zamToKlient = new Dictionary<int, int>();
+                using (var connLib2 = new SqlConnection(_libraNetConnectionString))
+                {
+                    await connLib2.OpenAsync();
+                    var sqlKlientIds = $@"SELECT DISTINCT zm.Id, zm.KlientId FROM dbo.ZamowieniaMieso zm WHERE zm.Id IN ({zamIdList})";
+                    using var cmdN = new SqlCommand(sqlKlientIds, connLib2);
+                    using var rdr = await cmdN.ExecuteReaderAsync();
+                    while (await rdr.ReadAsync())
+                    {
+                        zamToKlient[Convert.ToInt32(rdr["Id"])] = Convert.ToInt32(rdr["KlientId"]);
+                    }
+                }
+
+                // Krok 2: KlientId → Nazwa (z Handel)
+                var klientIds = zamToKlient.Values.Distinct().Where(k => k != klientId).ToList();
+                if (klientIds.Count > 0)
+                {
+                    using var connHan = new SqlConnection(_handelConnectionString);
+                    await connHan.OpenAsync();
+
+                    var klIdList = string.Join(",", klientIds);
+                    var sqlNames = $@"SELECT Id, ISNULL(Shortcut, Name) AS Nazwa FROM [SSCommon].[STContractors] WHERE Id IN ({klIdList})";
+
+                    var idToName = new Dictionary<int, string>();
+                    using (var cmdNames = new SqlCommand(sqlNames, connHan))
+                    using (var rdr = await cmdNames.ExecuteReaderAsync())
+                    {
+                        while (await rdr.ReadAsync())
+                        {
+                            idToName[Convert.ToInt32(rdr["Id"])] = rdr["Nazwa"]?.ToString() ?? "";
+                        }
+                    }
+
+                    // Agreguj per klient
+                    var perCustomer = new Dictionary<string, int>();
+                    foreach (var kv in wspolRaw)
+                    {
+                        if (kv.Key.StartsWith("ZAM_") && int.TryParse(kv.Key.Substring(4), out int zId))
+                        {
+                            if (zamToKlient.TryGetValue(zId, out int klId) && klId != klientId && idToName.TryGetValue(klId, out string nazwa))
+                            {
+                                if (!perCustomer.ContainsKey(nazwa)) perCustomer[nazwa] = 0;
+                                perCustomer[nazwa] += kv.Value;
+                            }
+                        }
+                    }
+
+                    result.WspolKlienci = perCustomer
+                        .OrderByDescending(kv => kv.Value)
+                        .Take(10)
+                        .Select(kv => new TransportWspolKlient { Nazwa = kv.Key, LiczbaWspolnychKursow = kv.Value })
+                        .ToList();
+                }
             }
 
             return result;
