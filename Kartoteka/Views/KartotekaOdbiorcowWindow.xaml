@@ -107,6 +107,17 @@
 
                 <!-- Przyciski -->
                 <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="ButtonPowiadomienia" Background="#F59E0B" Foreground="White" FontSize="11"
+                            Padding="8,4" Margin="0,0,8,0" Cursor="Hand"
+                            BorderThickness="0" FontWeight="SemiBold"
+                            Click="ButtonPowiadomienia_Click"
+                            ToolTip="Pokaż braki danych do uzupełnienia">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🔔" FontSize="13" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="TextPowiadomieniaCount" Text="" FontSize="11" Margin="4,0,0,0"
+                                       VerticalAlignment="Center" FontWeight="Bold"/>
+                        </StackPanel>
+                    </Button>
                     <Button Content="🔄 Odśwież" Style="{StaticResource KartotekaPrimaryButton}"
                             Click="ButtonOdswiez_Click" Margin="0,0,8,0"/>
                     <Button Content="📥 Excel" Style="{StaticResource KartotekaSecondaryButton}"
@@ -1289,6 +1300,41 @@
                     <TextBlock Text=" zł" Foreground="#BBF7D0" FontSize="11"/>
                 </StackPanel>
             </Grid>
+        </Border>
+
+        <!-- Panel powiadomień -->
+        <Border x:Name="PanelPowiadomienia" Grid.RowSpan="5" Background="#40000000" Visibility="Collapsed"
+                MouseLeftButtonDown="PanelPowiadomienia_BackgroundClick">
+            <Border Width="520" MaxHeight="600" VerticalAlignment="Top" HorizontalAlignment="Right"
+                    Margin="0,50,20,0" Background="White" CornerRadius="10"
+                    BorderBrush="#E5E7EB" BorderThickness="1">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="20" ShadowDepth="5" Opacity="0.3" Color="Black"/>
+                </Border.Effect>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Nagłówek panelu -->
+                    <Border Grid.Row="0" Background="#FEF3C7" CornerRadius="10,10,0,0" Padding="16,10">
+                        <DockPanel>
+                            <TextBlock Text="🔔 Braki danych do uzupełnienia" FontWeight="Bold" FontSize="14"
+                                       Foreground="#92400E" VerticalAlignment="Center"/>
+                            <Button Content="✕" DockPanel.Dock="Right" Background="Transparent"
+                                    BorderThickness="0" FontSize="14" Foreground="#92400E"
+                                    Cursor="Hand" Click="ButtonZamknijPowiadomienia_Click"
+                                    HorizontalAlignment="Right" Padding="4,0"/>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- Lista powiadomień -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" MaxHeight="520">
+                        <StackPanel x:Name="PowiadomieniaList" Margin="12,8,12,12"/>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
         </Border>
 
         <!-- Loading overlay -->

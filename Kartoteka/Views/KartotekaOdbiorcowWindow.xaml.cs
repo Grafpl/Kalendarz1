@@ -128,6 +128,7 @@ namespace Kalendarz1.Kartoteka.Views
 
                 UpdateStatystyki();
                 UpdateLicznik();
+                UpdatePowiadomienia();
             }
             catch (Exception ex)
             {
@@ -1004,6 +1005,188 @@ namespace Kalendarz1.Kartoteka.Views
         {
             var count = _displayedOdbiorcy?.Count ?? 0;
             TextBlockLicznik.Text = $"Wyświetlono: {count} z {_allOdbiorcy?.Count ?? 0} odbiorców";
+        }
+
+        // ═══════════════════════════════════════════
+        // POWIADOMIENIA - braki danych
+        // ═══════════════════════════════════════════
+
+        private void UpdatePowiadomienia()
+        {
+            var list = _allOdbiorcy;
+            if (list == null || list.Count == 0)
+            {
+                TextPowiadomieniaCount.Text = "";
+                ButtonPowiadomienia.Background = new SolidColorBrush(Color.FromRgb(107, 114, 128));
+                return;
+            }
+
+            int totalIssues = 0;
+            foreach (var o in list)
+            {
+                if (string.IsNullOrWhiteSpace(o.OsobaKontaktowa)) totalIssues++;
+                if (string.IsNullOrWhiteSpace(o.TelefonKontakt)) totalIssues++;
+                if (string.IsNullOrWhiteSpace(o.EmailKontakt)) totalIssues++;
+                if (string.IsNullOrWhiteSpace(o.KategoriaHandlowca) || o.KategoriaHandlowca == "C") { } // C is default, not an issue
+                if (string.IsNullOrWhiteSpace(o.Asortyment)) totalIssues++;
+                if (string.IsNullOrWhiteSpace(o.PreferowanyDzienDostawy)) totalIssues++;
+                if (string.IsNullOrWhiteSpace(o.Notatki)) totalIssues++;
+            }
+
+            TextPowiadomieniaCount.Text = totalIssues > 0 ? totalIssues.ToString() : "";
+            ButtonPowiadomienia.Background = totalIssues > 0
+                ? new SolidColorBrush(Color.FromRgb(245, 158, 11)) // amber
+                : new SolidColorBrush(Color.FromRgb(34, 197, 94)); // green - all good
+        }
+
+        private void ButtonPowiadomienia_Click(object sender, RoutedEventArgs e)
+        {
+            BuildPowiadomieniaPanel();
+            PanelPowiadomienia.Visibility = Visibility.Visible;
+        }
+
+        private void ButtonZamknijPowiadomienia_Click(object sender, RoutedEventArgs e)
+        {
+            PanelPowiadomienia.Visibility = Visibility.Collapsed;
+        }
+
+        private void PanelPowiadomienia_BackgroundClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (e.OriginalSource == PanelPowiadomienia)
+                PanelPowiadomienia.Visibility = Visibility.Collapsed;
+        }
+
+        private void BuildPowiadomieniaPanel()
+        {
+            PowiadomieniaList.Children.Clear();
+            var list = _allOdbiorcy;
+            if (list == null) return;
+
+            // Definiuj kategorie braków
+            var brakKontaktu = list.Where(o => string.IsNullOrWhiteSpace(o.OsobaKontaktowa)).ToList();
+            var brakTelefonu = list.Where(o => string.IsNullOrWhiteSpace(o.TelefonKontakt)).ToList();
+            var brakEmaila = list.Where(o => string.IsNullOrWhiteSpace(o.EmailKontakt)).ToList();
+            var brakAsortymentu = list.Where(o => string.IsNullOrWhiteSpace(o.Asortyment)).ToList();
+            var brakDniaDostawy = list.Where(o => string.IsNullOrWhiteSpace(o.PreferowanyDzienDostawy)).ToList();
+            var brakNotatki = list.Where(o => string.IsNullOrWhiteSpace(o.Notatki)).ToList();
+
+            AddPowiadomienieGroup("👤 Brak osoby kontaktowej", brakKontaktu, "#DC2626", "#FEF2F2");
+            AddPowiadomienieGroup("📞 Brak numeru telefonu", brakTelefonu, "#DC2626", "#FEF2F2");
+            AddPowiadomienieGroup("📧 Brak adresu email", brakEmaila, "#EA580C", "#FFF7ED");
+            AddPowiadomienieGroup("📦 Brak asortymentu", brakAsortymentu, "#D97706", "#FFFBEB");
+            AddPowiadomienieGroup("🚚 Brak preferowanego dnia dostawy", brakDniaDostawy, "#D97706", "#FFFBEB");
+            AddPowiadomienieGroup("📝 Brak notatek", brakNotatki, "#6B7280", "#F9FAFB");
+
+            if (PowiadomieniaList.Children.Count == 0)
+            {
+                PowiadomieniaList.Children.Add(new TextBlock
+                {
+                    Text = "✅ Wszystkie dane uzupełnione!",
+                    FontSize = 14,
+                    Foreground = new SolidColorBrush(Color.FromRgb(22, 163, 74)),
+                    FontWeight = FontWeights.SemiBold,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 20, 0, 20)
+                });
+            }
+        }
+
+        private void AddPowiadomienieGroup(string title, List<OdbiorcaHandlowca> items, string colorHex, string bgHex)
+        {
+            if (items.Count == 0) return;
+
+            var color = (Color)ColorConverter.ConvertFromString(colorHex);
+            var bgColor = (Color)ColorConverter.ConvertFromString(bgHex);
+
+            var group = new Border
+            {
+                Background = new SolidColorBrush(bgColor),
+                CornerRadius = new CornerRadius(8),
+                Margin = new Thickness(0, 0, 0, 8),
+                Padding = new Thickness(12, 8, 12, 8)
+            };
+
+            var stack = new StackPanel();
+
+            // Header with count
+            var headerPanel = new DockPanel { Margin = new Thickness(0, 0, 0, 4) };
+            headerPanel.Children.Add(new TextBlock
+            {
+                Text = title,
+                FontWeight = FontWeights.SemiBold,
+                FontSize = 12,
+                Foreground = new SolidColorBrush(color)
+            });
+            var badge = new Border
+            {
+                Background = new SolidColorBrush(color),
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(7, 1, 7, 1),
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+            badge.Child = new TextBlock
+            {
+                Text = items.Count.ToString(),
+                Foreground = Brushes.White,
+                FontSize = 10,
+                FontWeight = FontWeights.Bold
+            };
+            DockPanel.SetDock(badge, Dock.Right);
+            headerPanel.Children.Insert(0, badge);
+            stack.Children.Add(headerPanel);
+
+            // List of customers (max 8, then "i X więcej...")
+            var shown = items.Take(8).ToList();
+            foreach (var o in shown)
+            {
+                var nameText = string.IsNullOrEmpty(o.Skrot) ? o.NazwaFirmy : o.Skrot;
+                var link = new TextBlock
+                {
+                    Text = $"  • {nameText}",
+                    FontSize = 11,
+                    Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81)),
+                    Margin = new Thickness(0, 1, 0, 1),
+                    Cursor = Cursors.Hand,
+                    TextDecorations = null
+                };
+                link.Tag = o;
+                link.MouseEnter += (s, e) => link.TextDecorations = TextDecorations.Underline;
+                link.MouseLeave += (s, e) => link.TextDecorations = null;
+                link.MouseLeftButtonDown += (s, e) =>
+                {
+                    PanelPowiadomienia.Visibility = Visibility.Collapsed;
+                    ScrollToAndExpandCustomer(o);
+                };
+                stack.Children.Add(link);
+            }
+
+            if (items.Count > 8)
+            {
+                stack.Children.Add(new TextBlock
+                {
+                    Text = $"  ... i {items.Count - 8} więcej",
+                    FontSize = 10,
+                    Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)),
+                    FontStyle = FontStyles.Italic,
+                    Margin = new Thickness(0, 2, 0, 0)
+                });
+            }
+
+            group.Child = stack;
+            PowiadomieniaList.Children.Add(group);
+        }
+
+        private void ScrollToAndExpandCustomer(OdbiorcaHandlowca target)
+        {
+            foreach (Border card in AccordionPanel.Children.OfType<Border>().Where(b => b != DetailPanel))
+            {
+                if (card.Tag is OdbiorcaHandlowca o && o.IdSymfonia == target.IdSymfonia)
+                {
+                    card.BringIntoView();
+                    ExpandCard(card, o);
+                    break;
+                }
+            }
         }
 
         // ═══════════════════════════════════════════
