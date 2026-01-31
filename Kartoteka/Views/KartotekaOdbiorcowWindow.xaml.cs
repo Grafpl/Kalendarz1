@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -9,6 +10,7 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
+using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using ClosedXML.Excel;
 using Microsoft.Win32;
@@ -74,7 +76,158 @@ namespace Kalendarz1.Kartoteka.Views
                 TextBlockHandlowiec.Text = $"Handlowiec: {_userName}";
             }
 
+            LoadCompanyLogo();
+            SetupLogoContextMenu();
+            LoadUserAvatar();
+
             await LoadData();
+        }
+
+        private void LoadCompanyLogo()
+        {
+            try
+            {
+                if (CompanyLogoManager.HasLogo(LogoType.Company))
+                {
+                    using (var logo = CompanyLogoManager.GetLogoScaled(LogoType.Company, 36, 36))
+                    {
+                        if (logo != null)
+                        {
+                            LogoImage.Source = ConvertDrawingToBitmapImage(logo as System.Drawing.Bitmap);
+                            LogoImage.Visibility = Visibility.Visible;
+                            LogoEmoji.Visibility = Visibility.Collapsed;
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private void SetupLogoContextMenu()
+        {
+            var ctx = new ContextMenu();
+
+            if (CompanyLogoManager.CanManageLogos(_userId))
+            {
+                var changeLogo = new MenuItem { Header = "🖼️ Zmień logo firmy" };
+                changeLogo.Click += (s, ev) =>
+                {
+                    var dlg = new OpenFileDialog
+                    {
+                        Filter = "Obrazy|*.png;*.jpg;*.jpeg;*.bmp|Wszystkie pliki|*.*",
+                        Title = "Wybierz logo firmy"
+                    };
+                    if (dlg.ShowDialog() == true)
+                    {
+                        try
+                        {
+                            using (var img = System.Drawing.Image.FromFile(dlg.FileName))
+                            {
+                                bool saved = CompanyLogoManager.SaveLogo(LogoType.Company, img);
+                                if (saved)
+                                {
+                                    LoadCompanyLogo();
+                                    MessageBox.Show("Logo zostało zapisane na serwerze sieciowym.\nBędzie widoczne dla wszystkich użytkowników.",
+                                        "Logo zmienione", MessageBoxButton.OK, MessageBoxImage.Information);
+                                }
+                                else
+                                {
+                                    MessageBox.Show("Nie udało się zapisać logo na serwerze sieciowym.\nSprawdź połączenie sieciowe.",
+                                        "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                        }
+                    }
+                };
+                ctx.Items.Add(changeLogo);
+
+                var removeLogo = new MenuItem { Header = "❌ Usuń logo" };
+                removeLogo.Click += (s, ev) =>
+                {
+                    if (MessageBox.Show("Czy na pewno usunąć logo firmy?", "Potwierdź",
+                        MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                    {
+                        try
+                        {
+                            CompanyLogoManager.DeleteLogo(LogoType.Company);
+                            LogoImage.Source = null;
+                            LogoImage.Visibility = Visibility.Collapsed;
+                            LogoEmoji.Visibility = Visibility.Visible;
+                            MessageBox.Show("Logo usunięte.", "OK", MessageBoxButton.OK, MessageBoxImage.Information);
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                        }
+                    }
+                };
+                ctx.Items.Add(removeLogo);
+            }
+            else
+            {
+                var infoItem = new MenuItem { Header = "ℹ️ Zmiana logo — tylko administrator", IsEnabled = false };
+                ctx.Items.Add(infoItem);
+            }
+
+            LogoBorder.ContextMenu = ctx;
+        }
+
+        private void LoadUserAvatar()
+        {
+            // Set user name
+            TextUserName.Text = _userName ?? "";
+
+            // Set initials as fallback
+            var initials = GetUserInitials(_userName);
+            UserAvatarInitials.Text = initials;
+
+            // Try to load avatar from network
+            try
+            {
+                if (UserAvatarManager.HasAvatar(_userId))
+                {
+                    using (var avatar = UserAvatarManager.GetAvatarRounded(_userId, 28))
+                    {
+                        if (avatar != null)
+                        {
+                            UserAvatarImage.Source = ConvertDrawingToBitmapImage(avatar as System.Drawing.Bitmap);
+                            UserAvatarImage.Visibility = Visibility.Visible;
+                            UserAvatarInitials.Visibility = Visibility.Collapsed;
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private string GetUserInitials(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return "?";
+            var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length >= 2)
+                return $"{parts[0][0]}{parts[parts.Length - 1][0]}".ToUpper();
+            return parts[0][0].ToString().ToUpper();
+        }
+
+        private BitmapImage ConvertDrawingToBitmapImage(System.Drawing.Bitmap bitmap)
+        {
+            if (bitmap == null) return null;
+            using (var memory = new MemoryStream())
+            {
+                bitmap.Save(memory, System.Drawing.Imaging.ImageFormat.Png);
+                memory.Position = 0;
+                var bitmapImage = new BitmapImage();
+                bitmapImage.BeginInit();
+                bitmapImage.StreamSource = memory;
+                bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
+                bitmapImage.EndInit();
+                bitmapImage.Freeze();
+                return bitmapImage;
+            }
         }
 
         private async System.Threading.Tasks.Task LoadData()

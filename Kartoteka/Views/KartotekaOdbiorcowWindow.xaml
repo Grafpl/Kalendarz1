@@ -48,8 +48,13 @@
 
                 <!-- Logo -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
-                    <Border Width="40" Height="40" Background="White" CornerRadius="20" Margin="0,0,8,0">
-                        <TextBlock Text="🐔" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <Border x:Name="LogoBorder" Width="40" Height="40" Background="White" CornerRadius="20" Margin="0,0,8,0"
+                            ClipToBounds="True">
+                        <Grid>
+                            <TextBlock x:Name="LogoEmoji" Text="🐔" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <Image x:Name="LogoImage" Width="36" Height="36" Stretch="UniformToFill"
+                                   RenderOptions.BitmapScalingMode="Fant" Visibility="Collapsed"/>
+                        </Grid>
                     </Border>
                     <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="UBOJNIA DROBIU" FontWeight="Bold" Foreground="White" FontSize="10"/>
@@ -107,6 +112,20 @@
 
                 <!-- Przyciski -->
                 <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- User avatar + name -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
+                        <Border x:Name="UserAvatarBorder" Width="28" Height="28" CornerRadius="14" Background="#15803D"
+                                ClipToBounds="True" Margin="0,0,6,0">
+                            <Grid>
+                                <TextBlock x:Name="UserAvatarInitials" Text="" FontSize="11" FontWeight="Bold"
+                                           Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <Image x:Name="UserAvatarImage" Width="28" Height="28" Stretch="UniformToFill"
+                                       RenderOptions.BitmapScalingMode="Fant" Visibility="Collapsed"/>
+                            </Grid>
+                        </Border>
+                        <TextBlock x:Name="TextUserName" Text="" Foreground="#A7F3D0" FontSize="11"
+                                   VerticalAlignment="Center" FontWeight="SemiBold"/>
+                    </StackPanel>
                     <Button x:Name="ButtonPowiadomienia" Background="#F59E0B" Foreground="White" FontSize="11"
                             Padding="8,4" Margin="0,0,8,0" Cursor="Hand"
                             BorderThickness="0" FontWeight="SemiBold"
