@@ -453,6 +453,42 @@ namespace Kalendarz1.CRM
             }
         }
 
+        private void BtnMap_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedContact == null) return;
+
+            try
+            {
+                var origin = "Koziołki 40, 95-061 Dmosin";
+                var destination = "";
+
+                // Build destination from contact address
+                if (!string.IsNullOrWhiteSpace(_selectedContact.Adres))
+                    destination = _selectedContact.Adres;
+                if (!string.IsNullOrWhiteSpace(_selectedContact.KodPocztowy))
+                    destination += (destination.Length > 0 ? ", " : "") + _selectedContact.KodPocztowy;
+                if (!string.IsNullOrWhiteSpace(_selectedContact.Miasto))
+                    destination += (destination.Length > 0 ? " " : "") + _selectedContact.Miasto;
+
+                // Fallback to company name + city if no address
+                if (string.IsNullOrWhiteSpace(destination))
+                    destination = $"{_selectedContact.Nazwa}, {_selectedContact.Miasto}";
+
+                var originEncoded = System.Net.WebUtility.UrlEncode(origin);
+                var destEncoded = System.Net.WebUtility.UrlEncode(destination);
+
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = $"https://www.google.com/maps/dir/{originEncoded}/{destEncoded}",
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error opening map: {ex.Message}");
+            }
+        }
+
         private void BtnHistory_Click(object sender, RoutedEventArgs e)
         {
             if (_selectedContact == null) return;
