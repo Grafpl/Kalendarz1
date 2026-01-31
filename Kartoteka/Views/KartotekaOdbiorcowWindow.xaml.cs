@@ -8,10 +8,10 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Effects;
 using System.Windows.Shapes;
 using ClosedXML.Excel;
 using Microsoft.Win32;
-using Newtonsoft.Json;
 using Kalendarz1.Kartoteka.Models;
 using Kalendarz1.Kartoteka.Services;
 
@@ -26,6 +26,15 @@ namespace Kalendarz1.Kartoteka.Views
 
         private readonly string _libraNetConn = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private readonly string _handelConn = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+
+        // Accordion state
+        private List<OdbiorcaHandlowca> _allOdbiorcy = new();
+        private List<OdbiorcaHandlowca> _displayedOdbiorcy = new();
+        private List<TowarKatalog> _towary = new();
+        private Dictionary<int, HashSet<string>> _odbiorcyTowary = new();
+        private OdbiorcaHandlowca _selectedOdbiorca;
+        private Border _expandedCard;
+        private bool _isAdmin;
 
         public string UserID
         {
@@ -50,12 +59,10 @@ namespace Kalendarz1.Kartoteka.Views
         {
             _service = new KartotekaService(_libraNetConn, _handelConn);
 
-            // Konfiguracja admin
-            bool isAdmin = _userId == "11111";
-            if (isAdmin)
+            _isAdmin = _userId == "11111";
+            if (_isAdmin)
             {
                 ComboBoxHandlowiec.Visibility = Visibility.Visible;
-                ColumnHandlowiec.Visibility = Visibility.Visible;
                 TextBlockHandlowiec.Text = "Administrator - wszystkie dane";
             }
             else
@@ -63,7 +70,6 @@ namespace Kalendarz1.Kartoteka.Views
                 TextBlockHandlowiec.Text = $"Handlowiec: {_userName}";
             }
 
-            LoadColumnWidths();
             await LoadData();
         }
 
@@ -99,9 +105,10 @@ namespace Kalendarz1.Kartoteka.Views
                 var odbiorcy = await _service.PobierzOdbiorcowAsync(handlowiec, pokazWszystkich);
                 await _service.WczytajDaneWlasneAsync(odbiorcy);
 
-                // Pokaż dane natychmiast (bez asortymentu)
-                DataGridOdbiorcy.ItemsSource = odbiorcy;
                 _allOdbiorcy = odbiorcy;
+                _displayedOdbiorcy = odbiorcy;
+
+                GenerateCards(odbiorcy);
 
                 // Załaduj handlowców dla admina
                 if (_userId == "11111" && ComboBoxHandlowiec.Items.Count <= 1)
@@ -117,7 +124,6 @@ namespace Kalendarz1.Kartoteka.Views
 
                 UpdateStatystyki();
                 UpdateLicznik();
-                AutoFitColumns();
             }
             catch (Exception ex)
             {
@@ -128,7 +134,6 @@ namespace Kalendarz1.Kartoteka.Views
                 LoadingOverlay.Visibility = Visibility.Collapsed;
             }
 
-            // Ładuj asortyment i towary w tle (nie blokuje UI)
             _ = LoadAsortymentInBackground();
             _ = LoadTowaryAsync();
         }
@@ -142,7 +147,6 @@ namespace Kalendarz1.Kartoteka.Views
                 var khids = _allOdbiorcy.Select(o => o.IdSymfonia).ToList();
                 var asortyment = await _service.PobierzAsortymentAsync(khids, 6);
 
-                // Przypisz asortyment do odbiorców
                 foreach (var odbiorca in _allOdbiorcy)
                 {
                     if (asortyment.TryGetValue(odbiorca.IdSymfonia, out var produkty))
@@ -152,18 +156,11 @@ namespace Kalendarz1.Kartoteka.Views
                     }
                 }
 
-                // Odśwież DataGrid aby pokazać nowe dane asortymentu
-                DataGridOdbiorcy.Items.Refresh();
+                // Refresh cards to show updated asortyment
+                GenerateCards(_displayedOdbiorcy);
             }
-            catch
-            {
-                // Asortyment w tle - nie pokazuj błędu użytkownikowi
-            }
+            catch { }
         }
-
-        private List<OdbiorcaHandlowca> _allOdbiorcy = new();
-        private List<TowarKatalog> _towary = new();
-        private Dictionary<int, HashSet<string>> _odbiorcyTowary = new();
 
         private async System.Threading.Tasks.Task LoadTowaryAsync()
         {
@@ -174,7 +171,6 @@ namespace Kalendarz1.Kartoteka.Views
                 ComboBoxTowar.Items.Clear();
                 ComboBoxTowar.Items.Add(new ComboBoxItem { Content = "Towar (wszystkie)", IsSelected = true });
 
-                // Grupy
                 var swieze = _towary.Where(t => t.Katalog == "Świeże").ToList();
                 var mrozonki = _towary.Where(t => t.Katalog == "Mrożonki").ToList();
 
@@ -190,6 +186,441 @@ namespace Kalendarz1.Kartoteka.Views
             }
             catch { }
         }
+
+        // ═══════════════════════════════════════════
+        // ACCORDION - Generowanie kart
+        // ═══════════════════════════════════════════
+
+        private void GenerateCards(List<OdbiorcaHandlowca> odbiorcy)
+        {
+            // Remember expanded state
+            var expandedId = _selectedOdbiorca?.IdSymfonia;
+
+            // Remove DetailPanel from AccordionPanel
+            AccordionPanel.Children.Remove(DetailPanel);
+            AccordionPanel.Children.Clear();
+
+            _expandedCard = null;
+            _selectedOdbiorca = null;
+
+            foreach (var o in odbiorcy)
+            {
+                var card = CreateCustomerCard(o);
+                AccordionPanel.Children.Add(card);
+            }
+
+            // Add DetailPanel back at the end (collapsed)
+            AccordionPanel.Children.Add(DetailPanel);
+            DetailPanel.Visibility = Visibility.Collapsed;
+
+            // Re-expand previously expanded card if still in list
+            if (expandedId.HasValue)
+            {
+                foreach (Border card in AccordionPanel.Children.OfType<Border>().Where(b => b != DetailPanel))
+                {
+                    if (card.Tag is OdbiorcaHandlowca o && o.IdSymfonia == expandedId.Value)
+                    {
+                        ExpandCard(card, o);
+                        break;
+                    }
+                }
+            }
+        }
+
+        private Border CreateCustomerCard(OdbiorcaHandlowca odbiorca)
+        {
+            var card = new Border
+            {
+                Background = Brushes.White,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(229, 231, 235)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(12, 8, 12, 8),
+                Margin = new Thickness(0, 0, 0, 2),
+                Cursor = Cursors.Hand,
+                Tag = odbiorca
+            };
+            card.Effect = new DropShadowEffect
+            {
+                ShadowDepth = 0, Color = Colors.Black, Opacity = 0.04, BlurRadius = 4
+            };
+
+            // Alert row background
+            switch (odbiorca.AlertType)
+            {
+                case "LimitExceeded":
+                    card.Background = new SolidColorBrush(Color.FromRgb(254, 242, 242)); // #FEF2F2
+                    card.BorderBrush = new SolidColorBrush(Color.FromRgb(248, 113, 113)); // #F87171
+                    break;
+                case "Overdue":
+                    card.Background = new SolidColorBrush(Color.FromRgb(254, 249, 195)); // #FEF9C3
+                    card.BorderBrush = new SolidColorBrush(Color.FromRgb(250, 204, 21)); // #FACC15
+                    break;
+                case "Inactive":
+                    card.Background = new SolidColorBrush(Color.FromRgb(255, 237, 213)); // #FFEDD5
+                    card.BorderBrush = new SolidColorBrush(Color.FromRgb(251, 146, 60)); // #FB923C
+                    break;
+                case "NewClient":
+                    card.Background = new SolidColorBrush(Color.FromRgb(219, 234, 254)); // #DBEAFE
+                    card.BorderBrush = new SolidColorBrush(Color.FromRgb(96, 165, 250)); // #60A5FA
+                    break;
+            }
+
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) });   // Status dot
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Company + city
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });  // Kontakt
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });   // Limit
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });   // Bilans
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });   // Ost. faktura
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });   // Kategoria
+            if (_isAdmin)
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) }); // Handlowiec
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) });   // Arrow
+
+            int col = 0;
+
+            // Status dot
+            var statusColor = GetAlertColor(odbiorca.AlertType);
+            var dot = new Border
+            {
+                Width = 10, Height = 10,
+                CornerRadius = new CornerRadius(5),
+                Background = statusColor,
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                ToolTip = GetAlertTooltip(odbiorca.AlertType)
+            };
+            Grid.SetColumn(dot, col++);
+            grid.Children.Add(dot);
+
+            // Company name + city
+            var nameStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            nameStack.Children.Add(new TextBlock
+            {
+                Text = string.IsNullOrEmpty(odbiorca.Skrot) ? odbiorca.NazwaFirmy : odbiorca.Skrot,
+                FontWeight = FontWeights.SemiBold,
+                FontSize = 13,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                MaxWidth = 250,
+                ToolTip = odbiorca.NazwaFirmy
+            });
+            nameStack.Children.Add(new TextBlock
+            {
+                Text = $"  {odbiorca.Miasto}",
+                Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                FontSize = 11,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            Grid.SetColumn(nameStack, col++);
+            grid.Children.Add(nameStack);
+
+            // Kontakt
+            var kontaktText = new TextBlock
+            {
+                Text = odbiorca.OsobaKontaktowa ?? "",
+                Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                FontSize = 11,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            };
+            Grid.SetColumn(kontaktText, col++);
+            grid.Children.Add(kontaktText);
+
+            // Limit
+            var limitText = new TextBlock
+            {
+                Text = $"{odbiorca.LimitKupiecki:N0}",
+                FontSize = 11,
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+            Grid.SetColumn(limitText, col++);
+            grid.Children.Add(limitText);
+
+            // Bilans
+            var bilansText = new TextBlock
+            {
+                Text = $"{odbiorca.Bilans:N0}",
+                FontWeight = FontWeights.Bold,
+                FontSize = 11,
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 0, 8, 0),
+                Foreground = odbiorca.Bilans >= 0
+                    ? new SolidColorBrush(Color.FromRgb(22, 163, 74))    // green
+                    : new SolidColorBrush(Color.FromRgb(220, 38, 38))    // red
+            };
+            Grid.SetColumn(bilansText, col++);
+            grid.Children.Add(bilansText);
+
+            // Last invoice date
+            var fakturaText = new TextBlock
+            {
+                Text = odbiorca.OstatniaFakturaData.HasValue ? odbiorca.OstatniaFakturaData.Value.ToString("dd.MM.yy") : "",
+                FontSize = 10,
+                Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+            Grid.SetColumn(fakturaText, col++);
+            grid.Children.Add(fakturaText);
+
+            // Kategoria badge
+            var katBorder = new Border
+            {
+                Width = 26, Height = 26, CornerRadius = new CornerRadius(13),
+                Background = GetKategoriaBackground(odbiorca.KategoriaHandlowca),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            katBorder.Child = new TextBlock
+            {
+                Text = odbiorca.KategoriaHandlowca ?? "C",
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                FontWeight = FontWeights.Bold,
+                FontSize = 11,
+                Foreground = GetKategoriaForeground(odbiorca.KategoriaHandlowca)
+            };
+            Grid.SetColumn(katBorder, col++);
+            grid.Children.Add(katBorder);
+
+            // Handlowiec (admin only)
+            if (_isAdmin)
+            {
+                var handlText = new TextBlock
+                {
+                    Text = odbiorca.Handlowiec ?? "",
+                    FontSize = 10,
+                    Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    TextTrimming = TextTrimming.CharacterEllipsis
+                };
+                Grid.SetColumn(handlText, col++);
+                grid.Children.Add(handlText);
+            }
+
+            // Arrow
+            var arrow = new TextBlock
+            {
+                Text = "▼",
+                FontSize = 10,
+                Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)),
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+            Grid.SetColumn(arrow, col);
+            grid.Children.Add(arrow);
+
+            card.Child = grid;
+
+            // Click to expand/collapse
+            card.MouseLeftButtonDown += Card_Click;
+
+            // Hover effect
+            var defaultBg = card.Background;
+            card.MouseEnter += (s, ev) =>
+            {
+                if (card != _expandedCard)
+                    card.Background = new SolidColorBrush(Color.FromRgb(240, 253, 244)); // #F0FDF4
+            };
+            card.MouseLeave += (s, ev) =>
+            {
+                if (card != _expandedCard)
+                    card.Background = defaultBg;
+            };
+
+            // Context menu
+            card.ContextMenu = new ContextMenu();
+            var editItem = new MenuItem { Header = "📝 Edytuj dane", InputGestureText = "DblClick" };
+            editItem.Click += (s, ev) => { _selectedOdbiorca = odbiorca; OtworzEdycje(); };
+            var callItem = new MenuItem { Header = "📞 Zadzwoń" };
+            callItem.Click += (s, ev) =>
+            {
+                if (!string.IsNullOrEmpty(odbiorca.TelefonKontakt))
+                    try { Process.Start(new ProcessStartInfo { FileName = $"tel:{odbiorca.TelefonKontakt}", UseShellExecute = true }); } catch { }
+            };
+            var emailItem = new MenuItem { Header = "📧 Wyślij email" };
+            emailItem.Click += (s, ev) =>
+            {
+                if (!string.IsNullOrEmpty(odbiorca.EmailKontakt))
+                    try { Process.Start(new ProcessStartInfo { FileName = $"mailto:{odbiorca.EmailKontakt}", UseShellExecute = true }); } catch { }
+            };
+            var copyItem = new MenuItem { Header = "📋 Kopiuj dane", InputGestureText = "Ctrl+C" };
+            copyItem.Click += (s, ev) =>
+            {
+                var text = $"{odbiorca.NazwaFirmy}\n{odbiorca.Ulica}\n{odbiorca.KodPocztowy} {odbiorca.Miasto}\nNIP: {odbiorca.NIP}\nTel: {odbiorca.TelefonKontakt}\nEmail: {odbiorca.EmailKontakt}";
+                Clipboard.SetText(text);
+            };
+            card.ContextMenu.Items.Add(editItem);
+            card.ContextMenu.Items.Add(callItem);
+            card.ContextMenu.Items.Add(emailItem);
+            card.ContextMenu.Items.Add(new Separator());
+            card.ContextMenu.Items.Add(copyItem);
+
+            return card;
+        }
+
+        private async void Card_Click(object sender, MouseButtonEventArgs e)
+        {
+            var card = sender as Border;
+            if (card == null) return;
+            var odbiorca = card.Tag as OdbiorcaHandlowca;
+            if (odbiorca == null) return;
+
+            // Double-click = edit
+            if (e.ClickCount == 2)
+            {
+                _selectedOdbiorca = odbiorca;
+                OtworzEdycje();
+                return;
+            }
+
+            // If clicking same card, collapse
+            if (_expandedCard == card)
+            {
+                CollapseCard();
+                return;
+            }
+
+            ExpandCard(card, odbiorca);
+            await LoadSzczegoly(odbiorca);
+        }
+
+        private void ExpandCard(Border card, OdbiorcaHandlowca odbiorca)
+        {
+            // Collapse previous
+            if (_expandedCard != null)
+                UpdateCardVisual(_expandedCard, false);
+
+            // Move DetailPanel after this card
+            AccordionPanel.Children.Remove(DetailPanel);
+            int idx = AccordionPanel.Children.IndexOf(card);
+            if (idx >= 0)
+                AccordionPanel.Children.Insert(idx + 1, DetailPanel);
+            else
+                AccordionPanel.Children.Add(DetailPanel);
+
+            DetailPanel.Visibility = Visibility.Visible;
+
+            UpdateCardVisual(card, true);
+            _expandedCard = card;
+            _selectedOdbiorca = odbiorca;
+        }
+
+        private void CollapseCard()
+        {
+            DetailPanel.Visibility = Visibility.Collapsed;
+            if (_expandedCard != null)
+                UpdateCardVisual(_expandedCard, false);
+            _expandedCard = null;
+            _selectedOdbiorca = null;
+        }
+
+        private void UpdateCardVisual(Border card, bool expanded)
+        {
+            // Find arrow TextBlock in the card
+            if (card.Child is Grid grid)
+            {
+                foreach (var child in grid.Children)
+                {
+                    if (child is TextBlock tb && (tb.Text == "▼" || tb.Text == "▲"))
+                    {
+                        tb.Text = expanded ? "▲" : "▼";
+                        tb.Foreground = expanded
+                            ? new SolidColorBrush(Color.FromRgb(22, 163, 74))
+                            : new SolidColorBrush(Color.FromRgb(156, 163, 175));
+                    }
+                }
+            }
+
+            if (expanded)
+            {
+                card.BorderBrush = new SolidColorBrush(Color.FromRgb(22, 163, 74)); // #16A34A
+                card.BorderThickness = new Thickness(2);
+            }
+            else
+            {
+                // Restore default border based on alert
+                var odbiorca = card.Tag as OdbiorcaHandlowca;
+                if (odbiorca != null)
+                {
+                    switch (odbiorca.AlertType)
+                    {
+                        case "LimitExceeded":
+                            card.BorderBrush = new SolidColorBrush(Color.FromRgb(248, 113, 113));
+                            break;
+                        case "Overdue":
+                            card.BorderBrush = new SolidColorBrush(Color.FromRgb(250, 204, 21));
+                            break;
+                        case "Inactive":
+                            card.BorderBrush = new SolidColorBrush(Color.FromRgb(251, 146, 60));
+                            break;
+                        case "NewClient":
+                            card.BorderBrush = new SolidColorBrush(Color.FromRgb(96, 165, 250));
+                            break;
+                        default:
+                            card.BorderBrush = new SolidColorBrush(Color.FromRgb(229, 231, 235));
+                            break;
+                    }
+                }
+                card.BorderThickness = new Thickness(1);
+            }
+        }
+
+        // ═══════════════════════════════════════════
+        // Helper methods for card styling
+        // ═══════════════════════════════════════════
+
+        private SolidColorBrush GetAlertColor(string alertType)
+        {
+            return alertType switch
+            {
+                "LimitExceeded" => new SolidColorBrush(Color.FromRgb(220, 38, 38)),   // red
+                "Overdue" => new SolidColorBrush(Color.FromRgb(245, 158, 11)),         // amber
+                "Inactive" => new SolidColorBrush(Color.FromRgb(251, 146, 60)),        // orange
+                "NewClient" => new SolidColorBrush(Color.FromRgb(59, 130, 246)),       // blue
+                _ => new SolidColorBrush(Color.FromRgb(34, 197, 94))                   // green (OK)
+            };
+        }
+
+        private string GetAlertTooltip(string alertType)
+        {
+            return alertType switch
+            {
+                "LimitExceeded" => "Przekroczony limit kupiecki",
+                "Overdue" => "Przeterminowane płatności",
+                "Inactive" => "Nieaktywny ponad 30 dni",
+                "NewClient" => "Nowy klient",
+                _ => "OK"
+            };
+        }
+
+        private SolidColorBrush GetKategoriaBackground(string kat)
+        {
+            return kat switch
+            {
+                "A" => new SolidColorBrush(Color.FromRgb(220, 252, 231)), // green-100
+                "B" => new SolidColorBrush(Color.FromRgb(254, 249, 195)), // yellow-100
+                _ => new SolidColorBrush(Color.FromRgb(243, 244, 246))    // gray-100
+            };
+        }
+
+        private SolidColorBrush GetKategoriaForeground(string kat)
+        {
+            return kat switch
+            {
+                "A" => new SolidColorBrush(Color.FromRgb(22, 101, 52)),   // green-800
+                "B" => new SolidColorBrush(Color.FromRgb(133, 77, 14)),   // yellow-800
+                _ => new SolidColorBrush(Color.FromRgb(55, 65, 81))       // gray-700
+            };
+        }
+
+        // ═══════════════════════════════════════════
+        // FILTRY
+        // ═══════════════════════════════════════════
 
         private void ComboBoxTowar_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -238,18 +669,17 @@ namespace Kalendarz1.Kartoteka.Views
                 filtered = filtered.Where(o => o.AlertType != "None");
             }
 
-            var result = filtered.ToList();
-            DataGridOdbiorcy.ItemsSource = result;
+            _displayedOdbiorcy = filtered.ToList();
+            GenerateCards(_displayedOdbiorcy);
             UpdateLicznik();
             UpdateStatystyki();
         }
 
         private void UpdateStatystyki()
         {
-            var items = DataGridOdbiorcy.ItemsSource as IEnumerable<OdbiorcaHandlowca>;
-            if (items == null) return;
+            var list = _displayedOdbiorcy;
+            if (list == null) return;
 
-            var list = items.ToList();
             TextStopkaSumaLimitow.Text = list.Sum(o => o.LimitKupiecki).ToString("N0");
             TextStopkaWykorzystano.Text = list.Sum(o => o.WykorzystanoLimit).ToString("N0");
             TextStopkaWolne.Text = list.Sum(o => o.WolnyLimit).ToString("N0");
@@ -258,21 +688,13 @@ namespace Kalendarz1.Kartoteka.Views
 
         private void UpdateLicznik()
         {
-            var count = (DataGridOdbiorcy.ItemsSource as IEnumerable<OdbiorcaHandlowca>)?.Count() ?? 0;
+            var count = _displayedOdbiorcy?.Count ?? 0;
             TextBlockLicznik.Text = $"Wyświetlono: {count} z {_allOdbiorcy?.Count ?? 0} odbiorców";
         }
 
         // ═══════════════════════════════════════════
         // SZCZEGÓŁY - aktualizacja paneli
         // ═══════════════════════════════════════════
-
-        private async void DataGridOdbiorcy_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            var odbiorca = DataGridOdbiorcy.SelectedItem as OdbiorcaHandlowca;
-            if (odbiorca == null) return;
-
-            await LoadSzczegoly(odbiorca);
-        }
 
         private async System.Threading.Tasks.Task LoadSzczegoly(OdbiorcaHandlowca odbiorca)
         {
@@ -311,7 +733,6 @@ namespace Kalendarz1.Kartoteka.Views
                 var asortymentSzczegoly = await _service.PobierzAsortymentSzczegolyAsync(odbiorca.IdSymfonia, 12);
                 DataGridAsortyment.ItemsSource = asortymentSzczegoly;
 
-                // Podsumowanie
                 var sumaKg = asortymentSzczegoly.Sum(a => a.SumaKg);
                 var sumaWartosc = asortymentSzczegoly.Sum(a => a.SumaWartosc);
                 TextAsortymentIloscProduktow.Text = $"{asortymentSzczegoly.Count} produktów";
@@ -321,7 +742,6 @@ namespace Kalendarz1.Kartoteka.Views
                     ? $"{(sumaWartosc / sumaKg):N2} zł/kg"
                     : "-";
 
-                // Struktura zakupów (wykres słupkowy)
                 BuildStrukturaZakupow(asortymentSzczegoly);
             }
             catch
@@ -361,7 +781,6 @@ namespace Kalendarz1.Kartoteka.Views
             var totalKg = pozycje.Sum(p => p.SumaKg);
             if (totalKg <= 0) return;
 
-            // Top N produktów (max 8)
             var top = pozycje.OrderByDescending(p => p.SumaKg).Take(8).ToList();
 
             foreach (var p in top)
@@ -391,7 +810,6 @@ namespace Kalendarz1.Kartoteka.Views
                 header.Children.Add(nameText);
                 item.Children.Add(header);
 
-                // Progress bar
                 var barGrid = new Grid { Height = 6, Margin = new Thickness(0, 2, 0, 0) };
                 barGrid.Children.Add(new Border
                 {
@@ -403,7 +821,7 @@ namespace Kalendarz1.Kartoteka.Views
                     Background = new SolidColorBrush(Color.FromRgb(34, 197, 94)),
                     CornerRadius = new CornerRadius(3),
                     HorizontalAlignment = HorizontalAlignment.Left,
-                    Width = barWidth * 1.5 // scale to fit
+                    Width = barWidth * 1.5
                 });
                 item.Children.Add(barGrid);
 
@@ -431,7 +849,6 @@ namespace Kalendarz1.Kartoteka.Views
 
             var filtered = _currentFaktury.Where(f => !f.Anulowany).AsEnumerable();
 
-            // Filtr okresu
             if (ComboHistoriaOkres?.SelectedIndex >= 0)
             {
                 var teraz = DateTime.Now;
@@ -440,22 +857,19 @@ namespace Kalendarz1.Kartoteka.Views
                     case 0: filtered = filtered.Where(f => f.DataFaktury >= teraz.AddDays(-30)); break;
                     case 1: filtered = filtered.Where(f => f.DataFaktury >= teraz.AddDays(-90)); break;
                     case 2: filtered = filtered.Where(f => f.DataFaktury >= teraz.AddYears(-1)); break;
-                    // case 3: Wszystko - brak filtra
                 }
             }
 
-            // Filtr typu
             if (ComboHistoriaTyp?.SelectedIndex > 0)
             {
                 var typText = (ComboHistoriaTyp.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
-                var typCode = typText.Split(' ')[0]; // "FVS", "FVZ", "FVR"
+                var typCode = typText.Split(' ')[0];
                 filtered = filtered.Where(f => f.Typ == typCode);
             }
 
             var result = filtered.ToList();
             DataGridHistoria.ItemsSource = result;
 
-            // Aktualizuj podsumowanie
             if (TextHistoriaLiczba != null)
                 TextHistoriaLiczba.Text = result.Count.ToString();
             if (TextHistoriaSuma != null)
@@ -468,26 +882,21 @@ namespace Kalendarz1.Kartoteka.Views
 
         private void WypelnijPlatnosci(List<FakturaOdbiorcy> faktury)
         {
-            // KPI: Do zapłaty
             var nieoplacone = faktury.Where(f => !f.Anulowany && f.DoZaplaty > 0).ToList();
             TextPlatnosciDoZaplaty.Text = $"{nieoplacone.Sum(f => f.DoZaplaty):N0} zł";
             TextPlatnosciDoZaplatyCount.Text = $"{nieoplacone.Count} faktur";
 
-            // KPI: Przeterminowane
             var przeterminowane = faktury.Where(f => !f.Anulowany && f.Przeterminowana).ToList();
             TextPlatnosciPrzeterminowane.Text = $"{przeterminowane.Sum(f => f.DoZaplaty):N0} zł";
             TextPlatnosciPrzeterminowaneCount.Text = $"{przeterminowane.Count} faktur";
 
-            // KPI: Zapłacono 12m
             var zaplacone12m = faktury.Where(f => !f.Anulowany && f.DoZaplaty <= 0 && f.DataFaktury >= DateTime.Now.AddYears(-1)).ToList();
             TextPlatnosciZaplacono.Text = $"{zaplacone12m.Sum(f => f.Brutto):N0} zł";
             TextPlatnosciZaplaconoCount.Text = $"{zaplacone12m.Count} faktur";
 
-            // KPI: Średnie dni płatności (oblicz z zapłaconych faktur)
             var zTerminem = zaplacone12m.Where(f => f.TerminPlatnosci > DateTime.MinValue).ToList();
             if (zTerminem.Count > 0)
             {
-                // Uproszczone - dni od wystawienia do terminu jako przybliżenie
                 var srednie = zTerminem.Average(f => (f.TerminPlatnosci - f.DataFaktury).TotalDays);
                 TextPlatnosciSrednieDni.Text = $"{srednie:F0} dni";
             }
@@ -515,7 +924,6 @@ namespace Kalendarz1.Kartoteka.Views
 
             var filtered = _currentFaktury.AsEnumerable();
 
-            // Filtr okresu
             if (ComboPlatnosciOkres?.SelectedIndex >= 0)
             {
                 var teraz = DateTime.Now;
@@ -524,11 +932,9 @@ namespace Kalendarz1.Kartoteka.Views
                     case 0: filtered = filtered.Where(f => f.DataFaktury >= teraz.AddDays(-30)); break;
                     case 1: filtered = filtered.Where(f => f.DataFaktury >= teraz.AddDays(-90)); break;
                     case 2: filtered = filtered.Where(f => f.DataFaktury >= teraz.AddYears(-1)); break;
-                    // case 3: Wszystko
                 }
             }
 
-            // Filtr statusu płatności
             if (ComboPlatnosciStatus?.SelectedIndex > 0)
             {
                 switch (ComboPlatnosciStatus.SelectedIndex)
@@ -548,7 +954,9 @@ namespace Kalendarz1.Kartoteka.Views
                 TextPlatnosciSuma.Text = $"{result.Where(f => !f.Anulowany).Sum(f => f.Brutto):N0} zł";
         }
 
-        // WypelnijHistorieNotatek is now used instead of the old WypelnijHistoriaKontaktow
+        // ═══════════════════════════════════════════
+        // KONTAKTY
+        // ═══════════════════════════════════════════
 
         private void WypelnijKontakty(List<KontaktOdbiorcy> kontakty, int idSymfonia)
         {
@@ -605,17 +1013,13 @@ namespace Kalendarz1.Kartoteka.Views
                 Width = 180,
                 Cursor = Cursors.Hand
             };
-            card.Effect = new System.Windows.Media.Effects.DropShadowEffect
+            card.Effect = new DropShadowEffect
             {
-                ShadowDepth = 0,
-                Color = Colors.Black,
-                Opacity = 0.05,
-                BlurRadius = 8
+                ShadowDepth = 0, Color = Colors.Black, Opacity = 0.05, BlurRadius = 8
             };
 
             var stack = new StackPanel();
 
-            // Typ kontaktu
             var headerStack = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
             headerStack.Children.Add(new TextBlock { Text = kontakt.IkonaTypu, FontSize = 16 });
             headerStack.Children.Add(new TextBlock
@@ -628,10 +1032,8 @@ namespace Kalendarz1.Kartoteka.Views
             });
             stack.Children.Add(headerStack);
 
-            // Imię i nazwisko
             stack.Children.Add(new TextBlock { Text = kontakt.PelneNazwisko, FontWeight = FontWeights.Bold });
 
-            // Stanowisko
             if (!string.IsNullOrEmpty(kontakt.Stanowisko))
             {
                 stack.Children.Add(new TextBlock
@@ -642,7 +1044,6 @@ namespace Kalendarz1.Kartoteka.Views
                 });
             }
 
-            // Telefon
             if (!string.IsNullOrEmpty(kontakt.Telefon))
             {
                 var telBlock = new TextBlock { Margin = new Thickness(0, 8, 0, 0), FontSize = 12 };
@@ -658,7 +1059,6 @@ namespace Kalendarz1.Kartoteka.Views
                 stack.Children.Add(telBlock);
             }
 
-            // Email
             if (!string.IsNullOrEmpty(kontakt.Email))
             {
                 var emailBlock = new TextBlock { FontSize = 12 };
@@ -676,7 +1076,6 @@ namespace Kalendarz1.Kartoteka.Views
 
             card.Child = stack;
 
-            // Dwuklik na kartę = edycja
             card.MouseLeftButtonDown += (s, e) =>
             {
                 if (e.ClickCount == 2)
@@ -689,7 +1088,6 @@ namespace Kalendarz1.Kartoteka.Views
                 }
             };
 
-            // Context menu
             card.ContextMenu = new ContextMenu();
             var editItem = new MenuItem { Header = "📝 Edytuj" };
             editItem.Click += (s, e) =>
@@ -719,9 +1117,12 @@ namespace Kalendarz1.Kartoteka.Views
             WypelnijKontakty(kontakty, idSymfonia);
         }
 
+        // ═══════════════════════════════════════════
+        // FINANSE
+        // ═══════════════════════════════════════════
+
         private void WypelnijFinanse(OdbiorcaHandlowca odbiorca, List<FakturaOdbiorcy> faktury)
         {
-            // Kolumna 1: Limit kupiecki (gradient card)
             TextFinanseLimitKwota.Text = $"{odbiorca.LimitKupiecki:N0} zł";
             var procent = odbiorca.ProcentWykorzystania;
             ProgressFinanseLimit.Value = Math.Min(procent, 100);
@@ -729,7 +1130,6 @@ namespace Kalendarz1.Kartoteka.Views
             TextFinanseWolne.Text = $"{odbiorca.WolnyLimit:N0} zł";
             TextFinanseZajete.Text = $"{odbiorca.WykorzystanoLimit:N0} zł";
 
-            // Kolumna 2: Warunki płatności
             TextFinansePlatnosc.Text = $"{odbiorca.TerminPlatnosci} dni";
             TextFinanseFormaPlatnosci.Text = string.IsNullOrEmpty(odbiorca.FormaPlatnosci) ? "-" : odbiorca.FormaPlatnosci;
 
@@ -738,7 +1138,6 @@ namespace Kalendarz1.Kartoteka.Views
 
             TextFinansePrzeteminowane.Text = $"{odbiorca.KwotaPrzeterminowana:N0} zł";
 
-            // Kolumna 3: Wykres obrotów miesięcznych
             var aktywne = faktury.Where(f => !f.Anulowany).ToList();
             var obrot = aktywne.Sum(f => f.Brutto);
             var fakturCount = aktywne.Count;
@@ -747,7 +1146,6 @@ namespace Kalendarz1.Kartoteka.Views
 
             BuildObrotyWykres(aktywne);
 
-            // Kolumna 4: Status płatności
             var nieoplacone = faktury.Count(f => !f.Anulowany && f.DoZaplaty > 0);
             TextFinanseStatusPlatnosci.Text = nieoplacone == 0
                 ? "Wszystkie faktury opłacone ✓"
@@ -766,7 +1164,6 @@ namespace Kalendarz1.Kartoteka.Views
             GridObrotyValues.Children.Clear();
             GridObrotyValues.ColumnDefinitions.Clear();
 
-            // Oblicz obroty na miesiąc (ostatnie 12 miesięcy)
             var teraz = DateTime.Now;
             var miesieczne = new decimal[12];
             for (int i = 0; i < 12; i++)
@@ -794,7 +1191,7 @@ namespace Kalendarz1.Kartoteka.Views
 
                 var rect = new Rectangle
                 {
-                    Fill = new SolidColorBrush(Color.FromRgb(187, 247, 208)), // #BBF7D0
+                    Fill = new SolidColorBrush(Color.FromRgb(187, 247, 208)),
                     Margin = new Thickness(1, 0, 1, 0),
                     Height = height,
                     VerticalAlignment = VerticalAlignment.Bottom,
@@ -808,7 +1205,6 @@ namespace Kalendarz1.Kartoteka.Views
                 Grid.SetColumn(rect, i);
                 GridObrotyWykres.Children.Add(rect);
 
-                // Etykieta miesiąca
                 var labelMiesiac = new TextBlock
                 {
                     Text = nazwyMiesiecy[miesiac.Month - 1],
@@ -820,7 +1216,6 @@ namespace Kalendarz1.Kartoteka.Views
                 Grid.SetColumn(labelMiesiac, i);
                 GridObrotyLabels.Children.Add(labelMiesiac);
 
-                // Wartość
                 var valText = miesieczne[i] >= 1000 ? $"{miesieczne[i] / 1000:N0}k" : $"{miesieczne[i]:N0}";
                 var labelWartosc = new TextBlock
                 {
@@ -833,6 +1228,125 @@ namespace Kalendarz1.Kartoteka.Views
                 };
                 Grid.SetColumn(labelWartosc, i);
                 GridObrotyValues.Children.Add(labelWartosc);
+            }
+        }
+
+        // ═══════════════════════════════════════════
+        // NOTATKI
+        // ═══════════════════════════════════════════
+
+        private async void ButtonZapiszNotatki_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedOdbiorca == null) return;
+
+            var tresc = TextBoxNotatki.Text?.Trim();
+            if (string.IsNullOrEmpty(tresc))
+            {
+                MessageBox.Show("Wpisz treść notatki.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                await _service.DodajNotatkeAsync(_selectedOdbiorca.IdSymfonia, tresc, _userName);
+                TextBoxNotatki.Text = "";
+                await LoadNotatki(_selectedOdbiorca.IdSymfonia);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd zapisu notatki: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async System.Threading.Tasks.Task LoadNotatki(int idSymfonia)
+        {
+            try
+            {
+                var notatki = await _service.PobierzNotatkiAsync(idSymfonia);
+                WypelnijHistorieNotatek(notatki, idSymfonia);
+            }
+            catch { }
+        }
+
+        private void WypelnijHistorieNotatek(List<NotatkaPozycja> notatki, int idSymfonia)
+        {
+            PanelHistoriaNotatek.Children.Clear();
+            TextNotatekCount.Text = $"{notatki.Count} notatek";
+
+            foreach (var n in notatki)
+            {
+                var card = new Border
+                {
+                    Padding = new Thickness(10),
+                    Margin = new Thickness(0, 0, 0, 6),
+                    CornerRadius = new CornerRadius(6),
+                    BorderThickness = new Thickness(3, 0, 0, 0),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(34, 197, 94)),
+                    Background = new SolidColorBrush(Color.FromRgb(240, 253, 244))
+                };
+                card.Effect = new DropShadowEffect
+                {
+                    ShadowDepth = 0, Color = Colors.Black, Opacity = 0.04, BlurRadius = 4
+                };
+
+                var stack = new StackPanel();
+
+                var header = new DockPanel { Margin = new Thickness(0, 0, 0, 4) };
+                header.Children.Add(new TextBlock
+                {
+                    Text = n.Autor,
+                    FontWeight = FontWeights.SemiBold,
+                    FontSize = 11,
+                    Foreground = new SolidColorBrush(Color.FromRgb(22, 101, 52))
+                });
+                var dataBlock = new TextBlock
+                {
+                    Text = n.DataUtworzenia.ToString("dd.MM.yyyy HH:mm"),
+                    Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                    FontSize = 10,
+                    HorizontalAlignment = HorizontalAlignment.Right
+                };
+                DockPanel.SetDock(dataBlock, Dock.Right);
+                header.Children.Insert(0, dataBlock);
+                stack.Children.Add(header);
+
+                stack.Children.Add(new TextBlock
+                {
+                    Text = n.Tresc,
+                    TextWrapping = TextWrapping.Wrap,
+                    FontSize = 11,
+                    Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81))
+                });
+
+                card.Child = stack;
+
+                card.ContextMenu = new ContextMenu();
+                var deleteItem = new MenuItem { Header = "Usuń notatkę" };
+                var noteId = n.Id;
+                deleteItem.Click += async (s, ev) =>
+                {
+                    if (MessageBox.Show("Usunąć tę notatkę?", "Potwierdź", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+                    {
+                        await _service.UsunNotatkeAsync(noteId);
+                        await LoadNotatki(idSymfonia);
+                    }
+                };
+                card.ContextMenu.Items.Add(deleteItem);
+
+                PanelHistoriaNotatek.Children.Add(card);
+            }
+
+            if (notatki.Count == 0)
+            {
+                PanelHistoriaNotatek.Children.Add(new TextBlock
+                {
+                    Text = "Brak notatek dla tego odbiorcy.\nDodaj pierwszą notatkę po lewej stronie.",
+                    Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)),
+                    FontSize = 11,
+                    TextWrapping = TextWrapping.Wrap,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 30, 0, 0)
+                });
             }
         }
 
@@ -874,140 +1388,15 @@ namespace Kalendarz1.Kartoteka.Views
             ExportToExcel();
         }
 
-        private async void ButtonZapiszNotatki_Click(object sender, RoutedEventArgs e)
-        {
-            var odbiorca = DataGridOdbiorcy.SelectedItem as OdbiorcaHandlowca;
-            if (odbiorca == null) return;
-
-            var tresc = TextBoxNotatki.Text?.Trim();
-            if (string.IsNullOrEmpty(tresc))
-            {
-                MessageBox.Show("Wpisz treść notatki.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            try
-            {
-                await _service.DodajNotatkeAsync(odbiorca.IdSymfonia, tresc, _userName);
-                TextBoxNotatki.Text = "";
-                await LoadNotatki(odbiorca.IdSymfonia);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd zapisu notatki: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private async System.Threading.Tasks.Task LoadNotatki(int idSymfonia)
-        {
-            try
-            {
-                var notatki = await _service.PobierzNotatkiAsync(idSymfonia);
-                WypelnijHistorieNotatek(notatki, idSymfonia);
-            }
-            catch { }
-        }
-
-        private void WypelnijHistorieNotatek(List<NotatkaPozycja> notatki, int idSymfonia)
-        {
-            PanelHistoriaNotatek.Children.Clear();
-            TextNotatekCount.Text = $"{notatki.Count} notatek";
-
-            foreach (var n in notatki)
-            {
-                var card = new Border
-                {
-                    Padding = new Thickness(10),
-                    Margin = new Thickness(0, 0, 0, 6),
-                    CornerRadius = new CornerRadius(6),
-                    BorderThickness = new Thickness(3, 0, 0, 0),
-                    BorderBrush = new SolidColorBrush(Color.FromRgb(34, 197, 94)),
-                    Background = new SolidColorBrush(Color.FromRgb(240, 253, 244))
-                };
-                card.Effect = new System.Windows.Media.Effects.DropShadowEffect
-                {
-                    ShadowDepth = 0, Color = Colors.Black, Opacity = 0.04, BlurRadius = 4
-                };
-
-                var stack = new StackPanel();
-
-                // Nagłówek: autor + data
-                var header = new DockPanel { Margin = new Thickness(0, 0, 0, 4) };
-                header.Children.Add(new TextBlock
-                {
-                    Text = n.Autor,
-                    FontWeight = FontWeights.SemiBold,
-                    FontSize = 11,
-                    Foreground = new SolidColorBrush(Color.FromRgb(22, 101, 52))
-                });
-                var dataBlock = new TextBlock
-                {
-                    Text = n.DataUtworzenia.ToString("dd.MM.yyyy HH:mm"),
-                    Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
-                    FontSize = 10,
-                    HorizontalAlignment = HorizontalAlignment.Right
-                };
-                DockPanel.SetDock(dataBlock, Dock.Right);
-                header.Children.Insert(0, dataBlock);
-                stack.Children.Add(header);
-
-                // Treść notatki
-                stack.Children.Add(new TextBlock
-                {
-                    Text = n.Tresc,
-                    TextWrapping = TextWrapping.Wrap,
-                    FontSize = 11,
-                    Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81))
-                });
-
-                card.Child = stack;
-
-                // Context menu - usuwanie
-                card.ContextMenu = new ContextMenu();
-                var deleteItem = new MenuItem { Header = "Usuń notatkę" };
-                var noteId = n.Id;
-                deleteItem.Click += async (s, ev) =>
-                {
-                    if (MessageBox.Show("Usunąć tę notatkę?", "Potwierdź", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
-                    {
-                        await _service.UsunNotatkeAsync(noteId);
-                        await LoadNotatki(idSymfonia);
-                    }
-                };
-                card.ContextMenu.Items.Add(deleteItem);
-
-                PanelHistoriaNotatek.Children.Add(card);
-            }
-
-            if (notatki.Count == 0)
-            {
-                PanelHistoriaNotatek.Children.Add(new TextBlock
-                {
-                    Text = "Brak notatek dla tego odbiorcy.\nDodaj pierwszą notatkę po lewej stronie.",
-                    Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)),
-                    FontSize = 11,
-                    TextWrapping = TextWrapping.Wrap,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    Margin = new Thickness(0, 30, 0, 0)
-                });
-            }
-        }
-
         // ═══════════════════════════════════════════
-        // EVENTS - DataGrid
+        // EVENTS - Edycja
         // ═══════════════════════════════════════════
-
-        private void DataGridOdbiorcy_MouseDoubleClick(object sender, MouseButtonEventArgs e)
-        {
-            OtworzEdycje();
-        }
 
         private void OtworzEdycje()
         {
-            var odbiorca = DataGridOdbiorcy.SelectedItem as OdbiorcaHandlowca;
-            if (odbiorca == null) return;
+            if (_selectedOdbiorca == null) return;
 
-            var edycja = new OdbiorcaEdycjaWindow(odbiorca, _service, _userName);
+            var edycja = new OdbiorcaEdycjaWindow(_selectedOdbiorca, _service, _userName);
             if (edycja.ShowDialog() == true)
             {
                 _ = LoadData();
@@ -1015,40 +1404,7 @@ namespace Kalendarz1.Kartoteka.Views
         }
 
         // ═══════════════════════════════════════════
-        // EVENTS - Menu kontekstowe
-        // ═══════════════════════════════════════════
-
-        private void MenuEdytuj_Click(object sender, RoutedEventArgs e) => OtworzEdycje();
-
-        private void MenuZadzwon_Click(object sender, RoutedEventArgs e)
-        {
-            var odbiorca = DataGridOdbiorcy.SelectedItem as OdbiorcaHandlowca;
-            if (odbiorca != null && !string.IsNullOrEmpty(odbiorca.TelefonKontakt))
-            {
-                try { Process.Start(new ProcessStartInfo { FileName = $"tel:{odbiorca.TelefonKontakt}", UseShellExecute = true }); } catch { }
-            }
-        }
-
-        private void MenuEmail_Click(object sender, RoutedEventArgs e)
-        {
-            var odbiorca = DataGridOdbiorcy.SelectedItem as OdbiorcaHandlowca;
-            if (odbiorca != null && !string.IsNullOrEmpty(odbiorca.EmailKontakt))
-            {
-                try { Process.Start(new ProcessStartInfo { FileName = $"mailto:{odbiorca.EmailKontakt}", UseShellExecute = true }); } catch { }
-            }
-        }
-
-        private void MenuKopiuj_Click(object sender, RoutedEventArgs e)
-        {
-            var odbiorca = DataGridOdbiorcy.SelectedItem as OdbiorcaHandlowca;
-            if (odbiorca == null) return;
-
-            var text = $"{odbiorca.NazwaFirmy}\n{odbiorca.Ulica}\n{odbiorca.KodPocztowy} {odbiorca.Miasto}\nNIP: {odbiorca.NIP}\nTel: {odbiorca.TelefonKontakt}\nEmail: {odbiorca.EmailKontakt}";
-            Clipboard.SetText(text);
-        }
-
-        // ═══════════════════════════════════════════
-        // EVENTS - Hyperlinks
+        // EVENTS - Hyperlinks (kept for XAML compatibility)
         // ═══════════════════════════════════════════
 
         private void Hyperlink_Telefon_Click(object sender, RoutedEventArgs e)
@@ -1084,9 +1440,14 @@ namespace Kalendarz1.Kartoteka.Views
                 TextBoxSzukaj.SelectAll();
                 e.Handled = true;
             }
-            else if (e.Key == Key.Enter && DataGridOdbiorcy.SelectedItem != null)
+            else if (e.Key == Key.Enter && _selectedOdbiorca != null)
             {
                 OtworzEdycje();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Escape && _expandedCard != null)
+            {
+                CollapseCard();
                 e.Handled = true;
             }
         }
@@ -1106,7 +1467,7 @@ namespace Kalendarz1.Kartoteka.Views
 
         private void ExportToExcel()
         {
-            var items = DataGridOdbiorcy.ItemsSource as IEnumerable<OdbiorcaHandlowca>;
+            var items = _displayedOdbiorcy;
             if (items == null || !items.Any())
             {
                 MessageBox.Show("Brak danych do eksportu.", "Export", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -1126,9 +1487,8 @@ namespace Kalendarz1.Kartoteka.Views
                     using var workbook = new XLWorkbook();
                     var ws = workbook.Worksheets.Add("Odbiorcy");
 
-                    // Nagłówki
                     var headers = new[] { "Firma", "Miasto", "NIP", "Kontakt", "Telefon", "Email",
-                        "Limit kupiecki", "Wykorzystano", "%", "Kategoria", "Handlowiec",
+                        "Limit kupiecki", "Wykorzystano", "%", "Bilans", "Kategoria", "Handlowiec",
                         "Forma płatności", "Termin płatności", "Asortyment", "Trasa" };
                     for (int i = 0; i < headers.Length; i++)
                         ws.Cell(1, i + 1).Value = headers[i];
@@ -1145,24 +1505,24 @@ namespace Kalendarz1.Kartoteka.Views
                         ws.Cell(row, 7).Value = (double)o.LimitKupiecki;
                         ws.Cell(row, 8).Value = (double)o.WykorzystanoLimit;
                         ws.Cell(row, 9).Value = o.ProcentWykorzystania;
-                        ws.Cell(row, 10).Value = o.KategoriaHandlowca;
-                        ws.Cell(row, 11).Value = o.Handlowiec;
-                        ws.Cell(row, 12).Value = o.FormaPlatnosci;
-                        ws.Cell(row, 13).Value = o.TerminPlatnosci;
-                        ws.Cell(row, 14).Value = o.Asortyment;
-                        ws.Cell(row, 15).Value = o.Trasa;
+                        ws.Cell(row, 10).Value = (double)o.Bilans;
+                        ws.Cell(row, 11).Value = o.KategoriaHandlowca;
+                        ws.Cell(row, 12).Value = o.Handlowiec;
+                        ws.Cell(row, 13).Value = o.FormaPlatnosci;
+                        ws.Cell(row, 14).Value = o.TerminPlatnosci;
+                        ws.Cell(row, 15).Value = o.Asortyment;
+                        ws.Cell(row, 16).Value = o.Trasa;
                         row++;
                     }
 
-                    // Formatowanie
                     ws.Row(1).Style.Font.Bold = true;
                     ws.Row(1).Style.Fill.BackgroundColor = XLColor.FromHtml("#DCFCE7");
                     ws.Columns().AdjustToContents();
 
-                    // Format kolumn numerycznych
                     ws.Column(7).Style.NumberFormat.Format = "#,##0";
                     ws.Column(8).Style.NumberFormat.Format = "#,##0";
                     ws.Column(9).Style.NumberFormat.Format = "0%";
+                    ws.Column(10).Style.NumberFormat.Format = "#,##0";
 
                     workbook.SaveAs(saveDialog.FileName);
 
@@ -1176,69 +1536,6 @@ namespace Kalendarz1.Kartoteka.Views
         }
 
         // ═══════════════════════════════════════════
-        // Zapamiętywanie szerokości kolumn
-        // ═══════════════════════════════════════════
-
-        private static string ColumnWidthsFilePath =>
-            System.IO.Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "ZPSP", "KartotekaColumnWidths.json");
-
-        private void AutoFitColumns()
-        {
-            try
-            {
-                foreach (var col in DataGridOdbiorcy.Columns)
-                {
-                    col.Width = new DataGridLength(1, DataGridLengthUnitType.Auto);
-                }
-                DataGridOdbiorcy.UpdateLayout();
-                foreach (var col in DataGridOdbiorcy.Columns)
-                {
-                    var desiredWidth = col.ActualWidth;
-                    col.Width = new DataGridLength(desiredWidth, DataGridLengthUnitType.Pixel);
-                }
-            }
-            catch { }
-        }
-
-        private void SaveColumnWidths()
-        {
-            try
-            {
-                var widths = new Dictionary<string, double>();
-                foreach (var col in DataGridOdbiorcy.Columns)
-                {
-                    if (col.Header != null)
-                        widths[col.Header.ToString()] = col.ActualWidth;
-                }
-                var dir = System.IO.Path.GetDirectoryName(ColumnWidthsFilePath);
-                if (!System.IO.Directory.Exists(dir))
-                    System.IO.Directory.CreateDirectory(dir);
-                System.IO.File.WriteAllText(ColumnWidthsFilePath, JsonConvert.SerializeObject(widths));
-            }
-            catch { }
-        }
-
-        private void LoadColumnWidths()
-        {
-            try
-            {
-                if (!System.IO.File.Exists(ColumnWidthsFilePath)) return;
-                var json = System.IO.File.ReadAllText(ColumnWidthsFilePath);
-                if (string.IsNullOrEmpty(json)) return;
-
-                var widths = JsonConvert.DeserializeObject<Dictionary<string, double>>(json);
-                foreach (var col in DataGridOdbiorcy.Columns)
-                {
-                    if (col.Header != null && widths.ContainsKey(col.Header.ToString()))
-                        col.Width = new DataGridLength(widths[col.Header.ToString()]);
-                }
-            }
-            catch { }
-        }
-
-        // ═══════════════════════════════════════════
         // DEBUG / PROFILER
         // ═══════════════════════════════════════════
 
@@ -1249,7 +1546,7 @@ namespace Kalendarz1.Kartoteka.Views
 
             try
             {
-                var sw = new System.Diagnostics.Stopwatch();
+                var sw = new Stopwatch();
                 var log = new System.Text.StringBuilder();
                 log.AppendLine("══════════════════════════════════════════");
                 log.AppendLine("  KARTOTEKA ODBIORCÓW - PROFILER DEBUG");
@@ -1258,40 +1555,34 @@ namespace Kalendarz1.Kartoteka.Views
                 log.AppendLine("══════════════════════════════════════════");
                 log.AppendLine();
 
-                var totalSw = System.Diagnostics.Stopwatch.StartNew();
+                var totalSw = Stopwatch.StartNew();
 
-                // 1. EnsureTablesExist
                 sw.Restart();
                 await _service.EnsureTablesExistAsync();
                 sw.Stop();
                 log.AppendLine($"[1] EnsureTablesExist:     {sw.ElapsedMilliseconds,6} ms");
 
-                // 2. PobierzOdbiorcow (główne zapytanie + limity + przeterminowane)
                 sw.Restart();
                 var odbiorcy = await _service.PobierzOdbiorcowAsync(null, true);
                 sw.Stop();
                 log.AppendLine($"[2] PobierzOdbiorcow:      {sw.ElapsedMilliseconds,6} ms  ({odbiorcy.Count} rekordów)");
 
-                // 3. WczytajDaneWlasne (LibraNet)
                 sw.Restart();
                 await _service.WczytajDaneWlasneAsync(odbiorcy);
                 sw.Stop();
                 log.AppendLine($"[3] WczytajDaneWlasne:     {sw.ElapsedMilliseconds,6} ms");
 
-                // 4. PobierzAsortyment (bulk DK→DP→TW)
                 sw.Restart();
                 var khids = odbiorcy.Select(o => o.IdSymfonia).ToList();
                 var asortyment = await _service.PobierzAsortymentAsync(khids, 6);
                 sw.Stop();
                 log.AppendLine($"[4] PobierzAsortyment:     {sw.ElapsedMilliseconds,6} ms  ({asortyment.Count} z asortymentem)");
 
-                // 5. PobierzHandlowcow
                 sw.Restart();
                 var handlowcy = await _service.PobierzHandlowcowAsync();
                 sw.Stop();
                 log.AppendLine($"[5] PobierzHandlowcow:     {sw.ElapsedMilliseconds,6} ms  ({handlowcy.Count} handlowców)");
 
-                // 6. PobierzKontakty (dla pierwszego odbiorcy)
                 if (odbiorcy.Count > 0)
                 {
                     var testId = odbiorcy[0].IdSymfonia;
@@ -1300,13 +1591,11 @@ namespace Kalendarz1.Kartoteka.Views
                     sw.Stop();
                     log.AppendLine($"[6] PobierzKontakty:       {sw.ElapsedMilliseconds,6} ms  (test: {odbiorcy[0].NazwaFirmy}, {kontakty.Count} kontaktów)");
 
-                    // 7. PobierzFaktury
                     sw.Restart();
                     var faktury = await _service.PobierzFakturyAsync(testId);
                     sw.Stop();
                     log.AppendLine($"[7] PobierzFaktury:        {sw.ElapsedMilliseconds,6} ms  ({faktury.Count} faktur)");
 
-                    // 8. PobierzAsortymentSzczegoly
                     sw.Restart();
                     var asSzczeg = await _service.PobierzAsortymentSzczegolyAsync(testId, 12);
                     sw.Stop();
@@ -1319,7 +1608,6 @@ namespace Kalendarz1.Kartoteka.Views
                 log.AppendLine($"  TOTAL:                   {totalSw.ElapsedMilliseconds,6} ms");
                 log.AppendLine($"══════════════════════════════════════════");
 
-                // Pokaż wynik i skopiuj do schowka
                 var result = log.ToString();
                 Clipboard.SetText(result);
                 MessageBox.Show(result + "\n\n(Skopiowano do schowka)", "Debug Profiler",
@@ -1339,7 +1627,7 @@ namespace Kalendarz1.Kartoteka.Views
 
         private void Window_Closing(object sender, CancelEventArgs e)
         {
-            SaveColumnWidths();
+            // No column widths to save in accordion mode
         }
     }
 }
