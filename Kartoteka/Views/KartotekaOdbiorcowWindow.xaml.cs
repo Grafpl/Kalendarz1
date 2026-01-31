@@ -1208,7 +1208,7 @@ namespace Kalendarz1.Kartoteka.Views
                 var labelMiesiac = new TextBlock
                 {
                     Text = nazwyMiesiecy[miesiac.Month - 1],
-                    FontSize = 8,
+                    FontSize = 10,
                     Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
                     HorizontalAlignment = HorizontalAlignment.Center,
                     TextAlignment = TextAlignment.Center
@@ -1220,7 +1220,7 @@ namespace Kalendarz1.Kartoteka.Views
                 var labelWartosc = new TextBlock
                 {
                     Text = miesieczne[i] > 0 ? valText : "",
-                    FontSize = 7,
+                    FontSize = 9,
                     Foreground = new SolidColorBrush(Color.FromRgb(22, 163, 74)),
                     FontWeight = FontWeights.Medium,
                     HorizontalAlignment = HorizontalAlignment.Center,

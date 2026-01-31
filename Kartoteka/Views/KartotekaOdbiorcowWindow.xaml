@@ -214,14 +214,14 @@
                                         </Grid>
 
                                         <UniformGrid Grid.Row="3" Columns="2" Margin="0,4,0,0">
-                                            <Border Background="#FFFFFF22" CornerRadius="6" Padding="10,8" Margin="0,0,3,0">
+                                            <Border Background="#33FFFFFF" CornerRadius="6" Padding="10,8" Margin="0,0,3,0">
                                                 <StackPanel>
                                                     <TextBlock Text="Wolne" Foreground="#BBF7D0" FontSize="11"/>
                                                     <TextBlock x:Name="TextFinanseWolne" Text="-"
                                                                Foreground="White" FontWeight="Bold" FontSize="16"/>
                                                 </StackPanel>
                                             </Border>
-                                            <Border Background="#FFFFFF22" CornerRadius="6" Padding="10,8" Margin="3,0,0,0">
+                                            <Border Background="#33FFFFFF" CornerRadius="6" Padding="10,8" Margin="3,0,0,0">
                                                 <StackPanel>
                                                     <TextBlock Text="Zajęte" Foreground="#BBF7D0" FontSize="11"/>
                                                     <TextBlock x:Name="TextFinanseZajete" Text="-"
