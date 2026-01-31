@@ -241,20 +241,21 @@ namespace Kalendarz1.Kartoteka.Views
         private static readonly string[] _columnSortKeys = new[]
         {
             "",           // 0: dot
-            "Firma",      // 1
-            "NIP",        // 2
-            "Kontakt",    // 3
-            "Telefon",    // 4
-            "Forma",      // 5
-            "Termin",     // 6
-            "Naleznosci", // 7
-            "Limit",      // 8
-            "Bilans",     // 9
-            "Przeter",    // 10
-            "Procent",    // 11
-            "OstFaktura", // 12
-            "Kategoria",  // 13
-            "Handlowiec", // 14 (admin only)
+            "Kategoria",  // 1
+            "Firma",      // 2
+            "NIP",        // 3
+            "Kontakt",    // 4
+            "Telefon",    // 5
+            "Email",      // 6
+            "Forma",      // 7
+            "Termin",     // 8
+            "Naleznosci", // 9
+            "Limit",      // 10
+            "Bilans",     // 11
+            "Przeter",    // 12
+            "Procent",    // 13
+            "OstFaktura", // 14
+            "Handlowiec", // 15 (admin only)
             ""            // arrow
         };
 
@@ -262,21 +263,22 @@ namespace Kalendarz1.Kartoteka.Views
         {
             var grid = new Grid();
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(18) });   // 0: Status dot
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 140 }); // 1: Firma + miasto
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(95) });   // 2: NIP
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });   // 3: Kontakt
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(85) });   // 4: Telefon
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });   // 5: Forma płatn.
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(45) });   // 6: Termin
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });   // 7: Należności
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });   // 8: Limit
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });   // 9: Bilans
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });   // 10: Przetermin.
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) });   // 11: % limitu
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(65) });   // 12: Ost. faktura
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });   // 13: Kategoria
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });   // 1: Kategoria
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 140 }); // 2: Firma + miasto
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(95) });   // 3: NIP
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });   // 4: Kontakt
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(85) });   // 5: Telefon
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });  // 6: Email
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });   // 7: Forma płatn.
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(45) });   // 8: Termin
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });   // 9: Należności
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });   // 10: Limit
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });   // 11: Bilans
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });   // 12: Przetermin.
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) });   // 13: % limitu
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(65) });   // 14: Ost. faktura
             if (_isAdmin)
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(75) }); // 14: Handlowiec
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(75) }); // 15: Handlowiec
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(22) });   // Arrow
             return grid;
         }
@@ -297,8 +299,8 @@ namespace Kalendarz1.Kartoteka.Views
             var greenBrush = new SolidColorBrush(Color.FromRgb(22, 101, 52));  // #166534
 
             string[] headers = _isAdmin
-                ? new[] { "", "Firma", "NIP", "Kontakt", "Telefon", "Forma", "Termin", "Należności", "Limit", "Bilans", "Przeter.", "%", "Ost.fakt.", "Kat.", "Handl.", "" }
-                : new[] { "", "Firma", "NIP", "Kontakt", "Telefon", "Forma", "Termin", "Należności", "Limit", "Bilans", "Przeter.", "%", "Ost.fakt.", "Kat.", "" };
+                ? new[] { "", "Kat.", "Firma", "NIP", "Kontakt", "Telefon", "Email", "Forma", "Termin", "Należności", "Limit", "Bilans", "Przeter.", "%", "Ost.fakt.", "Handl.", "" }
+                : new[] { "", "Kat.", "Firma", "NIP", "Kontakt", "Telefon", "Email", "Forma", "Termin", "Należności", "Limit", "Bilans", "Przeter.", "%", "Ost.fakt.", "" };
 
             // Determine sort key indices considering admin
             int totalCols = headers.Length;
@@ -330,16 +332,14 @@ namespace Kalendarz1.Kartoteka.Views
                     Cursor = string.IsNullOrEmpty(sortKey) ? Cursors.Arrow : Cursors.Hand
                 };
 
-                // Right-align numeric columns (Należności=7, Limit=8, Bilans=9, Przeter=10, %=11)
-                int baseIdx = _isAdmin ? i : i; // same since admin column is near end
-                // For non-admin: indices 7-11 are numeric; for admin same
-                if (i >= 7 && i <= 11)
+                // Right-align numeric columns (Należności=9, Limit=10, Bilans=11, Przeter=12, %=13)
+                if (i >= 9 && i <= 13)
                 {
                     tb.HorizontalAlignment = HorizontalAlignment.Right;
                     tb.Margin = new Thickness(0, 0, 8, 0);
                 }
-                int katIdx = _isAdmin ? 13 : 13;
-                int ostFaktIdx = _isAdmin ? 12 : 12;
+                int katIdx = 1;
+                int ostFaktIdx = 14;
                 if (i == ostFaktIdx)
                     tb.HorizontalAlignment = HorizontalAlignment.Center;
                 if (i == katIdx)
@@ -385,8 +385,8 @@ namespace Kalendarz1.Kartoteka.Views
         private string GetSortKeyForColumnIndex(int colIndex)
         {
             // Map visual column index to sort key
-            // Non-admin: 0=dot,1=Firma,2=NIP,3=Kontakt,4=Telefon,5=Forma,6=Termin,7=Naleznosci,8=Limit,9=Bilans,10=Przeter,11=Procent,12=OstFaktura,13=Kategoria,14=arrow
-            // Admin: same but 14=Handlowiec,15=arrow
+            // Non-admin: 0=dot,1=Kat,2=Firma,3=NIP,4=Kontakt,5=Telefon,6=Email,7=Forma,8=Termin,9=Naleznosci,10=Limit,11=Bilans,12=Przeter,13=Procent,14=OstFaktura,15=arrow
+            // Admin: same but 15=Handlowiec,16=arrow
             if (colIndex <= 0) return "";
             if (colIndex < _columnSortKeys.Length)
                 return _columnSortKeys[colIndex];
@@ -435,6 +435,9 @@ namespace Kalendarz1.Kartoteka.Views
                     "OstFaktura" => _sortAscending
                         ? _displayedOdbiorcy.OrderBy(o => o.OstatniaFakturaData ?? DateTime.MinValue).ToList()
                         : _displayedOdbiorcy.OrderByDescending(o => o.OstatniaFakturaData ?? DateTime.MinValue).ToList(),
+                    "Email" => _sortAscending
+                        ? _displayedOdbiorcy.OrderBy(o => o.EmailKontakt ?? "").ToList()
+                        : _displayedOdbiorcy.OrderByDescending(o => o.EmailKontakt ?? "").ToList(),
                     "Kategoria" => _sortAscending
                         ? _displayedOdbiorcy.OrderBy(o => o.KategoriaHandlowca ?? "C").ToList()
                         : _displayedOdbiorcy.OrderByDescending(o => o.KategoriaHandlowca ?? "C").ToList(),
@@ -486,6 +489,26 @@ namespace Kalendarz1.Kartoteka.Views
             };
             Grid.SetColumn(dot, col++);
             grid.Children.Add(dot);
+
+            // Kategoria badge (before Firma)
+            var katBorder = new Border
+            {
+                Width = 24, Height = 24, CornerRadius = new CornerRadius(12),
+                Background = GetKategoriaBackground(odbiorca.KategoriaHandlowca),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            katBorder.Child = new TextBlock
+            {
+                Text = odbiorca.KategoriaHandlowca ?? "C",
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                FontWeight = FontWeights.Bold,
+                FontSize = 10,
+                Foreground = GetKategoriaForeground(odbiorca.KategoriaHandlowca)
+            };
+            Grid.SetColumn(katBorder, col++);
+            grid.Children.Add(katBorder);
 
             // Company name + city
             var nameStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
@@ -596,6 +619,43 @@ namespace Kalendarz1.Kartoteka.Views
                 };
                 Grid.SetColumn(telText, col++);
                 grid.Children.Add(telText);
+            }
+
+            // Email
+            if (string.IsNullOrWhiteSpace(odbiorca.EmailKontakt))
+            {
+                var brakEmail = new TextBlock
+                {
+                    Text = "brak!",
+                    FontSize = 10,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(220, 38, 38)),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Cursor = Cursors.Hand,
+                    TextDecorations = TextDecorations.Underline
+                };
+                var capturedOdbiorca3 = odbiorca;
+                brakEmail.MouseLeftButtonDown += (s, ev) =>
+                {
+                    ev.Handled = true;
+                    OpenEdycjaWithHighlight(capturedOdbiorca3, "Email");
+                };
+                Grid.SetColumn(brakEmail, col++);
+                grid.Children.Add(brakEmail);
+            }
+            else
+            {
+                var emailText = new TextBlock
+                {
+                    Text = odbiorca.EmailKontakt,
+                    FontSize = 10,
+                    Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    ToolTip = odbiorca.EmailKontakt
+                };
+                Grid.SetColumn(emailText, col++);
+                grid.Children.Add(emailText);
             }
 
             // Forma płatności
@@ -710,26 +770,6 @@ namespace Kalendarz1.Kartoteka.Views
             };
             Grid.SetColumn(fakturaText, col++);
             grid.Children.Add(fakturaText);
-
-            // Kategoria badge
-            var katBorder = new Border
-            {
-                Width = 24, Height = 24, CornerRadius = new CornerRadius(12),
-                Background = GetKategoriaBackground(odbiorca.KategoriaHandlowca),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            katBorder.Child = new TextBlock
-            {
-                Text = odbiorca.KategoriaHandlowca ?? "C",
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                FontWeight = FontWeights.Bold,
-                FontSize = 10,
-                Foreground = GetKategoriaForeground(odbiorca.KategoriaHandlowca)
-            };
-            Grid.SetColumn(katBorder, col++);
-            grid.Children.Add(katBorder);
 
             // Handlowiec (admin only)
             if (_isAdmin)
