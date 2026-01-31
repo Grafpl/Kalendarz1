@@ -736,7 +736,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                         DataLabels = true,
                         LabelPoint = p => p.X > 0 ? $"{p.X:N0} zl | {hNazwa}" : "",
                         Foreground = Brushes.White,
-                        MaxRowHeigth = 35,
+                        MaxRowHeight = 35,
                         RowPadding = 2
                     });
                 }
@@ -1127,30 +1127,25 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
                 var model = chart.Model;
                 if (model == null || model.DrawMargin == null) return;
-                if (model.AxisX == null || model.AxisY == null) return;
-                if (model.AxisX.Length == 0 || model.AxisY.Length == 0) return;
 
                 var dm = model.DrawMargin;
                 int count = data.Count;
+                if (count == 0) return;
 
                 if (isHorizontal)
                 {
-                    // RowSeries - horizontal bars
+                    // StackedRowSeries - horizontal bars
                     double avatarSize = 26;
-                    var xTop = model.AxisX[0].TopLimit;
-                    var xBot = model.AxisX[0].BotLimit;
-                    var yTop = model.AxisY[0].TopLimit;
-                    var yBot = model.AxisY[0].BotLimit;
-                    if (xTop <= xBot || yTop <= yBot) return;
+                    double barHeight = dm.Height / count;
 
                     for (int i = 0; i < count; i++)
                     {
                         var d = data[i];
                         if (!_handlowiecAvatarCache.ContainsKey(d.Handlowiec)) continue;
 
-                        // Y pozycja: srodek slupka na indeksie i
-                        var yPixel = dm.Top + dm.Height * ((i + 0.5 - yBot) / (yTop - yBot));
-                        // X pozycja: poczatek slupka (stala, wewnatrz slupka)
+                        // Y: center of bar at index i
+                        var yPixel = dm.Top + i * barHeight + barHeight / 2;
+                        // X: fixed at start of bar area (inside bar)
                         var xPixel = dm.Left + 5;
 
                         var avatarEl = CreateAvatarElement(d.Handlowiec, avatarSize, GetHandlowiecColor(d.Handlowiec));
@@ -1161,23 +1156,23 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 }
                 else
                 {
-                    // ColumnSeries - vertical bars
+                    // StackedColumnSeries - vertical bars
                     double avatarSize = 36;
-                    var xTop = model.AxisX[0].TopLimit;
-                    var xBot = model.AxisX[0].BotLimit;
-                    var yTop = model.AxisY[0].TopLimit;
-                    var yBot = model.AxisY[0].BotLimit;
-                    if (xTop <= xBot || yTop <= yBot) return;
+                    double barWidth = dm.Width / count;
+                    double maxVal = data.Max(d => d.Wartosc);
+                    if (maxVal <= 0) return;
+                    // LiveCharts adds ~10% padding above max value
+                    double axisMax = maxVal * 1.1;
 
                     for (int i = 0; i < count; i++)
                     {
                         var d = data[i];
                         if (!_handlowiecAvatarCache.ContainsKey(d.Handlowiec)) continue;
 
-                        // X pozycja: srodek slupka na indeksie i
-                        var xPixel = dm.Left + dm.Width * ((i + 0.5 - xBot) / (xTop - xBot));
-                        // Y pozycja: gora slupka (wartosc)
-                        var yPixel = dm.Top + dm.Height * (1.0 - (d.Wartosc - yBot) / (yTop - yBot));
+                        // X: center of bar at index i
+                        var xPixel = dm.Left + i * barWidth + barWidth / 2;
+                        // Y: top of bar (value mapped to pixels)
+                        var yPixel = dm.Top + dm.Height * (1.0 - d.Wartosc / axisMax);
 
                         var avatarEl = CreateAvatarElement(d.Handlowiec, avatarSize, GetHandlowiecColor(d.Handlowiec));
                         Canvas.SetLeft(avatarEl, xPixel - avatarSize / 2);
