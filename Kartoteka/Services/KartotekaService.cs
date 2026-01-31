@@ -111,6 +111,37 @@ END;
             await conn.OpenAsync();
 
             var sql = @"
+;WITH PN_Agg AS (
+    SELECT dkid,
+           SUM(kwotarozl) AS KwotaRozliczona,
+           MAX(Termin) AS TerminPrawdziwy
+    FROM [HM].[PN]
+    GROUP BY dkid
+),
+DK_Naleznosci AS (
+    SELECT
+        DK.khid,
+        SUM(CASE WHEN (DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0)) > 0.01
+                 THEN DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0) ELSE 0 END) AS WykorzystanoLimit,
+        SUM(CASE WHEN (DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0)) > 0.01
+                      AND GETDATE() > ISNULL(PN.TerminPrawdziwy, DK.plattermin)
+                 THEN DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0) ELSE 0 END) AS KwotaPrzeterminowana
+    FROM [HM].[DK] DK
+    LEFT JOIN PN_Agg PN ON PN.dkid = DK.id
+    WHERE DK.typ_dk IN ('FVS', 'FVR', 'FVZ')
+      AND DK.aktywny = 1
+      AND DK.anulowany = 0
+      AND DK.ok = 0
+    GROUP BY DK.khid
+),
+DK_OstFaktura AS (
+    SELECT DK.khid, MAX(DK.data) AS OstatniaFakturaData
+    FROM [HM].[DK] DK
+    WHERE DK.typ_dk = 'FVS'
+      AND DK.aktywny = 1
+      AND DK.anulowany = 0
+    GROUP BY DK.khid
+)
 SELECT
     C.Id AS IdSymfonia,
     C.Name AS NazwaFirmy,
@@ -121,53 +152,17 @@ SELECT
     ISNULL(C.NIP, '') AS NIP,
     ISNULL(C.LimitAmount, 0) AS LimitKupiecki,
     ISNULL(WYM.CDim_Handlowiec_Val, N'Nieprzypisany') AS Handlowiec,
-    ISNULL((
-        SELECT SUM(DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0))
-        FROM [HM].[DK] DK
-        LEFT JOIN (
-            SELECT dkid, SUM(kwotarozl) AS KwotaRozliczona
-            FROM [HM].[PN]
-            GROUP BY dkid
-        ) PN ON PN.dkid = DK.id
-        WHERE DK.khid = C.Id
-          AND DK.typ_dk IN ('FVS', 'FVR', 'FVZ')
-          AND DK.aktywny = 1
-          AND DK.anulowany = 0
-          AND DK.ok = 0
-          AND (DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0)) > 0.01
-    ), 0) AS WykorzystanoLimit,
-    ISNULL((
-        SELECT SUM(DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0))
-        FROM [HM].[DK] DK
-        LEFT JOIN (
-            SELECT dkid, SUM(kwotarozl) AS KwotaRozliczona,
-                   MAX(Termin) AS TerminPrawdziwy
-            FROM [HM].[PN]
-            GROUP BY dkid
-        ) PN ON PN.dkid = DK.id
-        WHERE DK.khid = C.Id
-          AND DK.typ_dk IN ('FVS', 'FVR', 'FVZ')
-          AND DK.aktywny = 1
-          AND DK.anulowany = 0
-          AND DK.ok = 0
-          AND (DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0)) > 0.01
-          AND GETDATE() > ISNULL(PN.TerminPrawdziwy, DK.plattermin)
-    ), 0) AS KwotaPrzeterminowana,
-    (
-        SELECT TOP 1 DK.data
-        FROM [HM].[DK] DK
-        WHERE DK.khid = C.Id
-          AND DK.typ_dk = 'FVS'
-          AND DK.aktywny = 1
-          AND DK.anulowany = 0
-        ORDER BY DK.data DESC
-    ) AS OstatniaFakturaData
+    ISNULL(DN.WykorzystanoLimit, 0) AS WykorzystanoLimit,
+    ISNULL(DN.KwotaPrzeterminowana, 0) AS KwotaPrzeterminowana,
+    DOF.OstatniaFakturaData
 FROM [SSCommon].[STContractors] C
 LEFT JOIN [SSCommon].[STPostOfficeAddresses] POA
     ON POA.ContactGuid = C.ContactGuid
     AND POA.AddressName = N'adres domyślny'
 LEFT JOIN [SSCommon].[ContractorClassification] WYM
     ON C.Id = WYM.ElementId
+LEFT JOIN DK_Naleznosci DN ON DN.khid = C.Id
+LEFT JOIN DK_OstFaktura DOF ON DOF.khid = C.Id
 WHERE
     (@PokazWszystkich = 1 OR ISNULL(WYM.CDim_Handlowiec_Val, '') = @Handlowiec)
 ORDER BY C.Name;

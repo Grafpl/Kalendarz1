@@ -40,6 +40,11 @@ namespace Kalendarz1.Kartoteka.Views
         private string _sortColumn = "OstFaktura";
         private bool _sortAscending = false;
 
+        // Lazy loading state
+        private const int _cardsPageSize = 100;
+        private int _cardsRendered = 0;
+        private bool _isLoadingMore = false;
+
         public string UserID
         {
             get => _userId;
@@ -107,15 +112,20 @@ namespace Kalendarz1.Kartoteka.Views
                     handlowiec = _userName;
                 }
 
+                // Run EnsureTablesExist (LibraNet) and PobierzOdbiorcow (Handel) in parallel
                 var sw = Stopwatch.StartNew();
-                await _service.EnsureTablesExistAsync();
-                sw.Stop();
-                debugTimings.Add($"EnsureTablesExist: {sw.ElapsedMilliseconds} ms");
+                var taskEnsure = _service.EnsureTablesExistAsync();
+                var taskOdbiorcy = _service.PobierzOdbiorcowAsync(handlowiec, pokazWszystkich);
 
-                sw.Restart();
-                var odbiorcy = await _service.PobierzOdbiorcowAsync(handlowiec, pokazWszystkich);
+                // Also start handlowcy fetch in parallel (if admin)
+                System.Threading.Tasks.Task<List<string>> taskHandlowcy = null;
+                if (_userId == "11111" && ComboBoxHandlowiec.Items.Count <= 1)
+                    taskHandlowcy = _service.PobierzHandlowcowAsync();
+
+                await taskEnsure;
+                var odbiorcy = await taskOdbiorcy;
                 sw.Stop();
-                debugTimings.Add($"PobierzOdbiorcow ({odbiorcy.Count} rekordów): {sw.ElapsedMilliseconds} ms");
+                debugTimings.Add($"PobierzOdbiorcow + EnsureTables parallel ({odbiorcy.Count} rekordów): {sw.ElapsedMilliseconds} ms");
 
                 sw.Restart();
                 await _service.WczytajDaneWlasneAsync(odbiorcy);
@@ -128,32 +138,25 @@ namespace Kalendarz1.Kartoteka.Views
                 sw.Restart();
                 ApplySortAndRegenerate();
                 sw.Stop();
-                debugTimings.Add($"ApplySortAndRegenerate ({_displayedOdbiorcy.Count} kart): {sw.ElapsedMilliseconds} ms");
+                debugTimings.Add($"ApplySortAndRegenerate ({_cardsRendered}/{_displayedOdbiorcy.Count} kart): {sw.ElapsedMilliseconds} ms");
 
-                // Załaduj handlowców dla admina
-                if (_userId == "11111" && ComboBoxHandlowiec.Items.Count <= 1)
+                // Finish handlowcy fetch
+                if (taskHandlowcy != null)
                 {
                     sw.Restart();
+                    var handlowcy = await taskHandlowcy;
                     ComboBoxHandlowiec.Items.Clear();
                     ComboBoxHandlowiec.Items.Add(new ComboBoxItem { Content = "Wszyscy", IsSelected = true });
-                    var handlowcy = await _service.PobierzHandlowcowAsync();
                     foreach (var h in handlowcy)
                     {
                         ComboBoxHandlowiec.Items.Add(new ComboBoxItem { Content = h });
                     }
                     sw.Stop();
-                    debugTimings.Add($"PobierzHandlowcow: {sw.ElapsedMilliseconds} ms");
+                    debugTimings.Add($"PobierzHandlowcow (parallel): {sw.ElapsedMilliseconds} ms");
                 }
 
-                sw.Restart();
                 UpdateStatystyki();
-                sw.Stop();
-                debugTimings.Add($"UpdateStatystyki: {sw.ElapsedMilliseconds} ms");
-
-                sw.Restart();
                 UpdateLicznik();
-                sw.Stop();
-                debugTimings.Add($"UpdateLicznik: {sw.ElapsedMilliseconds} ms");
             }
             catch (Exception ex)
             {
@@ -236,17 +239,21 @@ namespace Kalendarz1.Kartoteka.Views
 
             _expandedCard = null;
             _selectedOdbiorca = null;
+            _cardsRendered = 0;
 
             // ── Sticky column headers ──
             var header = CreateHeaderRow();
             HeaderRowContainer.Child = header;
             HeaderRowContainer.Visibility = Visibility.Visible;
 
-            foreach (var o in odbiorcy)
+            // Render only first batch for performance
+            var initialBatch = Math.Min(_cardsPageSize, odbiorcy.Count);
+            for (int i = 0; i < initialBatch; i++)
             {
-                var card = CreateCustomerCard(o);
+                var card = CreateCustomerCard(odbiorcy[i]);
                 AccordionPanel.Children.Add(card);
             }
+            _cardsRendered = initialBatch;
 
             // Add DetailPanel back at the end (collapsed)
             AccordionPanel.Children.Add(DetailPanel);
@@ -262,6 +269,39 @@ namespace Kalendarz1.Kartoteka.Views
                         ExpandCard(card, o);
                         break;
                     }
+                }
+            }
+        }
+
+        private void LoadMoreCards()
+        {
+            if (_isLoadingMore || _displayedOdbiorcy == null) return;
+            if (_cardsRendered >= _displayedOdbiorcy.Count) return;
+
+            _isLoadingMore = true;
+            var end = Math.Min(_cardsRendered + _cardsPageSize, _displayedOdbiorcy.Count);
+
+            // Insert before DetailPanel (which is always the last child)
+            var insertIndex = AccordionPanel.Children.Count - 1; // before DetailPanel
+
+            for (int i = _cardsRendered; i < end; i++)
+            {
+                var card = CreateCustomerCard(_displayedOdbiorcy[i]);
+                AccordionPanel.Children.Insert(insertIndex, card);
+                insertIndex++;
+            }
+            _cardsRendered = end;
+            _isLoadingMore = false;
+        }
+
+        private void AccordionScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
+        {
+            if (sender is ScrollViewer sv)
+            {
+                // Load more when within 200px of the bottom
+                if (sv.VerticalOffset >= sv.ScrollableHeight - 200)
+                {
+                    LoadMoreCards();
                 }
             }
         }
