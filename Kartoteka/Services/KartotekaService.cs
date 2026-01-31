@@ -658,6 +658,62 @@ ORDER BY SumaWartosc DESC";
             await cmd.ExecuteNonQueryAsync();
         }
 
+        /// <summary>
+        /// Pobiera zamówienia klienta z ostatnich N miesięcy (z LibraNet.ZamowieniaMieso)
+        /// do analizy wzorców dostaw: DataUboju (produkcja), DataPrzyjazdu (awizacja), ilości, status.
+        /// </summary>
+        public async Task<List<ZamowienieDostawy>> PobierzZamowieniaDostawAsync(int klientId, int ostatnieMiesiecy = 12)
+        {
+            var result = new List<ZamowienieDostawy>();
+
+            using var conn = new SqlConnection(_libraNetConnectionString);
+            await conn.OpenAsync();
+
+            var sql = @"
+SELECT
+    zm.Id,
+    zm.DataUboju,
+    zm.DataPrzyjazdu,
+    zm.DataWydania,
+    ISNULL(zm.Status, 'Nowe') AS Status,
+    ISNULL(SUM(zmt.Ilosc), 0) AS IloscKg,
+    ISNULL(zm.LiczbaPojemnikow, 0) AS LiczbaPojemnikow,
+    ISNULL(zm.LiczbaPalet, 0) AS LiczbaPalet,
+    ISNULL(zm.Uwagi, '') AS Uwagi,
+    zm.TransportKursID
+FROM dbo.ZamowieniaMieso zm
+LEFT JOIN dbo.ZamowieniaMiesoTowar zmt ON zm.Id = zmt.ZamowienieId
+WHERE zm.KlientId = @KlientId
+  AND zm.DataUboju >= DATEADD(MONTH, -@Miesiace, GETDATE())
+GROUP BY zm.Id, zm.DataUboju, zm.DataPrzyjazdu, zm.DataWydania,
+         zm.Status, zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.Uwagi, zm.TransportKursID
+ORDER BY zm.DataUboju DESC";
+
+            using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@KlientId", klientId);
+            cmd.Parameters.AddWithValue("@Miesiace", ostatnieMiesiecy);
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                result.Add(new ZamowienieDostawy
+                {
+                    Id = Convert.ToInt32(reader["Id"]),
+                    DataUboju = Convert.ToDateTime(reader["DataUboju"]),
+                    DataPrzyjazdu = reader.IsDBNull(reader.GetOrdinal("DataPrzyjazdu")) ? null : (DateTime?)Convert.ToDateTime(reader["DataPrzyjazdu"]),
+                    DataWydania = reader.IsDBNull(reader.GetOrdinal("DataWydania")) ? null : (DateTime?)Convert.ToDateTime(reader["DataWydania"]),
+                    Status = reader["Status"]?.ToString() ?? "Nowe",
+                    IloscKg = Convert.ToDecimal(reader["IloscKg"]),
+                    LiczbaPojemnikow = Convert.ToInt32(reader["LiczbaPojemnikow"]),
+                    LiczbaPalet = Convert.ToDecimal(reader["LiczbaPalet"]),
+                    Uwagi = reader["Uwagi"]?.ToString() ?? "",
+                    TransportKursId = reader.IsDBNull(reader.GetOrdinal("TransportKursID")) ? null : (int?)Convert.ToInt32(reader["TransportKursID"])
+                });
+            }
+
+            return result;
+        }
+
         public async Task<List<TowarKatalog>> PobierzTowaryKatalogAsync()
         {
             var result = new List<TowarKatalog>();

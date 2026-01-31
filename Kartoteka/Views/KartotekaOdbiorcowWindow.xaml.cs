@@ -207,9 +207,10 @@ namespace Kalendarz1.Kartoteka.Views
             _expandedCard = null;
             _selectedOdbiorca = null;
 
-            // ── Column headers ──
+            // ── Sticky column headers ──
             var header = CreateHeaderRow();
-            AccordionPanel.Children.Add(header);
+            HeaderRowContainer.Child = header;
+            HeaderRowContainer.Visibility = Visibility.Visible;
 
             foreach (var o in odbiorcy)
             {
@@ -1070,8 +1071,8 @@ namespace Kalendarz1.Kartoteka.Views
                 : "";
             await LoadNotatki(odbiorca.IdSymfonia);
 
-            // Dostawy
-            TextDostawyDni.Text = $"Preferowane dni: {(string.IsNullOrEmpty(odbiorca.PreferowanyDzienDostawy) ? "-" : odbiorca.PreferowanyDzienDostawy)}";
+            // Dostawy - dane adresowe
+            TextDostawyDni.Text = $"Dni: {(string.IsNullOrEmpty(odbiorca.PreferowanyDzienDostawy) ? "-" : odbiorca.PreferowanyDzienDostawy)}";
             TextDostawyGodzina.Text = $"Godzina: {(string.IsNullOrEmpty(odbiorca.PreferowanaGodzinaDostawy) ? "-" : odbiorca.PreferowanaGodzinaDostawy)}";
             TextDostawyAdres.Text = $"Adres: {(string.IsNullOrEmpty(odbiorca.AdresDostawyInny) ? "= adres główny" : odbiorca.AdresDostawyInny)}";
             TextDostawyTrasa.Text = $"Trasa: {(string.IsNullOrEmpty(odbiorca.Trasa) ? "-" : odbiorca.Trasa)}";
@@ -1079,6 +1080,274 @@ namespace Kalendarz1.Kartoteka.Views
             TextDostawyUlica.Text = odbiorca.Ulica ?? "-";
             TextDostawyMiasto.Text = $"{odbiorca.KodPocztowy} {odbiorca.Miasto}";
             TextDostawyNIP.Text = $"NIP: {odbiorca.NIP ?? "-"}";
+
+            // Dostawy - analityka z zamówień
+            try
+            {
+                await LoadDostawyAnalityka(odbiorca);
+            }
+            catch
+            {
+                TextDostawyLiczba.Text = "-";
+                TextDostawySumaKg.Text = "-";
+                TextDostawySredniCzas.Text = "-";
+                TextDostawyCzestotliwosc.Text = "-";
+                TextDostawyAnulowane.Text = "-";
+                PanelDostawyDni.Children.Clear();
+                PanelDostawyCzas.Children.Clear();
+                DataGridDostawyZamowienia.ItemsSource = null;
+            }
+        }
+
+        private async System.Threading.Tasks.Task LoadDostawyAnalityka(OdbiorcaHandlowca odbiorca)
+        {
+            var zamowienia = await _service.PobierzZamowieniaDostawAsync(odbiorca.IdSymfonia, 12);
+
+            // DataGrid
+            DataGridDostawyZamowienia.ItemsSource = zamowienia;
+
+            if (zamowienia.Count == 0)
+            {
+                TextDostawyLiczba.Text = "0";
+                TextDostawyLiczbaInfo.Text = "brak zamówień";
+                TextDostawySumaKg.Text = "0 kg";
+                TextDostawySumaKgInfo.Text = "";
+                TextDostawySredniCzas.Text = "-";
+                TextDostawySredniCzasInfo.Text = "";
+                TextDostawyCzestotliwosc.Text = "-";
+                TextDostawyCzestliwoscInfo.Text = "";
+                TextDostawyAnulowane.Text = "0%";
+                TextDostawyAnulowaneInfo.Text = "";
+                PanelDostawyDni.Children.Clear();
+                PanelDostawyCzas.Children.Clear();
+                TextAsortymentDostawaAnaliza.Text = "Brak danych z zamówień";
+                return;
+            }
+
+            var zrealizowane = zamowienia.Where(z => z.Status == "Zrealizowane").ToList();
+            var anulowane = zamowienia.Where(z => z.Status == "Anulowane").ToList();
+            var nieAnulowane = zamowienia.Where(z => z.Status != "Anulowane").ToList();
+
+            // ═══ KPI CARDS ═══
+            TextDostawyLiczba.Text = zamowienia.Count.ToString();
+            TextDostawyLiczbaInfo.Text = $"{zrealizowane.Count} zrealiz. / {anulowane.Count} anul.";
+
+            var sumaKg = nieAnulowane.Sum(z => z.IloscKg);
+            var sumaPalet = nieAnulowane.Sum(z => z.LiczbaPalet);
+            var sumaPojemnikow = nieAnulowane.Sum(z => z.LiczbaPojemnikow);
+            TextDostawySumaKg.Text = $"{sumaKg:N0} kg";
+            TextDostawySumaKgInfo.Text = $"{sumaPalet:N0} palet / {sumaPojemnikow} pojemn.";
+
+            // Czas produkcja → dostawa
+            var zDniami = nieAnulowane.Where(z => z.DniDoDostawy.HasValue && z.DniDoDostawy >= 0).ToList();
+            if (zDniami.Count > 0)
+            {
+                var sredniDni = zDniami.Average(z => z.DniDoDostawy!.Value);
+                var minDni = zDniami.Min(z => z.DniDoDostawy!.Value);
+                var maxDni = zDniami.Max(z => z.DniDoDostawy!.Value);
+                TextDostawySredniCzas.Text = $"{sredniDni:N1} dni";
+                TextDostawySredniCzasInfo.Text = $"min {minDni}d / max {maxDni}d";
+            }
+            else
+            {
+                TextDostawySredniCzas.Text = "-";
+                TextDostawySredniCzasInfo.Text = "brak danych awizacji";
+            }
+
+            // Częstotliwość
+            var daty = nieAnulowane.Select(z => z.DataUboju.Date).Distinct().OrderBy(d => d).ToList();
+            if (daty.Count >= 2)
+            {
+                var odstepy = new List<int>();
+                for (int i = 1; i < daty.Count; i++)
+                    odstepy.Add((int)(daty[i] - daty[i - 1]).TotalDays);
+                var sredniOdstep = odstepy.Average();
+                TextDostawyCzestotliwosc.Text = $"co {sredniOdstep:N0} dni";
+                var zamNaMiesiac = 30.0 / Math.Max(sredniOdstep, 1);
+                TextDostawyCzestliwoscInfo.Text = $"~{zamNaMiesiac:N1} zam./msc";
+            }
+            else
+            {
+                TextDostawyCzestotliwosc.Text = daty.Count == 1 ? "1 zam." : "-";
+                TextDostawyCzestliwoscInfo.Text = "";
+            }
+
+            // % anulowanych
+            var procentAnul = zamowienia.Count > 0 ? (double)anulowane.Count / zamowienia.Count * 100 : 0;
+            TextDostawyAnulowane.Text = $"{procentAnul:N0}%";
+            TextDostawyAnulowaneInfo.Text = $"{anulowane.Count} z {zamowienia.Count}";
+
+            // ═══ PANEL: Preferowane dni (% z zamówień z awizacją) ═══
+            PanelDostawyDni.Children.Clear();
+            var zAwizacja = nieAnulowane.Where(z => z.DataPrzyjazdu.HasValue).ToList();
+            if (zAwizacja.Count > 0)
+            {
+                var dnMap = new[] {
+                    ("Pon", DayOfWeek.Monday), ("Wto", DayOfWeek.Tuesday), ("Śro", DayOfWeek.Wednesday),
+                    ("Czw", DayOfWeek.Thursday), ("Pią", DayOfWeek.Friday), ("Sob", DayOfWeek.Saturday)
+                };
+                int maxCount = 1;
+                var countPerDay = new Dictionary<DayOfWeek, int>();
+                foreach (var d in dnMap)
+                {
+                    var cnt = zAwizacja.Count(z => z.DzienDostawy == d.Item2);
+                    countPerDay[d.Item2] = cnt;
+                    if (cnt > maxCount) maxCount = cnt;
+                }
+
+                foreach (var d in dnMap)
+                {
+                    var cnt = countPerDay[d.Item2];
+                    var pct = (double)cnt / zAwizacja.Count * 100;
+                    var barWidth = Math.Max((double)cnt / maxCount * 100, 0);
+
+                    var row = new Grid { Margin = new Thickness(0, 0, 0, 3) };
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) });
+
+                    var label = new TextBlock { Text = d.Item1, FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)) };
+                    Grid.SetColumn(label, 0);
+
+                    var barBorder = new Border
+                    {
+                        Height = 14, CornerRadius = new CornerRadius(3),
+                        Background = new SolidColorBrush(Color.FromRgb(220, 252, 231)),
+                        HorizontalAlignment = HorizontalAlignment.Left,
+                        Width = barWidth > 0 ? barWidth * 1.2 : 0,
+                        Margin = new Thickness(0, 0, 4, 0)
+                    };
+                    if (cnt > 0)
+                        barBorder.Child = new TextBlock
+                        {
+                            Text = cnt.ToString(), FontSize = 8, FontWeight = FontWeights.Bold,
+                            Foreground = new SolidColorBrush(Color.FromRgb(22, 101, 52)),
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            VerticalAlignment = VerticalAlignment.Center
+                        };
+                    Grid.SetColumn(barBorder, 1);
+
+                    var pctText = new TextBlock
+                    {
+                        Text = cnt > 0 ? $"{pct:N0}%" : "",
+                        FontSize = 10, FontWeight = cnt > 0 ? FontWeights.SemiBold : FontWeights.Normal,
+                        Foreground = new SolidColorBrush(Color.FromRgb(22, 163, 74)),
+                        HorizontalAlignment = HorizontalAlignment.Right,
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    Grid.SetColumn(pctText, 2);
+
+                    row.Children.Add(label);
+                    row.Children.Add(barBorder);
+                    row.Children.Add(pctText);
+                    PanelDostawyDni.Children.Add(row);
+                }
+            }
+            else
+            {
+                PanelDostawyDni.Children.Add(new TextBlock { Text = "Brak danych awizacji", Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)), FontSize = 10 });
+            }
+
+            // ═══ PANEL: Czas produkcja → dostawa (histogram) ═══
+            PanelDostawyCzas.Children.Clear();
+            if (zDniami.Count > 0)
+            {
+                var grupy = new[] { ("0 dni (D+0)", 0, 0), ("1 dzień (D+1)", 1, 1), ("2 dni (D+2)", 2, 2), ("3+ dni", 3, 99) };
+                int maxGrp = 1;
+                var countPerGrp = new List<int>();
+                foreach (var g in grupy)
+                {
+                    var cnt = zDniami.Count(z => z.DniDoDostawy >= g.Item2 && z.DniDoDostawy <= g.Item3);
+                    countPerGrp.Add(cnt);
+                    if (cnt > maxGrp) maxGrp = cnt;
+                }
+
+                for (int i = 0; i < grupy.Length; i++)
+                {
+                    var cnt = countPerGrp[i];
+                    var pct = (double)cnt / zDniami.Count * 100;
+                    var barWidth = Math.Max((double)cnt / maxGrp * 100, 0);
+
+                    var row = new Grid { Margin = new Thickness(0, 0, 0, 3) };
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) });
+
+                    var label = new TextBlock { Text = grupy[i].Item1, FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)) };
+                    Grid.SetColumn(label, 0);
+
+                    var barColor = i == 0 ? Color.FromRgb(187, 247, 208)   // green - same day
+                                : i == 1 ? Color.FromRgb(191, 219, 254)    // blue - D+1
+                                : i == 2 ? Color.FromRgb(254, 249, 195)    // yellow - D+2
+                                : Color.FromRgb(254, 202, 202);            // red - D+3+
+                    var barBorder = new Border
+                    {
+                        Height = 14, CornerRadius = new CornerRadius(3),
+                        Background = new SolidColorBrush(barColor),
+                        HorizontalAlignment = HorizontalAlignment.Left,
+                        Width = barWidth > 0 ? barWidth * 0.8 : 0,
+                        Margin = new Thickness(0, 0, 4, 0)
+                    };
+                    if (cnt > 0)
+                        barBorder.Child = new TextBlock
+                        {
+                            Text = cnt.ToString(), FontSize = 8, FontWeight = FontWeights.Bold,
+                            Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81)),
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            VerticalAlignment = VerticalAlignment.Center
+                        };
+                    Grid.SetColumn(barBorder, 1);
+
+                    var pctText = new TextBlock
+                    {
+                        Text = cnt > 0 ? $"{pct:N0}%" : "",
+                        FontSize = 10, FontWeight = cnt > 0 ? FontWeights.SemiBold : FontWeights.Normal,
+                        Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                        HorizontalAlignment = HorizontalAlignment.Right,
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    Grid.SetColumn(pctText, 2);
+
+                    row.Children.Add(label);
+                    row.Children.Add(barBorder);
+                    row.Children.Add(pctText);
+                    PanelDostawyCzas.Children.Add(row);
+                }
+            }
+            else
+            {
+                PanelDostawyCzas.Children.Add(new TextBlock { Text = "Brak danych awizacji", Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)), FontSize = 10 });
+            }
+
+            // ═══ ASORTYMENT TAB: podsumowanie dostawy ═══
+            if (zAwizacja.Count > 0 && zDniami.Count > 0)
+            {
+                var topDni = zAwizacja
+                    .GroupBy(z => z.DzienDostawy)
+                    .OrderByDescending(g => g.Count())
+                    .Take(2)
+                    .Select(g => {
+                        var dayNames = new Dictionary<DayOfWeek, string> {
+                            {DayOfWeek.Monday,"Pon"},{DayOfWeek.Tuesday,"Wto"},{DayOfWeek.Wednesday,"Śro"},
+                            {DayOfWeek.Thursday,"Czw"},{DayOfWeek.Friday,"Pią"},{DayOfWeek.Saturday,"Sob"},{DayOfWeek.Sunday,"Nie"}
+                        };
+                        var pct = (double)g.Count() / zAwizacja.Count * 100;
+                        return $"{dayNames[g.Key!.Value]} ({pct:N0}%)";
+                    });
+                var sredni = zDniami.Average(z => z.DniDoDostawy!.Value);
+                var d0pct = zDniami.Count > 0 ? (double)zDniami.Count(z => z.DniDoDostawy == 0) / zDniami.Count * 100 : 0;
+                var d1pct = zDniami.Count > 0 ? (double)zDniami.Count(z => z.DniDoDostawy == 1) / zDniami.Count * 100 : 0;
+
+                TextAsortymentDostawaAnaliza.Text = $"Dni: {string.Join(", ", topDni)}\n" +
+                    $"Śr. czas: D+{sredni:N1} | D+0: {d0pct:N0}% | D+1: {d1pct:N0}%\n" +
+                    $"Zam: {nieAnulowane.Count} ({sumaKg:N0} kg / 12m)";
+            }
+            else
+            {
+                TextAsortymentDostawaAnaliza.Text = nieAnulowane.Count > 0
+                    ? $"Zamówień: {nieAnulowane.Count} (brak awizacji)"
+                    : "Brak danych z zamówień";
+            }
         }
 
         private void BuildStrukturaZakupow(List<AsortymentPozycja> pozycje)
