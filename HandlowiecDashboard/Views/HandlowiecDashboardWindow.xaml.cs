@@ -1611,6 +1611,7 @@ HAVING SUM(MZ.Ilosc) <> 0;";
         private void OdswiezOpakowaniaUI()
         {
             if (_opakowaniaData == null || !_opakowaniaData.Any()) return;
+            if (!chartOpakowaniaE2.IsLoaded) return;
 
             // Oblicz wartosci w zaleznosci od wybranego trybu
             Func<OpakowanieRow, decimal> getSaldo = _opakTryb switch
