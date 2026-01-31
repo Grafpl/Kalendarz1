@@ -81,6 +81,9 @@ namespace Kalendarz1.CRM
                     "Stań podczas rozmowy - Twój głos będzie bardziej energiczny.",
                     "Przed telefonem przeczytaj nazwę firmy głośno, żeby się nie zająknąć.",
                     "Pamiętaj: to nie jest prośba - oferujesz wartość!",
+                    "⚠️ ZAWSZE zapytaj o EMAIL i od razu zapisz w notatce! To Twój najważniejszy cel.",
+                    "Nawet jeśli odmówi - zapisz notatkę KTO odebrał, KIEDY dzwonić ponownie.",
+                    "Każdy kontakt to szansa! Nie marnuj - jeśli nie kupuje, zapytaj KTO jest ich dostawcą.",
                 }
             },
 
@@ -105,6 +108,8 @@ namespace Kalendarz1.CRM
                     "W jakich opakowaniach preferujecie dostawy? Piórkowscy pakujemy w karton, tacki lub worki. Możemy dopasować gramaturę do Państwa potrzeb.",
                     "Jak duży mają Państwo obrót mięsem drobiowym tygodniowo? Pytam, bo u Piórkowscy mamy progi cenowe zależne od wolumenu - chcę dać najlepszą ofertę.",
                     "Czy kupujecie również drób mrożony do zapasu, czy tylko świeży? U Piórkowscy mamy oba warianty prosto z ubojni w konkurencyjnych cenach.",
+                    "A kto Państwu obecnie dostarcza drób? Pytam, bo chcę wiedzieć z kim konkuruję i dać lepszą ofertę. Ile mniej więcej płacicie za kg tuszki?",
+                    "Na jaki email mogę wysłać ofertę cenową z Ubojni Piórkowscy? Chcę żebyście mieli czarno na białym do porównania z obecnym dostawcą.",
                 },
                 Tips = new[]
                 {
@@ -112,8 +117,12 @@ namespace Kalendarz1.CRM
                     "Notuj słowa kluczowe klienta i powtarzaj je - poczuje się wysłuchany.",
                     "Pytania otwarte dają 5x więcej informacji niż zamknięte.",
                     "Nie przerywaj! Pauza po pytaniu = klient powie więcej.",
-                    "Zapisz: ilość kg/tydzień, jakie elementy, jak często, kto decydent.",
+                    "⚠️ ZAPISZ W NOTATCE: ile kg/tydzień, jakie elementy, jak często, kto decydent, EMAIL!",
                     "Jeśli mówi o problemach z obecnym dostawcą - NOTUJ! To Twoja szansa.",
+                    "🏪 Mały sklep? ZAPYTAJ: «Kto Państwu dostarcza drób?» - zapisz nazwę dostawcy, potem DO NIEGO zadzwoń!",
+                    "⚠️ Zapytaj: «Na jaki email mogę wysłać ofertę?» - BEZ MAILA nie ma follow-up!",
+                    "NOTATKA OBOWIĄZKOWA: imię rozmówcy, stanowisko, email, telefon bezpośredni, co go interesuje.",
+                    "Sklep mówi «mamy dostawcę»? Zapisz KTO to jest! Ten dostawca = potencjalny DUŻY klient Piórkowscy!",
                 }
             },
 
@@ -147,6 +156,10 @@ namespace Kalendarz1.CRM
                     "Social proof: 'Inne firmy z branży zauważyły, że...' działa świetnie.",
                     "Nie dawaj ceny od razu. Najpierw pokaż wartość, potem rozmawiaj o pieniądzach.",
                     "Próbna dostawa to świetny sposób na obniżenie bariery wejścia!",
+                    "⚠️ Podaj cenę dopiero gdy znasz ilości! Najpierw zapytaj o wolumen, potem daj najlepszą cenę.",
+                    "ZAPISZ w notatce: jakie elementy go interesują, ile kg, jak często, obecna cena jeśli poda.",
+                    "🏪 Mały sklep nie kupi dużo? Zapytaj KTO ICH ZAOPATRUJE - ten hurtownik to Twój następny telefon!",
+                    "⚠️ Przed końcem rozmowy: «Na jaki email wysłać ofertę?» - TO JEST OBOWIĄZKOWE!",
                 }
             },
 
@@ -171,15 +184,22 @@ namespace Kalendarz1.CRM
                     "To co proponuję: 1) Dziś wysyłam cennik Piórkowscy, 2) Jutro dzwonię omówić, 3) Ustalamy pierwszą dostawę próbną. Brzmi dobrze?",
                     "Dziękuję za rozmowę! Przygotuję indywidualną ofertę z Ubojni Piórkowscy. Wolą Państwo kontakt mailowy czy telefoniczny?",
                     "Świetna rozmowa. Zapiszę: oddzwonić [data], oferta Piórkowscy na [elementy]. Czy jest coś jeszcze, o czym powinienem pamiętać?",
+                    "Zanim się rozłączymy - jaki jest Pana/Pani najlepszy email? Wyślę ofertę Piórkowscy jeszcze dziś, żebyście mieli wszystko czarno na białym.",
+                    "Jeszcze jedno - chcę mieć pewność że oferta do Państwa dotrze. Jaki email? I czy jest numer bezpośredni, żebym nie musiał przechodzić przez centralę?",
                 },
                 Tips = new[]
                 {
                     "Zawsze ustal KONKRETNY następny krok: data, godzina, co wyślesz.",
-                    "Zapisz od razu: email, ilości, elementy, termin follow-up.",
+                    "⚠️ OBOWIĄZKOWA NOTATKA PO ROZMOWIE: email, ilości, elementy, termin follow-up, imię rozmówcy!",
                     "Próbna dostawa to najlepsze zamknięcie - obniża ryzyko klienta do zera.",
                     "Podsumuj rozmowę własnymi słowami - klient poczuje się wysłuchany.",
                     "Nie kończ rozmowy bez planu! Bez follow-up = stracona szansa.",
-                    "Umów konkretny dzień oddzwonienia - nie 'kiedyś w przyszłym tygodniu'.",
+                    "Umów KONKRETNY dzień oddzwonienia - nie 'kiedyś w przyszłym tygodniu'. ZAPISZ W NOTATCE!",
+                    "⚠️ BEZ EMAILA = stracony kontakt! Zapytaj: «Jaki najlepszy email do przesłania oferty?»",
+                    "NOTATKA MUSI ZAWIERAĆ: 1) Email 2) Imię rozmówcy 3) Co go interesuje 4) Kiedy oddzwonić 5) Ile kg",
+                    "🏪 Nawet przy odmowie ZAPISZ: kto dostawca, ile zamawiają, kiedy kończy się umowa. Każda info = wartość!",
+                    "Po rozmowie OD RAZU pisz notatkę! Za godzinę zapomnisz szczegóły. Rób to NATYCHMIAST.",
+                    "Jeśli mały sklep podał nazwę dostawcy - ZAPISZ i dodaj do kontaktów! To może być Twój największy klient!",
                 }
             }
         };
@@ -250,6 +270,17 @@ namespace Kalendarz1.CRM
             new Objection { ClientSays = "Mięso drobiowe słabo nam się sprzedaje", Response = "U klientów Piórkowscy drób to #1 w sprzedaży mięsa. Może kwestia jakości? Nasz świeży drób 24h od uboju robi ogromną różnicę u klientów." },
             new Objection { ClientSays = "Potrzebujemy fakturę z odroczonym terminem", Response = "Piórkowscy oferujemy terminy płatności dla stałych klientów. Na początek proponuję przedpłatę za 1-2 dostawy, potem ustalamy termin 7-14 dni." },
             new Objection { ClientSays = "Bierzemy tylko z Makro/Selgros", Response = "W hurtowni płacicie marżę pośrednika. Piórkowscy jako ubojnia dajemy cenę producencką + dostawę pod drzwi. Porównajcie - różnica może być spora!" },
+
+            // --- Email / Kontakt ---
+            new Objection { ClientSays = "Nie dam emaila / nie chcę spamu", Response = "Rozumiem! To nie spam - wyślę jedną ofertę cenową Piórkowscy z konkretnym cennikiem. Jeśli nie zainteresuje - nie będziemy pisać więcej. Jaki adres?" },
+            new Objection { ClientSays = "Nie mam emaila", Response = "Rozumiem. Czy jest ktoś w firmie kto ma? Mogę też wysłać ofertę na WhatsApp albo MMS. Jaki numer najlepszy do kontaktu?" },
+            new Objection { ClientSays = "Dzwonią tu ciągle z ofertami", Response = "Rozumiem frustrację. Ale Piórkowscy to ubojnia - nie pośrednik. Jedno konkretne pytanie: ile płacicie za kg tuszki? Jeśli dam lepszą cenę - warto?" },
+            new Objection { ClientSays = "Nie chcę podawać danych", Response = "Zupełnie rozumiem. Mogę wysłać ogólny cennik Piórkowscy bez zobowiązań. Na jaki adres? Albo mogę podać nasz email/stronę - sami napiszecie gdy będzie potrzeba." },
+
+            // --- Małe sklepy → dostawca ---
+            new Objection { ClientSays = "Zamawiamy za mało, nie opłaca się wam", Response = "U Piórkowscy nie ma za mało! A swoją drogą - kto Państwu dostarcza drób? Może znamy się z Waszym dostawcą. Jaka to firma?" },
+            new Objection { ClientSays = "Bierzemy od hurtownika co przyjeżdża", Response = "Rozumiem. Jak się nazywa ta hurtownia? Pytam, bo może moglibyśmy im dostarczać drób od Piórkowscy, a Państwo zyskalibyście na cenie." },
+            new Objection { ClientSays = "Przyjeżdża do nas pan z busem", Response = "Rozumiem - wygodne! Czy to stała firma? Jak się nazywa? Bo Piórkowscy też dostarczamy busem, a ceny mamy producenckie." },
         };
 
         private static readonly string[] Statuses = new[]
