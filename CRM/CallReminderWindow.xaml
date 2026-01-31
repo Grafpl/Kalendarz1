@@ -50,7 +50,7 @@
                         <!-- Company Name -->
                         <TextBlock Grid.Column="1" Grid.Row="0" Text="{Binding Nazwa}"
                                    FontSize="14" FontWeight="Medium" Foreground="White"
-                                   TextTrimming="CharacterEllipsis" MaxWidth="180"/>
+                                   TextTrimming="CharacterEllipsis" MaxWidth="160"/>
 
                         <!-- Location + PKD -->
                         <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" Margin="0,4,0,0">
@@ -142,8 +142,9 @@
 
             <Grid Margin="0">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="440"/>
+                    <ColumnDefinition Width="300"/>
                     <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="340"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- ============================================ -->
@@ -240,7 +241,6 @@
                               Style="{StaticResource GlassScrollViewer}">
                     <Grid x:Name="detailsPanel" Margin="20,14,20,14">
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
@@ -524,29 +524,218 @@
                             </Grid>
                         </Border>
 
-                        <!-- Cold Calling Tips -->
-                        <Border Grid.Row="8" Margin="0,10,0,0" Background="#0D2818"
-                                BorderBrush="#1A3fb950" BorderThickness="1" CornerRadius="10" Padding="14,10">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="💡" FontSize="16" VerticalAlignment="Top" Margin="0,0,10,0"/>
-                                <StackPanel Grid.Column="1">
-                                    <TextBlock Text="TIP DNIA" FontSize="10" Foreground="#3fb950" FontWeight="Bold" Margin="0,0,0,4"/>
-                                    <TextBlock x:Name="txtCallTip" TextWrapping="Wrap" FontSize="12" Foreground="#86EFAC" LineHeight="18"
-                                               Text="Uśmiechnij się przed podniesieniem słuchawki - rozmówca to usłyszy w Twoim głosie!"/>
-                                </StackPanel>
-                                <Button Grid.Column="2" Style="{StaticResource GlassButton}" Width="28" Height="28"
-                                        Padding="0" VerticalAlignment="Top" Click="BtnNextTip_Click" ToolTip="Następna wskazówka">
-                                    <TextBlock Text="→" FontSize="14" Foreground="#3fb950" HorizontalAlignment="Center"/>
-                                </Button>
-                            </Grid>
-                        </Border>
                     </Grid>
                 </ScrollViewer>
+
+                <!-- ============================================ -->
+                <!-- FLOW PANEL - Pomocnik rozmowy                -->
+                <!-- ============================================ -->
+                <Border Grid.Column="2" x:Name="FlowPanel"
+                        Background="#FF0A0A0F" BorderBrush="#FF1A1A24"
+                        BorderThickness="1,0,0,0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- ROW 0: Phase Tabs -->
+                        <UniformGrid Grid.Row="0" Rows="1" Columns="4" Margin="12,12,12,8">
+                            <Button x:Name="btnPhase0" Tag="0" Click="PhaseTab_Click" Cursor="Hand"
+                                    Background="#FF1E3A5F" Margin="0,0,4,0">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}"
+                                                BorderBrush="#FF3B82F6" BorderThickness="1"
+                                                CornerRadius="8" Padding="8,10">
+                                            <StackPanel>
+                                                <TextBlock Text="👋" FontSize="18" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="Wstęp" FontSize="10" Foreground="#FF888888"
+                                                           HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                            <Button x:Name="btnPhase1" Tag="1" Click="PhaseTab_Click" Cursor="Hand"
+                                    Background="#FF111111" Margin="0,0,4,0">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}"
+                                                BorderBrush="#FF1A1A24" BorderThickness="1"
+                                                CornerRadius="8" Padding="8,10">
+                                            <StackPanel>
+                                                <TextBlock Text="⏱️" FontSize="18" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="Czas" FontSize="10" Foreground="#FF666666"
+                                                           HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                            <Button x:Name="btnPhase2" Tag="2" Click="PhaseTab_Click" Cursor="Hand"
+                                    Background="#FF111111" Margin="0,0,4,0">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}"
+                                                BorderBrush="#FF1A1A24" BorderThickness="1"
+                                                CornerRadius="8" Padding="8,10">
+                                            <StackPanel>
+                                                <TextBlock Text="💎" FontSize="18" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="Oferta" FontSize="10" Foreground="#FF666666"
+                                                           HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                            <Button x:Name="btnPhase3" Tag="3" Click="PhaseTab_Click" Cursor="Hand"
+                                    Background="#FF111111">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}"
+                                                BorderBrush="#FF1A1A24" BorderThickness="1"
+                                                CornerRadius="8" Padding="8,10">
+                                            <StackPanel>
+                                                <TextBlock Text="🎯" FontSize="18" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="Zamknij" FontSize="9" Foreground="#FF666666"
+                                                           HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </UniformGrid>
+
+                        <!-- ROW 1: Active Phase Content -->
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                                      Padding="12,0,12,0">
+                            <Border Background="#FF111111" CornerRadius="12" Padding="20">
+                                <StackPanel>
+                                    <!-- Phase Header -->
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                                        <TextBlock x:Name="txtPhaseIcon" Text="👋" FontSize="32"
+                                                   VerticalAlignment="Center"/>
+                                        <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                                            <TextBlock x:Name="txtPhaseName" Text="Wstęp"
+                                                       Foreground="White" FontWeight="SemiBold" FontSize="18"/>
+                                            <TextBlock x:Name="txtPhaseNumber" Text="Faza 1 z 4"
+                                                       Foreground="#FF666666" FontSize="11"/>
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <!-- Script - What to say -->
+                                    <Border Background="#FF0A0A0F" CornerRadius="10" Padding="16"
+                                            BorderBrush="#FF3B82F6" BorderThickness="3,0,0,0" Margin="0,0,0,14">
+                                        <StackPanel>
+                                            <TextBlock Text="💬 POWIEDZ" Foreground="#FF3B82F6"
+                                                       FontSize="10" FontWeight="Bold"
+                                                       Margin="0,0,0,8"/>
+                                            <TextBlock x:Name="txtScript" TextWrapping="Wrap"
+                                                       Foreground="#FFDDDDDD" FontSize="14" LineHeight="24"
+                                                       Text="&quot;Dzień dobry, [imię] z [firma]. Czy rozmawiam z osobą odpowiedzialną za zakupy?&quot;"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Tip -->
+                                    <Border Background="#26F59E0B" CornerRadius="8" Padding="12,10">
+                                        <TextBlock x:Name="txtFlowTip" Foreground="#FFF59E0B" FontSize="13"
+                                                   TextWrapping="Wrap"
+                                                   Text="💡 Mów pewnie i wyraźnie"/>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+                        </ScrollViewer>
+
+                        <!-- ROW 2: Navigation -->
+                        <Grid Grid.Row="2" Margin="12,12,12,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="8"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Button x:Name="btnPrevPhase" Grid.Column="0"
+                                    IsEnabled="False" Click="PrevPhase_Click" Cursor="Hand">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="#FF111111" CornerRadius="8" Padding="12,10">
+                                            <TextBlock Text="← Wstecz"
+                                                       HorizontalAlignment="Center"
+                                                       Foreground="#FF444444" FontSize="13"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+
+                            <Button x:Name="btnNextPhase" Grid.Column="2"
+                                    Click="NextPhase_Click" Cursor="Hand">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="#FF3B82F6" CornerRadius="8" Padding="12,10">
+                                            <TextBlock x:Name="txtNextPhaseBtn" Text="Dalej →"
+                                                       HorizontalAlignment="Center"
+                                                       Foreground="White" FontSize="13" FontWeight="SemiBold"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </Grid>
+
+                        <!-- ROW 3: Objections -->
+                        <Border Grid.Row="3" Background="#19DC2626" CornerRadius="10"
+                                Margin="12,0,12,12" Padding="14">
+                            <StackPanel>
+                                <TextBlock Text="🛡️ OBIEKCJE" Foreground="#FFF87171"
+                                           FontSize="11" FontWeight="Bold" Margin="0,0,0,12"/>
+
+                                <StackPanel Margin="0,0,0,10">
+                                    <TextBlock Text="„Nie mam czasu"" Foreground="#FFF87171" FontSize="12"/>
+                                    <TextBlock Text="→ Rozumiem. Kiedy mogę oddzwonić?"
+                                               Foreground="#FF888888" FontSize="12" Margin="10,3,0,0"/>
+                                </StackPanel>
+
+                                <StackPanel>
+                                    <TextBlock Text="„Mamy dostawcę"" Foreground="#FFF87171" FontSize="12"/>
+                                    <TextBlock Text="→ Co cenicie w obecnej współpracy?"
+                                               Foreground="#FF888888" FontSize="12" Margin="10,3,0,0"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- ROW 4: Stats -->
+                        <Border Grid.Row="4" Background="#FF111111"
+                                BorderBrush="#FF1A1A24" BorderThickness="0,1,0,0"
+                                Padding="12,14">
+                            <UniformGrid Columns="3">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock x:Name="txtStatToday" Text="0"
+                                               Foreground="#FF22C55E" FontSize="20" FontWeight="Bold"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Text="dziś" Foreground="#FF555555" FontSize="10"
+                                               HorizontalAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock x:Name="txtStatStreak" Text="🔥 0"
+                                               Foreground="#FFF59E0B" FontSize="20" FontWeight="Bold"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Text="streak" Foreground="#FF555555" FontSize="10"
+                                               HorizontalAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock x:Name="txtStatRate" Text="0%"
+                                               Foreground="#FF3B82F6" FontSize="20" FontWeight="Bold"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Text="skuteczność" Foreground="#FF555555" FontSize="10"
+                                               HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </UniformGrid>
+                        </Border>
+                    </Grid>
+                </Border>
             </Grid>
         </Grid>
     </Border>

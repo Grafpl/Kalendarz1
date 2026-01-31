@@ -15,6 +15,14 @@ using Kalendarz1.CRM.Dialogs;
 
 namespace Kalendarz1.CRM
 {
+    public class CallPhase
+    {
+        public string Icon { get; set; }
+        public string Name { get; set; }
+        public string Script { get; set; }
+        public string Tip { get; set; }
+    }
+
     public partial class CallReminderWindow : Window
     {
         private readonly string _connectionString;
@@ -26,6 +34,39 @@ namespace Kalendarz1.CRM
         private int _callsCount = 0;
         private int _notesCount = 0;
         private int _statusChangesCount = 0;
+
+        private int _currentPhase = 0;
+        private readonly List<CallPhase> _phases = new List<CallPhase>
+        {
+            new CallPhase
+            {
+                Icon = "👋",
+                Name = "Wstęp",
+                Script = "\"Dzień dobry, [imię] z [firma]. Czy rozmawiam z osobą odpowiedzialną za zakupy?\"",
+                Tip = "💡 Mów pewnie i wyraźnie. Pierwsze 10 sekund decyduje o rozmowie."
+            },
+            new CallPhase
+            {
+                Icon = "⏱️",
+                Name = "Czas",
+                Script = "\"Czy ma Pan/Pani minutę na krótką rozmowę o naszej ofercie? Nie zajmę więcej niż 2 minuty.\"",
+                Tip = "💡 Szanuj czas rozmówcy. Jeśli jest zajęty, zapytaj kiedy oddzwonić."
+            },
+            new CallPhase
+            {
+                Icon = "💎",
+                Name = "Oferta",
+                Script = "\"Dostarczamy [produkt/usługę] dopasowaną do Państwa potrzeb. Elastyczne warunki, konkurencyjne ceny. Z kim obecnie współpracujecie?\"",
+                Tip = "💡 Słuchaj uważnie i notuj. Zadawaj pytania otwarte zamiast zamkniętych."
+            },
+            new CallPhase
+            {
+                Icon = "🎯",
+                Name = "Zamknięcie",
+                Script = "\"Przygotuję ofertę dopasowaną do Państwa potrzeb. Czy mogę przesłać ją mailem? Jaki adres?\"",
+                Tip = "💡 Ustal konkretny następny krok. Zawsze zakończ z planem działania."
+            }
+        };
 
         private static readonly string[] Statuses = new[]
         {
@@ -126,6 +167,7 @@ namespace Kalendarz1.CRM
             LoadContacts();
             InitializeStatusButtons();
             ShowRandomTip();
+            UpdateFlowPanel();
         }
 
         private void LoadContacts()
@@ -640,13 +682,65 @@ namespace Kalendarz1.CRM
         private void ShowRandomTip()
         {
             _currentTipIndex = new Random().Next(ColdCallTips.Length);
-            txtCallTip.Text = ColdCallTips[_currentTipIndex];
         }
 
         private void BtnNextTip_Click(object sender, RoutedEventArgs e)
         {
             _currentTipIndex = (_currentTipIndex + 1) % ColdCallTips.Length;
-            txtCallTip.Text = ColdCallTips[_currentTipIndex];
+        }
+
+        private void UpdateFlowPanel()
+        {
+            var phase = _phases[_currentPhase];
+
+            txtPhaseIcon.Text = phase.Icon;
+            txtPhaseName.Text = phase.Name;
+            txtPhaseNumber.Text = $"Faza {_currentPhase + 1} z {_phases.Count}";
+            txtScript.Text = phase.Script;
+            txtFlowTip.Text = phase.Tip;
+
+            var activeBg = new SolidColorBrush(Color.FromRgb(30, 58, 95));
+            var inactiveBg = new SolidColorBrush(Color.FromRgb(17, 17, 17));
+
+            btnPhase0.Background = _currentPhase == 0 ? activeBg : inactiveBg;
+            btnPhase1.Background = _currentPhase == 1 ? activeBg : inactiveBg;
+            btnPhase2.Background = _currentPhase == 2 ? activeBg : inactiveBg;
+            btnPhase3.Background = _currentPhase == 3 ? activeBg : inactiveBg;
+
+            btnPrevPhase.IsEnabled = _currentPhase > 0;
+
+            // Update flow stats
+            txtStatToday.Text = _callsCount.ToString();
+            int completed = _contacts?.Count(c => c.IsCompleted) ?? 0;
+            int total = _contacts?.Count ?? 0;
+            txtStatRate.Text = total > 0 ? $"{(completed * 100 / total)}%" : "0%";
+        }
+
+        private void PhaseTab_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && int.TryParse(btn.Tag?.ToString(), out int idx))
+            {
+                _currentPhase = idx;
+                UpdateFlowPanel();
+            }
+        }
+
+        private void PrevPhase_Click(object sender, RoutedEventArgs e)
+        {
+            if (_currentPhase > 0)
+            {
+                _currentPhase--;
+                UpdateFlowPanel();
+            }
+        }
+
+        private void NextPhase_Click(object sender, RoutedEventArgs e)
+        {
+            if (_currentPhase < _phases.Count - 1)
+            {
+                _currentPhase++;
+                UpdateFlowPanel();
+            }
         }
 
         private void AddNoteToContact(ContactToCall contact, string note)
