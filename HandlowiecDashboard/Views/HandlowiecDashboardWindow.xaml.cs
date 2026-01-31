@@ -1134,22 +1134,27 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
                 if (isHorizontal)
                 {
-                    // StackedRowSeries - horizontal bars
-                    double avatarSize = 26;
+                    // StackedRowSeries - horizontal bars (Top 15)
+                    // In LiveCharts, index 0 = bottom of chart, index N-1 = top
+                    // DrawMargin.Top = top of plot area (highest index)
+                    double avatarSize = 28;
                     double barHeight = dm.Height / count;
+                    double maxVal = data.Max(d => d.Wartosc);
+                    if (maxVal <= 0) return;
+                    double axisMax = maxVal * 1.1;
 
                     for (int i = 0; i < count; i++)
                     {
                         var d = data[i];
                         if (!_handlowiecAvatarCache.ContainsKey(d.Handlowiec)) continue;
 
-                        // Y: center of bar at index i
-                        var yPixel = dm.Top + i * barHeight + barHeight / 2;
-                        // X: fixed at start of bar area (inside bar)
-                        var xPixel = dm.Left + 5;
+                        // Y: index 0 = bottom, N-1 = top -> invert for pixel coords
+                        var yPixel = dm.Top + dm.Height - (i + 0.5) * barHeight;
+                        // X: right end of bar (value mapped to pixels)
+                        var xEndPixel = dm.Left + (d.Wartosc / axisMax) * dm.Width;
 
                         var avatarEl = CreateAvatarElement(d.Handlowiec, avatarSize, GetHandlowiecColor(d.Handlowiec));
-                        Canvas.SetLeft(avatarEl, xPixel);
+                        Canvas.SetLeft(avatarEl, xEndPixel + 4);
                         Canvas.SetTop(avatarEl, yPixel - avatarSize / 2);
                         canvas.Children.Add(avatarEl);
                     }
@@ -1157,11 +1162,10 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 else
                 {
                     // StackedColumnSeries - vertical bars
-                    double avatarSize = 36;
+                    double avatarSize = 34;
                     double barWidth = dm.Width / count;
                     double maxVal = data.Max(d => d.Wartosc);
                     if (maxVal <= 0) return;
-                    // LiveCharts adds ~10% padding above max value
                     double axisMax = maxVal * 1.1;
 
                     for (int i = 0; i < count; i++)
@@ -1171,12 +1175,12 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
                         // X: center of bar at index i
                         var xPixel = dm.Left + i * barWidth + barWidth / 2;
-                        // Y: top of bar (value mapped to pixels)
+                        // Y: top of bar
                         var yPixel = dm.Top + dm.Height * (1.0 - d.Wartosc / axisMax);
 
                         var avatarEl = CreateAvatarElement(d.Handlowiec, avatarSize, GetHandlowiecColor(d.Handlowiec));
                         Canvas.SetLeft(avatarEl, xPixel - avatarSize / 2);
-                        Canvas.SetTop(avatarEl, yPixel - avatarSize - 2);
+                        Canvas.SetTop(avatarEl, yPixel - avatarSize - 6);
                         canvas.Children.Add(avatarEl);
                     }
                 }
