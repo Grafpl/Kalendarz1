@@ -1025,12 +1025,7 @@ namespace Kalendarz1.Kartoteka.Views
             foreach (var o in list)
             {
                 if (string.IsNullOrWhiteSpace(o.OsobaKontaktowa)) totalIssues++;
-                if (string.IsNullOrWhiteSpace(o.TelefonKontakt)) totalIssues++;
                 if (string.IsNullOrWhiteSpace(o.EmailKontakt)) totalIssues++;
-                if (string.IsNullOrWhiteSpace(o.KategoriaHandlowca) || o.KategoriaHandlowca == "C") { } // C is default, not an issue
-                if (string.IsNullOrWhiteSpace(o.Asortyment)) totalIssues++;
-                if (string.IsNullOrWhiteSpace(o.PreferowanyDzienDostawy)) totalIssues++;
-                if (string.IsNullOrWhiteSpace(o.Notatki)) totalIssues++;
             }
 
             TextPowiadomieniaCount.Text = totalIssues > 0 ? totalIssues.ToString() : "";
@@ -1062,20 +1057,11 @@ namespace Kalendarz1.Kartoteka.Views
             var list = _allOdbiorcy;
             if (list == null) return;
 
-            // Definiuj kategorie braków
             var brakKontaktu = list.Where(o => string.IsNullOrWhiteSpace(o.OsobaKontaktowa)).ToList();
-            var brakTelefonu = list.Where(o => string.IsNullOrWhiteSpace(o.TelefonKontakt)).ToList();
             var brakEmaila = list.Where(o => string.IsNullOrWhiteSpace(o.EmailKontakt)).ToList();
-            var brakAsortymentu = list.Where(o => string.IsNullOrWhiteSpace(o.Asortyment)).ToList();
-            var brakDniaDostawy = list.Where(o => string.IsNullOrWhiteSpace(o.PreferowanyDzienDostawy)).ToList();
-            var brakNotatki = list.Where(o => string.IsNullOrWhiteSpace(o.Notatki)).ToList();
 
-            AddPowiadomienieGroup("👤 Brak osoby kontaktowej", brakKontaktu, "#DC2626", "#FEF2F2");
-            AddPowiadomienieGroup("📞 Brak numeru telefonu", brakTelefonu, "#DC2626", "#FEF2F2");
-            AddPowiadomienieGroup("📧 Brak adresu email", brakEmaila, "#EA580C", "#FFF7ED");
-            AddPowiadomienieGroup("📦 Brak asortymentu", brakAsortymentu, "#D97706", "#FFFBEB");
-            AddPowiadomienieGroup("🚚 Brak preferowanego dnia dostawy", brakDniaDostawy, "#D97706", "#FFFBEB");
-            AddPowiadomienieGroup("📝 Brak notatek", brakNotatki, "#6B7280", "#F9FAFB");
+            AddPowiadomienieGroup("👤 Brak osoby kontaktowej", "OsobaKontaktowa", brakKontaktu, "#DC2626", "#FEF2F2");
+            AddPowiadomienieGroup("📧 Brak adresu email", "Email", brakEmaila, "#EA580C", "#FFF7ED");
 
             if (PowiadomieniaList.Children.Count == 0)
             {
@@ -1091,7 +1077,7 @@ namespace Kalendarz1.Kartoteka.Views
             }
         }
 
-        private void AddPowiadomienieGroup(string title, List<OdbiorcaHandlowca> items, string colorHex, string bgHex)
+        private void AddPowiadomienieGroup(string title, string fieldKey, List<OdbiorcaHandlowca> items, string colorHex, string bgHex)
         {
             if (items.Count == 0) return;
 
@@ -1149,13 +1135,14 @@ namespace Kalendarz1.Kartoteka.Views
                     Cursor = Cursors.Hand,
                     TextDecorations = null
                 };
-                link.Tag = o;
-                link.MouseEnter += (s, e) => link.TextDecorations = TextDecorations.Underline;
-                link.MouseLeave += (s, e) => link.TextDecorations = null;
-                link.MouseLeftButtonDown += (s, e) =>
+                var capturedOdbiorca = o;
+                var capturedFieldKey = fieldKey;
+                link.MouseEnter += (s, ev) => link.TextDecorations = TextDecorations.Underline;
+                link.MouseLeave += (s, ev) => link.TextDecorations = null;
+                link.MouseLeftButtonDown += (s, ev) =>
                 {
                     PanelPowiadomienia.Visibility = Visibility.Collapsed;
-                    ScrollToAndExpandCustomer(o);
+                    OpenEdycjaWithHighlight(capturedOdbiorca, capturedFieldKey);
                 };
                 stack.Children.Add(link);
             }
@@ -1176,16 +1163,20 @@ namespace Kalendarz1.Kartoteka.Views
             PowiadomieniaList.Children.Add(group);
         }
 
-        private void ScrollToAndExpandCustomer(OdbiorcaHandlowca target)
+        private void OpenEdycjaWithHighlight(OdbiorcaHandlowca odbiorca, string clickedFieldKey)
         {
-            foreach (Border card in AccordionPanel.Children.OfType<Border>().Where(b => b != DetailPanel))
+            // Determine all missing fields for this customer
+            var missingFields = new List<string>();
+            if (string.IsNullOrWhiteSpace(odbiorca.OsobaKontaktowa)) missingFields.Add("OsobaKontaktowa");
+            if (string.IsNullOrWhiteSpace(odbiorca.EmailKontakt)) missingFields.Add("Email");
+
+            var edycja = new OdbiorcaEdycjaWindow(odbiorca, _service, _userName, missingFields);
+            edycja.Owner = this;
+            if (edycja.ShowDialog() == true)
             {
-                if (card.Tag is OdbiorcaHandlowca o && o.IdSymfonia == target.IdSymfonia)
-                {
-                    card.BringIntoView();
-                    ExpandCard(card, o);
-                    break;
-                }
+                UpdatePowiadomienia();
+                BuildPowiadomieniaPanel();
+                _ = LoadData();
             }
         }
 

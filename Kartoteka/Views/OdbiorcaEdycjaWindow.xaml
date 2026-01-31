@@ -11,6 +11,11 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="../Resources/KartotekaStyles.xaml"/>
             </ResourceDictionary.MergedDictionaries>
+
+            <Storyboard x:Key="PulseRed" RepeatBehavior="Forever" AutoReverse="True">
+                <ColorAnimation Storyboard.TargetProperty="(Border.BorderBrush).(SolidColorBrush.Color)"
+                                From="#DC2626" To="#FCA5A5" Duration="0:0:0.6"/>
+            </Storyboard>
         </ResourceDictionary>
     </Window.Resources>
 
