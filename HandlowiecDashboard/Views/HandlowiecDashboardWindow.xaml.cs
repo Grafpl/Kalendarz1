@@ -561,21 +561,29 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     EnsureAvatarCached(h.Key);
                 }
 
-                // Jedna seria - kolory wskazuja avatary z obramowaniem
-                var wartosciHandlowcow = new ChartValues<double>();
-                foreach (var h in daneHandlowcow.OrderByDescending(x => x.Value.Sum(v => v.Wartosc)))
-                    wartosciHandlowcow.Add((double)h.Value.Sum(v => v.Wartosc));
-
-                series.Add(new ColumnSeries
+                // StackedColumnSeries per handlowiec - kazdy z wlasnym kolorem
+                // Na kazdej pozycji X tylko jeden handlowiec ma wartosc > 0, reszta = 0
+                int hIdx = 0;
+                var orderedHandlowcy = daneHandlowcow.OrderByDescending(x => x.Value.Sum(v => v.Wartosc)).ToList();
+                foreach (var h in orderedHandlowcy)
                 {
-                    Title = "Sprzedaz",
-                    Values = wartosciHandlowcow,
-                    Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F4A261")),
-                    DataLabels = true,
-                    LabelPoint = p => $"{p.Y:N0} zl",
-                    Foreground = Brushes.White,
-                    MaxColumnWidth = 80
-                });
+                    var kolor = GetHandlowiecColor(h.Key);
+                    var values = new ChartValues<double>();
+                    for (int i = 0; i < orderedHandlowcy.Count; i++)
+                        values.Add(i == hIdx ? (double)h.Value.Sum(v => v.Wartosc) : 0);
+
+                    series.Add(new StackedColumnSeries
+                    {
+                        Title = h.Key,
+                        Values = values,
+                        Fill = new SolidColorBrush(kolor),
+                        DataLabels = true,
+                        LabelPoint = p => p.Y > 0 ? $"{p.Y:N0} zl" : "",
+                        Foreground = Brushes.White,
+                        MaxColumnWidth = 80
+                    });
+                    hIdx++;
+                }
 
                 treeSprzedaz.Items.Clear();
                 foreach (var h in daneHandlowcow.OrderByDescending(x => x.Value.Sum(v => v.Wartosc)))
@@ -711,25 +719,27 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 for (int i = 0; i < handlowcyNaSlupkach.Count; i++)
                     _top15ChartData.Add((handlowcyNaSlupkach[i], wartosci[i]));
 
-                // Przechwycenie listy handlowcow dla uzycia w LabelPoint
-                var listaHandlowcow = handlowcyNaSlupkach.ToList();
-
-                // Jedna seria z grubymi slupkami - kolorowana per handlowiec
-                series.Add(new RowSeries
+                // StackedRowSeries per handlowiec - kazdy slupek ma kolor handlowca
+                var unikatoweHandlowcy = handlowcyNaSlupkach.Distinct().ToList();
+                foreach (var hNazwa in unikatoweHandlowcy)
                 {
-                    Title = "Wartosc",
-                    Values = wartosci,
-                    Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F4A261")),
-                    DataLabels = true,
-                    LabelPoint = p => {
-                        int idx = (int)p.Y;
-                        string handlowiec = idx >= 0 && idx < listaHandlowcow.Count ? listaHandlowcow[idx] : "";
-                        return $"{p.X:N0} zl | {handlowiec}";
-                    },
-                    Foreground = Brushes.White,
-                    MaxRowHeigth = 35,
-                    RowPadding = 2
-                });
+                    var kolor = GetHandlowiecColor(hNazwa);
+                    var values = new ChartValues<double>();
+                    for (int i = 0; i < liczbaElementow; i++)
+                        values.Add(handlowcyNaSlupkach[i] == hNazwa ? wartosci[i] : 0);
+
+                    series.Add(new StackedRowSeries
+                    {
+                        Title = hNazwa,
+                        Values = values,
+                        Fill = new SolidColorBrush(kolor),
+                        DataLabels = true,
+                        LabelPoint = p => p.X > 0 ? $"{p.X:N0} zl | {hNazwa}" : "",
+                        Foreground = Brushes.White,
+                        MaxRowHeigth = 35,
+                        RowPadding = 2
+                    });
+                }
 
                 // Aktualizuj legende handlowcow z avatarami
                 AktualizujLegendeTop15(daneTop10, handlowcyNaSlupkach);
@@ -1117,29 +1127,34 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
                 var model = chart.Model;
                 if (model == null || model.DrawMargin == null) return;
+                if (model.AxisX == null || model.AxisY == null) return;
+                if (model.AxisX.Length == 0 || model.AxisY.Length == 0) return;
 
                 var dm = model.DrawMargin;
                 int count = data.Count;
-                double avatarSize = 30;
 
                 if (isHorizontal)
                 {
                     // RowSeries - horizontal bars
-                    double barHeight = dm.Height / count;
-                    double maxVal = data.Max(d => d.Wartosc);
-                    if (maxVal <= 0) return;
+                    double avatarSize = 26;
+                    var xTop = model.AxisX[0].TopLimit;
+                    var xBot = model.AxisX[0].BotLimit;
+                    var yTop = model.AxisY[0].TopLimit;
+                    var yBot = model.AxisY[0].BotLimit;
+                    if (xTop <= xBot || yTop <= yBot) return;
 
                     for (int i = 0; i < count; i++)
                     {
                         var d = data[i];
                         if (!_handlowiecAvatarCache.ContainsKey(d.Handlowiec)) continue;
 
-                        var xRatio = d.Wartosc / maxVal;
-                        var xPixel = dm.Left + xRatio * dm.Width;
-                        var yPixel = dm.Top + i * barHeight + barHeight / 2;
+                        // Y pozycja: srodek slupka na indeksie i
+                        var yPixel = dm.Top + dm.Height * ((i + 0.5 - yBot) / (yTop - yBot));
+                        // X pozycja: poczatek slupka (stala, wewnatrz slupka)
+                        var xPixel = dm.Left + 5;
 
                         var avatarEl = CreateAvatarElement(d.Handlowiec, avatarSize, GetHandlowiecColor(d.Handlowiec));
-                        Canvas.SetLeft(avatarEl, xPixel + 4);
+                        Canvas.SetLeft(avatarEl, xPixel);
                         Canvas.SetTop(avatarEl, yPixel - avatarSize / 2);
                         canvas.Children.Add(avatarEl);
                     }
@@ -1147,24 +1162,26 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 else
                 {
                     // ColumnSeries - vertical bars
-                    double barWidth = dm.Width / count;
-                    double maxVal = data.Max(d => d.Wartosc);
-                    if (maxVal <= 0) return;
-
-                    var axisMaxVal = maxVal * 1.15; // account for axis padding
+                    double avatarSize = 36;
+                    var xTop = model.AxisX[0].TopLimit;
+                    var xBot = model.AxisX[0].BotLimit;
+                    var yTop = model.AxisY[0].TopLimit;
+                    var yBot = model.AxisY[0].BotLimit;
+                    if (xTop <= xBot || yTop <= yBot) return;
 
                     for (int i = 0; i < count; i++)
                     {
                         var d = data[i];
                         if (!_handlowiecAvatarCache.ContainsKey(d.Handlowiec)) continue;
 
-                        var yRatio = 1.0 - (d.Wartosc / axisMaxVal);
-                        var xPixel = dm.Left + i * barWidth + barWidth / 2;
-                        var yPixel = dm.Top + yRatio * dm.Height;
+                        // X pozycja: srodek slupka na indeksie i
+                        var xPixel = dm.Left + dm.Width * ((i + 0.5 - xBot) / (xTop - xBot));
+                        // Y pozycja: gora slupka (wartosc)
+                        var yPixel = dm.Top + dm.Height * (1.0 - (d.Wartosc - yBot) / (yTop - yBot));
 
                         var avatarEl = CreateAvatarElement(d.Handlowiec, avatarSize, GetHandlowiecColor(d.Handlowiec));
                         Canvas.SetLeft(avatarEl, xPixel - avatarSize / 2);
-                        Canvas.SetTop(avatarEl, yPixel - avatarSize - 4);
+                        Canvas.SetTop(avatarEl, yPixel - avatarSize - 2);
                         canvas.Children.Add(avatarEl);
                     }
                 }
@@ -1347,28 +1364,40 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     });
                 }
 
-                // Jedna seria - kolory wskazuja avatary z obramowaniem
-                seriesCeny.Add(new ColumnSeries
+                // StackedColumnSeries per handlowiec - kazdy z wlasnym kolorem
+                for (int i = 0; i < tempHandlowcy.Count; i++)
                 {
-                    Title = "Srednia cena",
-                    Values = wartosciCeny,
-                    Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#95E1D3")),
-                    DataLabels = true,
-                    LabelPoint = p => $"{p.Y:F2} zl",
-                    Foreground = Brushes.White,
-                    MaxColumnWidth = 80
-                });
+                    var kolor = GetHandlowiecColor(tempHandlowcy[i]);
+                    var valuesCeny = new ChartValues<double>();
+                    var valuesKg = new ChartValues<double>();
+                    for (int j = 0; j < tempHandlowcy.Count; j++)
+                    {
+                        valuesCeny.Add(j == i ? (double)wartosciCeny[j] : 0);
+                        valuesKg.Add(j == i ? (double)wartosciKg[j] : 0);
+                    }
 
-                seriesKg.Add(new ColumnSeries
-                {
-                    Title = "Ilosc kg",
-                    Values = wartosciKg,
-                    Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4ECDC4")),
-                    DataLabels = true,
-                    LabelPoint = p => $"{p.Y:N0}",
-                    Foreground = Brushes.White,
-                    MaxColumnWidth = 80
-                });
+                    seriesCeny.Add(new StackedColumnSeries
+                    {
+                        Title = tempHandlowcy[i],
+                        Values = valuesCeny,
+                        Fill = new SolidColorBrush(kolor),
+                        DataLabels = true,
+                        LabelPoint = p => p.Y > 0 ? $"{p.Y:F2} zl" : "",
+                        Foreground = Brushes.White,
+                        MaxColumnWidth = 80
+                    });
+
+                    seriesKg.Add(new StackedColumnSeries
+                    {
+                        Title = tempHandlowcy[i],
+                        Values = valuesKg,
+                        Fill = new SolidColorBrush(kolor),
+                        DataLabels = true,
+                        LabelPoint = p => p.Y > 0 ? $"{p.Y:N0}" : "",
+                        Foreground = Brushes.White,
+                        MaxColumnWidth = 80
+                    });
+                }
             }
             catch (Exception ex)
             {
