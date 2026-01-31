@@ -450,14 +450,17 @@ namespace Kalendarz1.Kartoteka.Views
 
         private Border CreateCustomerCard(OdbiorcaHandlowca odbiorca)
         {
+            // Category-based row background
+            var categoryBg = GetKategoriaRowBackground(odbiorca.KategoriaHandlowca);
+
             var card = new Border
             {
-                Background = Brushes.White,
+                Background = categoryBg,
                 BorderBrush = new SolidColorBrush(Color.FromRgb(229, 231, 235)),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(4),
                 Padding = new Thickness(12, 6, 12, 6),
-                Margin = new Thickness(0, 0, 0, 1),
+                Margin = new Thickness(0, 0, 0, 2),
                 Cursor = Cursors.Hand,
                 Tag = odbiorca
             };
@@ -465,27 +468,6 @@ namespace Kalendarz1.Kartoteka.Views
             {
                 ShadowDepth = 0, Color = Colors.Black, Opacity = 0.04, BlurRadius = 4
             };
-
-            // Alert row background
-            switch (odbiorca.AlertType)
-            {
-                case "LimitExceeded":
-                    card.Background = new SolidColorBrush(Color.FromRgb(254, 242, 242)); // #FEF2F2
-                    card.BorderBrush = new SolidColorBrush(Color.FromRgb(248, 113, 113)); // #F87171
-                    break;
-                case "Overdue":
-                    card.Background = new SolidColorBrush(Color.FromRgb(254, 249, 195)); // #FEF9C3
-                    card.BorderBrush = new SolidColorBrush(Color.FromRgb(250, 204, 21)); // #FACC15
-                    break;
-                case "Inactive":
-                    card.Background = new SolidColorBrush(Color.FromRgb(255, 237, 213)); // #FFEDD5
-                    card.BorderBrush = new SolidColorBrush(Color.FromRgb(251, 146, 60)); // #FB923C
-                    break;
-                case "NewClient":
-                    card.Background = new SolidColorBrush(Color.FromRgb(219, 234, 254)); // #DBEAFE
-                    card.BorderBrush = new SolidColorBrush(Color.FromRgb(96, 165, 250)); // #60A5FA
-                    break;
-            }
 
             var grid = CreateCardColumnDefinitions();
 
@@ -545,28 +527,76 @@ namespace Kalendarz1.Kartoteka.Views
             grid.Children.Add(nipText);
 
             // Kontakt
-            var kontaktText = new TextBlock
+            if (string.IsNullOrWhiteSpace(odbiorca.OsobaKontaktowa))
             {
-                Text = odbiorca.OsobaKontaktowa ?? "",
-                Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
-                FontSize = 10,
-                VerticalAlignment = VerticalAlignment.Center,
-                TextTrimming = TextTrimming.CharacterEllipsis
-            };
-            Grid.SetColumn(kontaktText, col++);
-            grid.Children.Add(kontaktText);
+                var brakKontakt = new TextBlock
+                {
+                    Text = "brak!",
+                    FontSize = 10,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(220, 38, 38)), // red
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Cursor = Cursors.Hand,
+                    TextDecorations = TextDecorations.Underline
+                };
+                var capturedOdbiorca1 = odbiorca;
+                brakKontakt.MouseLeftButtonDown += (s, ev) =>
+                {
+                    ev.Handled = true;
+                    OpenEdycjaWithHighlight(capturedOdbiorca1, "OsobaKontaktowa");
+                };
+                Grid.SetColumn(brakKontakt, col++);
+                grid.Children.Add(brakKontakt);
+            }
+            else
+            {
+                var kontaktText = new TextBlock
+                {
+                    Text = odbiorca.OsobaKontaktowa,
+                    Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                    FontSize = 10,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    TextTrimming = TextTrimming.CharacterEllipsis
+                };
+                Grid.SetColumn(kontaktText, col++);
+                grid.Children.Add(kontaktText);
+            }
 
             // Telefon
-            var telText = new TextBlock
+            if (string.IsNullOrWhiteSpace(odbiorca.TelefonKontakt))
             {
-                Text = odbiorca.TelefonKontakt ?? "",
-                FontSize = 10,
-                Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
-                VerticalAlignment = VerticalAlignment.Center,
-                TextTrimming = TextTrimming.CharacterEllipsis
-            };
-            Grid.SetColumn(telText, col++);
-            grid.Children.Add(telText);
+                var brakTelefon = new TextBlock
+                {
+                    Text = "brak!",
+                    FontSize = 10,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(220, 38, 38)),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Cursor = Cursors.Hand,
+                    TextDecorations = TextDecorations.Underline
+                };
+                var capturedOdbiorca2 = odbiorca;
+                brakTelefon.MouseLeftButtonDown += (s, ev) =>
+                {
+                    ev.Handled = true;
+                    OpenEdycjaWithHighlight(capturedOdbiorca2, "Telefon");
+                };
+                Grid.SetColumn(brakTelefon, col++);
+                grid.Children.Add(brakTelefon);
+            }
+            else
+            {
+                var telText = new TextBlock
+                {
+                    Text = odbiorca.TelefonKontakt,
+                    FontSize = 10,
+                    Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    TextTrimming = TextTrimming.CharacterEllipsis
+                };
+                Grid.SetColumn(telText, col++);
+                grid.Children.Add(telText);
+            }
 
             // Forma płatności
             var formaText = new TextBlock
@@ -668,14 +698,15 @@ namespace Kalendarz1.Kartoteka.Views
             Grid.SetColumn(procentText, col++);
             grid.Children.Add(procentText);
 
-            // Last invoice date
+            // Last invoice date - relative format
             var fakturaText = new TextBlock
             {
-                Text = odbiorca.OstatniaFakturaData.HasValue ? odbiorca.OstatniaFakturaData.Value.ToString("dd.MM.yy") : "",
+                Text = odbiorca.OstatniaFakturaData.HasValue ? FormatRelativeDate(odbiorca.OstatniaFakturaData.Value) : "",
                 FontSize = 10,
                 Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
                 VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Center
+                HorizontalAlignment = HorizontalAlignment.Center,
+                ToolTip = odbiorca.OstatniaFakturaData.HasValue ? odbiorca.OstatniaFakturaData.Value.ToString("dd.MM.yyyy") : null
             };
             Grid.SetColumn(fakturaText, col++);
             grid.Children.Add(fakturaText);
@@ -733,16 +764,15 @@ namespace Kalendarz1.Kartoteka.Views
             card.MouseLeftButtonDown += Card_Click;
 
             // Hover effect
-            var defaultBg = card.Background;
             card.MouseEnter += (s, ev) =>
             {
                 if (card != _expandedCard)
-                    card.Background = new SolidColorBrush(Color.FromRgb(240, 253, 244)); // #F0FDF4
+                    card.Background = new SolidColorBrush(Color.FromRgb(243, 244, 246)); // #F3F4F6 light gray hover
             };
             card.MouseLeave += (s, ev) =>
             {
                 if (card != _expandedCard)
-                    card.Background = defaultBg;
+                    card.Background = categoryBg;
             };
 
             // Context menu
@@ -852,34 +882,25 @@ namespace Kalendarz1.Kartoteka.Views
             if (expanded)
             {
                 card.BorderBrush = new SolidColorBrush(Color.FromRgb(22, 163, 74)); // #16A34A
-                card.BorderThickness = new Thickness(2);
+                card.BorderThickness = new Thickness(3, 1, 1, 1); // green left border
+                var odbiorca = card.Tag as OdbiorcaHandlowca;
+                // Darker background for active card
+                card.Background = odbiorca?.KategoriaHandlowca switch
+                {
+                    "A" => new SolidColorBrush(Color.FromRgb(220, 252, 231)), // #DCFCE7
+                    "B" => new SolidColorBrush(Color.FromRgb(219, 234, 254)), // #DBEAFE
+                    "D" => new SolidColorBrush(Color.FromRgb(254, 226, 226)), // #FEE2E2
+                    _ => new SolidColorBrush(Color.FromRgb(243, 244, 246))    // #F3F4F6
+                };
             }
             else
             {
-                // Restore default border based on alert
+                card.BorderBrush = new SolidColorBrush(Color.FromRgb(229, 231, 235));
+                card.BorderThickness = new Thickness(1);
+                // Restore category-based background
                 var odbiorca = card.Tag as OdbiorcaHandlowca;
                 if (odbiorca != null)
-                {
-                    switch (odbiorca.AlertType)
-                    {
-                        case "LimitExceeded":
-                            card.BorderBrush = new SolidColorBrush(Color.FromRgb(248, 113, 113));
-                            break;
-                        case "Overdue":
-                            card.BorderBrush = new SolidColorBrush(Color.FromRgb(250, 204, 21));
-                            break;
-                        case "Inactive":
-                            card.BorderBrush = new SolidColorBrush(Color.FromRgb(251, 146, 60));
-                            break;
-                        case "NewClient":
-                            card.BorderBrush = new SolidColorBrush(Color.FromRgb(96, 165, 250));
-                            break;
-                        default:
-                            card.BorderBrush = new SolidColorBrush(Color.FromRgb(229, 231, 235));
-                            break;
-                    }
-                }
-                card.BorderThickness = new Thickness(1);
+                    card.Background = GetKategoriaRowBackground(odbiorca.KategoriaHandlowca);
             }
         }
 
@@ -931,6 +952,34 @@ namespace Kalendarz1.Kartoteka.Views
                 "D" => new SolidColorBrush(Color.FromRgb(153, 27, 27)),   // red-800
                 _ => new SolidColorBrush(Color.FromRgb(55, 65, 81))       // gray-700 (C)
             };
+        }
+
+        private SolidColorBrush GetKategoriaRowBackground(string kat)
+        {
+            return kat switch
+            {
+                "A" => new SolidColorBrush(Color.FromRgb(240, 253, 244)), // #F0FDF4 delikatny zielony
+                "B" => new SolidColorBrush(Color.FromRgb(239, 246, 255)), // #EFF6FF delikatny niebieski
+                "D" => new SolidColorBrush(Color.FromRgb(254, 242, 242)), // #FEF2F2 delikatny czerwony
+                _ => Brushes.White                                         // C = bez koloru
+            };
+        }
+
+        private string FormatRelativeDate(DateTime date)
+        {
+            var diff = DateTime.Now - date;
+            int days = (int)diff.TotalDays;
+
+            if (days < 0) return date.ToString("dd.MM.yy");
+            if (days == 0) return "dziś";
+            if (days == 1) return "wczoraj";
+            if (days < 7) return $"{days} dni temu";
+            if (days < 14) return "1 tydz. temu";
+            if (days < 30) return $"{days / 7} tyg. temu";
+            if (days < 60) return "1 mies. temu";
+            if (days < 365) return $"{days / 30} mies. temu";
+            if (days < 730) return "1 rok temu";
+            return $"{days / 365} lata temu";
         }
 
         // ═══════════════════════════════════════════
