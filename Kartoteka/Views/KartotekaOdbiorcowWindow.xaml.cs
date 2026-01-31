@@ -37,8 +37,8 @@ namespace Kalendarz1.Kartoteka.Views
         private bool _isAdmin;
 
         // Sorting state
-        private string _sortColumn = "";
-        private bool _sortAscending = true;
+        private string _sortColumn = "OstFaktura";
+        private bool _sortAscending = false;
 
         public string UserID
         {
@@ -112,7 +112,7 @@ namespace Kalendarz1.Kartoteka.Views
                 _allOdbiorcy = odbiorcy;
                 _displayedOdbiorcy = odbiorcy;
 
-                GenerateCards(odbiorcy);
+                ApplySortAndRegenerate();
 
                 // Załaduj handlowców dla admina
                 if (_userId == "11111" && ComboBoxHandlowiec.Items.Count <= 1)
@@ -161,7 +161,7 @@ namespace Kalendarz1.Kartoteka.Views
                 }
 
                 // Refresh cards to show updated asortyment
-                GenerateCards(_displayedOdbiorcy);
+                ApplySortAndRegenerate();
             }
             catch { }
         }
@@ -515,9 +515,14 @@ namespace Kalendarz1.Kartoteka.Views
                 MaxWidth = 180,
                 ToolTip = odbiorca.NazwaFirmy
             });
+            var addressParts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(odbiorca.KodPocztowy)) addressParts.Add(odbiorca.KodPocztowy);
+            if (!string.IsNullOrWhiteSpace(odbiorca.Miasto)) addressParts.Add(odbiorca.Miasto);
+            if (!string.IsNullOrWhiteSpace(odbiorca.Ulica)) addressParts.Add(odbiorca.Ulica);
+            var addressText = addressParts.Count > 0 ? "  " + string.Join(" ", addressParts) : "";
             nameStack.Children.Add(new TextBlock
             {
-                Text = $"  {odbiorca.Miasto}",
+                Text = addressText,
                 Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
                 FontSize = 10,
                 VerticalAlignment = VerticalAlignment.Center,
@@ -979,7 +984,7 @@ namespace Kalendarz1.Kartoteka.Views
             }
 
             _displayedOdbiorcy = filtered.ToList();
-            GenerateCards(_displayedOdbiorcy);
+            ApplySortAndRegenerate();
             UpdateLicznik();
             UpdateStatystyki();
         }
