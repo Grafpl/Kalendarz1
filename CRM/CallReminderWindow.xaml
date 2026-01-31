@@ -4,9 +4,8 @@
         Title="Czas na telefony!"
         Width="1925" Height="1313"
         WindowStartupLocation="CenterScreen"
-        WindowStyle="None"
-        AllowsTransparency="True"
-        Background="Transparent"
+        WindowStyle="SingleBorderWindow"
+        Background="#0d1117"
         Topmost="True"
         ResizeMode="CanResize"
         MinWidth="1100" MinHeight="750">
@@ -103,7 +102,7 @@
         </EventTrigger>
     </Window.Triggers>
 
-    <Border CornerRadius="20" BorderThickness="1" BorderBrush="#14FFFFFF">
+    <Border BorderThickness="0">
         <Border.Background>
             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                 <GradientStop Color="#0d1117" Offset="0"/>
@@ -111,9 +110,6 @@
                 <GradientStop Color="#0d1117" Offset="1"/>
             </LinearGradientBrush>
         </Border.Background>
-        <Border.Effect>
-            <DropShadowEffect ShadowDepth="0" Color="Black" Opacity="0.7" BlurRadius="40"/>
-        </Border.Effect>
 
         <Grid>
             <!-- Decorative Background Blobs -->

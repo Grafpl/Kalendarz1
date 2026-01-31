@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Drawing;
+using System.Globalization;
 using System.Linq;
 using System.Windows;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
 using Microsoft.Data.SqlClient;
@@ -307,6 +309,26 @@ namespace Kalendarz1.CRM
                 DragMove();
             }
         }
+
+        private void TxtSearchHandlowiec_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+        {
+            if (_handlowcy == null) return;
+
+            var searchText = txtSearchHandlowiec.Text?.Trim().ToLower() ?? "";
+
+            if (string.IsNullOrEmpty(searchText))
+            {
+                dgHandlowcy.ItemsSource = _handlowcy;
+                txtSearchCount.Text = "";
+            }
+            else
+            {
+                var filtered = _handlowcy.Where(h =>
+                    h.UserName != null && h.UserName.ToLower().Contains(searchText)).ToList();
+                dgHandlowcy.ItemsSource = filtered;
+                txtSearchCount.Text = $"{filtered.Count} / {_handlowcy.Count}";
+            }
+        }
     }
 
     public class HandlowiecConfigViewModel : INotifyPropertyChanged
@@ -508,5 +530,24 @@ namespace Kalendarz1.CRM
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    }
+
+    /// <summary>
+    /// Returns Visible when bound integer (text length) is 0, Collapsed otherwise.
+    /// Used for search placeholder text.
+    /// </summary>
+    public class InverseLengthToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is int length)
+                return length == 0 ? Visibility.Visible : Visibility.Collapsed;
+            return Visibility.Visible;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
