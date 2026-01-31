@@ -1263,7 +1263,10 @@ HAVING SUM(MZ.Ilosc) <> 0";
                 }
 
                 // Wylacz animacje, wyczysc, ustaw dane
-                try { chartOpakowaniaE2.DisableAnimations = true; } catch { }
+                if (chartOpakowaniaE2.IsLoaded)
+                {
+                    try { chartOpakowaniaE2.DisableAnimations = true; } catch { }
+                }
                 chartOpakowaniaE2.Series = new SeriesCollection();
                 axisYOpakE2.Labels = null;
                 axisYOpakE2.MinValue = 0;
@@ -1283,7 +1286,10 @@ HAVING SUM(MZ.Ilosc) <> 0";
                 };
                 chartOpakowaniaE2.Series = seriesE2;
                 axisYOpakE2.Labels = etykietyE2.ToArray();
-                try { chartOpakowaniaE2.DisableAnimations = false; } catch { }
+                if (chartOpakowaniaE2.IsLoaded)
+                {
+                    try { chartOpakowaniaE2.DisableAnimations = false; } catch { }
+                }
                 txtOpakE2Suma.Text = $"Razem: {sumaE2Data2:N0} (zmiana: {signE2}{zmianaE2:N0})";
 
                 // Wykres H1 - Top 15 kontrahentow z dodatnim saldem
@@ -1305,7 +1311,10 @@ HAVING SUM(MZ.Ilosc) <> 0";
                 }
 
                 // Wylacz animacje, wyczysc, ustaw dane
-                try { chartOpakowaniaH1.DisableAnimations = true; } catch { }
+                if (chartOpakowaniaH1.IsLoaded)
+                {
+                    try { chartOpakowaniaH1.DisableAnimations = true; } catch { }
+                }
                 chartOpakowaniaH1.Series = new SeriesCollection();
                 axisYOpakH1.Labels = null;
                 axisYOpakH1.MinValue = 0;
@@ -1325,7 +1334,10 @@ HAVING SUM(MZ.Ilosc) <> 0";
                 };
                 chartOpakowaniaH1.Series = seriesH1;
                 axisYOpakH1.Labels = etykietyH1.ToArray();
-                try { chartOpakowaniaH1.DisableAnimations = false; } catch { }
+                if (chartOpakowaniaH1.IsLoaded)
+                {
+                    try { chartOpakowaniaH1.DisableAnimations = false; } catch { }
+                }
                 txtOpakH1Suma.Text = $"Razem: {sumaH1Data2:N0} (zmiana: {signH1}{zmianaH1:N0})";
 
                 // Wyczysc wykres liniowy trendu
