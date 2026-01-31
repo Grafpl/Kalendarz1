@@ -87,6 +87,10 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             (Color)ColorConverter.ConvertFromString("#2EC4B6")
         };
 
+        // Cache avatarów handlowców (nazwa -> BitmapSource)
+        private readonly Dictionary<string, BitmapSource> _handlowiecAvatarCache = new Dictionary<string, BitmapSource>();
+        private List<(string Handlowiec, double LastY, int ColorIdx)> _udzialChartData;
+
         // Formatery dla osi
         public Func<double, string> ZlFormatter { get; set; }
         public Func<double, string> KgFormatter { get; set; }
@@ -892,6 +896,81 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     ls.DataLabels = true;
                     idx++;
                 }
+
+                // Pobierz mapowanie HandlowiecName -> UserID z bazy
+                _handlowiecAvatarCache.Clear();
+                var mapowanie = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                try
+                {
+                    await using var cnLib = new SqlConnection("Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True");
+                    await cnLib.OpenAsync();
+                    await using var cmdMap = new SqlCommand("SELECT HandlowiecName, UserID FROM UserHandlowcy", cnLib);
+                    await using var readerMap = await cmdMap.ExecuteReaderAsync();
+                    while (await readerMap.ReadAsync())
+                    {
+                        var name = readerMap.GetString(0);
+                        var uid = readerMap.GetString(1);
+                        mapowanie[name] = uid;
+                    }
+                }
+                catch { }
+
+                // Zaladuj avatary do cache
+                idx = 0;
+                foreach (var h in daneHandlowcow.OrderByDescending(x => x.Value.Values.Sum()))
+                {
+                    var handlowiec = h.Key;
+                    BitmapSource avatarBmp = null;
+
+                    if (mapowanie.TryGetValue(handlowiec, out var uid))
+                    {
+                        try
+                        {
+                            if (UserAvatarManager.HasAvatar(uid))
+                            {
+                                using (var av = UserAvatarManager.GetAvatarRounded(uid, 24))
+                                    if (av != null) avatarBmp = ConvertToBitmapSource(av);
+                            }
+                            if (avatarBmp == null)
+                            {
+                                using (var defAv = UserAvatarManager.GenerateDefaultAvatar(handlowiec, uid, 24))
+                                    avatarBmp = ConvertToBitmapSource(defAv);
+                            }
+                        }
+                        catch { }
+                    }
+
+                    if (avatarBmp == null)
+                    {
+                        // Brak mapowania - generuj avatar z inicjałami
+                        try
+                        {
+                            using (var defAv = UserAvatarManager.GenerateDefaultAvatar(handlowiec, handlowiec, 24))
+                                avatarBmp = ConvertToBitmapSource(defAv);
+                        }
+                        catch { }
+                    }
+
+                    if (avatarBmp != null)
+                    {
+                        avatarBmp.Freeze();
+                        _handlowiecAvatarCache[handlowiec] = avatarBmp;
+                    }
+                    idx++;
+                }
+
+                // Zapamietaj dane do pozycjonowania avatarów na wykresie
+                _udzialChartData = new List<(string Handlowiec, double LastY, int ColorIdx)>();
+                idx = 0;
+                foreach (var h in daneHandlowcow.OrderByDescending(x => x.Value.Values.Sum()))
+                {
+                    if (series.Count > idx && series[idx].Values.Count > 0)
+                    {
+                        var lastY = (double)series[idx].Values[series[idx].Values.Count - 1];
+                        _udzialChartData.Add((h.Key, lastY, idx));
+                    }
+                    idx++;
+                }
             }
             catch (Exception ex)
             {
@@ -901,8 +980,65 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             chartUdzial.Series = series;
             axisXUdzial.Labels = labels;
 
-            // Buduj legende z avatarami
-            await BudujLegendeUdzialuAsync(daneHandlowcow);
+            // Buduj legende z avatarami (uzywa cache)
+            BudujLegendeUdzialu(daneHandlowcow);
+
+            // Pozycjonuj avatary na wykresie po renderingu
+            Dispatcher.BeginInvoke(new Action(() => PozycjonujAvataryNaWykresie()), System.Windows.Threading.DispatcherPriority.Background);
+        }
+
+        private void PozycjonujAvataryNaWykresie()
+        {
+            try
+            {
+                canvasUdzialAvatary.Children.Clear();
+                if (_udzialChartData == null || !_udzialChartData.Any()) return;
+
+                var model = chartUdzial.Model;
+                if (model == null || model.DrawMargin == null) return;
+
+                var drawMargin = model.DrawMargin;
+                var maxY = axisYUdzial.MaxValue;
+                var minY = axisYUdzial.MinValue;
+                if (maxY <= minY) return;
+
+                // Pozycja X - przy pierwszym punkcie danych (lewa strona wykresu)
+                double plotLeft = drawMargin.Left;
+                double plotTop = drawMargin.Top;
+                double plotHeight = drawMargin.Height;
+
+                foreach (var data in _udzialChartData)
+                {
+                    if (!_handlowiecAvatarCache.TryGetValue(data.Handlowiec, out var cachedAvatar)) continue;
+
+                    // Oblicz Y pixel z procentu
+                    var yRatio = 1.0 - (data.LastY - minY) / (maxY - minY);
+                    var yPixel = plotTop + yRatio * plotHeight;
+
+                    var avatarImg = new System.Windows.Controls.Image
+                    {
+                        Source = cachedAvatar,
+                        Width = 20, Height = 20,
+                        Stretch = Stretch.UniformToFill
+                    };
+                    avatarImg.Clip = new EllipseGeometry(new System.Windows.Point(10, 10), 10, 10);
+
+                    var avatarBorder = new Border
+                    {
+                        Width = 24, Height = 24,
+                        CornerRadius = new CornerRadius(12),
+                        BorderBrush = new SolidColorBrush(_kolory[data.ColorIdx % _kolory.Length]),
+                        BorderThickness = new Thickness(2),
+                        Child = avatarImg,
+                        Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1A1D21"))
+                    };
+
+                    Canvas.SetLeft(avatarBorder, plotLeft - 28);
+                    Canvas.SetTop(avatarBorder, yPixel - 12);
+                    canvasUdzialAvatary.Children.Add(avatarBorder);
+                }
+            }
+            catch { }
         }
 
         [System.Runtime.InteropServices.DllImport("gdi32.dll")]
@@ -926,27 +1062,9 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             }
         }
 
-        private async System.Threading.Tasks.Task BudujLegendeUdzialuAsync(Dictionary<string, Dictionary<string, decimal>> daneHandlowcow)
+        private void BudujLegendeUdzialu(Dictionary<string, Dictionary<string, decimal>> daneHandlowcow)
         {
             panelUdzialLegenda.Children.Clear();
-
-            // Pobierz mapowanie HandlowiecName -> UserID z bazy LibraNet
-            var mapowanie = new Dictionary<string, string>();
-            try
-            {
-                await using var cn = new SqlConnection("Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True");
-                await cn.OpenAsync();
-                await using var cmd = new SqlCommand("SELECT HandlowiecName, UserID FROM UserHandlowcy", cn);
-                await using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    var name = reader.GetString(0);
-                    var userId = reader.GetString(1);
-                    if (!mapowanie.ContainsKey(name))
-                        mapowanie[name] = userId;
-                }
-            }
-            catch { }
 
             int idx = 0;
             foreach (var h in daneHandlowcow.OrderByDescending(x => x.Value.Values.Sum()))
@@ -955,10 +1073,9 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 var color = _kolory[idx % _kolory.Length];
                 var sumaWartosc = h.Value.Values.Sum();
 
-                // Kontener wiersza
                 var row = new Border
                 {
-                    Background = new SolidColorBrush((System.Windows.Media.Color)ColorConverter.ConvertFromString("#1A1D21")),
+                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1A1D21")),
                     CornerRadius = new CornerRadius(6),
                     Padding = new Thickness(6),
                     Margin = new Thickness(0, 0, 0, 4)
@@ -968,46 +1085,21 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
                 grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-                // Avatar
                 var avatarBorder = new Border
                 {
                     Width = 30, Height = 30,
                     CornerRadius = new CornerRadius(15),
                     BorderBrush = new SolidColorBrush(color),
                     BorderThickness = new Thickness(2),
-                    Background = new SolidColorBrush((System.Windows.Media.Color)ColorConverter.ConvertFromString("#252A31")),
+                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#252A31")),
                     ClipToBounds = true
                 };
 
-                BitmapSource avatarBitmap = null;
-                if (mapowanie.TryGetValue(handlowiec, out var userId))
-                {
-                    try
-                    {
-                        if (UserAvatarManager.HasAvatar(userId))
-                        {
-                            using (var avatar = UserAvatarManager.GetAvatarRounded(userId, 28))
-                            {
-                                if (avatar != null)
-                                    avatarBitmap = ConvertToBitmapSource(avatar);
-                            }
-                        }
-                        if (avatarBitmap == null)
-                        {
-                            using (var defAvatar = UserAvatarManager.GenerateDefaultAvatar(handlowiec, userId, 28))
-                            {
-                                avatarBitmap = ConvertToBitmapSource(defAvatar);
-                            }
-                        }
-                    }
-                    catch { }
-                }
-
-                if (avatarBitmap != null)
+                if (_handlowiecAvatarCache.TryGetValue(handlowiec, out var cachedAvatar))
                 {
                     var img = new System.Windows.Controls.Image
                     {
-                        Source = avatarBitmap,
+                        Source = cachedAvatar,
                         Width = 26, Height = 26,
                         Stretch = Stretch.UniformToFill
                     };
@@ -1016,9 +1108,8 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 }
                 else
                 {
-                    // Domyslny inicjal
                     var initials = string.Join("", handlowiec.Split(' ').Where(s => s.Length > 0).Take(2).Select(s => s[0]));
-                    var initialsText = new TextBlock
+                    avatarBorder.Child = new TextBlock
                     {
                         Text = initials.ToUpper(),
                         FontSize = 10, FontWeight = FontWeights.Bold,
@@ -1026,29 +1117,25 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                         HorizontalAlignment = HorizontalAlignment.Center,
                         VerticalAlignment = VerticalAlignment.Center
                     };
-                    avatarBorder.Child = initialsText;
                 }
 
                 Grid.SetColumn(avatarBorder, 0);
                 grid.Children.Add(avatarBorder);
 
-                // Tekst: nazwa + wartosc
                 var txtPanel = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 0) };
-                var txtName = new TextBlock
+                txtPanel.Children.Add(new TextBlock
                 {
                     Text = handlowiec,
                     FontSize = 10, FontWeight = FontWeights.SemiBold,
                     Foreground = new SolidColorBrush(color),
                     TextTrimming = TextTrimming.CharacterEllipsis
-                };
-                var txtValue = new TextBlock
+                });
+                txtPanel.Children.Add(new TextBlock
                 {
                     Text = $"{sumaWartosc:N0} zl",
                     FontSize = 9,
-                    Foreground = new SolidColorBrush((System.Windows.Media.Color)ColorConverter.ConvertFromString("#8B949E"))
-                };
-                txtPanel.Children.Add(txtName);
-                txtPanel.Children.Add(txtValue);
+                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#8B949E"))
+                });
 
                 Grid.SetColumn(txtPanel, 1);
                 grid.Children.Add(txtPanel);
