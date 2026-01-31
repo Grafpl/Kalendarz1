@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
@@ -13,6 +12,7 @@ using Microsoft.Data.SqlClient;
 using LiveCharts;
 using LiveCharts.Wpf;
 using Kalendarz1.HandlowiecDashboard.Models;
+using Color = System.Windows.Media.Color;
 
 namespace Kalendarz1.HandlowiecDashboard.Views
 {
@@ -911,7 +911,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
         private BitmapSource ConvertToBitmapSource(System.Drawing.Image image)
         {
             if (image == null) return null;
-            using (var bitmap = new Bitmap(image))
+            using (var bitmap = new System.Drawing.Bitmap(image))
             {
                 var hBitmap = bitmap.GetHbitmap();
                 try
