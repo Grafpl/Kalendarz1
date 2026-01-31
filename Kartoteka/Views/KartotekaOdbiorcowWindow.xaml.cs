@@ -40,9 +40,6 @@ namespace Kalendarz1.Kartoteka.Views
         private string _sortColumn = "OstFaktura";
         private bool _sortAscending = false;
 
-        // Card generation batch size for non-blocking UI
-        private const int _cardsBatchSize = 50;
-
         public string UserID
         {
             get => _userId;
@@ -107,18 +104,9 @@ namespace Kalendarz1.Kartoteka.Views
                     handlowiec = _userName;
                 }
 
-                // Run EnsureTablesExist (LibraNet) and PobierzOdbiorcow (Handel) in parallel
-                var taskEnsure = _service.EnsureTablesExistAsync();
-                var taskOdbiorcy = _service.PobierzOdbiorcowAsync(handlowiec, pokazWszystkich);
+                await _service.EnsureTablesExistAsync();
 
-                // Also start handlowcy fetch in parallel (if admin)
-                System.Threading.Tasks.Task<List<string>> taskHandlowcy = null;
-                if (_userId == "11111" && ComboBoxHandlowiec.Items.Count <= 1)
-                    taskHandlowcy = _service.PobierzHandlowcowAsync();
-
-                await taskEnsure;
-                var odbiorcy = await taskOdbiorcy;
-
+                var odbiorcy = await _service.PobierzOdbiorcowAsync(handlowiec, pokazWszystkich);
                 await _service.WczytajDaneWlasneAsync(odbiorcy);
 
                 _allOdbiorcy = odbiorcy;
@@ -126,12 +114,12 @@ namespace Kalendarz1.Kartoteka.Views
 
                 ApplySortAndRegenerate();
 
-                // Finish handlowcy fetch
-                if (taskHandlowcy != null)
+                // Załaduj handlowców dla admina
+                if (_userId == "11111" && ComboBoxHandlowiec.Items.Count <= 1)
                 {
-                    var handlowcy = await taskHandlowcy;
                     ComboBoxHandlowiec.Items.Clear();
                     ComboBoxHandlowiec.Items.Add(new ComboBoxItem { Content = "Wszyscy", IsSelected = true });
+                    var handlowcy = await _service.PobierzHandlowcowAsync();
                     foreach (var h in handlowcy)
                     {
                         ComboBoxHandlowiec.Items.Add(new ComboBoxItem { Content = h });
@@ -207,7 +195,7 @@ namespace Kalendarz1.Kartoteka.Views
         // ACCORDION - Generowanie kart
         // ═══════════════════════════════════════════
 
-        private async System.Threading.Tasks.Task GenerateCardsAsync(List<OdbiorcaHandlowca> odbiorcy)
+        private void GenerateCards(List<OdbiorcaHandlowca> odbiorcy)
         {
             // Remember expanded state
             var expandedId = _selectedOdbiorca?.IdSymfonia;
@@ -224,15 +212,10 @@ namespace Kalendarz1.Kartoteka.Views
             HeaderRowContainer.Child = header;
             HeaderRowContainer.Visibility = Visibility.Visible;
 
-            // Generate cards in batches, yielding to UI thread between batches
-            for (int i = 0; i < odbiorcy.Count; i++)
+            foreach (var o in odbiorcy)
             {
-                var card = CreateCustomerCard(odbiorcy[i]);
+                var card = CreateCustomerCard(o);
                 AccordionPanel.Children.Add(card);
-
-                // Yield to UI thread every batch to keep it responsive
-                if ((i + 1) % _cardsBatchSize == 0)
-                    await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);
             }
 
             // Add DetailPanel back at the end (collapsed)
@@ -409,7 +392,7 @@ namespace Kalendarz1.Kartoteka.Views
             return "";
         }
 
-        private async void ApplySortAndRegenerate()
+        private void ApplySortAndRegenerate()
         {
             if (!string.IsNullOrEmpty(_sortColumn))
             {
@@ -461,7 +444,7 @@ namespace Kalendarz1.Kartoteka.Views
                 };
                 _displayedOdbiorcy = sorted;
             }
-            await GenerateCardsAsync(_displayedOdbiorcy);
+            GenerateCards(_displayedOdbiorcy);
         }
 
         private Border CreateCustomerCard(OdbiorcaHandlowca odbiorca)
