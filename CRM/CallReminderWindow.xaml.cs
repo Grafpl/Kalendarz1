@@ -17,10 +17,16 @@ namespace Kalendarz1.CRM
 {
     public class CallPhase
     {
-        public string Icon { get; set; }
         public string Name { get; set; }
-        public string Script { get; set; }
-        public string Tip { get; set; }
+        public string IconPath { get; set; }
+        public string[] Scripts { get; set; }
+        public string[] Tips { get; set; }
+    }
+
+    public class Objection
+    {
+        public string ClientSays { get; set; }
+        public string Response { get; set; }
     }
 
     public partial class CallReminderWindow : Window
@@ -36,36 +42,203 @@ namespace Kalendarz1.CRM
         private int _statusChangesCount = 0;
 
         private int _currentPhase = 0;
+        private int _currentScriptIndex = 0;
+        private readonly Random _rng = new Random();
+
+        // SVG Path data for phase icons
+        private static readonly string IconWstep = "M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z";
+        private static readonly string IconPotrzeby = "M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z";
+        private static readonly string IconOferta = "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z";
+        private static readonly string IconZamknij = "M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z";
+
         private readonly List<CallPhase> _phases = new List<CallPhase>
         {
+            // ═══════════════════════════════════════════════════════
+            // FAZA 1: WSTĘP - Przedstawienie się i nawiązanie kontaktu
+            // ═══════════════════════════════════════════════════════
             new CallPhase
             {
-                Icon = "👋",
                 Name = "Wstęp",
-                Script = "\"Dzień dobry, [imię] z [firma]. Czy rozmawiam z osobą odpowiedzialną za zakupy?\"",
-                Tip = "💡 Mów pewnie i wyraźnie. Pierwsze 10 sekund decyduje o rozmowie."
+                IconPath = "M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z",
+                Scripts = new[]
+                {
+                    "Dzień dobry! Nazywam się [imię] i dzwonię z firmy [firma]. Czy rozmawiam z osobą odpowiedzialną za zaopatrzenie w mięso drobiowe?",
+                    "Dzień dobry, [imię] z [firma]. Dzwonię, ponieważ współpracujemy z firmami z Państwa branży w zakresie dostaw świeżego mięsa z kurczaka. Czy mogę rozmawiać z osobą decyzyjną?",
+                    "Dzień dobry! Dzwonię z [firma], jesteśmy producentem i dostawcą mięsa drobiowego - tuszki kurczaka i elementy. Szukam osoby odpowiedzialnej za zakupy.",
+                    "Dzień dobry, z tej strony [imię] z [firma]. Zajmujemy się dostawami świeżego drobiu dla sklepów i gastronomii. Chciałbym porozmawiać z kimś z działu zakupów.",
+                    "Dzień dobry! [imię] z [firma]. Widzę, że Państwa firma działa w branży spożywczej - dostarczamy świeży drób z krótkim łańcuchem dostaw prosto od producenta. Z kim mogę porozmawiać?",
+                    "Dzień dobry, dzwonię z [firma]. Specjalizujemy się w dostawach tuszek kurcząt i elementów drobiowych. Czy Pan/Pani zajmuje się zamówieniami mięsa?",
+                    "Dzień dobry! Nazywam się [imię], firma [firma]. Pomagamy sklepom i restauracjom w zaopatrzeniu w najświeższy drób w regionie. Czy to dobry numer do rozmowy o współpracy?",
+                    "Dzień dobry, tu [imię] z [firma]. Dzwonię do Państwa, bo chcielibyśmy zaproponować stałe dostawy świeżego kurczaka. Z kim najlepiej porozmawiać?",
+                    "Dzień dobry! Z [firma] dzwonię. Jesteśmy bezpośrednim dostawcą drobiu - tuszka kurczaka, filet, skrzydełka, udka. Czy jest ktoś od zaopatrzenia?",
+                    "Dzień dobry, [imię] z [firma]. Widziałem, że prowadzicie [typ działalności]. Dostarczamy drób najwyższej jakości firmom w Państwa regionie. Czy mogę chwilę porozmawiać?",
+                },
+                Tips = new[]
+                {
+                    "Mów pewnie i wyraźnie. Pierwsze 10 sekund decyduje o rozmowie.",
+                    "Uśmiechnij się - rozmówca usłyszy to w Twoim głosie!",
+                    "Mów wolno i spokojnie. Pośpiech = brak profesjonalizmu.",
+                    "Stań podczas rozmowy - Twój głos będzie bardziej energiczny.",
+                    "Przed telefonem przeczytaj nazwę firmy głośno, żeby się nie zająknąć.",
+                    "Pamiętaj: to nie jest prośba - oferujesz wartość!",
+                }
             },
+
+            // ═══════════════════════════════════════════════════════
+            // FAZA 2: BADANIE POTRZEB - Pytania i rozpoznanie
+            // ═══════════════════════════════════════════════════════
             new CallPhase
             {
-                Icon = "⏱️",
-                Name = "Czas",
-                Script = "\"Czy ma Pan/Pani minutę na krótką rozmowę o naszej ofercie? Nie zajmę więcej niż 2 minuty.\"",
-                Tip = "💡 Szanuj czas rozmówcy. Jeśli jest zajęty, zapytaj kiedy oddzwonić."
+                Name = "Potrzeby",
+                IconPath = "M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z",
+                Scripts = new[]
+                {
+                    "Czy ma Pan/Pani chwilę? Chciałbym dowiedzieć się, jakie produkty drobiowe obecnie kupujecie i w jakich ilościach? Jak często składacie zamówienia?",
+                    "Rozumiem, że czas jest cenny. Powiem krótko - dostarczamy świeży drób od producenta. Jakie elementy kurczaka kupujecie najczęściej?",
+                    "Czy obecnie macie stałego dostawcę drobiu? Co jest dla Państwa najważniejsze - cena, jakość, regularność dostaw, a może wszystko naraz?",
+                    "Ile mniej więcej kilogramów drobiu zamawiają Państwo tygodniowo? Zależy Państwu bardziej na tuszkach całych czy konkretnych elementach - filet, udka, skrzydła?",
+                    "Z kim obecnie współpracujecie w zakresie drobiu? Co Państwu pasuje, a co byście chcieli poprawić w obecnych dostawach?",
+                    "Jak wygląda Państwa typowe zamówienie drobiu? Czy potrzebujecie dostaw codziennych, czy raczej 2-3 razy w tygodniu? Jakie ilości?",
+                    "Czy oprócz tuszki kurczaka interesują Państwa również elementy - filet z piersi, ćwiartki, udka, skrzydełka, podudzia? Mamy pełną gamę.",
+                    "Jakie standardy jakości są dla Państwa kluczowe? Pracujemy z certyfikowanym drobiem, wszystko ze świeżych ubojów, nie mrożone.",
+                    "Czy ważny jest dla Państwa termin przydatności? Nasz drób ma najkrótszy łańcuch dostaw w regionie - od uboju do dostawy max 24h.",
+                    "W jakich opakowaniach preferujecie dostawy? Mamy kartonowe, tackowe, workowane. Możemy też dopasować gramaturę do Państwa potrzeb.",
+                    "Jak duży mają Państwo obrót mięsem drobiowym tygodniowo? Pytam, bo mamy progi cenowe zależne od wolumenu i chcę dać najlepszą ofertę.",
+                    "Czy kupujecie również mięso drobiowe mrożone do zapasu, czy tylko świeże? Mamy oba warianty w konkurencyjnych cenach.",
+                },
+                Tips = new[]
+                {
+                    "Słuchaj 70%, mów 30%. Im więcej klient mówi, tym bliżej jesteś zamknięcia.",
+                    "Notuj słowa kluczowe klienta i powtarzaj je - poczuje się wysłuchany.",
+                    "Pytania otwarte dają 5x więcej informacji niż zamknięte.",
+                    "Nie przerywaj! Pauza po pytaniu = klient powie więcej.",
+                    "Zapisz: ilość kg/tydzień, jakie elementy, jak często, kto decydent.",
+                    "Jeśli mówi o problemach z obecnym dostawcą - NOTUJ! To Twoja szansa.",
+                }
             },
+
+            // ═══════════════════════════════════════════════════════
+            // FAZA 3: OFERTA - Prezentacja wartości
+            // ═══════════════════════════════════════════════════════
             new CallPhase
             {
-                Icon = "💎",
                 Name = "Oferta",
-                Script = "\"Dostarczamy [produkt/usługę] dopasowaną do Państwa potrzeb. Elastyczne warunki, konkurencyjne ceny. Z kim obecnie współpracujecie?\"",
-                Tip = "💡 Słuchaj uważnie i notuj. Zadawaj pytania otwarte zamiast zamkniętych."
+                IconPath = "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z",
+                Scripts = new[]
+                {
+                    "Mamy pełną gamę drobiu: tuszki kurczaka klasy A, filet z piersi, udka, podudzia, skrzydełka, ćwiartki. Wszystko świeże, z certyfikowanych ubojni. Dostarczamy 6 dni w tygodniu, minimum 24h od uboju.",
+                    "Nasza oferta to przede wszystkim świeżość i konkurencyjne ceny. Tuszka kurczaka klasy A, elementy pakowane wg Państwa specyfikacji. Nie jesteśmy pośrednikiem - pracujemy bezpośrednio z producentem.",
+                    "Współpracujemy już z wieloma firmami w Państwa regionie. Oferujemy: stałe ceny na ustalony okres, elastyczne terminy dostaw i pełen asortyment kurczaka - od tuszki po podroby.",
+                    "Wyróżnia nas krótki łańcuch dostaw - drób od uboju do Państwa chłodni w max 24h. Gwarantujemy certyfikat weterynaryjny, stałą jakość i terminowość. Ceny ustalamy indywidualnie.",
+                    "Dla stałych odbiorców mamy specjalne warunki: gwarantowane ceny na 2-4 tygodnie, priorytet dostaw, elastyczne minimum zamówienia. Tuszka, filet, udka - pełna gama elementów.",
+                    "Dostarczamy świeży drób z polskich ubojni. Pełna dokumentacja, certyfikaty, badania weterynaryjne. Pakujemy w karton lub tacki - jak Państwu wygodniej. Ceny? Bardzo konkurencyjne.",
+                    "To co nas wyróżnia: 1) Ceny prosto od producenta bez pośredników, 2) Dostawy 6 dni w tygodniu, 3) Świeżość max 24h od uboju, 4) Elastyczne formy pakowania, 5) Stały opiekun handlowy.",
+                    "Mogę zaproponować tuszki kurczaka klasy A w cenie [cena]/kg przy zamówieniu od [ilość] kg tygodniowo. Do tego elementy: filet, udka, skrzydełka w bardzo dobrych cenach. Przygotować szczegółowy cennik?",
+                    "Dla firm zamawiających regularnie powyżej 200kg/tydzień mamy specjalny program: stałe ceny, priorytet dostaw, reklamacje rozpatrywane w 24h. Czy to ilości, które Państwo zamawiają?",
+                    "Mięso drobiowe to nasza specjalność od lat. Tuszka kurczaka, filet z piersi, noga ćwiartkowa, udko, podudzie, skrzydło, filet z udka - co Państwa interesuje, mamy w ciągłej dostępności.",
+                    "Pracujemy z najlepszymi fermami w Polsce. Kurczaki karmione bez GMO, certyfikaty QS i IFS. Jeśli jakość jest dla Państwa priorytetem - gwarantuję, że nie znajdziecie lepszego dostawcy w regionie.",
+                    "Mogę wysłać próbną partię, żebyście mogli ocenić jakość. Bez zobowiązań. Jeśli Państwu odpowie - ustalamy warunki stałej współpracy. Co Pan/Pani na to?",
+                },
+                Tips = new[]
+                {
+                    "Mów językiem korzyści, nie cech. Nie 'mamy X' ale 'dzięki X zaoszczędzicie Y'.",
+                    "Używaj konkretnych liczb: '24h od uboju' brzmi lepiej niż 'bardzo świeże'.",
+                    "Odwołuj się do tego, co klient powiedział wcześniej o swoich potrzebach.",
+                    "Social proof: 'Inne firmy z branży zauważyły, że...' działa świetnie.",
+                    "Nie dawaj ceny od razu. Najpierw pokaż wartość, potem rozmawiaj o pieniądzach.",
+                    "Próbna dostawa to świetny sposób na obniżenie bariery wejścia!",
+                }
             },
+
+            // ═══════════════════════════════════════════════════════
+            // FAZA 4: ZAMKNIĘCIE - Ustalenie następnych kroków
+            // ═══════════════════════════════════════════════════════
             new CallPhase
             {
-                Icon = "🎯",
                 Name = "Zamknięcie",
-                Script = "\"Przygotuję ofertę dopasowaną do Państwa potrzeb. Czy mogę przesłać ją mailem? Jaki adres?\"",
-                Tip = "💡 Ustal konkretny następny krok. Zawsze zakończ z planem działania."
+                IconPath = "M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z",
+                Scripts = new[]
+                {
+                    "Świetnie! Przygotuję ofertę cenową dopasowaną do Państwa potrzeb. Czy mogę przesłać ją mailem? Jaki adres? I kiedy mogę oddzwonić, żeby ją omówić?",
+                    "Rozumiem Państwa potrzeby. Proponuję tak: wyślę cennik i warunki, a jutro/pojutrze oddzwonię. Na jaki email mogę wysłać ofertę?",
+                    "Czy możemy umówić próbną dostawę? Bez zobowiązań, żebyście mogli przetestować jakość naszego drobiu. Jakie ilości i elementy mam przygotować?",
+                    "Super, widzę duży potencjał współpracy. Umówmy się na spotkanie, pokażę Państwu próbki i cennik na miejscu. Kiedy Państwu pasuje?",
+                    "Dobrze, żebyśmy nie tracili czasu - wyślę ofertę do końca dnia. Kiedy mogę zadzwonić, żeby ustalić szczegóły pierwszej dostawy? Czwartek, piątek?",
+                    "Zaproponuję tak: wyślę mail z cennikiem na [elementy, o które pytał], a w przyszłym tygodniu odezwę się, żebyśmy mogli ustalić warunki. Zgoda?",
+                    "Jestem przekonany, że będziecie zadowoleni. Mogę przygotować pierwszą dostawę próbną już na przyszły tydzień. Ile kg tuszek/elementów mam zaplanować?",
+                    "Podsumowując: interesują Państwa [elementy], dostawy [częstotliwość], ok. [ilość] kg. Przygotowuję ofertę i dzwonię w [dzień]. Dobrze?",
+                    "Bardzo się cieszę z rozmowy. Następny krok: wysyłam ofertę + cennik mailem, a Pan/Pani przejrzy. Oddzwonię we wtorek. Jaki najlepszy email?",
+                    "To co proponuję: 1) Dziś wysyłam cennik, 2) Jutro dzwonię omówić, 3) Ustalamy pierwszą dostawę próbną. Brzmi dobrze?",
+                    "Dziękuję za rozmowę i za Państwa czas! Przygotuję indywidualną ofertę cenową. Czy mogę zapytać - wolą Państwo kontakt mailowy czy telefoniczny?",
+                    "Świetna rozmowa. Zapiszę sobie: oddzwonić [data], przygotować ofertę na [elementy]. Czy jest coś jeszcze, o czym powinienem pamiętać?",
+                },
+                Tips = new[]
+                {
+                    "Zawsze ustal KONKRETNY następny krok: data, godzina, co wyślesz.",
+                    "Zapisz od razu: email, ilości, elementy, termin follow-up.",
+                    "Próbna dostawa to najlepsze zamknięcie - obniża ryzyko klienta do zera.",
+                    "Podsumuj rozmowę własnymi słowami - klient poczuje się wysłuchany.",
+                    "Nie kończ rozmowy bez planu! Bez follow-up = stracona szansa.",
+                    "Umów konkretny dzień oddzwonienia - nie 'kiedyś w przyszłym tygodniu'.",
+                }
             }
+        };
+
+        // ═══════════════════════════════════════════════════════
+        // BAZA OBIEKCJI I RIPOST - Mięso drobiowe / kurczak
+        // ═══════════════════════════════════════════════════════
+        private static readonly Objection[] AllObjections = new[]
+        {
+            // --- Czas / Zainteresowanie ---
+            new Objection { ClientSays = "Nie mam czasu", Response = "Rozumiem, jest Pan/Pani zajęty/a. Kiedy mogę oddzwonić? Rozmowa zajmie max 3 minuty, a może Państwu zaoszczędzić sporo na dostawach drobiu." },
+            new Objection { ClientSays = "Nie jestem zainteresowany", Response = "Rozumiem. Czy mogę zapytać - kupujecie mięso drobiowe? Jeśli tak, to naprawdę warto poznać nasze ceny. Klienci oszczędzają średnio 10-15%." },
+            new Objection { ClientSays = "Proszę zadzwonić później", Response = "Jasne! Kiedy dokładnie będzie dobry moment? Chcę uszanować Pana/Pani czas. Może jutro rano albo po południu?" },
+            new Objection { ClientSays = "Proszę wysłać ofertę mailem", Response = "Oczywiście! Na jaki adres? I kiedy mogę oddzwonić, żeby omówić szczegóły? Oferta jest zawsze lepsza z krótkim wyjaśnieniem." },
+            new Objection { ClientSays = "Nie potrzebujemy drobiu", Response = "Rozumiem. A czy w przyszłości planujecie wprowadzić drób do oferty? Chętnie zostawię kontakt na wypadek zmiany sytuacji." },
+
+            // --- Dostawca / Konkurencja ---
+            new Objection { ClientSays = "Mamy już dostawcę drobiu", Response = "To naturalne. Większość naszych klientów też miała. Czy mogę zapytać - co cenicie w obecnej współpracy? I czy wszystko jest idealne, czy coś byście poprawili?" },
+            new Objection { ClientSays = "Jesteśmy zadowoleni z obecnego dostawcy", Response = "To świetnie! Nie namawiam do rezygnacji. Ale wielu klientów ma dwóch dostawców - dla bezpieczeństwa i porównania cen. Może próbna dostawa?" },
+            new Objection { ClientSays = "Mamy umowę z innym dostawcą", Response = "Rozumiem. Na jak długo obowiązuje? Mogę przygotować ofertę, żebyście mieli porównanie gdy umowa się skończy. Kiedy to będzie?" },
+            new Objection { ClientSays = "Kupujemy drób w hurtowni/na giełdzie", Response = "Rozumiem. Z hurtowni ceny bywają zmienne. My gwarantujemy stałą cenę na 2-4 tygodnie i dostawę pod drzwi. Ile zazwyczaj zamawiają Państwo tygodniowo?" },
+            new Objection { ClientSays = "Mamy swojego dostawcę od lat", Response = "Szanuję lojalność. Ale czy nie warto mieć alternatywy? Proponuję próbną dostawę - porównacie jakość i cenę bez żadnych zobowiązań." },
+            new Objection { ClientSays = "Nasz dostawca daje lepsze ceny", Response = "Być może! Ale czy porównywaliście przy tych samych parametrach? Nasza tuszka to klasa A, max 24h od uboju. Mogę wysłać próbkę do porównania?" },
+
+            // --- Cena ---
+            new Objection { ClientSays = "Za drogie / nie stać nas", Response = "Rozumiem, budżet jest ważny. Ale nasze ceny są konkurencyjne względem rynku. Ile obecnie płacicie za kg tuszki? Może Państwa zaskoczymy." },
+            new Objection { ClientSays = "Ile to kosztuje?", Response = "Ceny zależą od ilości i elementów. Dlatego pytam o Państwa potrzeby - żeby dać najlepszą możliwą cenę. Ile kg tygodniowo zamawiają Państwo?" },
+            new Objection { ClientSays = "Tańszy drób kupimy gdzie indziej", Response = "Najtańsze nie zawsze jest najlepsze - szczególnie w mięsie. Nasza tuszka A-klasy, 24h od uboju, może mieć lepszą wydajność niż tańszy produkt. Przetestujcie?" },
+            new Objection { ClientSays = "Nie mamy budżetu na zmianę dostawcy", Response = "Zmiana dostawcy nic nie kosztuje! Wręcz - możemy zaoszczędzić na cenie. Mogę przygotować kalkulację, ile zaoszczędzilibyście przy Państwa wolumenie." },
+            new Objection { ClientSays = "Muszę porównać ceny", Response = "Jak najbardziej! Wyślę ofertę cenową z pełnym katalogiem. Mamy ceny na tuszki, filet, udka, skrzydła - wszystko do porównania." },
+
+            // --- Jakość / Wątpliwości ---
+            new Objection { ClientSays = "Skąd macie drób?", Response = "Pracujemy z certyfikowanymi polskimi fermami i ubojniami. Pełna dokumentacja, certyfikaty weterynaryjne, system HACCP. Mogę przesłać kopie dokumentów." },
+            new Objection { ClientSays = "A co z jakością?", Response = "Jakość to nasz priorytet. Tuszka klasy A, max 24h od uboju, transport chłodniczy. Proponuję dostawę próbną - sami ocenicie jakość." },
+            new Objection { ClientSays = "Jak gwarantujecie świeżość?", Response = "Łańcuch chłodniczy od uboju po dostawę. Max 24h. Transport chłodziami 0-4°C. Każda partia z datą uboju i badaniem weterynaryjnym." },
+            new Objection { ClientSays = "Czy macie certyfikaty?", Response = "Tak - pełna dokumentacja: certyfikat weterynaryjny, HACCP, decyzja PIW. Dla klientów sieci handlowych mamy też audyty. Przesłać kopie?" },
+            new Objection { ClientSays = "Byliśmy już spaleni przez dostawcę", Response = "Rozumiem obawy. Dlatego proponuję zacząć od małej próbnej dostawy. Zero zobowiązań. Sprawdzicie jakość, terminowość - potem zdecydujecie." },
+            new Objection { ClientSays = "Wolimy mrożone, bo dłużej się trzyma", Response = "To logiczne. Mamy też mrożony drób. Ale przy regularnych dostawach 2-3x/tydz. świeży jest smaczniejszy i klienci go wolą. Mogę zaproponować oba?" },
+
+            // --- Logistyka / Dostawy ---
+            new Objection { ClientSays = "Nie dostarczacie w nasz rejon", Response = "W jakim rejonie dokładnie jesteście? Poszerzamy zasięg. Jeśli macie stałe zamówienie, na pewno znajdziemy rozwiązanie logistyczne." },
+            new Objection { ClientSays = "Potrzebujemy dostaw codziennie", Response = "Dostarczamy 6 dni w tygodniu - od poniedziałku do soboty. Codzienne dostawy to standard dla naszych stałych klientów. Żaden problem!" },
+            new Objection { ClientSays = "Minimalne zamówienie jest za duże", Response = "Jakie ilości Państwu odpowiadają? Dla stałych klientów mamy elastyczne minimum. Powiedzcie ile kg tygodniowo - na pewno się dogadamy." },
+            new Objection { ClientSays = "A co jeśli towar nie dotrze na czas?", Response = "Terminowość to podstawa naszego biznesu. Mamy własną flotę chłodniczą. W przypadku opóźnienia powyżej godziny - rabat na następne zamówienie." },
+
+            // --- Decyzja / Proces ---
+            new Objection { ClientSays = "Muszę się zastanowić", Response = "Jasne, to ważna decyzja. Co konkretnie chciałby Pan/Pani przemyśleć? Może mogę pomóc z dodatkowymi informacjami?" },
+            new Objection { ClientSays = "Muszę porozmawiać z szefem/właścicielem", Response = "Oczywiście! Kiedy będzie Pan/Pani mógł/mogła to omówić? Oddzwonię po tej rozmowie. A może mógłbym porozmawiać bezpośrednio?" },
+            new Objection { ClientSays = "Nie ja decyduję o zakupach", Response = "Rozumiem. Kto u Państwa odpowiada za zamówienia mięsa? Może podałby Pan/Pani numer lub nazwisko, żebym mógł się skontaktować?" },
+            new Objection { ClientSays = "Odezwiemy się sami jeśli będziemy zainteresowani", Response = "Oczywiście! Ale z doświadczenia wiem, że oferta łatwo ginie w codziennej pracy. Czy mogę oddzwonić za tydzień, żeby krótko przypomnieć?" },
+            new Objection { ClientSays = "Teraz nie jest dobry moment na zmiany", Response = "Rozumiem. Kiedy byłby dobry moment? Mogę zadzwonić np. za miesiąc. W międzyczasie wyślę cennik, żebyście mieli do porównania." },
+
+            // --- Ilości / Specyficzne ---
+            new Objection { ClientSays = "Potrzebujemy małe ilości", Response = "Żaden problem! Mamy klientów zamawiających od 50kg tygodniowo. Przy mniejszych ilościach też dajemy uczciwe ceny. Ile Państwo potrzebują?" },
+            new Objection { ClientSays = "Kupujemy tylko filet z piersi", Response = "Filet z piersi to nasz bestseller! Mamy go w super cenie. A czy wiedzą Państwo, że filet z udka jest coraz popularniejszy i tańszy o 30-40%?" },
+            new Objection { ClientSays = "Mamy własny ubój/hodowlę", Response = "Gratulacje! Ale czy zawsze pokrywacie pełne zapotrzebowanie? Wielu producentów bierze od nas dodatkowe elementy w sezonie. Mamy też okazyjne ceny hurtowe." },
+            new Objection { ClientSays = "Interesują nas tylko polskie kurczaki", Response = "Nasz drób to 100% polska produkcja. Polskie fermy, polskie ubojnie, polscy pracownicy. Mogę przesłać dokumentację pochodzenia." },
+            new Objection { ClientSays = "Nie sprzedajemy mięsa", Response = "Rozumiem. A czy w kuchni/gastronomii używacie drobiu? Dostarczamy też do restauracji, stołówek, cateringu. Ile kg tygodniowo zużywacie?" },
+            new Objection { ClientSays = "Mięso drobiowe słabo nam się sprzedaje", Response = "Ciekawe - u większości naszych klientów drób to #1 w sprzedaży mięsa. Może kwestia jakości produktu? Nasz świeży drób 24h od uboju robi różnicę." },
         };
 
         private static readonly string[] Statuses = new[]
@@ -693,12 +866,20 @@ namespace Kalendarz1.CRM
         {
             var phase = _phases[_currentPhase];
 
-            txtPhaseIcon.Text = phase.Icon;
+            // Update phase icon (Path data)
+            try { pathPhaseIcon.Data = Geometry.Parse(phase.IconPath); } catch { }
+
             txtPhaseName.Text = phase.Name;
             txtPhaseNumber.Text = $"Faza {_currentPhase + 1} z {_phases.Count}";
-            txtScript.Text = phase.Script;
-            txtFlowTip.Text = phase.Tip;
 
+            // Pick random script for this phase
+            _currentScriptIndex = _rng.Next(phase.Scripts.Length);
+            txtScript.Text = phase.Scripts[_currentScriptIndex];
+
+            // Pick random tip
+            txtFlowTip.Text = phase.Tips[_rng.Next(phase.Tips.Length)];
+
+            // Update tab backgrounds
             var activeBg = new SolidColorBrush(Color.FromRgb(30, 58, 95));
             var inactiveBg = new SolidColorBrush(Color.FromRgb(17, 17, 17));
 
@@ -709,11 +890,72 @@ namespace Kalendarz1.CRM
 
             btnPrevPhase.IsEnabled = _currentPhase > 0;
 
+            // Update objections
+            PopulateObjections();
+
             // Update flow stats
             txtStatToday.Text = _callsCount.ToString();
             int completed = _contacts?.Count(c => c.IsCompleted) ?? 0;
             int total = _contacts?.Count ?? 0;
             txtStatRate.Text = total > 0 ? $"{(completed * 100 / total)}%" : "0%";
+        }
+
+        private void PopulateObjections()
+        {
+            objectionsList.Children.Clear();
+
+            // Pick 4 random objections
+            var shuffled = AllObjections.OrderBy(_ => _rng.Next()).Take(4).ToArray();
+
+            foreach (var obj in shuffled)
+            {
+                var sp = new StackPanel { Margin = new Thickness(0, 0, 0, 8) };
+
+                var clientText = new TextBlock
+                {
+                    Text = $"\u00AB{obj.ClientSays}\u00BB",
+                    Foreground = new SolidColorBrush(Color.FromRgb(248, 113, 113)),
+                    FontSize = 12,
+                    FontWeight = FontWeights.Medium
+                };
+                sp.Children.Add(clientText);
+
+                var responseText = new TextBlock
+                {
+                    Text = $"\u2192 {obj.Response}",
+                    Foreground = new SolidColorBrush(Color.FromRgb(170, 170, 170)),
+                    FontSize = 12,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(10, 3, 0, 0),
+                    LineHeight = 18
+                };
+                sp.Children.Add(responseText);
+
+                objectionsList.Children.Add(sp);
+            }
+        }
+
+        private void BtnShuffleScript_Click(object sender, RoutedEventArgs e)
+        {
+            var phase = _phases[_currentPhase];
+            int newIndex;
+            if (phase.Scripts.Length > 1)
+            {
+                do { newIndex = _rng.Next(phase.Scripts.Length); }
+                while (newIndex == _currentScriptIndex);
+                _currentScriptIndex = newIndex;
+            }
+            else
+            {
+                _currentScriptIndex = 0;
+            }
+            txtScript.Text = phase.Scripts[_currentScriptIndex];
+            txtFlowTip.Text = phase.Tips[_rng.Next(phase.Tips.Length)];
+        }
+
+        private void BtnShuffleObjections_Click(object sender, RoutedEventArgs e)
+        {
+            PopulateObjections();
         }
 
         private void PhaseTab_Click(object sender, RoutedEventArgs e)
