@@ -203,6 +203,10 @@ namespace Kalendarz1.Kartoteka.Views
             _expandedCard = null;
             _selectedOdbiorca = null;
 
+            // ── Column headers ──
+            var header = CreateHeaderRow();
+            AccordionPanel.Children.Add(header);
+
             foreach (var o in odbiorcy)
             {
                 var card = CreateCustomerCard(o);
@@ -227,6 +231,76 @@ namespace Kalendarz1.Kartoteka.Views
             }
         }
 
+        private Grid CreateCardColumnDefinitions()
+        {
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(18) });   // 0: Status dot
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 160 }); // 1: Firma + miasto
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });  // 2: NIP
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(95) });   // 3: Kontakt
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(65) });   // 4: Forma płatn.
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(48) });   // 5: Termin
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(85) });   // 6: Limit
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(85) });   // 7: Bilans
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });   // 8: Przetermin.
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) });   // 9: % limitu
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(65) });   // 10: Ost. faktura
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });   // 11: Kategoria
+            if (_isAdmin)
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(75) }); // 12: Handlowiec
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(22) });   // Arrow
+            return grid;
+        }
+
+        private Border CreateHeaderRow()
+        {
+            var header = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(249, 250, 251)), // #F9FAFB
+                BorderBrush = new SolidColorBrush(Color.FromRgb(209, 213, 219)), // #D1D5DB
+                BorderThickness = new Thickness(0, 0, 0, 2),
+                Padding = new Thickness(12, 6, 12, 6),
+                Margin = new Thickness(0, 0, 0, 1)
+            };
+
+            var grid = CreateCardColumnDefinitions();
+            var grayBrush = new SolidColorBrush(Color.FromRgb(107, 114, 128)); // #6B7280
+
+            string[] headers = _isAdmin
+                ? new[] { "", "Firma", "NIP", "Kontakt", "Forma", "Termin", "Limit", "Bilans", "Przeter.", "%", "Ost.fakt.", "Kat.", "Handl.", "" }
+                : new[] { "", "Firma", "NIP", "Kontakt", "Forma", "Termin", "Limit", "Bilans", "Przeter.", "%", "Ost.fakt.", "Kat.", "" };
+
+            for (int i = 0; i < headers.Length; i++)
+            {
+                var tb = new TextBlock
+                {
+                    Text = headers[i],
+                    FontSize = 10,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = grayBrush,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    TextTrimming = TextTrimming.CharacterEllipsis
+                };
+
+                // Right-align numeric columns
+                if (i >= 6 && i <= 9)
+                {
+                    tb.HorizontalAlignment = HorizontalAlignment.Right;
+                    tb.Margin = new Thickness(0, 0, 8, 0);
+                }
+                if (i == 10) // Ost. faktura
+                    tb.HorizontalAlignment = HorizontalAlignment.Center;
+                if (i == 11) // Kat.
+                    tb.HorizontalAlignment = HorizontalAlignment.Center;
+
+                Grid.SetColumn(tb, i);
+                grid.Children.Add(tb);
+            }
+
+            header.Child = grid;
+            return header;
+        }
+
         private Border CreateCustomerCard(OdbiorcaHandlowca odbiorca)
         {
             var card = new Border
@@ -234,9 +308,9 @@ namespace Kalendarz1.Kartoteka.Views
                 Background = Brushes.White,
                 BorderBrush = new SolidColorBrush(Color.FromRgb(229, 231, 235)),
                 BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(6),
-                Padding = new Thickness(12, 8, 12, 8),
-                Margin = new Thickness(0, 0, 0, 2),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(12, 6, 12, 6),
+                Margin = new Thickness(0, 0, 0, 1),
                 Cursor = Cursors.Hand,
                 Tag = odbiorca
             };
@@ -266,17 +340,7 @@ namespace Kalendarz1.Kartoteka.Views
                     break;
             }
 
-            var grid = new Grid();
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) });   // Status dot
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Company + city
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });  // Kontakt
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });   // Limit
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });   // Bilans
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });   // Ost. faktura
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });   // Kategoria
-            if (_isAdmin)
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) }); // Handlowiec
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) });   // Arrow
+            var grid = CreateCardColumnDefinitions();
 
             int col = 0;
 
@@ -284,8 +348,8 @@ namespace Kalendarz1.Kartoteka.Views
             var statusColor = GetAlertColor(odbiorca.AlertType);
             var dot = new Border
             {
-                Width = 10, Height = 10,
-                CornerRadius = new CornerRadius(5),
+                Width = 8, Height = 8,
+                CornerRadius = new CornerRadius(4),
                 Background = statusColor,
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Center,
@@ -300,37 +364,74 @@ namespace Kalendarz1.Kartoteka.Views
             {
                 Text = string.IsNullOrEmpty(odbiorca.Skrot) ? odbiorca.NazwaFirmy : odbiorca.Skrot,
                 FontWeight = FontWeights.SemiBold,
-                FontSize = 13,
+                FontSize = 12,
                 TextTrimming = TextTrimming.CharacterEllipsis,
-                MaxWidth = 250,
+                MaxWidth = 180,
                 ToolTip = odbiorca.NazwaFirmy
             });
             nameStack.Children.Add(new TextBlock
             {
                 Text = $"  {odbiorca.Miasto}",
                 Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
-                FontSize = 11,
-                VerticalAlignment = VerticalAlignment.Center
+                FontSize = 10,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis
             });
             Grid.SetColumn(nameStack, col++);
             grid.Children.Add(nameStack);
+
+            // NIP
+            var nipText = new TextBlock
+            {
+                Text = odbiorca.NIP ?? "",
+                FontSize = 10,
+                Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            };
+            Grid.SetColumn(nipText, col++);
+            grid.Children.Add(nipText);
 
             // Kontakt
             var kontaktText = new TextBlock
             {
                 Text = odbiorca.OsobaKontaktowa ?? "",
                 Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
-                FontSize = 11,
+                FontSize = 10,
                 VerticalAlignment = VerticalAlignment.Center,
                 TextTrimming = TextTrimming.CharacterEllipsis
             };
             Grid.SetColumn(kontaktText, col++);
             grid.Children.Add(kontaktText);
 
+            // Forma płatności
+            var formaText = new TextBlock
+            {
+                Text = odbiorca.FormaPlatnosci ?? "",
+                FontSize = 10,
+                Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            };
+            Grid.SetColumn(formaText, col++);
+            grid.Children.Add(formaText);
+
+            // Termin płatności
+            var terminText = new TextBlock
+            {
+                Text = odbiorca.TerminPlatnosci > 0 ? $"{odbiorca.TerminPlatnosci}d" : "",
+                FontSize = 10,
+                Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+            Grid.SetColumn(terminText, col++);
+            grid.Children.Add(terminText);
+
             // Limit
             var limitText = new TextBlock
             {
-                Text = $"{odbiorca.LimitKupiecki:N0}",
+                Text = odbiorca.LimitKupiecki > 0 ? $"{odbiorca.LimitKupiecki:N0}" : "-",
                 FontSize = 11,
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Right,
@@ -343,7 +444,7 @@ namespace Kalendarz1.Kartoteka.Views
             var bilansText = new TextBlock
             {
                 Text = $"{odbiorca.Bilans:N0}",
-                FontWeight = FontWeights.Bold,
+                FontWeight = FontWeights.SemiBold,
                 FontSize = 11,
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Right,
@@ -354,6 +455,39 @@ namespace Kalendarz1.Kartoteka.Views
             };
             Grid.SetColumn(bilansText, col++);
             grid.Children.Add(bilansText);
+
+            // Przeterminowane
+            var przeterText = new TextBlock
+            {
+                Text = odbiorca.KwotaPrzeterminowana > 0 ? $"{odbiorca.KwotaPrzeterminowana:N0}" : "-",
+                FontSize = 10,
+                FontWeight = odbiorca.KwotaPrzeterminowana > 0 ? FontWeights.SemiBold : FontWeights.Normal,
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 0, 8, 0),
+                Foreground = odbiorca.KwotaPrzeterminowana > 0
+                    ? new SolidColorBrush(Color.FromRgb(220, 38, 38))    // red
+                    : new SolidColorBrush(Color.FromRgb(156, 163, 175))  // gray
+            };
+            Grid.SetColumn(przeterText, col++);
+            grid.Children.Add(przeterText);
+
+            // % limitu
+            var procentText = new TextBlock
+            {
+                Text = odbiorca.LimitKupiecki > 0 ? $"{odbiorca.ProcentWykorzystania:N0}%" : "",
+                FontSize = 10,
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 0, 8, 0),
+                Foreground = odbiorca.ProcentWykorzystania > 100
+                    ? new SolidColorBrush(Color.FromRgb(220, 38, 38))
+                    : odbiorca.ProcentWykorzystania > 80
+                        ? new SolidColorBrush(Color.FromRgb(234, 179, 8))
+                        : new SolidColorBrush(Color.FromRgb(107, 114, 128))
+            };
+            Grid.SetColumn(procentText, col++);
+            grid.Children.Add(procentText);
 
             // Last invoice date
             var fakturaText = new TextBlock
@@ -370,7 +504,7 @@ namespace Kalendarz1.Kartoteka.Views
             // Kategoria badge
             var katBorder = new Border
             {
-                Width = 26, Height = 26, CornerRadius = new CornerRadius(13),
+                Width = 24, Height = 24, CornerRadius = new CornerRadius(12),
                 Background = GetKategoriaBackground(odbiorca.KategoriaHandlowca),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
@@ -381,7 +515,7 @@ namespace Kalendarz1.Kartoteka.Views
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 FontWeight = FontWeights.Bold,
-                FontSize = 11,
+                FontSize = 10,
                 Foreground = GetKategoriaForeground(odbiorca.KategoriaHandlowca)
             };
             Grid.SetColumn(katBorder, col++);
@@ -406,7 +540,7 @@ namespace Kalendarz1.Kartoteka.Views
             var arrow = new TextBlock
             {
                 Text = "▼",
-                FontSize = 10,
+                FontSize = 9,
                 Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)),
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Center
@@ -603,8 +737,9 @@ namespace Kalendarz1.Kartoteka.Views
             return kat switch
             {
                 "A" => new SolidColorBrush(Color.FromRgb(220, 252, 231)), // green-100
-                "B" => new SolidColorBrush(Color.FromRgb(254, 249, 195)), // yellow-100
-                _ => new SolidColorBrush(Color.FromRgb(243, 244, 246))    // gray-100
+                "B" => new SolidColorBrush(Color.FromRgb(219, 234, 254)), // blue-100
+                "D" => new SolidColorBrush(Color.FromRgb(254, 226, 226)), // red-100
+                _ => new SolidColorBrush(Color.FromRgb(243, 244, 246))    // gray-100 (C)
             };
         }
 
@@ -613,8 +748,9 @@ namespace Kalendarz1.Kartoteka.Views
             return kat switch
             {
                 "A" => new SolidColorBrush(Color.FromRgb(22, 101, 52)),   // green-800
-                "B" => new SolidColorBrush(Color.FromRgb(133, 77, 14)),   // yellow-800
-                _ => new SolidColorBrush(Color.FromRgb(55, 65, 81))       // gray-700
+                "B" => new SolidColorBrush(Color.FromRgb(30, 64, 175)),   // blue-800
+                "D" => new SolidColorBrush(Color.FromRgb(153, 27, 27)),   // red-800
+                _ => new SolidColorBrush(Color.FromRgb(55, 65, 81))       // gray-700 (C)
             };
         }
 

@@ -43,6 +43,7 @@ namespace Kalendarz1.Kartoteka.Views
             {
                 case "A": RadioKatA.IsChecked = true; break;
                 case "B": RadioKatB.IsChecked = true; break;
+                case "D": RadioKatD.IsChecked = true; break;
                 default: RadioKatC.IsChecked = true; break;
             }
         }
@@ -66,6 +67,7 @@ namespace Kalendarz1.Kartoteka.Views
 
                 if (RadioKatA.IsChecked == true) _odbiorca.KategoriaHandlowca = "A";
                 else if (RadioKatB.IsChecked == true) _odbiorca.KategoriaHandlowca = "B";
+                else if (RadioKatD.IsChecked == true) _odbiorca.KategoriaHandlowca = "D";
                 else _odbiorca.KategoriaHandlowca = "C";
 
                 await _service.ZapiszDaneWlasneAsync(_odbiorca, _userName);

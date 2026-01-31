@@ -125,11 +125,13 @@
 
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                     <RadioButton x:Name="RadioKatA" Content="A (kluczowy)" GroupName="Kategoria"
-                                 Margin="0,0,16,0" FontWeight="SemiBold"/>
+                                 Margin="0,0,16,0" FontWeight="SemiBold" Foreground="#166534"/>
                     <RadioButton x:Name="RadioKatB" Content="B (regularny)" GroupName="Kategoria"
-                                 Margin="0,0,16,0" FontWeight="SemiBold"/>
+                                 Margin="0,0,16,0" FontWeight="SemiBold" Foreground="#1E40AF"/>
                     <RadioButton x:Name="RadioKatC" Content="C (sporadyczny)" GroupName="Kategoria"
-                                 IsChecked="True" FontWeight="SemiBold"/>
+                                 IsChecked="True" Margin="0,0,16,0" FontWeight="SemiBold" Foreground="#374151"/>
+                    <RadioButton x:Name="RadioKatD" Content="D (problematyczny)" GroupName="Kategoria"
+                                 Margin="0,0,16,0" FontWeight="SemiBold" Foreground="#991B1B"/>
                 </StackPanel>
 
                 <Border Height="1" Background="#E5E7EB" Margin="0,8,0,16"/>
