@@ -1320,12 +1320,18 @@
                     <!-- Nagłówek panelu -->
                     <Border Grid.Row="0" Background="#FEF3C7" CornerRadius="10,10,0,0" Padding="16,10">
                         <DockPanel>
-                            <TextBlock Text="🔔 Braki danych do uzupełnienia" FontWeight="Bold" FontSize="14"
-                                       Foreground="#92400E" VerticalAlignment="Center"/>
                             <Button Content="✕" DockPanel.Dock="Right" Background="Transparent"
                                     BorderThickness="0" FontSize="14" Foreground="#92400E"
                                     Cursor="Hand" Click="ButtonZamknijPowiadomienia_Click"
                                     HorizontalAlignment="Right" Padding="4,0"/>
+                            <Button Content="📥 Eksport arkusza" DockPanel.Dock="Right"
+                                    Background="#92400E" Foreground="White" FontSize="10"
+                                    Padding="8,3" Margin="0,0,8,0" Cursor="Hand"
+                                    BorderThickness="0" FontWeight="SemiBold"
+                                    Click="ButtonExportArkusz_Click"
+                                    ToolTip="Eksportuj arkusze do uzupełnienia na kartce"/>
+                            <TextBlock Text="🔔 Braki danych" FontWeight="Bold" FontSize="14"
+                                       Foreground="#92400E" VerticalAlignment="Center"/>
                         </DockPanel>
                     </Border>
 

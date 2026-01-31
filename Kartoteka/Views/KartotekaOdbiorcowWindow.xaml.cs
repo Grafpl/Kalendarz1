@@ -1180,6 +1180,225 @@ namespace Kalendarz1.Kartoteka.Views
             }
         }
 
+        private async void ButtonExportArkusz_Click(object sender, RoutedEventArgs e)
+        {
+            await ExportArkuszDoUzupelnienia();
+        }
+
+        private async System.Threading.Tasks.Task ExportArkuszDoUzupelnienia()
+        {
+            var items = _allOdbiorcy;
+            if (items == null || !items.Any())
+            {
+                MessageBox.Show("Brak danych do eksportu.", "Export", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var saveDialog = new SaveFileDialog
+            {
+                Filter = "Excel (*.xlsx)|*.xlsx",
+                FileName = $"Braki_danych_odbiorcy_{DateTime.Now:yyyy-MM-dd}.xlsx"
+            };
+
+            if (saveDialog.ShowDialog() != true) return;
+
+            try
+            {
+                // Load all contacts in one batch
+                var allKontakty = await _service.PobierzWszystkieKontaktyAsync();
+
+                var contactTypes = new[] { "Zakupowiec", "Księgowość", "Opakowania" };
+
+                using var workbook = new XLWorkbook();
+                var ws = workbook.Worksheets.Add("Do uzupełnienia");
+
+                // ── Page setup for printing ──
+                ws.PageSetup.PageOrientation = XLPageOrientation.Landscape;
+                ws.PageSetup.PaperSize = XLPaperSize.A4Paper;
+                ws.PageSetup.Margins.Left = 0.4;
+                ws.PageSetup.Margins.Right = 0.4;
+                ws.PageSetup.Margins.Top = 0.5;
+                ws.PageSetup.Margins.Bottom = 0.3;
+                ws.PageSetup.FitToPages(1, 0); // fit width to 1 page
+
+                // ── Column widths ──
+                ws.Column(1).Width = 5;    // Lp.
+                ws.Column(2).Width = 28;   // Firma
+                ws.Column(3).Width = 14;   // NIP
+                ws.Column(4).Width = 14;   // Typ kontaktu
+                ws.Column(5).Width = 22;   // Imię i Nazwisko
+                ws.Column(6).Width = 16;   // Telefon
+                ws.Column(7).Width = 28;   // Email
+                ws.Column(8).Width = 24;   // Email firmowy (główny)
+
+                // ── Title ──
+                ws.Cell(1, 1).Value = $"BRAKI DANYCH DO UZUPEŁNIENIA — {_userName} — {DateTime.Now:dd.MM.yyyy}";
+                ws.Range(1, 1, 1, 8).Merge();
+                ws.Cell(1, 1).Style.Font.Bold = true;
+                ws.Cell(1, 1).Style.Font.FontSize = 14;
+                ws.Cell(1, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+                ws.Cell(2, 1).Value = "Uzupełnij puste pola. Już wypełnione dane zostaw bez zmian.";
+                ws.Range(2, 1, 2, 8).Merge();
+                ws.Cell(2, 1).Style.Font.Italic = true;
+                ws.Cell(2, 1).Style.Font.FontColor = XLColor.FromHtml("#6B7280");
+                ws.Cell(2, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+                // ── Headers ──
+                int row = 4;
+                var headers = new[] { "Lp.", "Firma", "NIP", "Typ kontaktu", "Imię i Nazwisko", "Telefon", "Email kontaktu", "Email firmowy" };
+                for (int i = 0; i < headers.Length; i++)
+                    ws.Cell(row, i + 1).Value = headers[i];
+
+                var headerRange = ws.Range(row, 1, row, headers.Length);
+                headerRange.Style.Font.Bold = true;
+                headerRange.Style.Font.FontColor = XLColor.White;
+                headerRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#166534");
+                headerRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                headerRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                headerRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+
+                row++;
+
+                // ── Data rows ──
+                int lp = 0;
+                foreach (var o in items.OrderBy(x => x.Skrot ?? x.NazwaFirmy))
+                {
+                    // Check what's missing
+                    bool brakEmail = string.IsNullOrWhiteSpace(o.EmailKontakt);
+                    bool brakOsoby = string.IsNullOrWhiteSpace(o.OsobaKontaktowa);
+
+                    // Get existing contacts
+                    allKontakty.TryGetValue(o.IdSymfonia, out var kontakty);
+                    kontakty ??= new List<KontaktOdbiorcy>();
+
+                    // Check which contact types are missing
+                    var missingTypes = new List<string>();
+                    foreach (var ct in contactTypes)
+                    {
+                        var matchType = ct == "Zakupowiec" ? "Główny" : ct;
+                        if (!kontakty.Any(k => k.TypKontaktu == matchType && !string.IsNullOrWhiteSpace(k.PelneNazwisko)))
+                            missingTypes.Add(ct);
+                    }
+
+                    // Skip if everything is filled
+                    if (!brakEmail && !brakOsoby && missingTypes.Count == 0) continue;
+
+                    lp++;
+                    int startRow = row;
+                    string firma = string.IsNullOrEmpty(o.Skrot) ? o.NazwaFirmy : o.Skrot;
+
+                    // One row per contact type
+                    foreach (var ct in contactTypes)
+                    {
+                        var matchType = ct == "Zakupowiec" ? "Główny" : ct;
+                        var existing = kontakty.FirstOrDefault(k => k.TypKontaktu == matchType);
+
+                        ws.Cell(row, 4).Value = ct;
+                        ws.Cell(row, 4).Style.Font.Bold = true;
+                        ws.Cell(row, 4).Style.Font.FontSize = 9;
+
+                        if (existing != null && !string.IsNullOrWhiteSpace(existing.PelneNazwisko))
+                        {
+                            // Already filled — show in gray
+                            ws.Cell(row, 5).Value = existing.PelneNazwisko;
+                            ws.Cell(row, 5).Style.Font.FontColor = XLColor.FromHtml("#9CA3AF");
+                            ws.Cell(row, 6).Value = existing.Telefon;
+                            ws.Cell(row, 6).Style.Font.FontColor = XLColor.FromHtml("#9CA3AF");
+                            ws.Cell(row, 7).Value = existing.Email;
+                            ws.Cell(row, 7).Style.Font.FontColor = XLColor.FromHtml("#9CA3AF");
+                        }
+                        else
+                        {
+                            // Empty — highlight for filling
+                            var emptyRange = ws.Range(row, 5, row, 7);
+                            emptyRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#FEF2F2");
+                            emptyRange.Style.Border.BottomBorder = XLBorderStyleValues.Dotted;
+                            emptyRange.Style.Border.BottomBorderColor = XLColor.FromHtml("#FCA5A5");
+                        }
+                        row++;
+                    }
+
+                    // Merge Lp, Firma, NIP, Email firmowy across the 3 rows
+                    int endRow = row - 1;
+
+                    ws.Cell(startRow, 1).Value = lp;
+                    ws.Range(startRow, 1, endRow, 1).Merge();
+                    ws.Range(startRow, 1, endRow, 1).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+                    ws.Range(startRow, 1, endRow, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+                    ws.Cell(startRow, 2).Value = firma;
+                    ws.Range(startRow, 2, endRow, 2).Merge();
+                    ws.Range(startRow, 2, endRow, 2).Style.Font.Bold = true;
+                    ws.Range(startRow, 2, endRow, 2).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+
+                    ws.Cell(startRow, 3).Value = o.NIP;
+                    ws.Range(startRow, 3, endRow, 3).Merge();
+                    ws.Range(startRow, 3, endRow, 3).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+                    ws.Range(startRow, 3, endRow, 3).Style.Font.FontSize = 9;
+
+                    // Email firmowy column
+                    ws.Range(startRow, 8, endRow, 8).Merge();
+                    ws.Range(startRow, 8, endRow, 8).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+                    if (brakEmail)
+                    {
+                        ws.Range(startRow, 8, endRow, 8).Style.Fill.BackgroundColor = XLColor.FromHtml("#FEF2F2");
+                        ws.Range(startRow, 8, endRow, 8).Style.Border.BottomBorder = XLBorderStyleValues.Dotted;
+                        ws.Range(startRow, 8, endRow, 8).Style.Border.BottomBorderColor = XLColor.FromHtml("#FCA5A5");
+                    }
+                    else
+                    {
+                        ws.Cell(startRow, 8).Value = o.EmailKontakt;
+                        ws.Cell(startRow, 8).Style.Font.FontColor = XLColor.FromHtml("#9CA3AF");
+                    }
+
+                    // Borders around the customer block
+                    var blockRange = ws.Range(startRow, 1, endRow, 8);
+                    blockRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                    blockRange.Style.Border.OutsideBorderColor = XLColor.FromHtml("#D1D5DB");
+                    blockRange.Style.Border.InsideBorder = XLBorderStyleValues.Hair;
+                    blockRange.Style.Border.InsideBorderColor = XLColor.FromHtml("#E5E7EB");
+
+                    // Alternate row shading per customer
+                    if (lp % 2 == 0)
+                    {
+                        for (int r = startRow; r <= endRow; r++)
+                        {
+                            for (int c = 1; c <= 4; c++)
+                            {
+                                if (ws.Cell(r, c).Style.Fill.BackgroundColor == XLColor.NoColor ||
+                                    ws.Cell(r, c).Style.Fill.BackgroundColor.Color.ToHex() == "FF000000")
+                                    ws.Cell(r, c).Style.Fill.BackgroundColor = XLColor.FromHtml("#F9FAFB");
+                            }
+                        }
+                    }
+                }
+
+                // ── Summary at bottom ──
+                row += 1;
+                ws.Cell(row, 1).Value = $"Łącznie: {lp} odbiorców z brakami danych";
+                ws.Range(row, 1, row, 8).Merge();
+                ws.Cell(row, 1).Style.Font.Bold = true;
+                ws.Cell(row, 1).Style.Font.FontColor = XLColor.FromHtml("#92400E");
+
+                // ── Print settings ──
+                ws.PageSetup.PrintAreas.Clear();
+                ws.PageSetup.PrintAreas.Add(1, 1, row, 8);
+                ws.SheetView.FreezeRows(4);
+
+                workbook.SaveAs(saveDialog.FileName);
+
+                MessageBox.Show($"Wyeksportowano arkusz z {lp} odbiorcami do uzupełnienia.", "Export", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // Open the file
+                try { Process.Start(new ProcessStartInfo { FileName = saveDialog.FileName, UseShellExecute = true }); } catch { }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd eksportu: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         // ═══════════════════════════════════════════
         // SZCZEGÓŁY - aktualizacja paneli
         // ═══════════════════════════════════════════

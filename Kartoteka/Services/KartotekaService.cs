@@ -364,6 +364,44 @@ WHEN NOT MATCHED THEN
             return result;
         }
 
+        public async Task<Dictionary<int, List<KontaktOdbiorcy>>> PobierzWszystkieKontaktyAsync()
+        {
+            var result = new Dictionary<int, List<KontaktOdbiorcy>>();
+
+            using var conn = new SqlConnection(_libraNetConnectionString);
+            await conn.OpenAsync();
+
+            var sql = @"SELECT Id, IdSymfonia, TypKontaktu, Imie, Nazwisko, Telefon, Email, Stanowisko, Notatka, DataUtworzenia, DataModyfikacji
+                        FROM dbo.KartotekaOdbiorcyKontakty
+                        ORDER BY IdSymfonia";
+
+            using var cmd = new SqlCommand(sql, conn);
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var idSym = reader.GetInt32(reader.GetOrdinal("IdSymfonia"));
+                var kontakt = new KontaktOdbiorcy
+                {
+                    Id = reader.GetInt32(reader.GetOrdinal("Id")),
+                    IdSymfonia = idSym,
+                    TypKontaktu = reader["TypKontaktu"]?.ToString() ?? "",
+                    Imie = reader["Imie"]?.ToString() ?? "",
+                    Nazwisko = reader["Nazwisko"]?.ToString() ?? "",
+                    Telefon = reader["Telefon"]?.ToString() ?? "",
+                    Email = reader["Email"]?.ToString() ?? "",
+                    Stanowisko = reader["Stanowisko"]?.ToString() ?? "",
+                    Notatka = reader["Notatka"]?.ToString() ?? "",
+                    DataUtworzenia = reader.GetDateTime(reader.GetOrdinal("DataUtworzenia")),
+                    DataModyfikacji = reader.IsDBNull(reader.GetOrdinal("DataModyfikacji")) ? null : (DateTime?)reader.GetDateTime(reader.GetOrdinal("DataModyfikacji"))
+                };
+                if (!result.ContainsKey(idSym))
+                    result[idSym] = new List<KontaktOdbiorcy>();
+                result[idSym].Add(kontakt);
+            }
+
+            return result;
+        }
+
         public async Task ZapiszKontaktAsync(KontaktOdbiorcy kontakt)
         {
             using var conn = new SqlConnection(_libraNetConnectionString);
