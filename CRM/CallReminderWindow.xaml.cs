@@ -294,6 +294,9 @@ namespace Kalendarz1.CRM
 
         private void FilterTab_Checked(object sender, RoutedEventArgs e)
         {
+            // Guard against firing during InitializeComponent
+            if (tabAll == null || tabNew == null || tabHot == null || _contacts == null) return;
+
             if (sender is ToggleButton tb)
             {
                 // Uncheck other tabs
