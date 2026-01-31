@@ -40,10 +40,8 @@ namespace Kalendarz1.Kartoteka.Views
         private string _sortColumn = "OstFaktura";
         private bool _sortAscending = false;
 
-        // Lazy loading state
-        private const int _cardsPageSize = 100;
-        private int _cardsRendered = 0;
-        private bool _isLoadingMore = false;
+        // Card generation batch size for non-blocking UI
+        private const int _cardsBatchSize = 50;
 
         public string UserID
         {
@@ -209,7 +207,7 @@ namespace Kalendarz1.Kartoteka.Views
         // ACCORDION - Generowanie kart
         // ═══════════════════════════════════════════
 
-        private void GenerateCards(List<OdbiorcaHandlowca> odbiorcy)
+        private async System.Threading.Tasks.Task GenerateCardsAsync(List<OdbiorcaHandlowca> odbiorcy)
         {
             // Remember expanded state
             var expandedId = _selectedOdbiorca?.IdSymfonia;
@@ -220,21 +218,22 @@ namespace Kalendarz1.Kartoteka.Views
 
             _expandedCard = null;
             _selectedOdbiorca = null;
-            _cardsRendered = 0;
 
             // ── Sticky column headers ──
             var header = CreateHeaderRow();
             HeaderRowContainer.Child = header;
             HeaderRowContainer.Visibility = Visibility.Visible;
 
-            // Render only first batch for performance
-            var initialBatch = Math.Min(_cardsPageSize, odbiorcy.Count);
-            for (int i = 0; i < initialBatch; i++)
+            // Generate cards in batches, yielding to UI thread between batches
+            for (int i = 0; i < odbiorcy.Count; i++)
             {
                 var card = CreateCustomerCard(odbiorcy[i]);
                 AccordionPanel.Children.Add(card);
+
+                // Yield to UI thread every batch to keep it responsive
+                if ((i + 1) % _cardsBatchSize == 0)
+                    await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);
             }
-            _cardsRendered = initialBatch;
 
             // Add DetailPanel back at the end (collapsed)
             AccordionPanel.Children.Add(DetailPanel);
@@ -250,39 +249,6 @@ namespace Kalendarz1.Kartoteka.Views
                         ExpandCard(card, o);
                         break;
                     }
-                }
-            }
-        }
-
-        private void LoadMoreCards()
-        {
-            if (_isLoadingMore || _displayedOdbiorcy == null) return;
-            if (_cardsRendered >= _displayedOdbiorcy.Count) return;
-
-            _isLoadingMore = true;
-            var end = Math.Min(_cardsRendered + _cardsPageSize, _displayedOdbiorcy.Count);
-
-            // Insert before DetailPanel (which is always the last child)
-            var insertIndex = AccordionPanel.Children.Count - 1; // before DetailPanel
-
-            for (int i = _cardsRendered; i < end; i++)
-            {
-                var card = CreateCustomerCard(_displayedOdbiorcy[i]);
-                AccordionPanel.Children.Insert(insertIndex, card);
-                insertIndex++;
-            }
-            _cardsRendered = end;
-            _isLoadingMore = false;
-        }
-
-        private void AccordionScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
-        {
-            if (sender is ScrollViewer sv)
-            {
-                // Load more when within 200px of the bottom
-                if (sv.VerticalOffset >= sv.ScrollableHeight - 200)
-                {
-                    LoadMoreCards();
                 }
             }
         }
@@ -443,7 +409,7 @@ namespace Kalendarz1.Kartoteka.Views
             return "";
         }
 
-        private void ApplySortAndRegenerate()
+        private async void ApplySortAndRegenerate()
         {
             if (!string.IsNullOrEmpty(_sortColumn))
             {
@@ -495,7 +461,7 @@ namespace Kalendarz1.Kartoteka.Views
                 };
                 _displayedOdbiorcy = sorted;
             }
-            GenerateCards(_displayedOdbiorcy);
+            await GenerateCardsAsync(_displayedOdbiorcy);
         }
 
         private Border CreateCustomerCard(OdbiorcaHandlowca odbiorca)
