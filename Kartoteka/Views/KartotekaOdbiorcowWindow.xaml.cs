@@ -84,9 +84,6 @@ namespace Kalendarz1.Kartoteka.Views
 
         private async System.Threading.Tasks.Task LoadData()
         {
-            var debugTimings = new List<string>();
-            var totalSw = Stopwatch.StartNew();
-
             try
             {
                 LoadingOverlay.Visibility = Visibility.Visible;
@@ -113,7 +110,6 @@ namespace Kalendarz1.Kartoteka.Views
                 }
 
                 // Run EnsureTablesExist (LibraNet) and PobierzOdbiorcow (Handel) in parallel
-                var sw = Stopwatch.StartNew();
                 var taskEnsure = _service.EnsureTablesExistAsync();
                 var taskOdbiorcy = _service.PobierzOdbiorcowAsync(handlowiec, pokazWszystkich);
 
@@ -124,26 +120,17 @@ namespace Kalendarz1.Kartoteka.Views
 
                 await taskEnsure;
                 var odbiorcy = await taskOdbiorcy;
-                sw.Stop();
-                debugTimings.Add($"PobierzOdbiorcow + EnsureTables parallel ({odbiorcy.Count} rekordów): {sw.ElapsedMilliseconds} ms");
 
-                sw.Restart();
                 await _service.WczytajDaneWlasneAsync(odbiorcy);
-                sw.Stop();
-                debugTimings.Add($"WczytajDaneWlasne: {sw.ElapsedMilliseconds} ms");
 
                 _allOdbiorcy = odbiorcy;
                 _displayedOdbiorcy = odbiorcy;
 
-                sw.Restart();
                 ApplySortAndRegenerate();
-                sw.Stop();
-                debugTimings.Add($"ApplySortAndRegenerate ({_cardsRendered}/{_displayedOdbiorcy.Count} kart): {sw.ElapsedMilliseconds} ms");
 
                 // Finish handlowcy fetch
                 if (taskHandlowcy != null)
                 {
-                    sw.Restart();
                     var handlowcy = await taskHandlowcy;
                     ComboBoxHandlowiec.Items.Clear();
                     ComboBoxHandlowiec.Items.Add(new ComboBoxItem { Content = "Wszyscy", IsSelected = true });
@@ -151,8 +138,6 @@ namespace Kalendarz1.Kartoteka.Views
                     {
                         ComboBoxHandlowiec.Items.Add(new ComboBoxItem { Content = h });
                     }
-                    sw.Stop();
-                    debugTimings.Add($"PobierzHandlowcow (parallel): {sw.ElapsedMilliseconds} ms");
                 }
 
                 UpdateStatystyki();
@@ -166,10 +151,6 @@ namespace Kalendarz1.Kartoteka.Views
             {
                 LoadingOverlay.Visibility = Visibility.Collapsed;
             }
-
-            totalSw.Stop();
-            debugTimings.Insert(0, $"=== TOTAL: {totalSw.ElapsedMilliseconds} ms ===\n");
-            MessageBox.Show(string.Join("\n", debugTimings), "DEBUG - Czasy ładowania", MessageBoxButton.OK, MessageBoxImage.Information);
 
             _ = LoadAsortymentInBackground();
             _ = LoadTowaryAsync();
