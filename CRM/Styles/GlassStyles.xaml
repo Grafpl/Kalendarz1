@@ -358,8 +358,8 @@
                                       ClickMode="Press">
                             <ToggleButton.Template>
                                 <ControlTemplate TargetType="ToggleButton">
-                                    <Border x:Name="bd" Background="{TemplateBinding Background}"
-                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                    <Border x:Name="bd" Background="#151520"
+                                            BorderBrush="#1a1a24"
                                             BorderThickness="1" CornerRadius="6">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
@@ -375,6 +375,10 @@
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
                                             <Setter TargetName="bd" Property="BorderBrush" Value="#2a2a36"/>
+                                            <Setter TargetName="bd" Property="Background" Value="#1c1c28"/>
+                                        </Trigger>
+                                        <Trigger Property="IsChecked" Value="True">
+                                            <Setter TargetName="bd" Property="BorderBrush" Value="#58a6ff"/>
                                         </Trigger>
                                     </ControlTemplate.Triggers>
                                 </ControlTemplate>

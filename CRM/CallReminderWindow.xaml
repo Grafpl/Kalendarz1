@@ -247,6 +247,7 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
                         <!-- Header Row -->
@@ -519,6 +520,28 @@
                                     <TextBlock Text="👤" FontSize="12" Margin="0,0,6,0"/>
                                     <TextBlock x:Name="txtAssignedTo" Text="-" FontSize="12" Foreground="#66FFFFFF"/>
                                 </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- Cold Calling Tips -->
+                        <Border Grid.Row="8" Margin="0,14,0,0" Background="#0D2818"
+                                BorderBrush="#1A3fb950" BorderThickness="1" CornerRadius="10" Padding="16,12">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="💡" FontSize="16" VerticalAlignment="Top" Margin="0,0,10,0"/>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="TIP DNIA" FontSize="10" Foreground="#3fb950" FontWeight="Bold" Margin="0,0,0,4"/>
+                                    <TextBlock x:Name="txtCallTip" TextWrapping="Wrap" FontSize="12" Foreground="#86EFAC" LineHeight="18"
+                                               Text="Uśmiechnij się przed podniesieniem słuchawki - rozmówca to usłyszy w Twoim głosie!"/>
+                                </StackPanel>
+                                <Button Grid.Column="2" Style="{StaticResource GlassButton}" Width="28" Height="28"
+                                        Padding="0" VerticalAlignment="Top" Click="BtnNextTip_Click" ToolTip="Następna wskazówka">
+                                    <TextBlock Text="→" FontSize="14" Foreground="#3fb950" HorizontalAlignment="Center"/>
+                                </Button>
                             </Grid>
                         </Border>
                     </Grid>

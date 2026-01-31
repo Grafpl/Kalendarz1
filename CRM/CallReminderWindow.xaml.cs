@@ -33,6 +33,31 @@ namespace Kalendarz1.CRM
             "Zgoda na dalszy kontakt", "Nie zainteresowany", "Zamknięty"
         };
 
+        private int _currentTipIndex = 0;
+        private static readonly string[] ColdCallTips = new[]
+        {
+            "Uśmiechnij się przed podniesieniem słuchawki - rozmówca to usłyszy w Twoim głosie!",
+            "Pierwsze 10 sekund decyduje o rozmowie. Mów z energią i pewnością siebie.",
+            "Nie sprzedawaj od razu - najpierw zapytaj, czym się firma zajmuje i co ich boli.",
+            "\"Dzwonię, bo widzę że Państwo zajmujecie się...\" - pokaż, że odrobiliśmy lekcje.",
+            "Słuchaj 70%, mów 30%. Im więcej klient mówi, tym bliżej jesteś zamknięcia.",
+            "Po usłyszeniu \"nie\" zapytaj: \"Rozumiem, a gdybyśmy mogli...?\" - otwierasz nową drogę.",
+            "Dzwoń w najlepszych godzinach: 10:00-11:30 i 14:00-16:00. Unikaj poniedziałku rano.",
+            "Notuj słowa kluczowe klienta i powtarzaj je - poczuje się wysłuchany.",
+            "Zamiast \"Czy mogę zaproponować...\" powiedz \"Chciałbym podzielić się rozwiązaniem...\"",
+            "Cel cold call to NIE sprzedaż, a umówienie spotkania lub wysłanie oferty.",
+            "Po odmowie zawsze zakończ pozytywnie: \"Dziękuję za czas, życzę miłego dnia!\"",
+            "Rób przerwy co 45 minut - Twoja energia wpływa na jakość rozmów.",
+            "Przygotuj 2-3 pytania otwarte zanim zadzwonisz. Bądź ciekawy, nie nachalny.",
+            "\"Inne firmy z Państwa branży zauważyły, że...\" - social proof działa najlepiej.",
+            "Jeśli klient mówi \"wyślij maila\" - uzgodnij konkretny termin follow-up.",
+            "Statystycznie potrzebujesz 5-8 prób kontaktu. Nie poddawaj się po pierwszej!",
+            "Zacznij od wartości: \"Pomagamy firmom takim jak Państwa zaoszczędzić...\"",
+            "Mów powoli i wyraźnie. Szybka mowa = nerwowość = brak zaufania.",
+            "Prowadź tracker wyników - zobaczenie postępów motywuje do dalszej pracy!",
+            "Najlepsza odpowiedź na \"ile to kosztuje?\" to pytanie: \"Co jest dla Państwa najważniejsze?\""
+        };
+
         public CallReminderWindow(string connectionString, string userID, CallReminderConfig config)
         {
             InitializeComponent();
@@ -52,6 +77,7 @@ namespace Kalendarz1.CRM
 
             LoadContacts();
             InitializeStatusButtons();
+            ShowRandomTip();
         }
 
         private void LoadContacts()
@@ -561,6 +587,18 @@ namespace Kalendarz1.CRM
             );
 
             Close();
+        }
+
+        private void ShowRandomTip()
+        {
+            _currentTipIndex = new Random().Next(ColdCallTips.Length);
+            txtCallTip.Text = ColdCallTips[_currentTipIndex];
+        }
+
+        private void BtnNextTip_Click(object sender, RoutedEventArgs e)
+        {
+            _currentTipIndex = (_currentTipIndex + 1) % ColdCallTips.Length;
+            txtCallTip.Text = ColdCallTips[_currentTipIndex];
         }
 
         private void AddNoteToContact(ContactToCall contact, string note)
