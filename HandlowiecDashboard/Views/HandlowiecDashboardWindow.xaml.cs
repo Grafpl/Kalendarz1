@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
@@ -7,6 +8,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Microsoft.Data.SqlClient;
 using LiveCharts;
 using LiveCharts.Wpf;
@@ -898,6 +900,163 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
             chartUdzial.Series = series;
             axisXUdzial.Labels = labels;
+
+            // Buduj legende z avatarami
+            await BudujLegendeUdzialuAsync(daneHandlowcow);
+        }
+
+        [System.Runtime.InteropServices.DllImport("gdi32.dll")]
+        private static extern bool DeleteObject(IntPtr hObject);
+
+        private BitmapSource ConvertToBitmapSource(System.Drawing.Image image)
+        {
+            if (image == null) return null;
+            using (var bitmap = new Bitmap(image))
+            {
+                var hBitmap = bitmap.GetHbitmap();
+                try
+                {
+                    return System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
+                        hBitmap, IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+                }
+                finally
+                {
+                    DeleteObject(hBitmap);
+                }
+            }
+        }
+
+        private async System.Threading.Tasks.Task BudujLegendeUdzialuAsync(Dictionary<string, Dictionary<string, decimal>> daneHandlowcow)
+        {
+            panelUdzialLegenda.Children.Clear();
+
+            // Pobierz mapowanie HandlowiecName -> UserID z bazy LibraNet
+            var mapowanie = new Dictionary<string, string>();
+            try
+            {
+                await using var cn = new SqlConnection("Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True");
+                await cn.OpenAsync();
+                await using var cmd = new SqlCommand("SELECT HandlowiecName, UserID FROM UserHandlowcy", cn);
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    var name = reader.GetString(0);
+                    var userId = reader.GetString(1);
+                    if (!mapowanie.ContainsKey(name))
+                        mapowanie[name] = userId;
+                }
+            }
+            catch { }
+
+            int idx = 0;
+            foreach (var h in daneHandlowcow.OrderByDescending(x => x.Value.Values.Sum()))
+            {
+                var handlowiec = h.Key;
+                var color = _kolory[idx % _kolory.Length];
+                var sumaWartosc = h.Value.Values.Sum();
+
+                // Kontener wiersza
+                var row = new Border
+                {
+                    Background = new SolidColorBrush((System.Windows.Media.Color)ColorConverter.ConvertFromString("#1A1D21")),
+                    CornerRadius = new CornerRadius(6),
+                    Padding = new Thickness(6),
+                    Margin = new Thickness(0, 0, 0, 4)
+                };
+
+                var grid = new Grid();
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+                // Avatar
+                var avatarBorder = new Border
+                {
+                    Width = 30, Height = 30,
+                    CornerRadius = new CornerRadius(15),
+                    BorderBrush = new SolidColorBrush(color),
+                    BorderThickness = new Thickness(2),
+                    Background = new SolidColorBrush((System.Windows.Media.Color)ColorConverter.ConvertFromString("#252A31")),
+                    ClipToBounds = true
+                };
+
+                BitmapSource avatarBitmap = null;
+                if (mapowanie.TryGetValue(handlowiec, out var userId))
+                {
+                    try
+                    {
+                        if (UserAvatarManager.HasAvatar(userId))
+                        {
+                            using (var avatar = UserAvatarManager.GetAvatarRounded(userId, 28))
+                            {
+                                if (avatar != null)
+                                    avatarBitmap = ConvertToBitmapSource(avatar);
+                            }
+                        }
+                        if (avatarBitmap == null)
+                        {
+                            using (var defAvatar = UserAvatarManager.GenerateDefaultAvatar(handlowiec, userId, 28))
+                            {
+                                avatarBitmap = ConvertToBitmapSource(defAvatar);
+                            }
+                        }
+                    }
+                    catch { }
+                }
+
+                if (avatarBitmap != null)
+                {
+                    var img = new System.Windows.Controls.Image
+                    {
+                        Source = avatarBitmap,
+                        Width = 26, Height = 26,
+                        Stretch = Stretch.UniformToFill
+                    };
+                    img.Clip = new EllipseGeometry(new System.Windows.Point(13, 13), 13, 13);
+                    avatarBorder.Child = img;
+                }
+                else
+                {
+                    // Domyslny inicjal
+                    var initials = string.Join("", handlowiec.Split(' ').Where(s => s.Length > 0).Take(2).Select(s => s[0]));
+                    var initialsText = new TextBlock
+                    {
+                        Text = initials.ToUpper(),
+                        FontSize = 10, FontWeight = FontWeights.Bold,
+                        Foreground = new SolidColorBrush(color),
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    avatarBorder.Child = initialsText;
+                }
+
+                Grid.SetColumn(avatarBorder, 0);
+                grid.Children.Add(avatarBorder);
+
+                // Tekst: nazwa + wartosc
+                var txtPanel = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 0) };
+                var txtName = new TextBlock
+                {
+                    Text = handlowiec,
+                    FontSize = 10, FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(color),
+                    TextTrimming = TextTrimming.CharacterEllipsis
+                };
+                var txtValue = new TextBlock
+                {
+                    Text = $"{sumaWartosc:N0} zl",
+                    FontSize = 9,
+                    Foreground = new SolidColorBrush((System.Windows.Media.Color)ColorConverter.ConvertFromString("#8B949E"))
+                };
+                txtPanel.Children.Add(txtName);
+                txtPanel.Children.Add(txtValue);
+
+                Grid.SetColumn(txtPanel, 1);
+                grid.Children.Add(txtPanel);
+
+                row.Child = grid;
+                panelUdzialLegenda.Children.Add(row);
+                idx++;
+            }
         }
 
         #endregion
