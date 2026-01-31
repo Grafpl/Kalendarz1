@@ -36,26 +36,74 @@ namespace Kalendarz1.CRM
         private int _currentTipIndex = 0;
         private static readonly string[] ColdCallTips = new[]
         {
+            // Otwarcie rozmowy
             "Uśmiechnij się przed podniesieniem słuchawki - rozmówca to usłyszy w Twoim głosie!",
             "Pierwsze 10 sekund decyduje o rozmowie. Mów z energią i pewnością siebie.",
-            "Nie sprzedawaj od razu - najpierw zapytaj, czym się firma zajmuje i co ich boli.",
             "\"Dzwonię, bo widzę że Państwo zajmujecie się...\" - pokaż, że odrobiliśmy lekcje.",
-            "Słuchaj 70%, mów 30%. Im więcej klient mówi, tym bliżej jesteś zamknięcia.",
-            "Po usłyszeniu \"nie\" zapytaj: \"Rozumiem, a gdybyśmy mogli...?\" - otwierasz nową drogę.",
-            "Dzwoń w najlepszych godzinach: 10:00-11:30 i 14:00-16:00. Unikaj poniedziałku rano.",
-            "Notuj słowa kluczowe klienta i powtarzaj je - poczuje się wysłuchany.",
+            "Zacznij od wartości: \"Pomagamy firmom takim jak Państwa zaoszczędzić...\"",
             "Zamiast \"Czy mogę zaproponować...\" powiedz \"Chciałbym podzielić się rozwiązaniem...\"",
+            "Przedstaw się krótko i konkretnie - max 15 sekund na wstęp, potem pytanie.",
+            "\"Dzień dobry, nie zajmę więcej niż 2 minuty\" - buduje szacunek do czasu klienta.",
+            "Zacznij od pytania: \"Czy to dobry moment na krótką rozmowę?\" - daje klientowi kontrolę.",
+
+            // Techniki sprzedaży
+            "Nie sprzedawaj od razu - najpierw zapytaj, czym się firma zajmuje i co ich boli.",
             "Cel cold call to NIE sprzedaż, a umówienie spotkania lub wysłanie oferty.",
+            "Słuchaj 70%, mów 30%. Im więcej klient mówi, tym bliżej jesteś zamknięcia.",
+            "Notuj słowa kluczowe klienta i powtarzaj je - poczuje się wysłuchany.",
+            "\"Inne firmy z Państwa branży zauważyły, że...\" - social proof działa najlepiej.",
+            "Zadawaj pytania otwarte: \"Jak obecnie rozwiązujecie...?\" zamiast \"Czy potrzebujecie...?\"",
+            "Stosuj metodę SPIN: Sytuacja, Problem, Implikacja, Naprowadzenie na rozwiązanie.",
+            "Mów językiem korzyści, nie cech. Nie \"mamy system X\" ale \"dzięki temu zaoszczędzicie Y\".",
+            "\"Co by się zmieniło, gdybyście mogli...?\" - pozwól klientowi sam zobaczyć wartość.",
+            "Używaj konkretnych liczb: \"firmy oszczędzają średnio 30%\" brzmi lepiej niż \"dużo\".",
+
+            // Radzenie sobie z odmową
+            "Po usłyszeniu \"nie\" zapytaj: \"Rozumiem, a gdybyśmy mogli...?\" - otwierasz nową drogę.",
             "Po odmowie zawsze zakończ pozytywnie: \"Dziękuję za czas, życzę miłego dnia!\"",
+            "\"Nie jestem zainteresowany\" często znaczy \"nie teraz\". Zapytaj o lepszy termin.",
+            "Statystycznie potrzebujesz 5-8 prób kontaktu. Nie poddawaj się po pierwszej!",
+            "Odmowa to nie porażka - to informacja. Zapisz powód i wróć z lepszym podejściem.",
+            "\"Rozumiem, wiele osób na początku tak reagowało, a potem...\" - normalizuj obawy.",
+            "Jeśli klient jest zajęty, zapytaj: \"Kiedy mogę zadzwonić w lepszym momencie?\"",
+            "\"Nie\" na cold call to \"nie\" dla oferty, nie dla Ciebie osobiście. Nie bierz do siebie.",
+
+            // Timing i organizacja
+            "Dzwoń w najlepszych godzinach: 10:00-11:30 i 14:00-16:00. Unikaj poniedziałku rano.",
             "Rób przerwy co 45 minut - Twoja energia wpływa na jakość rozmów.",
             "Przygotuj 2-3 pytania otwarte zanim zadzwonisz. Bądź ciekawy, nie nachalny.",
-            "\"Inne firmy z Państwa branży zauważyły, że...\" - social proof działa najlepiej.",
-            "Jeśli klient mówi \"wyślij maila\" - uzgodnij konkretny termin follow-up.",
-            "Statystycznie potrzebujesz 5-8 prób kontaktu. Nie poddawaj się po pierwszej!",
-            "Zacznij od wartości: \"Pomagamy firmom takim jak Państwa zaoszczędzić...\"",
-            "Mów powoli i wyraźnie. Szybka mowa = nerwowość = brak zaufania.",
             "Prowadź tracker wyników - zobaczenie postępów motywuje do dalszej pracy!",
-            "Najlepsza odpowiedź na \"ile to kosztuje?\" to pytanie: \"Co jest dla Państwa najważniejsze?\""
+            "Wtorek i środa to statystycznie najlepsze dni na cold calling.",
+            "Blokuj czas na dzwonienie - np. 2h rano bez przerw. Rytm buduje pewność.",
+            "Po każdych 10 telefonach zrób krótką analizę: co działało, co poprawić?",
+            "Przygotuj skrypt, ale nie czytaj z kartki. Znaj kluczowe punkty na pamięć.",
+
+            // Follow-up
+            "Jeśli klient mówi \"wyślij maila\" - uzgodnij konkretny termin follow-up.",
+            "Follow-up w ciągu 24h po rozmowie podwaja szanse na zamknięcie.",
+            "W mailu po rozmowie odwołaj się do konkretnych słów klienta - pokaż, że słuchałeś.",
+            "Ustaw przypomnienie o follow-up od razu po rozmowie - nie odkładaj na później.",
+            "\"Jak rozmawialiśmy w ubiegłym tygodniu...\" - kontynuacja buduje relację.",
+
+            // Głos i komunikacja
+            "Mów powoli i wyraźnie. Szybka mowa = nerwowość = brak zaufania.",
+            "Stój podczas rozmowy - Twój głos będzie bardziej energiczny i pewny.",
+            "Moduluj głos - monotonny ton usypia. Podkreślaj kluczowe słowa intonacją.",
+            "Rób pauzy po ważnych zdaniach - daj klientowi czas na przemyślenie.",
+            "Używaj imienia klienta (ale nie za często) - personalizuje rozmowę.",
+
+            // Obiekcje cenowe
+            "Najlepsza odpowiedź na \"ile to kosztuje?\" to pytanie: \"Co jest dla Państwa najważniejsze?\"",
+            "\"To za drogo\" - odpowiedz: \"W porównaniu do czego?\" Poznaj punkt odniesienia.",
+            "Nie dawaj rabatu od razu. Najpierw pokaż wartość, potem rozmawiaj o cenie.",
+            "\"Jaki budżet Państwo przewidujecie?\" - pozwól klientowi określić ramy.",
+
+            // Motywacja
+            "Każde \"nie\" przybliża Cię do \"tak\". Średnio 1 na 10 rozmów kończy się sukcesem.",
+            "Wyobraź sobie sukces przed podniesieniem słuchawki - pozytywna wizualizacja działa.",
+            "Porównuj się z sobą z zeszłego tygodnia, nie z innymi. Liczy się Twój progres.",
+            "Świętuj małe sukcesy: dobra rozmowa, nowy kontakt, wysłana oferta - wszystko się liczy!",
+            "Najlepsi handlowcy to nie ci, co się nie boją, ale ci co dzwonią mimo strachu."
         };
 
         public CallReminderWindow(string connectionString, string userID, CallReminderConfig config)
