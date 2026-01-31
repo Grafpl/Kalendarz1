@@ -239,15 +239,6 @@
                             </Grid.ColumnDefinitions>
                             <Grid Grid.Column="0">
                                 <lvc:CartesianChart x:Name="chartSprzedaz" Margin="10" LegendLocation="None">
-                                    <lvc:CartesianChart.Resources>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Effect">
-                                                <Setter.Value>
-                                                    <DropShadowEffect Color="Black" BlurRadius="3" ShadowDepth="0" Opacity="1"/>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </lvc:CartesianChart.Resources>
                                     <lvc:CartesianChart.AxisX>
                                         <lvc:Axis x:Name="axisXSprzedaz" ShowLabels="True" FontSize="11" Foreground="#FFFFFF" LabelsRotation="0">
                                             <lvc:Axis.Separator><lvc:Separator StrokeThickness="0"/></lvc:Axis.Separator>
@@ -315,15 +306,6 @@
                         </Border>
                         <Grid Grid.Row="3">
                             <lvc:CartesianChart x:Name="chartTop10" Margin="20" LegendLocation="None">
-                                <lvc:CartesianChart.Resources>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Effect">
-                                            <Setter.Value>
-                                                <DropShadowEffect Color="Black" BlurRadius="3" ShadowDepth="0" Opacity="1"/>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </Style>
-                                </lvc:CartesianChart.Resources>
                                 <lvc:CartesianChart.AxisX>
                                     <lvc:Axis x:Name="axisXTop10" Title="Wartosc (zl)" MinValue="0" Foreground="#FFFFFF" FontSize="10">
                                         <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
@@ -432,15 +414,6 @@
                             </Grid.RowDefinitions>
                             <Grid Grid.Column="0" Grid.Row="0">
                                 <lvc:CartesianChart x:Name="chartCeny" Margin="0,0,10,0" LegendLocation="None">
-                                    <lvc:CartesianChart.Resources>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Effect">
-                                                <Setter.Value>
-                                                    <DropShadowEffect Color="Black" BlurRadius="3" ShadowDepth="0" Opacity="1"/>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </lvc:CartesianChart.Resources>
                                     <lvc:CartesianChart.AxisX>
                                         <lvc:Axis x:Name="axisXCeny" ShowLabels="True" FontSize="11" Foreground="#FFFFFF" LabelsRotation="30">
                                             <lvc:Axis.Separator><lvc:Separator StrokeThickness="0"/></lvc:Axis.Separator>
@@ -456,15 +429,6 @@
                             </Grid>
                             <Grid Grid.Column="1" Grid.Row="0">
                                 <lvc:CartesianChart x:Name="chartCenyKg" Margin="10,0,0,0" LegendLocation="None">
-                                    <lvc:CartesianChart.Resources>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Effect">
-                                                <Setter.Value>
-                                                    <DropShadowEffect Color="Black" BlurRadius="3" ShadowDepth="0" Opacity="1"/>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </lvc:CartesianChart.Resources>
                                     <lvc:CartesianChart.AxisX>
                                         <lvc:Axis x:Name="axisXCenyKg" ShowLabels="True" FontSize="11" Foreground="#FFFFFF" LabelsRotation="30">
                                             <lvc:Axis.Separator><lvc:Separator StrokeThickness="0"/></lvc:Axis.Separator>

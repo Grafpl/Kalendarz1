@@ -577,9 +577,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                         Title = h.Key,
                         Values = values,
                         Fill = new SolidColorBrush(kolor),
-                        DataLabels = true,
-                        LabelPoint = p => p.Y > 0 ? $"{p.Y:N0} zl" : "",
-                        Foreground = Brushes.White,
+                        DataLabels = false,
                         MaxColumnWidth = 80
                     });
                     hIdx++;
@@ -633,9 +631,10 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             axisXSprzedaz.Labels = labels;
             txtSumaSprzedaz.Text = $"CALKOWITA WARTOSC SPRZEDAZY: {suma:N0} zl";
 
-            // Pozycjonuj avatary na slupkach po renderingu
+            // Pozycjonuj avatary i etykiety na slupkach po renderingu
+            var sprzedazLabels = _sprzedazChartData.Select(d => $"{d.Wartosc:N0} zl").ToList();
             Dispatcher.BeginInvoke(new Action(() =>
-                PozycjonujAvataryNaSlupkach(canvasSprzedazAvatary, chartSprzedaz, _sprzedazChartData)),
+                PozycjonujAvataryNaSlupkach(canvasSprzedazAvatary, chartSprzedaz, _sprzedazChartData, labelTexts: sprzedazLabels)),
                 System.Windows.Threading.DispatcherPriority.Background);
         }
 
@@ -733,9 +732,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                         Title = hNazwa,
                         Values = values,
                         Fill = new SolidColorBrush(kolor),
-                        DataLabels = true,
-                        LabelPoint = p => p.X > 0 ? $"{p.X:N0} zl | {hNazwa}" : "",
-                        Foreground = Brushes.White,
+                        DataLabels = false,
                         MaxRowHeight = 35,
                         RowPadding = 2
                     });
@@ -756,9 +753,10 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             chartTop10.Series = series;
             axisYTop10.Labels = labels;
 
-            // Pozycjonuj avatary na slupkach po renderingu
+            // Pozycjonuj avatary i etykiety na slupkach po renderingu
+            var top15Labels = _top15ChartData.Select(d => $"{d.Wartosc:N0} zl | {d.Handlowiec}").ToList();
             Dispatcher.BeginInvoke(new Action(() =>
-                PozycjonujAvataryNaSlupkach(canvasTop10Avatary, chartTop10, _top15ChartData, isHorizontal: true)),
+                PozycjonujAvataryNaSlupkach(canvasTop10Avatary, chartTop10, _top15ChartData, isHorizontal: true, labelTexts: top15Labels)),
                 System.Windows.Threading.DispatcherPriority.Background);
         }
 
@@ -1118,7 +1116,25 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             };
         }
 
-        private void PozycjonujAvataryNaSlupkach(Canvas canvas, LiveCharts.Wpf.CartesianChart chart, List<(string Handlowiec, double Wartosc)> data, bool isHorizontal = false)
+        private TextBlock CreateOutlinedLabel(string text, double fontSize)
+        {
+            return new TextBlock
+            {
+                Text = text,
+                FontSize = fontSize,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White,
+                Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    Color = Colors.Black,
+                    BlurRadius = 4,
+                    ShadowDepth = 0,
+                    Opacity = 1
+                }
+            };
+        }
+
+        private void PozycjonujAvataryNaSlupkach(Canvas canvas, LiveCharts.Wpf.CartesianChart chart, List<(string Handlowiec, double Wartosc)> data, bool isHorizontal = false, List<string> labelTexts = null)
         {
             try
             {
@@ -1135,8 +1151,6 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 if (isHorizontal)
                 {
                     // StackedRowSeries - horizontal bars (Top 15)
-                    // In LiveCharts, index 0 = bottom of chart, index N-1 = top
-                    // DrawMargin.Top = top of plot area (highest index)
                     double avatarSize = 28;
                     double barHeight = dm.Height / count;
                     double maxVal = data.Max(d => d.Wartosc);
@@ -1146,17 +1160,34 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     for (int i = 0; i < count; i++)
                     {
                         var d = data[i];
-                        if (!_handlowiecAvatarCache.ContainsKey(d.Handlowiec)) continue;
 
                         // Y: index 0 = bottom, N-1 = top -> invert for pixel coords
                         var yPixel = dm.Top + dm.Height - (i + 0.5) * barHeight;
-                        // X: right end of bar (value mapped to pixels)
+                        // X: right end of bar
                         var xEndPixel = dm.Left + (d.Wartosc / axisMax) * dm.Width;
 
-                        var avatarEl = CreateAvatarElement(d.Handlowiec, avatarSize, GetHandlowiecColor(d.Handlowiec));
-                        Canvas.SetLeft(avatarEl, xEndPixel + 4);
-                        Canvas.SetTop(avatarEl, yPixel - avatarSize / 2);
-                        canvas.Children.Add(avatarEl);
+                        // Render outlined label inside bar (centered)
+                        var labelText = labelTexts != null && i < labelTexts.Count ? labelTexts[i] : $"{d.Wartosc:N0} zl | {d.Handlowiec}";
+                        var label = CreateOutlinedLabel(labelText, 11);
+                        label.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
+                        var labelWidth = label.DesiredSize.Width;
+                        var barPixelWidth = xEndPixel - dm.Left;
+                        // Center label in bar, or left-align if bar too short
+                        var labelX = barPixelWidth > labelWidth + 10
+                            ? dm.Left + (barPixelWidth - labelWidth) / 2
+                            : dm.Left + 5;
+                        Canvas.SetLeft(label, labelX);
+                        Canvas.SetTop(label, yPixel - label.DesiredSize.Height / 2);
+                        canvas.Children.Add(label);
+
+                        // Avatar at right end of bar
+                        if (_handlowiecAvatarCache.ContainsKey(d.Handlowiec))
+                        {
+                            var avatarEl = CreateAvatarElement(d.Handlowiec, avatarSize, GetHandlowiecColor(d.Handlowiec));
+                            Canvas.SetLeft(avatarEl, xEndPixel + 4);
+                            Canvas.SetTop(avatarEl, yPixel - avatarSize / 2);
+                            canvas.Children.Add(avatarEl);
+                        }
                     }
                 }
                 else
@@ -1171,17 +1202,28 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     for (int i = 0; i < count; i++)
                     {
                         var d = data[i];
-                        if (!_handlowiecAvatarCache.ContainsKey(d.Handlowiec)) continue;
 
                         // X: center of bar at index i
                         var xPixel = dm.Left + i * barWidth + barWidth / 2;
                         // Y: top of bar
                         var yPixel = dm.Top + dm.Height * (1.0 - d.Wartosc / axisMax);
 
-                        var avatarEl = CreateAvatarElement(d.Handlowiec, avatarSize, GetHandlowiecColor(d.Handlowiec));
-                        Canvas.SetLeft(avatarEl, xPixel - avatarSize / 2);
-                        Canvas.SetTop(avatarEl, yPixel - avatarSize - 6);
-                        canvas.Children.Add(avatarEl);
+                        // Render outlined label above bar
+                        var labelText = labelTexts != null && i < labelTexts.Count ? labelTexts[i] : $"{d.Wartosc:N0}";
+                        var label = CreateOutlinedLabel(labelText, 11);
+                        label.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
+                        Canvas.SetLeft(label, xPixel - label.DesiredSize.Width / 2);
+                        Canvas.SetTop(label, yPixel - label.DesiredSize.Height - avatarSize - 8);
+                        canvas.Children.Add(label);
+
+                        // Avatar above bar (between label and bar top)
+                        if (_handlowiecAvatarCache.ContainsKey(d.Handlowiec))
+                        {
+                            var avatarEl = CreateAvatarElement(d.Handlowiec, avatarSize, GetHandlowiecColor(d.Handlowiec));
+                            Canvas.SetLeft(avatarEl, xPixel - avatarSize / 2);
+                            Canvas.SetTop(avatarEl, yPixel - avatarSize - 4);
+                            canvas.Children.Add(avatarEl);
+                        }
                     }
                 }
             }
@@ -1380,9 +1422,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                         Title = tempHandlowcy[i],
                         Values = valuesCeny,
                         Fill = new SolidColorBrush(kolor),
-                        DataLabels = true,
-                        LabelPoint = p => p.Y > 0 ? $"{p.Y:F2} zl" : "",
-                        Foreground = Brushes.White,
+                        DataLabels = false,
                         MaxColumnWidth = 80
                     });
 
@@ -1391,9 +1431,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                         Title = tempHandlowcy[i],
                         Values = valuesKg,
                         Fill = new SolidColorBrush(kolor),
-                        DataLabels = true,
-                        LabelPoint = p => p.Y > 0 ? $"{p.Y:N0}" : "",
-                        Foreground = Brushes.White,
+                        DataLabels = false,
                         MaxColumnWidth = 80
                     });
                 }
@@ -1418,10 +1456,12 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 return (d.Handlowiec, kg);
             }).ToList();
 
+            var cenyLabels = _cenyChartData.Select(d => $"{d.Wartosc:F2} zl").ToList();
+            var kgLabels = cenyKgData.Select(d => $"{d.Item2:N0} kg").ToList();
             Dispatcher.BeginInvoke(new Action(() =>
             {
-                PozycjonujAvataryNaSlupkach(canvasCenyAvatary, chartCeny, _cenyChartData);
-                PozycjonujAvataryNaSlupkach(canvasCenyKgAvatary, chartCenyKg, cenyKgData);
+                PozycjonujAvataryNaSlupkach(canvasCenyAvatary, chartCeny, _cenyChartData, labelTexts: cenyLabels);
+                PozycjonujAvataryNaSlupkach(canvasCenyKgAvatary, chartCenyKg, cenyKgData, labelTexts: kgLabels);
             }), System.Windows.Threading.DispatcherPriority.Background);
         }
 
