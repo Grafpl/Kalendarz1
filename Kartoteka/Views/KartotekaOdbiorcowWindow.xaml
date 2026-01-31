@@ -137,6 +137,11 @@
                                        VerticalAlignment="Center" FontWeight="Bold"/>
                         </StackPanel>
                     </Button>
+                    <Button Content="📊 Dashboard" Background="#2979FF" Foreground="White" FontSize="11"
+                            Padding="8,4" Margin="0,0,8,0" Cursor="Hand"
+                            BorderThickness="0" FontWeight="SemiBold"
+                            Click="ButtonDashboard_Click"
+                            ToolTip="Otwórz Dashboard Handlowca — wykresy, trendy, analiza sprzedaży"/>
                     <Button Content="🔄 Odśwież" Style="{StaticResource KartotekaPrimaryButton}"
                             Click="ButtonOdswiez_Click" Margin="0,0,8,0"/>
                     <Button Content="📥 Excel" Style="{StaticResource KartotekaSecondaryButton}"

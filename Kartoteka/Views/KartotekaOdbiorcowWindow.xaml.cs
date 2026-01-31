@@ -14,6 +14,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using ClosedXML.Excel;
 using Microsoft.Win32;
+using Kalendarz1.HandlowiecDashboard.Views;
 using Kalendarz1.Kartoteka.Models;
 using Kalendarz1.Kartoteka.Services;
 
@@ -2784,6 +2785,12 @@ namespace Kalendarz1.Kartoteka.Views
         private void ButtonExcel_Click(object sender, RoutedEventArgs e)
         {
             ExportToExcel();
+        }
+
+        private void ButtonDashboard_Click(object sender, RoutedEventArgs e)
+        {
+            var dashboard = new HandlowiecDashboardWindow();
+            dashboard.Show();
         }
 
         // ═══════════════════════════════════════════
