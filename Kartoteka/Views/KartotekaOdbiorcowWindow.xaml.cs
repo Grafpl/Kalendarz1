@@ -1366,8 +1366,8 @@ namespace Kalendarz1.Kartoteka.Views
                         {
                             for (int c = 1; c <= 4; c++)
                             {
-                                if (ws.Cell(r, c).Style.Fill.BackgroundColor == XLColor.NoColor ||
-                                    ws.Cell(r, c).Style.Fill.BackgroundColor.Color.ToHex() == "FF000000")
+                                var bgColor = ws.Cell(r, c).Style.Fill.BackgroundColor;
+                                if (bgColor == XLColor.NoColor || bgColor.ToString() == "Color Theme: None, Tint: 0")
                                     ws.Cell(r, c).Style.Fill.BackgroundColor = XLColor.FromHtml("#F9FAFB");
                             }
                         }
