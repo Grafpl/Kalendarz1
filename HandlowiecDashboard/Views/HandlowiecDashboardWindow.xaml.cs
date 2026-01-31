@@ -561,27 +561,21 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     EnsureAvatarCached(h.Key);
                 }
 
-                // Osobna seria per handlowiec - per-handlowiec kolory
-                int hIdx = 0;
+                // Jedna seria - kolory wskazuja avatary z obramowaniem
+                var wartosciHandlowcow = new ChartValues<double>();
                 foreach (var h in daneHandlowcow.OrderByDescending(x => x.Value.Sum(v => v.Wartosc)))
-                {
-                    var kolor = GetHandlowiecColor(h.Key);
-                    var values = new ChartValues<double>();
-                    for (int i = 0; i < labels.Count; i++)
-                        values.Add(i == hIdx ? (double)h.Value.Sum(v => v.Wartosc) : double.NaN);
+                    wartosciHandlowcow.Add((double)h.Value.Sum(v => v.Wartosc));
 
-                    series.Add(new ColumnSeries
-                    {
-                        Title = h.Key,
-                        Values = values,
-                        Fill = new SolidColorBrush(kolor),
-                        DataLabels = true,
-                        LabelPoint = p => double.IsNaN(p.Y) ? "" : $"{p.Y:N0} zl",
-                        Foreground = Brushes.White,
-                        MaxColumnWidth = 80
-                    });
-                    hIdx++;
-                }
+                series.Add(new ColumnSeries
+                {
+                    Title = "Sprzedaz",
+                    Values = wartosciHandlowcow,
+                    Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F4A261")),
+                    DataLabels = true,
+                    LabelPoint = p => $"{p.Y:N0} zl",
+                    Foreground = Brushes.White,
+                    MaxColumnWidth = 80
+                });
 
                 treeSprzedaz.Items.Clear();
                 foreach (var h in daneHandlowcow.OrderByDescending(x => x.Value.Sum(v => v.Wartosc)))
@@ -1353,40 +1347,28 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     });
                 }
 
-                // Per-handlowiec kolory na wykresie cen
-                for (int i = 0; i < tempHandlowcy.Count; i++)
+                // Jedna seria - kolory wskazuja avatary z obramowaniem
+                seriesCeny.Add(new ColumnSeries
                 {
-                    var kolor = GetHandlowiecColor(tempHandlowcy[i]);
-                    var valuesCeny = new ChartValues<double>();
-                    var valuesKg = new ChartValues<double>();
-                    for (int j = 0; j < tempHandlowcy.Count; j++)
-                    {
-                        valuesCeny.Add(j == i ? (double)wartosciCeny[j] : double.NaN);
-                        valuesKg.Add(j == i ? (double)wartosciKg[j] : double.NaN);
-                    }
+                    Title = "Srednia cena",
+                    Values = wartosciCeny,
+                    Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#95E1D3")),
+                    DataLabels = true,
+                    LabelPoint = p => $"{p.Y:F2} zl",
+                    Foreground = Brushes.White,
+                    MaxColumnWidth = 80
+                });
 
-                    seriesCeny.Add(new ColumnSeries
-                    {
-                        Title = tempHandlowcy[i],
-                        Values = valuesCeny,
-                        Fill = new SolidColorBrush(kolor),
-                        DataLabels = true,
-                        LabelPoint = p => double.IsNaN(p.Y) ? "" : $"{p.Y:F2} zl",
-                        Foreground = Brushes.White,
-                        MaxColumnWidth = 80
-                    });
-
-                    seriesKg.Add(new ColumnSeries
-                    {
-                        Title = tempHandlowcy[i],
-                        Values = valuesKg,
-                        Fill = new SolidColorBrush(kolor),
-                        DataLabels = true,
-                        LabelPoint = p => double.IsNaN(p.Y) ? "" : $"{p.Y:N0}",
-                        Foreground = Brushes.White,
-                        MaxColumnWidth = 80
-                    });
-                }
+                seriesKg.Add(new ColumnSeries
+                {
+                    Title = "Ilosc kg",
+                    Values = wartosciKg,
+                    Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4ECDC4")),
+                    DataLabels = true,
+                    LabelPoint = p => $"{p.Y:N0}",
+                    Foreground = Brushes.White,
+                    MaxColumnWidth = 80
+                });
             }
             catch (Exception ex)
             {
