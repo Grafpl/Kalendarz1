@@ -159,12 +159,14 @@ FROM [SSCommon].[STContractors] C
 LEFT JOIN [SSCommon].[STPostOfficeAddresses] POA
     ON POA.ContactGuid = C.ContactGuid
     AND POA.AddressName = N'adres domyślny'
-LEFT JOIN [SSCommon].[ContractorClassification] WYM
+INNER JOIN [SSCommon].[ContractorClassification] WYM
     ON C.Id = WYM.ElementId
+    AND WYM.CDim_Handlowiec_Val IS NOT NULL
+    AND WYM.CDim_Handlowiec_Val <> ''
 LEFT JOIN DK_Naleznosci DN ON DN.khid = C.Id
 LEFT JOIN DK_OstFaktura DOF ON DOF.khid = C.Id
 WHERE
-    (@PokazWszystkich = 1 OR ISNULL(WYM.CDim_Handlowiec_Val, '') = @Handlowiec)
+    (@PokazWszystkich = 1 OR WYM.CDim_Handlowiec_Val = @Handlowiec)
 ORDER BY C.Name;
 ";
             using var cmd = new SqlCommand(sql, conn);
