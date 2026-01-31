@@ -319,11 +319,11 @@
                                 </Grid.RowDefinitions>
 
                                 <TextBlock Text="TELEFON GŁÓWNY" FontSize="11" Foreground="#66FFFFFF"
-                                           FontWeight="SemiBold" LetterSpacing="1"/>
+                                           FontWeight="SemiBold"/>
 
                                 <TextBlock x:Name="txtMainPhone" Grid.Row="1" Text="-"
                                            FontSize="28" FontWeight="Bold" Foreground="#58a6ff"
-                                           Margin="0,8,0,0" LetterSpacing="2"/>
+                                           Margin="0,8,0,0"/>
 
                                 <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,12,0,0">
                                     <StackPanel Orientation="Horizontal" Visibility="{Binding HasPhone2, Converter={StaticResource BoolToVisibility}}">
@@ -351,7 +351,7 @@
                                 BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="12" Padding="16">
                             <StackPanel>
                                 <TextBlock Text="🔄 ZMIEŃ STATUS" FontSize="11" Foreground="#66FFFFFF"
-                                           FontWeight="SemiBold" LetterSpacing="1"/>
+                                           FontWeight="SemiBold"/>
 
                                 <WrapPanel x:Name="statusButtons" Margin="0,12,0,0">
                                     <!-- Status buttons will be generated in code-behind -->
@@ -372,7 +372,7 @@
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="💬" FontSize="12" Margin="0,0,6,0"/>
                                         <TextBlock Text="OSTATNIA NOTATKA" FontSize="11"
-                                                   Foreground="#d29922" FontWeight="SemiBold" LetterSpacing="1"/>
+                                                   Foreground="#d29922" FontWeight="SemiBold"/>
                                     </StackPanel>
                                     <TextBlock x:Name="txtLastNoteAuthor" Grid.Column="1" Text=""
                                                FontSize="12" Foreground="#66FFFFFF"/>
@@ -388,7 +388,7 @@
                                 BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="12" Padding="16">
                             <StackPanel>
                                 <TextBlock Text="📝 DODAJ NOTATKĘ" FontSize="11" Foreground="#66FFFFFF"
-                                           FontWeight="SemiBold" LetterSpacing="1"/>
+                                           FontWeight="SemiBold"/>
 
                                 <TextBox x:Name="txtNewNote" Style="{StaticResource GlassTextBox}"
                                          Margin="0,12,0,0" AcceptsReturn="True" TextWrapping="Wrap"
