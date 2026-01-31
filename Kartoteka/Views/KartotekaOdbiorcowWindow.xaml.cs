@@ -79,6 +79,9 @@ namespace Kalendarz1.Kartoteka.Views
 
         private async System.Threading.Tasks.Task LoadData()
         {
+            var debugTimings = new List<string>();
+            var totalSw = Stopwatch.StartNew();
+
             try
             {
                 LoadingOverlay.Visibility = Visibility.Visible;
@@ -104,19 +107,33 @@ namespace Kalendarz1.Kartoteka.Views
                     handlowiec = _userName;
                 }
 
+                var sw = Stopwatch.StartNew();
                 await _service.EnsureTablesExistAsync();
+                sw.Stop();
+                debugTimings.Add($"EnsureTablesExist: {sw.ElapsedMilliseconds} ms");
 
+                sw.Restart();
                 var odbiorcy = await _service.PobierzOdbiorcowAsync(handlowiec, pokazWszystkich);
+                sw.Stop();
+                debugTimings.Add($"PobierzOdbiorcow ({odbiorcy.Count} rekordów): {sw.ElapsedMilliseconds} ms");
+
+                sw.Restart();
                 await _service.WczytajDaneWlasneAsync(odbiorcy);
+                sw.Stop();
+                debugTimings.Add($"WczytajDaneWlasne: {sw.ElapsedMilliseconds} ms");
 
                 _allOdbiorcy = odbiorcy;
                 _displayedOdbiorcy = odbiorcy;
 
+                sw.Restart();
                 ApplySortAndRegenerate();
+                sw.Stop();
+                debugTimings.Add($"ApplySortAndRegenerate ({_displayedOdbiorcy.Count} kart): {sw.ElapsedMilliseconds} ms");
 
                 // Załaduj handlowców dla admina
                 if (_userId == "11111" && ComboBoxHandlowiec.Items.Count <= 1)
                 {
+                    sw.Restart();
                     ComboBoxHandlowiec.Items.Clear();
                     ComboBoxHandlowiec.Items.Add(new ComboBoxItem { Content = "Wszyscy", IsSelected = true });
                     var handlowcy = await _service.PobierzHandlowcowAsync();
@@ -124,10 +141,19 @@ namespace Kalendarz1.Kartoteka.Views
                     {
                         ComboBoxHandlowiec.Items.Add(new ComboBoxItem { Content = h });
                     }
+                    sw.Stop();
+                    debugTimings.Add($"PobierzHandlowcow: {sw.ElapsedMilliseconds} ms");
                 }
 
+                sw.Restart();
                 UpdateStatystyki();
+                sw.Stop();
+                debugTimings.Add($"UpdateStatystyki: {sw.ElapsedMilliseconds} ms");
+
+                sw.Restart();
                 UpdateLicznik();
+                sw.Stop();
+                debugTimings.Add($"UpdateLicznik: {sw.ElapsedMilliseconds} ms");
             }
             catch (Exception ex)
             {
@@ -137,6 +163,10 @@ namespace Kalendarz1.Kartoteka.Views
             {
                 LoadingOverlay.Visibility = Visibility.Collapsed;
             }
+
+            totalSw.Stop();
+            debugTimings.Insert(0, $"=== TOTAL: {totalSw.ElapsedMilliseconds} ms ===\n");
+            MessageBox.Show(string.Join("\n", debugTimings), "DEBUG - Czasy ładowania", MessageBoxButton.OK, MessageBoxImage.Information);
 
             _ = LoadAsortymentInBackground();
             _ = LoadTowaryAsync();
