@@ -36,6 +36,10 @@ namespace Kalendarz1.Kartoteka.Views
         private Border _expandedCard;
         private bool _isAdmin;
 
+        // Sorting state
+        private string _sortColumn = "";
+        private bool _sortAscending = true;
+
         public string UserID
         {
             get => _userId;
@@ -231,23 +235,46 @@ namespace Kalendarz1.Kartoteka.Views
             }
         }
 
+        // Column sort keys matching header order (index → sort key)
+        private static readonly string[] _columnSortKeys = new[]
+        {
+            "",           // 0: dot
+            "Firma",      // 1
+            "NIP",        // 2
+            "Kontakt",    // 3
+            "Telefon",    // 4
+            "Forma",      // 5
+            "Termin",     // 6
+            "Naleznosci", // 7
+            "Limit",      // 8
+            "Bilans",     // 9
+            "Przeter",    // 10
+            "Procent",    // 11
+            "OstFaktura", // 12
+            "Kategoria",  // 13
+            "Handlowiec", // 14 (admin only)
+            ""            // arrow
+        };
+
         private Grid CreateCardColumnDefinitions()
         {
             var grid = new Grid();
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(18) });   // 0: Status dot
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 160 }); // 1: Firma + miasto
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });  // 2: NIP
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(95) });   // 3: Kontakt
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(65) });   // 4: Forma płatn.
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(48) });   // 5: Termin
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(85) });   // 6: Limit
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(85) });   // 7: Bilans
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });   // 8: Przetermin.
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) });   // 9: % limitu
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(65) });   // 10: Ost. faktura
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });   // 11: Kategoria
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 140 }); // 1: Firma + miasto
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(95) });   // 2: NIP
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });   // 3: Kontakt
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(85) });   // 4: Telefon
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });   // 5: Forma płatn.
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(45) });   // 6: Termin
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });   // 7: Należności
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });   // 8: Limit
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });   // 9: Bilans
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });   // 10: Przetermin.
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) });   // 11: % limitu
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(65) });   // 12: Ost. faktura
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });   // 13: Kategoria
             if (_isAdmin)
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(75) }); // 12: Handlowiec
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(75) }); // 14: Handlowiec
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(22) });   // Arrow
             return grid;
         }
@@ -265,40 +292,158 @@ namespace Kalendarz1.Kartoteka.Views
 
             var grid = CreateCardColumnDefinitions();
             var grayBrush = new SolidColorBrush(Color.FromRgb(107, 114, 128)); // #6B7280
+            var greenBrush = new SolidColorBrush(Color.FromRgb(22, 101, 52));  // #166534
 
             string[] headers = _isAdmin
-                ? new[] { "", "Firma", "NIP", "Kontakt", "Forma", "Termin", "Limit", "Bilans", "Przeter.", "%", "Ost.fakt.", "Kat.", "Handl.", "" }
-                : new[] { "", "Firma", "NIP", "Kontakt", "Forma", "Termin", "Limit", "Bilans", "Przeter.", "%", "Ost.fakt.", "Kat.", "" };
+                ? new[] { "", "Firma", "NIP", "Kontakt", "Telefon", "Forma", "Termin", "Należności", "Limit", "Bilans", "Przeter.", "%", "Ost.fakt.", "Kat.", "Handl.", "" }
+                : new[] { "", "Firma", "NIP", "Kontakt", "Telefon", "Forma", "Termin", "Należności", "Limit", "Bilans", "Przeter.", "%", "Ost.fakt.", "Kat.", "" };
 
-            for (int i = 0; i < headers.Length; i++)
+            // Determine sort key indices considering admin
+            int totalCols = headers.Length;
+
+            for (int i = 0; i < totalCols; i++)
             {
+                if (string.IsNullOrEmpty(headers[i]))
+                {
+                    // Empty column (dot or arrow) - no header
+                    Grid.SetColumn(new Border(), i); // placeholder
+                    continue;
+                }
+
+                // Determine the sort key for this column index
+                string sortKey = GetSortKeyForColumnIndex(i);
+
+                var sortIndicator = "";
+                if (_sortColumn == sortKey && !string.IsNullOrEmpty(sortKey))
+                    sortIndicator = _sortAscending ? " ▲" : " ▼";
+
                 var tb = new TextBlock
                 {
-                    Text = headers[i],
+                    Text = headers[i] + sortIndicator,
                     FontSize = 10,
-                    FontWeight = FontWeights.SemiBold,
-                    Foreground = grayBrush,
+                    FontWeight = (_sortColumn == sortKey && !string.IsNullOrEmpty(sortKey)) ? FontWeights.Bold : FontWeights.SemiBold,
+                    Foreground = (_sortColumn == sortKey && !string.IsNullOrEmpty(sortKey)) ? greenBrush : grayBrush,
                     VerticalAlignment = VerticalAlignment.Center,
-                    TextTrimming = TextTrimming.CharacterEllipsis
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    Cursor = string.IsNullOrEmpty(sortKey) ? Cursors.Arrow : Cursors.Hand
                 };
 
-                // Right-align numeric columns
-                if (i >= 6 && i <= 9)
+                // Right-align numeric columns (Należności=7, Limit=8, Bilans=9, Przeter=10, %=11)
+                int baseIdx = _isAdmin ? i : i; // same since admin column is near end
+                // For non-admin: indices 7-11 are numeric; for admin same
+                if (i >= 7 && i <= 11)
                 {
                     tb.HorizontalAlignment = HorizontalAlignment.Right;
                     tb.Margin = new Thickness(0, 0, 8, 0);
                 }
-                if (i == 10) // Ost. faktura
+                int katIdx = _isAdmin ? 13 : 13;
+                int ostFaktIdx = _isAdmin ? 12 : 12;
+                if (i == ostFaktIdx)
                     tb.HorizontalAlignment = HorizontalAlignment.Center;
-                if (i == 11) // Kat.
+                if (i == katIdx)
                     tb.HorizontalAlignment = HorizontalAlignment.Center;
 
-                Grid.SetColumn(tb, i);
-                grid.Children.Add(tb);
+                // Click handler for sorting
+                if (!string.IsNullOrEmpty(sortKey))
+                {
+                    var key = sortKey; // capture
+                    var border = new Border
+                    {
+                        Background = Brushes.Transparent,
+                        Child = tb,
+                        Cursor = Cursors.Hand
+                    };
+                    border.MouseLeftButtonDown += (s, e) =>
+                    {
+                        if (_sortColumn == key)
+                            _sortAscending = !_sortAscending;
+                        else
+                        {
+                            _sortColumn = key;
+                            _sortAscending = true;
+                        }
+                        ApplySortAndRegenerate();
+                    };
+                    border.MouseEnter += (s, e) => tb.TextDecorations = TextDecorations.Underline;
+                    border.MouseLeave += (s, e) => tb.TextDecorations = null;
+                    Grid.SetColumn(border, i);
+                    grid.Children.Add(border);
+                }
+                else
+                {
+                    Grid.SetColumn(tb, i);
+                    grid.Children.Add(tb);
+                }
             }
 
             header.Child = grid;
             return header;
+        }
+
+        private string GetSortKeyForColumnIndex(int colIndex)
+        {
+            // Map visual column index to sort key
+            // Non-admin: 0=dot,1=Firma,2=NIP,3=Kontakt,4=Telefon,5=Forma,6=Termin,7=Naleznosci,8=Limit,9=Bilans,10=Przeter,11=Procent,12=OstFaktura,13=Kategoria,14=arrow
+            // Admin: same but 14=Handlowiec,15=arrow
+            if (colIndex <= 0) return "";
+            if (colIndex < _columnSortKeys.Length)
+                return _columnSortKeys[colIndex];
+            return "";
+        }
+
+        private void ApplySortAndRegenerate()
+        {
+            if (!string.IsNullOrEmpty(_sortColumn))
+            {
+                var sorted = _sortColumn switch
+                {
+                    "Firma" => _sortAscending
+                        ? _displayedOdbiorcy.OrderBy(o => o.Skrot ?? o.NazwaFirmy ?? "").ToList()
+                        : _displayedOdbiorcy.OrderByDescending(o => o.Skrot ?? o.NazwaFirmy ?? "").ToList(),
+                    "NIP" => _sortAscending
+                        ? _displayedOdbiorcy.OrderBy(o => o.NIP ?? "").ToList()
+                        : _displayedOdbiorcy.OrderByDescending(o => o.NIP ?? "").ToList(),
+                    "Kontakt" => _sortAscending
+                        ? _displayedOdbiorcy.OrderBy(o => o.OsobaKontaktowa ?? "").ToList()
+                        : _displayedOdbiorcy.OrderByDescending(o => o.OsobaKontaktowa ?? "").ToList(),
+                    "Telefon" => _sortAscending
+                        ? _displayedOdbiorcy.OrderBy(o => o.TelefonKontakt ?? "").ToList()
+                        : _displayedOdbiorcy.OrderByDescending(o => o.TelefonKontakt ?? "").ToList(),
+                    "Forma" => _sortAscending
+                        ? _displayedOdbiorcy.OrderBy(o => o.FormaPlatnosci ?? "").ToList()
+                        : _displayedOdbiorcy.OrderByDescending(o => o.FormaPlatnosci ?? "").ToList(),
+                    "Termin" => _sortAscending
+                        ? _displayedOdbiorcy.OrderBy(o => o.TerminPlatnosci).ToList()
+                        : _displayedOdbiorcy.OrderByDescending(o => o.TerminPlatnosci).ToList(),
+                    "Naleznosci" => _sortAscending
+                        ? _displayedOdbiorcy.OrderBy(o => o.WykorzystanoLimit).ToList()
+                        : _displayedOdbiorcy.OrderByDescending(o => o.WykorzystanoLimit).ToList(),
+                    "Limit" => _sortAscending
+                        ? _displayedOdbiorcy.OrderBy(o => o.LimitKupiecki).ToList()
+                        : _displayedOdbiorcy.OrderByDescending(o => o.LimitKupiecki).ToList(),
+                    "Bilans" => _sortAscending
+                        ? _displayedOdbiorcy.OrderBy(o => o.Bilans).ToList()
+                        : _displayedOdbiorcy.OrderByDescending(o => o.Bilans).ToList(),
+                    "Przeter" => _sortAscending
+                        ? _displayedOdbiorcy.OrderBy(o => o.KwotaPrzeterminowana).ToList()
+                        : _displayedOdbiorcy.OrderByDescending(o => o.KwotaPrzeterminowana).ToList(),
+                    "Procent" => _sortAscending
+                        ? _displayedOdbiorcy.OrderBy(o => o.ProcentWykorzystania).ToList()
+                        : _displayedOdbiorcy.OrderByDescending(o => o.ProcentWykorzystania).ToList(),
+                    "OstFaktura" => _sortAscending
+                        ? _displayedOdbiorcy.OrderBy(o => o.OstatniaFakturaData ?? DateTime.MinValue).ToList()
+                        : _displayedOdbiorcy.OrderByDescending(o => o.OstatniaFakturaData ?? DateTime.MinValue).ToList(),
+                    "Kategoria" => _sortAscending
+                        ? _displayedOdbiorcy.OrderBy(o => o.KategoriaHandlowca ?? "C").ToList()
+                        : _displayedOdbiorcy.OrderByDescending(o => o.KategoriaHandlowca ?? "C").ToList(),
+                    "Handlowiec" => _sortAscending
+                        ? _displayedOdbiorcy.OrderBy(o => o.Handlowiec ?? "").ToList()
+                        : _displayedOdbiorcy.OrderByDescending(o => o.Handlowiec ?? "").ToList(),
+                    _ => _displayedOdbiorcy
+                };
+                _displayedOdbiorcy = sorted;
+            }
+            GenerateCards(_displayedOdbiorcy);
         }
 
         private Border CreateCustomerCard(OdbiorcaHandlowca odbiorca)
@@ -404,6 +549,18 @@ namespace Kalendarz1.Kartoteka.Views
             Grid.SetColumn(kontaktText, col++);
             grid.Children.Add(kontaktText);
 
+            // Telefon
+            var telText = new TextBlock
+            {
+                Text = odbiorca.TelefonKontakt ?? "",
+                FontSize = 10,
+                Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            };
+            Grid.SetColumn(telText, col++);
+            grid.Children.Add(telText);
+
             // Forma płatności
             var formaText = new TextBlock
             {
@@ -428,10 +585,25 @@ namespace Kalendarz1.Kartoteka.Views
             Grid.SetColumn(terminText, col++);
             grid.Children.Add(terminText);
 
+            // Należności (WykorzystanoLimit)
+            var nalezText = new TextBlock
+            {
+                Text = odbiorca.WykorzystanoLimit > 0 ? $"{odbiorca.WykorzystanoLimit:N0} zł" : "-",
+                FontSize = 10,
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 0, 8, 0),
+                Foreground = odbiorca.WykorzystanoLimit > 0
+                    ? new SolidColorBrush(Color.FromRgb(180, 83, 9))     // amber-700
+                    : new SolidColorBrush(Color.FromRgb(156, 163, 175))  // gray
+            };
+            Grid.SetColumn(nalezText, col++);
+            grid.Children.Add(nalezText);
+
             // Limit
             var limitText = new TextBlock
             {
-                Text = odbiorca.LimitKupiecki > 0 ? $"{odbiorca.LimitKupiecki:N0}" : "-",
+                Text = odbiorca.LimitKupiecki > 0 ? $"{odbiorca.LimitKupiecki:N0} zł" : "-",
                 FontSize = 11,
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Right,
@@ -443,7 +615,7 @@ namespace Kalendarz1.Kartoteka.Views
             // Bilans
             var bilansText = new TextBlock
             {
-                Text = $"{odbiorca.Bilans:N0}",
+                Text = $"{odbiorca.Bilans:N0} zł",
                 FontWeight = FontWeights.SemiBold,
                 FontSize = 11,
                 VerticalAlignment = VerticalAlignment.Center,
@@ -459,7 +631,7 @@ namespace Kalendarz1.Kartoteka.Views
             // Przeterminowane
             var przeterText = new TextBlock
             {
-                Text = odbiorca.KwotaPrzeterminowana > 0 ? $"{odbiorca.KwotaPrzeterminowana:N0}" : "-",
+                Text = odbiorca.KwotaPrzeterminowana > 0 ? $"{odbiorca.KwotaPrzeterminowana:N0} zł" : "-",
                 FontSize = 10,
                 FontWeight = odbiorca.KwotaPrzeterminowana > 0 ? FontWeights.SemiBold : FontWeights.Normal,
                 VerticalAlignment = VerticalAlignment.Center,
