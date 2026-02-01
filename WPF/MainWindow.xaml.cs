@@ -1578,7 +1578,8 @@ namespace Kalendarz1.WPF
                         {
                             menuItem.IsEnabled = header.Contains("Płatności") ||
                                                 header.Contains("Historia") ||
-                                                header.Contains("Odśwież");
+                                                header.Contains("Odśwież") ||
+                                                header.Contains("dane odbiorcy");
                         }
                         else if (isAnulowane)
                         {
@@ -1588,7 +1589,8 @@ namespace Kalendarz1.WPF
                                                 header.Contains("Odśwież") ||
                                                 header.Contains("Przywróć") ||
                                                 header.Contains("USUŃ") ||
-                                                header.Contains("transport");
+                                                header.Contains("transport") ||
+                                                header.Contains("dane odbiorcy");
                         }
                         else
                         {
@@ -1875,6 +1877,20 @@ namespace Kalendarz1.WPF
                         "Błąd krytyczny", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
+        }
+
+        private void MenuDaneOdbiorcy_Click(object sender, RoutedEventArgs e)
+        {
+            if (_contextMenuSelectedRow == null) return;
+
+            int klientId = _contextMenuSelectedRow.Row.Field<int>("KlientId");
+            if (klientId <= 0) return;
+
+            var kartotekaWindow = new Kalendarz1.Kartoteka.Views.KartotekaOdbiorcowWindow(
+                App.UserID ?? "11111",
+                App.UserFullName ?? "Administrator",
+                klientId);
+            kartotekaWindow.Show();
         }
 
         private async void MenuUsun_Click(object sender, RoutedEventArgs e)
@@ -3889,34 +3905,6 @@ ORDER BY zm.Id";
                 Width = new DataGridLength(100),
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
-
-            // Context menu - prawy przycisk myszy na wierszu zamówienia
-            var ordersContextMenu = new ContextMenu();
-
-            var menuDaneOdbiorcy = new MenuItem
-            {
-                Header = "📋 Dokładne dane odbiorcy",
-                FontWeight = FontWeights.SemiBold
-            };
-            menuDaneOdbiorcy.Click += (s, ev) =>
-            {
-                if (dgOrders.SelectedItem is DataRowView selectedRow)
-                {
-                    int klientId = selectedRow.Row.Field<int>("KlientId");
-                    string odbiorcaNazwa = selectedRow.Row.Field<string>("Odbiorca") ?? "";
-                    if (klientId > 0)
-                    {
-                        var kartotekaWindow = new Kalendarz1.Kartoteka.Views.KartotekaOdbiorcowWindow(
-                            App.UserID ?? "11111",
-                            App.UserFullName ?? "Administrator",
-                            klientId);
-                        kartotekaWindow.Show();
-                    }
-                }
-            };
-            ordersContextMenu.Items.Add(menuDaneOdbiorcy);
-
-            dgOrders.ContextMenu = ordersContextMenu;
         }
 
         // Flagi lazy loading - czy dane zostały już załadowane dla aktualnego dnia

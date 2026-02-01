@@ -1142,10 +1142,35 @@ namespace Kalendarz1.Kartoteka.Views
                 {
                     ExpandCard(cardBorder, o);
                     await LoadSzczegoly(o);
-                    cardBorder.BringIntoView();
+                    ScrollCardToCenter(cardBorder);
                     return;
                 }
             }
+        }
+
+        private void ScrollCardToCenter(FrameworkElement card)
+        {
+            card.UpdateLayout();
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(() =>
+            {
+                try
+                {
+                    var transform = card.TransformToAncestor(MainScrollViewer);
+                    var cardPosition = transform.Transform(new Point(0, 0));
+                    double cardHeight = card.ActualHeight;
+                    double viewportHeight = MainScrollViewer.ViewportHeight;
+
+                    // Oblicz offset tak, aby karta była na środku ekranu
+                    double targetOffset = MainScrollViewer.VerticalOffset + cardPosition.Y - (viewportHeight / 2) + (cardHeight / 2);
+                    targetOffset = Math.Max(0, Math.Min(targetOffset, MainScrollViewer.ScrollableHeight));
+
+                    MainScrollViewer.ScrollToVerticalOffset(targetOffset);
+                }
+                catch
+                {
+                    card.BringIntoView();
+                }
+            }));
         }
 
         private void CollapseCard()

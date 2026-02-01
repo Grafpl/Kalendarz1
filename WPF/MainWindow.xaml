@@ -340,6 +340,8 @@
                                     <Separator/>
                                     <MenuItem x:Name="menuOdswiez" Header="🔄 Odśwież dane" Click="MenuOdswiez_Click"/>
                                     <Separator/>
+                                    <MenuItem x:Name="menuDaneOdbiorcy" Header="👤 Dokładne dane odbiorcy" Click="MenuDaneOdbiorcy_Click" FontWeight="SemiBold"/>
+                                    <Separator/>
                                     <MenuItem x:Name="menuAnuluj" Header="❌ Anuluj zamówienie" Click="MenuAnuluj_Click"/>
                                     <MenuItem x:Name="menuPrzywroc" Header="✅ Przywróć zamówienie" Click="MenuPrzywroc_Click" Visibility="Collapsed"/>
                                     <MenuItem x:Name="menuUsun" Header="🗑️ USUŃ TRWALE zamówienie" Click="MenuUsun_Click" Visibility="Collapsed"/>

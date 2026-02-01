@@ -213,7 +213,7 @@
         <!-- ═══════════════════════════════════════════ -->
         <!-- ACCORDION - Lista kart odbiorców -->
         <!-- ═══════════════════════════════════════════ -->
-        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+        <ScrollViewer x:Name="MainScrollViewer" Grid.Row="3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                       Background="#F3F4F6">
             <StackPanel x:Name="AccordionPanel" Margin="8,4,8,4">
                 <!-- Karty odbiorców generowane w code-behind -->
