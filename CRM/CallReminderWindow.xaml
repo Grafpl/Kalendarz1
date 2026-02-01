@@ -33,15 +33,9 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
 
                         <!-- Priority Indicator Bar -->
-                        <Border Grid.Column="0" Grid.RowSpan="4" Width="4" CornerRadius="2"
+                        <Border Grid.Column="0" Width="4" CornerRadius="2"
                                 VerticalAlignment="Stretch" Margin="0,2,12,2">
                             <Border.Background>
                                 <SolidColorBrush Color="{Binding PriorityColor}"/>
@@ -51,57 +45,105 @@
                             </Border.Effect>
                         </Border>
 
-                        <!-- Company Name - bigger, bolder -->
-                        <TextBlock Grid.Column="1" Grid.Row="0" Text="{Binding Nazwa}"
-                                   FontSize="15" FontWeight="SemiBold" Foreground="White"
-                                   TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                        <!-- Main Content Column -->
+                        <StackPanel Grid.Column="1">
 
-                        <!-- Location Row -->
-                        <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" Margin="0,5,0,0">
-                            <Path Data="M12,2C8.13,2 5,5.13 5,9c0,5.25 7,13 7,13s7-7.75 7-13C19,5.13 15.87,2 12,2z M12,11.5c-1.38,0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5,1.12 2.5,2.5S13.38,11.5 12,11.5z"
-                                  Fill="#66FFFFFF" Width="12" Height="12" Stretch="Uniform" Margin="0,1,5,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding Miasto}" FontSize="12" Foreground="#88FFFFFF"
-                                       VerticalAlignment="Center"/>
-                            <Border Background="#33a78bfa" CornerRadius="4" Padding="6,2" Margin="8,0,0,0"
-                                    Visibility="{Binding HasPKD, Converter={StaticResource BoolToVisibility}}">
-                                <TextBlock Text="{Binding PKD}" FontSize="10" Foreground="#a78bfa" FontFamily="Consolas"/>
-                            </Border>
-                        </StackPanel>
+                            <!-- Row 1: Company Name -->
+                            <TextBlock Text="{Binding Nazwa}" FontSize="15" FontWeight="SemiBold"
+                                       Foreground="White" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
 
-                        <!-- Phone Row - prominent -->
-                        <StackPanel Grid.Column="1" Grid.Row="2" Orientation="Horizontal" Margin="0,6,0,0">
-                            <Path Data="M6.62,10.79C8.06,13.62 10.38,15.94 13.21,17.38l1.97-1.97c.24-.24.59-.31.9-.21 1.01.34 2.1.52 3.23.52.55,0 1,.45 1,1v3.59c0,.55-.45,1-1,1C10.07,21.31 2.69,13.93 2.69,5c0-.55.45-1 1-1H7.28c.55,0 1,.45 1,1 0,1.13.18,2.22.52,3.23.1.31.03.66-.21.9L6.62,10.79z"
-                                  Fill="#58a6ff" Width="13" Height="13" Stretch="Uniform" Margin="0,1,6,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding Telefon}" FontSize="14" FontWeight="SemiBold" Foreground="#58a6ff"
-                                       VerticalAlignment="Center"/>
-                        </StackPanel>
+                            <!-- Row 2: Location - Kod pocztowy + Miasto -->
+                            <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                                <Path Data="M12,2C8.13,2 5,5.13 5,9c0,5.25 7,13 7,13s7-7.75 7-13C19,5.13 15.87,2 12,2z M12,11.5c-1.38,0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5,1.12 2.5,2.5S13.38,11.5 12,11.5z"
+                                      Fill="#66FFFFFF" Width="12" Height="12" Stretch="Uniform" Margin="0,1,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding MiastoFull}" FontSize="12" Foreground="#88FFFFFF"
+                                           VerticalAlignment="Center"/>
+                                <!-- Distance badge -->
+                                <Border Background="#331da87a" CornerRadius="4" Padding="5,2" Margin="8,0,0,0"
+                                        Visibility="{Binding HasOdleglosc, Converter={StaticResource BoolToVisibility}}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="M21,3L3,10.53v.98l6.84,2.65L12.48,21h.98L21,3z"
+                                              Fill="#3fb950" Width="10" Height="10" Stretch="Uniform" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding OdlegloscDisplay}" FontSize="10" Foreground="#3fb950"
+                                                   FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
 
-                        <!-- Status Badge Row -->
-                        <StackPanel Grid.Column="1" Grid.Row="3" Orientation="Horizontal" Margin="0,6,0,0">
-                            <Border x:Name="statusBadge" Background="{Binding StatusBackground}"
-                                    CornerRadius="10" Padding="10,3">
-                                <TextBlock Text="{Binding StatusShort}" FontSize="10" FontWeight="Medium" Foreground="{Binding StatusColor}"/>
-                            </Border>
+                            <!-- Row 3: Województwo -->
+                            <TextBlock Text="{Binding WojewodztwoDisplay}" FontSize="11" Foreground="#55FFFFFF"
+                                       Margin="17,2,0,0"
+                                       Visibility="{Binding HasWojewodztwo, Converter={StaticResource BoolToVisibility}}"/>
+
+                            <!-- Row 4: PKD + Branża -->
+                            <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                                <Border Background="#33a78bfa" CornerRadius="4" Padding="6,2"
+                                        Visibility="{Binding HasPKD, Converter={StaticResource BoolToVisibility}}">
+                                    <TextBlock Text="{Binding PKD}" FontSize="10" Foreground="#a78bfa" FontFamily="Consolas"/>
+                                </Border>
+                                <TextBlock Text="{Binding BranzaDisplay}" FontSize="11" Foreground="#66FFFFFF"
+                                           Margin="6,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                           Visibility="{Binding HasBranzaOrPKDNazwa, Converter={StaticResource BoolToVisibility}}"/>
+                            </StackPanel>
+
+                            <!-- Separator line -->
+                            <Border Background="#12FFFFFF" Height="1" Margin="0,7,0,6" CornerRadius="1"/>
+
+                            <!-- Row 5: Phone - prominent -->
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="M6.62,10.79C8.06,13.62 10.38,15.94 13.21,17.38l1.97-1.97c.24-.24.59-.31.9-.21 1.01.34 2.1.52 3.23.52.55,0 1,.45 1,1v3.59c0,.55-.45,1-1,1C10.07,21.31 2.69,13.93 2.69,5c0-.55.45-1 1-1H7.28c.55,0 1,.45 1,1 0,1.13.18,2.22.52,3.23.1.31.03.66-.21.9L6.62,10.79z"
+                                      Fill="#58a6ff" Width="13" Height="13" Stretch="Uniform" Margin="0,1,6,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding Telefon}" FontSize="14" FontWeight="SemiBold" Foreground="#58a6ff"
+                                           VerticalAlignment="Center"/>
+                                <!-- Second phone -->
+                                <TextBlock Text="{Binding Telefon2}" FontSize="11" Foreground="#5558a6ff"
+                                           Margin="8,0,0,0" VerticalAlignment="Center"
+                                           Visibility="{Binding HasPhone2, Converter={StaticResource BoolToVisibility}}"/>
+                            </StackPanel>
+
+                            <!-- Row 6: Email -->
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
+                                        Visibility="{Binding HasEmail, Converter={StaticResource BoolToVisibility}}">
+                                <Path Data="M20,4H4C2.9,4,2,4.9,2,6v12c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V6C22,4.9,21.1,4,20,4z M20,8l-8,5L4,8V6l8,5l8-5V8z"
+                                      Fill="#66FFFFFF" Width="12" Height="12" Stretch="Uniform" Margin="0,1,6,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding Email}" FontSize="11" Foreground="#88FFFFFF"
+                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+
+                            <!-- Row 7: NIP -->
+                            <TextBlock FontSize="10" Foreground="#44FFFFFF" Margin="0,3,0,0"
+                                       Visibility="{Binding HasNIP, Converter={StaticResource BoolToVisibility}}">
+                                <Run Text="NIP: "/><Run Text="{Binding NIP}"/>
+                            </TextBlock>
+
+                            <!-- Row 8: Status + Call Count badges -->
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                <Border x:Name="statusBadge" Background="{Binding StatusBackground}"
+                                        CornerRadius="10" Padding="10,3">
+                                    <TextBlock Text="{Binding StatusShort}" FontSize="10" FontWeight="Medium" Foreground="{Binding StatusColor}"/>
+                                </Border>
+                                <Border Background="#1AFFFFFF" CornerRadius="10" Padding="8,3" Margin="6,0,0,0"
+                                        Visibility="{Binding HasCallCount, Converter={StaticResource BoolToVisibility}}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="M20.01,15.38c-1.23,0-2.42-0.2-3.53-0.56-.35-.12-.74-.03-1.01,.24l-1.57,1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28,.35-.67,.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65,3,3,3.24,3,3.99 3,13.28,10.73,21,20.01,21c.71,0,.99-.63,.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"
+                                              Fill="#66FFFFFF" Width="10" Height="10" Stretch="Uniform" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding CallCount}" FontSize="10" Foreground="#88FFFFFF" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
                         </StackPanel>
 
                         <!-- Right Side: Swap Button + Completed Check -->
-                        <StackPanel Grid.Column="2" Grid.RowSpan="4" VerticalAlignment="Center" Margin="6,0,0,0">
-                            <!-- Completed Check -->
-                            <Border Background="#2E3fb950" CornerRadius="20" Width="32" Height="32"
-                                    Visibility="{Binding IsCompleted, Converter={StaticResource BoolToVisibility}}"
-                                    Margin="0,0,0,4">
-                                <TextBlock Text="✓" FontSize="16" Foreground="#3fb950"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
+                        <StackPanel Grid.Column="2" VerticalAlignment="Top" Margin="6,0,0,0">
                             <!-- Swap/Replace Button -->
                             <Button Click="BtnSwapContact_Click" ToolTip="Zamień kontakt"
-                                    Cursor="Hand" Width="32" Height="32">
+                                    Cursor="Hand" Width="30" Height="30">
                                 <Button.Template>
                                     <ControlTemplate TargetType="Button">
                                         <Border x:Name="swapBorder" Background="#10FFFFFF" CornerRadius="8"
-                                                Width="32" Height="32" BorderBrush="#20FFFFFF" BorderThickness="1">
+                                                Width="30" Height="30" BorderBrush="#20FFFFFF" BorderThickness="1">
                                             <Path Data="M12,5V1L7,6l5,5V7c3.31,0 6,2.69 6,6s-2.69,6-6,6-6-2.69-6-6H4c0,4.42 3.58,8 8,8s8-3.58 8-8S16.42,5 12,5z"
-                                                  Fill="#88FFFFFF" Width="16" Height="16" Stretch="Uniform"
+                                                  Fill="#88FFFFFF" Width="14" Height="14" Stretch="Uniform"
                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         </Border>
                                         <ControlTemplate.Triggers>
@@ -113,6 +155,13 @@
                                     </ControlTemplate>
                                 </Button.Template>
                             </Button>
+                            <!-- Completed Check -->
+                            <Border Background="#2E3fb950" CornerRadius="20" Width="30" Height="30"
+                                    Visibility="{Binding IsCompleted, Converter={StaticResource BoolToVisibility}}"
+                                    Margin="0,6,0,0">
+                                <TextBlock Text="✓" FontSize="14" Foreground="#3fb950"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -178,7 +227,7 @@
 
             <Grid Margin="0">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="330"/>
+                    <ColumnDefinition Width="360"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="420"/>
                 </Grid.ColumnDefinitions>

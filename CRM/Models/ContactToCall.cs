@@ -28,6 +28,42 @@ namespace Kalendarz1.CRM.Models
         public int CallCount { get; set; }
         public DateTime? LastCallDate { get; set; }
         public string AssignedTo { get; set; }
+        public double OdlegloscKm { get; set; } // Distance in km
+
+        // Display helpers
+        public bool HasWojewodztwo => !string.IsNullOrWhiteSpace(Wojewodztwo);
+        public bool HasKodPocztowy => !string.IsNullOrWhiteSpace(KodPocztowy);
+        public bool HasAdres => !string.IsNullOrWhiteSpace(Adres);
+        public bool HasOdleglosc => OdlegloscKm > 0;
+        public bool HasCallCount => CallCount > 0;
+        public bool HasPhone2OrEmail => HasPhone2 || HasEmail;
+
+        public string MiastoFull
+        {
+            get
+            {
+                var parts = new System.Collections.Generic.List<string>();
+                if (!string.IsNullOrWhiteSpace(KodPocztowy)) parts.Add(KodPocztowy);
+                if (!string.IsNullOrWhiteSpace(Miasto)) parts.Add(Miasto);
+                return parts.Count > 0 ? string.Join(" ", parts) : "-";
+            }
+        }
+
+        public string OdlegloscDisplay => OdlegloscKm > 0 ? $"{OdlegloscKm:F0} km" : "";
+
+        public string WojewodztwoDisplay
+        {
+            get
+            {
+                if (string.IsNullOrWhiteSpace(Wojewodztwo)) return "";
+                // Capitalize first letter
+                var woj = Wojewodztwo.Trim().ToLower();
+                return "woj. " + char.ToUpper(woj[0]) + woj.Substring(1);
+            }
+        }
+
+        public string BranzaDisplay => !string.IsNullOrWhiteSpace(Branza) ? Branza : (!string.IsNullOrWhiteSpace(PKDNazwa) ? PKDNazwa : "");
+        public bool HasBranzaOrPKDNazwa => !string.IsNullOrWhiteSpace(Branza) || !string.IsNullOrWhiteSpace(PKDNazwa);
 
         // UI state
         private bool _wasCalled;
