@@ -1386,7 +1386,7 @@ namespace Kalendarz1.CRM
             HasAvatar = false;
         }
 
-        private static BitmapSource ConvertToBitmapSource(Image image)
+        private static BitmapSource ConvertToBitmapSource(System.Drawing.Image image)
         {
             if (image == null) return null;
             using (var bitmap = new Bitmap(image))
