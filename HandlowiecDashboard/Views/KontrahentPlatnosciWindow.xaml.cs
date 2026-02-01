@@ -12,7 +12,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 {
     public partial class KontrahentPlatnosciWindow : Window
     {
-        private readonly string _connectionStringHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+        private readonly string _connectionStringHandel = Configuration.DatabaseConfig.HandelConnectionString;
         private readonly string _kontrahent;
         private readonly string _handlowiec;
 
@@ -187,24 +187,25 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
         private void ObliczAging(List<FakturaRow> faktury)
         {
-            var aging030 = faktury.Where(f => f.JestPrzeterminowana && f.DniPrzeterminowania <= 30).Sum(f => f.DoZaplaty);
-            var aging3160 = faktury.Where(f => f.JestPrzeterminowana && f.DniPrzeterminowania > 30 && f.DniPrzeterminowania <= 60).Sum(f => f.DoZaplaty);
-            var aging6190 = faktury.Where(f => f.JestPrzeterminowana && f.DniPrzeterminowania > 60 && f.DniPrzeterminowania <= 90).Sum(f => f.DoZaplaty);
-            var aging90Plus = faktury.Where(f => f.JestPrzeterminowana && f.DniPrzeterminowania > 90).Sum(f => f.DoZaplaty);
+            // Nowe przedzialy: 1-7, 8-14, 15-21, 21+ dni
+            var aging17 = faktury.Where(f => f.JestPrzeterminowana && f.DniPrzeterminowania >= 1 && f.DniPrzeterminowania <= 7).Sum(f => f.DoZaplaty);
+            var aging814 = faktury.Where(f => f.JestPrzeterminowana && f.DniPrzeterminowania >= 8 && f.DniPrzeterminowania <= 14).Sum(f => f.DoZaplaty);
+            var aging1521 = faktury.Where(f => f.JestPrzeterminowana && f.DniPrzeterminowania >= 15 && f.DniPrzeterminowania <= 21).Sum(f => f.DoZaplaty);
+            var aging21Plus = faktury.Where(f => f.JestPrzeterminowana && f.DniPrzeterminowania > 21).Sum(f => f.DoZaplaty);
 
-            var count030 = faktury.Count(f => f.JestPrzeterminowana && f.DniPrzeterminowania <= 30);
-            var count3160 = faktury.Count(f => f.JestPrzeterminowana && f.DniPrzeterminowania > 30 && f.DniPrzeterminowania <= 60);
-            var count6190 = faktury.Count(f => f.JestPrzeterminowana && f.DniPrzeterminowania > 60 && f.DniPrzeterminowania <= 90);
-            var count90Plus = faktury.Count(f => f.JestPrzeterminowana && f.DniPrzeterminowania > 90);
+            var count17 = faktury.Count(f => f.JestPrzeterminowana && f.DniPrzeterminowania >= 1 && f.DniPrzeterminowania <= 7);
+            var count814 = faktury.Count(f => f.JestPrzeterminowana && f.DniPrzeterminowania >= 8 && f.DniPrzeterminowania <= 14);
+            var count1521 = faktury.Count(f => f.JestPrzeterminowana && f.DniPrzeterminowania >= 15 && f.DniPrzeterminowania <= 21);
+            var count21Plus = faktury.Count(f => f.JestPrzeterminowana && f.DniPrzeterminowania > 21);
 
-            txtAging030.Text = $"{aging030:N0} zl";
-            txtAging030Faktury.Text = $"{count030} faktur";
-            txtAging3160.Text = $"{aging3160:N0} zl";
-            txtAging3160Faktury.Text = $"{count3160} faktur";
-            txtAging6190.Text = $"{aging6190:N0} zl";
-            txtAging6190Faktury.Text = $"{count6190} faktur";
-            txtAging90Plus.Text = $"{aging90Plus:N0} zl";
-            txtAging90PlusFaktury.Text = $"{count90Plus} faktur";
+            txtAging17.Text = $"{aging17:N0} zl";
+            txtAging17Faktury.Text = $"{count17} faktur";
+            txtAging814.Text = $"{aging814:N0} zl";
+            txtAging814Faktury.Text = $"{count814} faktur";
+            txtAging1521.Text = $"{aging1521:N0} zl";
+            txtAging1521Faktury.Text = $"{count1521} faktur";
+            txtAging21Plus.Text = $"{aging21Plus:N0} zl";
+            txtAging21PlusFaktury.Text = $"{count21Plus} faktur";
         }
 
         private async Task PobierzTrendAsync(SqlConnection cn)

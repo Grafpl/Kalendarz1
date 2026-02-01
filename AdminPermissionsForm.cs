@@ -476,6 +476,7 @@ namespace Kalendarz1
         private Dictionary<string, CheckBox> categoryHeaders = new Dictionary<string, CheckBox>();
         private PermissionProgressBar progressBar;
         private string copiedPermissions = null; // Skopiowane uprawnienia
+        private FlowLayoutPanel handlowcyAssignPanel; // Panel przypisanych handlowcow
 
         // Klasa do przechowywania danych użytkownika
         private class UserInfo
@@ -958,8 +959,199 @@ namespace Kalendarz1
                 UpdateCategoryHeaderState(category);
             }
 
+            // ═══════════════════════════════════════════════════════════════════════
+            // SEKCJA: POWIĄZANIE Z HANDLOWCEM SYMFONIA
+            // ═══════════════════════════════════════════════════════════════════════
+            var handlowcyHeaderPanel = new Panel
+            {
+                Width = totalWidth,
+                Height = 28,
+                BackColor = Color.FromArgb(142, 68, 173),
+                Margin = new Padding(0, 12, 0, 2)
+            };
+            var handlowcyHeaderLabel = new Label
+            {
+                Text = "  👔 Powiązanie z handlowcem Symfonia",
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                ForeColor = Color.White,
+                Location = new Point(6, 4),
+                AutoSize = true,
+                BackColor = Color.Transparent
+            };
+            handlowcyHeaderPanel.Controls.Add(handlowcyHeaderLabel);
+            permissionsFlowPanel.Controls.Add(handlowcyHeaderPanel);
+
+            // Kontener na przypisanych handlowcow + combobox
+            var handlowcyContainer = new Panel
+            {
+                Width = totalWidth,
+                AutoSize = true,
+                MinimumSize = new System.Drawing.Size(totalWidth, 60),
+                BackColor = Color.White,
+                Padding = new Padding(10),
+                Margin = new Padding(0, 0, 0, 4)
+            };
+
+            // Panel z przypisanymi handlowcami (flow)
+            handlowcyAssignPanel = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = true,
+                BackColor = Color.Transparent,
+                Margin = new Padding(0, 0, 0, 6),
+                MinimumSize = new System.Drawing.Size(totalWidth - 20, 10)
+            };
+            handlowcyContainer.Controls.Add(handlowcyAssignPanel);
+
+            // Wiersz dodawania: ComboBox + przycisk
+            var addRowPanel = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 34,
+                BackColor = Color.Transparent,
+                Margin = new Padding(0, 4, 0, 0)
+            };
+
+            var cmbHandlowcy = new ComboBox
+            {
+                Width = 280,
+                Location = new Point(0, 4),
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Segoe UI", 9),
+                FlatStyle = FlatStyle.Flat
+            };
+            addRowPanel.Controls.Add(cmbHandlowcy);
+
+            var btnDodajHandlowca = new Button
+            {
+                Text = "➕ Przypisz",
+                Location = new Point(290, 2),
+                Width = 100,
+                Height = 28,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(39, 174, 96),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnDodajHandlowca.FlatAppearance.BorderSize = 0;
+            addRowPanel.Controls.Add(btnDodajHandlowca);
+
+            handlowcyContainer.Controls.Add(addRowPanel);
+            // Kolejnosc: addRowPanel na dole, handlowcyAssignPanel na gorze (Dock.Top)
+            handlowcyContainer.Controls.SetChildIndex(handlowcyAssignPanel, 0);
+            handlowcyContainer.Controls.SetChildIndex(addRowPanel, 1);
+
+            permissionsFlowPanel.Controls.Add(handlowcyContainer);
+
+            // Wypelnij combo dostepnymi handlowcami
+            try
+            {
+                var allHandlowcy = UserHandlowcyManager.GetAvailableHandlowcy();
+                var assignedHandlowcy = UserHandlowcyManager.GetUserHandlowcy(selectedUserId);
+
+                cmbHandlowcy.Items.Clear();
+                foreach (var h in allHandlowcy.Where(a => !assignedHandlowcy.Contains(a)))
+                    cmbHandlowcy.Items.Add(h);
+                if (cmbHandlowcy.Items.Count > 0)
+                    cmbHandlowcy.SelectedIndex = 0;
+
+                // Wyswietl przypisanych
+                OdswiezHandlowcyChips(assignedHandlowcy, cmbHandlowcy);
+            }
+            catch { }
+
+            // Przycisk dodaj
+            btnDodajHandlowca.Click += (s, ev) =>
+            {
+                if (cmbHandlowcy.SelectedItem == null) return;
+                var handlowiec = cmbHandlowcy.SelectedItem.ToString();
+                if (UserHandlowcyManager.AddHandlowiecToUser(selectedUserId, handlowiec, Environment.UserName))
+                {
+                    cmbHandlowcy.Items.Remove(handlowiec);
+                    if (cmbHandlowcy.Items.Count > 0) cmbHandlowcy.SelectedIndex = 0;
+                    var assigned = UserHandlowcyManager.GetUserHandlowcy(selectedUserId);
+                    OdswiezHandlowcyChips(assigned, cmbHandlowcy);
+                }
+            };
+
             // Aktualizuj pasek postępu
             UpdateProgressBar();
+        }
+
+        private void OdswiezHandlowcyChips(List<string> assigned, ComboBox cmbHandlowcy)
+        {
+            handlowcyAssignPanel.Controls.Clear();
+
+            if (assigned.Count == 0)
+            {
+                var emptyLabel = new Label
+                {
+                    Text = "Brak przypisanych handlowców",
+                    Font = new Font("Segoe UI", 9, FontStyle.Italic),
+                    ForeColor = Color.Gray,
+                    AutoSize = true,
+                    Margin = new Padding(2)
+                };
+                handlowcyAssignPanel.Controls.Add(emptyLabel);
+                return;
+            }
+
+            foreach (var h in assigned)
+            {
+                var chip = new Panel
+                {
+                    Height = 28,
+                    AutoSize = false,
+                    BackColor = Color.FromArgb(243, 229, 245),
+                    Margin = new Padding(2),
+                    Cursor = Cursors.Default
+                };
+
+                var chipLabel = new Label
+                {
+                    Text = $"👔 {h}",
+                    Font = new Font("Segoe UI", 9),
+                    ForeColor = Color.FromArgb(74, 20, 140),
+                    Location = new Point(4, 4),
+                    AutoSize = true,
+                    BackColor = Color.Transparent,
+                    Cursor = Cursors.Default
+                };
+                chip.Controls.Add(chipLabel);
+
+                var btnRemove = new Label
+                {
+                    Text = "✕",
+                    Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(192, 57, 43),
+                    AutoSize = true,
+                    BackColor = Color.Transparent,
+                    Cursor = Cursors.Hand,
+                    Margin = new Padding(0),
+                    Tag = h
+                };
+                btnRemove.Location = new Point(chipLabel.PreferredWidth + 10, 4);
+                chip.Width = chipLabel.PreferredWidth + btnRemove.PreferredWidth + 18;
+
+                btnRemove.Click += (s, ev) =>
+                {
+                    var handlowiec = btnRemove.Tag.ToString();
+                    if (UserHandlowcyManager.RemoveHandlowiecFromUser(selectedUserId, handlowiec))
+                    {
+                        cmbHandlowcy.Items.Add(handlowiec);
+                        var refreshed = UserHandlowcyManager.GetUserHandlowcy(selectedUserId);
+                        OdswiezHandlowcyChips(refreshed, cmbHandlowcy);
+                    }
+                };
+                btnRemove.MouseEnter += (s, ev) => btnRemove.ForeColor = Color.Red;
+                btnRemove.MouseLeave += (s, ev) => btnRemove.ForeColor = Color.FromArgb(192, 57, 43);
+
+                chip.Controls.Add(btnRemove);
+                handlowcyAssignPanel.Controls.Add(chip);
+            }
         }
 
         private void CategoryHeader_CheckedChanged(string category, bool isChecked)

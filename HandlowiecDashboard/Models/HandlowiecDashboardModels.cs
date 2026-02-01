@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using System.Runtime.CompilerServices;
 
 namespace Kalendarz1.HandlowiecDashboard.Models
@@ -449,4 +450,239 @@ namespace Kalendarz1.HandlowiecDashboard.Models
         public string KgTekst => $"{SumaKg:N0} kg";
         public string CenaTekst => $"{SredniaCena:N2} zł/kg";
     }
+
+    #region Performance Optimization Classes
+
+    /// <summary>
+    /// Cache dla danych dashboardu - przechowuje dane przez określony czas
+    /// </summary>
+    public class DashboardCache
+    {
+        private readonly Dictionary<string, CacheEntry> _cache = new Dictionary<string, CacheEntry>();
+        private readonly object _lock = new object();
+
+        /// <summary>
+        /// Domyślny czas wygaśnięcia wpisu w cache
+        /// </summary>
+        public TimeSpan DefaultExpiry { get; set; } = TimeSpan.FromMinutes(5);
+
+        private class CacheEntry
+        {
+            public object Data { get; set; }
+            public DateTime CreatedAt { get; set; }
+            public TimeSpan Expiry { get; set; }
+
+            public bool IsExpired => DateTime.Now - CreatedAt > Expiry;
+        }
+
+        /// <summary>
+        /// Pobiera dane z cache jeśli istnieją i nie wygasły
+        /// </summary>
+        public T Get<T>(string key) where T : class
+        {
+            lock (_lock)
+            {
+                if (_cache.TryGetValue(key, out var entry) && !entry.IsExpired)
+                {
+                    return entry.Data as T;
+                }
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Zapisuje dane w cache
+        /// </summary>
+        public void Set<T>(string key, T data, TimeSpan? expiry = null)
+        {
+            lock (_lock)
+            {
+                _cache[key] = new CacheEntry
+                {
+                    Data = data,
+                    CreatedAt = DateTime.Now,
+                    Expiry = expiry ?? DefaultExpiry
+                };
+            }
+        }
+
+        /// <summary>
+        /// Sprawdza czy klucz istnieje w cache i nie wygasł
+        /// </summary>
+        public bool Contains(string key)
+        {
+            lock (_lock)
+            {
+                return _cache.TryGetValue(key, out var entry) && !entry.IsExpired;
+            }
+        }
+
+        /// <summary>
+        /// Unieważnia wpisy w cache pasujące do wzorca
+        /// </summary>
+        public void Invalidate(string keyPattern = null)
+        {
+            lock (_lock)
+            {
+                if (string.IsNullOrEmpty(keyPattern))
+                {
+                    _cache.Clear();
+                }
+                else
+                {
+                    var keysToRemove = _cache.Keys.Where(k => k.Contains(keyPattern)).ToList();
+                    foreach (var key in keysToRemove)
+                    {
+                        _cache.Remove(key);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Pobiera dane z cache lub ładuje je asynchronicznie jeśli nie istnieją
+        /// </summary>
+        public async System.Threading.Tasks.Task<T> GetOrLoadAsync<T>(string key, Func<System.Threading.Tasks.Task<T>> loader, TimeSpan? expiry = null) where T : class
+        {
+            var cached = Get<T>(key);
+            if (cached != null) return cached;
+
+            var data = await loader();
+            Set(key, data, expiry);
+            return data;
+        }
+
+        /// <summary>
+        /// Usuwa wygasłe wpisy z cache
+        /// </summary>
+        public void CleanupExpired()
+        {
+            lock (_lock)
+            {
+                var expiredKeys = _cache.Where(kv => kv.Value.IsExpired).Select(kv => kv.Key).ToList();
+                foreach (var key in expiredKeys)
+                {
+                    _cache.Remove(key);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Zwraca liczbę wpisów w cache
+        /// </summary>
+        public int Count
+        {
+            get
+            {
+                lock (_lock)
+                {
+                    return _cache.Count;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Kontener na wszystkie dane dashboardu (dla Multiple Result Sets)
+    /// </summary>
+    public class DashboardCompleteData
+    {
+        public DashboardKPI KPI { get; set; }
+        public List<SprzedazDziennaItem> SprzedazDzienna { get; set; } = new List<SprzedazDziennaItem>();
+        public List<TopOdbiorca> TopOdbiorcy { get; set; } = new List<TopOdbiorca>();
+        public List<SprzedazHandlowca> SprzedazHandlowcy { get; set; } = new List<SprzedazHandlowca>();
+        public List<UdzialHandlowcaWSprzedazy> UdzialHandlowcow { get; set; } = new List<UdzialHandlowcaWSprzedazy>();
+        public List<AnalizaCenHandlowca> AnalizaCen { get; set; } = new List<AnalizaCenHandlowca>();
+        public DateTime LoadedAt { get; set; } = DateTime.Now;
+    }
+
+    /// <summary>
+    /// Dane KPI dla dashboardu
+    /// </summary>
+    public class DashboardKPI
+    {
+        public int ZamowieniaDzis { get; set; }
+        public decimal KgDzis { get; set; }
+        public int ZamowieniaJutro { get; set; }
+        public decimal KgJutro { get; set; }
+        public decimal WartoscDzis { get; set; }
+        public decimal WartoscJutro { get; set; }
+    }
+
+    /// <summary>
+    /// Sprzedaż dzienna dla wykresów trendu
+    /// </summary>
+    public class SprzedazDziennaItem
+    {
+        public DateTime Dzien { get; set; }
+        public int LiczbaZamowien { get; set; }
+        public decimal SumaKg { get; set; }
+        public decimal SumaWartosc { get; set; }
+    }
+
+    /// <summary>
+    /// Sprzedaż handlowca dla wykresów
+    /// </summary>
+    public class SprzedazHandlowca
+    {
+        public string Handlowiec { get; set; }
+        public int LiczbaZamowien { get; set; }
+        public decimal SumaKg { get; set; }
+        public decimal SumaWartosc { get; set; }
+    }
+
+    /// <summary>
+    /// Dane płatności z bazy Handel
+    /// </summary>
+    public class DanePlatnosciHandel
+    {
+        public decimal SumaDoZaplaty { get; set; }
+        public decimal SumaTerminowe { get; set; }
+        public decimal SumaPrzeterminowane { get; set; }
+        public int LiczbaKlientow { get; set; }
+        public int LiczbaKlientowPrzeterminowanych { get; set; }
+        public List<PlatnoscKontrahentaRow> Kontrahenci { get; set; } = new List<PlatnoscKontrahentaRow>();
+    }
+
+    /// <summary>
+    /// Wiersz płatności kontrahenta
+    /// </summary>
+    public class PlatnoscKontrahentaRow
+    {
+        public string Kontrahent { get; set; }
+        public string Handlowiec { get; set; }
+        public decimal LimitKredytu { get; set; }
+        public decimal DoZaplaty { get; set; }
+        public decimal Terminowe { get; set; }
+        public decimal Przeterminowane { get; set; }
+        public decimal PrzekroczonyLimit { get; set; }
+        public int? DniPrzeterminowania { get; set; }
+    }
+
+    /// <summary>
+    /// Dane opakowań z bazy Handel
+    /// </summary>
+    public class DaneOpakowanHandel
+    {
+        public decimal SumaE2 { get; set; }
+        public decimal SumaH1 { get; set; }
+        public decimal ZmianaE2 { get; set; }
+        public decimal ZmianaH1 { get; set; }
+        public List<OpakowanieKontrahentaRow> Kontrahenci { get; set; } = new List<OpakowanieKontrahentaRow>();
+    }
+
+    /// <summary>
+    /// Wiersz opakowań kontrahenta
+    /// </summary>
+    public class OpakowanieKontrahentaRow
+    {
+        public string Kontrahent { get; set; }
+        public string Handlowiec { get; set; }
+        public decimal E2 { get; set; }
+        public decimal H1 { get; set; }
+        public decimal ZmianaE2 { get; set; }
+        public decimal ZmianaH1 { get; set; }
+    }
+
+    #endregion
 }
