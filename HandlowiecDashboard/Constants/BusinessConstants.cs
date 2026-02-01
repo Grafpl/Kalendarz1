@@ -42,53 +42,6 @@ namespace Kalendarz1.HandlowiecDashboard.Constants
 
             /// <summary>Opóźnienie debounce dla filtrów w ms</summary>
             public const int DebounceDelayMs = 300;
-
-            /// <summary>Domyślny cel miesięczny dla handlowca (zł)</summary>
-            public const decimal DomyslnyCelMiesiecznyZl = 100000m;
-
-            /// <summary>Domyślny cel miesięczny w kg</summary>
-            public const decimal DomyslnyCelMiesiecznyKg = 50000m;
-
-            /// <summary>Domyślny cel liczby klientów</summary>
-            public const int DomyslnyCelLiczbaKlientow = 30;
-        }
-
-        /// <summary>
-        /// Kolory używane w wykresach i UI
-        /// </summary>
-        public static class Kolory
-        {
-            /// <summary>Zielony - cel osiągnięty (>=100%)</summary>
-            public const string Sukces = "#27AE60";
-
-            /// <summary>Żółty - blisko celu (>=80%)</summary>
-            public const string Ostrzezenie = "#F39C12";
-
-            /// <summary>Pomarańczowy - połowa (>=50%)</summary>
-            public const string Uwaga = "#E67E22";
-
-            /// <summary>Czerwony - poniżej 50%</summary>
-            public const string Niebezpieczenstwo = "#E74C3C";
-
-            /// <summary>Szary - brak danych</summary>
-            public const string Neutralny = "#8B949E";
-        }
-
-        /// <summary>
-        /// Opakowania
-        /// </summary>
-        public static class Opakowania
-        {
-            public const decimal CenaE2 = 85m;   // cena europalety
-            public const decimal CenaH1 = 25m;   // cena pojemnika H1
-            public const int DomyslnyLimitE2 = 50;
-            public const int DomyslnyLimitH1 = 100;
-            
-            // Progi ryzyka (dni od zwrotu)
-            public const int ProgNorma = 30;
-            public const int ProgUwaga = 45;
-            public const int ProgOstrzezenie = 60;
-            public const int ProgKrytyczny = 90;
         }
     }
 }

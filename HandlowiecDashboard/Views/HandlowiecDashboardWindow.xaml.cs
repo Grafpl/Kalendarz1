@@ -12,9 +12,6 @@ using Microsoft.Data.SqlClient;
 using LiveCharts;
 using LiveCharts.Wpf;
 using Kalendarz1.HandlowiecDashboard.Models;
-using Kalendarz1.HandlowiecDashboard.Services;
-using Kalendarz1.HandlowiecDashboard.Services.Interfaces;
-using Kalendarz1.HandlowiecDashboard.ViewModels;
 using Color = System.Windows.Media.Color;
 
 namespace Kalendarz1.HandlowiecDashboard.Views
@@ -43,9 +40,6 @@ namespace Kalendarz1.HandlowiecDashboard.Views
         private readonly CultureInfo _kulturaPL = new CultureInfo("pl-PL");
         private bool _isInitialized = false;
         private bool _syncowanieDaty = false;
-
-        // ViewModel dla zakładki Opakowania w Terenie
-        private OpakowaniaWTerenieViewModel _opakowaniaWTerenieVM;
 
         #region Performance Optimization Fields
 
@@ -162,8 +156,6 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 6 => $"Trend_{rok}_{miesiac}",
                 7 => $"Opakowania_{rok}_{miesiac}",
                 8 => $"Platnosci_{rok}_{miesiac}",
-                9 => $"RealizacjaCelow_{rok}_{miesiac}",
-                10 => $"OpakowaniaWTerenie_{rok}_{miesiac}",
                 _ => $"Unknown_{tabIndex}"
             };
         }
@@ -361,19 +353,6 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             cmbHandlowiecPlat.DisplayMemberPath = "Text";
             cmbHandlowiecPlat.SelectedValuePath = "Value";
             cmbHandlowiecPlat.SelectedIndex = 0;
-
-            // Inicjalizuj ViewModel dla Opakowania w Terenie
-            var logger = new LoggingService();
-            var opakowaniaService = new OpakowaniaService(logger);
-            _opakowaniaWTerenieVM = new OpakowaniaWTerenieViewModel(opakowaniaService, logger);
-            // Ustaw listę handlowców z nazw (bez ComboItem)
-            var nazwyHandlowcow = handlowcy.Where(h => h.Value > 0).Select(h => h.Text);
-            _opakowaniaWTerenieVM.UstawHandlowcow(nazwyHandlowcow);
-            // Ustaw DataContext na zakładce Opakowania w Terenie (index 10)
-            if (tabControl.Items.Count > 10 && tabControl.Items[10] is TabItem opakWTerenieTab)
-            {
-                opakWTerenieTab.DataContext = _opakowaniaWTerenieVM;
-            }
         }
 
         private void WypelnijTowary(ComboBox cmb)
@@ -555,8 +534,6 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     case 6: await OdswiezTrendAsync(); break;
                     case 7: await OdswiezOpakowaniaAsync(); break;
                     case 8: await OdswiezPlatnosciAsync(); break;
-                    case 9: await OdswiezRealizacjeCelowAsync(); break;
-                    case 10: await OdswiezOpakowaniaWTerenieAsync(); break;
                 }
             }
             catch (OperationCanceledException)
@@ -2819,147 +2796,6 @@ FROM FakturyPrzeterminowane;";
                 view.SortDescriptions.Clear();
                 view.SortDescriptions.Add(new System.ComponentModel.SortDescription(column.SortMemberPath, direction));
                 view.Refresh();
-            }
-        }
-
-        #endregion
-
-        #region Realizacja Celow
-
-        private async System.Threading.Tasks.Task OdswiezRealizacjeCelowAsync()
-        {
-            try
-            {
-                var logger = new Services.LoggingService();
-                var celeService = new Services.CeleService(logger);
-
-                int rok = cmbRokSprzedaz.SelectedItem != null ? (int)cmbRokSprzedaz.SelectedItem : DateTime.Now.Year;
-                int miesiac = cmbMiesiacSprzedaz.SelectedValue != null ? (int)cmbMiesiacSprzedaz.SelectedValue : DateTime.Now.Month;
-
-                var realizacje = await celeService.PobierzRealizacjeWszystkichAsync(rok, miesiac);
-
-                txtCeleInfo.Text = $"Realizacja celow sprzedazowych - {_nazwyMiesiecy[miesiac]} {rok}  |  Handlowcow: {realizacje.Count}";
-
-                itemsCele.Items.Clear();
-
-                foreach (var r in realizacje)
-                {
-                    var kolorWartosci = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(r.KolorWartosci);
-                    var kolorKg = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(r.KolorKg);
-                    var kolorKlientow = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(r.KolorKlientow);
-
-                    // Karta handlowca z Gauge
-                    var border = new System.Windows.Controls.Border
-                    {
-                        Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#252A31")),
-                        CornerRadius = new CornerRadius(10),
-                        Margin = new Thickness(10),
-                        Padding = new Thickness(15),
-                        Width = 280
-                    };
-
-                    var stack = new System.Windows.Controls.StackPanel();
-
-                    // Nazwa handlowca
-                    var header = new System.Windows.Controls.TextBlock
-                    {
-                        Text = r.Handlowiec,
-                        FontSize = 16,
-                        FontWeight = FontWeights.Bold,
-                        Foreground = System.Windows.Media.Brushes.White,
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        Margin = new Thickness(0, 0, 0, 5)
-                    };
-                    stack.Children.Add(header);
-
-                    // Gauge kontrolka
-                    var gauge = new Controls.GaugeRealizacji
-                    {
-                        Tytul = "Wartosc sprzedazy",
-                        Wartosc = r.RealizacjaWartoscProcent,
-                        WartoscTekst = r.WartoscTekst,
-                        PrognozaTekst = r.PrognozaTekst,
-                        Kolor = r.KolorWartosci,
-                        Margin = new Thickness(0, 5, 0, 5)
-                    };
-                    stack.Children.Add(gauge);
-
-                    // Dodatkowe info - kg
-                    var kgText = new System.Windows.Controls.TextBlock
-                    {
-                        FontSize = 12,
-                        Foreground = new System.Windows.Media.SolidColorBrush(kolorKg),
-                        Margin = new Thickness(0, 5, 0, 2),
-                        HorizontalAlignment = HorizontalAlignment.Center
-                    };
-                    kgText.Inlines.Add(new System.Windows.Documents.Run($"Kg: {r.KgTekst} ({r.RealizacjaKgProcent:F0}%)"));
-                    stack.Children.Add(kgText);
-
-                    // Dodatkowe info - klienci
-                    var klienciText = new System.Windows.Controls.TextBlock
-                    {
-                        FontSize = 12,
-                        Foreground = new System.Windows.Media.SolidColorBrush(kolorKlientow),
-                        Margin = new Thickness(0, 0, 0, 5),
-                        HorizontalAlignment = HorizontalAlignment.Center
-                    };
-                    klienciText.Inlines.Add(new System.Windows.Documents.Run($"Klienci: {r.KlienciTekst} ({r.RealizacjaKlientowProcent:F0}%)"));
-                    stack.Children.Add(klienciText);
-
-                    // Prognoza - srednia dzienna
-                    if (r.RealizacjaWartoscProcent < 100 && r.DniRoboczychDoKonca > 0)
-                    {
-                        var prognoza = new System.Windows.Controls.TextBlock
-                        {
-                            Text = $"Srednia dzienna: {r.SredniaDziennaDoTejPory:N0} zl",
-                            FontSize = 11,
-                            Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#888888")),
-                            FontStyle = FontStyles.Italic,
-                            HorizontalAlignment = HorizontalAlignment.Center,
-                            Margin = new Thickness(0, 2, 0, 0)
-                        };
-                        stack.Children.Add(prognoza);
-
-                        var prognozaKoniec = new System.Windows.Controls.TextBlock
-                        {
-                            Text = $"Prognoza na koniec: {r.PrognozowanaNaKoniecMiesiaca:N0} zl",
-                            FontSize = 11,
-                            Foreground = new System.Windows.Media.SolidColorBrush(
-                                r.PrognozaOsiagniecaCelu
-                                    ? (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#27AE60")
-                                    : (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#E74C3C")),
-                            FontStyle = FontStyles.Italic,
-                            HorizontalAlignment = HorizontalAlignment.Center,
-                            Margin = new Thickness(0, 2, 0, 0)
-                        };
-                        stack.Children.Add(prognozaKoniec);
-                    }
-
-                    border.Child = stack;
-                    itemsCele.Items.Add(border);
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Blad realizacji celow:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        #endregion
-
-        #region Opakowania w Terenie
-
-        private async Task OdswiezOpakowaniaWTerenieAsync()
-        {
-            if (_opakowaniaWTerenieVM == null) return;
-
-            try
-            {
-                await _opakowaniaWTerenieVM.LoadAllDataAsync();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Blad ladowania opakowan w terenie:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
