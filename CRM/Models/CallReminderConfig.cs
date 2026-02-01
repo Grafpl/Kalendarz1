@@ -28,6 +28,7 @@ namespace Kalendarz1.CRM.Models
         public DateTime? ImportDateFrom { get; set; }
         public DateTime? ImportDateTo { get; set; }
         public bool PrioritizeRecentImports { get; set; } = true;
+        public bool OnlyMyImports { get; set; } = false;
 
         // Goals & Limits
         public int DailyCallTarget { get; set; } = 30;
@@ -207,5 +208,21 @@ namespace Kalendarz1.CRM.Models
             "podkarpackie", "podlaskie", "pomorskie", "śląskie",
             "świętokrzyskie", "warmińsko-mazurskie", "wielkopolskie", "zachodniopomorskie"
         };
+    }
+
+    public class PKDPriorityItem
+    {
+        public string PKDCode { get; set; }
+        public string PKDName { get; set; }
+        public int SortOrder { get; set; }
+        public string DisplayText => $"{PKDCode} - {PKDName}";
+    }
+
+    public class PKDItem
+    {
+        public string Kod { get; set; }
+        public string Nazwa { get; set; }
+        public string Kategoria { get; set; }
+        public string DisplayText => $"{Kod} - {Nazwa}";
     }
 }

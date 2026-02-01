@@ -521,7 +521,19 @@ namespace Kalendarz1.CRM
         }
         private void BtnOdswiez_Click(object sender, RoutedEventArgs e) => WczytajDane();
         private void ChkTylkoMoje_Changed(object sender, RoutedEventArgs e) => WczytajDane();
-        private void BtnAdmin_Click(object sender, RoutedEventArgs e) { }
+        private void BtnAdmin_Click(object sender, RoutedEventArgs e)
+        {
+            new CallReminderAdminPanel().Show();
+        }
+
+        private void BtnImportFirm_Click(object sender, RoutedEventArgs e)
+        {
+            var importDialog = new Dialogs.ImportFirmDialog(connectionString, operatorID);
+            if (importDialog.ShowDialog() == true)
+            {
+                WczytajDane();
+            }
+        }
 
 
         private string aktywnyChip = "";

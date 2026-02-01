@@ -77,7 +77,8 @@ namespace Kalendarz1.CRM.Services
                       ISNULL(SourcePriority, 'mixed'), ISNULL(ManualContactsPercent, 50),
                       TerritoryWojewodztwa, ISNULL(UseAdvancedSchedule, 0),
                       LunchBreakStart, LunchBreakEnd,
-                      VacationStart, VacationEnd, SubstituteUserID
+                      VacationStart, VacationEnd, SubstituteUserID,
+                      ISNULL(OnlyMyImports, 0)
                       FROM CallReminderConfig WHERE UserID = @UserID", conn);
                 cmdGet.Parameters.AddWithValue("@UserID", _userID);
 
@@ -109,7 +110,8 @@ namespace Kalendarz1.CRM.Services
                         LunchBreakEnd = reader.IsDBNull(19) ? new TimeSpan(13, 0, 0) : reader.GetTimeSpan(19),
                         VacationStart = reader.IsDBNull(20) ? null : reader.GetDateTime(20),
                         VacationEnd = reader.IsDBNull(21) ? null : reader.GetDateTime(21),
-                        SubstituteUserID = reader.IsDBNull(22) ? null : reader.GetString(22)
+                        SubstituteUserID = reader.IsDBNull(22) ? null : reader.GetString(22),
+                        OnlyMyImports = reader.GetBoolean(23)
                     };
                 }
                 else
@@ -281,6 +283,8 @@ namespace Kalendarz1.CRM.Services
                 cmd.Parameters.AddWithValue("@MaxAttempts", _config?.MaxAttemptsPerContact ?? 5);
                 cmd.Parameters.AddWithValue("@CooldownDays", _config?.CooldownDays ?? 3);
                 cmd.Parameters.AddWithValue("@Wojewodztwa", (object)_config?.TerritoryWojewodztwa ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@OnlyMyImports", _config?.OnlyMyImports ?? false);
+                cmd.Parameters.AddWithValue("@ImportedByUser", (object)_userID ?? DBNull.Value);
 
                 using var reader = cmd.ExecuteReader();
 

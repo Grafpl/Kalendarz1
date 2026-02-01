@@ -1,0 +1,201 @@
+<Window x:Class="Kalendarz1.CRM.Dialogs.EditHandlowiecWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Konfiguracja handlowca" Height="680" Width="820"
+        WindowStartupLocation="CenterOwner" ResizeMode="CanResize"
+        Background="#0d1117" Foreground="White" MinWidth="700" MinHeight="500">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/CRM/Styles/GlassStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Border Background="#0d1117" BorderBrush="#252530" BorderThickness="1" CornerRadius="8">
+        <Grid Margin="16,12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- HEADER -->
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
+                <TextBlock Text="Konfiguracja:" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                <TextBlock x:Name="txtUserName" Text="" FontSize="18" FontWeight="Bold" Foreground="#58a6ff" Margin="8,0,0,0"/>
+            </StackPanel>
+
+            <!-- MAIN CONTENT - ScrollViewer -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- LEFT COLUMN: Podstawowe + Cele -->
+                    <StackPanel Grid.Column="0" Grid.Row="0" Margin="0,0,8,0">
+                        <!-- PODSTAWOWE -->
+                        <Border Background="#18181f" BorderBrush="#252530" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
+                            <StackPanel>
+                                <TextBlock Text="PODSTAWOWE" FontSize="11" Foreground="#58a6ff" FontWeight="Bold" Margin="0,0,0,8"/>
+
+                                <CheckBox x:Name="chkEnabled" Content="Aktywny (otrzymuje przypomnienia)"
+                                          Style="{StaticResource GlassCheckBox}" FontSize="11" Foreground="#B3FFFFFF" Margin="0,0,0,6"/>
+
+                                <Grid Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                                        <TextBlock Text="Godzina 1:" FontSize="10" Foreground="#88FFFFFF" Margin="0,0,0,2"/>
+                                        <ComboBox x:Name="cmbTime1" Width="120" HorizontalAlignment="Left" FontSize="11"
+                                                  Style="{StaticResource GlassComboBox}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Margin="0,0,6,0">
+                                        <TextBlock Text="Godzina 2:" FontSize="10" Foreground="#88FFFFFF" Margin="0,0,0,2"/>
+                                        <ComboBox x:Name="cmbTime2" Width="120" HorizontalAlignment="Left" FontSize="11"
+                                                  Style="{StaticResource GlassComboBox}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="Kontaktow:" FontSize="10" Foreground="#88FFFFFF" Margin="0,0,0,2"/>
+                                        <ComboBox x:Name="cmbCount" Width="70" HorizontalAlignment="Left" FontSize="11"
+                                                  Style="{StaticResource GlassComboBox}"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                    <CheckBox x:Name="chkOnlyNew" Content="Tylko nowe"
+                                              Style="{StaticResource GlassCheckBox}" FontSize="10" Foreground="#88FFFFFF" Margin="0,0,12,0"/>
+                                    <CheckBox x:Name="chkOnlyAssigned" Content="Tylko przydzielone mi"
+                                              Style="{StaticResource GlassCheckBox}" FontSize="10" Foreground="#88FFFFFF" Margin="0,0,12,0"/>
+                                    <CheckBox x:Name="chkOnlyMyImports" Content="Tylko moje importy"
+                                              Style="{StaticResource GlassCheckBox}" FontSize="10" Foreground="#f59e0b"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- CELE -->
+                        <Border Background="#18181f" BorderBrush="#252530" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
+                            <StackPanel>
+                                <TextBlock Text="CELE" FontSize="11" Foreground="#3fb950" FontWeight="Bold" Margin="0,0,0,8"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                                        <TextBlock Text="Cel dzienny:" FontSize="10" Foreground="#88FFFFFF" Margin="0,0,0,2"/>
+                                        <TextBox x:Name="txtDailyTarget" Style="{StaticResource GlassTextBox}" Width="100" HorizontalAlignment="Left" FontSize="12"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="Cel tygodniowy:" FontSize="10" Foreground="#88FFFFFF" Margin="0,0,0,2"/>
+                                        <TextBox x:Name="txtWeeklyTarget" Style="{StaticResource GlassTextBox}" Width="100" HorizontalAlignment="Left" FontSize="12"/>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- RIGHT COLUMN: Województwa -->
+                    <Border Grid.Column="1" Grid.Row="0" Background="#18181f" BorderBrush="#252530" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
+                        <StackPanel>
+                            <TextBlock Text="WOJEWODZTWA (gdzie dzwonic)" FontSize="11" Foreground="#a78bfa" FontWeight="Bold" Margin="0,0,0,8"/>
+                            <WrapPanel x:Name="wojewodztwaPanel">
+                                <!-- Checkboxes populated in code-behind -->
+                            </WrapPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                <Button Content="Zaznacz wszystkie" Style="{StaticResource GlassButton}" FontSize="10" Padding="8,4" Margin="0,0,6,0"
+                                        Click="BtnSelectAllWoj_Click"/>
+                                <Button Content="Odznacz wszystkie" Style="{StaticResource GlassButton}" FontSize="10" Padding="8,4"
+                                        Click="BtnDeselectAllWoj_Click"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- PKD PRIORITIES - spans full width -->
+                    <Border Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="1" Background="#18181f" BorderBrush="#252530" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Priority list -->
+                            <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                <TextBlock Text="PRIORYTETY PKD (dzwon najpierw do tych branzy)" FontSize="11" Foreground="#f59e0b" FontWeight="Bold" Margin="0,0,0,6"/>
+                                <TextBlock Text="Zaznaczone PKD beda pokazywane NAJPIERW az sie skoncza kontakty" FontSize="9" Foreground="#55FFFFFF" Margin="0,0,0,6"/>
+
+                                <Border Background="#12121A" BorderBrush="#1E1E2A" BorderThickness="1" CornerRadius="6" MaxHeight="200">
+                                    <ListBox x:Name="lstPKDPriorities" Background="Transparent" BorderThickness="0"
+                                             Foreground="White" FontSize="11"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="2">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{Binding SortOrder}" FontSize="10" Foreground="#55FFFFFF" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding DisplayText}" FontSize="11" Foreground="#B3FFFFFF" VerticalAlignment="Center"/>
+                                                    <Button Grid.Column="2" Content="X" FontSize="9" Padding="4,1" Foreground="#f85149"
+                                                            Style="{StaticResource GlassButton}" Click="BtnRemovePKD_Click"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </Border>
+                            </StackPanel>
+
+                            <Border Grid.Column="1" Width="1" Background="#252530" Margin="4,20,4,0"/>
+
+                            <!-- Add PKD -->
+                            <StackPanel Grid.Column="2" Margin="8,0,0,0">
+                                <TextBlock Text="DODAJ PKD" FontSize="11" Foreground="#f59e0b" FontWeight="Bold" Margin="0,0,0,6"/>
+                                <ComboBox x:Name="cmbAvailablePKD" Width="250" HorizontalAlignment="Left" FontSize="11"
+                                          Style="{StaticResource GlassComboBox}" DisplayMemberPath="DisplayText"/>
+                                <Button Content="+ Dodaj do priorytetow" Style="{StaticResource GlassButton}" FontSize="10" Padding="10,5" Margin="0,6,0,0"
+                                        HorizontalAlignment="Left" Click="BtnAddPKD_Click"/>
+
+                                <Border Height="1" Background="#252530" Margin="0,8"/>
+
+                                <TextBlock Text="Szybkie presety PKD:" FontSize="10" Foreground="#88FFFFFF" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Content="Mieso" Tag="meat" Style="{StaticResource GlassButton}" FontSize="9" Padding="8,3" Margin="0,0,4,4" Click="BtnPKDPreset_Click"/>
+                                    <Button Content="Gastro" Tag="gastro" Style="{StaticResource GlassButton}" FontSize="9" Padding="8,3" Margin="0,0,4,4" Click="BtnPKDPreset_Click"/>
+                                    <Button Content="Hurtownie" Tag="wholesale" Style="{StaticResource GlassButton}" FontSize="9" Padding="8,3" Margin="0,0,4,4" Click="BtnPKDPreset_Click"/>
+                                    <Button Content="Detal" Tag="retail" Style="{StaticResource GlassButton}" FontSize="9" Padding="8,3" Margin="0,0,4,4" Click="BtnPKDPreset_Click"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </ScrollViewer>
+
+            <!-- BOTTOM BAR -->
+            <Grid Grid.Row="2" Margin="0,12,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="1" Content="Anuluj" Style="{StaticResource GlassButton}" Padding="16,8" FontSize="12" Margin="0,0,8,0"
+                        Click="BtnCancel_Click"/>
+                <Button Grid.Column="2" Content="Zapisz" Style="{StaticResource SuccessButton}" Padding="20,8" FontSize="12" FontWeight="Bold"
+                        Click="BtnSave_Click"/>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

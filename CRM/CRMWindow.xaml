@@ -306,7 +306,8 @@
                     <Button Content="📈 Dashboard" Style="{StaticResource BtnIcon}" Click="BtnDashboard_Click" Foreground="#EF4444" FontWeight="Bold"/>
                     <Button x:Name="btnManager" Content="👔 Szef" Style="{StaticResource BtnIcon}" Click="BtnManager_Click" Foreground="#EF4444" FontWeight="Bold"/>
                     <Button Content="🗺️ Mapa" Style="{StaticResource BtnIcon}" Click="BtnMapa_Click"/>
-                    <Button x:Name="btnAdmin" Content="⚙️" Style="{StaticResource BtnIcon}" Click="BtnAdmin_Click" Visibility="Collapsed"/>
+                    <Button Content="📥 Import" Style="{StaticResource BtnIcon}" Click="BtnImportFirm_Click"/>
+                    <Button x:Name="btnAdmin" Content="⚙️ Admin" Style="{StaticResource BtnIcon}" Click="BtnAdmin_Click"/>
 
                     <Button Content="+ Nowy" Click="BtnDodaj_Click" Margin="10,0,0,0" Padding="15,8" BorderThickness="0" Cursor="Hand" Foreground="White" FontWeight="Bold">
                         <Button.Template>
