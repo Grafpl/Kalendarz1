@@ -3,13 +3,13 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:Kalendarz1.CRM"
         Title="Panel administracyjny - Przypomnienia telefonów"
-        Width="1000" Height="700"
+        Width="1400" Height="900"
         WindowState="Maximized"
         WindowStartupLocation="CenterScreen"
         WindowStyle="SingleBorderWindow"
         Background="#0d1117"
         ResizeMode="CanResize"
-        MinWidth="900" MinHeight="600">
+        MinWidth="1000" MinHeight="700">
 
     <Window.Resources>
         <ResourceDictionary>
@@ -18,9 +18,8 @@
             </ResourceDictionary.MergedDictionaries>
 
             <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
-
-            <!-- Converter: show placeholder when text is empty -->
             <local:InverseLengthToVisibilityConverter x:Key="InverseLengthToVisibility"/>
+            <local:StringToBrushConverter x:Key="StringToBrush"/>
         </ResourceDictionary>
     </Window.Resources>
 
@@ -71,8 +70,10 @@
                 </Ellipse.Effect>
             </Ellipse>
 
-            <Grid Margin="32">
+            <Grid Margin="24">
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -84,158 +85,279 @@
                 <!-- HEADER                                       -->
                 <!-- ============================================ -->
                 <Border Grid.Row="0" Background="#08FFFFFF" BorderBrush="#14FFFFFF"
-                        BorderThickness="1" CornerRadius="16" Padding="28,20" Margin="0,0,0,24">
+                        BorderThickness="1" CornerRadius="16" Padding="28,16" Margin="0,0,0,16">
                     <StackPanel>
                         <StackPanel Orientation="Horizontal">
-                            <!-- White gear icon using Path -->
                             <Grid Width="28" Height="28" VerticalAlignment="Center">
                                 <Path Fill="White" Stretch="Uniform" Width="22" Height="22"
                                       HorizontalAlignment="Center" VerticalAlignment="Center"
                                       Data="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
                             </Grid>
-                            <TextBlock Text="Panel administracyjny" FontSize="26" FontWeight="Bold"
+                            <TextBlock Text="Panel administracyjny" FontSize="24" FontWeight="Bold"
                                        Foreground="White" Margin="14,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
-                        <TextBlock Text="Zarządzaj harmonogramem telefonów zespołu" FontSize="14"
-                                   Foreground="#66FFFFFF" Margin="0,8,0,0"/>
+                        <TextBlock Text="Zarządzaj harmonogramem telefonów zespołu" FontSize="13"
+                                   Foreground="#66FFFFFF" Margin="0,6,0,0"/>
                     </StackPanel>
                 </Border>
 
                 <!-- ============================================ -->
-                <!-- COMPACT STATS BAR                            -->
+                <!-- DASHBOARD - TEAM KPIs                        -->
                 <!-- ============================================ -->
                 <Border Grid.Row="1" Background="#18181f" BorderBrush="#252530"
-                        BorderThickness="1" CornerRadius="12" Padding="0" Margin="0,0,0,16">
+                        BorderThickness="1" CornerRadius="12" Padding="0" Margin="0,0,0,12">
                     <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
 
-                        <!-- Stat 1 - Calls Today -->
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="20,14">
-                            <Grid Width="34" Height="34" Margin="0,0,12,0">
-                                <Border CornerRadius="8" Background="#1A3fb950"/>
-                                <Path Fill="#3fb950" Stretch="Uniform" Width="16" Height="16"
-                                      HorizontalAlignment="Center" VerticalAlignment="Center"
-                                      Data="M6.62,10.79C8.06,13.62 10.38,15.94 13.21,17.38L15.41,15.18C15.69,14.9 16.08,14.82 16.43,14.93C17.55,15.3 18.75,15.5 20,15.5C20.55,15.5 21,15.95 21,16.5V20C21,20.55 20.55,21 20,21C10.61,21 3,13.39 3,4C3,3.45 3.45,3 4,3H7.5C8.05,3 8.5,3.45 8.5,4C8.5,5.25 8.7,6.45 9.07,7.57C9.18,7.92 9.1,8.31 8.82,8.59L6.62,10.79Z"/>
-                            </Grid>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock x:Name="txtStatsDzis" Text="0" FontSize="20" FontWeight="Bold" Foreground="#3fb950"/>
-                                <TextBlock Text="Dziś" FontSize="11" Foreground="#66FFFFFF"/>
+                        <Grid Grid.Row="0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Stat 1 - Calls Today -->
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="16,12">
+                                <Grid Width="32" Height="32" Margin="0,0,10,0">
+                                    <Border CornerRadius="8" Background="#1A3fb950"/>
+                                    <Path Fill="#3fb950" Stretch="Uniform" Width="14" Height="14"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          Data="M6.62,10.79C8.06,13.62 10.38,15.94 13.21,17.38L15.41,15.18C15.69,14.9 16.08,14.82 16.43,14.93C17.55,15.3 18.75,15.5 20,15.5C20.55,15.5 21,15.95 21,16.5V20C21,20.55 20.55,21 20,21C10.61,21 3,13.39 3,4C3,3.45 3.45,3 4,3H7.5C8.05,3 8.5,3.45 8.5,4C8.5,5.25 8.7,6.45 9.07,7.57C9.18,7.92 9.1,8.31 8.82,8.59L6.62,10.79Z"/>
+                                </Grid>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock x:Name="txtStatsDzis" Text="0" FontSize="18" FontWeight="Bold" Foreground="#3fb950"/>
+                                    <TextBlock Text="Telefony dziś" FontSize="10" Foreground="#66FFFFFF"/>
+                                </StackPanel>
                             </StackPanel>
-                            <Border CornerRadius="8" Padding="6,2" VerticalAlignment="Center" Margin="10,0,0,0">
-                                <Border.Background><SolidColorBrush Color="#263fb950"/></Border.Background>
-                                <TextBlock x:Name="txtStatsCallsChange" Text="+0%" FontSize="10" Foreground="#3fb950" FontWeight="SemiBold"/>
-                            </Border>
-                        </StackPanel>
 
-                        <Border Grid.Column="1" Width="1" Background="#252530"/>
+                            <Border Grid.Column="1" Width="1" Background="#252530"/>
 
-                        <!-- Stat 2 - Active Agents -->
-                        <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="20,14">
-                            <Grid Width="34" Height="34" Margin="0,0,12,0">
-                                <Border CornerRadius="8" Background="#1A58a6ff"/>
-                                <Path Fill="#58a6ff" Stretch="Uniform" Width="18" Height="18"
-                                      HorizontalAlignment="Center" VerticalAlignment="Center"
-                                      Data="M16,11c1.66,0,2.99-1.34,2.99-3S17.66,5,16,5c-1.66,0-3,1.34-3,3S14.34,11,16,11z M8,11c1.66,0,2.99-1.34,2.99-3S9.66,5,8,5C6.34,5,5,6.34,5,8S6.34,11,8,11z M8,13c-2.33,0-7,1.17-7,3.5V19h14v-2.5C15,14.17,10.33,13,8,13z M16,13c-0.29,0-0.62,0.02-0.97,0.05 c1.16,0.84,1.97,1.97,1.97,3.45V19h6v-2.5C23,14.17,18.33,13,16,13z"/>
-                            </Grid>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock x:Name="txtStatsTelefony" Text="0" FontSize="20" FontWeight="Bold" Foreground="#58a6ff"/>
-                                <TextBlock Text="Agenci" FontSize="11" Foreground="#66FFFFFF"/>
+                            <!-- Stat 2 - Active Agents -->
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="16,12">
+                                <Grid Width="32" Height="32" Margin="0,0,10,0">
+                                    <Border CornerRadius="8" Background="#1A58a6ff"/>
+                                    <Path Fill="#58a6ff" Stretch="Uniform" Width="16" Height="16"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          Data="M16,11c1.66,0,2.99-1.34,2.99-3S17.66,5,16,5c-1.66,0-3,1.34-3,3S14.34,11,16,11z M8,11c1.66,0,2.99-1.34,2.99-3S9.66,5,8,5C6.34,5,5,6.34,5,8S6.34,11,8,11z M8,13c-2.33,0-7,1.17-7,3.5V19h14v-2.5C15,14.17,10.33,13,8,13z M16,13c-0.29,0-0.62,0.02-0.97,0.05 c1.16,0.84,1.97,1.97,1.97,3.45V19h6v-2.5C23,14.17,18.33,13,16,13z"/>
+                                </Grid>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock x:Name="txtStatsTelefony" Text="0" FontSize="18" FontWeight="Bold" Foreground="#58a6ff"/>
+                                    <TextBlock Text="Agenci" FontSize="10" Foreground="#66FFFFFF"/>
+                                </StackPanel>
+                                <Border CornerRadius="6" Padding="5,2" VerticalAlignment="Center" Margin="8,0,0,0">
+                                    <Border.Background><SolidColorBrush Color="#2658a6ff"/></Border.Background>
+                                    <TextBlock x:Name="txtStatsAgentsPercent" Text="0" FontSize="9" Foreground="#58a6ff" FontWeight="SemiBold"/>
+                                </Border>
                             </StackPanel>
-                            <Border CornerRadius="8" Padding="6,2" VerticalAlignment="Center" Margin="10,0,0,0">
-                                <Border.Background><SolidColorBrush Color="#2658a6ff"/></Border.Background>
-                                <TextBlock x:Name="txtStatsAgentsPercent" Text="0%" FontSize="10" Foreground="#58a6ff" FontWeight="SemiBold"/>
-                            </Border>
-                        </StackPanel>
 
-                        <Border Grid.Column="3" Width="1" Background="#252530"/>
+                            <Border Grid.Column="3" Width="1" Background="#252530"/>
 
-                        <!-- Stat 3 - Week -->
-                        <StackPanel Grid.Column="4" Orientation="Horizontal" Margin="20,14">
-                            <Grid Width="34" Height="34" Margin="0,0,12,0">
-                                <Border CornerRadius="8" Background="#1Af59e0b"/>
-                                <Path Fill="#f59e0b" Stretch="Uniform" Width="16" Height="16"
-                                      HorizontalAlignment="Center" VerticalAlignment="Center"
-                                      Data="M19,3H5C3.9,3,3,3.9,3,5v14c0,1.1,0.9,2,2,2h14c1.1,0,2-0.9,2-2V5C19,3.9,20.1,3,19,3z M9,17H7v-7h2V17z M13,17h-2V7h2V17z M17,17h-2v-4h2V17z"/>
-                            </Grid>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock x:Name="txtStatsTydzien" Text="0" FontSize="20" FontWeight="Bold" Foreground="#f59e0b"/>
-                                <TextBlock Text="Tydzień" FontSize="11" Foreground="#66FFFFFF"/>
+                            <!-- Stat 3 - Notes Today -->
+                            <StackPanel Grid.Column="4" Orientation="Horizontal" Margin="16,12">
+                                <Grid Width="32" Height="32" Margin="0,0,10,0">
+                                    <Border CornerRadius="8" Background="#1Af59e0b"/>
+                                    <Path Fill="#f59e0b" Stretch="Uniform" Width="14" Height="14"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          Data="M3,17.25V21h3.75L17.81,9.94l-3.75-3.75L3,17.25z M20.71,7.04c0.39-0.39,0.39-1.02,0-1.41l-2.34-2.34 c-0.39-0.39-1.02-0.39-1.41,0l-1.83,1.83l3.75,3.75L20.71,7.04z"/>
+                                </Grid>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock x:Name="txtDashNotes" Text="0" FontSize="18" FontWeight="Bold" Foreground="#f59e0b"/>
+                                    <TextBlock Text="Notatki" FontSize="10" Foreground="#66FFFFFF"/>
+                                </StackPanel>
                             </StackPanel>
-                            <Border CornerRadius="8" Padding="6,2" VerticalAlignment="Center" Margin="10,0,0,0">
-                                <Border.Background><SolidColorBrush Color="#26f59e0b"/></Border.Background>
-                                <TextBlock x:Name="txtStatsWeekChange" Text="+0%" FontSize="10" Foreground="#f59e0b" FontWeight="SemiBold"/>
-                            </Border>
-                        </StackPanel>
 
-                        <Border Grid.Column="5" Width="1" Background="#252530"/>
+                            <Border Grid.Column="5" Width="1" Background="#252530"/>
 
-                        <!-- Stat 4 - Month -->
-                        <StackPanel Grid.Column="6" Orientation="Horizontal" Margin="20,14">
-                            <Grid Width="34" Height="34" Margin="0,0,12,0">
-                                <Border CornerRadius="8" Background="#1Aa78bfa"/>
-                                <Path Fill="#a78bfa" Stretch="Uniform" Width="16" Height="16"
-                                      HorizontalAlignment="Center" VerticalAlignment="Center"
-                                      Data="M16,6l2.29,2.29-4.88,4.88-4-4L2,16.59 3.41,18l6-6 4,4 6.3-6.29L22,12V6z"/>
-                            </Grid>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock x:Name="txtStatsMiesiac" Text="0" FontSize="20" FontWeight="Bold" Foreground="#a78bfa"/>
-                                <TextBlock Text="Miesiąc" FontSize="11" Foreground="#66FFFFFF"/>
+                            <!-- Stat 4 - Conversions -->
+                            <StackPanel Grid.Column="6" Orientation="Horizontal" Margin="16,12">
+                                <Grid Width="32" Height="32" Margin="0,0,10,0">
+                                    <Border CornerRadius="8" Background="#1Aa78bfa"/>
+                                    <Path Fill="#a78bfa" Stretch="Uniform" Width="14" Height="14"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          Data="M16,6l2.29,2.29-4.88,4.88-4-4L2,16.59 3.41,18l6-6 4,4 6.3-6.29L22,12V6z"/>
+                                </Grid>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock x:Name="txtDashConversions" Text="0" FontSize="18" FontWeight="Bold" Foreground="#a78bfa"/>
+                                    <TextBlock Text="Konwersje" FontSize="10" Foreground="#66FFFFFF"/>
+                                </StackPanel>
                             </StackPanel>
-                            <Border CornerRadius="8" Padding="6,2" VerticalAlignment="Center" Margin="10,0,0,0">
-                                <Border.Background><SolidColorBrush Color="#26a78bfa"/></Border.Background>
-                                <TextBlock x:Name="txtStatsMonthChange" Text="+0%" FontSize="10" Foreground="#a78bfa" FontWeight="SemiBold"/>
-                            </Border>
-                        </StackPanel>
+
+                            <Border Grid.Column="7" Width="1" Background="#252530"/>
+
+                            <!-- Stat 5 - Goal % with mini progress -->
+                            <StackPanel Grid.Column="8" Margin="16,12">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock x:Name="txtDashGoalPct" Text="0%" FontSize="18" FontWeight="Bold" Foreground="#22c55e"/>
+                                    <TextBlock x:Name="txtDashAvgDuration" Text="--:--" FontSize="10" Foreground="#66FFFFFF" VerticalAlignment="Bottom" Margin="8,0,0,4"/>
+                                </StackPanel>
+                                <TextBlock Text="Cel zespołu" FontSize="10" Foreground="#66FFFFFF" Margin="0,1,0,3"/>
+                                <ProgressBar x:Name="dashGoalProgress" Value="0" Minimum="0" Maximum="100"
+                                             Height="4" Background="#252530" Foreground="#3fb950"
+                                             BorderThickness="0"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Bottom info bar - Top Performer + Alerts -->
+                        <Border Grid.Row="1" BorderBrush="#252530" BorderThickness="0,1,0,0" Padding="16,8">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="txtTopPerformer" Grid.Column="0" Text="TOP DZIŚ: --" FontSize="12" FontWeight="SemiBold" Foreground="#f59e0b" VerticalAlignment="Center"/>
+                                <Border Grid.Column="1" Width="1" Background="#252530" Margin="12,0"/>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="ALERTY: " FontSize="12" Foreground="#f85149" FontWeight="SemiBold"/>
+                                    <Border CornerRadius="8" Padding="6,1" Background="#26f85149">
+                                        <TextBlock x:Name="txtAlertsCount" Text="0" FontSize="11" Foreground="#f85149" FontWeight="Bold"/>
+                                    </Border>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
                     </Grid>
                 </Border>
 
                 <!-- ============================================ -->
-                <!-- SEARCH BAR                                   -->
+                <!-- ALERTS PANEL (collapsible)                   -->
                 <!-- ============================================ -->
-                <Border Grid.Row="2" Background="#08FFFFFF" BorderBrush="#14FFFFFF"
-                        BorderThickness="1" CornerRadius="12" Padding="16,10" Margin="0,0,0,16">
+                <Border x:Name="alertsPanel" Grid.Row="2" Background="#1A1A0A" BorderBrush="#3A3520"
+                        BorderThickness="1" CornerRadius="10" Padding="14,8" Margin="0,0,0,12"
+                        Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock Text="Alerty zespołu:" FontSize="12" FontWeight="SemiBold" Foreground="#f59e0b" Margin="0,0,0,4"/>
+                        <TextBlock x:Name="txtAlerts" Text="" FontSize="11" Foreground="#ccAA8800" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- ============================================ -->
+                <!-- SEARCH BAR + SORT                            -->
+                <!-- ============================================ -->
+                <Border Grid.Row="3" Background="#08FFFFFF" BorderBrush="#14FFFFFF"
+                        BorderThickness="1" CornerRadius="12" Padding="14,8" Margin="0,0,0,12">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <Path Fill="#66FFFFFF" Stretch="Uniform" Width="16" Height="16"
-                              VerticalAlignment="Center" Margin="0,0,12,0"
+                        <Path Fill="#66FFFFFF" Stretch="Uniform" Width="14" Height="14"
+                              VerticalAlignment="Center" Margin="0,0,10,0"
                               Data="M15.5,14h-0.79l-0.28-0.27C15.41,12.59,16,11.11,16,9.5C16,5.91,13.09,3,9.5,3S3,5.91,3,9.5S5.91,16,9.5,16 c1.61,0,3.09-0.59,4.23-1.57l0.27,0.28v0.79l5,4.99L20.49,19L15.5,14z M9.5,14C7.01,14,5,11.99,5,9.5S7.01,5,9.5,5 S14,7.01,14,9.5S11.99,14,9.5,14z"/>
                         <TextBox x:Name="txtSearchHandlowiec" Grid.Column="1"
                                  Background="Transparent" BorderThickness="0"
-                                 Foreground="White" FontSize="14" CaretBrush="White"
+                                 Foreground="White" FontSize="13" CaretBrush="White"
                                  VerticalAlignment="Center"
-                                 TextChanged="TxtSearchHandlowiec_TextChanged">
-                            <TextBox.Style>
-                                <Style TargetType="TextBox">
-                                    <Setter Property="Tag" Value="Szukaj handlowca..."/>
-                                </Style>
-                            </TextBox.Style>
-                        </TextBox>
-                        <TextBlock Grid.Column="1" Text="Szukaj handlowca..." FontSize="14"
+                                 TextChanged="TxtSearchHandlowiec_TextChanged"/>
+                        <TextBlock Grid.Column="1" Text="Szukaj handlowca..." FontSize="13"
                                    Foreground="#44FFFFFF" VerticalAlignment="Center"
                                    IsHitTestVisible="False"
                                    Visibility="{Binding Text.Length, ElementName=txtSearchHandlowiec, Converter={StaticResource InverseLengthToVisibility}}"/>
-                        <TextBlock x:Name="txtSearchCount" Grid.Column="2" Text="" FontSize="12"
-                                   Foreground="#66FFFFFF" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                        <TextBlock x:Name="txtSearchCount" Grid.Column="2" Text="" FontSize="11"
+                                   Foreground="#66FFFFFF" VerticalAlignment="Center" Margin="10,0"/>
+
+                        <TextBlock Grid.Column="3" Text="Sortuj:" FontSize="11" Foreground="#66FFFFFF" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <ComboBox x:Name="cmbSort" Grid.Column="4" Width="140" FontSize="11"
+                                  Style="{StaticResource GlassComboBox}"
+                                  SelectionChanged="CmbSort_SelectionChanged"
+                                  SelectedIndex="0">
+                            <ComboBoxItem Content="Aktywność"/>
+                            <ComboBoxItem Content="Nazwa A-Z"/>
+                            <ComboBoxItem Content="Wyniki dziś"/>
+                            <ComboBoxItem Content="Wyniki tydzień"/>
+                        </ComboBox>
                     </Grid>
+                </Border>
+
+                <!-- ============================================ -->
+                <!-- STATS BAR (Week)                             -->
+                <!-- ============================================ -->
+                <Border Grid.Row="4" Background="#18181f" BorderBrush="#252530"
+                        BorderThickness="1" CornerRadius="10" Padding="14,8" Margin="0,0,0,12">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Path Fill="White" Stretch="Uniform" Width="12" Height="12"
+                              VerticalAlignment="Center" Margin="0,0,8,0"
+                              Data="M19,3H5C3.9,3,3,3.9,3,5v14c0,1.1,0.9,2,2,2h14c1.1,0,2-0.9,2-2V5C19,3.9,20.1,3,19,3z M9,17H7v-7h2V17z M13,17h-2V7h2V17z M17,17h-2v-4h2V17z"/>
+                        <TextBlock Text="Tydzień:" FontSize="12" Foreground="#66FFFFFF" VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                        <StackPanel Margin="0,0,6,0" VerticalAlignment="Center">
+                            <TextBlock x:Name="txtBarMonVal" Text="0" FontSize="10" Foreground="#B3FFFFFF" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                            <Border x:Name="barMon" Width="36" Height="5" CornerRadius="2" Background="#252530" Margin="0,2,0,2"/>
+                            <TextBlock Text="Pon" FontSize="9" Foreground="#55FFFFFF" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,6,0" VerticalAlignment="Center">
+                            <TextBlock x:Name="txtBarTueVal" Text="0" FontSize="10" Foreground="#B3FFFFFF" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                            <Border x:Name="barTue" Width="36" Height="5" CornerRadius="2" Background="#252530" Margin="0,2,0,2"/>
+                            <TextBlock Text="Wt" FontSize="9" Foreground="#55FFFFFF" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,6,0" VerticalAlignment="Center">
+                            <TextBlock x:Name="txtBarWedVal" Text="0" FontSize="10" Foreground="#B3FFFFFF" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                            <Border x:Name="barWed" Width="36" Height="5" CornerRadius="2" Background="#252530" Margin="0,2,0,2"/>
+                            <TextBlock Text="Śr" FontSize="9" Foreground="#55FFFFFF" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,6,0" VerticalAlignment="Center">
+                            <TextBlock x:Name="txtBarThuVal" Text="0" FontSize="10" Foreground="#3fb950" HorizontalAlignment="Center" FontWeight="Bold"/>
+                            <Border x:Name="barThu" Width="36" Height="5" CornerRadius="2" Margin="0,2,0,2">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                        <GradientStop Color="#3fb950" Offset="0"/>
+                                        <GradientStop Color="#22c55e" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                            </Border>
+                            <TextBlock Text="Czw" FontSize="9" Foreground="#3fb950" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,10,0" VerticalAlignment="Center">
+                            <TextBlock x:Name="txtBarFriVal" Text="0" FontSize="10" Foreground="#B3FFFFFF" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                            <Border x:Name="barFri" Width="36" Height="5" CornerRadius="2" Background="#252530" Margin="0,2,0,2"/>
+                            <TextBlock Text="Pt" FontSize="9" Foreground="#55FFFFFF" HorizontalAlignment="Center"/>
+                        </StackPanel>
+
+                        <Border Width="1" Background="#252530" Margin="4,2"/>
+
+                        <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
+                            <TextBlock x:Name="txtWeekTotal" Text="0" FontSize="16" FontWeight="Bold" Foreground="#f59e0b" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Łącznie" FontSize="9" Foreground="#66FFFFFF" HorizontalAlignment="Center"/>
+                        </StackPanel>
+
+                        <Border Width="1" Background="#252530" Margin="14,2"/>
+
+                        <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
+                            <TextBlock x:Name="txtStatsCallsChange" Text="+0%" FontSize="10" Foreground="#3fb950" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="txtStatsWeekChange" Text="+0%" FontSize="10" Foreground="#f59e0b"/>
+                            <TextBlock x:Name="txtStatsMonthChange" Text="+0%" FontSize="10" Foreground="#a78bfa"/>
+                        </StackPanel>
+
+                        <!-- Remote stats -->
+                        <Border Width="1" Background="#252530" Margin="14,2"/>
+                        <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
+                            <TextBlock x:Name="txtStatsTydzien" Text="0" FontSize="14" FontWeight="Bold" Foreground="#f59e0b"/>
+                            <TextBlock Text="Tydzień" FontSize="9" Foreground="#66FFFFFF"/>
+                        </StackPanel>
+                        <Border Width="1" Background="#252530" Margin="10,2"/>
+                        <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
+                            <TextBlock x:Name="txtStatsMiesiac" Text="0" FontSize="14" FontWeight="Bold" Foreground="#a78bfa"/>
+                            <TextBlock Text="Miesiąc" FontSize="9" Foreground="#66FFFFFF"/>
+                        </StackPanel>
+                    </StackPanel>
                 </Border>
 
                 <!-- ============================================ -->
                 <!-- MAIN TABLE                                   -->
                 <!-- ============================================ -->
-                <Border Grid.Row="3" Background="#0C0C12" BorderBrush="#1E1E2A"
-                        BorderThickness="1" CornerRadius="16" ClipToBounds="True">
+                <Border Grid.Row="5" Background="#0C0C12" BorderBrush="#1E1E2A"
+                        BorderThickness="1" CornerRadius="14" ClipToBounds="True">
                     <DataGrid x:Name="dgHandlowcy" AutoGenerateColumns="False"
                               Background="Transparent" BorderThickness="0"
                               GridLinesVisibility="Horizontal"
@@ -249,15 +371,15 @@
                               CanUserDeleteRows="False"
                               CanUserReorderColumns="False"
                               CanUserResizeRows="False"
-                              RowHeight="68"
-                              ColumnHeaderHeight="52"
+                              RowHeight="76"
+                              ColumnHeaderHeight="44"
                               Foreground="White"
-                              FontSize="13"
+                              FontSize="12"
                               HorizontalScrollBarVisibility="Disabled"
-                              VerticalScrollBarVisibility="Auto">
+                              VerticalScrollBarVisibility="Auto"
+                              RowDetailsVisibilityMode="VisibleWhenSelected">
 
                         <DataGrid.Resources>
-                            <!-- Override default DataGrid scrollbar to dark -->
                             <Style TargetType="ScrollBar">
                                 <Setter Property="Background" Value="Transparent"/>
                                 <Setter Property="Width" Value="8"/>
@@ -293,9 +415,9 @@
                             <Style TargetType="DataGridColumnHeader">
                                 <Setter Property="Background" Value="#0A0A10"/>
                                 <Setter Property="Foreground" Value="#8899AA"/>
-                                <Setter Property="FontSize" Value="11"/>
+                                <Setter Property="FontSize" Value="10"/>
                                 <Setter Property="FontWeight" Value="SemiBold"/>
-                                <Setter Property="Padding" Value="20,14"/>
+                                <Setter Property="Padding" Value="14,10"/>
                                 <Setter Property="BorderBrush" Value="#14FFFFFF"/>
                                 <Setter Property="BorderThickness" Value="0,0,0,1"/>
                                 <Setter Property="Template">
@@ -321,7 +443,7 @@
                             <Style TargetType="DataGridCell">
                                 <Setter Property="Background" Value="Transparent"/>
                                 <Setter Property="BorderThickness" Value="0"/>
-                                <Setter Property="Padding" Value="20,0"/>
+                                <Setter Property="Padding" Value="14,0"/>
                                 <Setter Property="VerticalAlignment" Value="Center"/>
                                 <Setter Property="Foreground" Value="White"/>
                                 <Setter Property="Template">
@@ -345,6 +467,7 @@
                         <DataGrid.RowStyle>
                             <Style TargetType="DataGridRow">
                                 <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="Opacity" Value="{Binding RowOpacity}"/>
                                 <Style.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
                                         <Setter Property="Background" Value="#0CFFFFFF"/>
@@ -356,9 +479,184 @@
                             </Style>
                         </DataGrid.RowStyle>
 
+                        <!-- ============================================ -->
+                        <!-- ROW DETAILS - Expanded config panels         -->
+                        <!-- ============================================ -->
+                        <DataGrid.RowDetailsTemplate>
+                            <DataTemplate>
+                                <Border Background="#12121A" BorderBrush="#252530" BorderThickness="0,1" Padding="20,14">
+                                    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" MaxHeight="420">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+
+                                            <!-- COLUMN 1: Preset + Goals -->
+                                            <StackPanel Grid.Column="0" Grid.Row="0" Margin="0,0,12,0">
+                                                <TextBlock Text="PRESET / CELE" FontSize="10" Foreground="#58a6ff" FontWeight="Bold" Margin="0,0,0,8"/>
+
+                                                <TextBlock Text="Preset:" FontSize="10" Foreground="#88FFFFFF" Margin="0,0,0,3"/>
+                                                <ComboBox Width="160" HorizontalAlignment="Left" FontSize="11"
+                                                          Style="{StaticResource GlassComboBox}"
+                                                          SelectionChanged="CmbPreset_SelectionChanged">
+                                                    <ComboBoxItem Content="Własny" Tag="custom"/>
+                                                    <ComboBoxItem Content="Junior" Tag="junior"/>
+                                                    <ComboBoxItem Content="Senior" Tag="senior"/>
+                                                    <ComboBoxItem Content="Hunter" Tag="hunter"/>
+                                                    <ComboBoxItem Content="Farmer" Tag="farmer"/>
+                                                </ComboBox>
+
+                                                <TextBlock Text="Cel dzienny:" FontSize="10" Foreground="#88FFFFFF" Margin="0,8,0,3"/>
+                                                <TextBox Text="{Binding DailyCallTarget, UpdateSourceTrigger=PropertyChanged}"
+                                                         Style="{StaticResource GlassTextBox}" Width="80" HorizontalAlignment="Left" FontSize="12"/>
+
+                                                <TextBlock Text="Cel tygodniowy:" FontSize="10" Foreground="#88FFFFFF" Margin="0,6,0,3"/>
+                                                <TextBox Text="{Binding WeeklyCallTarget, UpdateSourceTrigger=PropertyChanged}"
+                                                         Style="{StaticResource GlassTextBox}" Width="80" HorizontalAlignment="Left" FontSize="12"/>
+
+                                                <TextBlock Text="Max prób/kontakt:" FontSize="10" Foreground="#88FFFFFF" Margin="0,6,0,3"/>
+                                                <TextBox Text="{Binding MaxAttemptsPerContact, UpdateSourceTrigger=PropertyChanged}"
+                                                         Style="{StaticResource GlassTextBox}" Width="80" HorizontalAlignment="Left" FontSize="12"/>
+
+                                                <TextBlock Text="Cooldown (dni):" FontSize="10" Foreground="#88FFFFFF" Margin="0,6,0,3"/>
+                                                <TextBox Text="{Binding CooldownDays, UpdateSourceTrigger=PropertyChanged}"
+                                                         Style="{StaticResource GlassTextBox}" Width="80" HorizontalAlignment="Left" FontSize="12"/>
+                                            </StackPanel>
+
+                                            <!-- COLUMN 2: PKD + Source -->
+                                            <StackPanel Grid.Column="1" Grid.Row="0" Margin="0,0,12,0">
+                                                <TextBlock Text="PKD / ŹRÓDŁO" FontSize="10" Foreground="#f59e0b" FontWeight="Bold" Margin="0,0,0,8"/>
+
+                                                <TextBlock Text="Preset PKD:" FontSize="10" Foreground="#88FFFFFF" Margin="0,0,0,3"/>
+                                                <ComboBox Width="160" HorizontalAlignment="Left" FontSize="11"
+                                                          Style="{StaticResource GlassComboBox}"
+                                                          SelectionChanged="CmbPKDPreset_SelectionChanged">
+                                                    <ComboBoxItem Content="Brak" Tag=""/>
+                                                    <ComboBoxItem Content="Branża mięsna" Tag="meat"/>
+                                                    <ComboBoxItem Content="Gastronomia" Tag="gastro"/>
+                                                    <ComboBoxItem Content="Hurtownie" Tag="wholesale"/>
+                                                    <ComboBoxItem Content="Sieci handlowe" Tag="retail"/>
+                                                </ComboBox>
+
+                                                <TextBlock Text="Waga PKD (%):" FontSize="10" Foreground="#88FFFFFF" Margin="0,8,0,3"/>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Slider Value="{Binding PKDPriorityWeight, UpdateSourceTrigger=PropertyChanged}"
+                                                            Minimum="0" Maximum="100" Width="120"
+                                                            TickFrequency="10" IsSnapToTickEnabled="True"/>
+                                                    <TextBlock Text="{Binding PKDPriorityWeight, StringFormat={}{0}%}" FontSize="11" Foreground="#B3FFFFFF" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                                </StackPanel>
+
+                                                <Border Height="1" Background="#252530" Margin="0,10"/>
+
+                                                <TextBlock Text="Źródło kontaktów:" FontSize="10" Foreground="#88FFFFFF" Margin="0,0,0,3"/>
+                                                <ComboBox Width="160" HorizontalAlignment="Left" FontSize="11"
+                                                          Style="{StaticResource GlassComboBox}"
+                                                          SelectionChanged="CmbSourcePriority_SelectionChanged">
+                                                    <ComboBoxItem Content="Mix" Tag="mixed"/>
+                                                    <ComboBoxItem Content="Tylko ręczne" Tag="manual"/>
+                                                    <ComboBoxItem Content="Tylko import" Tag="import"/>
+                                                </ComboBox>
+
+                                                <TextBlock Text="% ręcznych (mix):" FontSize="10" Foreground="#88FFFFFF" Margin="0,6,0,3"/>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Slider Value="{Binding ManualContactsPercent, UpdateSourceTrigger=PropertyChanged}"
+                                                            Minimum="0" Maximum="100" Width="120"
+                                                            TickFrequency="10" IsSnapToTickEnabled="True"/>
+                                                    <TextBlock Text="{Binding ManualContactsPercent, StringFormat={}{0}%}" FontSize="11" Foreground="#B3FFFFFF" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                                </StackPanel>
+
+                                                <CheckBox Content="Priorytet nowych importów" IsChecked="{Binding PrioritizeRecentImports, UpdateSourceTrigger=PropertyChanged}"
+                                                          Style="{StaticResource GlassCheckBox}" FontSize="10" Foreground="#88FFFFFF" Margin="0,6,0,0"/>
+                                            </StackPanel>
+
+                                            <!-- COLUMN 3: Territory -->
+                                            <StackPanel Grid.Column="2" Grid.Row="0" Margin="0,0,12,0">
+                                                <TextBlock Text="TERYTORIUM" FontSize="10" Foreground="#3fb950" FontWeight="Bold" Margin="0,0,0,8"/>
+
+                                                <TextBlock Text="Województwa:" FontSize="10" Foreground="#88FFFFFF" Margin="0,0,0,3"/>
+                                                <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto">
+                                                    <WrapPanel>
+                                                        <CheckBox Content="dolnośląskie" FontSize="9" Foreground="#88FFFFFF" Margin="0,1,8,1" Style="{StaticResource GlassCheckBox}"/>
+                                                        <CheckBox Content="kujawsko-pomorskie" FontSize="9" Foreground="#88FFFFFF" Margin="0,1,8,1" Style="{StaticResource GlassCheckBox}"/>
+                                                        <CheckBox Content="lubelskie" FontSize="9" Foreground="#88FFFFFF" Margin="0,1,8,1" Style="{StaticResource GlassCheckBox}"/>
+                                                        <CheckBox Content="lubuskie" FontSize="9" Foreground="#88FFFFFF" Margin="0,1,8,1" Style="{StaticResource GlassCheckBox}"/>
+                                                        <CheckBox Content="łódzkie" FontSize="9" Foreground="#88FFFFFF" Margin="0,1,8,1" Style="{StaticResource GlassCheckBox}"/>
+                                                        <CheckBox Content="małopolskie" FontSize="9" Foreground="#88FFFFFF" Margin="0,1,8,1" Style="{StaticResource GlassCheckBox}"/>
+                                                        <CheckBox Content="mazowieckie" FontSize="9" Foreground="#88FFFFFF" Margin="0,1,8,1" Style="{StaticResource GlassCheckBox}"/>
+                                                        <CheckBox Content="opolskie" FontSize="9" Foreground="#88FFFFFF" Margin="0,1,8,1" Style="{StaticResource GlassCheckBox}"/>
+                                                        <CheckBox Content="podkarpackie" FontSize="9" Foreground="#88FFFFFF" Margin="0,1,8,1" Style="{StaticResource GlassCheckBox}"/>
+                                                        <CheckBox Content="podlaskie" FontSize="9" Foreground="#88FFFFFF" Margin="0,1,8,1" Style="{StaticResource GlassCheckBox}"/>
+                                                        <CheckBox Content="pomorskie" FontSize="9" Foreground="#88FFFFFF" Margin="0,1,8,1" Style="{StaticResource GlassCheckBox}"/>
+                                                        <CheckBox Content="śląskie" FontSize="9" Foreground="#88FFFFFF" Margin="0,1,8,1" Style="{StaticResource GlassCheckBox}"/>
+                                                        <CheckBox Content="świętokrzyskie" FontSize="9" Foreground="#88FFFFFF" Margin="0,1,8,1" Style="{StaticResource GlassCheckBox}"/>
+                                                        <CheckBox Content="warmińsko-mazurskie" FontSize="9" Foreground="#88FFFFFF" Margin="0,1,8,1" Style="{StaticResource GlassCheckBox}"/>
+                                                        <CheckBox Content="wielkopolskie" FontSize="9" Foreground="#88FFFFFF" Margin="0,1,8,1" Style="{StaticResource GlassCheckBox}"/>
+                                                        <CheckBox Content="zachodniopomorskie" FontSize="9" Foreground="#88FFFFFF" Margin="0,1,8,1" Style="{StaticResource GlassCheckBox}"/>
+                                                    </WrapPanel>
+                                                </ScrollViewer>
+
+                                                <CheckBox Content="Wyłączne terytorium" IsChecked="{Binding ExclusiveTerritory, UpdateSourceTrigger=PropertyChanged}"
+                                                          Style="{StaticResource GlassCheckBox}" FontSize="10" Foreground="#88FFFFFF" Margin="0,6,0,0"/>
+                                            </StackPanel>
+
+                                            <!-- COLUMN 4: Schedule + Actions -->
+                                            <StackPanel Grid.Column="3" Grid.Row="0">
+                                                <TextBlock Text="HARMONOGRAM" FontSize="10" Foreground="#a78bfa" FontWeight="Bold" Margin="0,0,0,8"/>
+
+                                                <TextBlock Text="Przerwa obiadowa:" FontSize="10" Foreground="#88FFFFFF" Margin="0,0,0,3"/>
+                                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                    <ComboBox SelectedValue="{Binding LunchStartString, UpdateSourceTrigger=PropertyChanged}"
+                                                              ItemsSource="{Binding AvailableTimes}" Width="70" FontSize="10"
+                                                              Style="{StaticResource GlassComboBox}"/>
+                                                    <TextBlock Text=" - " Foreground="#66FFFFFF" VerticalAlignment="Center"/>
+                                                    <ComboBox SelectedValue="{Binding LunchEndString, UpdateSourceTrigger=PropertyChanged}"
+                                                              ItemsSource="{Binding AvailableTimes}" Width="70" FontSize="10"
+                                                              Style="{StaticResource GlassComboBox}"/>
+                                                </StackPanel>
+
+                                                <TextBlock Text="Urlop od:" FontSize="10" Foreground="#88FFFFFF" Margin="0,6,0,3"/>
+                                                <DatePicker SelectedDate="{Binding VacationStart, UpdateSourceTrigger=PropertyChanged}"
+                                                            FontSize="10" Width="140" HorizontalAlignment="Left"/>
+                                                <TextBlock Text="Urlop do:" FontSize="10" Foreground="#88FFFFFF" Margin="0,4,0,3"/>
+                                                <DatePicker SelectedDate="{Binding VacationEnd, UpdateSourceTrigger=PropertyChanged}"
+                                                            FontSize="10" Width="140" HorizontalAlignment="Left"/>
+
+                                                <Border Height="1" Background="#252530" Margin="0,10"/>
+
+                                                <TextBlock Text="AKCJE" FontSize="10" Foreground="#f85149" FontWeight="Bold" Margin="0,0,0,6"/>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Button Content="Historia" Style="{StaticResource GlassButton}" Padding="10,5" FontSize="10" Margin="0,0,6,0"
+                                                            Click="BtnShowHistory_Click"/>
+                                                    <Button Content="Przekaż" Style="{StaticResource GlassButton}" Padding="10,5" FontSize="10"
+                                                            Click="BtnTransferLeads_Click"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Grid>
+                                    </ScrollViewer>
+                                </Border>
+                            </DataTemplate>
+                        </DataGrid.RowDetailsTemplate>
+
                         <DataGrid.Columns>
+                            <!-- Status indicator -->
+                            <DataGridTemplateColumn Header="" Width="6">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border Width="4" CornerRadius="2" Margin="-14,4,0,4"
+                                                Background="{Binding RowBorderColor, Converter={StaticResource StringToBrush}}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
                             <!-- Enabled Checkbox -->
-                            <DataGridTemplateColumn Header="AKTYWNY" Width="80">
+                            <DataGridTemplateColumn Header="AKT." Width="54">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <CheckBox IsChecked="{Binding IsEnabled, UpdateSourceTrigger=PropertyChanged}"
@@ -367,32 +665,28 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <!-- Handlowiec Name with Avatar -->
-                            <DataGridTemplateColumn Header="HANDLOWIEC" Width="*" MinWidth="250">
+                            <!-- Handlowiec Name with Avatar + Status Badge + Progress -->
+                            <DataGridTemplateColumn Header="HANDLOWIEC" Width="*" MinWidth="280">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <!-- Avatar circle with image or initials fallback -->
-                                            <Grid Width="42" Height="42">
-                                                <!-- Fallback: gradient circle with initials -->
-                                                <Border Width="42" Height="42" CornerRadius="21"
+                                            <Grid Width="40" Height="40">
+                                                <Border Width="40" Height="40" CornerRadius="20"
                                                         Visibility="{Binding HasNoAvatar, Converter={StaticResource BoolToVisibility}}">
                                                     <Border.Background>
                                                         <SolidColorBrush Color="{Binding AvatarColor}"/>
                                                     </Border.Background>
-                                                    <TextBlock Text="{Binding Initials}" FontSize="15" FontWeight="Bold"
+                                                    <TextBlock Text="{Binding Initials}" FontSize="14" FontWeight="Bold"
                                                                Foreground="White" HorizontalAlignment="Center"
                                                                VerticalAlignment="Center"/>
                                                 </Border>
-                                                <!-- Real avatar image -->
-                                                <Border Width="42" Height="42" CornerRadius="21"
+                                                <Border Width="40" Height="40" CornerRadius="20"
                                                         Visibility="{Binding HasAvatar, Converter={StaticResource BoolToVisibility}}">
                                                     <Border.Background>
                                                         <ImageBrush ImageSource="{Binding AvatarSource}" Stretch="UniformToFill"/>
                                                     </Border.Background>
                                                 </Border>
-                                                <!-- Online indicator dot -->
-                                                <Ellipse Width="12" Height="12"
+                                                <Ellipse Width="11" Height="11"
                                                          HorizontalAlignment="Right" VerticalAlignment="Bottom"
                                                          Stroke="#0C0C12" StrokeThickness="2"
                                                          Visibility="{Binding IsEnabled, Converter={StaticResource BoolToVisibility}}">
@@ -401,11 +695,24 @@
                                                     </Ellipse.Fill>
                                                 </Ellipse>
                                             </Grid>
-                                            <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding UserName}" FontSize="14" FontWeight="SemiBold"
-                                                           Foreground="White"/>
-                                                <TextBlock Text="{Binding RoleName}" FontSize="11"
-                                                           Foreground="#66FFFFFF" Margin="0,2,0,0"/>
+                                            <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding UserName}" FontSize="13" FontWeight="SemiBold" Foreground="White"/>
+                                                    <Border CornerRadius="4" Padding="5,1" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                            Background="{Binding StatusColor, Converter={StaticResource StringToBrush}}" Opacity="0.2">
+                                                        <TextBlock Text="{Binding StatusBadge}" FontSize="8" FontWeight="Bold"
+                                                                   Foreground="{Binding StatusColor, Converter={StaticResource StringToBrush}}"/>
+                                                    </Border>
+                                                </StackPanel>
+                                                <!-- Daily Progress mini bar -->
+                                                <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                                    <Border Width="80" Height="4" CornerRadius="2" Background="#1A666666">
+                                                        <Border CornerRadius="2" HorizontalAlignment="Left"
+                                                                Width="{Binding DailyProgressPct, Converter={x:Static local:ProgressToWidthHelper.Instance}}"
+                                                                Background="{Binding DailyProgressColor, Converter={StaticResource StringToBrush}}"/>
+                                                    </Border>
+                                                    <TextBlock Text="{Binding DailyProgressText}" FontSize="9" Foreground="#66FFFFFF" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                                </StackPanel>
                                             </StackPanel>
                                         </StackPanel>
                                     </DataTemplate>
@@ -413,43 +720,43 @@
                             </DataGridTemplateColumn>
 
                             <!-- Time 1 -->
-                            <DataGridTemplateColumn Header="GODZINA 1" Width="120">
+                            <DataGridTemplateColumn Header="GODZ 1" Width="100">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <ComboBox SelectedValue="{Binding Time1String, UpdateSourceTrigger=PropertyChanged}"
                                                   ItemsSource="{Binding AvailableTimes}"
                                                   Style="{StaticResource GlassComboBox}"
-                                                  Width="90"/>
+                                                  Width="76" FontSize="11"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
                             <!-- Time 2 -->
-                            <DataGridTemplateColumn Header="GODZINA 2" Width="120">
+                            <DataGridTemplateColumn Header="GODZ 2" Width="100">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <ComboBox SelectedValue="{Binding Time2String, UpdateSourceTrigger=PropertyChanged}"
                                                   ItemsSource="{Binding AvailableTimes}"
                                                   Style="{StaticResource GlassComboBox}"
-                                                  Width="90"/>
+                                                  Width="76" FontSize="11"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
                             <!-- Contacts Count -->
-                            <DataGridTemplateColumn Header="KONTAKTÓW" Width="110">
+                            <DataGridTemplateColumn Header="ILE" Width="70">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <ComboBox SelectedValue="{Binding ContactsPerReminder, UpdateSourceTrigger=PropertyChanged}"
                                                   ItemsSource="{Binding AvailableCounts}"
                                                   Style="{StaticResource GlassComboBox}"
-                                                  Width="70"/>
+                                                  Width="52" FontSize="11"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
                             <!-- Only New -->
-                            <DataGridTemplateColumn Header="TYLKO NOWI" Width="100">
+                            <DataGridTemplateColumn Header="NOWI" Width="56">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <CheckBox IsChecked="{Binding ShowOnlyNewContacts, UpdateSourceTrigger=PropertyChanged}"
@@ -459,7 +766,7 @@
                             </DataGridTemplateColumn>
 
                             <!-- Only Assigned -->
-                            <DataGridTemplateColumn Header="PRZYPISANI" Width="100">
+                            <DataGridTemplateColumn Header="PRZP." Width="56">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <CheckBox IsChecked="{Binding ShowOnlyAssigned, UpdateSourceTrigger=PropertyChanged}"
@@ -469,11 +776,10 @@
                             </DataGridTemplateColumn>
 
                             <!-- Today Count with colored badge -->
-                            <DataGridTemplateColumn Header="DZIŚ" Width="90">
+                            <DataGridTemplateColumn Header="DZIŚ" Width="72">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Border CornerRadius="12" Padding="12,6" HorizontalAlignment="Center"
-                                                MinWidth="40">
+                                        <Border CornerRadius="10" Padding="8,4" HorizontalAlignment="Center" MinWidth="36">
                                             <Border.Style>
                                                 <Style TargetType="Border">
                                                     <Setter Property="Background" Value="#1A3fb950"/>
@@ -485,7 +791,7 @@
                                                 </Style>
                                             </Border.Style>
                                             <TextBlock Text="{Binding TodayCalls}" FontWeight="Bold"
-                                                       FontSize="14" HorizontalAlignment="Center">
+                                                       FontSize="13" HorizontalAlignment="Center">
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">
                                                         <Setter Property="Foreground" Value="#3fb950"/>
@@ -502,16 +808,25 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <!-- Week Count with subtle badge -->
-                            <DataGridTemplateColumn Header="TYDZIEŃ" Width="90">
+                            <!-- Week Count -->
+                            <DataGridTemplateColumn Header="TYDZ." Width="72">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Border CornerRadius="12" Padding="12,6" HorizontalAlignment="Center"
-                                                Background="#14FFFFFF" MinWidth="40">
+                                        <Border CornerRadius="10" Padding="8,4" HorizontalAlignment="Center"
+                                                Background="#14FFFFFF" MinWidth="36">
                                             <TextBlock Text="{Binding WeekCalls}" FontWeight="SemiBold"
-                                                       FontSize="14" Foreground="#B3FFFFFF"
+                                                       FontSize="13" Foreground="#B3FFFFFF"
                                                        HorizontalAlignment="Center"/>
                                         </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- Daily Target -->
+                            <DataGridTemplateColumn Header="CEL" Width="56">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding DailyCallTarget}" FontSize="11" Foreground="#66FFFFFF" HorizontalAlignment="Center"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
@@ -520,13 +835,10 @@
                 </Border>
 
                 <!-- ============================================ -->
-                <!-- BOTTOM PANEL                                 -->
+                <!-- BOTTOM BAR                                   -->
                 <!-- ============================================ -->
-                <!-- ============================================ -->
-                <!-- COMPACT BOTTOM BAR                           -->
-                <!-- ============================================ -->
-                <Border Grid.Row="4" Background="#18181f" BorderBrush="#252530"
-                        BorderThickness="1" CornerRadius="12" Padding="20,16" Margin="0,16,0,0">
+                <Border Grid.Row="6" Background="#18181f" BorderBrush="#252530"
+                        BorderThickness="1" CornerRadius="12" Padding="16,12" Margin="0,12,0,0">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -534,91 +846,40 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <!-- Weekly Activity - horizontal compact bars with numbers -->
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <Path Fill="White" Stretch="Uniform" Width="14" Height="14"
-                                  VerticalAlignment="Center" Margin="0,0,10,0"
-                                  Data="M19,3H5C3.9,3,3,3.9,3,5v14c0,1.1,0.9,2,2,2h14c1.1,0,2-0.9,2-2V5C19,3.9,20.1,3,19,3z M9,17H7v-7h2V17z M13,17h-2V7h2V17z M17,17h-2v-4h2V17z"/>
-                            <TextBlock Text="Tydzień:" FontSize="13" Foreground="#66FFFFFF" VerticalAlignment="Center" Margin="0,0,14,0"/>
+                        <TextBlock Grid.Column="0" Text="Kliknij wiersz, aby rozwinąć szczegółową konfigurację handlowca"
+                                   FontSize="11" Foreground="#44FFFFFF" VerticalAlignment="Center"/>
 
-                            <!-- Mon -->
-                            <StackPanel Margin="0,0,8,0" VerticalAlignment="Center">
-                                <TextBlock x:Name="txtBarMonVal" Text="0" FontSize="11" Foreground="#B3FFFFFF" HorizontalAlignment="Center" FontWeight="SemiBold"/>
-                                <Border x:Name="barMon" Width="40" Height="6" CornerRadius="3" Background="#252530" Margin="0,3,0,3"/>
-                                <TextBlock Text="Pon" FontSize="10" Foreground="#55FFFFFF" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                            <!-- Tue -->
-                            <StackPanel Margin="0,0,8,0" VerticalAlignment="Center">
-                                <TextBlock x:Name="txtBarTueVal" Text="0" FontSize="11" Foreground="#B3FFFFFF" HorizontalAlignment="Center" FontWeight="SemiBold"/>
-                                <Border x:Name="barTue" Width="40" Height="6" CornerRadius="3" Background="#252530" Margin="0,3,0,3"/>
-                                <TextBlock Text="Wt" FontSize="10" Foreground="#55FFFFFF" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                            <!-- Wed -->
-                            <StackPanel Margin="0,0,8,0" VerticalAlignment="Center">
-                                <TextBlock x:Name="txtBarWedVal" Text="0" FontSize="11" Foreground="#B3FFFFFF" HorizontalAlignment="Center" FontWeight="SemiBold"/>
-                                <Border x:Name="barWed" Width="40" Height="6" CornerRadius="3" Background="#252530" Margin="0,3,0,3"/>
-                                <TextBlock Text="Śr" FontSize="10" Foreground="#55FFFFFF" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                            <!-- Thu -->
-                            <StackPanel Margin="0,0,8,0" VerticalAlignment="Center">
-                                <TextBlock x:Name="txtBarThuVal" Text="0" FontSize="11" Foreground="#3fb950" HorizontalAlignment="Center" FontWeight="Bold"/>
-                                <Border x:Name="barThu" Width="40" Height="6" CornerRadius="3" Margin="0,3,0,3">
-                                    <Border.Background>
-                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                            <GradientStop Color="#3fb950" Offset="0"/>
-                                            <GradientStop Color="#22c55e" Offset="1"/>
-                                        </LinearGradientBrush>
-                                    </Border.Background>
-                                </Border>
-                                <TextBlock Text="Czw" FontSize="10" Foreground="#3fb950" HorizontalAlignment="Center" FontWeight="SemiBold"/>
-                            </StackPanel>
-                            <!-- Fri -->
-                            <StackPanel Margin="0,0,14,0" VerticalAlignment="Center">
-                                <TextBlock x:Name="txtBarFriVal" Text="0" FontSize="11" Foreground="#B3FFFFFF" HorizontalAlignment="Center" FontWeight="SemiBold"/>
-                                <Border x:Name="barFri" Width="40" Height="6" CornerRadius="3" Background="#252530" Margin="0,3,0,3"/>
-                                <TextBlock Text="Pt" FontSize="10" Foreground="#55FFFFFF" HorizontalAlignment="Center"/>
-                            </StackPanel>
-
-                            <Border Width="1" Background="#252530" Margin="6,4"/>
-
-                            <!-- Weekly total -->
-                            <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
-                                <TextBlock x:Name="txtWeekTotal" Text="0" FontSize="18" FontWeight="Bold" Foreground="#f59e0b" HorizontalAlignment="Center"/>
-                                <TextBlock Text="Łącznie" FontSize="10" Foreground="#66FFFFFF" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                        </StackPanel>
-
-                        <!-- Quick Actions - inline buttons -->
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="20,0">
-                            <Button Style="{StaticResource GlassButton}" Margin="0,0,8,0"
-                                    Click="BtnTest_Click" Padding="14,8" ToolTip="Testuj przypomnienie">
+                        <!-- Quick Actions -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="16,0">
+                            <Button Style="{StaticResource GlassButton}" Margin="0,0,6,0"
+                                    Click="BtnTest_Click" Padding="12,7" ToolTip="Testuj przypomnienie">
                                 <StackPanel Orientation="Horizontal">
-                                    <Path Fill="#58a6ff" Stretch="Uniform" Width="12" Height="12" VerticalAlignment="Center" Margin="0,0,8,0"
+                                    <Path Fill="#58a6ff" Stretch="Uniform" Width="11" Height="11" VerticalAlignment="Center" Margin="0,0,6,0"
                                           Data="M12,2C6.48,2,2,6.48,2,12s4.48,10,10,10,10-4.48,10-10S17.52,2,12,2zM10,17l-5-5,1.41-1.41L10,14.17l7.59-7.59L19,8l-9,9z"/>
-                                    <TextBlock Text="Test" FontSize="12" Foreground="White"/>
+                                    <TextBlock Text="Test" FontSize="11" Foreground="White"/>
                                 </StackPanel>
                             </Button>
-                            <Button Style="{StaticResource GlassButton}" Margin="0,0,8,0"
-                                    Click="BtnApplyToAll_Click" Padding="14,8" ToolTip="Zastosuj ustawienia do wszystkich">
+                            <Button Style="{StaticResource GlassButton}" Margin="0,0,6,0"
+                                    Click="BtnApplyToAll_Click" Padding="12,7" ToolTip="Zastosuj ustawienia do wszystkich">
                                 <StackPanel Orientation="Horizontal">
-                                    <Path Fill="#a78bfa" Stretch="Uniform" Width="12" Height="12" VerticalAlignment="Center" Margin="0,0,8,0"
+                                    <Path Fill="#a78bfa" Stretch="Uniform" Width="11" Height="11" VerticalAlignment="Center" Margin="0,0,6,0"
                                           Data="M16,1H4C2.9,1,2,1.9,2,3v14h2V3h12V1z M19,5H8C6.9,5,6,5.9,6,7v14c0,1.1,0.9,2,2,2h11c1.1,0,2-0.9,2-2V7C21,5.9,20.1,5,19,5z M19,21H8V7h11V21z"/>
-                                    <TextBlock Text="Wszystkim" FontSize="12" Foreground="White"/>
+                                    <TextBlock Text="Wszystkim" FontSize="11" Foreground="White"/>
                                 </StackPanel>
                             </Button>
-                            <Button Style="{StaticResource GlassButton}" Margin="0,0,8,0"
-                                    Click="BtnRefresh_Click" Padding="14,8" ToolTip="Odśwież dane">
-                                <Path Fill="#3fb950" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"
+                            <Button Style="{StaticResource GlassButton}" Margin="0,0,6,0"
+                                    Click="BtnRefresh_Click" Padding="12,7" ToolTip="Odśwież dane">
+                                <Path Fill="#3fb950" Stretch="Uniform" Width="12" Height="12" VerticalAlignment="Center"
                                       Data="M17.65,6.35C16.2,4.9,14.21,4,12,4c-4.42,0-7.99,3.58-7.99,8s3.57,8,7.99,8c3.73,0,6.84-2.55,7.73-6h-2.08c-0.82,2.33-3.04,4-5.65,4-3.31,0-6-2.69-6-6s2.69-6,6-6c1.66,0,3.14,0.69,4.22,1.78L13,11h7V4L17.65,6.35z"/>
                             </Button>
                         </StackPanel>
 
                         <!-- Save button -->
-                        <Button Grid.Column="2" Style="{StaticResource SuccessButton}" Click="BtnSave_Click" Padding="24,10">
+                        <Button Grid.Column="2" Style="{StaticResource SuccessButton}" Click="BtnSave_Click" Padding="20,9">
                             <StackPanel Orientation="Horizontal">
-                                <Path Fill="White" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center" Margin="0,0,10,0"
+                                <Path Fill="White" Stretch="Uniform" Width="12" Height="12" VerticalAlignment="Center" Margin="0,0,8,0"
                                       Data="M17,3H5C3.89,3,3,3.9,3,5v14c0,1.1,0.89,2,2,2h14c1.1,0,2-0.9,2-2V7L17,3z M12,19c-1.66,0-3-1.34-3-3s1.34-3,3-3s3,1.34,3,3S13.66,19,12,19z M15,9H5V5h10V9z"/>
-                                <TextBlock Text="Zapisz zmiany" FontSize="13" FontWeight="Bold" Foreground="White"/>
+                                <TextBlock Text="Zapisz zmiany" FontSize="12" FontWeight="Bold" Foreground="White"/>
                             </StackPanel>
                         </Button>
                     </Grid>

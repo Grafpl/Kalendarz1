@@ -69,8 +69,16 @@ namespace Kalendarz1.CRM.Services
 
                 // Try to get existing config
                 var cmdGet = new SqlCommand(
-                    "SELECT ID, IsEnabled, ReminderTime1, ReminderTime2, ContactsPerReminder, " +
-                    "ShowOnlyNewContacts, ShowOnlyAssigned, MinutesTolerance FROM CallReminderConfig WHERE UserID = @UserID", conn);
+                    @"SELECT ID, IsEnabled, ReminderTime1, ReminderTime2, ContactsPerReminder,
+                      ShowOnlyNewContacts, ShowOnlyAssigned, MinutesTolerance,
+                      ISNULL(DailyCallTarget, 30), ISNULL(WeeklyCallTarget, 120),
+                      ISNULL(MaxAttemptsPerContact, 5), ISNULL(CooldownDays, 3),
+                      ISNULL(MinCallDurationSec, 30), ISNULL(PKDPriorityWeight, 70),
+                      ISNULL(SourcePriority, 'mixed'), ISNULL(ManualContactsPercent, 50),
+                      TerritoryWojewodztwa, ISNULL(UseAdvancedSchedule, 0),
+                      LunchBreakStart, LunchBreakEnd,
+                      VacationStart, VacationEnd, SubstituteUserID
+                      FROM CallReminderConfig WHERE UserID = @UserID", conn);
                 cmdGet.Parameters.AddWithValue("@UserID", _userID);
 
                 using var reader = cmdGet.ExecuteReader();
@@ -86,7 +94,22 @@ namespace Kalendarz1.CRM.Services
                         ContactsPerReminder = reader.GetInt32(4),
                         ShowOnlyNewContacts = reader.GetBoolean(5),
                         ShowOnlyAssigned = reader.GetBoolean(6),
-                        MinutesTolerance = reader.GetInt32(7)
+                        MinutesTolerance = reader.GetInt32(7),
+                        DailyCallTarget = reader.GetInt32(8),
+                        WeeklyCallTarget = reader.GetInt32(9),
+                        MaxAttemptsPerContact = reader.GetInt32(10),
+                        CooldownDays = reader.GetInt32(11),
+                        MinCallDurationSec = reader.GetInt32(12),
+                        PKDPriorityWeight = reader.GetInt32(13),
+                        SourcePriority = reader.GetString(14),
+                        ManualContactsPercent = reader.GetInt32(15),
+                        TerritoryWojewodztwa = reader.IsDBNull(16) ? null : reader.GetString(16),
+                        UseAdvancedSchedule = reader.GetBoolean(17),
+                        LunchBreakStart = reader.IsDBNull(18) ? new TimeSpan(12, 0, 0) : reader.GetTimeSpan(18),
+                        LunchBreakEnd = reader.IsDBNull(19) ? new TimeSpan(13, 0, 0) : reader.GetTimeSpan(19),
+                        VacationStart = reader.IsDBNull(20) ? null : reader.GetDateTime(20),
+                        VacationEnd = reader.IsDBNull(21) ? null : reader.GetDateTime(21),
+                        SubstituteUserID = reader.IsDBNull(22) ? null : reader.GetString(22)
                     };
                 }
                 else
@@ -160,6 +183,23 @@ namespace Kalendarz1.CRM.Services
             var now = DateTime.Now;
             var currentTime = now.TimeOfDay;
 
+            // Check vacation
+            if (_config.VacationStart.HasValue && _config.VacationEnd.HasValue)
+            {
+                if (now.Date >= _config.VacationStart.Value.Date && now.Date <= _config.VacationEnd.Value.Date)
+                {
+                    Debug.WriteLine("[CallReminderService] User on vacation, skipping");
+                    return;
+                }
+            }
+
+            // Check lunch break
+            if (currentTime >= _config.LunchBreakStart && currentTime <= _config.LunchBreakEnd)
+            {
+                Debug.WriteLine("[CallReminderService] Lunch break, skipping");
+                return;
+            }
+
             // Check if it's time for reminder
             if (IsTimeForReminder(currentTime, _config.ReminderTime1) ||
                 IsTimeForReminder(currentTime, _config.ReminderTime2))
@@ -228,10 +268,19 @@ namespace Kalendarz1.CRM.Services
 
                 var cmd = new SqlCommand("GetRandomContactsForReminder", conn);
                 cmd.CommandType = CommandType.StoredProcedure;
+                cmd.CommandTimeout = 30;
                 cmd.Parameters.AddWithValue("@UserID", _userID);
                 cmd.Parameters.AddWithValue("@Count", count);
                 cmd.Parameters.AddWithValue("@OnlyNew", _config?.ShowOnlyNewContacts ?? true);
                 cmd.Parameters.AddWithValue("@OnlyAssigned", _config?.ShowOnlyAssigned ?? false);
+
+                // New parameters - pass if available, stored proc uses defaults if missing
+                cmd.Parameters.AddWithValue("@SourcePriority", (object)_config?.SourcePriority ?? "mixed");
+                cmd.Parameters.AddWithValue("@ManualPercent", _config?.ManualContactsPercent ?? 50);
+                cmd.Parameters.AddWithValue("@PKDWeight", _config?.PKDPriorityWeight ?? 70);
+                cmd.Parameters.AddWithValue("@MaxAttempts", _config?.MaxAttemptsPerContact ?? 5);
+                cmd.Parameters.AddWithValue("@CooldownDays", _config?.CooldownDays ?? 3);
+                cmd.Parameters.AddWithValue("@Wojewodztwa", (object)_config?.TerritoryWojewodztwa ?? DBNull.Value);
 
                 using var reader = cmd.ExecuteReader();
 
