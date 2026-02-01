@@ -1,0 +1,169 @@
+<Window x:Class="Kalendarz1.Kartoteka.Features.Historia.HistoriaZmianWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Historia zmian" Width="1050" Height="650"
+        WindowStartupLocation="CenterScreen" Background="#F3F4F6">
+    <Window.Resources>
+        <Style x:Key="FilterLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#374151"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="GreenButton" TargetType="Button">
+            <Setter Property="Background" Value="#059669"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="14,6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#166534"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Nagłówek -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <TextBlock x:Name="txtNaglowek" Text="📜 Historia zmian" FontSize="18" FontWeight="Bold" Foreground="#166534"/>
+            <TextBlock x:Name="txtPodtytul" Text="" FontSize="12" Foreground="#6B7280" Margin="0,2,0,0"/>
+        </StackPanel>
+
+        <!-- Filtry -->
+        <Border Grid.Row="1" Background="White" CornerRadius="6" Padding="12,8" Margin="0,0,0,10"
+                BorderBrush="#E5E7EB" BorderThickness="1">
+            <WrapPanel VerticalAlignment="Center">
+                <TextBlock Text="Od:" Style="{StaticResource FilterLabel}"/>
+                <DatePicker x:Name="dpOd" Width="120" Margin="0,0,12,0" FontSize="11"/>
+
+                <TextBlock Text="Do:" Style="{StaticResource FilterLabel}"/>
+                <DatePicker x:Name="dpDo" Width="120" Margin="0,0,12,0" FontSize="11"/>
+
+                <TextBlock Text="Użytkownik:" Style="{StaticResource FilterLabel}"/>
+                <ComboBox x:Name="cmbUzytkownik" Width="150" Margin="0,0,12,0" FontSize="11">
+                    <ComboBoxItem Content="Wszyscy" IsSelected="True"/>
+                </ComboBox>
+
+                <Button Content="🔍 Filtruj" Style="{StaticResource GreenButton}" Click="BtnFiltruj_Click" Margin="0,0,6,0"/>
+                <Button Content="↺ Resetuj" Style="{StaticResource GreenButton}" Click="BtnResetuj_Click"/>
+            </WrapPanel>
+        </Border>
+
+        <!-- Tabela historii -->
+        <Border Grid.Row="2" Background="White" CornerRadius="6" BorderBrush="#E5E7EB" BorderThickness="1">
+            <DataGrid x:Name="dgHistoria" AutoGenerateColumns="False" IsReadOnly="True"
+                      CanUserSortColumns="True" CanUserReorderColumns="False"
+                      GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                      BorderThickness="0" Background="White"
+                      RowHeight="32" FontSize="12"
+                      AlternatingRowBackground="#F9FAFB"
+                      SelectionMode="Single" SelectionUnit="FullRow">
+                <DataGrid.ColumnHeaderStyle>
+                    <Style TargetType="DataGridColumnHeader">
+                        <Setter Property="Background" Value="#F3F4F6"/>
+                        <Setter Property="Foreground" Value="#374151"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+                        <Setter Property="FontSize" Value="11"/>
+                        <Setter Property="Padding" Value="8,6"/>
+                        <Setter Property="BorderBrush" Value="#E5E7EB"/>
+                        <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                    </Style>
+                </DataGrid.ColumnHeaderStyle>
+
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Typ" Binding="{Binding TypIkona}" Width="35">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                <Setter Property="FontSize" Value="14"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+
+                    <DataGridTextColumn Header="Data" Binding="{Binding DataZmiany, StringFormat='dd.MM.yyyy HH:mm'}" Width="120"/>
+                    <DataGridTextColumn Header="Użytkownik" Binding="{Binding UzytkownikNazwa}" Width="130"/>
+                    <DataGridTextColumn Header="Pole" Binding="{Binding PoleNazwa}" Width="140"/>
+                    <DataGridTextColumn Header="Stara wartość" Binding="{Binding StaraWartosc}" Width="180">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="#EF4444"/>
+                                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="Nowa wartość" Binding="{Binding NowaWartosc}" Width="180">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="#059669"/>
+                                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+
+                    <DataGridTextColumn Header="Status" Binding="{Binding StatusDisplay}" Width="130">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="#6B7280"/>
+                                <Setter Property="FontStyle" Value="Italic"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+
+                    <DataGridTemplateColumn Header="Akcje" Width="80">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Content="↩ Cofnij" Click="BtnCofnij_Click"
+                                        Padding="6,2" FontSize="11" Cursor="Hand"
+                                        Background="#FEF3C7" Foreground="#92400E" BorderThickness="0">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}" CornerRadius="3" Padding="{TemplateBinding Padding}">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter Property="Background" Value="#FDE68A"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+
+        <!-- Pasek statusu -->
+        <Border Grid.Row="3" Margin="0,8,0,0">
+            <TextBlock x:Name="txtStatus" FontSize="11" Foreground="#6B7280"/>
+        </Border>
+    </Grid>
+</Window>

@@ -81,6 +81,10 @@ namespace Kalendarz1.WPF
         private Dictionary<int, (string Name, string Salesman)> _cachedKontrahenci = new();
         private DateTime _cachedKontrahenciTime = DateTime.MinValue;
 
+        // Cache kategorii odbiorców z KartotekaOdbiorcyDane
+        private Dictionary<int, string> _kategorieOdbiorcow = new();
+        private DateTime _kategorieOdbiorcowTime = DateTime.MinValue;
+
         private Dictionary<string, List<int>> _grupyDoProduktow = new(); // NazwaGrupy -> lista TowarId
         private List<string> _grupyTowaroweNazwy = new(); // Lista nazw grup towarowych dla kolumn w tabeli zamówień
         private Dictionary<string, string> _grupyKolumnDoNazw = new(); // Sanitized column name -> original display name
@@ -1574,7 +1578,8 @@ namespace Kalendarz1.WPF
                         {
                             menuItem.IsEnabled = header.Contains("Płatności") ||
                                                 header.Contains("Historia") ||
-                                                header.Contains("Odśwież");
+                                                header.Contains("Odśwież") ||
+                                                header.Contains("dane odbiorcy");
                         }
                         else if (isAnulowane)
                         {
@@ -1584,7 +1589,8 @@ namespace Kalendarz1.WPF
                                                 header.Contains("Odśwież") ||
                                                 header.Contains("Przywróć") ||
                                                 header.Contains("USUŃ") ||
-                                                header.Contains("transport");
+                                                header.Contains("transport") ||
+                                                header.Contains("dane odbiorcy");
                         }
                         else
                         {
@@ -1871,6 +1877,20 @@ namespace Kalendarz1.WPF
                         "Błąd krytyczny", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
+        }
+
+        private void MenuDaneOdbiorcy_Click(object sender, RoutedEventArgs e)
+        {
+            if (_contextMenuSelectedRow == null) return;
+
+            int klientId = _contextMenuSelectedRow.Row.Field<int>("KlientId");
+            if (klientId <= 0) return;
+
+            var kartotekaWindow = new Kalendarz1.Kartoteka.Views.KartotekaOdbiorcowWindow(
+                App.UserID ?? "11111",
+                App.UserFullName ?? "Administrator",
+                klientId);
+            kartotekaWindow.Show();
         }
 
         private async void MenuUsun_Click(object sender, RoutedEventArgs e)
@@ -2712,6 +2732,7 @@ namespace Kalendarz1.WPF
             // Podstawowe kolumny
             _dtOrders.Columns.Add("Id", typeof(int));
             _dtOrders.Columns.Add("KlientId", typeof(int));
+            _dtOrders.Columns.Add("Kategoria", typeof(string));
             _dtOrders.Columns.Add("Odbiorca", typeof(string));
             _dtOrders.Columns.Add("Handlowiec", typeof(string));
             _dtOrders.Columns.Add("IloscZamowiona", typeof(decimal));
@@ -2859,13 +2880,43 @@ ORDER BY zm.Id";
             // Zadanie 3: Wydania z HANDEL (równolegle!)
             var taskWydania = GetReleasesPerClientProductAsync(day);
 
+            // Zadanie 4: Kategorie odbiorców z KartotekaOdbiorcyDane (równolegle!)
+            var taskKategorie = Task.Run(async () =>
+            {
+                if (_kategorieOdbiorcow.Count > 0 && (DateTime.Now - _kategorieOdbiorcowTime).TotalMinutes < 5)
+                    return _kategorieOdbiorcow;
+
+                var result = new Dictionary<int, string>();
+                try
+                {
+                    await using var cn = new SqlConnection(_connLibra);
+                    await cn.OpenAsync();
+                    const string sql = "SELECT IdSymfonia, KategoriaHandlowca FROM dbo.KartotekaOdbiorcyDane WHERE KategoriaHandlowca IS NOT NULL";
+                    await using var cmd = new SqlCommand(sql, cn);
+                    await using var rd = await cmd.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
+                    {
+                        int id = rd.GetInt32(0);
+                        string kat = rd.IsDBNull(1) ? "C" : rd.GetString(1).Trim();
+                        if (!string.IsNullOrEmpty(kat))
+                            result[id] = kat;
+                    }
+                }
+                catch { }
+
+                _kategorieOdbiorcow = result;
+                _kategorieOdbiorcowTime = DateTime.Now;
+                return result;
+            });
+
             // Czekaj na wszystkie zadania
-            await Task.WhenAll(taskKontrahenci, taskZamowienia, taskWydania);
+            await Task.WhenAll(taskKontrahenci, taskZamowienia, taskWydania, taskKategorie);
             contractors = await taskKontrahenci;
             var zamResult = await taskZamowienia;
             clientsWithOrders = zamResult.clients;
             temp = zamResult.ordersTable;
             releasesPerClientProduct = await taskWydania;
+            var kategorie = await taskKategorie;
 
             // Cache wydań
             var wydaniaSumPerProduct = new Dictionary<int, decimal>();
@@ -3200,6 +3251,7 @@ ORDER BY zm.Id";
                 var newRow = _dtOrders.NewRow();
                 newRow["Id"] = id;
                 newRow["KlientId"] = clientId;
+                newRow["Kategoria"] = kategorie.TryGetValue(clientId, out var kat) ? kat : "";
                 newRow["Odbiorca"] = name;
                 newRow["Handlowiec"] = salesman;
                 newRow["IloscZamowiona"] = quantity;
@@ -3261,6 +3313,7 @@ ORDER BY zm.Id";
                 var row = _dtOrders.NewRow();
                 row["Id"] = 0;
                 row["KlientId"] = clientId;
+                row["Kategoria"] = kategorie.TryGetValue(clientId, out var katWyd) ? katWyd : "";
                 row["Odbiorca"] = name;
                 row["Handlowiec"] = salesman;
                 row["IloscZamowiona"] = 0m;
@@ -3323,7 +3376,7 @@ ORDER BY zm.Id";
                     tempData.Add(rowCopy);
                 }
 
-                var sortedData = tempData.OrderBy(arr => arr[3]?.ToString() ?? "").ToList();
+                var sortedData = tempData.OrderBy(arr => arr[4]?.ToString() ?? "").ToList();
 
                 _dtOrders.Rows.Clear();
 
@@ -3338,6 +3391,7 @@ ORDER BY zm.Id";
                 var summaryRow = _dtOrders.NewRow();
                 summaryRow["Id"] = -1;
                 summaryRow["KlientId"] = 0;
+                summaryRow["Kategoria"] = "";
                 summaryRow["Odbiorca"] = "═══ SUMA ═══";
 
                 // ✅ POPRAWKA 3: Tylko liczba zamówień (bez tekstu "Zamówień:")
@@ -3665,6 +3719,30 @@ ORDER BY zm.Id";
             dgOrders.LoadingRow -= DgOrders_LoadingRow;
             dgOrders.LoadingRow += DgOrders_LoadingRow;
 
+            // 0. Kategoria odbiorcy - kolorowa kolumna A/B/C
+            var kategoriaStyle = new Style(typeof(TextBlock));
+            kategoriaStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center));
+            kategoriaStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
+            kategoriaStyle.Setters.Add(new Setter(TextBlock.FontSizeProperty, 12.0));
+
+            var katATrigger = new DataTrigger { Binding = new System.Windows.Data.Binding("Kategoria"), Value = "A" };
+            katATrigger.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(0, 150, 0))));
+            var katBTrigger = new DataTrigger { Binding = new System.Windows.Data.Binding("Kategoria"), Value = "B" };
+            katBTrigger.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(30, 100, 200))));
+            var katCTrigger = new DataTrigger { Binding = new System.Windows.Data.Binding("Kategoria"), Value = "C" };
+            katCTrigger.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(160, 160, 160))));
+            kategoriaStyle.Triggers.Add(katATrigger);
+            kategoriaStyle.Triggers.Add(katBTrigger);
+            kategoriaStyle.Triggers.Add(katCTrigger);
+
+            dgOrders.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Kat",
+                Binding = new System.Windows.Data.Binding("Kategoria"),
+                Width = new DataGridLength(35),
+                ElementStyle = kategoriaStyle
+            });
+
             // 1. Odbiorca - poszerzona kolumna (rozmiar M)
             dgOrders.Columns.Add(new DataGridTextColumn
             {
@@ -3739,7 +3817,7 @@ ORDER BY zm.Id";
             {
                 Header = "Cena",
                 Binding = new System.Windows.Data.Binding("CenaInfo"),
-                Width = new DataGridLength(50),
+                Width = new DataGridLength(38),
                 ElementStyle = cenaStyle
             });
 
@@ -3771,22 +3849,22 @@ ORDER BY zm.Id";
 
             // Avatar Grid
             var avatarGridFactory = new FrameworkElementFactory(typeof(Grid));
-            avatarGridFactory.SetValue(Grid.WidthProperty, 24.0);
-            avatarGridFactory.SetValue(Grid.HeightProperty, 24.0);
+            avatarGridFactory.SetValue(Grid.WidthProperty, 32.0);
+            avatarGridFactory.SetValue(Grid.HeightProperty, 32.0);
             avatarGridFactory.SetValue(Grid.MarginProperty, new Thickness(0, 0, 6, 0));
 
             // Avatar border with initials
             var avatarBorderFactory = new FrameworkElementFactory(typeof(Border));
-            avatarBorderFactory.SetValue(Border.WidthProperty, 24.0);
-            avatarBorderFactory.SetValue(Border.HeightProperty, 24.0);
-            avatarBorderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(12));
+            avatarBorderFactory.SetValue(Border.WidthProperty, 32.0);
+            avatarBorderFactory.SetValue(Border.HeightProperty, 32.0);
+            avatarBorderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(16));
             avatarBorderFactory.SetValue(Border.BackgroundProperty, new SolidColorBrush(Color.FromRgb(66, 165, 245)));
 
             var initialsFactory = new FrameworkElementFactory(typeof(TextBlock));
             initialsFactory.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
             initialsFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
             initialsFactory.SetValue(TextBlock.ForegroundProperty, Brushes.White);
-            initialsFactory.SetValue(TextBlock.FontSizeProperty, 9.0);
+            initialsFactory.SetValue(TextBlock.FontSizeProperty, 11.0);
             initialsFactory.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
             initialsFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("UtworzonePrzez")
             {
@@ -3798,8 +3876,8 @@ ORDER BY zm.Id";
 
             // Ellipse for photo
             var ellipseFactory = new FrameworkElementFactory(typeof(Ellipse));
-            ellipseFactory.SetValue(Ellipse.WidthProperty, 24.0);
-            ellipseFactory.SetValue(Ellipse.HeightProperty, 24.0);
+            ellipseFactory.SetValue(Ellipse.WidthProperty, 32.0);
+            ellipseFactory.SetValue(Ellipse.HeightProperty, 32.0);
             ellipseFactory.SetValue(Ellipse.VisibilityProperty, Visibility.Collapsed);
             ellipseFactory.SetValue(Ellipse.NameProperty, "avatarEllipse");
 
@@ -4017,8 +4095,8 @@ ORDER BY zm.Id";
                             var presenter = FindVisualChild<DataGridCellsPresenter>(row);
                             if (presenter != null)
                             {
-                                // Utworzono column is at index 7
-                                var cell = presenter.ItemContainerGenerator.ContainerFromIndex(7) as DataGridCell;
+                                // Utworzono column is at index 8 (po dodaniu kolumny Kategoria)
+                                var cell = presenter.ItemContainerGenerator.ContainerFromIndex(8) as DataGridCell;
                                 if (cell != null)
                                 {
                                     var ellipse = FindVisualChild<Ellipse>(cell);

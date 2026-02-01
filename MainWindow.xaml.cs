@@ -229,7 +229,7 @@ namespace Kalendarz1
                 "CRM", "ZamowieniaOdbiorcow", "KalkulacjaKrojenia", "PrzychodMrozni",
                 "DokumentySprzedazy", "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "DaneFinansowe",
                 "UstalanieTranportu", "ZmianyUHodowcow", "ProdukcjaPodglad", "OfertaCenowa",
-                "PrognozyUboju", "AnalizaTygodniowa", "PanelPaniJola"
+                "PrognozyUboju", "AnalizaTygodniowa", "PanelPaniJola", "KartotekaOdbiorcow"
             };
         }
 
@@ -267,7 +267,8 @@ namespace Kalendarz1
                     }, "👩‍🦳"),
                     new ModuleConfig("PrognozyUboju", "Prognoza Uboju", "Analizuj średnie tygodniowe zakupów", "#9B59B6", () => new PrognozyUboju.PrognozyUbojuWindow(), "📈"),
                     new ModuleConfig("AnalizaTygodniowa", "Dashboard Analityczny", "Analizuj bilans produkcji i sprzedaży", "#E91E63", () => new Kalendarz1.AnalizaTygodniowa.AnalizaTygodniowaWindow(), "📊"),
-                    new ModuleConfig("OfertaCenowa", "Oferty Handlowe", "Twórz i zarządzaj ofertami", "#3498DB", () => new OfertaCenowa.OfertaHandlowaWindow(), "💵")
+                    new ModuleConfig("OfertaCenowa", "Oferty Handlowe", "Twórz i zarządzaj ofertami", "#3498DB", () => new OfertaCenowa.OfertaHandlowaWindow(), "💵"),
+                    new ModuleConfig("KartotekaOdbiorcow", "Kartoteka Odbiorców", "Kartoteka odbiorców handlowca", "#059669", () => new Kartoteka.Views.KartotekaOdbiorcowWindow(), "🐔")
                 },
                 ["Opakowania"] = new List<ModuleConfig>
                 {
