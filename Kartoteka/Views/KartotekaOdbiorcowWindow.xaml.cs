@@ -38,6 +38,7 @@ namespace Kalendarz1.Kartoteka.Views
         private OdbiorcaHandlowca _selectedOdbiorca;
         private Border _expandedCard;
         private bool _isAdmin;
+        private string _expandCustomerNIP;
 
         // Sorting state
         private string _sortColumn = "OstFaktura";
@@ -60,6 +61,11 @@ namespace Kalendarz1.Kartoteka.Views
         {
             _userId = userId;
             _userName = userName;
+        }
+
+        public KartotekaOdbiorcowWindow(string userId, string userName, string expandCustomerNIP) : this(userId, userName)
+        {
+            _expandCustomerNIP = expandCustomerNIP;
         }
 
         private async void Window_Loaded(object sender, RoutedEventArgs e)
@@ -191,7 +197,7 @@ namespace Kalendarz1.Kartoteka.Views
             {
                 if (UserAvatarManager.HasAvatar(_userId))
                 {
-                    using (var avatar = UserAvatarManager.GetAvatarRounded(_userId, 28))
+                    using (var avatar = UserAvatarManager.GetAvatarRounded(_userId, 36))
                     {
                         if (avatar != null)
                         {
@@ -283,6 +289,13 @@ namespace Kalendarz1.Kartoteka.Views
                 UpdateStatystyki();
                 UpdateLicznik();
                 UpdatePowiadomienia();
+
+                // Auto-expand customer if NIP was specified
+                if (!string.IsNullOrEmpty(_expandCustomerNIP))
+                {
+                    await AutoExpandCustomer(_expandCustomerNIP);
+                    _expandCustomerNIP = null;
+                }
             }
             catch (Exception ex)
             {
@@ -971,6 +984,52 @@ namespace Kalendarz1.Kartoteka.Views
 
             // Context menu
             card.ContextMenu = new ContextMenu();
+
+            // Info header (non-clickable)
+            var infoHeader = new MenuItem { IsEnabled = false };
+            var infoPanel = new StackPanel { Margin = new Thickness(0, 2, 0, 4) };
+            infoPanel.Children.Add(new TextBlock
+            {
+                Text = odbiorca.NazwaFirmy ?? odbiorca.Skrot ?? "",
+                FontWeight = FontWeights.Bold, FontSize = 13, Foreground = Brushes.Black,
+                TextWrapping = TextWrapping.Wrap, MaxWidth = 280
+            });
+            if (!string.IsNullOrWhiteSpace(odbiorca.Ulica) || !string.IsNullOrWhiteSpace(odbiorca.Miasto))
+            {
+                infoPanel.Children.Add(new TextBlock
+                {
+                    Text = $"{odbiorca.Ulica}, {odbiorca.KodPocztowy} {odbiorca.Miasto}".Trim(' ', ','),
+                    FontSize = 11, Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                    TextWrapping = TextWrapping.Wrap, MaxWidth = 280
+                });
+            }
+            if (!string.IsNullOrWhiteSpace(odbiorca.NIP))
+                infoPanel.Children.Add(new TextBlock { Text = $"NIP: {odbiorca.NIP}", FontSize = 11, Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)) });
+            if (!string.IsNullOrWhiteSpace(odbiorca.OsobaKontaktowa))
+                infoPanel.Children.Add(new TextBlock { Text = $"Kontakt: {odbiorca.OsobaKontaktowa}", FontSize = 11, Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)) });
+            if (!string.IsNullOrWhiteSpace(odbiorca.TelefonKontakt))
+                infoPanel.Children.Add(new TextBlock { Text = $"Tel: {odbiorca.TelefonKontakt}", FontSize = 11, Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)) });
+            if (!string.IsNullOrWhiteSpace(odbiorca.EmailKontakt))
+                infoPanel.Children.Add(new TextBlock { Text = $"Email: {odbiorca.EmailKontakt}", FontSize = 11, Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)) });
+            var katLine = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 0) };
+            katLine.Children.Add(new TextBlock { Text = $"Kategoria: ", FontSize = 11, Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)) });
+            katLine.Children.Add(new TextBlock { Text = odbiorca.KategoriaHandlowca ?? "C", FontWeight = FontWeights.Bold, FontSize = 11, Foreground = GetKategoriaForeground(odbiorca.KategoriaHandlowca) });
+            if (odbiorca.LimitKupiecki > 0)
+                katLine.Children.Add(new TextBlock { Text = $"  |  Limit: {odbiorca.LimitKupiecki:N0} zł", FontSize = 11, Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)) });
+            infoPanel.Children.Add(katLine);
+            infoHeader.Header = infoPanel;
+            card.ContextMenu.Items.Add(infoHeader);
+            card.ContextMenu.Items.Add(new Separator());
+
+            var expandItem = new MenuItem { Header = "🔍 Rozwiń szczegóły" };
+            expandItem.Click += async (s, ev) =>
+            {
+                ExpandCard(card, odbiorca);
+                await LoadSzczegoly(odbiorca);
+                card.BringIntoView();
+            };
+            card.ContextMenu.Items.Add(expandItem);
+
             var editItem = new MenuItem { Header = "📝 Edytuj dane", InputGestureText = "DblClick" };
             editItem.Click += (s, ev) => { _selectedOdbiorca = odbiorca; OtworzEdycje(); };
             var callItem = new MenuItem { Header = "📞 Zadzwoń" };
@@ -1045,6 +1104,21 @@ namespace Kalendarz1.Kartoteka.Views
             UpdateCardVisual(card, true);
             _expandedCard = card;
             _selectedOdbiorca = odbiorca;
+        }
+
+        private async System.Threading.Tasks.Task AutoExpandCustomer(string nip)
+        {
+            // Find the card Border for this NIP in AccordionPanel
+            foreach (var child in AccordionPanel.Children)
+            {
+                if (child is Border cardBorder && cardBorder.Tag is OdbiorcaHandlowca o && o.NIP == nip)
+                {
+                    ExpandCard(cardBorder, o);
+                    await LoadSzczegoly(o);
+                    cardBorder.BringIntoView();
+                    return;
+                }
+            }
         }
 
         private void CollapseCard()
