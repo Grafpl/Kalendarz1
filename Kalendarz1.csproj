@@ -51,6 +51,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.0" />
     <PackageReference Include="BouncyCastle.Cryptography" Version="2.6.2" />
     <PackageReference Include="ClosedXML" Version="0.105.0" />
     <PackageReference Include="DevExpress.Wpf.Grid" Version="25.2.3" />

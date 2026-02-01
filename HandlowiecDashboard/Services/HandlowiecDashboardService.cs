@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
+using Kalendarz1.HandlowiecDashboard.Configuration;
 using Kalendarz1.HandlowiecDashboard.Models;
 
 namespace Kalendarz1.HandlowiecDashboard.Services
@@ -36,8 +37,8 @@ namespace Kalendarz1.HandlowiecDashboard.Services
 
         public HandlowiecDashboardService()
         {
-            _connectionStringHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
-            _connectionStringLibraNet = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+            _connectionStringHandel = DatabaseConfig.HandelConnectionString;
+            _connectionStringLibraNet = DatabaseConfig.LibraNetConnectionString;
         }
 
         #region Connection Pooling

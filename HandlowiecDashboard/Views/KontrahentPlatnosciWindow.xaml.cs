@@ -12,7 +12,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 {
     public partial class KontrahentPlatnosciWindow : Window
     {
-        private readonly string _connectionStringHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+        private readonly string _connectionStringHandel = Configuration.DatabaseConfig.HandelConnectionString;
         private readonly string _kontrahent;
         private readonly string _handlowiec;
 

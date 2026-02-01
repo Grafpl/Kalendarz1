@@ -36,7 +36,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
     public partial class HandlowiecDashboardWindow : Window
     {
-        private readonly string _connectionStringHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+        private readonly string _connectionStringHandel = Configuration.DatabaseConfig.HandelConnectionString;
         private readonly CultureInfo _kulturaPL = new CultureInfo("pl-PL");
         private bool _isInitialized = false;
         private bool _syncowanieDaty = false;
@@ -156,6 +156,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 6 => $"Trend_{rok}_{miesiac}",
                 7 => $"Opakowania_{rok}_{miesiac}",
                 8 => $"Platnosci_{rok}_{miesiac}",
+                9 => $"RealizacjaCelow_{rok}_{miesiac}",
                 _ => $"Unknown_{tabIndex}"
             };
         }
@@ -534,6 +535,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     case 6: await OdswiezTrendAsync(); break;
                     case 7: await OdswiezOpakowaniaAsync(); break;
                     case 8: await OdswiezPlatnosciAsync(); break;
+                    case 9: await OdswiezRealizacjeCelowAsync(); break;
                 }
             }
             catch (OperationCanceledException)
@@ -1104,7 +1106,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             _handlowiecMapowanie = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             try
             {
-                await using var cnLib = new SqlConnection("Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True");
+                await using var cnLib = new SqlConnection(Configuration.DatabaseConfig.LibraNetConnectionString);
                 await cnLib.OpenAsync();
                 await using var cmdMap = new SqlCommand("SELECT HandlowiecName, UserID FROM UserHandlowcy", cnLib);
                 await using var readerMap = await cmdMap.ExecuteReaderAsync();
@@ -2796,6 +2798,129 @@ FROM FakturyPrzeterminowane;";
                 view.SortDescriptions.Clear();
                 view.SortDescriptions.Add(new System.ComponentModel.SortDescription(column.SortMemberPath, direction));
                 view.Refresh();
+            }
+        }
+
+        #endregion
+
+        #region Realizacja Celow
+
+        private async System.Threading.Tasks.Task OdswiezRealizacjeCelowAsync()
+        {
+            try
+            {
+                var logger = new Services.LoggingService();
+                var celeService = new Services.CeleService(logger);
+
+                int rok = cmbRokSprzedaz.SelectedItem != null ? (int)cmbRokSprzedaz.SelectedItem : DateTime.Now.Year;
+                int miesiac = cmbMiesiacSprzedaz.SelectedValue != null ? (int)cmbMiesiacSprzedaz.SelectedValue : DateTime.Now.Month;
+
+                var realizacje = await celeService.PobierzRealizacjeWszystkichAsync(rok, miesiac);
+
+                txtCeleInfo.Text = $"Realizacja celow sprzedazowych - {_nazwyMiesiecy[miesiac]} {rok}  |  Handlowcow: {realizacje.Count}";
+
+                itemsCele.Items.Clear();
+
+                foreach (var r in realizacje)
+                {
+                    var kolorWartosci = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(r.KolorWartosci);
+                    var kolorKg = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(r.KolorKg);
+                    var kolorKlientow = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(r.KolorKlientow);
+
+                    // Karta handlowca z Gauge
+                    var border = new System.Windows.Controls.Border
+                    {
+                        Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#252A31")),
+                        CornerRadius = new CornerRadius(10),
+                        Margin = new Thickness(10),
+                        Padding = new Thickness(15),
+                        Width = 280
+                    };
+
+                    var stack = new System.Windows.Controls.StackPanel();
+
+                    // Nazwa handlowca
+                    var header = new System.Windows.Controls.TextBlock
+                    {
+                        Text = r.Handlowiec,
+                        FontSize = 16,
+                        FontWeight = FontWeights.Bold,
+                        Foreground = System.Windows.Media.Brushes.White,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        Margin = new Thickness(0, 0, 0, 5)
+                    };
+                    stack.Children.Add(header);
+
+                    // Gauge kontrolka
+                    var gauge = new Controls.GaugeRealizacji
+                    {
+                        Tytul = "Wartosc sprzedazy",
+                        Wartosc = r.RealizacjaWartoscProcent,
+                        WartoscTekst = r.WartoscTekst,
+                        PrognozaTekst = r.PrognozaTekst,
+                        Kolor = r.KolorWartosci,
+                        Margin = new Thickness(0, 5, 0, 5)
+                    };
+                    stack.Children.Add(gauge);
+
+                    // Dodatkowe info - kg
+                    var kgText = new System.Windows.Controls.TextBlock
+                    {
+                        FontSize = 12,
+                        Foreground = new System.Windows.Media.SolidColorBrush(kolorKg),
+                        Margin = new Thickness(0, 5, 0, 2),
+                        HorizontalAlignment = HorizontalAlignment.Center
+                    };
+                    kgText.Inlines.Add(new System.Windows.Documents.Run($"Kg: {r.KgTekst} ({r.RealizacjaKgProcent:F0}%)"));
+                    stack.Children.Add(kgText);
+
+                    // Dodatkowe info - klienci
+                    var klienciText = new System.Windows.Controls.TextBlock
+                    {
+                        FontSize = 12,
+                        Foreground = new System.Windows.Media.SolidColorBrush(kolorKlientow),
+                        Margin = new Thickness(0, 0, 0, 5),
+                        HorizontalAlignment = HorizontalAlignment.Center
+                    };
+                    klienciText.Inlines.Add(new System.Windows.Documents.Run($"Klienci: {r.KlienciTekst} ({r.RealizacjaKlientowProcent:F0}%)"));
+                    stack.Children.Add(klienciText);
+
+                    // Prognoza - srednia dzienna
+                    if (r.RealizacjaWartoscProcent < 100 && r.DniRoboczychDoKonca > 0)
+                    {
+                        var prognoza = new System.Windows.Controls.TextBlock
+                        {
+                            Text = $"Srednia dzienna: {r.SredniaDziennaDoTejPory:N0} zl",
+                            FontSize = 11,
+                            Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#888888")),
+                            FontStyle = FontStyles.Italic,
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            Margin = new Thickness(0, 2, 0, 0)
+                        };
+                        stack.Children.Add(prognoza);
+
+                        var prognozaKoniec = new System.Windows.Controls.TextBlock
+                        {
+                            Text = $"Prognoza na koniec: {r.PrognozowanaNaKoniecMiesiaca:N0} zl",
+                            FontSize = 11,
+                            Foreground = new System.Windows.Media.SolidColorBrush(
+                                r.PrognozaOsiagniecaCelu
+                                    ? (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#27AE60")
+                                    : (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#E74C3C")),
+                            FontStyle = FontStyles.Italic,
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            Margin = new Thickness(0, 2, 0, 0)
+                        };
+                        stack.Children.Add(prognozaKoniec);
+                    }
+
+                    border.Child = stack;
+                    itemsCele.Items.Add(border);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad realizacji celow:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
