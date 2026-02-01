@@ -17,6 +17,9 @@ using Microsoft.Win32;
 using Kalendarz1.HandlowiecDashboard.Views;
 using Kalendarz1.Kartoteka.Models;
 using Kalendarz1.Kartoteka.Services;
+using Kalendarz1.Kartoteka.Features.Historia;
+using Kalendarz1.Kartoteka.Features.Scoring;
+using Kalendarz1.Kartoteka.Features.Przypomnienia;
 
 namespace Kalendarz1.Kartoteka.Views
 {
@@ -1067,6 +1070,37 @@ namespace Kalendarz1.Kartoteka.Views
             card.ContextMenu.Items.Add(emailItem);
             card.ContextMenu.Items.Add(new Separator());
             card.ContextMenu.Items.Add(copyItem);
+
+            var historiaItem = new MenuItem { Header = "📜 Historia zmian" };
+            historiaItem.Click += (s, ev) =>
+            {
+                var historiaWindow = new HistoriaZmianWindow(
+                    _libraNetConn, odbiorca.IdSymfonia, odbiorca.NazwaFirmy ?? odbiorca.Skrot,
+                    _userId, _userName);
+                historiaWindow.Owner = this;
+                historiaWindow.Show();
+            };
+            card.ContextMenu.Items.Add(historiaItem);
+
+            var scoringItem = new MenuItem { Header = "📊 Scoring kredytowy" };
+            scoringItem.Click += (s, ev) =>
+            {
+                var scoringPanel = new ScoringPanel(
+                    _libraNetConn, _handelConn, odbiorca.IdSymfonia, odbiorca.NazwaFirmy ?? odbiorca.Skrot);
+                scoringPanel.Owner = this;
+                scoringPanel.Show();
+            };
+            card.ContextMenu.Items.Add(scoringItem);
+
+            var przypItem = new MenuItem { Header = "🔔 Przypomnienia" };
+            przypItem.Click += (s, ev) =>
+            {
+                var centrum = new PrzypomnieniaCentrum(
+                    _libraNetConn, _userName, odbiorca.IdSymfonia, odbiorca.NazwaFirmy ?? odbiorca.Skrot);
+                centrum.Owner = this;
+                centrum.Show();
+            };
+            card.ContextMenu.Items.Add(przypItem);
 
             return card;
         }

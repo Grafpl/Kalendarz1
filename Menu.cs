@@ -1087,7 +1087,8 @@ namespace Kalendarz1
                 [43] = "PanelPaniJola",
                 [44] = "KomunikatorFirmowy",
                 [45] = "RozliczeniaAvilog",
-                [46] = "DashboardPrzychodu"
+                [46] = "DashboardPrzychodu",
+                [47] = "MapaKlientow"
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
@@ -1166,7 +1167,7 @@ namespace Kalendarz1
                 "PanelMagazyniera", "AnalizaPrzychodu", "AnalizaWydajnosci",
 
                 // SPRZEDAŻ I CRM
-                "CRM", "KartotekaOdbiorcow", "ZamowieniaOdbiorcow", "DashboardHandlowca",
+                "CRM", "KartotekaOdbiorcow", "MapaKlientow", "ZamowieniaOdbiorcow", "DashboardHandlowca",
                 "DokumentySprzedazy", "PanelFaktur", "OfertaCenowa", "ListaOfert",
                 "DashboardOfert", "DashboardWyczerpalnosci", "PanelReklamacji",
 
@@ -1371,6 +1372,12 @@ namespace Kalendarz1
                             window.UserID = App.UserID;
                             return window;
                         }, "👤", "Klienci"),
+
+                    new MenuItemConfig("MapaKlientow", "Mapa Klientów",
+                        "Interaktywna mapa Polski z lokalizacjami klientów, kolorowaniem wg kategorii i filtrami",
+                        Color.FromArgb(129, 199, 132), // #81C784
+                        () => new Kalendarz1.Kartoteka.Features.Mapa.MapaKlientowWindow(),
+                        "🗺️", "Mapa"),
 
                     new MenuItemConfig("ZamowieniaOdbiorcow", "Zamówienia Klientów",
                         "Przyjmowanie i realizacja zamówień na produkty mięsne od odbiorców hurtowych",

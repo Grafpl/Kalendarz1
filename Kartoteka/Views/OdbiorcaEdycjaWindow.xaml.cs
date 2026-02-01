@@ -6,15 +6,18 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using Kalendarz1.Kartoteka.Models;
 using Kalendarz1.Kartoteka.Services;
+using Kalendarz1.Kartoteka.Features.Historia;
 
 namespace Kalendarz1.Kartoteka.Views
 {
     public partial class OdbiorcaEdycjaWindow : Window
     {
         private readonly OdbiorcaHandlowca _odbiorca;
+        private readonly OdbiorcaHandlowca _odbiorcaKopia; // Kopia sprzed edycji
         private readonly KartotekaService _service;
         private readonly string _userName;
         private readonly HashSet<string> _highlightFields;
+        private readonly string _connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
 
         public OdbiorcaEdycjaWindow(OdbiorcaHandlowca odbiorca, KartotekaService service, string userName)
             : this(odbiorca, service, userName, null) { }
@@ -23,6 +26,7 @@ namespace Kalendarz1.Kartoteka.Views
         {
             InitializeComponent();
             _odbiorca = odbiorca;
+            _odbiorcaKopia = ChangeTracker.KlonujObiekt(odbiorca);
             _service = service;
             _userName = userName;
             _highlightFields = highlightFields != null ? new HashSet<string>(highlightFields) : new HashSet<string>();
@@ -113,6 +117,21 @@ namespace Kalendarz1.Kartoteka.Views
                 else _odbiorca.KategoriaHandlowca = "C";
 
                 await _service.ZapiszDaneWlasneAsync(_odbiorca, _userName);
+
+                // Loguj zmiany do historii
+                try
+                {
+                    var zmiany = ChangeTracker.PorownajObiekty(_odbiorcaKopia, _odbiorca);
+                    if (zmiany.Count > 0)
+                    {
+                        var historiaService = new HistoriaZmianService(_connLibra);
+                        await historiaService.EnsureTableExistsAsync();
+                        await historiaService.LogujZmianyAsync(
+                            _odbiorca.IdSymfonia, zmiany,
+                            App.UserID ?? "11111", _userName);
+                    }
+                }
+                catch { /* Nie blokuj zapisu jeśli logowanie się nie powiedzie */ }
 
                 DialogResult = true;
                 Close();
