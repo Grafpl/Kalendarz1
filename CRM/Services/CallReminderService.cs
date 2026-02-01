@@ -40,6 +40,8 @@ namespace Kalendarz1.CRM.Services
             _connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         }
 
+        public bool IsInitialized => _isInitialized;
+
         public void Initialize(string userID)
         {
             if (_isInitialized) return;

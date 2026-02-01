@@ -544,14 +544,34 @@ namespace Kalendarz1.CRM
         private void BtnTest_Click(object sender, RoutedEventArgs e)
         {
             var result = MessageBox.Show(
-                "Czy chcesz wyświetlić testowe okno przypomnienia?",
+                "Czy chcesz wyświetlić testowe okno przypomnienia?\nWybierz handlowca do testu.",
                 "Test",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question);
 
-            if (result == MessageBoxResult.Yes)
+            if (result != MessageBoxResult.Yes) return;
+
+            // Pick first enabled handlowiec, or fall back to first one
+            var testUser = _handlowcy?.FirstOrDefault(h => h.IsEnabled) ?? _handlowcy?.FirstOrDefault();
+            if (testUser == null)
             {
+                MessageBox.Show("Brak handlowców do testu.", "Test", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                // Ensure service is initialized for this user
+                if (!CallReminderService.Instance.IsInitialized)
+                {
+                    CallReminderService.Instance.Initialize(testUser.UserID);
+                }
+
                 CallReminderService.Instance.TriggerReminderNow();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd testu: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
