@@ -39,6 +39,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
         private readonly string _connectionStringHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
         private readonly CultureInfo _kulturaPL = new CultureInfo("pl-PL");
         private bool _isInitialized = false;
+        private bool _syncowanieDaty = false;
 
         #region Performance Optimization Fields
 
@@ -257,19 +258,21 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             cmbMiesiacTop10.SelectedValue = DateTime.Now.Month;
             WypelnijTowary(cmbTowarTop10);
 
-            // Udzial handlowcow
+            // Udzial handlowcow - zawsze 5 miesiecy do tylu
             cmbRokUdzialOd.ItemsSource = lata;
-            cmbRokUdzialOd.SelectedItem = DateTime.Now.Year;
             cmbMiesiacUdzialOd.ItemsSource = miesiace;
             cmbMiesiacUdzialOd.DisplayMemberPath = "Text";
             cmbMiesiacUdzialOd.SelectedValuePath = "Value";
-            cmbMiesiacUdzialOd.SelectedValue = 1;
             cmbRokUdzialDo.ItemsSource = lata;
-            cmbRokUdzialDo.SelectedItem = DateTime.Now.Year;
             cmbMiesiacUdzialDo.ItemsSource = miesiace;
             cmbMiesiacUdzialDo.DisplayMemberPath = "Text";
             cmbMiesiacUdzialDo.SelectedValuePath = "Value";
-            cmbMiesiacUdzialDo.SelectedValue = DateTime.Now.Month;
+            UstawUdzialDaty5MiesiecyWstecz();
+            // Zablokuj edycje dat - zawsze auto 5 miesiecy
+            cmbRokUdzialOd.IsEnabled = false;
+            cmbMiesiacUdzialOd.IsEnabled = false;
+            cmbRokUdzialDo.IsEnabled = false;
+            cmbMiesiacUdzialDo.IsEnabled = false;
 
             // Analiza cen
             cmbRokCeny.ItemsSource = lata;
@@ -413,11 +416,67 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             });
         }
 
-        private async void CmbRokSprzedaz_SelectionChanged(object sender, SelectionChangedEventArgs e) => await OdswiezJesliGotoweAsync();
-        private async void CmbMiesiacSprzedaz_SelectionChanged(object sender, SelectionChangedEventArgs e) => await OdswiezJesliGotoweAsync();
-        private async void CmbTop10_SelectionChanged(object sender, SelectionChangedEventArgs e) => await OdswiezJesliGotoweAsync();
+        private async void CmbRokSprzedaz_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_syncowanieDaty) return;
+            SynchronizujDateMiedzyZakladkami(cmbRokSprzedaz, cmbMiesiacSprzedaz);
+            await OdswiezJesliGotoweAsync();
+        }
+        private async void CmbMiesiacSprzedaz_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_syncowanieDaty) return;
+            SynchronizujDateMiedzyZakladkami(cmbRokSprzedaz, cmbMiesiacSprzedaz);
+            await OdswiezJesliGotoweAsync();
+        }
+        private async void CmbTop10_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_syncowanieDaty) return;
+            if (sender == cmbRokTop10 || sender == cmbMiesiacTop10)
+                SynchronizujDateMiedzyZakladkami(cmbRokTop10, cmbMiesiacTop10);
+            await OdswiezJesliGotoweAsync();
+        }
         private async void CmbUdzial_SelectionChanged(object sender, SelectionChangedEventArgs e) => await OdswiezJesliGotoweAsync();
-        private async void CmbCeny_SelectionChanged(object sender, SelectionChangedEventArgs e) => await OdswiezJesliGotoweAsync();
+        private async void CmbCeny_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_syncowanieDaty) return;
+            if (sender == cmbRokCeny || sender == cmbMiesiacCeny)
+                SynchronizujDateMiedzyZakladkami(cmbRokCeny, cmbMiesiacCeny);
+            await OdswiezJesliGotoweAsync();
+        }
+
+        /// <summary>
+        /// Synchronizuje wybrana date miedzy zakladkami Sprzedaz, Top 15 i Analiza cen
+        /// </summary>
+        private void SynchronizujDateMiedzyZakladkami(ComboBox zrodloRok, ComboBox zrodloMiesiac)
+        {
+            if (_syncowanieDaty || !_isInitialized) return;
+            _syncowanieDaty = true;
+            try
+            {
+                var rok = zrodloRok.SelectedItem;
+                var miesiac = zrodloMiesiac.SelectedValue;
+                if (rok == null || miesiac == null) return;
+
+                // Synchronizuj do wszystkich 3 zakladek (pomijaj zrodlo)
+                if (zrodloRok != cmbRokSprzedaz) cmbRokSprzedaz.SelectedItem = rok;
+                if (zrodloMiesiac != cmbMiesiacSprzedaz) cmbMiesiacSprzedaz.SelectedValue = miesiac;
+
+                if (zrodloRok != cmbRokTop10) cmbRokTop10.SelectedItem = rok;
+                if (zrodloMiesiac != cmbMiesiacTop10) cmbMiesiacTop10.SelectedValue = miesiac;
+
+                if (zrodloRok != cmbRokCeny) cmbRokCeny.SelectedItem = rok;
+                if (zrodloMiesiac != cmbMiesiacCeny) cmbMiesiacCeny.SelectedValue = miesiac;
+
+                // Wyczysc cache zakladek ktore maja nieaktualne dane
+                _loadedTabs.Remove(0); // Sprzedaz
+                _loadedTabs.Remove(1); // Top 15
+                _loadedTabs.Remove(3); // Analiza cen
+            }
+            finally
+            {
+                _syncowanieDaty = false;
+            }
+        }
         private async void CmbSM_SelectionChanged(object sender, SelectionChangedEventArgs e) => await OdswiezJesliGotoweAsync();
         private async void CmbPorown_SelectionChanged(object sender, SelectionChangedEventArgs e) => await OdswiezJesliGotoweAsync();
         private async void CmbTrend_SelectionChanged(object sender, SelectionChangedEventArgs e) => await OdswiezJesliGotoweAsync();
@@ -814,8 +873,20 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
         #region Udzial Handlowcow
 
+        private void UstawUdzialDaty5MiesiecyWstecz()
+        {
+            var teraz = DateTime.Now;
+            var piecMiesiecyTemu = teraz.AddMonths(-5);
+            cmbRokUdzialOd.SelectedItem = piecMiesiecyTemu.Year;
+            cmbMiesiacUdzialOd.SelectedValue = piecMiesiecyTemu.Month;
+            cmbRokUdzialDo.SelectedItem = teraz.Year;
+            cmbMiesiacUdzialDo.SelectedValue = teraz.Month;
+        }
+
         private async System.Threading.Tasks.Task OdswiezUdzialHandlowcowAsync()
         {
+            // Zawsze odswiez daty na 5 miesiecy wstecz
+            UstawUdzialDaty5MiesiecyWstecz();
             if (cmbRokUdzialOd.SelectedItem == null || cmbMiesiacUdzialOd.SelectedValue == null ||
                 cmbRokUdzialDo.SelectedItem == null || cmbMiesiacUdzialDo.SelectedValue == null) return;
 
