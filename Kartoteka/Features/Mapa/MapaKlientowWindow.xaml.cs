@@ -97,6 +97,7 @@ namespace Kalendarz1.Kartoteka.Features.Mapa
 
         private void ApplyFilters()
         {
+            if (!IsLoaded) return;
             var filtered = _wszyscyKlienci.Where(k => k.MaWspolrzedne).ToList();
 
             // Filtr kategorii
