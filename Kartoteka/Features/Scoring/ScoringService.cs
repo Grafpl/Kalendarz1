@@ -89,14 +89,23 @@ namespace Kalendarz1.Kartoteka.Features.Scoring
 
         private async Task<(int faktury, int terminowe)> PobierzTerminowoscAsync(int klientId)
         {
+            // HM.DK: khid=kontrahent, data=data faktury, plattermin=termin płatności, ok=rozliczony
+            // HM.PN: dkid=FK do DK, kwotarozl=kwota rozliczona, Termin=data faktycznej zapłaty
             const string sql = @"
                 SELECT
                     COUNT(*) AS Wszystkie,
-                    SUM(CASE WHEN ISNULL(dk.DataZaplaty, GETDATE()) <= DATEADD(DAY, dk.TerminPlatnosci, dk.DataFaktury) THEN 1 ELSE 0 END) AS Terminowe
-                FROM HM.DK dk
-                WHERE dk.IdKontrahenta = @KlientId
-                  AND dk.TypDokumentu IN (1,2) -- faktury sprzedaży
-                  AND dk.DataFaktury >= DATEADD(YEAR, -2, GETDATE())";
+                    SUM(CASE WHEN DK.ok = 1 AND ISNULL(PN.DataZaplaty, DK.plattermin) <= DK.plattermin THEN 1 ELSE 0 END) AS Terminowe
+                FROM [HM].[DK] DK
+                LEFT JOIN (
+                    SELECT dkid, MAX(Termin) AS DataZaplaty
+                    FROM [HM].[PN]
+                    GROUP BY dkid
+                ) PN ON PN.dkid = DK.id
+                WHERE DK.khid = @KlientId
+                  AND DK.typ_dk IN ('FVS', 'FVR', 'FVZ')
+                  AND DK.aktywny = 1
+                  AND DK.anulowany = 0
+                  AND DK.data >= DATEADD(YEAR, -2, GETDATE())";
 
             try
             {
@@ -114,8 +123,12 @@ namespace Kalendarz1.Kartoteka.Features.Scoring
 
         private async Task<DateTime?> PobierzPierwszaFaktureAsync(int klientId)
         {
-            const string sql = @"SELECT MIN(dk.DataFaktury)
-                                 FROM HM.DK dk WHERE dk.IdKontrahenta = @KlientId AND dk.TypDokumentu IN (1,2)";
+            const string sql = @"SELECT MIN(DK.data)
+                                 FROM [HM].[DK] DK
+                                 WHERE DK.khid = @KlientId
+                                   AND DK.typ_dk IN ('FVS', 'FVR', 'FVZ')
+                                   AND DK.aktywny = 1
+                                   AND DK.anulowany = 0";
             try
             {
                 await using var cn = new SqlConnection(_connHandel);
@@ -154,11 +167,14 @@ namespace Kalendarz1.Kartoteka.Features.Scoring
         {
             const string sql = @"
                 SELECT
-                    ISNULL(SUM(CASE WHEN dk.DataFaktury >= DATEADD(MONTH, -6, GETDATE()) THEN dk.WartoscNetto ELSE 0 END), 0) AS Biezace,
-                    ISNULL(SUM(CASE WHEN dk.DataFaktury >= DATEADD(MONTH, -12, GETDATE()) AND dk.DataFaktury < DATEADD(MONTH, -6, GETDATE()) THEN dk.WartoscNetto ELSE 0 END), 0) AS Poprzednie
-                FROM HM.DK dk
-                WHERE dk.IdKontrahenta = @KlientId AND dk.TypDokumentu IN (1,2)
-                  AND dk.DataFaktury >= DATEADD(YEAR, -1, GETDATE())";
+                    ISNULL(SUM(CASE WHEN DK.data >= DATEADD(MONTH, -6, GETDATE()) THEN DK.walbrutto ELSE 0 END), 0) AS Biezace,
+                    ISNULL(SUM(CASE WHEN DK.data >= DATEADD(MONTH, -12, GETDATE()) AND DK.data < DATEADD(MONTH, -6, GETDATE()) THEN DK.walbrutto ELSE 0 END), 0) AS Poprzednie
+                FROM [HM].[DK] DK
+                WHERE DK.khid = @KlientId
+                  AND DK.typ_dk IN ('FVS', 'FVR', 'FVZ')
+                  AND DK.aktywny = 1
+                  AND DK.anulowany = 0
+                  AND DK.data >= DATEADD(YEAR, -1, GETDATE())";
             try
             {
                 await using var cn = new SqlConnection(_connHandel);
@@ -175,8 +191,27 @@ namespace Kalendarz1.Kartoteka.Features.Scoring
 
         private async Task<(decimal limit, decimal wykorzystano)> PobierzLimitAsync(int klientId)
         {
-            const string sql = @"SELECT ISNULL(sc.LimitKredytowy, 0), ISNULL(sc.Naleznosci, 0)
-                                 FROM SSCommon.STContractors sc WHERE sc.Id = @KlientId";
+            // LimitAmount = limit kupiecki, naleznosci = suma otwartych faktur
+            const string sql = @"
+                SELECT
+                    ISNULL(C.LimitAmount, 0) AS LimitKupiecki,
+                    ISNULL((
+                        SELECT SUM(DK.walbrutto - ISNULL(PN2.KwotaRozliczona, 0))
+                        FROM [HM].[DK] DK
+                        LEFT JOIN (
+                            SELECT dkid, SUM(kwotarozl) AS KwotaRozliczona
+                            FROM [HM].[PN]
+                            GROUP BY dkid
+                        ) PN2 ON PN2.dkid = DK.id
+                        WHERE DK.khid = C.Id
+                          AND DK.typ_dk IN ('FVS', 'FVR', 'FVZ')
+                          AND DK.aktywny = 1
+                          AND DK.anulowany = 0
+                          AND DK.ok = 0
+                          AND (DK.walbrutto - ISNULL(PN2.KwotaRozliczona, 0)) > 0.01
+                    ), 0) AS Naleznosci
+                FROM [SSCommon].[STContractors] C
+                WHERE C.Id = @KlientId";
             try
             {
                 await using var cn = new SqlConnection(_connHandel);

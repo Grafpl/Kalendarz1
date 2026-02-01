@@ -21,22 +21,41 @@ namespace Kalendarz1.Kartoteka.Features.Mapa
         {
             var klienci = new List<KlientMapa>();
 
-            // Pobierz kontrahentów z Handel
+            // Pobierz kontrahentów z Handel (Sage Symfonia schema)
             var kontrahenci = new Dictionary<int, KlientMapa>();
             const string sqlHandel = @"
-                SELECT sc.Id, sc.Name, sc.ShortName, sc.City, sc.Street, sc.ZIPCode, sc.NIP,
-                       ISNULL(sc.LimitKredytowy, 0) AS LimitKr,
-                       ISNULL(sc.Naleznosci, 0) AS Naleznosci,
-                       ISNULL(h.Handlowiec, '') AS Handlowiec
-                FROM SSCommon.STContractors sc
-                OUTER APPLY (
-                    SELECT TOP 1 sc2.Name AS Handlowiec
-                    FROM HM.DK dk
-                    INNER JOIN SSCommon.STContractors sc2 ON dk.IdHandlowca = sc2.Id
-                    WHERE dk.IdKontrahenta = sc.Id AND dk.TypDokumentu IN (1,2)
-                    ORDER BY dk.DataFaktury DESC
-                ) h
-                WHERE sc.IsActive = 1 AND sc.City IS NOT NULL AND sc.City != ''";
+                SELECT
+                    C.Id,
+                    C.Name AS NazwaFirmy,
+                    ISNULL(C.Shortcut, '') AS Skrot,
+                    ISNULL(POA.Place, '') AS Miasto,
+                    ISNULL(POA.Street, '') AS Ulica,
+                    ISNULL(POA.PostCode, '') AS KodPocztowy,
+                    ISNULL(C.NIP, '') AS NIP,
+                    ISNULL(C.LimitAmount, 0) AS LimitKupiecki,
+                    ISNULL(WYM.CDim_Handlowiec_Val, N'Nieprzypisany') AS Handlowiec,
+                    ISNULL((
+                        SELECT SUM(DK.walbrutto - ISNULL(PN2.KwotaRozliczona, 0))
+                        FROM [HM].[DK] DK
+                        LEFT JOIN (
+                            SELECT dkid, SUM(kwotarozl) AS KwotaRozliczona
+                            FROM [HM].[PN]
+                            GROUP BY dkid
+                        ) PN2 ON PN2.dkid = DK.id
+                        WHERE DK.khid = C.Id
+                          AND DK.typ_dk IN ('FVS', 'FVR', 'FVZ')
+                          AND DK.aktywny = 1
+                          AND DK.anulowany = 0
+                          AND DK.ok = 0
+                          AND (DK.walbrutto - ISNULL(PN2.KwotaRozliczona, 0)) > 0.01
+                    ), 0) AS Naleznosci
+                FROM [SSCommon].[STContractors] C
+                LEFT JOIN [SSCommon].[STPostOfficeAddresses] POA
+                    ON POA.ContactGuid = C.ContactGuid
+                    AND POA.AddressName = N'adres domyślny'
+                LEFT JOIN [SSCommon].[ContractorClassification] WYM
+                    ON C.Id = WYM.ElementId
+                WHERE POA.Place IS NOT NULL AND POA.Place != ''";
 
             try
             {
@@ -57,17 +76,20 @@ namespace Kalendarz1.Kartoteka.Features.Mapa
                         KodPocztowy = rd.IsDBNull(5) ? "" : rd.GetString(5),
                         NIP = rd.IsDBNull(6) ? "" : rd.GetString(6),
                         IsActive = true,
-                        Handlowiec = rd.IsDBNull(9) ? "" : rd.GetString(9)
+                        Handlowiec = rd.IsDBNull(8) ? "" : rd.GetString(8)
                     };
 
                     decimal limit = rd.GetDecimal(7);
-                    decimal naleznosci = rd.GetDecimal(8);
+                    decimal naleznosci = rd.GetDecimal(9);
                     k.MaAlert = limit > 0 && naleznosci > limit * 0.8m;
 
                     kontrahenci[k.Id] = k;
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"MapaKlientow Handel error: {ex.Message}");
+            }
 
             // Pobierz dane własne z LibraNet (kategoria, współrzędne)
             const string sqlLibra = @"
@@ -92,15 +114,22 @@ namespace Kalendarz1.Kartoteka.Features.Mapa
                     }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"MapaKlientow LibraNet error: {ex.Message}");
+            }
 
             // Pobierz obroty miesięczne
             const string sqlObroty = @"
-                SELECT dk.IdKontrahenta, SUM(dk.WartoscNetto) /
-                       NULLIF(DATEDIFF(MONTH, MIN(dk.DataFaktury), GETDATE()) + 1, 0) AS SrednioMiesiecznie
-                FROM HM.DK dk
-                WHERE dk.TypDokumentu IN (1,2) AND dk.DataFaktury >= DATEADD(YEAR, -1, GETDATE())
-                GROUP BY dk.IdKontrahenta";
+                SELECT DK.khid,
+                       SUM(DK.walbrutto) /
+                       NULLIF(DATEDIFF(MONTH, MIN(DK.data), GETDATE()) + 1, 0) AS SrednioMiesiecznie
+                FROM [HM].[DK] DK
+                WHERE DK.typ_dk IN ('FVS', 'FVR', 'FVZ')
+                  AND DK.aktywny = 1
+                  AND DK.anulowany = 0
+                  AND DK.data >= DATEADD(YEAR, -1, GETDATE())
+                GROUP BY DK.khid";
 
             try
             {
@@ -116,7 +145,10 @@ namespace Kalendarz1.Kartoteka.Features.Mapa
                         k.ObrotyMiesieczne = rd.GetDecimal(1);
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"MapaKlientow Obroty error: {ex.Message}");
+            }
 
             klienci.AddRange(kontrahenci.Values);
             return klienci;
