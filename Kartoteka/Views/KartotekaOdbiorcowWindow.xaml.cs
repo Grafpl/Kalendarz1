@@ -1074,7 +1074,7 @@ namespace Kalendarz1.Kartoteka.Views
             var historiaItem = new MenuItem { Header = "📜 Historia zmian" };
             historiaItem.Click += (s, ev) =>
             {
-                var historiaWindow = new HistoriaZmianWindow(
+                var historiaWindow = new Kalendarz1.Kartoteka.Features.Historia.HistoriaZmianWindow(
                     _libraNetConn, odbiorca.IdSymfonia, odbiorca.NazwaFirmy ?? odbiorca.Skrot,
                     _userId, _userName);
                 historiaWindow.Owner = this;
