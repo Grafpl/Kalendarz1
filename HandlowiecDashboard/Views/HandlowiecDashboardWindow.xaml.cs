@@ -12,6 +12,9 @@ using Microsoft.Data.SqlClient;
 using LiveCharts;
 using LiveCharts.Wpf;
 using Kalendarz1.HandlowiecDashboard.Models;
+using Kalendarz1.HandlowiecDashboard.Services;
+using Kalendarz1.HandlowiecDashboard.Services.Interfaces;
+using Kalendarz1.HandlowiecDashboard.ViewModels;
 using Color = System.Windows.Media.Color;
 
 namespace Kalendarz1.HandlowiecDashboard.Views
@@ -40,6 +43,9 @@ namespace Kalendarz1.HandlowiecDashboard.Views
         private readonly CultureInfo _kulturaPL = new CultureInfo("pl-PL");
         private bool _isInitialized = false;
         private bool _syncowanieDaty = false;
+
+        // ViewModel dla zakładki Opakowania w Terenie
+        private OpakowaniaWTerenieViewModel _opakowaniaWTerenieVM;
 
         #region Performance Optimization Fields
 
@@ -157,6 +163,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 7 => $"Opakowania_{rok}_{miesiac}",
                 8 => $"Platnosci_{rok}_{miesiac}",
                 9 => $"RealizacjaCelow_{rok}_{miesiac}",
+                10 => $"OpakowaniaWTerenie_{rok}_{miesiac}",
                 _ => $"Unknown_{tabIndex}"
             };
         }
@@ -354,6 +361,19 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             cmbHandlowiecPlat.DisplayMemberPath = "Text";
             cmbHandlowiecPlat.SelectedValuePath = "Value";
             cmbHandlowiecPlat.SelectedIndex = 0;
+
+            // Inicjalizuj ViewModel dla Opakowania w Terenie
+            var logger = new LoggingService();
+            var opakowaniaService = new OpakowaniaService(logger);
+            _opakowaniaWTerenieVM = new OpakowaniaWTerenieViewModel(opakowaniaService, logger);
+            // Ustaw listę handlowców z nazw (bez ComboItem)
+            var nazwyHandlowcow = handlowcy.Where(h => h.Value > 0).Select(h => h.Text);
+            _opakowaniaWTerenieVM.UstawHandlowcow(nazwyHandlowcow);
+            // Ustaw DataContext na zakładce Opakowania w Terenie (index 10)
+            if (tabControl.Items.Count > 10 && tabControl.Items[10] is TabItem opakWTerenieTab)
+            {
+                opakWTerenieTab.DataContext = _opakowaniaWTerenieVM;
+            }
         }
 
         private void WypelnijTowary(ComboBox cmb)
@@ -536,6 +556,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     case 7: await OdswiezOpakowaniaAsync(); break;
                     case 8: await OdswiezPlatnosciAsync(); break;
                     case 9: await OdswiezRealizacjeCelowAsync(); break;
+                    case 10: await OdswiezOpakowaniaWTerenieAsync(); break;
                 }
             }
             catch (OperationCanceledException)
@@ -2921,6 +2942,24 @@ FROM FakturyPrzeterminowane;";
             catch (Exception ex)
             {
                 MessageBox.Show($"Blad realizacji celow:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        #endregion
+
+        #region Opakowania w Terenie
+
+        private async Task OdswiezOpakowaniaWTerenieAsync()
+        {
+            if (_opakowaniaWTerenieVM == null) return;
+
+            try
+            {
+                await _opakowaniaWTerenieVM.LoadAllDataAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad ladowania opakowan w terenie:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 

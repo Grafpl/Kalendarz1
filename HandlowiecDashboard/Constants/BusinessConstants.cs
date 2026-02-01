@@ -73,5 +73,22 @@ namespace Kalendarz1.HandlowiecDashboard.Constants
             /// <summary>Szary - brak danych</summary>
             public const string Neutralny = "#8B949E";
         }
+
+        /// <summary>
+        /// Opakowania
+        /// </summary>
+        public static class Opakowania
+        {
+            public const decimal CenaE2 = 85m;   // cena europalety
+            public const decimal CenaH1 = 25m;   // cena pojemnika H1
+            public const int DomyslnyLimitE2 = 50;
+            public const int DomyslnyLimitH1 = 100;
+            
+            // Progi ryzyka (dni od zwrotu)
+            public const int ProgNorma = 30;
+            public const int ProgUwaga = 45;
+            public const int ProgOstrzezenie = 60;
+            public const int ProgKrytyczny = 90;
+        }
     }
 }
