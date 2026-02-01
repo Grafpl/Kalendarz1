@@ -2,9 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Drawing;
+using System.Globalization;
 using System.Linq;
 using System.Windows;
+using System.Windows.Data;
 using System.Windows.Input;
+using System.Windows.Media.Imaging;
 using Microsoft.Data.SqlClient;
 using Kalendarz1.CRM.Services;
 
@@ -67,6 +71,46 @@ namespace Kalendarz1.CRM
                     }
                 }
 
+                // Get today's call counts per user
+                var todayCalls = new Dictionary<string, int>();
+                try
+                {
+                    var cmdTodayCalls = new SqlCommand(
+                        @"SELECT UserID, ContactsCalled FROM CallReminderLog
+                          WHERE CAST(ReminderTime AS DATE) = CAST(GETDATE() AS DATE)", conn);
+                    using (var reader = cmdTodayCalls.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            var uid = reader.GetString(0);
+                            var calls = reader.GetInt32(1);
+                            if (todayCalls.ContainsKey(uid))
+                                todayCalls[uid] += calls;
+                            else
+                                todayCalls[uid] = calls;
+                        }
+                    }
+                }
+                catch { }
+
+                // Get week call counts per user
+                var weekCalls = new Dictionary<string, int>();
+                try
+                {
+                    var cmdWeekCalls = new SqlCommand(
+                        @"SELECT UserID, SUM(ContactsCalled) FROM CallReminderLog
+                          WHERE ReminderTime >= DATEADD(DAY, -7, GETDATE())
+                          GROUP BY UserID", conn);
+                    using (var reader = cmdWeekCalls.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            weekCalls[reader.GetString(0)] = reader.GetInt32(1);
+                        }
+                    }
+                }
+                catch { }
+
                 // Build view models
                 foreach (var op in operators)
                 {
@@ -85,6 +129,15 @@ namespace Kalendarz1.CRM
                         vm.ShowOnlyNewContacts = cfg.onlyNew;
                         vm.ShowOnlyAssigned = cfg.onlyAssigned;
                     }
+
+                    if (todayCalls.TryGetValue(op.id, out var tc))
+                        vm.TodayCalls = tc;
+
+                    if (weekCalls.TryGetValue(op.id, out var wc))
+                        vm.WeekCalls = wc;
+
+                    // Load avatar
+                    vm.LoadAvatar();
 
                     _handlowcy.Add(vm);
                 }
@@ -256,6 +309,26 @@ namespace Kalendarz1.CRM
                 DragMove();
             }
         }
+
+        private void TxtSearchHandlowiec_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+        {
+            if (_handlowcy == null) return;
+
+            var searchText = txtSearchHandlowiec.Text?.Trim().ToLower() ?? "";
+
+            if (string.IsNullOrEmpty(searchText))
+            {
+                dgHandlowcy.ItemsSource = _handlowcy;
+                txtSearchCount.Text = "";
+            }
+            else
+            {
+                var filtered = _handlowcy.Where(h =>
+                    h.UserName != null && h.UserName.ToLower().Contains(searchText)).ToList();
+                dgHandlowcy.ItemsSource = filtered;
+                txtSearchCount.Text = $"{filtered.Count} / {_handlowcy.Count}";
+            }
+        }
     }
 
     public class HandlowiecConfigViewModel : INotifyPropertyChanged
@@ -266,6 +339,10 @@ namespace Kalendarz1.CRM
         private int _contactsPerReminder = 5;
         private bool _showOnlyNewContacts = true;
         private bool _showOnlyAssigned = false;
+        private int _todayCalls;
+        private int _weekCalls;
+        private BitmapSource _avatarSource;
+        private bool _hasAvatar;
 
         public string UserID { get; set; }
         public string UserName { get; set; }
@@ -330,11 +407,147 @@ namespace Kalendarz1.CRM
             set { _showOnlyAssigned = value; OnPropertyChanged(nameof(ShowOnlyAssigned)); }
         }
 
+        public int TodayCalls
+        {
+            get => _todayCalls;
+            set { _todayCalls = value; OnPropertyChanged(nameof(TodayCalls)); }
+        }
+
+        public int WeekCalls
+        {
+            get => _weekCalls;
+            set { _weekCalls = value; OnPropertyChanged(nameof(WeekCalls)); }
+        }
+
+        // Avatar support
+        public BitmapSource AvatarSource
+        {
+            get => _avatarSource;
+            set { _avatarSource = value; OnPropertyChanged(nameof(AvatarSource)); }
+        }
+
+        public bool HasAvatar
+        {
+            get => _hasAvatar;
+            set { _hasAvatar = value; OnPropertyChanged(nameof(HasAvatar)); OnPropertyChanged(nameof(HasNoAvatar)); }
+        }
+
+        public bool HasNoAvatar => !_hasAvatar;
+
+        // Initials for fallback avatar
+        public string Initials
+        {
+            get
+            {
+                if (string.IsNullOrWhiteSpace(UserName)) return "?";
+                var parts = UserName.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 2)
+                    return (parts[0][0].ToString() + parts[1][0].ToString()).ToUpper();
+                return UserName.Length >= 2 ? UserName.Substring(0, 2).ToUpper() : UserName.ToUpper();
+            }
+        }
+
+        // Color for fallback avatar (deterministic based on UserID)
+        public System.Windows.Media.Color AvatarColor
+        {
+            get
+            {
+                int hash = UserID?.GetHashCode() ?? 0;
+                var colors = new[]
+                {
+                    System.Windows.Media.Color.FromRgb(46, 125, 50),   // Green
+                    System.Windows.Media.Color.FromRgb(25, 118, 210),  // Blue
+                    System.Windows.Media.Color.FromRgb(156, 39, 176),  // Purple
+                    System.Windows.Media.Color.FromRgb(230, 81, 0),    // Orange
+                    System.Windows.Media.Color.FromRgb(0, 137, 123),   // Teal
+                    System.Windows.Media.Color.FromRgb(194, 24, 91),   // Pink
+                    System.Windows.Media.Color.FromRgb(69, 90, 100),   // Gray
+                    System.Windows.Media.Color.FromRgb(121, 85, 72)    // Brown
+                };
+                return colors[Math.Abs(hash) % colors.Length];
+            }
+        }
+
+        // Role name (derived from enabled status for now)
+        public string RoleName => IsEnabled ? "Handlowiec" : "Nieaktywny";
+
+        /// <summary>
+        /// Loads the avatar from UserAvatarManager
+        /// </summary>
+        public void LoadAvatar()
+        {
+            try
+            {
+                if (UserAvatarManager.HasAvatar(UserID))
+                {
+                    using (var avatar = UserAvatarManager.GetAvatarRounded(UserID, 42))
+                    {
+                        if (avatar != null)
+                        {
+                            AvatarSource = ConvertToBitmapSource(avatar);
+                            HasAvatar = true;
+                            return;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Fall through to default avatar
+            }
+
+            HasAvatar = false;
+        }
+
+        private static BitmapSource ConvertToBitmapSource(Image image)
+        {
+            if (image == null) return null;
+
+            using (var bitmap = new Bitmap(image))
+            {
+                var hBitmap = bitmap.GetHbitmap();
+                try
+                {
+                    return System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
+                        hBitmap,
+                        IntPtr.Zero,
+                        System.Windows.Int32Rect.Empty,
+                        BitmapSizeOptions.FromEmptyOptions());
+                }
+                finally
+                {
+                    DeleteObject(hBitmap);
+                }
+            }
+        }
+
+        [System.Runtime.InteropServices.DllImport("gdi32.dll")]
+        private static extern bool DeleteObject(IntPtr hObject);
+
         // Available options for ComboBoxes
         public List<string> AvailableTimes { get; } = Enumerable.Range(6, 18).SelectMany(h => new[] { $"{h:D2}:00", $"{h:D2}:30" }).ToList();
         public List<int> AvailableCounts { get; } = new List<int> { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    }
+
+    /// <summary>
+    /// Returns Visible when bound integer (text length) is 0, Collapsed otherwise.
+    /// Used for search placeholder text.
+    /// </summary>
+    public class InverseLengthToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is int length)
+                return length == 0 ? Visibility.Visible : Visibility.Collapsed;
+            return Visibility.Visible;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

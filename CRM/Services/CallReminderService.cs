@@ -234,9 +234,15 @@ namespace Kalendarz1.CRM.Services
                 cmd.Parameters.AddWithValue("@OnlyAssigned", _config?.ShowOnlyAssigned ?? false);
 
                 using var reader = cmd.ExecuteReader();
+
+                // Build column index map for optional columns
+                var columnMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                for (int i = 0; i < reader.FieldCount; i++)
+                    columnMap[reader.GetName(i)] = i;
+
                 while (reader.Read())
                 {
-                    contacts.Add(new ContactToCall
+                    var contact = new ContactToCall
                     {
                         ID = reader.GetInt32(0),
                         Nazwa = reader.IsDBNull(1) ? "" : reader.GetString(1),
@@ -248,7 +254,35 @@ namespace Kalendarz1.CRM.Services
                         Branza = reader.IsDBNull(7) ? "" : reader.GetString(7),
                         OstatniaNota = reader.IsDBNull(8) ? "" : reader.GetString(8),
                         DataOstatniejNotatki = reader.IsDBNull(9) ? null : reader.GetDateTime(9)
-                    });
+                    };
+
+                    // Read additional columns if available from SP
+                    if (columnMap.TryGetValue("KodPocztowy", out int colKod) && !reader.IsDBNull(colKod))
+                        contact.KodPocztowy = reader.GetString(colKod);
+                    if (columnMap.TryGetValue("PKD", out int colPkd) && !reader.IsDBNull(colPkd))
+                        contact.PKD = reader.GetString(colPkd);
+                    if (columnMap.TryGetValue("PKDNazwa", out int colPkdN) && !reader.IsDBNull(colPkdN))
+                        contact.PKDNazwa = reader.GetString(colPkdN);
+                    if (columnMap.TryGetValue("NIP", out int colNip) && !reader.IsDBNull(colNip))
+                        contact.NIP = reader.GetString(colNip);
+                    if (columnMap.TryGetValue("Telefon2", out int colTel2) && !reader.IsDBNull(colTel2))
+                        contact.Telefon2 = reader.GetString(colTel2);
+                    if (columnMap.TryGetValue("Adres", out int colAddr) && !reader.IsDBNull(colAddr))
+                        contact.Adres = reader.GetString(colAddr);
+                    if (columnMap.TryGetValue("CallCount", out int colCalls) && !reader.IsDBNull(colCalls))
+                        contact.CallCount = reader.GetInt32(colCalls);
+                    if (columnMap.TryGetValue("LastCallDate", out int colLastCall) && !reader.IsDBNull(colLastCall))
+                        contact.LastCallDate = reader.GetDateTime(colLastCall);
+                    if (columnMap.TryGetValue("AssignedTo", out int colAssign) && !reader.IsDBNull(colAssign))
+                        contact.AssignedTo = reader.GetString(colAssign);
+                    if (columnMap.TryGetValue("OdlegloscKm", out int colDist) && !reader.IsDBNull(colDist))
+                        contact.OdlegloscKm = Convert.ToDouble(reader.GetValue(colDist));
+                    if (columnMap.TryGetValue("OstatniaNotaAutor", out int colAutor) && !reader.IsDBNull(colAutor))
+                        contact.OstatniaNotaAutor = reader.GetString(colAutor);
+                    if (columnMap.TryGetValue("Priority", out int colPrio) && !reader.IsDBNull(colPrio))
+                        contact.Priority = reader.GetString(colPrio);
+
+                    contacts.Add(contact);
                 }
             }
             catch (Exception ex)
