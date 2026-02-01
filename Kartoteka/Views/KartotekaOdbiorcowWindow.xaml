@@ -156,19 +156,47 @@
         <Border Grid.Row="1" Background="White" BorderBrush="#E5E7EB" BorderThickness="0,0,0,1" Padding="16,4">
             <DockPanel>
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="Legenda:" Foreground="#6B7280" FontSize="11" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <TextBlock Text="Status:" Foreground="#6B7280" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0"/>
 
-                    <Border Width="10" Height="10" Background="#DC2626" CornerRadius="5" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                    <TextBlock Text="Przekr. limit" FontSize="10" VerticalAlignment="Center" Margin="0,0,12,0" Foreground="#6B7280"/>
+                    <!-- Przekroczony limit -->
+                    <Border Background="#FEF2F2" CornerRadius="10" Padding="6,2" Margin="0,0,6,0" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <Border Width="8" Height="8" Background="#DC2626" CornerRadius="4" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                            <TextBlock Text="Przekr. limit" FontSize="10" Foreground="#991B1B"/>
+                        </StackPanel>
+                    </Border>
 
-                    <Border Width="10" Height="10" Background="#F59E0B" CornerRadius="5" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                    <TextBlock Text="Przeterminowane" FontSize="10" VerticalAlignment="Center" Margin="0,0,12,0" Foreground="#6B7280"/>
+                    <!-- Przeterminowane -->
+                    <Border Background="#FFF7ED" CornerRadius="10" Padding="6,2" Margin="0,0,6,0" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <Border Width="8" Height="8" Background="#EA580C" CornerRadius="4" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                            <TextBlock Text="Przeterminowane" FontSize="10" Foreground="#9A3412"/>
+                        </StackPanel>
+                    </Border>
 
-                    <Border Width="10" Height="10" Background="#FB923C" CornerRadius="5" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                    <TextBlock Text="Nieaktywny 30d" FontSize="10" VerticalAlignment="Center" Margin="0,0,12,0" Foreground="#6B7280"/>
+                    <!-- Nieaktywny -->
+                    <Border Background="#FDF4FF" CornerRadius="10" Padding="6,2" Margin="0,0,6,0" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <Border Width="8" Height="8" Background="#A855F7" CornerRadius="4" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                            <TextBlock Text="Nieaktywny 30d" FontSize="10" Foreground="#6B21A8"/>
+                        </StackPanel>
+                    </Border>
 
-                    <Border Width="10" Height="10" Background="#3B82F6" CornerRadius="5" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                    <TextBlock Text="Nowy klient" FontSize="10" VerticalAlignment="Center" Margin="0,0,12,0" Foreground="#6B7280"/>
+                    <!-- Nowy klient -->
+                    <Border Background="#EFF6FF" CornerRadius="10" Padding="6,2" Margin="0,0,6,0" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <Border Width="8" Height="8" Background="#3B82F6" CornerRadius="4" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                            <TextBlock Text="Nowy klient" FontSize="10" Foreground="#1E40AF"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- OK -->
+                    <Border Background="#F0FDF4" CornerRadius="10" Padding="6,2" Margin="0,0,6,0" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <Border Width="8" Height="8" Background="#22C55E" CornerRadius="4" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                            <TextBlock Text="OK" FontSize="10" Foreground="#166534"/>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
 
                 <TextBlock x:Name="TextBlockLicznik" Text="" FontSize="11" Foreground="#6B7280"

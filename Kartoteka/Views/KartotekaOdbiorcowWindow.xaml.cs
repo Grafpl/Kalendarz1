@@ -1106,11 +1106,11 @@ namespace Kalendarz1.Kartoteka.Views
         {
             return alertType switch
             {
-                "LimitExceeded" => new SolidColorBrush(Color.FromRgb(220, 38, 38)),   // red
-                "Overdue" => new SolidColorBrush(Color.FromRgb(245, 158, 11)),         // amber
-                "Inactive" => new SolidColorBrush(Color.FromRgb(251, 146, 60)),        // orange
-                "NewClient" => new SolidColorBrush(Color.FromRgb(59, 130, 246)),       // blue
-                _ => new SolidColorBrush(Color.FromRgb(34, 197, 94))                   // green (OK)
+                "LimitExceeded" => new SolidColorBrush(Color.FromRgb(220, 38, 38)),   // #DC2626 red
+                "Overdue" => new SolidColorBrush(Color.FromRgb(234, 88, 12)),          // #EA580C orange
+                "Inactive" => new SolidColorBrush(Color.FromRgb(168, 85, 247)),        // #A855F7 purple
+                "NewClient" => new SolidColorBrush(Color.FromRgb(59, 130, 246)),       // #3B82F6 blue
+                _ => new SolidColorBrush(Color.FromRgb(34, 197, 94))                   // #22C55E green
             };
         }
 
