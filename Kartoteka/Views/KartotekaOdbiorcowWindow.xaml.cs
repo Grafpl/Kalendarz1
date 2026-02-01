@@ -39,6 +39,7 @@ namespace Kalendarz1.Kartoteka.Views
         private Border _expandedCard;
         private bool _isAdmin;
         private string _expandCustomerNIP;
+        private int? _expandCustomerId;
 
         // Sorting state
         private string _sortColumn = "OstFaktura";
@@ -66,6 +67,11 @@ namespace Kalendarz1.Kartoteka.Views
         public KartotekaOdbiorcowWindow(string userId, string userName, string expandCustomerNIP) : this(userId, userName)
         {
             _expandCustomerNIP = expandCustomerNIP;
+        }
+
+        public KartotekaOdbiorcowWindow(string userId, string userName, int expandCustomerId) : this(userId, userName)
+        {
+            _expandCustomerId = expandCustomerId;
         }
 
         private async void Window_Loaded(object sender, RoutedEventArgs e)
@@ -295,6 +301,12 @@ namespace Kalendarz1.Kartoteka.Views
                 {
                     await AutoExpandCustomer(_expandCustomerNIP);
                     _expandCustomerNIP = null;
+                }
+                // Auto-expand customer if IdSymfonia was specified
+                else if (_expandCustomerId.HasValue)
+                {
+                    await AutoExpandCustomerById(_expandCustomerId.Value);
+                    _expandCustomerId = null;
                 }
             }
             catch (Exception ex)
@@ -1112,6 +1124,21 @@ namespace Kalendarz1.Kartoteka.Views
             foreach (var child in AccordionPanel.Children)
             {
                 if (child is Border cardBorder && cardBorder.Tag is OdbiorcaHandlowca o && o.NIP == nip)
+                {
+                    ExpandCard(cardBorder, o);
+                    await LoadSzczegoly(o);
+                    cardBorder.BringIntoView();
+                    return;
+                }
+            }
+        }
+
+        private async System.Threading.Tasks.Task AutoExpandCustomerById(int idSymfonia)
+        {
+            // Find the card Border for this IdSymfonia in AccordionPanel
+            foreach (var child in AccordionPanel.Children)
+            {
+                if (child is Border cardBorder && cardBorder.Tag is OdbiorcaHandlowca o && o.IdSymfonia == idSymfonia)
                 {
                     ExpandCard(cardBorder, o);
                     await LoadSzczegoly(o);
