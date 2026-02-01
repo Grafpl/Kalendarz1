@@ -655,7 +655,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                         FontWeight = FontWeights.Bold
                     };
 
-                    foreach (var (klient, wartosc) in h.Value.Take(10))
+                    foreach (var (klient, wartosc) in h.Value)
                     {
                         // Oblicz % klienta w stosunku do handlowca
                         var procentKlienta = sumaHandlowca > 0 ? (wartosc / sumaHandlowca) * 100 : 0;
@@ -663,18 +663,6 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                         {
                             Header = $"  {klient}: {wartosc:N0} zl ({procentKlienta:F1}%)",
                             Foreground = Brushes.White
-                        });
-                    }
-
-                    if (h.Value.Count > 10)
-                    {
-                        var pozostaleWartosc = h.Value.Skip(10).Sum(v => v.Wartosc);
-                        var pozostaleProcent = sumaHandlowca > 0 ? (pozostaleWartosc / sumaHandlowca) * 100 : 0;
-                        item.Items.Add(new TreeViewItem
-                        {
-                            Header = $"  ... i {h.Value.Count - 10} wiecej ({pozostaleProcent:F1}%)",
-                            Foreground = Brushes.Gray,
-                            FontStyle = FontStyles.Italic
                         });
                     }
 
