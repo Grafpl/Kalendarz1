@@ -21,9 +21,12 @@
 
             <!-- Contact List Item Template -->
             <DataTemplate x:Key="ContactListItemTemplate">
-                <Border x:Name="contactBorder" Background="#08FFFFFF" BorderBrush="#14FFFFFF"
-                        BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,4"
-                        Cursor="Hand">
+                <Border x:Name="contactBorder" Background="#0CFFFFFF" BorderBrush="#18FFFFFF"
+                        BorderThickness="1" CornerRadius="14" Padding="14,12" Margin="0,5"
+                        Cursor="Hand" RenderTransformOrigin="0.5,0.5">
+                    <Border.RenderTransform>
+                        <TranslateTransform X="0" Y="0"/>
+                    </Border.RenderTransform>
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
@@ -34,50 +37,83 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <!-- Priority Dot -->
-                        <Ellipse x:Name="priorityDot" Grid.Column="0" Grid.RowSpan="3"
-                                 Width="10" Height="10" VerticalAlignment="Top" Margin="0,4,12,0">
-                            <Ellipse.Fill>
+                        <!-- Priority Indicator Bar -->
+                        <Border Grid.Column="0" Grid.RowSpan="4" Width="4" CornerRadius="2"
+                                VerticalAlignment="Stretch" Margin="0,2,12,2">
+                            <Border.Background>
                                 <SolidColorBrush Color="{Binding PriorityColor}"/>
-                            </Ellipse.Fill>
-                            <Ellipse.Effect>
-                                <DropShadowEffect ShadowDepth="0" Color="{Binding PriorityColor}" Opacity="0.6" BlurRadius="8"/>
-                            </Ellipse.Effect>
-                        </Ellipse>
+                            </Border.Background>
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="0" Color="{Binding PriorityColor}" Opacity="0.5" BlurRadius="6"/>
+                            </Border.Effect>
+                        </Border>
 
-                        <!-- Company Name -->
+                        <!-- Company Name - bigger, bolder -->
                         <TextBlock Grid.Column="1" Grid.Row="0" Text="{Binding Nazwa}"
-                                   FontSize="14" FontWeight="Medium" Foreground="White"
-                                   TextTrimming="CharacterEllipsis" MaxWidth="160"/>
+                                   FontSize="15" FontWeight="SemiBold" Foreground="White"
+                                   TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
 
-                        <!-- Location + PKD -->
-                        <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" Margin="0,4,0,0">
-                            <TextBlock Text="📍" FontSize="11" Margin="0,0,4,0"/>
-                            <TextBlock Text="{Binding Miasto}" FontSize="12" Foreground="#66FFFFFF" Margin="0,0,10,0"/>
-                            <Border Background="#33a78bfa" CornerRadius="4" Padding="6,2"
+                        <!-- Location Row -->
+                        <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" Margin="0,5,0,0">
+                            <Path Data="M12,2C8.13,2 5,5.13 5,9c0,5.25 7,13 7,13s7-7.75 7-13C19,5.13 15.87,2 12,2z M12,11.5c-1.38,0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5,1.12 2.5,2.5S13.38,11.5 12,11.5z"
+                                  Fill="#66FFFFFF" Width="12" Height="12" Stretch="Uniform" Margin="0,1,5,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding Miasto}" FontSize="12" Foreground="#88FFFFFF"
+                                       VerticalAlignment="Center"/>
+                            <Border Background="#33a78bfa" CornerRadius="4" Padding="6,2" Margin="8,0,0,0"
                                     Visibility="{Binding HasPKD, Converter={StaticResource BoolToVisibility}}">
                                 <TextBlock Text="{Binding PKD}" FontSize="10" Foreground="#a78bfa" FontFamily="Consolas"/>
                             </Border>
                         </StackPanel>
 
-                        <!-- Phone + Status -->
+                        <!-- Phone Row - prominent -->
                         <StackPanel Grid.Column="1" Grid.Row="2" Orientation="Horizontal" Margin="0,6,0,0">
-                            <TextBlock Text="{Binding Telefon}" FontSize="13" FontWeight="Medium" Foreground="#58a6ff"/>
+                            <Path Data="M6.62,10.79C8.06,13.62 10.38,15.94 13.21,17.38l1.97-1.97c.24-.24.59-.31.9-.21 1.01.34 2.1.52 3.23.52.55,0 1,.45 1,1v3.59c0,.55-.45,1-1,1C10.07,21.31 2.69,13.93 2.69,5c0-.55.45-1 1-1H7.28c.55,0 1,.45 1,1 0,1.13.18,2.22.52,3.23.1.31.03.66-.21.9L6.62,10.79z"
+                                  Fill="#58a6ff" Width="13" Height="13" Stretch="Uniform" Margin="0,1,6,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding Telefon}" FontSize="14" FontWeight="SemiBold" Foreground="#58a6ff"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- Status Badge Row -->
+                        <StackPanel Grid.Column="1" Grid.Row="3" Orientation="Horizontal" Margin="0,6,0,0">
                             <Border x:Name="statusBadge" Background="{Binding StatusBackground}"
-                                    CornerRadius="10" Padding="8,3" Margin="12,0,0,0">
-                                <TextBlock Text="{Binding StatusShort}" FontSize="10" Foreground="{Binding StatusColor}"/>
+                                    CornerRadius="10" Padding="10,3">
+                                <TextBlock Text="{Binding StatusShort}" FontSize="10" FontWeight="Medium" Foreground="{Binding StatusColor}"/>
                             </Border>
                         </StackPanel>
 
-                        <!-- Completed Check -->
-                        <Border Grid.Column="2" Grid.RowSpan="3" VerticalAlignment="Center"
-                                Background="#2E3fb950" CornerRadius="20" Width="30" Height="30"
-                                Visibility="{Binding IsCompleted, Converter={StaticResource BoolToVisibility}}">
-                            <TextBlock Text="✓" FontSize="16" Foreground="#3fb950"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
+                        <!-- Right Side: Swap Button + Completed Check -->
+                        <StackPanel Grid.Column="2" Grid.RowSpan="4" VerticalAlignment="Center" Margin="6,0,0,0">
+                            <!-- Completed Check -->
+                            <Border Background="#2E3fb950" CornerRadius="20" Width="32" Height="32"
+                                    Visibility="{Binding IsCompleted, Converter={StaticResource BoolToVisibility}}"
+                                    Margin="0,0,0,4">
+                                <TextBlock Text="✓" FontSize="16" Foreground="#3fb950"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <!-- Swap/Replace Button -->
+                            <Button Click="BtnSwapContact_Click" ToolTip="Zamień kontakt"
+                                    Cursor="Hand" Width="32" Height="32">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="swapBorder" Background="#10FFFFFF" CornerRadius="8"
+                                                Width="32" Height="32" BorderBrush="#20FFFFFF" BorderThickness="1">
+                                            <Path Data="M12,5V1L7,6l5,5V7c3.31,0 6,2.69 6,6s-2.69,6-6,6-6-2.69-6-6H4c0,4.42 3.58,8 8,8s8-3.58 8-8S16.42,5 12,5z"
+                                                  Fill="#88FFFFFF" Width="16" Height="16" Stretch="Uniform"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="swapBorder" Property="Background" Value="#30ff6b6b"/>
+                                                <Setter TargetName="swapBorder" Property="BorderBrush" Value="#50ff6b6b"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </StackPanel>
                     </Grid>
                 </Border>
                 <DataTemplate.Triggers>
@@ -86,7 +122,7 @@
                         <Setter TargetName="contactBorder" Property="BorderBrush" Value="#4D58a6ff"/>
                     </DataTrigger>
                     <Trigger SourceName="contactBorder" Property="IsMouseOver" Value="True">
-                        <Setter TargetName="contactBorder" Property="Background" Value="#14FFFFFF"/>
+                        <Setter TargetName="contactBorder" Property="Background" Value="#18FFFFFF"/>
                     </Trigger>
                 </DataTemplate.Triggers>
             </DataTemplate>
@@ -142,7 +178,7 @@
 
             <Grid Margin="0">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="300"/>
+                    <ColumnDefinition Width="330"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="420"/>
                 </Grid.ColumnDefinitions>

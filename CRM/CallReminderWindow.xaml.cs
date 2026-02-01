@@ -8,6 +8,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using Microsoft.Data.SqlClient;
 using Kalendarz1.CRM.Models;
 using Kalendarz1.CRM.Services;
@@ -667,6 +668,155 @@ namespace Kalendarz1.CRM
             {
                 SelectContact(_contacts[0]);
             }
+        }
+
+        private void BtnSwapContact_Click(object sender, RoutedEventArgs e)
+        {
+            // Find the contact card that was clicked
+            var button = sender as Button;
+            if (button == null) return;
+
+            var element = button as FrameworkElement;
+            while (element != null && !(element.DataContext is ContactToCall))
+            {
+                element = VisualTreeHelper.GetParent(element) as FrameworkElement;
+            }
+
+            if (element?.DataContext is ContactToCall contactToSwap)
+            {
+                int index = _contacts.IndexOf(contactToSwap);
+                if (index < 0) return;
+
+                // Find the visual Border for animation
+                Border cardBorder = FindParentBorder(button);
+                if (cardBorder != null)
+                {
+                    // Animate slide-out to the left + fade
+                    var translateTransform = cardBorder.RenderTransform as TranslateTransform;
+                    if (translateTransform == null)
+                    {
+                        translateTransform = new TranslateTransform(0, 0);
+                        cardBorder.RenderTransform = translateTransform;
+                    }
+
+                    var slideOut = new DoubleAnimation(-300, TimeSpan.FromMilliseconds(250))
+                    {
+                        EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+                    };
+                    var fadeOut = new DoubleAnimation(0, TimeSpan.FromMilliseconds(200));
+
+                    int capturedIndex = index;
+                    slideOut.Completed += (s2, e2) =>
+                    {
+                        // Get one new random contact to replace
+                        var newContacts = CallReminderService.Instance.GetRandomContacts(1);
+                        if (newContacts.Count > 0)
+                        {
+                            _contacts[capturedIndex] = newContacts[0];
+
+                            // If the swapped contact was selected, select the new one
+                            if (_selectedContact == contactToSwap)
+                            {
+                                SelectContact(newContacts[0]);
+                            }
+                        }
+                        else
+                        {
+                            // No more contacts available, just remove
+                            _contacts.RemoveAt(capturedIndex);
+                        }
+
+                        txtContactsCount.Text = $"Kontakty ({_contacts.Count})";
+                        UpdateProgress();
+
+                        // Animate slide-in from right for the new card
+                        Dispatcher.BeginInvoke(new Action(() =>
+                        {
+                            try
+                            {
+                                var container = contactsList.ItemContainerGenerator.ContainerFromIndex(capturedIndex) as ContentPresenter;
+                                if (container != null)
+                                {
+                                    var newBorder = FindChildBorder(container);
+                                    if (newBorder != null)
+                                    {
+                                        var slideInTransform = new TranslateTransform(300, 0);
+                                        newBorder.RenderTransform = slideInTransform;
+                                        newBorder.Opacity = 0;
+
+                                        var slideIn = new DoubleAnimation(0, TimeSpan.FromMilliseconds(300))
+                                        {
+                                            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                                        };
+                                        var fadeIn = new DoubleAnimation(1, TimeSpan.FromMilliseconds(250));
+
+                                        slideInTransform.BeginAnimation(TranslateTransform.XProperty, slideIn);
+                                        newBorder.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+                                    }
+                                }
+                            }
+                            catch { /* animation is cosmetic, don't crash */ }
+                        }), System.Windows.Threading.DispatcherPriority.Loaded);
+                    };
+
+                    translateTransform.BeginAnimation(TranslateTransform.XProperty, slideOut);
+                    cardBorder.BeginAnimation(UIElement.OpacityProperty, fadeOut);
+                }
+                else
+                {
+                    // Fallback: no animation, just swap
+                    var newContacts = CallReminderService.Instance.GetRandomContacts(1);
+                    if (newContacts.Count > 0)
+                    {
+                        _contacts[index] = newContacts[0];
+                        if (_selectedContact == contactToSwap)
+                            SelectContact(newContacts[0]);
+                    }
+                    else
+                    {
+                        _contacts.RemoveAt(index);
+                    }
+                    txtContactsCount.Text = $"Kontakty ({_contacts.Count})";
+                    UpdateProgress();
+                }
+            }
+        }
+
+        private Border FindParentBorder(DependencyObject child)
+        {
+            var parent = VisualTreeHelper.GetParent(child);
+            while (parent != null)
+            {
+                if (parent is Border border && border.Name == "contactBorder")
+                    return border;
+                if (parent is ContentPresenter)
+                    break;
+                parent = VisualTreeHelper.GetParent(parent);
+            }
+            // If named border not found, find first border with CornerRadius
+            parent = VisualTreeHelper.GetParent(child);
+            while (parent != null)
+            {
+                if (parent is Border b && b.CornerRadius.TopLeft > 10)
+                    return b;
+                if (parent is ContentPresenter)
+                    break;
+                parent = VisualTreeHelper.GetParent(parent);
+            }
+            return null;
+        }
+
+        private Border FindChildBorder(DependencyObject parent)
+        {
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is Border border && border.CornerRadius.TopLeft > 10)
+                    return border;
+                var result = FindChildBorder(child);
+                if (result != null) return result;
+            }
+            return null;
         }
 
         private void BtnRefresh_Click(object sender, RoutedEventArgs e)
