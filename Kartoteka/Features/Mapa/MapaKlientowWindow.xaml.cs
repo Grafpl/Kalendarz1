@@ -86,8 +86,8 @@ namespace Kalendarz1.Kartoteka.Features.Mapa
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd ładowania danych:\n{ex.Message}", "Błąd",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Błąd ładowania danych mapy:\n\n{ex.Message}\n\n{ex.GetType().Name}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
@@ -98,7 +98,9 @@ namespace Kalendarz1.Kartoteka.Features.Mapa
         private void ApplyFilters()
         {
             if (!IsLoaded) return;
-            var filtered = _wszyscyKlienci.Where(k => k.MaWspolrzedne).ToList();
+
+            // Filtrowanie po kategorii, alertach, handlowcu — bez wymagania współrzędnych
+            var filtered = _wszyscyKlienci.AsEnumerable();
 
             // Filtr kategorii
             var dozwoloneKat = new HashSet<string>();
@@ -112,20 +114,20 @@ namespace Kalendarz1.Kartoteka.Features.Mapa
                 if (string.IsNullOrEmpty(k.Kategoria) || !new[] { "A", "B", "C", "D" }.Contains(k.Kategoria))
                     return chkBezKat.IsChecked == true;
                 return dozwoloneKat.Contains(k.Kategoria);
-            }).ToList();
+            });
 
             // Filtr alertów
             if (chkAlerty.IsChecked == true)
-                filtered = filtered.Where(k => k.MaAlert).ToList();
+                filtered = filtered.Where(k => k.MaAlert);
 
             // Filtr handlowca
             if (cmbHandlowiec.SelectedItem is ComboBoxItem item && item.Content?.ToString() != "Wszyscy")
             {
                 string handlowiec = item.Content?.ToString();
-                filtered = filtered.Where(k => k.Handlowiec == handlowiec).ToList();
+                filtered = filtered.Where(k => k.Handlowiec == handlowiec);
             }
 
-            _filtrKlienci = filtered;
+            _filtrKlienci = filtered.ToList();
             RefreshMarkers();
             UpdateClientList();
             UpdateStatistics();
@@ -197,10 +199,11 @@ namespace Kalendarz1.Kartoteka.Features.Mapa
 
         private void UpdateStatistics()
         {
-            int zWspolrzednymi = _wszyscyKlienci.Count(k => k.MaWspolrzedne);
+            int zWspolrzednymi = _filtrKlienci.Count(k => k.MaWspolrzedne);
+            int bezWspolrzednych = _filtrKlienci.Count(k => !k.MaWspolrzedne);
             txtStatKlienci.Text = $"Klientów ogółem: {_wszyscyKlienci.Count}";
-            txtStatMapa.Text = $"Na mapie: {zWspolrzednymi} ({_filtrKlienci.Count} widocznych)";
-            txtStatObroty.Text = $"Obroty widocznych: {_filtrKlienci.Sum(k => k.ObrotyMiesieczne):N0} zł/mies";
+            txtStatMapa.Text = $"Na mapie: {zWspolrzednymi} pinezek, {bezWspolrzednych} bez współrzędnych";
+            txtStatObroty.Text = $"Widocznych: {_filtrKlienci.Count} | Obroty: {_filtrKlienci.Sum(k => k.ObrotyMiesieczne):N0} zł/mies";
         }
 
         private void GMap_OnMarkerClick(GMapMarker item, System.Windows.Forms.MouseEventArgs e)

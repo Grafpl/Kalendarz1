@@ -57,9 +57,10 @@ namespace Kalendarz1.Kartoteka.Features.Mapa
                     ON C.Id = WYM.ElementId
                 WHERE POA.Place IS NOT NULL AND POA.Place != ''";
 
-            try
+            // Nie łapiemy wyjątku — niech propaguje do LoadDataAsync,
+            // gdzie pokaże się w MessageBox z pełnym komunikatem błędu
+            await using (var cn = new SqlConnection(_connHandel))
             {
-                await using var cn = new SqlConnection(_connHandel);
                 await cn.OpenAsync();
                 await using var cmd = new SqlCommand(sqlHandel, cn);
                 cmd.CommandTimeout = 30;
@@ -85,10 +86,6 @@ namespace Kalendarz1.Kartoteka.Features.Mapa
 
                     kontrahenci[k.Id] = k;
                 }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"MapaKlientow Handel error: {ex.Message}");
             }
 
             // Pobierz dane własne z LibraNet (kategoria, współrzędne)
