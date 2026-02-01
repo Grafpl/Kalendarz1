@@ -1152,29 +1152,31 @@ namespace Kalendarz1.HandlowiecDashboard.Views
         {
             try
             {
-                // Try to get actual axis range from chart model
-                var model = chart.Model;
-                if (model == null) return double.NaN;
-
                 if (isXAxis && chart.AxisX != null && chart.AxisX.Count > 0)
                 {
                     var ax = chart.AxisX[0];
                     if (!double.IsNaN(ax.MaxValue) && ax.MaxValue > 0) return ax.MaxValue;
-                    // Try model axis
-                    if (model.AxisX != null && model.AxisX.Count > 0)
-                    {
-                        var core = model.AxisX[0];
-                        try { return (double)core.GetType().GetProperty("TopLimit")?.GetValue(core); } catch { }
-                    }
                 }
                 else if (!isXAxis && chart.AxisY != null && chart.AxisY.Count > 0)
                 {
                     var ax = chart.AxisY[0];
                     if (!double.IsNaN(ax.MaxValue) && ax.MaxValue > 0) return ax.MaxValue;
-                    if (model.AxisY != null && model.AxisY.Count > 0)
+                }
+
+                // Try reflection on model axis TopLimit
+                var model = chart.Model;
+                if (model != null)
+                {
+                    var axisList = isXAxis ? model.AxisX : model.AxisY;
+                    if (axisList != null && axisList.Count > 0)
                     {
-                        var core = model.AxisY[0];
-                        try { return (double)core.GetType().GetProperty("TopLimit")?.GetValue(core); } catch { }
+                        var core = axisList[0];
+                        var prop = core.GetType().GetProperty("TopLimit");
+                        if (prop != null)
+                        {
+                            var val = prop.GetValue(core);
+                            if (val is double d && !double.IsNaN(d) && d > 0) return d;
+                        }
                     }
                 }
             }
