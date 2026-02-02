@@ -347,13 +347,19 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <!-- Edit button -->
-                            <DataGridTemplateColumn Header="" Width="80">
+                            <!-- Edit + Test buttons -->
+                            <DataGridTemplateColumn Header="" Width="140">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Button Content="EDYTUJ" Style="{StaticResource GlassButton}"
-                                                FontSize="10" FontWeight="SemiBold" Padding="10,4"
-                                                Foreground="#58a6ff" Click="BtnEditHandlowiec_Click"/>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                            <Button Content="EDYTUJ" Style="{StaticResource GlassButton}"
+                                                    FontSize="10" FontWeight="SemiBold" Padding="10,4"
+                                                    Foreground="#58a6ff" Click="BtnEditHandlowiec_Click"/>
+                                            <Button Content="TEST" Style="{StaticResource GlassButton}"
+                                                    FontSize="10" FontWeight="SemiBold" Padding="10,4" Margin="4,0,0,0"
+                                                    Foreground="#f59e0b" Click="BtnTestHandlowiec_Click"
+                                                    ToolTip="Pokaż kontakty które dostanie ten handlowiec"/>
+                                        </StackPanel>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>

@@ -524,6 +524,16 @@ namespace Kalendarz1.CRM
             }
         }
 
+        private void BtnTestHandlowiec_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.DataContext is HandlowiecConfigViewModel vm)
+            {
+                var debugWindow = new DebugContactsWindow(_connectionString, vm);
+                debugWindow.Owner = this;
+                debugWindow.Show();
+            }
+        }
+
         private void BtnImport_Click(object sender, RoutedEventArgs e)
         {
             var importDialog = new ImportFirmDialog(_connectionString, "admin");
