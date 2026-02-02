@@ -1827,23 +1827,24 @@ namespace Kalendarz1.CRM
         {
             if (theme == CRMThemeMode.Light)
             {
-                // Light theme: slate palette with good contrast
+                // ══════════════════════════════════════════════════
+                // LIGHT THEME — czytelny, czarny tekst, czyste tła
+                // ══════════════════════════════════════════════════
                 this.Background = new SolidColorBrush(Color.FromRgb(241, 245, 249));  // #F1F5F9
 
                 mainBorder.Background = new LinearGradientBrush(
                     Color.FromRgb(241, 245, 249),
-                    Color.FromRgb(226, 232, 240),
+                    Color.FromRgb(230, 235, 243),
                     45);
 
-                leftPanel.Background = new SolidColorBrush(Color.FromRgb(248, 250, 252)); // #F8FAFC
-                leftPanel.BorderBrush = new SolidColorBrush(Color.FromRgb(203, 213, 225)); // #CBD5E1
+                leftPanel.Background = new SolidColorBrush(Color.FromRgb(255, 255, 255));
+                leftPanel.BorderBrush = new SolidColorBrush(Color.FromRgb(203, 213, 225));
 
-                FlowPanel.Background = new SolidColorBrush(Color.FromRgb(248, 250, 252));
+                FlowPanel.Background = new SolidColorBrush(Color.FromRgb(255, 255, 255));
                 FlowPanel.BorderBrush = new SolidColorBrush(Color.FromRgb(203, 213, 225));
 
-                btnToggleTheme.Content = "\U0001F319"; // Moon emoji for switch to dark
+                btnToggleTheme.Content = "\U0001F319";
 
-                // Walk visual tree to recolor text elements
                 ApplyLightThemeToVisualTree(contentGrid);
             }
             else
@@ -1862,7 +1863,7 @@ namespace Kalendarz1.CRM
                 FlowPanel.Background = new SolidColorBrush(Color.FromRgb(10, 10, 15));
                 FlowPanel.BorderBrush = new SolidColorBrush(Color.FromRgb(26, 26, 36));
 
-                btnToggleTheme.Content = "\u2600\uFE0F"; // Sun emoji for switch to light
+                btnToggleTheme.Content = "\u2600\uFE0F";
 
                 ApplyDarkThemeToVisualTree(contentGrid);
             }
@@ -1870,13 +1871,18 @@ namespace Kalendarz1.CRM
 
         private void ApplyLightThemeToVisualTree(DependencyObject root)
         {
-            var darkText = new SolidColorBrush(Color.FromRgb(20, 20, 30));
-            var mediumText = new SolidColorBrush(Color.FromRgb(60, 60, 70));
-            var mutedText = new SolidColorBrush(Color.FromRgb(100, 100, 110));
-            var lightBg = new SolidColorBrush(Color.FromRgb(255, 255, 255));
-            var cardBg = new SolidColorBrush(Color.FromRgb(245, 247, 250));
-            var nestedBg = new SolidColorBrush(Color.FromRgb(235, 238, 243));
-            var borderColor = new SolidColorBrush(Color.FromRgb(200, 205, 215));
+            // ── Czytelne, ciemne kolory tekstu ──
+            var blackText = new SolidColorBrush(Color.FromRgb(10, 10, 10));       // prawie czarny
+            var darkText = new SolidColorBrush(Color.FromRgb(30, 41, 59));        // #1E293B slate-800
+            var mediumText = new SolidColorBrush(Color.FromRgb(51, 65, 85));      // #334155 slate-700
+            var mutedText = new SolidColorBrush(Color.FromRgb(71, 85, 105));      // #475569 slate-600
+
+            // ── Tła z wyraźną hierarchią ──
+            var whiteBg = new SolidColorBrush(Color.FromRgb(255, 255, 255));
+            var cardBg = new SolidColorBrush(Color.FromRgb(248, 250, 252));       // #F8FAFC
+            var nestedBg = new SolidColorBrush(Color.FromRgb(241, 245, 249));     // #F1F5F9
+            var elevatedBg = new SolidColorBrush(Color.FromRgb(226, 232, 240));   // #E2E8F0
+            var borderColor = new SolidColorBrush(Color.FromRgb(203, 213, 225));  // #CBD5E1
 
             for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
             {
@@ -1887,27 +1893,41 @@ namespace Kalendarz1.CRM
                     if (tb.Foreground is SolidColorBrush brush)
                     {
                         var c = brush.Color;
-                        // Pure white or near-white → dark
-                        if (c.R > 220 && c.G > 220 && c.B > 220 && c.A > 150)
+                        // Pure white → czarny
+                        if (c.R == 255 && c.G == 255 && c.B == 255 && c.A > 200)
+                            tb.Foreground = blackText;
+                        // Near-white (>220) → ciemny
+                        else if (c.R > 220 && c.G > 220 && c.B > 220 && c.A > 200)
+                            tb.Foreground = blackText;
+                        // Semi-transparent white (high alpha) → dark
+                        else if (c.R > 200 && c.G > 200 && c.B > 200 && c.A > 150 && c.A <= 230)
                             tb.Foreground = darkText;
-                        // Semi-transparent white → medium
+                        // Semi-transparent white (medium alpha 40-150) → medium
                         else if (c.R > 200 && c.G > 200 && c.B > 200 && c.A > 40 && c.A <= 150)
                             tb.Foreground = mediumText;
-                        // Light gray foreground → muted
-                        else if (c.R > 130 && c.G > 130 && c.B > 130 && c.R < 200 && c.A > 150)
+                        // Semi-transparent white (low alpha <40) → muted
+                        else if (c.R > 200 && c.G > 200 && c.B > 200 && c.A > 0 && c.A <= 40)
                             tb.Foreground = mutedText;
-                        // Keep colors like green (#22C55E), blue (#3B82F6), indigo (#6366F1) -
-                        // but darken them for light bg
-                        else if (c.R == 34 && c.G == 197 && c.B == 94)  // green
-                            tb.Foreground = new SolidColorBrush(Color.FromRgb(21, 128, 61));   // darker green
-                        else if (c.R == 59 && c.G == 130 && c.B == 246) // blue
-                            tb.Foreground = new SolidColorBrush(Color.FromRgb(37, 99, 235));   // darker blue
-                        else if (c.R == 99 && c.G == 102 && c.B == 241) // indigo
-                            tb.Foreground = new SolidColorBrush(Color.FromRgb(67, 56, 202));   // darker indigo
-                        else if (c.R == 165 && c.G == 180 && c.B == 252) // light indigo
-                            tb.Foreground = new SolidColorBrush(Color.FromRgb(55, 48, 163));   // dark indigo
-                        else if (c.R == 245 && c.G == 158 && c.B == 11) // amber
-                            tb.Foreground = new SolidColorBrush(Color.FromRgb(180, 83, 9));    // darker amber
+                        // Light grays 130-200 → muted
+                        else if (c.R > 130 && c.G > 130 && c.B > 130 && c.R <= 220 && c.A > 150)
+                            tb.Foreground = mutedText;
+                        // Accent colors — darken for visibility on light bg
+                        else if (c.R == 34 && c.G == 197 && c.B == 94)   // #22C55E green
+                            tb.Foreground = new SolidColorBrush(Color.FromRgb(21, 128, 61));   // #15803D
+                        else if (c.R == 134 && c.G == 239 && c.B == 172) // #86EFAC light green
+                            tb.Foreground = new SolidColorBrush(Color.FromRgb(22, 101, 52));   // #166534
+                        else if (c.R == 59 && c.G == 130 && c.B == 246)  // #3B82F6 blue
+                            tb.Foreground = new SolidColorBrush(Color.FromRgb(29, 78, 216));   // #1D4ED8
+                        else if (c.R == 88 && c.G == 166 && c.B == 255)  // #58A6FF light blue
+                            tb.Foreground = new SolidColorBrush(Color.FromRgb(37, 99, 235));   // #2563EB
+                        else if (c.R == 99 && c.G == 102 && c.B == 241)  // #6366F1 indigo
+                            tb.Foreground = new SolidColorBrush(Color.FromRgb(67, 56, 202));   // #4338CA
+                        else if (c.R == 165 && c.G == 180 && c.B == 252) // #A5B4FC light indigo
+                            tb.Foreground = new SolidColorBrush(Color.FromRgb(55, 48, 163));   // #3730A3
+                        else if (c.R == 245 && c.G == 158 && c.B == 11)  // #F59E0B amber
+                            tb.Foreground = new SolidColorBrush(Color.FromRgb(180, 83, 9));    // #B45309
+                        else if (c.R == 248 && c.G == 113 && c.B == 113) // #F87171 red
+                            tb.Foreground = new SolidColorBrush(Color.FromRgb(185, 28, 28));   // #B91C1C
                     }
                 }
                 else if (child is Border border)
@@ -1915,41 +1935,71 @@ namespace Kalendarz1.CRM
                     if (border.Background is SolidColorBrush bg)
                     {
                         var c = bg.Color;
-                        // Very dark backgrounds → light card
-                        if (c.R < 30 && c.G < 30 && c.B < 40 && c.A > 200)
+                        // Very dark (<20) → white card
+                        if (c.R < 20 && c.G < 25 && c.B < 30 && c.A > 200)
+                            border.Background = whiteBg;
+                        // Dark (<50) → card bg
+                        else if (c.R < 50 && c.G < 50 && c.B < 60 && c.A > 200)
                             border.Background = cardBg;
-                        // Medium dark (#111118, #0D0D14, etc.) → nested
-                        else if (c.R < 50 && c.G < 50 && c.B < 50 && c.A > 200)
-                            border.Background = nestedBg;
-                        // Semi-transparent white → subtle gray
-                        else if (c.R == 255 && c.G == 255 && c.B == 255 && c.A < 100)
-                            border.Background = new SolidColorBrush(Color.FromArgb(15, 0, 0, 0));
+                        // Semi-transparent white (low alpha) → subtle light gray
+                        else if (c.R == 255 && c.G == 255 && c.B == 255 && c.A < 50)
+                            border.Background = new SolidColorBrush(Color.FromRgb(241, 245, 249));
+                        // Semi-transparent white (medium alpha) → slightly darker
+                        else if (c.R == 255 && c.G == 255 && c.B == 255 && c.A >= 50 && c.A < 150)
+                            border.Background = new SolidColorBrush(Color.FromRgb(248, 250, 252));
+                        // Green-tinted backgrounds — keep but lighten
+                        else if (c.R < 40 && c.G > 100 && c.B < 100 && c.A < 100)
+                            border.Background = new SolidColorBrush(Color.FromRgb(220, 252, 231)); // #DCFCE7
+                        // Blue-tinted backgrounds
+                        else if (c.R < 80 && c.G < 80 && c.B > 150 && c.A < 100)
+                            border.Background = new SolidColorBrush(Color.FromRgb(219, 234, 254)); // #DBEAFE
                     }
                     else if (border.Background is LinearGradientBrush lgb)
                     {
-                        // Dark gradient → light gradient
                         bool isDark = lgb.GradientStops.Any(s => s.Color.R < 40 && s.Color.G < 40);
                         if (isDark)
                         {
                             border.Background = new LinearGradientBrush(
-                                Color.FromRgb(245, 247, 250),
-                                Color.FromRgb(235, 238, 243), 45);
+                                Color.FromRgb(248, 250, 252),
+                                Color.FromRgb(241, 245, 249), 45);
                         }
                     }
                     if (border.BorderBrush is SolidColorBrush bb)
                     {
                         var c = bb.Color;
-                        // Semi-transparent white borders → visible gray
-                        if (c.R == 255 && c.G == 255 && c.B == 255 && c.A < 80)
+                        // Semi-transparent white borders → solid gray
+                        if (c.R == 255 && c.G == 255 && c.B == 255 && c.A < 100)
                             border.BorderBrush = borderColor;
                         // Dark borders → light gray
-                        else if (c.R < 50 && c.G < 50 && c.B < 50 && c.A > 200)
+                        else if (c.R < 50 && c.G < 50 && c.B < 60 && c.A > 200)
                             border.BorderBrush = borderColor;
+                        // Semi-transparent accent borders
+                        else if (c.R == 88 && c.G == 166 && c.B == 255)  // #58A6FF
+                            border.BorderBrush = new SolidColorBrush(Color.FromRgb(147, 197, 253)); // #93C5FD
                     }
+                }
+                else if (child is TextBox textBox)
+                {
+                    // TextBox — readable dark text on white bg
+                    if (textBox.Foreground is SolidColorBrush tbBrush)
+                    {
+                        var c = tbBrush.Color;
+                        if (c.R > 180 && c.G > 180 && c.B > 180)
+                            textBox.Foreground = blackText;
+                    }
+                    if (textBox.Background is SolidColorBrush txBg)
+                    {
+                        var c = txBg.Color;
+                        if (c.R < 60 && c.G < 60 && c.A > 100)
+                            textBox.Background = whiteBg;
+                        else if (c.A > 0 && c.A < 60)
+                            textBox.Background = new SolidColorBrush(Color.FromRgb(248, 250, 252));
+                    }
+                    if (textBox.CaretBrush is SolidColorBrush cb && cb.Color.R > 200)
+                        textBox.CaretBrush = blackText;
                 }
                 else if (child is Button btn)
                 {
-                    // Status buttons text
                     if (btn.Foreground is SolidColorBrush btnBrush)
                     {
                         var c = btnBrush.Color;
@@ -1964,13 +2014,9 @@ namespace Kalendarz1.CRM
 
         private void ApplyDarkThemeToVisualTree(DependencyObject root)
         {
-            // Re-applying dark theme from scratch is complex.
-            // Simplest: close and reopen the window. But the user wants instant toggle.
-            // For dark theme restoration, we re-initialize the XAML defaults.
-            // Since XAML defaults are dark, the best approach is to reload the window.
-            // However for simplicity we apply reverse logic.
             var whiteText = new SolidColorBrush(Colors.White);
             var semiWhite = new SolidColorBrush(Color.FromArgb(179, 255, 255, 255));
+            var mutedWhite = new SolidColorBrush(Color.FromArgb(102, 255, 255, 255));
 
             for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
             {
@@ -1981,12 +2027,32 @@ namespace Kalendarz1.CRM
                     if (tb.Foreground is SolidColorBrush brush)
                     {
                         var c = brush.Color;
-                        // Dark text -> white
-                        if (c.R < 60 && c.G < 60 && c.B < 60 && c.A > 150)
+                        // Black/very dark → white
+                        if (c.R < 30 && c.G < 30 && c.B < 30 && c.A > 150)
                             tb.Foreground = whiteText;
-                        // Medium gray text -> semi-white
+                        // Dark slate → white
+                        else if (c.R < 60 && c.G < 70 && c.B < 90 && c.A > 150)
+                            tb.Foreground = whiteText;
+                        // Medium gray → semi-white
                         else if (c.R < 120 && c.G < 120 && c.B < 120 && c.A > 150)
                             tb.Foreground = semiWhite;
+                        // Darkened accent colors → restore originals
+                        else if (c.R == 21 && c.G == 128 && c.B == 61)   // green-700
+                            tb.Foreground = new SolidColorBrush(Color.FromRgb(34, 197, 94));
+                        else if (c.R == 22 && c.G == 101 && c.B == 52)   // green-800
+                            tb.Foreground = new SolidColorBrush(Color.FromRgb(134, 239, 172));
+                        else if (c.R == 29 && c.G == 78 && c.B == 216)   // blue-700
+                            tb.Foreground = new SolidColorBrush(Color.FromRgb(59, 130, 246));
+                        else if (c.R == 37 && c.G == 99 && c.B == 235)   // blue-600
+                            tb.Foreground = new SolidColorBrush(Color.FromRgb(88, 166, 255));
+                        else if (c.R == 67 && c.G == 56 && c.B == 202)   // indigo-700
+                            tb.Foreground = new SolidColorBrush(Color.FromRgb(99, 102, 241));
+                        else if (c.R == 55 && c.G == 48 && c.B == 163)   // indigo-800
+                            tb.Foreground = new SolidColorBrush(Color.FromRgb(165, 180, 252));
+                        else if (c.R == 180 && c.G == 83 && c.B == 9)    // amber-700
+                            tb.Foreground = new SolidColorBrush(Color.FromRgb(245, 158, 11));
+                        else if (c.R == 185 && c.G == 28 && c.B == 28)   // red-700
+                            tb.Foreground = new SolidColorBrush(Color.FromRgb(248, 113, 113));
                     }
                 }
                 else if (child is Border border)
@@ -1994,18 +2060,41 @@ namespace Kalendarz1.CRM
                     if (border.Background is SolidColorBrush bg)
                     {
                         var c = bg.Color;
-                        // Light backgrounds -> dark
-                        if (c.R > 240 && c.G > 240 && c.B > 240 && c.A > 200)
+                        // White → dark
+                        if (c.R == 255 && c.G == 255 && c.B == 255 && c.A > 200)
                             border.Background = new SolidColorBrush(Color.FromRgb(13, 17, 23));
-                        // Semi-transparent dark -> semi-transparent white
-                        else if (c.A < 100 && c.R == 0 && c.G == 0 && c.B == 0)
+                        // Light cards/panels → dark
+                        else if (c.R > 230 && c.G > 235 && c.B > 240 && c.A > 200)
+                            border.Background = new SolidColorBrush(Color.FromRgb(13, 17, 23));
+                        // Nested light bg → semi-transparent
+                        else if (c.R > 220 && c.G > 225 && c.B > 230 && c.A > 200)
                             border.Background = new SolidColorBrush(Color.FromArgb(8, 255, 255, 255));
+                        // Light green → dark green
+                        else if (c.R == 220 && c.G == 252 && c.B == 231)
+                            border.Background = new SolidColorBrush(Color.FromArgb(26, 34, 197, 94));
+                        // Light blue → dark blue
+                        else if (c.R == 219 && c.G == 234 && c.B == 254)
+                            border.Background = new SolidColorBrush(Color.FromArgb(26, 59, 130, 246));
                     }
                     if (border.BorderBrush is SolidColorBrush bb)
                     {
                         var c = bb.Color;
-                        if (c.R > 200 && c.G > 200 && c.B > 200 && c.A > 200)
+                        // Solid gray borders → semi-transparent white
+                        if (c.R == 203 && c.G == 213 && c.B == 225)
                             border.BorderBrush = new SolidColorBrush(Color.FromArgb(20, 255, 255, 255));
+                        else if (c.R > 180 && c.G > 180 && c.B > 180 && c.A > 200)
+                            border.BorderBrush = new SolidColorBrush(Color.FromArgb(20, 255, 255, 255));
+                    }
+                }
+                else if (child is TextBox textBox)
+                {
+                    textBox.Foreground = whiteText;
+                    textBox.CaretBrush = whiteText;
+                    if (textBox.Background is SolidColorBrush txBg)
+                    {
+                        var c = txBg.Color;
+                        if (c.R > 230 && c.A > 200)
+                            textBox.Background = new SolidColorBrush(Color.FromArgb(15, 255, 255, 255));
                     }
                 }
 

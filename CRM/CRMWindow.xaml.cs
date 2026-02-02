@@ -1164,24 +1164,24 @@ namespace Kalendarz1.CRM
 
         private void ApplyThemeToTree(DependencyObject root, bool isLight)
         {
-            // ── Light palette (Tailwind Slate) ──
-            var ltBg = Color.FromRgb(255, 255, 255);        // karty
-            var ltBgPanel = Color.FromRgb(241, 245, 249);   // #F1F5F9 tło paneli
-            var ltBgNested = Color.FromRgb(226, 232, 240);  // #E2E8F0 zagnieżdżone
-            var ltBorder = Color.FromRgb(203, 213, 225);    // #CBD5E1
-            var ltTextPrimary = new SolidColorBrush(Color.FromRgb(15, 23, 42));    // #0F172A
-            var ltTextSecondary = new SolidColorBrush(Color.FromRgb(51, 65, 85));  // #334155
-            var ltTextMuted = new SolidColorBrush(Color.FromRgb(100, 116, 139));   // #64748B
-            var ltAccent = new SolidColorBrush(Color.FromRgb(21, 128, 61));        // #15803D
+            // ── Light palette — wysoki kontrast, czytelny czarny tekst ──
+            var ltBlack = new SolidColorBrush(Color.FromRgb(10, 10, 10));           // prawie czarny
+            var ltTextPrimary = new SolidColorBrush(Color.FromRgb(15, 23, 42));     // #0F172A
+            var ltTextSecondary = new SolidColorBrush(Color.FromRgb(51, 65, 85));   // #334155
+            var ltTextMuted = new SolidColorBrush(Color.FromRgb(71, 85, 105));      // #475569
+            var ltBg = Color.FromRgb(255, 255, 255);
+            var ltBgCard = Color.FromRgb(248, 250, 252);      // #F8FAFC
+            var ltBgPanel = Color.FromRgb(241, 245, 249);     // #F1F5F9
+            var ltBgNested = Color.FromRgb(226, 232, 240);    // #E2E8F0
+            var ltBorder = Color.FromRgb(203, 213, 225);      // #CBD5E1
 
             // ── Dark palette (original) ──
-            var dkBg = Color.FromRgb(30, 41, 59);           // #1E293B
-            var dkBgDeep = Color.FromRgb(15, 23, 42);       // #0F172A
-            var dkBorder = Color.FromRgb(51, 65, 85);       // #334155
-            var dkTextPrimary = new SolidColorBrush(Color.FromRgb(226, 232, 240));  // #E2E8F0
-            var dkTextSecondary = new SolidColorBrush(Color.FromRgb(148, 163, 184));// #94A3B8
-            var dkTextMuted = new SolidColorBrush(Color.FromRgb(100, 116, 139));    // #64748B
-            var dkAccentLight = new SolidColorBrush(Color.FromRgb(165, 180, 252)); // #A5B4FC
+            var dkBg = Color.FromRgb(30, 41, 59);
+            var dkBgDeep = Color.FromRgb(15, 23, 42);
+            var dkBorder = Color.FromRgb(51, 65, 85);
+            var dkTextPrimary = new SolidColorBrush(Color.FromRgb(226, 232, 240));
+            var dkTextSecondary = new SolidColorBrush(Color.FromRgb(148, 163, 184));
+            var dkAccentLight = new SolidColorBrush(Color.FromRgb(165, 180, 252));
 
             for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
             {
@@ -1194,30 +1194,44 @@ namespace Kalendarz1.CRM
                         var c = brush.Color;
                         if (isLight)
                         {
-                            // Primary text #E2E8F0 → dark
-                            if (c.R == 226 && c.G == 232 && c.B == 240) tb.Foreground = ltTextPrimary;
-                            // Secondary #94A3B8 → dark gray
+                            // White/near-white → czarny
+                            if (c.R > 220 && c.G > 220 && c.B > 220 && c.A > 200) tb.Foreground = ltBlack;
+                            // #E2E8F0 → czarny
+                            else if (c.R == 226 && c.G == 232 && c.B == 240) tb.Foreground = ltBlack;
+                            // #94A3B8 → ciemny szary
                             else if (c.R == 148 && c.G == 163 && c.B == 184) tb.Foreground = ltTextSecondary;
-                            // Accent light #A5B4FC → dark blue for readability on white
-                            else if (c.R == 165 && c.G == 180 && c.B == 252)
-                                tb.Foreground = new SolidColorBrush(Color.FromRgb(37, 99, 235)); // #2563EB blue-600
-                            // Pure white → dark text
-                            else if (c.R > 240 && c.G > 240 && c.B > 240 && c.A > 200) tb.Foreground = ltTextPrimary;
-                            // Light grays/semi-transparent → medium text
-                            else if (c.R > 180 && c.G > 180 && c.B > 180 && c.A > 100)
+                            // #64748B → muted
+                            else if (c.R == 100 && c.G == 116 && c.B == 139) tb.Foreground = ltTextMuted;
+                            // Semi-transparent white → proper dark text based on alpha
+                            else if (c.R > 200 && c.G > 200 && c.B > 200 && c.A > 100 && c.A <= 230)
+                                tb.Foreground = ltTextPrimary;
+                            else if (c.R > 200 && c.G > 200 && c.B > 200 && c.A > 30 && c.A <= 100)
                                 tb.Foreground = ltTextSecondary;
-                            // #6366F1 indigo → darken slightly for light bg
+                            // Light grays 130-200 → muted
+                            else if (c.R > 130 && c.G > 130 && c.B > 130 && c.R <= 220 && c.A > 100)
+                                tb.Foreground = ltTextMuted;
+                            // #A5B4FC indigo light → dark blue
+                            else if (c.R == 165 && c.G == 180 && c.B == 252)
+                                tb.Foreground = new SolidColorBrush(Color.FromRgb(55, 48, 163)); // #3730A3
+                            // #6366F1 indigo → darker
                             else if (c.R == 99 && c.G == 102 && c.B == 241)
-                                tb.Foreground = new SolidColorBrush(Color.FromRgb(67, 56, 202)); // #4338CA indigo-700
+                                tb.Foreground = new SolidColorBrush(Color.FromRgb(67, 56, 202)); // #4338CA
+                            // Green accent → darker green
+                            else if (c.R == 34 && c.G == 197 && c.B == 94)
+                                tb.Foreground = new SolidColorBrush(Color.FromRgb(21, 128, 61)); // #15803D
                         }
                         else
                         {
-                            // Reverse light → dark
-                            if (c.R == 15 && c.G == 23 && c.B == 42) tb.Foreground = dkTextPrimary;
+                            // Reverse: black/dark → white
+                            if (c.R < 30 && c.G < 30 && c.B < 30 && c.A > 150) tb.Foreground = dkTextPrimary;
+                            else if (c.R == 15 && c.G == 23 && c.B == 42) tb.Foreground = dkTextPrimary;
                             else if (c.R == 51 && c.G == 65 && c.B == 85) tb.Foreground = dkTextSecondary;
+                            else if (c.R == 71 && c.G == 85 && c.B == 105) tb.Foreground = dkTextSecondary;
                             else if (c.R == 21 && c.G == 128 && c.B == 61) tb.Foreground = dkAccentLight;
-                            else if (c.R == 37 && c.G == 99 && c.B == 235) tb.Foreground = dkAccentLight; // blue-600 → #A5B4FC
-                            else if (c.R == 67 && c.G == 56 && c.B == 202) // indigo-700 → #6366F1
+                            else if (c.R == 37 && c.G == 99 && c.B == 235) tb.Foreground = dkAccentLight;
+                            else if (c.R == 55 && c.G == 48 && c.B == 163) // #3730A3 → #A5B4FC
+                                tb.Foreground = new SolidColorBrush(Color.FromRgb(165, 180, 252));
+                            else if (c.R == 67 && c.G == 56 && c.B == 202) // #4338CA → #6366F1
                                 tb.Foreground = new SolidColorBrush(Color.FromRgb(99, 102, 241));
                         }
                     }
@@ -1229,24 +1243,25 @@ namespace Kalendarz1.CRM
                         var c = bg.Color;
                         if (isLight)
                         {
-                            // #1E293B → white card
+                            // #1E293B → white
                             if (c.R == 30 && c.G == 41 && c.B == 59) border.Background = new SolidColorBrush(ltBg);
-                            // #0F172A → light panel gray
+                            // #0F172A → panel gray
                             else if (c.R == 15 && c.G == 23 && c.B == 42) border.Background = new SolidColorBrush(ltBgNested);
-                            // #334155 → lighter nested
+                            // #334155 → lighter
                             else if (c.R == 51 && c.G == 65 && c.B == 85) border.Background = new SolidColorBrush(ltBgPanel);
-                            // #475569 → medium panel
-                            else if (c.R == 71 && c.G == 85 && c.B == 105) border.Background = new SolidColorBrush(Color.FromRgb(203, 213, 225));
+                            // #475569 → medium
+                            else if (c.R == 71 && c.G == 85 && c.B == 105) border.Background = new SolidColorBrush(ltBgNested);
                             // #273548 → alt row
-                            else if (c.R == 39 && c.G == 53 && c.B == 72) border.Background = new SolidColorBrush(Color.FromRgb(248, 250, 252));
+                            else if (c.R == 39 && c.G == 53 && c.B == 72) border.Background = new SolidColorBrush(ltBgCard);
+                            // Semi-transparent → light solid
+                            else if (c.A < 60 && c.A > 0 && c.R > 200) border.Background = new SolidColorBrush(ltBgPanel);
                         }
                         else
                         {
-                            // Reverse light → dark
                             if (c.R == 255 && c.G == 255 && c.B == 255 && c.A > 200) border.Background = new SolidColorBrush(dkBg);
+                            else if (c.R == 248 && c.G == 250 && c.B == 252) border.Background = new SolidColorBrush(Color.FromRgb(39, 53, 72));
                             else if (c.R == 241 && c.G == 245 && c.B == 249) border.Background = new SolidColorBrush(dkBg);
                             else if (c.R == 226 && c.G == 232 && c.B == 240) border.Background = new SolidColorBrush(dkBgDeep);
-                            else if (c.R == 248 && c.G == 250 && c.B == 252) border.Background = new SolidColorBrush(Color.FromRgb(39, 53, 72));
                             else if (c.R == 203 && c.G == 213 && c.B == 225) border.Background = new SolidColorBrush(Color.FromRgb(71, 85, 105));
                         }
                     }
@@ -1255,13 +1270,13 @@ namespace Kalendarz1.CRM
                         var c = bb.Color;
                         if (isLight)
                         {
-                            // Ciemne bordy → jasne szare
                             if (c.R == 51 && c.G == 65 && c.B == 85) border.BorderBrush = new SolidColorBrush(ltBorder);
                             else if (c.R == 71 && c.G == 85 && c.B == 105) border.BorderBrush = new SolidColorBrush(ltBorder);
+                            // Semi-transparent borders → solid
+                            else if (c.A < 100 && c.R > 200) border.BorderBrush = new SolidColorBrush(ltBorder);
                         }
                         else
                         {
-                            // Jasne bordy → ciemne
                             if (c.R == 203 && c.G == 213 && c.B == 225) border.BorderBrush = new SolidColorBrush(dkBorder);
                             else if (c.R == 226 && c.G == 232 && c.B == 240) border.BorderBrush = new SolidColorBrush(Color.FromRgb(71, 85, 105));
                         }
@@ -1271,14 +1286,14 @@ namespace Kalendarz1.CRM
                 {
                     if (isLight)
                     {
-                        if (textBox.Foreground is SolidColorBrush tbBrush && tbBrush.Color.R > 200)
-                            textBox.Foreground = ltTextPrimary;
+                        if (textBox.Foreground is SolidColorBrush tbBrush && tbBrush.Color.R > 180)
+                            textBox.Foreground = ltBlack;
                         if (textBox.Background is SolidColorBrush txBg && txBg.Color.A == 0)
-                        { /* transparent stays transparent */ }
+                        { /* transparent stays */ }
                         else if (textBox.Background is SolidColorBrush txBg2 && txBg2.Color.R < 60)
                             textBox.Background = new SolidColorBrush(ltBg);
                         if (textBox.CaretBrush is SolidColorBrush cb && cb.Color.R > 200)
-                            textBox.CaretBrush = ltTextPrimary;
+                            textBox.CaretBrush = ltBlack;
                     }
                     else
                     {
