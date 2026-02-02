@@ -327,29 +327,16 @@
                         <!-- Mini Ranking - Tygodniowy -->
                         <Border Grid.Row="3" Background="#08FFFFFF" Padding="12,10" BorderBrush="#14FFFFFF"
                                 BorderThickness="0,1,0,0">
-                            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="300">
-                                <StackPanel>
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                        <TextBlock Text="🏆" FontSize="13" VerticalAlignment="Center"/>
-                                        <TextBlock Text="Ranking tygodnia" FontSize="11" FontWeight="SemiBold"
-                                                   Foreground="#99FFFFFF" Margin="6,0,0,0" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                    <StackPanel x:Name="rankingPanel">
-                                        <!-- Filled dynamically -->
-                                    </StackPanel>
-
-                                    <!-- CRM Activity Ranking -->
-                                    <Border Height="1" Background="#14FFFFFF" Margin="0,10,0,10"/>
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                        <TextBlock Text="📊" FontSize="13" VerticalAlignment="Center"/>
-                                        <TextBlock Text="Ranking aktywności CRM" FontSize="11" FontWeight="SemiBold"
-                                                   Foreground="#99FFFFFF" Margin="6,0,0,0" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                    <StackPanel x:Name="crmRankingPanel">
-                                        <!-- Filled dynamically -->
-                                    </StackPanel>
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <TextBlock Text="🏆" FontSize="13" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Ranking tygodnia" FontSize="11" FontWeight="SemiBold"
+                                               Foreground="#99FFFFFF" Margin="6,0,0,0" VerticalAlignment="Center"/>
                                 </StackPanel>
-                            </ScrollViewer>
+                                <StackPanel x:Name="rankingPanel">
+                                    <!-- Filled dynamically -->
+                                </StackPanel>
+                            </StackPanel>
                         </Border>
 
                         <!-- Progress Footer -->
@@ -686,56 +673,57 @@
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <!-- ROW 0: Phase Tabs (white Path icons) -->
-                        <UniformGrid Grid.Row="0" Rows="1" Columns="4" Margin="14,12,14,8">
+                        <!-- ROW 0: Phase Tabs (compact) -->
+                        <UniformGrid Grid.Row="0" Rows="1" Columns="4" Margin="10,8,10,4">
                             <Button x:Name="btnPhase0" Tag="0" Click="PhaseTab_Click" Cursor="Hand"
-                                    Background="#FF1E3A5F" Margin="0,0,4,0">
+                                    Background="#FF1E3A5F" Margin="0,0,3,0">
                                 <Button.Template>
                                     <ControlTemplate TargetType="Button">
                                         <Border Background="{TemplateBinding Background}"
                                                 BorderBrush="#FF3B82F6" BorderThickness="1"
-                                                CornerRadius="8" Padding="8,10">
+                                                CornerRadius="6" Padding="6,6">
                                             <StackPanel>
-                                                <Path Fill="White" Width="20" Height="20" Stretch="Uniform" HorizontalAlignment="Center"
+                                                <Path Fill="White" Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center"
                                                       Data="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/>
-                                                <TextBlock Text="Wstęp" FontSize="10" Foreground="#FFAAAAAA"
-                                                           HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                                <TextBlock Text="Wstęp" FontSize="9" Foreground="#FFAAAAAA"
+                                                           HorizontalAlignment="Center" Margin="0,3,0,0"/>
                                             </StackPanel>
                                         </Border>
                                     </ControlTemplate>
                                 </Button.Template>
                             </Button>
                             <Button x:Name="btnPhase1" Tag="1" Click="PhaseTab_Click" Cursor="Hand"
-                                    Background="#FF111111" Margin="0,0,4,0">
+                                    Background="#FF111111" Margin="0,0,3,0">
                                 <Button.Template>
                                     <ControlTemplate TargetType="Button">
                                         <Border Background="{TemplateBinding Background}"
                                                 BorderBrush="#FF1A1A24" BorderThickness="1"
-                                                CornerRadius="8" Padding="8,10">
+                                                CornerRadius="6" Padding="6,6">
                                             <StackPanel>
-                                                <Path Fill="White" Width="20" Height="20" Stretch="Uniform" HorizontalAlignment="Center"
+                                                <Path Fill="White" Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center"
                                                       Data="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
-                                                <TextBlock Text="Potrzeby" FontSize="10" Foreground="#FF666666"
-                                                           HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                                <TextBlock Text="Potrzeby" FontSize="9" Foreground="#FF666666"
+                                                           HorizontalAlignment="Center" Margin="0,3,0,0"/>
                                             </StackPanel>
                                         </Border>
                                     </ControlTemplate>
                                 </Button.Template>
                             </Button>
                             <Button x:Name="btnPhase2" Tag="2" Click="PhaseTab_Click" Cursor="Hand"
-                                    Background="#FF111111" Margin="0,0,4,0">
+                                    Background="#FF111111" Margin="0,0,3,0">
                                 <Button.Template>
                                     <ControlTemplate TargetType="Button">
                                         <Border Background="{TemplateBinding Background}"
                                                 BorderBrush="#FF1A1A24" BorderThickness="1"
-                                                CornerRadius="8" Padding="8,10">
+                                                CornerRadius="6" Padding="6,6">
                                             <StackPanel>
-                                                <Path Fill="White" Width="20" Height="20" Stretch="Uniform" HorizontalAlignment="Center"
+                                                <Path Fill="White" Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center"
                                                       Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                                                <TextBlock Text="Oferta" FontSize="10" Foreground="#FF666666"
-                                                           HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                                <TextBlock Text="Oferta" FontSize="9" Foreground="#FF666666"
+                                                           HorizontalAlignment="Center" Margin="0,3,0,0"/>
                                             </StackPanel>
                                         </Border>
                                     </ControlTemplate>
@@ -747,12 +735,12 @@
                                     <ControlTemplate TargetType="Button">
                                         <Border Background="{TemplateBinding Background}"
                                                 BorderBrush="#FF1A1A24" BorderThickness="1"
-                                                CornerRadius="8" Padding="8,10">
+                                                CornerRadius="6" Padding="6,6">
                                             <StackPanel>
-                                                <Path Fill="White" Width="20" Height="20" Stretch="Uniform" HorizontalAlignment="Center"
+                                                <Path Fill="White" Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center"
                                                       Data="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
-                                                <TextBlock Text="Zamknij" FontSize="10" Foreground="#FF666666"
-                                                           HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                                <TextBlock Text="Zamknij" FontSize="9" Foreground="#FF666666"
+                                                           HorizontalAlignment="Center" Margin="0,3,0,0"/>
                                             </StackPanel>
                                         </Border>
                                     </ControlTemplate>
@@ -854,8 +842,67 @@
                             </StackPanel>
                         </ScrollViewer>
 
-                        <!-- ROW 2: Navigation -->
-                        <Grid Grid.Row="2" Margin="14,8,14,8">
+                        <!-- ROW 2: CRM Activity Ranking with Progress Bars -->
+                        <Border Grid.Row="2" Background="#FF0D0D14" BorderBrush="#FF1A1A24"
+                                BorderThickness="0,1,0,0" Padding="14,10">
+                            <StackPanel>
+                                <!-- Daily / Weekly Progress -->
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="8"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <!-- Daily Progress -->
+                                    <Border Grid.Column="0" Background="#FF111118" CornerRadius="8" Padding="10,8">
+                                        <StackPanel>
+                                            <Grid>
+                                                <TextBlock Text="Cel dzienny" FontSize="9" Foreground="#FF888888"/>
+                                                <TextBlock x:Name="txtDailyProgress" Text="0/30" FontSize="9" FontWeight="Bold"
+                                                           Foreground="#FF22C55E" HorizontalAlignment="Right"/>
+                                            </Grid>
+                                            <Border Background="#1AFFFFFF" CornerRadius="3" Height="6" Margin="0,5,0,0">
+                                                <Border x:Name="dailyProgressFill" Background="#FF22C55E" CornerRadius="3"
+                                                        HorizontalAlignment="Left" Width="0"/>
+                                            </Border>
+                                            <TextBlock x:Name="txtDailyPct" Text="0%" FontSize="16" FontWeight="Bold"
+                                                       Foreground="#FF22C55E" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <!-- Weekly Progress -->
+                                    <Border Grid.Column="2" Background="#FF111118" CornerRadius="8" Padding="10,8">
+                                        <StackPanel>
+                                            <Grid>
+                                                <TextBlock Text="Cel tygodniowy" FontSize="9" Foreground="#FF888888"/>
+                                                <TextBlock x:Name="txtWeeklyProgress" Text="0/120" FontSize="9" FontWeight="Bold"
+                                                           Foreground="#FF3B82F6" HorizontalAlignment="Right"/>
+                                            </Grid>
+                                            <Border Background="#1AFFFFFF" CornerRadius="3" Height="6" Margin="0,5,0,0">
+                                                <Border x:Name="weeklyProgressFill" Background="#FF3B82F6" CornerRadius="3"
+                                                        HorizontalAlignment="Left" Width="0"/>
+                                            </Border>
+                                            <TextBlock x:Name="txtWeeklyPct" Text="0%" FontSize="16" FontWeight="Bold"
+                                                       Foreground="#FF3B82F6" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                                <!-- CRM Ranking Header -->
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,6">
+                                    <TextBlock Text="📊" FontSize="11" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Ranking aktywności CRM" FontSize="10" FontWeight="SemiBold"
+                                               Foreground="#99FFFFFF" Margin="5,0,0,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="(30 dni)" FontSize="9" Foreground="#FF555555" Margin="4,0,0,0"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <!-- CRM Ranking Items -->
+                                <StackPanel x:Name="crmRankingPanel">
+                                    <!-- Filled dynamically -->
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- ROW 3: Navigation -->
+                        <Grid Grid.Row="3" Margin="14,8,14,8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="8"/>
@@ -889,8 +936,8 @@
                             </Button>
                         </Grid>
 
-                        <!-- ROW 3: Stats -->
-                        <Border Grid.Row="3" Background="#FF111111"
+                        <!-- ROW 4: Stats -->
+                        <Border Grid.Row="4" Background="#FF111111"
                                 BorderBrush="#FF1A1A24" BorderThickness="0,1,0,0"
                                 Padding="12,12">
                             <UniformGrid Columns="3">

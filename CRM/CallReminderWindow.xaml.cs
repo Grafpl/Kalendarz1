@@ -673,6 +673,9 @@ namespace Kalendarz1.CRM
                 if (crmRankingPanel == null) return;
                 crmRankingPanel.Children.Clear();
 
+                // Load daily/weekly progress for current user
+                LoadDailyWeeklyProgress();
+
                 var rankings = new List<(string UserID, string Name, int Suma, int Proby, int Nawiazano, int Zgoda, int Oferty)>();
 
                 using (var conn = new SqlConnection(_connectionString))
@@ -724,23 +727,23 @@ namespace Kalendarz1.CRM
                         Background = isCurrentUser
                             ? new SolidColorBrush(Color.FromArgb(20, 99, 102, 241))
                             : Brushes.Transparent,
-                        CornerRadius = new CornerRadius(8),
-                        Padding = new Thickness(8, 5, 8, 5),
-                        Margin = new Thickness(0, 0, 0, 2)
+                        CornerRadius = new CornerRadius(6),
+                        Padding = new Thickness(6, 3, 6, 3),
+                        Margin = new Thickness(0, 0, 0, 1)
                     };
 
                     var grid = new Grid();
-                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(22) });
-                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });
-                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(18) });  // pos
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) });  // avatar
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // name+stats
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });      // total
 
-                    // Position
+                    // Position - compact
                     string posText = i switch { 0 => "\U0001F947", 1 => "\U0001F948", 2 => "\U0001F949", _ => $"{i + 1}." };
                     var txtPos = new TextBlock
                     {
                         Text = posText,
-                        FontSize = i < 3 ? 14 : 11,
+                        FontSize = i < 3 ? 12 : 9,
                         Foreground = i < 3 ? Brushes.White : new SolidColorBrush(Color.FromRgb(102, 102, 102)),
                         VerticalAlignment = VerticalAlignment.Center,
                         HorizontalAlignment = HorizontalAlignment.Center
@@ -748,13 +751,13 @@ namespace Kalendarz1.CRM
                     Grid.SetColumn(txtPos, 0);
                     grid.Children.Add(txtPos);
 
-                    // Avatar
+                    // Avatar - smaller
                     var avatarBorder = new Border
                     {
-                        Width = 26, Height = 26,
-                        CornerRadius = new CornerRadius(13),
+                        Width = 22, Height = 22,
+                        CornerRadius = new CornerRadius(11),
                         ClipToBounds = true,
-                        Margin = new Thickness(2, 0, 0, 0),
+                        Margin = new Thickness(1, 0, 0, 0),
                         VerticalAlignment = VerticalAlignment.Center
                     };
 
@@ -763,12 +766,12 @@ namespace Kalendarz1.CRM
                     {
                         if (UserAvatarManager.HasAvatar(r.UserID))
                         {
-                            using var img = UserAvatarManager.GetAvatarRounded(r.UserID, 26);
+                            using var img = UserAvatarManager.GetAvatarRounded(r.UserID, 22);
                             if (img != null) avatarSource = ConvertToBitmapSource(img);
                         }
                         if (avatarSource == null)
                         {
-                            using var img = UserAvatarManager.GenerateDefaultAvatar(r.Name, r.UserID, 26);
+                            using var img = UserAvatarManager.GenerateDefaultAvatar(r.Name, r.UserID, 22);
                             avatarSource = ConvertToBitmapSource(img);
                         }
                     }
@@ -785,18 +788,18 @@ namespace Kalendarz1.CRM
                     Grid.SetColumn(avatarBorder, 1);
                     grid.Children.Add(avatarBorder);
 
-                    // Name + mini stats
+                    // Name + compact status line
                     var namePanel = new StackPanel
                     {
-                        Margin = new Thickness(6, 0, 8, 0),
+                        Margin = new Thickness(5, 0, 4, 0),
                         VerticalAlignment = VerticalAlignment.Center
                     };
 
-                    string displayName = r.Name.Length > 14 ? r.Name.Substring(0, 12) + ".." : r.Name;
+                    string displayName = r.Name.Length > 12 ? r.Name.Substring(0, 10) + ".." : r.Name;
                     var txtName = new TextBlock
                     {
                         Text = displayName,
-                        FontSize = 11,
+                        FontSize = 10,
                         FontWeight = isCurrentUser ? FontWeights.Bold : FontWeights.Normal,
                         Foreground = isCurrentUser
                             ? new SolidColorBrush(Color.FromRgb(165, 180, 252))
@@ -804,34 +807,33 @@ namespace Kalendarz1.CRM
                     };
                     namePanel.Children.Add(txtName);
 
-                    // Mini status badges
-                    var badgePanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 0) };
-                    void AddMiniStat(string emoji, int count, string color)
+                    // Compact inline stats
+                    var badgePanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 1, 0, 0) };
+                    void AddMiniStat(string label, int count, string color)
                     {
                         if (count <= 0) return;
-                        var tb = new TextBlock
+                        badgePanel.Children.Add(new TextBlock
                         {
-                            FontSize = 9,
+                            Text = label + count,
+                            FontSize = 8,
                             Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color)),
-                            Margin = new Thickness(0, 0, 6, 0)
-                        };
-                        tb.Inlines.Add(new System.Windows.Documents.Run(emoji + count));
-                        badgePanel.Children.Add(tb);
+                            Margin = new Thickness(0, 0, 4, 0)
+                        });
                     }
-                    AddMiniStat("⏳", r.Proby, "#FCD34D");
-                    AddMiniStat("✅", r.Nawiazano, "#4ADE80");
-                    AddMiniStat("🤝", r.Zgoda, "#2DD4BF");
-                    AddMiniStat("📄", r.Oferty, "#60A5FA");
+                    AddMiniStat("P:", r.Proby, "#FCD34D");
+                    AddMiniStat("N:", r.Nawiazano, "#4ADE80");
+                    AddMiniStat("Z:", r.Zgoda, "#2DD4BF");
+                    AddMiniStat("O:", r.Oferty, "#60A5FA");
                     namePanel.Children.Add(badgePanel);
 
                     Grid.SetColumn(namePanel, 2);
                     grid.Children.Add(namePanel);
 
-                    // Total
+                    // Total - compact
                     var txtSuma = new TextBlock
                     {
                         Text = r.Suma.ToString(),
-                        FontSize = 16,
+                        FontSize = 13,
                         FontWeight = FontWeights.Bold,
                         Foreground = new SolidColorBrush(Color.FromRgb(99, 102, 241)),
                         VerticalAlignment = VerticalAlignment.Center,
@@ -849,6 +851,102 @@ namespace Kalendarz1.CRM
                 Debug.WriteLine($"LoadCRMActivityRanking error: {ex.Message}");
             }
         }
+
+        private void LoadDailyWeeklyProgress()
+        {
+            try
+            {
+                int dailyCalls = 0, weeklyCalls = 0;
+                int dailyTarget = _config?.DailyCallTarget ?? 30;
+                int weeklyTarget = _config?.WeeklyCallTarget ?? 120;
+
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+                    var cmd = new SqlCommand(@"
+                        SELECT
+                            ISNULL((SELECT SUM(ContactsCalled) FROM CallReminderLog
+                                    WHERE UserID = @UserID
+                                    AND ReminderTime >= CAST(CAST(GETDATE() AS DATE) AS DATETIME)), 0) as DayCalls,
+                            ISNULL((SELECT SUM(ContactsCalled) FROM CallReminderLog
+                                    WHERE UserID = @UserID
+                                    AND ReminderTime >= DATEADD(DAY,
+                                        -((DATEPART(WEEKDAY, GETDATE()) + @@DATEFIRST - 2) % 7),
+                                        CAST(CAST(GETDATE() AS DATE) AS DATETIME))), 0) as WeekCalls", conn);
+                    cmd.Parameters.AddWithValue("@UserID", _userID);
+
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            dailyCalls = Convert.ToInt32(reader["DayCalls"]);
+                            weeklyCalls = Convert.ToInt32(reader["WeekCalls"]);
+                        }
+                    }
+                }
+
+                // Update UI
+                double dailyPct = dailyTarget > 0 ? Math.Min(100.0, 100.0 * dailyCalls / dailyTarget) : 0;
+                double weeklyPct = weeklyTarget > 0 ? Math.Min(100.0, 100.0 * weeklyCalls / weeklyTarget) : 0;
+
+                if (txtDailyProgress != null) txtDailyProgress.Text = $"{dailyCalls}/{dailyTarget}";
+                if (txtWeeklyProgress != null) txtWeeklyProgress.Text = $"{weeklyCalls}/{weeklyTarget}";
+                if (txtDailyPct != null) txtDailyPct.Text = $"{(int)dailyPct}%";
+                if (txtWeeklyPct != null) txtWeeklyPct.Text = $"{(int)weeklyPct}%";
+
+                // Animate progress bars
+                if (dailyProgressFill != null)
+                {
+                    dailyProgressFill.SizeChanged -= DailyProgressFill_SizeChanged;
+                    var parent = dailyProgressFill.Parent as FrameworkElement;
+                    if (parent != null)
+                    {
+                        parent.SizeChanged += (s, e) =>
+                        {
+                            dailyProgressFill.Width = Math.Max(0, (dailyPct / 100.0) * parent.ActualWidth);
+                        };
+                        if (parent.ActualWidth > 0)
+                            dailyProgressFill.Width = Math.Max(0, (dailyPct / 100.0) * parent.ActualWidth);
+                    }
+                }
+
+                if (weeklyProgressFill != null)
+                {
+                    var parent = weeklyProgressFill.Parent as FrameworkElement;
+                    if (parent != null)
+                    {
+                        parent.SizeChanged += (s, e) =>
+                        {
+                            weeklyProgressFill.Width = Math.Max(0, (weeklyPct / 100.0) * parent.ActualWidth);
+                        };
+                        if (parent.ActualWidth > 0)
+                            weeklyProgressFill.Width = Math.Max(0, (weeklyPct / 100.0) * parent.ActualWidth);
+                    }
+                }
+
+                // Color based on progress
+                Color dailyColor = dailyPct >= 80 ? Color.FromRgb(34, 197, 94)   // green
+                                 : dailyPct >= 50 ? Color.FromRgb(245, 158, 11)  // orange
+                                 : Color.FromRgb(239, 68, 68);                    // red
+                Color weeklyColor = weeklyPct >= 80 ? Color.FromRgb(59, 130, 246) // blue
+                                  : weeklyPct >= 50 ? Color.FromRgb(245, 158, 11) // orange
+                                  : Color.FromRgb(239, 68, 68);                    // red
+
+                if (dailyProgressFill != null) dailyProgressFill.Background = new SolidColorBrush(dailyColor);
+                if (txtDailyPct != null) txtDailyPct.Foreground = new SolidColorBrush(dailyColor);
+                if (txtDailyProgress != null) txtDailyProgress.Foreground = new SolidColorBrush(dailyColor);
+
+                if (weeklyProgressFill != null) weeklyProgressFill.Background = new SolidColorBrush(weeklyColor);
+                if (txtWeeklyPct != null) txtWeeklyPct.Foreground = new SolidColorBrush(weeklyColor);
+                if (txtWeeklyProgress != null) txtWeeklyProgress.Foreground = new SolidColorBrush(weeklyColor);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"LoadDailyWeeklyProgress error: {ex.Message}");
+            }
+        }
+
+        private void DailyProgressFill_SizeChanged(object sender, SizeChangedEventArgs e) { }
 
         private void ContactItem_Click(object sender, MouseButtonEventArgs e)
         {

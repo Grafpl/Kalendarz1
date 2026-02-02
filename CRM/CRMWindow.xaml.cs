@@ -85,17 +85,20 @@ namespace Kalendarz1.CRM
             catch { }
         }
 
-        private BitmapSource GetHandlowiecAvatar(string name)
+        private BitmapSource GetHandlowiecAvatar(string name, string directId = null)
         {
             if (string.IsNullOrWhiteSpace(name)) return null;
 
-            if (_handlowiecAvatarCache.TryGetValue(name, out var cached))
+            // Use directId as cache key when available for precise matching
+            string cacheKey = !string.IsNullOrEmpty(directId) ? $"id:{directId}" : name;
+            if (_handlowiecAvatarCache.TryGetValue(cacheKey, out var cached))
                 return cached;
 
             BitmapSource source = null;
             try
             {
-                string userId = _handlowiecNameToId.TryGetValue(name, out var id) ? id : name;
+                string userId = !string.IsNullOrEmpty(directId) ? directId
+                    : _handlowiecNameToId.TryGetValue(name, out var id) ? id : name;
 
                 System.Drawing.Image img = null;
                 if (UserAvatarManager.HasAvatar(userId))
@@ -122,7 +125,7 @@ namespace Kalendarz1.CRM
             }
             catch { }
 
-            _handlowiecAvatarCache[name] = source;
+            _handlowiecAvatarCache[cacheKey] = source;
             return source;
         }
 
@@ -132,6 +135,10 @@ namespace Kalendarz1.CRM
             {
                 string handlowiec = drv["OstatniHandlowiec"]?.ToString();
                 if (string.IsNullOrWhiteSpace(handlowiec)) return;
+
+                // Use the direct operator ID for precise avatar matching
+                string handlowiecId = drv.Row.Table.Columns.Contains("OstatniHandlowiecID")
+                    ? drv["OstatniHandlowiecID"]?.ToString() : null;
 
                 // Defer avatar loading to after layout
                 e.Row.Loaded += (s, args) =>
@@ -152,7 +159,7 @@ namespace Kalendarz1.CRM
                         var img = FindVisualChild<System.Windows.Controls.Image>(cell);
                         if (img != null)
                         {
-                            var avatarSource = GetHandlowiecAvatar(handlowiec);
+                            var avatarSource = GetHandlowiecAvatar(handlowiec, handlowiecId);
                             if (avatarSource != null)
                                 img.Source = avatarSource;
                         }
@@ -328,6 +335,11 @@ namespace Kalendarz1.CRM
                             SELECT KtoWykonal, DataZmiany FROM HistoriaZmianCRM WHERE IDOdbiorcy = o.ID
                         ) x LEFT JOIN operators op ON x.Operator = CAST(op.ID AS NVARCHAR)
                         ORDER BY x.Data DESC) as OstatniHandlowiec,
+                        (SELECT TOP 1 x.Operator FROM (
+                            SELECT KtoDodal as Operator, DataUtworzenia as Data FROM NotatkiCRM WHERE IDOdbiorcy = o.ID
+                            UNION ALL
+                            SELECT KtoWykonal, DataZmiany FROM HistoriaZmianCRM WHERE IDOdbiorcy = o.ID
+                        ) x ORDER BY x.Data DESC) as OstatniHandlowiecID,
                         kp.Latitude, kp.Longitude
                     FROM OdbiorcyCRM o
                     LEFT JOIN WlascicieleOdbiorcow w ON o.ID = w.IDOdbiorcy
