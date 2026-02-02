@@ -108,8 +108,17 @@ namespace Kalendarz1.CRM
                 var cmd = new SqlCommand($@"
                     SELECT o.ID, o.Nazwa as NAZWA, o.KOD, o.MIASTO, o.ULICA, o.Telefon_K as TELEFON_K, o.Email,
                         o.Wojewodztwo, o.PKD_Opis, o.Tagi, ISNULL(o.Status, 'Do zadzwonienia') as Status, o.DataNastepnegoKontaktu,
-                        (SELECT TOP 1 DataZmiany FROM HistoriaZmianCRM WHERE IDOdbiorcy = o.ID ORDER BY DataZmiany DESC) as OstatniaZmiana,
-                        (SELECT TOP 1 ISNULL(op.Name, h.KtoDodal) FROM NotatkiCRM h LEFT JOIN operators op ON h.KtoDodal = CAST(op.ID AS NVARCHAR) WHERE h.IDOdbiorcy = o.ID ORDER BY h.DataUtworzenia DESC) as OstatniHandlowiec,
+                        (SELECT TOP 1 Data FROM (
+                            SELECT DataZmiany as Data FROM HistoriaZmianCRM WHERE IDOdbiorcy = o.ID
+                            UNION ALL
+                            SELECT DataUtworzenia FROM NotatkiCRM WHERE IDOdbiorcy = o.ID
+                        ) daty ORDER BY Data DESC) as OstatniaZmiana,
+                        (SELECT TOP 1 ISNULL(op.Name, x.Operator) FROM (
+                            SELECT KtoDodal as Operator, DataUtworzenia as Data FROM NotatkiCRM WHERE IDOdbiorcy = o.ID
+                            UNION ALL
+                            SELECT KtoWykonal, DataZmiany FROM HistoriaZmianCRM WHERE IDOdbiorcy = o.ID
+                        ) x LEFT JOIN operators op ON x.Operator = CAST(op.ID AS NVARCHAR)
+                        ORDER BY x.Data DESC) as OstatniHandlowiec,
                         kp.Latitude, kp.Longitude
                     FROM OdbiorcyCRM o
                     LEFT JOIN WlascicieleOdbiorcow w ON o.ID = w.IDOdbiorcy
