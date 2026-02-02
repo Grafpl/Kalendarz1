@@ -140,7 +140,7 @@ namespace Kalendarz1.CRM.Dialogs
                             string nip = row["NIP"]?.ToString()?.Trim();
                             if (!string.IsNullOrEmpty(nip))
                             {
-                                var cmdCheck = new SqlCommand("SELECT COUNT(*) FROM crm_Kontakty WHERE NIP = @NIP", conn);
+                                var cmdCheck = new SqlCommand("SELECT COUNT(*) FROM OdbiorcyCRM WHERE NIP = @NIP", conn);
                                 cmdCheck.Parameters.AddWithValue("@NIP", nip);
                                 if ((int)cmdCheck.ExecuteScalar() > 0) duplicates++;
                             }
@@ -220,7 +220,7 @@ namespace Kalendarz1.CRM.Dialogs
                         string nip = _importData.Columns.Contains("NIP") ? row["NIP"]?.ToString()?.Trim() : null;
                         if (!string.IsNullOrEmpty(nip) && chkOverwrite.IsChecked != true)
                         {
-                            var cmdCheck = new SqlCommand("SELECT COUNT(*) FROM crm_Kontakty WHERE NIP = @NIP", conn);
+                            var cmdCheck = new SqlCommand("SELECT COUNT(*) FROM OdbiorcyCRM WHERE NIP = @NIP", conn);
                             cmdCheck.Parameters.AddWithValue("@NIP", nip);
                             if ((int)cmdCheck.ExecuteScalar() > 0)
                             {
@@ -231,21 +231,19 @@ namespace Kalendarz1.CRM.Dialogs
 
                         string status = chkMarkImport.IsChecked == true ? "Nowy - Import" : "Do zadzwonienia";
 
-                        // Build INSERT dynamically based on available columns
+                        // Build INSERT into OdbiorcyCRM with correct column names
+                        // OdbiorcyCRM columns: Nazwa, NIP, Telefon_K, Email, ULICA, KOD, MIASTO, Wojewodztwo, PKD_Opis, Tagi, Status
                         var cmdInsert = new SqlCommand(
-                            @"INSERT INTO crm_Kontakty
-                              (Nazwa, NIP, Telefon, Telefon2, Email, Ulica, KodPocztowy, Miasto, Wojewodztwo,
-                               PKD, Branza, OsobaKontaktowa, Stanowisko, WWW, Notatka, Priority,
-                               IsFromImport, ImportID, ImportedBy, Status, DataDodania)
+                            @"INSERT INTO OdbiorcyCRM
+                              (Nazwa, NIP, Telefon_K, Email, ULICA, KOD, MIASTO, Wojewodztwo,
+                               PKD_Opis, Tagi, Status, IsFromImport, ImportID, ImportedBy)
                             VALUES
-                              (@Nazwa, @NIP, @Tel1, @Tel2, @Email, @Ulica, @Kod, @Miasto, @Woj,
-                               @PKD, @Branza, @Osoba, @Stanowisko, @WWW, @Notatka, @Priority,
-                               @IsFromImport, @ImportID, @ImportedBy, @Status, GETDATE())", conn);
+                              (@Nazwa, @NIP, @Tel1, @Email, @Ulica, @Kod, @Miasto, @Woj,
+                               @PKD, @Branza, @Status, @IsFromImport, @ImportID, @ImportedBy)", conn);
 
                         cmdInsert.Parameters.AddWithValue("@Nazwa", nazwa);
                         cmdInsert.Parameters.AddWithValue("@NIP", (object)nip ?? DBNull.Value);
                         cmdInsert.Parameters.AddWithValue("@Tel1", telefon);
-                        cmdInsert.Parameters.AddWithValue("@Tel2", GetColumnValue(row, "Telefon 2"));
                         cmdInsert.Parameters.AddWithValue("@Email", GetColumnValue(row, "Email"));
                         cmdInsert.Parameters.AddWithValue("@Ulica", GetColumnValue(row, "Ulica"));
                         cmdInsert.Parameters.AddWithValue("@Kod", GetColumnValue(row, "Kod pocztowy"));
@@ -253,19 +251,6 @@ namespace Kalendarz1.CRM.Dialogs
                         cmdInsert.Parameters.AddWithValue("@Woj", woj ?? "");
                         cmdInsert.Parameters.AddWithValue("@PKD", pkd);
                         cmdInsert.Parameters.AddWithValue("@Branza", GetColumnValue(row, "Branza"));
-                        cmdInsert.Parameters.AddWithValue("@Osoba", GetColumnValue(row, "Osoba kontaktowa"));
-                        cmdInsert.Parameters.AddWithValue("@Stanowisko", GetColumnValue(row, "Stanowisko"));
-                        cmdInsert.Parameters.AddWithValue("@WWW", GetColumnValue(row, "Strona WWW"));
-                        cmdInsert.Parameters.AddWithValue("@Notatka", GetColumnValue(row, "Notatka"));
-
-                        int priority = 3;
-                        if (_importData.Columns.Contains("Priorytet"))
-                        {
-                            int.TryParse(row["Priorytet"]?.ToString(), out priority);
-                            if (priority < 1 || priority > 5) priority = 3;
-                        }
-                        cmdInsert.Parameters.AddWithValue("@Priority", priority);
-
                         cmdInsert.Parameters.AddWithValue("@IsFromImport", chkMarkMyImports.IsChecked == true ? 1 : 0);
                         cmdInsert.Parameters.AddWithValue("@ImportID", importID > 0 ? importID : (object)DBNull.Value);
                         cmdInsert.Parameters.AddWithValue("@ImportedBy", _currentUserID);

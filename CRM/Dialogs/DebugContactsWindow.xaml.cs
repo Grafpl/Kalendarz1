@@ -93,10 +93,10 @@ namespace Kalendarz1.CRM.Dialogs
                 var sb = new StringBuilder();
                 sb.Append($"EXEC GetRandomContactsForReminder @UserID='{_handlowiec.UserID}', @Count={_handlowiec.ContactsPerReminder}");
                 sb.Append($", @OnlyNew={(_handlowiec.ShowOnlyNewContacts ? 1 : 0)}, @OnlyAssigned={(_handlowiec.ShowOnlyAssigned ? 1 : 0)}");
-                sb.Append($", @PKDWeight={_handlowiec.PKDPriorityWeight}, @MaxAttempts={_handlowiec.MaxAttemptsPerContact}");
-                sb.Append($", @CooldownDays={_handlowiec.CooldownDays}");
-                sb.Append($", @Wojewodztwa={territoryJson ?? "NULL"}");
-                sb.Append($", @OnlyMyImports={(_handlowiec.OnlyMyImports ? 1 : 0)}, @ImportedByUser='{_handlowiec.UserID}'");
+                sb.AppendLine();
+                sb.Append($"-- Config: Woj={territoryJson ?? "NULL"}, PKDWeight={_handlowiec.PKDPriorityWeight}");
+                sb.Append($", OnlyMyImports={(_handlowiec.OnlyMyImports ? 1 : 0)}, MaxAttempts={_handlowiec.MaxAttemptsPerContact}");
+                sb.Append($", Cooldown={_handlowiec.CooldownDays}d");
                 txtSqlParams.Text = sb.ToString();
 
                 // Try stored procedure first
@@ -106,18 +106,11 @@ namespace Kalendarz1.CRM.Dialogs
                     var cmd = new SqlCommand("GetRandomContactsForReminder", conn);
                     cmd.CommandType = CommandType.StoredProcedure;
                     cmd.CommandTimeout = 30;
+                    // SP accepts: @UserID, @Count, @OnlyNew, @OnlyAssigned
                     cmd.Parameters.AddWithValue("@UserID", _handlowiec.UserID);
                     cmd.Parameters.AddWithValue("@Count", _handlowiec.ContactsPerReminder);
                     cmd.Parameters.AddWithValue("@OnlyNew", _handlowiec.ShowOnlyNewContacts);
                     cmd.Parameters.AddWithValue("@OnlyAssigned", _handlowiec.ShowOnlyAssigned);
-                    cmd.Parameters.AddWithValue("@SourcePriority", "mixed");
-                    cmd.Parameters.AddWithValue("@ManualPercent", 50);
-                    cmd.Parameters.AddWithValue("@PKDWeight", _handlowiec.PKDPriorityWeight);
-                    cmd.Parameters.AddWithValue("@MaxAttempts", _handlowiec.MaxAttemptsPerContact);
-                    cmd.Parameters.AddWithValue("@CooldownDays", _handlowiec.CooldownDays);
-                    cmd.Parameters.AddWithValue("@Wojewodztwa", (object)territoryJson ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@OnlyMyImports", _handlowiec.OnlyMyImports);
-                    cmd.Parameters.AddWithValue("@ImportedByUser", _handlowiec.UserID);
 
                     using var reader = cmd.ExecuteReader();
 
@@ -183,7 +176,7 @@ namespace Kalendarz1.CRM.Dialogs
                         var row = new DebugContactRow { Nr = nr++ };
                         if (colMap2.TryGetValue("ID", out int c)) row.ID = reader2.GetInt32(c);
                         if (colMap2.TryGetValue("Nazwa", out int cn)) row.Nazwa = SafeStr(reader2, cn);
-                        if (colMap2.TryGetValue("Telefon1", out int ct)) row.Telefon = SafeStr(reader2, ct);
+                        if (colMap2.TryGetValue("Telefon", out int ct)) row.Telefon = SafeStr(reader2, ct);
                         if (colMap2.TryGetValue("Miasto", out int cm)) row.Miasto = SafeStr(reader2, cm);
                         if (colMap2.TryGetValue("Wojewodztwo", out int cw)) row.Wojewodztwo = SafeStr(reader2, cw);
                         if (colMap2.TryGetValue("PKD", out int cp)) row.PKD = SafeStr(reader2, cp);
@@ -231,17 +224,39 @@ namespace Kalendarz1.CRM.Dialogs
             var parameters = new List<SqlParameter>();
             var sb = new StringBuilder();
 
-            sb.AppendLine("SELECT TOP (@Count) k.ID, k.Nazwa, k.Telefon1, k.Miasto, k.Wojewodztwo,");
-            sb.AppendLine("  k.PKD, k.Status, k.Branza");
+            // OdbiorcyCRM is the real contacts table
+            sb.AppendLine("SELECT TOP (@Count) o.ID, o.Nazwa, o.Telefon_K as Telefon, o.MIASTO as Miasto, o.Wojewodztwo,");
+            sb.AppendLine("  o.PKD_Opis as PKD, ISNULL(o.Status, 'Do zadzwonienia') as Status, o.Tagi as Branza");
 
-            // Check if import columns exist
-            sb.AppendLine("  , CASE WHEN COL_LENGTH('crm_Kontakty','IsFromImport') IS NOT NULL THEN CAST(k.IsFromImport AS NVARCHAR) ELSE '' END as IsFromImport");
-            sb.AppendLine("  , CASE WHEN COL_LENGTH('crm_Kontakty','ImportedBy') IS NOT NULL THEN k.ImportedBy ELSE '' END as ImportedBy");
+            // Import columns - check if they exist
+            sb.AppendLine("  , CASE WHEN COL_LENGTH('OdbiorcyCRM','IsFromImport') IS NOT NULL THEN CAST(o.IsFromImport AS NVARCHAR) ELSE '' END as IsFromImport");
+            sb.AppendLine("  , CASE WHEN COL_LENGTH('OdbiorcyCRM','ImportedBy') IS NOT NULL THEN o.ImportedBy ELSE '' END as ImportedBy");
 
-            sb.AppendLine("FROM crm_Kontakty k");
-            sb.AppendLine("WHERE k.Telefon1 IS NOT NULL AND k.Telefon1 <> ''");
+            sb.AppendLine("FROM OdbiorcyCRM o");
+            sb.AppendLine("LEFT JOIN WlascicieleOdbiorcow w ON o.ID = w.IDOdbiorcy");
+            sb.AppendLine("WHERE o.Telefon_K IS NOT NULL AND o.Telefon_K <> ''");
+            sb.AppendLine("  AND ISNULL(o.Status, '') NOT IN ('Poprosił o usunięcie', 'Błędny rekord (do raportu)')");
 
             parameters.Add(new SqlParameter("@Count", _handlowiec.ContactsPerReminder));
+
+            // OnlyNew filter
+            if (_handlowiec.ShowOnlyNewContacts)
+                sb.AppendLine("  AND ISNULL(o.Status, 'Do zadzwonienia') = 'Do zadzwonienia'");
+
+            // OnlyAssigned filter
+            if (_handlowiec.ShowOnlyAssigned)
+            {
+                sb.AppendLine("  AND w.OperatorID = @UserID");
+                parameters.Add(new SqlParameter("@UserID", _handlowiec.UserID));
+            }
+
+            // OnlyMyImports filter
+            if (_handlowiec.OnlyMyImports)
+            {
+                sb.AppendLine("  AND o.ImportedBy = @ImportedByUser");
+                if (!parameters.Any(p => p.ParameterName == "@ImportedByUser"))
+                    parameters.Add(new SqlParameter("@ImportedByUser", _handlowiec.UserID));
+            }
 
             // Territory filter
             if (!string.IsNullOrEmpty(territoryJson))
@@ -258,11 +273,18 @@ namespace Kalendarz1.CRM.Dialogs
                             wojParams.Add(pName);
                             parameters.Add(new SqlParameter(pName, woj[i]));
                         }
-                        sb.AppendLine($"  AND k.Wojewodztwo IN ({string.Join(",", wojParams)})");
+                        sb.AppendLine($"  AND o.Wojewodztwo IN ({string.Join(",", wojParams)})");
                     }
                 }
                 catch { }
             }
+
+            // Exclude already shown today
+            sb.AppendLine("  AND o.ID NOT IN (SELECT crc.ContactID FROM CallReminderContacts crc");
+            sb.AppendLine("    INNER JOIN CallReminderLog crl ON crc.ReminderLogID = crl.ID");
+            sb.AppendLine("    WHERE crl.UserID = @UserIDLog AND CAST(crl.ReminderTime AS DATE) = CAST(GETDATE() AS DATE))");
+            if (!parameters.Any(p => p.ParameterName == "@UserIDLog"))
+                parameters.Add(new SqlParameter("@UserIDLog", _handlowiec.UserID));
 
             sb.AppendLine("ORDER BY NEWID()");
 

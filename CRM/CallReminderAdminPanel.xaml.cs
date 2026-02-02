@@ -129,17 +129,17 @@ namespace Kalendarz1.CRM
                     );
                 END
 
-                -- Columns for crm_Kontakty import tracking
-                IF EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID('crm_Kontakty') AND type = 'U')
+                -- Columns for OdbiorcyCRM import tracking
+                IF EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID('OdbiorcyCRM') AND type = 'U')
                 BEGIN
-                    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('crm_Kontakty') AND name = 'IsFromImport')
-                        ALTER TABLE crm_Kontakty ADD IsFromImport BIT DEFAULT 0;
+                    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('OdbiorcyCRM') AND name = 'IsFromImport')
+                        ALTER TABLE OdbiorcyCRM ADD IsFromImport BIT DEFAULT 0;
 
-                    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('crm_Kontakty') AND name = 'ImportID')
-                        ALTER TABLE crm_Kontakty ADD ImportID INT NULL;
+                    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('OdbiorcyCRM') AND name = 'ImportID')
+                        ALTER TABLE OdbiorcyCRM ADD ImportID INT NULL;
 
-                    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('crm_Kontakty') AND name = 'ImportedBy')
-                        ALTER TABLE crm_Kontakty ADD ImportedBy NVARCHAR(50) NULL;
+                    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('OdbiorcyCRM') AND name = 'ImportedBy')
+                        ALTER TABLE OdbiorcyCRM ADD ImportedBy NVARCHAR(50) NULL;
                 END
 
                 -- Audit table
