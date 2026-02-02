@@ -104,6 +104,17 @@
                                 </Grid>
                             </StackPanel>
                         </Border>
+
+                        <!-- TAGI -->
+                        <Border Background="#18181f" BorderBrush="#252530" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
+                            <StackPanel>
+                                <TextBlock Text="TAGI (filtruj kontakty po tagach)" FontSize="11" Foreground="#f85149" FontWeight="Bold" Margin="0,0,0,8"/>
+                                <TextBlock Text="Zaznaczone tagi = handlowiec dostaje TYLKO kontakty z tymi tagami" FontSize="9" Foreground="#55FFFFFF" Margin="0,0,0,6"/>
+                                <WrapPanel x:Name="tagsPanel">
+                                    <!-- Tag checkboxes populated in code-behind -->
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
 
                     <!-- RIGHT COLUMN: Województwa -->

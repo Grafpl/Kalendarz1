@@ -84,10 +84,28 @@ CREATE PROCEDURE GetRandomContactsForReminder
     @MaxAttempts INT = 5,
     @CooldownDays INT = 3,
     @PKDPriorities NVARCHAR(MAX) = NULL,     -- JSON array: ["10.11","10.12"]
-    @PKDWeight INT = 70
+    @PKDWeight INT = 70,
+    @RequiredTags NVARCHAR(MAX) = NULL      -- JSON array: ["VIP","Pilne"]
 AS
 BEGIN
     SET NOCOUNT ON;
+
+    -- Parse tags JSON array using XML
+    CREATE TABLE #Tags (Tag NVARCHAR(100));
+    IF @RequiredTags IS NOT NULL AND @RequiredTags <> '' AND @RequiredTags <> 'NULL'
+    BEGIN
+        BEGIN TRY
+            DECLARE @TagClean NVARCHAR(MAX) = REPLACE(REPLACE(REPLACE(@RequiredTags, '[', ''), ']', ''), '"', '');
+            DECLARE @TagXml XML = CAST('<x>' + REPLACE(@TagClean, ',', '</x><x>') + '</x>' AS XML);
+            INSERT INTO #Tags (Tag)
+            SELECT LTRIM(RTRIM(T.c.value('.', 'NVARCHAR(100)')))
+            FROM @TagXml.nodes('/x') AS T(c)
+            WHERE LEN(LTRIM(RTRIM(T.c.value('.', 'NVARCHAR(100)')))) > 0;
+        END TRY
+        BEGIN CATCH
+        END CATCH
+    END
+    DECLARE @HasTagFilter BIT = CASE WHEN EXISTS (SELECT 1 FROM #Tags) THEN 1 ELSE 0 END;
 
     -- Parse województwa JSON array using XML (compatible with all SQL Server versions)
     CREATE TABLE #Woj (Woj NVARCHAR(100));
@@ -136,6 +154,9 @@ BEGIN
         (SELECT TOP 1 n.Tresc FROM NotatkiCRM n WHERE n.IDOdbiorcy = o.ID ORDER BY n.DataUtworzenia DESC) as OstatniaNota,
         (SELECT TOP 1 n.DataUtworzenia FROM NotatkiCRM n WHERE n.IDOdbiorcy = o.ID ORDER BY n.DataUtworzenia DESC) as DataOstatniejNotatki,
         o.PKD_Opis as PKD,
+        o.KOD as KodPocztowy,
+        o.ULICA as Adres,
+        o.Tagi,
         CASE WHEN @HasPKDFilter = 1 AND o.PKD_Opis IN (SELECT PKDCode FROM #PKD) THEN 'PKD_MATCH' ELSE 'NORMAL' END as Priority
     FROM OdbiorcyCRM o
     LEFT JOIN WlascicieleOdbiorcow w ON o.ID = w.IDOdbiorcy
@@ -151,6 +172,8 @@ BEGIN
             COL_LENGTH('OdbiorcyCRM', 'ImportedBy') IS NOT NULL
             AND o.ImportedBy = @ImportedByUser
         ))
+        -- Filtr tagów
+        AND (@HasTagFilter = 0 OR EXISTS (SELECT 1 FROM #Tags t WHERE o.Tagi LIKE '%' + t.Tag + '%'))
         -- Wyklucz już obsłużone dziś
         AND o.ID NOT IN (
             SELECT crc.ContactID
@@ -170,6 +193,7 @@ BEGIN
 
     DROP TABLE #Woj;
     DROP TABLE #PKD;
+    DROP TABLE #Tags;
 END
 GO
 

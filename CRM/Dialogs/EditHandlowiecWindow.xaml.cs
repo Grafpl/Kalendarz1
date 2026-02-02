@@ -28,6 +28,7 @@ namespace Kalendarz1.CRM.Dialogs
             txtUserName.Text = handlowiec.UserName;
             InitializeControls();
             LoadWojewodztwa();
+            LoadTags();
             LoadPKDPriorities();
             LoadAvailablePKD();
         }
@@ -91,6 +92,68 @@ namespace Kalendarz1.CRM.Dialogs
                 if (FindResource("GlassCheckBox") is Style glassStyle)
                     cb.Style = glassStyle;
                 wojewodztwaPanel.Children.Add(cb);
+            }
+        }
+
+        private static readonly string[] AvailableTags = new[]
+        {
+            "VIP", "Pilne", "Premium", "Staly klient", "Nowy import", "Do weryfikacji"
+        };
+
+        private static readonly Dictionary<string, string> TagColors = new()
+        {
+            ["VIP"] = "#FBBF24",
+            ["Pilne"] = "#FCA5A5",
+            ["Premium"] = "#c084fc",
+            ["Staly klient"] = "#3fb950",
+            ["Nowy import"] = "#58a6ff",
+            ["Do weryfikacji"] = "#f59e0b"
+        };
+
+        private void LoadTags()
+        {
+            var selected = new HashSet<string>(_handlowiec.SelectedTags);
+
+            // Also load unique tags from OdbiorcyCRM
+            var dbTags = new HashSet<string>(AvailableTags);
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                conn.Open();
+                var cmd = new SqlCommand(
+                    @"SELECT DISTINCT Tagi FROM OdbiorcyCRM WHERE Tagi IS NOT NULL AND Tagi <> '' AND Tagi <> 'null'", conn);
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    var tagVal = reader.GetString(0).Trim();
+                    // Tags can be comma-separated, split them
+                    foreach (var t in tagVal.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        var clean = t.Trim();
+                        if (!string.IsNullOrEmpty(clean))
+                            dbTags.Add(clean);
+                    }
+                }
+            }
+            catch { }
+
+            foreach (var tag in dbTags.OrderBy(t => t))
+            {
+                var color = TagColors.TryGetValue(tag, out var c) ? c : "#88FFFFFF";
+                var brush = new System.Windows.Media.SolidColorBrush(
+                    (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(color));
+
+                var cb = new CheckBox
+                {
+                    Content = tag,
+                    FontSize = 10,
+                    Foreground = brush,
+                    Margin = new Thickness(0, 2, 10, 2),
+                    IsChecked = selected.Contains(tag)
+                };
+                if (FindResource("GlassCheckBox") is Style glassStyle)
+                    cb.Style = glassStyle;
+                tagsPanel.Children.Add(cb);
             }
         }
 
@@ -290,6 +353,14 @@ namespace Kalendarz1.CRM.Dialogs
                     _handlowiec.SelectedWojewodztwa.Add(cb.Content.ToString());
             }
 
+            // 2b. Collect Tags
+            _handlowiec.SelectedTags.Clear();
+            foreach (CheckBox cb in tagsPanel.Children.OfType<CheckBox>())
+            {
+                if (cb.IsChecked == true)
+                    _handlowiec.SelectedTags.Add(cb.Content.ToString());
+            }
+
             // 3. Save to database
             try
             {
@@ -301,6 +372,10 @@ namespace Kalendarz1.CRM.Dialogs
                 {
                     string territoryJson = _handlowiec.SelectedWojewodztwa.Count > 0
                         ? JsonSerializer.Serialize(_handlowiec.SelectedWojewodztwa.ToList())
+                        : null;
+
+                    string tagsJson = _handlowiec.SelectedTags.Count > 0
+                        ? JsonSerializer.Serialize(_handlowiec.SelectedTags.ToList())
                         : null;
 
                     // Check if config exists
@@ -322,6 +397,7 @@ namespace Kalendarz1.CRM.Dialogs
                                 DailyCallTarget = @DailyTarget,
                                 WeeklyCallTarget = @WeeklyTarget,
                                 TerritoryWojewodztwa = @Territory,
+                                RequiredTags = @Tags,
                                 ModifiedAt = GETDATE()
                             WHERE UserID = @UserID", conn, tran);
 
@@ -336,6 +412,7 @@ namespace Kalendarz1.CRM.Dialogs
                         cmdUpdate.Parameters.AddWithValue("@DailyTarget", _handlowiec.DailyCallTarget);
                         cmdUpdate.Parameters.AddWithValue("@WeeklyTarget", _handlowiec.WeeklyCallTarget);
                         cmdUpdate.Parameters.AddWithValue("@Territory", (object)territoryJson ?? DBNull.Value);
+                        cmdUpdate.Parameters.AddWithValue("@Tags", (object)tagsJson ?? DBNull.Value);
                         cmdUpdate.ExecuteNonQuery();
                     }
                     else
@@ -343,9 +420,9 @@ namespace Kalendarz1.CRM.Dialogs
                         var cmdInsert = new SqlCommand(
                             @"INSERT INTO CallReminderConfig (UserID, IsEnabled, ReminderTime1, ReminderTime2,
                                 ContactsPerReminder, ShowOnlyNewContacts, ShowOnlyAssigned, OnlyMyImports,
-                                DailyCallTarget, WeeklyCallTarget, TerritoryWojewodztwa)
+                                DailyCallTarget, WeeklyCallTarget, TerritoryWojewodztwa, RequiredTags)
                             VALUES (@UserID, @Enabled, @Time1, @Time2, @Count, @OnlyNew, @OnlyAssigned,
-                                @OnlyMyImports, @DailyTarget, @WeeklyTarget, @Territory)", conn, tran);
+                                @OnlyMyImports, @DailyTarget, @WeeklyTarget, @Territory, @Tags)", conn, tran);
 
                         cmdInsert.Parameters.AddWithValue("@UserID", _handlowiec.UserID);
                         cmdInsert.Parameters.AddWithValue("@Enabled", _handlowiec.IsEnabled);
@@ -358,6 +435,7 @@ namespace Kalendarz1.CRM.Dialogs
                         cmdInsert.Parameters.AddWithValue("@DailyTarget", _handlowiec.DailyCallTarget);
                         cmdInsert.Parameters.AddWithValue("@WeeklyTarget", _handlowiec.WeeklyCallTarget);
                         cmdInsert.Parameters.AddWithValue("@Territory", (object)territoryJson ?? DBNull.Value);
+                        cmdInsert.Parameters.AddWithValue("@Tags", (object)tagsJson ?? DBNull.Value);
                         cmdInsert.ExecuteNonQuery();
                     }
 

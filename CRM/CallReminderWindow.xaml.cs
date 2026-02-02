@@ -286,7 +286,7 @@ namespace Kalendarz1.CRM
 
         private static readonly string[] Statuses = new[]
         {
-            "Nowy", "W trakcie", "Gorący", "Oferta wysłana", "Negocjacje",
+            "Do zadzwonienia", "Nowy", "W trakcie", "Gorący", "Oferta wysłana", "Negocjacje",
             "Zgoda na dalszy kontakt", "Nie zainteresowany", "Zamknięty"
         };
 

@@ -80,7 +80,7 @@ namespace Kalendarz1.CRM.Services
                       TerritoryWojewodztwa, ISNULL(UseAdvancedSchedule, 0),
                       LunchBreakStart, LunchBreakEnd,
                       VacationStart, VacationEnd, SubstituteUserID,
-                      ISNULL(OnlyMyImports, 0)
+                      ISNULL(OnlyMyImports, 0), RequiredTags
                       FROM CallReminderConfig WHERE UserID = @UserID", conn);
                 cmdGet.Parameters.AddWithValue("@UserID", _userID);
 
@@ -113,7 +113,8 @@ namespace Kalendarz1.CRM.Services
                         VacationStart = reader.IsDBNull(20) ? null : reader.GetDateTime(20),
                         VacationEnd = reader.IsDBNull(21) ? null : reader.GetDateTime(21),
                         SubstituteUserID = reader.IsDBNull(22) ? null : reader.GetString(22),
-                        OnlyMyImports = reader.GetBoolean(23)
+                        OnlyMyImports = reader.GetBoolean(23),
+                        RequiredTags = reader.IsDBNull(24) ? null : reader.GetString(24)
                     };
                 }
                 else
@@ -308,6 +309,7 @@ namespace Kalendarz1.CRM.Services
                     }
                     cmd.Parameters.AddWithValue("@PKDPriorities", (object)pkdJson ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@PKDWeight", _config?.PKDPriorityWeight ?? 70);
+                    cmd.Parameters.AddWithValue("@RequiredTags", (object)_config?.RequiredTags ?? DBNull.Value);
 
                     using var reader = cmd.ExecuteReader();
                     contacts = ReadContactsFromReader(reader);
@@ -368,6 +370,12 @@ namespace Kalendarz1.CRM.Services
                     contact.DataOstatniejNotatki = reader.GetDateTime(colNotaDate);
                 if (columnMap.TryGetValue("PKD", out int colPkd) && !reader.IsDBNull(colPkd))
                     contact.PKD = reader.GetValue(colPkd).ToString();
+                if (columnMap.TryGetValue("KodPocztowy", out int colKod) && !reader.IsDBNull(colKod))
+                    contact.KodPocztowy = reader.GetValue(colKod).ToString();
+                if (columnMap.TryGetValue("Adres", out int colAdres) && !reader.IsDBNull(colAdres))
+                    contact.Adres = reader.GetValue(colAdres).ToString();
+                if (columnMap.TryGetValue("Tagi", out int colTagi) && !reader.IsDBNull(colTagi))
+                    contact.Branza = reader.GetValue(colTagi).ToString();
                 if (columnMap.TryGetValue("Priority", out int colPrio) && !reader.IsDBNull(colPrio))
                     contact.Priority = reader.GetValue(colPrio).ToString();
 
@@ -384,6 +392,7 @@ namespace Kalendarz1.CRM.Services
 
             sb.AppendLine("SELECT TOP (@Count) o.ID, o.Nazwa, o.Telefon_K as Telefon, o.MIASTO as Miasto, o.Wojewodztwo,");
             sb.AppendLine("  o.PKD_Opis as PKD, ISNULL(o.Status, 'Do zadzwonienia') as Status, o.Tagi as Branza,");
+            sb.AppendLine("  o.KOD as KodPocztowy, o.ULICA as Adres,");
             sb.AppendLine("  (SELECT TOP 1 n.Tresc FROM NotatkiCRM n WHERE n.IDOdbiorcy = o.ID ORDER BY n.DataUtworzenia DESC) as OstatniaNota,");
             sb.AppendLine("  (SELECT TOP 1 n.DataUtworzenia FROM NotatkiCRM n WHERE n.IDOdbiorcy = o.ID ORDER BY n.DataUtworzenia DESC) as DataOstatniejNotatki");
             sb.AppendLine("FROM OdbiorcyCRM o");
@@ -424,6 +433,27 @@ namespace Kalendarz1.CRM.Services
                             parameters.Add(new SqlParameter(pName, woj[i]));
                         }
                         sb.AppendLine($"  AND o.Wojewodztwo IN ({string.Join(",", wojParams)})");
+                    }
+                }
+                catch { }
+            }
+
+            // Tags filter
+            if (!string.IsNullOrEmpty(_config?.RequiredTags))
+            {
+                try
+                {
+                    var tags = System.Text.Json.JsonSerializer.Deserialize<List<string>>(_config.RequiredTags);
+                    if (tags != null && tags.Count > 0)
+                    {
+                        var tagConditions = new List<string>();
+                        for (int i = 0; i < tags.Count; i++)
+                        {
+                            var pName = $"@tag{i}";
+                            tagConditions.Add($"o.Tagi LIKE '%' + {pName} + '%'");
+                            parameters.Add(new SqlParameter(pName, tags[i]));
+                        }
+                        sb.AppendLine($"  AND ({string.Join(" OR ", tagConditions)})");
                     }
                 }
                 catch { }

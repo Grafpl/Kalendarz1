@@ -38,6 +38,9 @@ namespace Kalendarz1.CRM.Models
         public int MinCallDurationSec { get; set; } = 30;
         public int AlertBelowPercent { get; set; } = 50;
 
+        // Tags filter (VIP, Pilne, etc.)
+        public string RequiredTags { get; set; }  // JSON array: ["VIP","Pilne"]
+
         // Territory
         public string TerritoryWojewodztwa { get; set; }
         public int? TerritoryRadiusKm { get; set; }

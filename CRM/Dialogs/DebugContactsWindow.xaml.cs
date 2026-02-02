@@ -123,6 +123,12 @@ namespace Kalendarz1.CRM.Dialogs
                     cmd.Parameters.AddWithValue("@PKDPriorities", (object)pkdJson ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@PKDWeight", _handlowiec.PKDPriorityWeight);
 
+                    // Tags
+                    string tagsJson = null;
+                    if (_handlowiec.SelectedTags != null && _handlowiec.SelectedTags.Count > 0)
+                        tagsJson = JsonSerializer.Serialize(_handlowiec.SelectedTags.ToList());
+                    cmd.Parameters.AddWithValue("@RequiredTags", (object)tagsJson ?? DBNull.Value);
+
                     using var reader = cmd.ExecuteReader();
 
                     // Build column map
@@ -288,6 +294,19 @@ namespace Kalendarz1.CRM.Dialogs
                     }
                 }
                 catch { }
+            }
+
+            // Tags filter
+            if (_handlowiec.SelectedTags != null && _handlowiec.SelectedTags.Count > 0)
+            {
+                var tagConditions = new List<string>();
+                for (int i = 0; i < _handlowiec.SelectedTags.Count; i++)
+                {
+                    var pName = $"@tag{i}";
+                    tagConditions.Add($"o.Tagi LIKE '%' + {pName} + '%'");
+                    parameters.Add(new SqlParameter(pName, _handlowiec.SelectedTags[i]));
+                }
+                sb.AppendLine($"  AND ({string.Join(" OR ", tagConditions)})");
             }
 
             // Exclude already shown today

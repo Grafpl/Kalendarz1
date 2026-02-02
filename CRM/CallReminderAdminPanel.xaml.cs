@@ -83,6 +83,9 @@ namespace Kalendarz1.CRM
                 IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('CallReminderConfig') AND name = 'OnlyMyImports')
                     ALTER TABLE CallReminderConfig ADD OnlyMyImports BIT DEFAULT 0;
 
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('CallReminderConfig') AND name = 'RequiredTags')
+                    ALTER TABLE CallReminderConfig ADD RequiredTags NVARCHAR(MAX) NULL;
+
                 -- PKD Priority table with SortOrder
                 IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID('CallReminderPKDPriority') AND type = 'U')
                 BEGIN
@@ -191,10 +194,28 @@ CREATE PROCEDURE GetRandomContactsForReminder
     @MaxAttempts INT = 5,
     @CooldownDays INT = 3,
     @PKDPriorities NVARCHAR(MAX) = NULL,
-    @PKDWeight INT = 70
+    @PKDWeight INT = 70,
+    @RequiredTags NVARCHAR(MAX) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
+
+    -- Parse tags JSON array using XML
+    CREATE TABLE #Tags (Tag NVARCHAR(100));
+    IF @RequiredTags IS NOT NULL AND @RequiredTags <> '' AND @RequiredTags <> 'NULL'
+    BEGIN
+        BEGIN TRY
+            DECLARE @TagClean NVARCHAR(MAX) = REPLACE(REPLACE(REPLACE(@RequiredTags, '[', ''), ']', ''), '""', '');
+            DECLARE @TagXml XML = CAST('<x>' + REPLACE(@TagClean, ',', '</x><x>') + '</x>' AS XML);
+            INSERT INTO #Tags (Tag)
+            SELECT LTRIM(RTRIM(T.c.value('.', 'NVARCHAR(100)')))
+            FROM @TagXml.nodes('/x') AS T(c)
+            WHERE LEN(LTRIM(RTRIM(T.c.value('.', 'NVARCHAR(100)')))) > 0;
+        END TRY
+        BEGIN CATCH
+        END CATCH
+    END
+    DECLARE @HasTagFilter BIT = CASE WHEN EXISTS (SELECT 1 FROM #Tags) THEN 1 ELSE 0 END;
 
     -- Parse wojewodztwa JSON array using XML (compatible with all SQL Server versions)
     CREATE TABLE #Woj (Woj NVARCHAR(100));
@@ -243,6 +264,9 @@ BEGIN
         (SELECT TOP 1 n.Tresc FROM NotatkiCRM n WHERE n.IDOdbiorcy = o.ID ORDER BY n.DataUtworzenia DESC) as OstatniaNota,
         (SELECT TOP 1 n.DataUtworzenia FROM NotatkiCRM n WHERE n.IDOdbiorcy = o.ID ORDER BY n.DataUtworzenia DESC) as DataOstatniejNotatki,
         o.PKD_Opis as PKD,
+        o.KOD as KodPocztowy,
+        o.ULICA as Adres,
+        o.Tagi,
         CASE WHEN @HasPKDFilter = 1 AND o.PKD_Opis IN (SELECT PKDCode FROM #PKD) THEN 'PKD_MATCH' ELSE 'NORMAL' END as Priority
     FROM OdbiorcyCRM o
     LEFT JOIN WlascicieleOdbiorcow w ON o.ID = w.IDOdbiorcy
@@ -254,6 +278,8 @@ BEGIN
             COL_LENGTH('OdbiorcyCRM', 'ImportedBy') IS NOT NULL
             AND o.ImportedBy = @ImportedByUser
         ))
+        -- Tag filter
+        AND (@HasTagFilter = 0 OR EXISTS (SELECT 1 FROM #Tags t WHERE o.Tagi LIKE '%' + t.Tag + '%'))
         AND o.ID NOT IN (
             SELECT crc.ContactID
             FROM CallReminderContacts crc
@@ -269,6 +295,7 @@ BEGIN
 
     DROP TABLE #Woj;
     DROP TABLE #PKD;
+    DROP TABLE #Tags;
 END";
 
                 new SqlCommand(createSql, conn).ExecuteNonQuery();
@@ -318,7 +345,7 @@ END";
                              ISNULL(MaxAttemptsPerContact, 5), ISNULL(CooldownDays, 3),
                              ISNULL(PKDPriorityWeight, 70),
                              TerritoryWojewodztwa, PresetType,
-                             ISNULL(OnlyMyImports, 0)
+                             ISNULL(OnlyMyImports, 0), RequiredTags
                       FROM CallReminderConfig", conn);
                 using (var reader = cmdConfigs.ExecuteReader())
                 {
@@ -341,7 +368,8 @@ END";
                             PKDPriorityWeight = reader.GetInt32(12),
                             TerritoryWojewodztwa = reader.IsDBNull(13) ? null : reader.GetString(13),
                             PresetType = reader.IsDBNull(14) ? null : reader.GetString(14),
-                            OnlyMyImports = reader.GetBoolean(15)
+                            OnlyMyImports = reader.GetBoolean(15),
+                            RequiredTags = reader.IsDBNull(16) ? null : reader.GetString(16)
                         };
                     }
                 }
@@ -445,6 +473,18 @@ END";
                         if (pkdPriorities.TryGetValue(cfg.ConfigID, out var codes))
                         {
                             vm.PKDPriorityCodes = codes;
+                        }
+
+                        // Tags
+                        if (!string.IsNullOrEmpty(cfg.RequiredTags))
+                        {
+                            try
+                            {
+                                var tags = JsonSerializer.Deserialize<List<string>>(cfg.RequiredTags);
+                                if (tags != null)
+                                    foreach (var t in tags) vm.SelectedTags.Add(t);
+                            }
+                            catch { }
                         }
                     }
 
@@ -779,6 +819,7 @@ END";
         public string TerritoryWojewodztwa { get; set; }
         public string PresetType { get; set; }
         public bool OnlyMyImports { get; set; }
+        public string RequiredTags { get; set; }
     }
 
     #endregion
@@ -812,6 +853,17 @@ END";
         public DateTime? LastCallTime { get; set; }
 
         public ObservableCollection<string> SelectedWojewodztwa { get; set; } = new ObservableCollection<string>();
+        public ObservableCollection<string> SelectedTags { get; set; } = new ObservableCollection<string>();
+
+        public string TagsSummary
+        {
+            get
+            {
+                if (SelectedTags == null || SelectedTags.Count == 0)
+                    return "Brak";
+                return string.Join(", ", SelectedTags);
+            }
+        }
 
         public bool IsEnabled
         {
