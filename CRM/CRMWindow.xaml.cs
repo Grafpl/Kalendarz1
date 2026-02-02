@@ -2,6 +2,7 @@ using Kalendarz1.OfertaCenowa;
 using Kalendarz1.CRM.Services;
 using Microsoft.Data.SqlClient;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data;
 using System.Diagnostics;
@@ -13,6 +14,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Imaging;
 
 namespace Kalendarz1.CRM
 {
@@ -24,13 +26,21 @@ namespace Kalendarz1.CRM
         private DataTable dtKontakty;
         private bool isLoading = false;
 
+        // Avatar cache: operator name → BitmapSource
+        private readonly Dictionary<string, BitmapSource> _handlowiecAvatarCache = new();
+        private readonly Dictionary<string, string> _handlowiecNameToId = new();
+
         public string UserID { get; set; }
+
+        [System.Runtime.InteropServices.DllImport("gdi32.dll")]
+        private static extern bool DeleteObject(IntPtr hObject);
 
         public CRMWindow()
         {
             InitializeComponent();
             WindowIconHelper.SetIcon(this);
             Loaded += CRMWindow_Loaded;
+            dgKontakty.LoadingRow += DgKontakty_LoadingRow;
         }
 
         private void CRMWindow_Loaded(object sender, RoutedEventArgs e)
@@ -50,8 +60,121 @@ namespace Kalendarz1.CRM
                 UpdateThemeButton(false);
 
             InicjalizujFiltry();
+            LoadHandlowiecAvatarMap();
             WczytajDane();
         }
+
+        #region Handlowiec Avatars
+
+        private void LoadHandlowiecAvatarMap()
+        {
+            try
+            {
+                using var conn = new SqlConnection(connectionString);
+                conn.Open();
+                using var cmd = new SqlCommand("SELECT ID, Name FROM operators WHERE Name IS NOT NULL", conn);
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    string id = reader["ID"].ToString();
+                    string name = reader["Name"]?.ToString()?.Trim() ?? "";
+                    if (!string.IsNullOrEmpty(name) && !_handlowiecNameToId.ContainsKey(name))
+                        _handlowiecNameToId[name] = id;
+                }
+            }
+            catch { }
+        }
+
+        private BitmapSource GetHandlowiecAvatar(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return null;
+
+            if (_handlowiecAvatarCache.TryGetValue(name, out var cached))
+                return cached;
+
+            BitmapSource source = null;
+            try
+            {
+                string userId = _handlowiecNameToId.TryGetValue(name, out var id) ? id : name;
+
+                System.Drawing.Image img = null;
+                if (UserAvatarManager.HasAvatar(userId))
+                    img = UserAvatarManager.GetAvatarRounded(userId, 28);
+                if (img == null)
+                    img = UserAvatarManager.GenerateDefaultAvatar(name, userId, 28);
+
+                if (img != null)
+                {
+                    using (img)
+                    using (var bmp = new System.Drawing.Bitmap(img))
+                    {
+                        var hBitmap = bmp.GetHbitmap();
+                        try
+                        {
+                            source = System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
+                                hBitmap, IntPtr.Zero, Int32Rect.Empty,
+                                BitmapSizeOptions.FromEmptyOptions());
+                            source.Freeze();
+                        }
+                        finally { DeleteObject(hBitmap); }
+                    }
+                }
+            }
+            catch { }
+
+            _handlowiecAvatarCache[name] = source;
+            return source;
+        }
+
+        private void DgKontakty_LoadingRow(object sender, DataGridRowEventArgs e)
+        {
+            if (e.Row.Item is DataRowView drv)
+            {
+                string handlowiec = drv["OstatniHandlowiec"]?.ToString();
+                if (string.IsNullOrWhiteSpace(handlowiec)) return;
+
+                // Defer avatar loading to after layout
+                e.Row.Loaded += (s, args) =>
+                {
+                    try
+                    {
+                        var row = s as DataGridRow;
+                        if (row == null) return;
+
+                        // Find the Image element inside the Handlowiec cell
+                        var presenter = FindVisualChild<DataGridCellsPresenter>(row);
+                        if (presenter == null) return;
+
+                        // Handlowiec is column index 2 (Status=0, Firma=1, Handlowiec=2)
+                        var cell = presenter.ItemContainerGenerator.ContainerFromIndex(2) as DataGridCell;
+                        if (cell == null) return;
+
+                        var img = FindVisualChild<System.Windows.Controls.Image>(cell);
+                        if (img != null)
+                        {
+                            var avatarSource = GetHandlowiecAvatar(handlowiec);
+                            if (avatarSource != null)
+                                img.Source = avatarSource;
+                        }
+                    }
+                    catch { }
+                };
+            }
+        }
+
+        private static T FindVisualChild<T>(DependencyObject obj) where T : DependencyObject
+        {
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(obj); i++)
+            {
+                var child = VisualTreeHelper.GetChild(obj, i);
+                if (child is T t) return t;
+                var result = FindVisualChild<T>(child);
+                if (result != null) return result;
+            }
+            return null;
+        }
+
+        #endregion
 
         #region Ładowanie Danych
         private void InicjalizujFiltry()
@@ -742,78 +865,103 @@ namespace Kalendarz1.CRM
 
             if (isLight)
             {
-                // ── LIGHT THEME: white dominant, green accents, red for danger ──
-                // Window background
-                mainWindow.Background = new SolidColorBrush(Color.FromRgb(245, 247, 250));
+                // ══════════════════════════════════════════════
+                // LIGHT THEME - profesjonalny jasny z kontrastem
+                // ══════════════════════════════════════════════
 
-                // Resource brushes - swap to light palette
-                Resources["BgPrimary"] = new SolidColorBrush(Color.FromRgb(245, 247, 250));
-                Resources["BgSecondary"] = new SolidColorBrush(Color.FromRgb(255, 255, 255));
-                Resources["BgTertiary"] = new SolidColorBrush(Color.FromRgb(235, 238, 243));
-                Resources["BgElevated"] = new SolidColorBrush(Color.FromRgb(210, 215, 224));
+                // Tło okna: ciepły szary (NIE biały) daje kontrast
+                mainWindow.Background = new SolidColorBrush(Color.FromRgb(241, 245, 249));  // #F1F5F9 slate-100
 
-                Resources["AccentPrimary"] = new SolidColorBrush(Color.FromRgb(34, 139, 34));   // Forest green
-                Resources["AccentLight"] = new SolidColorBrush(Color.FromRgb(74, 179, 74));
-                Resources["AccentBg"] = new SolidColorBrush(Color.FromRgb(220, 245, 220));
+                // ── Tła: wyraźna hierarchia jasności ──
+                Resources["BgPrimary"] = new SolidColorBrush(Color.FromRgb(241, 245, 249));    // #F1F5F9 główne tło
+                Resources["BgSecondary"] = new SolidColorBrush(Color.FromRgb(255, 255, 255));   // #FFFFFF karty/panele
+                Resources["BgTertiary"] = new SolidColorBrush(Color.FromRgb(226, 232, 240));    // #E2E8F0 zagnieżdżone
+                Resources["BgElevated"] = new SolidColorBrush(Color.FromRgb(203, 213, 225));    // #CBD5E1 wyróżnione
 
-                Resources["TextPrimary"] = new SolidColorBrush(Color.FromRgb(30, 30, 30));
-                Resources["TextSecondary"] = new SolidColorBrush(Color.FromRgb(80, 85, 95));
-                Resources["TextMuted"] = new SolidColorBrush(Color.FromRgb(120, 128, 140));
+                // ── Akcent: ciemny zielony dobrze widoczny na jasnym ──
+                Resources["AccentPrimary"] = new SolidColorBrush(Color.FromRgb(21, 128, 61));   // #15803D green-700
+                Resources["AccentLight"] = new SolidColorBrush(Color.FromRgb(34, 197, 94));     // #22C55E green-500
+                Resources["AccentBg"] = new SolidColorBrush(Color.FromRgb(220, 252, 231));      // #DCFCE7 green-100
 
-                Resources["BorderDefault"] = new SolidColorBrush(Color.FromRgb(210, 215, 224));
-                Resources["BorderLight"] = new SolidColorBrush(Color.FromRgb(190, 196, 207));
-                Resources["BorderAccent"] = new SolidColorBrush(Color.FromRgb(34, 139, 34));
+                // ── Tekst: ciemny na jasnym - wysoki kontrast ──
+                Resources["TextPrimary"] = new SolidColorBrush(Color.FromRgb(15, 23, 42));      // #0F172A slate-900
+                Resources["TextSecondary"] = new SolidColorBrush(Color.FromRgb(51, 65, 85));    // #334155 slate-700
+                Resources["TextMuted"] = new SolidColorBrush(Color.FromRgb(100, 116, 139));     // #64748B slate-500
 
-                // Compat aliases
-                Resources["PrimaryColor"] = new SolidColorBrush(Color.FromRgb(34, 139, 34));
-                Resources["PrimaryLight"] = new SolidColorBrush(Color.FromRgb(220, 245, 220));
-                Resources["TextDark"] = new SolidColorBrush(Color.FromRgb(30, 30, 30));
-                Resources["TextGray"] = new SolidColorBrush(Color.FromRgb(80, 85, 95));
-                Resources["BorderColor"] = new SolidColorBrush(Color.FromRgb(210, 215, 224));
+                // ── Bordy: widoczne szare linie ──
+                Resources["BorderDefault"] = new SolidColorBrush(Color.FromRgb(203, 213, 225)); // #CBD5E1 slate-300
+                Resources["BorderLight"] = new SolidColorBrush(Color.FromRgb(226, 232, 240));   // #E2E8F0 slate-200
+                Resources["BorderAccent"] = new SolidColorBrush(Color.FromRgb(21, 128, 61));    // #15803D
 
-                // Status colors stay the same (they're semantic)
+                // ── Aliasy kompatybilności ──
+                Resources["PrimaryColor"] = new SolidColorBrush(Color.FromRgb(21, 128, 61));
+                Resources["PrimaryLight"] = new SolidColorBrush(Color.FromRgb(220, 252, 231));
+                Resources["TextDark"] = new SolidColorBrush(Color.FromRgb(15, 23, 42));
+                Resources["TextGray"] = new SolidColorBrush(Color.FromRgb(51, 65, 85));
+                Resources["BorderColor"] = new SolidColorBrush(Color.FromRgb(203, 213, 225));
 
-                // DataGrid
+                // ── Statusy: jasne tła z ciemnymi tekstami ──
+                Resources["StatusSuccessBg"] = new SolidColorBrush(Color.FromRgb(220, 252, 231));
+                Resources["StatusWarningBg"] = new SolidColorBrush(Color.FromRgb(254, 243, 199));
+                Resources["StatusInfoBg"] = new SolidColorBrush(Color.FromRgb(219, 234, 254));
+                Resources["StatusDangerBg"] = new SolidColorBrush(Color.FromRgb(254, 226, 226));
+                Resources["StatusNeutralBg"] = new SolidColorBrush(Color.FromRgb(226, 232, 240));
+                Resources["StatusTealBg"] = new SolidColorBrush(Color.FromRgb(204, 251, 241));
+
+                // ── DataGrid: biały z wyraźnymi liniami ──
                 dgKontakty.Background = new SolidColorBrush(Color.FromRgb(255, 255, 255));
                 dgKontakty.RowBackground = new SolidColorBrush(Color.FromRgb(255, 255, 255));
-                dgKontakty.AlternatingRowBackground = new SolidColorBrush(Color.FromRgb(248, 249, 252));
+                dgKontakty.AlternatingRowBackground = new SolidColorBrush(Color.FromRgb(248, 250, 252)); // #F8FAFC
+                dgKontakty.GridLinesVisibility = DataGridGridLinesVisibility.Horizontal;
+                dgKontakty.HorizontalGridLinesBrush = new SolidColorBrush(Color.FromRgb(226, 232, 240));
+                dgKontakty.BorderBrush = new SolidColorBrush(Color.FromRgb(203, 213, 225));
+                dgKontakty.BorderThickness = new Thickness(1);
 
-                // DataGrid header style
+                // Nagłówek tabeli: szary gradient, ciemny tekst
                 var headerStyle = new Style(typeof(DataGridColumnHeader));
-                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.BackgroundProperty, new SolidColorBrush(Color.FromRgb(245, 247, 250))));
-                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.ForegroundProperty, new SolidColorBrush(Color.FromRgb(80, 85, 95))));
+                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.BackgroundProperty,
+                    new SolidColorBrush(Color.FromRgb(226, 232, 240))));  // #E2E8F0 widoczne tło
+                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.ForegroundProperty,
+                    new SolidColorBrush(Color.FromRgb(30, 41, 59))));     // #1E293B ciemny tekst
                 headerStyle.Setters.Add(new Setter(DataGridColumnHeader.PaddingProperty, new Thickness(12, 14, 12, 14)));
                 headerStyle.Setters.Add(new Setter(DataGridColumnHeader.FontWeightProperty, FontWeights.SemiBold));
                 headerStyle.Setters.Add(new Setter(DataGridColumnHeader.FontSizeProperty, 13.0));
-                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.BorderThicknessProperty, new Thickness(0, 0, 0, 2)));
-                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(210, 215, 224))));
+                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.BorderThicknessProperty, new Thickness(0, 0, 1, 2)));
+                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.BorderBrushProperty,
+                    new SolidColorBrush(Color.FromRgb(203, 213, 225)))); // #CBD5E1
                 headerStyle.Setters.Add(new Setter(DataGridColumnHeader.HorizontalContentAlignmentProperty, HorizontalAlignment.Center));
                 dgKontakty.ColumnHeaderStyle = headerStyle;
 
-                // DataGrid cell style
+                // Komórki
                 var cellStyle = new Style(typeof(DataGridCell));
                 cellStyle.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(0)));
                 cellStyle.Setters.Add(new Setter(DataGridCell.FocusVisualStyleProperty, null));
                 cellStyle.Setters.Add(new Setter(DataGridCell.PaddingProperty, new Thickness(8, 4, 8, 4)));
                 cellStyle.Setters.Add(new Setter(DataGridCell.BackgroundProperty, Brushes.Transparent));
-                cellStyle.Setters.Add(new Setter(DataGridCell.ForegroundProperty, new SolidColorBrush(Color.FromRgb(30, 30, 30))));
+                cellStyle.Setters.Add(new Setter(DataGridCell.ForegroundProperty,
+                    new SolidColorBrush(Color.FromRgb(15, 23, 42))));    // #0F172A
                 dgKontakty.CellStyle = cellStyle;
 
-                // DataGrid row style
+                // Wiersze z hover i selekcją
                 var rowStyle = new Style(typeof(DataGridRow));
                 rowStyle.Setters.Add(new Setter(DataGridRow.HeightProperty, 60.0));
                 rowStyle.Setters.Add(new Setter(DataGridRow.FontSizeProperty, 14.0));
-                rowStyle.Setters.Add(new Setter(DataGridRow.BackgroundProperty, new SolidColorBrush(Color.FromRgb(255, 255, 255))));
-                rowStyle.Setters.Add(new Setter(DataGridRow.BorderThicknessProperty, new Thickness(0)));
+                rowStyle.Setters.Add(new Setter(DataGridRow.BackgroundProperty, Brushes.White));
+                rowStyle.Setters.Add(new Setter(DataGridRow.BorderThicknessProperty, new Thickness(0, 0, 0, 1)));
+                rowStyle.Setters.Add(new Setter(DataGridRow.BorderBrushProperty,
+                    new SolidColorBrush(Color.FromRgb(241, 245, 249))));  // #F1F5F9 subtelna linia
                 var hoverTrigger = new Trigger { Property = DataGridRow.IsMouseOverProperty, Value = true };
-                hoverTrigger.Setters.Add(new Setter(DataGridRow.BackgroundProperty, new SolidColorBrush(Color.FromRgb(230, 245, 230))));
+                hoverTrigger.Setters.Add(new Setter(DataGridRow.BackgroundProperty,
+                    new SolidColorBrush(Color.FromRgb(220, 252, 231)))); // #DCFCE7 zielony highlight
                 rowStyle.Triggers.Add(hoverTrigger);
                 var selectedTrigger = new Trigger { Property = DataGridRow.IsSelectedProperty, Value = true };
-                selectedTrigger.Setters.Add(new Setter(DataGridRow.BackgroundProperty, new SolidColorBrush(Color.FromRgb(34, 139, 34))));
+                selectedTrigger.Setters.Add(new Setter(DataGridRow.BackgroundProperty,
+                    new SolidColorBrush(Color.FromRgb(21, 128, 61))));   // #15803D zielony zaznaczony
+                selectedTrigger.Setters.Add(new Setter(DataGridRow.ForegroundProperty, Brushes.White));
                 rowStyle.Triggers.Add(selectedTrigger);
                 dgKontakty.RowStyle = rowStyle;
 
-                // Walk tree for inline colors
+                // Walk tree
                 ApplyThemeToTree(this, true);
             }
             else
@@ -844,9 +992,19 @@ namespace Kalendarz1.CRM
                 Resources["TextGray"] = new SolidColorBrush(Color.FromRgb(148, 163, 184));
                 Resources["BorderColor"] = new SolidColorBrush(Color.FromRgb(51, 65, 85));
 
+                // Przywróć ciemne statusy
+                Resources["StatusSuccessBg"] = new SolidColorBrush(Color.FromRgb(20, 83, 45));
+                Resources["StatusWarningBg"] = new SolidColorBrush(Color.FromRgb(120, 53, 15));
+                Resources["StatusInfoBg"] = new SolidColorBrush(Color.FromRgb(30, 58, 138));
+                Resources["StatusDangerBg"] = new SolidColorBrush(Color.FromRgb(127, 29, 29));
+                Resources["StatusNeutralBg"] = new SolidColorBrush(Color.FromRgb(55, 65, 81));
+                Resources["StatusTealBg"] = new SolidColorBrush(Color.FromRgb(19, 78, 74));
+
                 dgKontakty.Background = new SolidColorBrush(Color.FromRgb(30, 41, 59));
                 dgKontakty.RowBackground = new SolidColorBrush(Color.FromRgb(30, 41, 59));
                 dgKontakty.AlternatingRowBackground = new SolidColorBrush(Color.FromRgb(39, 53, 72));
+                dgKontakty.GridLinesVisibility = DataGridGridLinesVisibility.None;
+                dgKontakty.BorderThickness = new Thickness(0);
 
                 // Restore dark DataGrid header style
                 var headerStyleDk = new Style(typeof(DataGridColumnHeader));
@@ -887,23 +1045,24 @@ namespace Kalendarz1.CRM
 
         private void ApplyThemeToTree(DependencyObject root, bool isLight)
         {
-            // Light palette
-            var ltBg = Color.FromRgb(255, 255, 255);
-            var ltBgAlt = Color.FromRgb(248, 249, 252);
-            var ltBgPanel = Color.FromRgb(245, 247, 250);
-            var ltBorder = Color.FromRgb(210, 215, 224);
-            var ltTextPrimary = new SolidColorBrush(Color.FromRgb(30, 30, 30));
-            var ltTextSecondary = new SolidColorBrush(Color.FromRgb(80, 85, 95));
-            var ltTextMuted = new SolidColorBrush(Color.FromRgb(120, 128, 140));
-            var ltAccent = Color.FromRgb(34, 139, 34);
+            // ── Light palette (Tailwind Slate) ──
+            var ltBg = Color.FromRgb(255, 255, 255);        // karty
+            var ltBgPanel = Color.FromRgb(241, 245, 249);   // #F1F5F9 tło paneli
+            var ltBgNested = Color.FromRgb(226, 232, 240);  // #E2E8F0 zagnieżdżone
+            var ltBorder = Color.FromRgb(203, 213, 225);    // #CBD5E1
+            var ltTextPrimary = new SolidColorBrush(Color.FromRgb(15, 23, 42));    // #0F172A
+            var ltTextSecondary = new SolidColorBrush(Color.FromRgb(51, 65, 85));  // #334155
+            var ltTextMuted = new SolidColorBrush(Color.FromRgb(100, 116, 139));   // #64748B
+            var ltAccent = new SolidColorBrush(Color.FromRgb(21, 128, 61));        // #15803D
 
-            // Dark palette (original)
-            var dkBg = Color.FromRgb(30, 41, 59);
-            var dkBgDeep = Color.FromRgb(15, 23, 42);
-            var dkBorder = Color.FromRgb(51, 65, 85);
-            var dkTextPrimary = new SolidColorBrush(Color.FromRgb(226, 232, 240));
-            var dkTextSecondary = new SolidColorBrush(Color.FromRgb(148, 163, 184));
-            var dkTextMuted = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+            // ── Dark palette (original) ──
+            var dkBg = Color.FromRgb(30, 41, 59);           // #1E293B
+            var dkBgDeep = Color.FromRgb(15, 23, 42);       // #0F172A
+            var dkBorder = Color.FromRgb(51, 65, 85);       // #334155
+            var dkTextPrimary = new SolidColorBrush(Color.FromRgb(226, 232, 240));  // #E2E8F0
+            var dkTextSecondary = new SolidColorBrush(Color.FromRgb(148, 163, 184));// #94A3B8
+            var dkTextMuted = new SolidColorBrush(Color.FromRgb(100, 116, 139));    // #64748B
+            var dkAccentLight = new SolidColorBrush(Color.FromRgb(165, 180, 252)); // #A5B4FC
 
             for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
             {
@@ -916,23 +1075,23 @@ namespace Kalendarz1.CRM
                         var c = brush.Color;
                         if (isLight)
                         {
-                            // #E2E8F0 (226,232,240) primary text → dark
+                            // Primary text #E2E8F0 → dark
                             if (c.R == 226 && c.G == 232 && c.B == 240) tb.Foreground = ltTextPrimary;
-                            // #94A3B8 (148,163,184) secondary → medium
+                            // Secondary #94A3B8 → medium
                             else if (c.R == 148 && c.G == 163 && c.B == 184) tb.Foreground = ltTextSecondary;
-                            // #64748B (100,116,139) muted → lighter gray
-                            else if (c.R == 100 && c.G == 116 && c.B == 139) tb.Foreground = ltTextMuted;
-                            // #A5B4FC (165,180,252) accent light → green
-                            else if (c.R == 165 && c.G == 180 && c.B == 252) tb.Foreground = new SolidColorBrush(ltAccent);
-                            // White text
+                            // Muted #64748B → stays (works on both)
+                            // Accent light #A5B4FC → green
+                            else if (c.R == 165 && c.G == 180 && c.B == 252) tb.Foreground = ltAccent;
+                            // Pure white → dark text
                             else if (c.R > 240 && c.G > 240 && c.B > 240 && c.A > 200) tb.Foreground = ltTextPrimary;
+                            // #6366F1 indigo accent → keep in light (still looks good)
                         }
                         else
                         {
-                            if (c.R == 30 && c.G == 30 && c.B == 30) tb.Foreground = dkTextPrimary;
-                            else if (c.R == 80 && c.G == 85 && c.B == 95) tb.Foreground = dkTextSecondary;
-                            else if (c.R == 120 && c.G == 128 && c.B == 140) tb.Foreground = dkTextMuted;
-                            else if (c.R == 34 && c.G == 139 && c.B == 34) tb.Foreground = new SolidColorBrush(Color.FromRgb(165, 180, 252));
+                            // Reverse light → dark
+                            if (c.R == 15 && c.G == 23 && c.B == 42) tb.Foreground = dkTextPrimary;
+                            else if (c.R == 51 && c.G == 65 && c.B == 85) tb.Foreground = dkTextSecondary;
+                            else if (c.R == 21 && c.G == 128 && c.B == 61) tb.Foreground = dkAccentLight;
                         }
                     }
                 }
@@ -943,21 +1102,25 @@ namespace Kalendarz1.CRM
                         var c = bg.Color;
                         if (isLight)
                         {
-                            // #1E293B (30,41,59) → white
+                            // #1E293B → white card
                             if (c.R == 30 && c.G == 41 && c.B == 59) border.Background = new SolidColorBrush(ltBg);
-                            // #0F172A (15,23,42) → light panel
-                            else if (c.R == 15 && c.G == 23 && c.B == 42) border.Background = new SolidColorBrush(ltBgPanel);
-                            // #334155 (51,65,85) → light border bg
-                            else if (c.R == 51 && c.G == 65 && c.B == 85) border.Background = new SolidColorBrush(Color.FromRgb(235, 238, 243));
-                            // #273548 alternating row → light alt
-                            else if (c.R == 39 && c.G == 53 && c.B == 72) border.Background = new SolidColorBrush(ltBgAlt);
+                            // #0F172A → light panel gray
+                            else if (c.R == 15 && c.G == 23 && c.B == 42) border.Background = new SolidColorBrush(ltBgNested);
+                            // #334155 → lighter nested
+                            else if (c.R == 51 && c.G == 65 && c.B == 85) border.Background = new SolidColorBrush(ltBgPanel);
+                            // #475569 → medium panel
+                            else if (c.R == 71 && c.G == 85 && c.B == 105) border.Background = new SolidColorBrush(Color.FromRgb(203, 213, 225));
+                            // #273548 → alt row
+                            else if (c.R == 39 && c.G == 53 && c.B == 72) border.Background = new SolidColorBrush(Color.FromRgb(248, 250, 252));
                         }
                         else
                         {
+                            // Reverse light → dark
                             if (c.R == 255 && c.G == 255 && c.B == 255 && c.A > 200) border.Background = new SolidColorBrush(dkBg);
-                            else if (c.R == 245 && c.G == 247 && c.B == 250) border.Background = new SolidColorBrush(dkBgDeep);
-                            else if (c.R == 235 && c.G == 238 && c.B == 243) border.Background = new SolidColorBrush(dkBorder);
-                            else if (c.R == 248 && c.G == 249 && c.B == 252) border.Background = new SolidColorBrush(Color.FromRgb(39, 53, 72));
+                            else if (c.R == 241 && c.G == 245 && c.B == 249) border.Background = new SolidColorBrush(dkBg);
+                            else if (c.R == 226 && c.G == 232 && c.B == 240) border.Background = new SolidColorBrush(dkBgDeep);
+                            else if (c.R == 248 && c.G == 250 && c.B == 252) border.Background = new SolidColorBrush(Color.FromRgb(39, 53, 72));
+                            else if (c.R == 203 && c.G == 213 && c.B == 225) border.Background = new SolidColorBrush(Color.FromRgb(71, 85, 105));
                         }
                     }
                     if (border.BorderBrush is SolidColorBrush bb)
@@ -965,12 +1128,15 @@ namespace Kalendarz1.CRM
                         var c = bb.Color;
                         if (isLight)
                         {
+                            // Ciemne bordy → jasne szare
                             if (c.R == 51 && c.G == 65 && c.B == 85) border.BorderBrush = new SolidColorBrush(ltBorder);
                             else if (c.R == 71 && c.G == 85 && c.B == 105) border.BorderBrush = new SolidColorBrush(ltBorder);
                         }
                         else
                         {
-                            if (c.R == 210 && c.G == 215 && c.B == 224) border.BorderBrush = new SolidColorBrush(dkBorder);
+                            // Jasne bordy → ciemne
+                            if (c.R == 203 && c.G == 213 && c.B == 225) border.BorderBrush = new SolidColorBrush(dkBorder);
+                            else if (c.R == 226 && c.G == 232 && c.B == 240) border.BorderBrush = new SolidColorBrush(Color.FromRgb(71, 85, 105));
                         }
                     }
                 }
@@ -980,6 +1146,10 @@ namespace Kalendarz1.CRM
                     {
                         if (textBox.Foreground is SolidColorBrush tbBrush && tbBrush.Color.R > 200)
                             textBox.Foreground = ltTextPrimary;
+                        if (textBox.Background is SolidColorBrush txBg && txBg.Color.A == 0)
+                        { /* transparent stays transparent */ }
+                        else if (textBox.Background is SolidColorBrush txBg2 && txBg2.Color.R < 60)
+                            textBox.Background = new SolidColorBrush(ltBg);
                         if (textBox.CaretBrush is SolidColorBrush cb && cb.Color.R > 200)
                             textBox.CaretBrush = ltTextPrimary;
                     }
@@ -987,21 +1157,6 @@ namespace Kalendarz1.CRM
                     {
                         textBox.Foreground = dkTextPrimary;
                         textBox.CaretBrush = dkTextPrimary;
-                    }
-                }
-                else if (child is DataGrid dg)
-                {
-                    if (isLight)
-                    {
-                        dg.Background = new SolidColorBrush(ltBg);
-                        dg.RowBackground = new SolidColorBrush(ltBg);
-                        dg.AlternatingRowBackground = new SolidColorBrush(ltBgAlt);
-                    }
-                    else
-                    {
-                        dg.Background = new SolidColorBrush(dkBg);
-                        dg.RowBackground = new SolidColorBrush(dkBg);
-                        dg.AlternatingRowBackground = new SolidColorBrush(Color.FromRgb(39, 53, 72));
                     }
                 }
 
