@@ -380,6 +380,10 @@ namespace Kalendarz1.CRM
                     this.DragMove();
             };
 
+            // Load and apply saved theme
+            CRMThemeService.Load();
+            ApplyTheme(CRMThemeService.CurrentTheme);
+
             LoadContacts();
             InitializeStatusButtons();
             ShowRandomTip();
@@ -451,6 +455,44 @@ namespace Kalendarz1.CRM
             txtCompanyName.Text = contact.Nazwa ?? "Brak nazwy";
             txtAddress.Text = contact.FullAddress;
             txtNIP.Text = contact.HasNIP ? $"NIP: {contact.NIP}" : "";
+
+            // Update source + tags badges in detail view
+            detailTagsPanel.Children.Clear();
+            // Source badge
+            var sourceBorder = new Border
+            {
+                Background = contact.SourceBackground,
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(8, 3, 8, 3),
+                Margin = new Thickness(0, 0, 6, 0)
+            };
+            sourceBorder.Child = new TextBlock
+            {
+                Text = contact.SourceLabel,
+                FontSize = 10,
+                FontWeight = FontWeights.Bold,
+                Foreground = contact.SourceColor
+            };
+            detailTagsPanel.Children.Add(sourceBorder);
+            // Tag badges
+            foreach (var tag in contact.TagList)
+            {
+                var tagBorder = new Border
+                {
+                    Background = tag.TagBackground,
+                    CornerRadius = new CornerRadius(6),
+                    Padding = new Thickness(8, 3, 8, 3),
+                    Margin = new Thickness(0, 0, 4, 0)
+                };
+                tagBorder.Child = new TextBlock
+                {
+                    Text = tag.Name,
+                    FontSize = 10,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = tag.TagForeground
+                };
+                detailTagsPanel.Children.Add(tagBorder);
+            }
 
             // PKD Section
             if (contact.HasPKD)
@@ -1197,6 +1239,157 @@ namespace Kalendarz1.CRM
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd dodawania notatki: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnToggleTheme_Click(object sender, RoutedEventArgs e)
+        {
+            CRMThemeService.Toggle();
+            ApplyTheme(CRMThemeService.CurrentTheme);
+        }
+
+        private void ApplyTheme(CRMThemeMode theme)
+        {
+            if (theme == CRMThemeMode.Light)
+            {
+                // Light theme: white-green-red with white dominant
+                this.Background = new SolidColorBrush(Color.FromRgb(245, 245, 245));
+
+                mainBorder.Background = new LinearGradientBrush(
+                    Color.FromRgb(250, 250, 250),
+                    Color.FromRgb(240, 240, 240),
+                    45);
+
+                leftPanel.Background = new SolidColorBrush(Color.FromRgb(255, 255, 255));
+                leftPanel.BorderBrush = new SolidColorBrush(Color.FromRgb(220, 220, 220));
+
+                FlowPanel.Background = new SolidColorBrush(Color.FromRgb(252, 252, 252));
+                FlowPanel.BorderBrush = new SolidColorBrush(Color.FromRgb(220, 220, 220));
+
+                btnToggleTheme.Content = "\U0001F319"; // Moon emoji for switch to dark
+
+                // Walk visual tree to recolor text elements
+                ApplyLightThemeToVisualTree(contentGrid);
+            }
+            else
+            {
+                // Dark theme (original)
+                this.Background = new SolidColorBrush(Color.FromRgb(13, 17, 23));
+
+                mainBorder.Background = new LinearGradientBrush(
+                    Color.FromRgb(13, 17, 23),
+                    Color.FromRgb(22, 27, 34),
+                    45);
+
+                leftPanel.Background = new SolidColorBrush(Color.FromArgb(8, 255, 255, 255));
+                leftPanel.BorderBrush = new SolidColorBrush(Color.FromArgb(20, 255, 255, 255));
+
+                FlowPanel.Background = new SolidColorBrush(Color.FromRgb(10, 10, 15));
+                FlowPanel.BorderBrush = new SolidColorBrush(Color.FromRgb(26, 26, 36));
+
+                btnToggleTheme.Content = "\u2600\uFE0F"; // Sun emoji for switch to light
+
+                ApplyDarkThemeToVisualTree(contentGrid);
+            }
+        }
+
+        private void ApplyLightThemeToVisualTree(DependencyObject root)
+        {
+            var darkText = new SolidColorBrush(Color.FromRgb(30, 30, 30));
+            var mediumText = new SolidColorBrush(Color.FromRgb(80, 80, 80));
+            var lightBg = new SolidColorBrush(Color.FromRgb(255, 255, 255));
+            var cardBg = new SolidColorBrush(Color.FromRgb(248, 248, 248));
+            var borderColor = new SolidColorBrush(Color.FromRgb(215, 215, 215));
+
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+            {
+                var child = VisualTreeHelper.GetChild(root, i);
+
+                if (child is TextBlock tb)
+                {
+                    if (tb.Foreground is SolidColorBrush brush)
+                    {
+                        var c = brush.Color;
+                        // White or near-white text -> dark
+                        if (c.R > 200 && c.G > 200 && c.B > 200 && c.A > 150)
+                            tb.Foreground = darkText;
+                        // Semi-transparent white text -> medium gray
+                        else if (c.R > 200 && c.G > 200 && c.B > 200 && c.A > 50)
+                            tb.Foreground = mediumText;
+                    }
+                }
+                else if (child is Border border)
+                {
+                    if (border.Background is SolidColorBrush bg)
+                    {
+                        var c = bg.Color;
+                        // Dark backgrounds (#0d1117, #161b22, etc) -> light
+                        if (c.R < 40 && c.G < 40 && c.B < 40 && c.A > 200)
+                            border.Background = cardBg;
+                        // Semi-transparent white backgrounds -> solid white
+                        else if (c.R == 255 && c.G == 255 && c.B == 255 && c.A < 100)
+                            border.Background = new SolidColorBrush(Color.FromArgb(20, 0, 0, 0));
+                    }
+                    if (border.BorderBrush is SolidColorBrush bb)
+                    {
+                        var c = bb.Color;
+                        if (c.R == 255 && c.G == 255 && c.B == 255 && c.A < 80)
+                            border.BorderBrush = borderColor;
+                    }
+                }
+
+                ApplyLightThemeToVisualTree(child);
+            }
+        }
+
+        private void ApplyDarkThemeToVisualTree(DependencyObject root)
+        {
+            // Re-applying dark theme from scratch is complex.
+            // Simplest: close and reopen the window. But the user wants instant toggle.
+            // For dark theme restoration, we re-initialize the XAML defaults.
+            // Since XAML defaults are dark, the best approach is to reload the window.
+            // However for simplicity we apply reverse logic.
+            var whiteText = new SolidColorBrush(Colors.White);
+            var semiWhite = new SolidColorBrush(Color.FromArgb(179, 255, 255, 255));
+
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+            {
+                var child = VisualTreeHelper.GetChild(root, i);
+
+                if (child is TextBlock tb)
+                {
+                    if (tb.Foreground is SolidColorBrush brush)
+                    {
+                        var c = brush.Color;
+                        // Dark text -> white
+                        if (c.R < 60 && c.G < 60 && c.B < 60 && c.A > 150)
+                            tb.Foreground = whiteText;
+                        // Medium gray text -> semi-white
+                        else if (c.R < 120 && c.G < 120 && c.B < 120 && c.A > 150)
+                            tb.Foreground = semiWhite;
+                    }
+                }
+                else if (child is Border border)
+                {
+                    if (border.Background is SolidColorBrush bg)
+                    {
+                        var c = bg.Color;
+                        // Light backgrounds -> dark
+                        if (c.R > 240 && c.G > 240 && c.B > 240 && c.A > 200)
+                            border.Background = new SolidColorBrush(Color.FromRgb(13, 17, 23));
+                        // Semi-transparent dark -> semi-transparent white
+                        else if (c.A < 100 && c.R == 0 && c.G == 0 && c.B == 0)
+                            border.Background = new SolidColorBrush(Color.FromArgb(8, 255, 255, 255));
+                    }
+                    if (border.BorderBrush is SolidColorBrush bb)
+                    {
+                        var c = bb.Color;
+                        if (c.R > 200 && c.G > 200 && c.B > 200 && c.A > 200)
+                            border.BorderBrush = new SolidColorBrush(Color.FromArgb(20, 255, 255, 255));
+                    }
+                }
+
+                ApplyDarkThemeToVisualTree(child);
             }
         }
 

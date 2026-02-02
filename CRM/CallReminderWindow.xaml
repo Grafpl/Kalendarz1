@@ -48,6 +48,32 @@
                         <!-- Main Content Column -->
                         <StackPanel Grid.Column="1">
 
+                            <!-- Row 0: Source badge + Tags -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <!-- Source badge (IMPORT / RĘCZNY) -->
+                                <Border Background="{Binding SourceBackground}" CornerRadius="4" Padding="6,2" Margin="0,0,6,0">
+                                    <TextBlock Text="{Binding SourceLabel}" FontSize="9" FontWeight="Bold"
+                                               Foreground="{Binding SourceColor}"/>
+                                </Border>
+                                <!-- Tag badges -->
+                                <ItemsControl ItemsSource="{Binding TagList}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{Binding TagBackground}" CornerRadius="4"
+                                                    Padding="6,2" Margin="0,0,4,0">
+                                                <TextBlock Text="{Binding Name}" FontSize="9" FontWeight="SemiBold"
+                                                           Foreground="{Binding TagForeground}"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+
                             <!-- Row 1: Company Name -->
                             <TextBlock Text="{Binding Nazwa}" FontSize="15" FontWeight="SemiBold"
                                        Foreground="White" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
@@ -188,7 +214,7 @@
         </EventTrigger>
     </Window.Triggers>
 
-    <Border BorderThickness="0">
+    <Border x:Name="mainBorder" BorderThickness="0">
         <Border.Background>
             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                 <GradientStop Color="#0d1117" Offset="0"/>
@@ -197,7 +223,7 @@
             </LinearGradientBrush>
         </Border.Background>
 
-        <Grid>
+        <Grid x:Name="contentGrid">
             <!-- Decorative Background Blobs -->
             <Ellipse Width="400" Height="400" HorizontalAlignment="Left" VerticalAlignment="Top"
                      Margin="-100,-100,0,0" Opacity="0.08" IsHitTestVisible="False">
@@ -235,7 +261,7 @@
                 <!-- ============================================ -->
                 <!-- LEFT PANEL - Contact List                    -->
                 <!-- ============================================ -->
-                <Border Grid.Column="0" Background="#08FFFFFF" BorderBrush="#14FFFFFF"
+                <Border x:Name="leftPanel" Grid.Column="0" Background="#08FFFFFF" BorderBrush="#14FFFFFF"
                         BorderThickness="0,0,1,0" CornerRadius="20,0,0,20">
                     <Grid>
                         <Grid.RowDefinitions>
@@ -261,8 +287,13 @@
                                                VerticalAlignment="Center"/>
                                 </StackPanel>
 
-                                <Button Grid.Column="1" Content="🔄" Style="{StaticResource GlassButton}"
-                                        Padding="10,8" Click="BtnRefresh_Click" ToolTip="Odśwież kontakty"/>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                    <Button x:Name="btnToggleTheme" Content="☀️" Style="{StaticResource GlassButton}"
+                                            Padding="10,8" Click="BtnToggleTheme_Click" ToolTip="Przełącz tryb jasny/ciemny"
+                                            Margin="0,0,6,0"/>
+                                    <Button Content="🔄" Style="{StaticResource GlassButton}"
+                                            Padding="10,8" Click="BtnRefresh_Click" ToolTip="Odśwież kontakty"/>
+                                </StackPanel>
                             </Grid>
                         </Border>
 
@@ -345,6 +376,8 @@
                             </Grid.ColumnDefinitions>
 
                             <StackPanel>
+                                <!-- Source + Tags row -->
+                                <StackPanel x:Name="detailTagsPanel" Orientation="Horizontal" Margin="0,0,0,6"/>
                                 <TextBlock x:Name="txtCompanyName" Text="Wybierz kontakt z listy"
                                            FontSize="22" FontWeight="SemiBold" Foreground="White"
                                            TextTrimming="CharacterEllipsis"/>

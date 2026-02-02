@@ -158,7 +158,9 @@ BEGIN
         o.KOD as KodPocztowy,
         o.ULICA as Adres,
         o.Tagi,
-        CASE WHEN @HasPKDFilter = 1 AND o.PKD_Opis IN (SELECT PKDCode FROM #PKD) THEN 'PKD_MATCH' ELSE 'NORMAL' END as Priority
+        CASE WHEN @HasPKDFilter = 1 AND o.PKD_Opis IN (SELECT PKDCode FROM #PKD) THEN 'PKD_MATCH' ELSE 'NORMAL' END as Priority,
+        ISNULL(o.IsFromImport, 0) as IsFromImport,
+        o.ImportedBy
     FROM OdbiorcyCRM o
     LEFT JOIN WlascicieleOdbiorcow w ON o.ID = w.IDOdbiorcy
     WHERE

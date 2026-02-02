@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Media;
@@ -29,6 +30,9 @@ namespace Kalendarz1.CRM.Models
         public DateTime? LastCallDate { get; set; }
         public string AssignedTo { get; set; }
         public double OdlegloscKm { get; set; } // Distance in km
+        public string Tagi { get; set; } // Tags (VIP, Pilne, Premium, etc.)
+        public bool IsFromImport { get; set; } // Was imported (true) or manually added (false)
+        public string ImportedBy { get; set; } // Who imported this contact
 
         // Display helpers
         public bool HasWojewodztwo => !string.IsNullOrWhiteSpace(Wojewodztwo);
@@ -37,6 +41,31 @@ namespace Kalendarz1.CRM.Models
         public bool HasOdleglosc => OdlegloscKm > 0;
         public bool HasCallCount => CallCount > 0;
         public bool HasPhone2OrEmail => HasPhone2 || HasEmail;
+        public bool HasTagi => !string.IsNullOrWhiteSpace(Tagi) && Tagi != "null";
+
+        public string SourceLabel => IsFromImport ? "IMPORT" : "RĘCZNY";
+        public SolidColorBrush SourceColor => IsFromImport
+            ? new SolidColorBrush(Color.FromRgb(88, 166, 255))   // #58a6ff blue
+            : new SolidColorBrush(Color.FromRgb(63, 185, 80));    // #3fb950 green
+        public SolidColorBrush SourceBackground => IsFromImport
+            ? new SolidColorBrush(Color.FromArgb(38, 88, 166, 255))  // blue 15%
+            : new SolidColorBrush(Color.FromArgb(38, 63, 185, 80));   // green 15%
+
+        public List<TagDisplay> TagList
+        {
+            get
+            {
+                var tags = new List<TagDisplay>();
+                if (string.IsNullOrWhiteSpace(Tagi) || Tagi == "null") return tags;
+                foreach (var tag in Tagi.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var clean = tag.Trim();
+                    if (string.IsNullOrEmpty(clean)) continue;
+                    tags.Add(new TagDisplay(clean));
+                }
+                return tags;
+            }
+        }
 
         public string MiastoFull
         {
@@ -246,5 +275,30 @@ namespace Kalendarz1.CRM.Models
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string name = null)
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    }
+
+    public class TagDisplay
+    {
+        private static readonly Dictionary<string, Color> TagColorMap = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["VIP"] = Color.FromRgb(251, 191, 36),       // #FBBF24 gold
+            ["Pilne"] = Color.FromRgb(252, 165, 165),     // #FCA5A5 red
+            ["Premium"] = Color.FromRgb(192, 132, 252),   // #c084fc purple
+            ["Staly klient"] = Color.FromRgb(63, 185, 80),// #3fb950 green
+            ["Nowy import"] = Color.FromRgb(88, 166, 255),// #58a6ff blue
+            ["Do weryfikacji"] = Color.FromRgb(245, 158, 11),// #f59e0b orange
+        };
+
+        public string Name { get; }
+        public SolidColorBrush TagForeground { get; }
+        public SolidColorBrush TagBackground { get; }
+
+        public TagDisplay(string name)
+        {
+            Name = name;
+            var color = TagColorMap.TryGetValue(name, out var c) ? c : Color.FromRgb(148, 163, 184);
+            TagForeground = new SolidColorBrush(color);
+            TagBackground = new SolidColorBrush(Color.FromArgb(38, color.R, color.G, color.B));
+        }
     }
 }

@@ -380,9 +380,13 @@ namespace Kalendarz1.CRM.Services
                 if (columnMap.TryGetValue("Adres", out int colAdres) && !reader.IsDBNull(colAdres))
                     contact.Adres = reader.GetValue(colAdres).ToString();
                 if (columnMap.TryGetValue("Tagi", out int colTagi) && !reader.IsDBNull(colTagi))
-                    contact.Branza = reader.GetValue(colTagi).ToString();
+                    contact.Tagi = reader.GetValue(colTagi).ToString();
                 if (columnMap.TryGetValue("Priority", out int colPrio) && !reader.IsDBNull(colPrio))
                     contact.Priority = reader.GetValue(colPrio).ToString();
+                if (columnMap.TryGetValue("IsFromImport", out int colImport) && !reader.IsDBNull(colImport))
+                    contact.IsFromImport = Convert.ToBoolean(reader.GetValue(colImport));
+                if (columnMap.TryGetValue("ImportedBy", out int colImpBy) && !reader.IsDBNull(colImpBy))
+                    contact.ImportedBy = reader.GetValue(colImpBy).ToString();
 
                 contacts.Add(contact);
             }
@@ -397,7 +401,8 @@ namespace Kalendarz1.CRM.Services
 
             sb.AppendLine("SELECT TOP (@Count) o.ID, o.Nazwa, o.Telefon_K as Telefon, o.MIASTO as Miasto, o.Wojewodztwo,");
             sb.AppendLine("  o.PKD_Opis as PKD, ISNULL(o.Status, 'Do zadzwonienia') as Status, o.Tagi as Branza,");
-            sb.AppendLine("  o.KOD as KodPocztowy, o.ULICA as Adres,");
+            sb.AppendLine("  o.KOD as KodPocztowy, o.ULICA as Adres, o.Tagi,");
+            sb.AppendLine("  ISNULL(o.IsFromImport, 0) as IsFromImport, o.ImportedBy,");
             sb.AppendLine("  (SELECT TOP 1 n.Tresc FROM NotatkiCRM n WHERE n.IDOdbiorcy = o.ID ORDER BY n.DataUtworzenia DESC) as OstatniaNota,");
             sb.AppendLine("  (SELECT TOP 1 n.DataUtworzenia FROM NotatkiCRM n WHERE n.IDOdbiorcy = o.ID ORDER BY n.DataUtworzenia DESC) as DataOstatniejNotatki");
             sb.AppendLine("FROM OdbiorcyCRM o");
