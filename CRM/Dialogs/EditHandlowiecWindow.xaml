@@ -58,13 +58,13 @@
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0" Margin="0,0,6,0">
                                         <TextBlock Text="Godzina 1:" FontSize="10" Foreground="#88FFFFFF" Margin="0,0,0,2"/>
-                                        <ComboBox x:Name="cmbTime1" Width="120" HorizontalAlignment="Left" FontSize="11"
-                                                  IsEditable="True" Style="{StaticResource GlassComboBox}"/>
+                                        <TextBox x:Name="txtTime1" Width="120" HorizontalAlignment="Left" FontSize="12"
+                                                 Style="{StaticResource GlassTextBox}" MaxLength="5"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Margin="0,0,6,0">
                                         <TextBlock Text="Godzina 2:" FontSize="10" Foreground="#88FFFFFF" Margin="0,0,0,2"/>
-                                        <ComboBox x:Name="cmbTime2" Width="120" HorizontalAlignment="Left" FontSize="11"
-                                                  IsEditable="True" Style="{StaticResource GlassComboBox}"/>
+                                        <TextBox x:Name="txtTime2" Width="120" HorizontalAlignment="Left" FontSize="12"
+                                                 Style="{StaticResource GlassTextBox}" MaxLength="5"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="2">
                                         <TextBlock Text="Kontaktow:" FontSize="10" Foreground="#88FFFFFF" Margin="0,0,0,2"/>
