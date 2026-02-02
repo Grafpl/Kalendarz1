@@ -1697,11 +1697,7 @@ namespace Kalendarz1.CRM
             // Update objections
             PopulateObjections();
 
-            // Update flow stats (stats panel removed, keep for compatibility)
-            if (txtStatToday != null) txtStatToday.Text = _callsCount.ToString();
-            int completed = _contacts?.Count(c => c.IsCompleted) ?? 0;
-            int total = _contacts?.Count ?? 0;
-            if (txtStatRate != null) txtStatRate.Text = total > 0 ? $"{(completed * 100 / total)}%" : "0%";
+            // Stats panel removed
         }
 
         private void PopulateObjections()
