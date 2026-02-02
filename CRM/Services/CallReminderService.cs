@@ -277,16 +277,33 @@ namespace Kalendarz1.CRM.Services
                 cmd.Parameters.AddWithValue("@Count", count);
                 cmd.Parameters.AddWithValue("@OnlyNew", _config?.ShowOnlyNewContacts ?? true);
                 cmd.Parameters.AddWithValue("@OnlyAssigned", _config?.ShowOnlyAssigned ?? false);
-
-                // New parameters - pass if available, stored proc uses defaults if missing
-                cmd.Parameters.AddWithValue("@SourcePriority", (object)_config?.SourcePriority ?? "mixed");
-                cmd.Parameters.AddWithValue("@ManualPercent", _config?.ManualContactsPercent ?? 50);
-                cmd.Parameters.AddWithValue("@PKDWeight", _config?.PKDPriorityWeight ?? 70);
-                cmd.Parameters.AddWithValue("@MaxAttempts", _config?.MaxAttemptsPerContact ?? 5);
-                cmd.Parameters.AddWithValue("@CooldownDays", _config?.CooldownDays ?? 3);
                 cmd.Parameters.AddWithValue("@Wojewodztwa", (object)_config?.TerritoryWojewodztwa ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@OnlyMyImports", _config?.OnlyMyImports ?? false);
                 cmd.Parameters.AddWithValue("@ImportedByUser", (object)_userID ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@MaxAttempts", _config?.MaxAttemptsPerContact ?? 5);
+                cmd.Parameters.AddWithValue("@CooldownDays", _config?.CooldownDays ?? 3);
+
+                // PKD priorities - load from DB for this user's config
+                string pkdJson = null;
+                if (_config?.PKDPriorityWeight > 0)
+                {
+                    try
+                    {
+                        using var conn2 = new SqlConnection(_connectionString);
+                        conn2.Open();
+                        var cmdPkd = new SqlCommand(
+                            "SELECT PKDCode FROM CallReminderPKDPriority WHERE ConfigID = @CID ORDER BY SortOrder", conn2);
+                        cmdPkd.Parameters.AddWithValue("@CID", _config.ID);
+                        var pkdCodes = new List<string>();
+                        using var rdr = cmdPkd.ExecuteReader();
+                        while (rdr.Read()) pkdCodes.Add(rdr.GetString(0));
+                        if (pkdCodes.Count > 0)
+                            pkdJson = System.Text.Json.JsonSerializer.Serialize(pkdCodes);
+                    }
+                    catch { }
+                }
+                cmd.Parameters.AddWithValue("@PKDPriorities", (object)pkdJson ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@PKDWeight", _config?.PKDPriorityWeight ?? 70);
 
                 using var reader = cmd.ExecuteReader();
 

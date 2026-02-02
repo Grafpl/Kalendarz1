@@ -106,11 +106,22 @@ namespace Kalendarz1.CRM.Dialogs
                     var cmd = new SqlCommand("GetRandomContactsForReminder", conn);
                     cmd.CommandType = CommandType.StoredProcedure;
                     cmd.CommandTimeout = 30;
-                    // SP accepts: @UserID, @Count, @OnlyNew, @OnlyAssigned
                     cmd.Parameters.AddWithValue("@UserID", _handlowiec.UserID);
                     cmd.Parameters.AddWithValue("@Count", _handlowiec.ContactsPerReminder);
                     cmd.Parameters.AddWithValue("@OnlyNew", _handlowiec.ShowOnlyNewContacts);
                     cmd.Parameters.AddWithValue("@OnlyAssigned", _handlowiec.ShowOnlyAssigned);
+                    cmd.Parameters.AddWithValue("@Wojewodztwa", (object)territoryJson ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@OnlyMyImports", _handlowiec.OnlyMyImports);
+                    cmd.Parameters.AddWithValue("@ImportedByUser", (object)_handlowiec.UserID ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@MaxAttempts", _handlowiec.MaxAttemptsPerContact);
+                    cmd.Parameters.AddWithValue("@CooldownDays", _handlowiec.CooldownDays);
+
+                    // PKD priorities
+                    string pkdJson = null;
+                    if (_handlowiec.PKDPriorityCodes != null && _handlowiec.PKDPriorityCodes.Count > 0)
+                        pkdJson = JsonSerializer.Serialize(_handlowiec.PKDPriorityCodes.ToList());
+                    cmd.Parameters.AddWithValue("@PKDPriorities", (object)pkdJson ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@PKDWeight", _handlowiec.PKDPriorityWeight);
 
                     using var reader = cmd.ExecuteReader();
 

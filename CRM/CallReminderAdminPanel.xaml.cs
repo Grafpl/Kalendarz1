@@ -160,10 +160,117 @@ namespace Kalendarz1.CRM
 
                 var cmd = new SqlCommand(schemaSql, conn);
                 cmd.ExecuteNonQuery();
+
+                // Deploy/update stored procedure
+                DeployStoredProcedure(conn);
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[AdminPanel] Schema ensure error: {ex.Message}");
+            }
+        }
+
+        private void DeployStoredProcedure(SqlConnection conn)
+        {
+            try
+            {
+                // Drop and recreate the SP
+                var dropSql = @"IF EXISTS (SELECT * FROM sys.procedures WHERE name = 'GetRandomContactsForReminder')
+                    DROP PROCEDURE GetRandomContactsForReminder;";
+                new SqlCommand(dropSql, conn).ExecuteNonQuery();
+
+                var createSql = @"
+CREATE PROCEDURE GetRandomContactsForReminder
+    @UserID NVARCHAR(50),
+    @Count INT = 5,
+    @OnlyNew BIT = 1,
+    @OnlyAssigned BIT = 0,
+    @Wojewodztwa NVARCHAR(MAX) = NULL,
+    @OnlyMyImports BIT = 0,
+    @ImportedByUser NVARCHAR(50) = NULL,
+    @MaxAttempts INT = 5,
+    @CooldownDays INT = 3,
+    @PKDPriorities NVARCHAR(MAX) = NULL,
+    @PKDWeight INT = 70
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    CREATE TABLE #Woj (Woj NVARCHAR(100));
+    IF @Wojewodztwa IS NOT NULL AND @Wojewodztwa <> '' AND @Wojewodztwa <> 'NULL'
+    BEGIN
+        BEGIN TRY
+            INSERT INTO #Woj (Woj)
+            SELECT LTRIM(RTRIM(REPLACE(REPLACE(value, '""', ''), '''', '')))
+            FROM STRING_SPLIT(REPLACE(REPLACE(@Wojewodztwa, '[', ''), ']', ''), ',')
+            WHERE LEN(LTRIM(RTRIM(REPLACE(REPLACE(value, '""', ''), '''', '')))) > 0;
+        END TRY
+        BEGIN CATCH
+        END CATCH
+    END
+
+    CREATE TABLE #PKD (PKDCode NVARCHAR(20));
+    IF @PKDPriorities IS NOT NULL AND @PKDPriorities <> '' AND @PKDPriorities <> 'NULL'
+    BEGIN
+        BEGIN TRY
+            INSERT INTO #PKD (PKDCode)
+            SELECT LTRIM(RTRIM(REPLACE(REPLACE(value, '""', ''), '''', '')))
+            FROM STRING_SPLIT(REPLACE(REPLACE(@PKDPriorities, '[', ''), ']', ''), ',')
+            WHERE LEN(LTRIM(RTRIM(REPLACE(REPLACE(value, '""', ''), '''', '')))) > 0;
+        END TRY
+        BEGIN CATCH
+        END CATCH
+    END
+
+    DECLARE @HasWojFilter BIT = CASE WHEN EXISTS (SELECT 1 FROM #Woj) THEN 1 ELSE 0 END;
+    DECLARE @HasPKDFilter BIT = CASE WHEN EXISTS (SELECT 1 FROM #PKD) THEN 1 ELSE 0 END;
+
+    SELECT TOP (@Count)
+        o.ID,
+        o.Nazwa,
+        o.Telefon_K as Telefon,
+        o.Email,
+        o.MIASTO,
+        o.Wojewodztwo,
+        ISNULL(o.Status, 'Do zadzwonienia') as Status,
+        o.PKD_Opis as Branza,
+        (SELECT TOP 1 n.Tresc FROM NotatkiCRM n WHERE n.IDOdbiorcy = o.ID ORDER BY n.DataUtworzenia DESC) as OstatniaNota,
+        (SELECT TOP 1 n.DataUtworzenia FROM NotatkiCRM n WHERE n.IDOdbiorcy = o.ID ORDER BY n.DataUtworzenia DESC) as DataOstatniejNotatki,
+        o.PKD_Opis as PKD,
+        CASE WHEN @HasPKDFilter = 1 AND o.PKD_Opis IN (SELECT PKDCode FROM #PKD) THEN 'PKD_MATCH' ELSE 'NORMAL' END as Priority
+    FROM OdbiorcyCRM o
+    LEFT JOIN WlascicieleOdbiorcow w ON o.ID = w.IDOdbiorcy
+    WHERE
+        (@OnlyNew = 0 OR ISNULL(o.Status, 'Do zadzwonienia') = 'Do zadzwonienia')
+        AND (@OnlyAssigned = 0 OR w.OperatorID = @UserID)
+        AND (@HasWojFilter = 0 OR o.Wojewodztwo IN (SELECT Woj FROM #Woj))
+        AND (@OnlyMyImports = 0 OR (
+            COL_LENGTH('OdbiorcyCRM', 'ImportedBy') IS NOT NULL
+            AND o.ImportedBy = @ImportedByUser
+        ))
+        AND o.ID NOT IN (
+            SELECT crc.ContactID
+            FROM CallReminderContacts crc
+            INNER JOIN CallReminderLog crl ON crc.ReminderLogID = crl.ID
+            WHERE crl.UserID = @UserID
+              AND CAST(crl.ReminderTime AS DATE) = CAST(GETDATE() AS DATE)
+        )
+        AND ISNULL(o.Status, '') NOT IN ('Poprosil o usuniecie', 'Bledny rekord (do raportu)')
+        AND o.Telefon_K IS NOT NULL AND o.Telefon_K <> ''
+    ORDER BY
+        CASE WHEN @HasPKDFilter = 1 AND o.PKD_Opis IN (SELECT PKDCode FROM #PKD) THEN 0 ELSE 1 END,
+        NEWID();
+
+    DROP TABLE #Woj;
+    DROP TABLE #PKD;
+END";
+
+                new SqlCommand(createSql, conn).ExecuteNonQuery();
+                System.Diagnostics.Debug.WriteLine("[AdminPanel] Stored procedure deployed successfully");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AdminPanel] SP deploy error: {ex.Message}");
             }
         }
 

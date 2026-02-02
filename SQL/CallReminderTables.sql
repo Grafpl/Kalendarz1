@@ -77,12 +77,49 @@ CREATE PROCEDURE GetRandomContactsForReminder
     @UserID NVARCHAR(50),
     @Count INT = 5,
     @OnlyNew BIT = 1,
-    @OnlyAssigned BIT = 0
+    @OnlyAssigned BIT = 0,
+    @Wojewodztwa NVARCHAR(MAX) = NULL,       -- JSON array: ["łódzkie","mazowieckie"]
+    @OnlyMyImports BIT = 0,
+    @ImportedByUser NVARCHAR(50) = NULL,
+    @MaxAttempts INT = 5,
+    @CooldownDays INT = 3,
+    @PKDPriorities NVARCHAR(MAX) = NULL,     -- JSON array: ["10.11","10.12"]
+    @PKDWeight INT = 70
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- Pobierz kontakty które nie były pokazane dzisiaj
+    -- Parse województwa JSON into temp table
+    CREATE TABLE #Woj (Woj NVARCHAR(100));
+    IF @Wojewodztwa IS NOT NULL AND @Wojewodztwa <> '' AND @Wojewodztwa <> 'NULL'
+    BEGIN
+        BEGIN TRY
+            INSERT INTO #Woj (Woj)
+            SELECT LTRIM(RTRIM(REPLACE(REPLACE(value, '"', ''), '''', '')))
+            FROM STRING_SPLIT(REPLACE(REPLACE(@Wojewodztwa, '[', ''), ']', ''), ',')
+            WHERE LEN(LTRIM(RTRIM(REPLACE(REPLACE(value, '"', ''), '''', '')))) > 0;
+        END TRY
+        BEGIN CATCH
+        END CATCH
+    END
+
+    -- Parse PKD priorities into temp table
+    CREATE TABLE #PKD (PKDCode NVARCHAR(20));
+    IF @PKDPriorities IS NOT NULL AND @PKDPriorities <> '' AND @PKDPriorities <> 'NULL'
+    BEGIN
+        BEGIN TRY
+            INSERT INTO #PKD (PKDCode)
+            SELECT LTRIM(RTRIM(REPLACE(REPLACE(value, '"', ''), '''', '')))
+            FROM STRING_SPLIT(REPLACE(REPLACE(@PKDPriorities, '[', ''), ']', ''), ',')
+            WHERE LEN(LTRIM(RTRIM(REPLACE(REPLACE(value, '"', ''), '''', '')))) > 0;
+        END TRY
+        BEGIN CATCH
+        END CATCH
+    END
+
+    DECLARE @HasWojFilter BIT = CASE WHEN EXISTS (SELECT 1 FROM #Woj) THEN 1 ELSE 0 END;
+    DECLARE @HasPKDFilter BIT = CASE WHEN EXISTS (SELECT 1 FROM #PKD) THEN 1 ELSE 0 END;
+
     SELECT TOP (@Count)
         o.ID,
         o.Nazwa,
@@ -93,7 +130,9 @@ BEGIN
         ISNULL(o.Status, 'Do zadzwonienia') as Status,
         o.PKD_Opis as Branza,
         (SELECT TOP 1 n.Tresc FROM NotatkiCRM n WHERE n.IDOdbiorcy = o.ID ORDER BY n.DataUtworzenia DESC) as OstatniaNota,
-        (SELECT TOP 1 n.DataUtworzenia FROM NotatkiCRM n WHERE n.IDOdbiorcy = o.ID ORDER BY n.DataUtworzenia DESC) as DataOstatniejNotatki
+        (SELECT TOP 1 n.DataUtworzenia FROM NotatkiCRM n WHERE n.IDOdbiorcy = o.ID ORDER BY n.DataUtworzenia DESC) as DataOstatniejNotatki,
+        o.PKD_Opis as PKD,
+        CASE WHEN @HasPKDFilter = 1 AND o.PKD_Opis IN (SELECT PKDCode FROM #PKD) THEN 'PKD_MATCH' ELSE 'NORMAL' END as Priority
     FROM OdbiorcyCRM o
     LEFT JOIN WlascicieleOdbiorcow w ON o.ID = w.IDOdbiorcy
     WHERE
@@ -101,6 +140,13 @@ BEGIN
         (@OnlyNew = 0 OR ISNULL(o.Status, 'Do zadzwonienia') = 'Do zadzwonienia')
         -- Filtr przypisania
         AND (@OnlyAssigned = 0 OR w.OperatorID = @UserID)
+        -- Filtr województw
+        AND (@HasWojFilter = 0 OR o.Wojewodztwo IN (SELECT Woj FROM #Woj))
+        -- Filtr tylko moje importy
+        AND (@OnlyMyImports = 0 OR (
+            COL_LENGTH('OdbiorcyCRM', 'ImportedBy') IS NOT NULL
+            AND o.ImportedBy = @ImportedByUser
+        ))
         -- Wyklucz już obsłużone dziś
         AND o.ID NOT IN (
             SELECT crc.ContactID
@@ -113,7 +159,13 @@ BEGIN
         AND ISNULL(o.Status, '') NOT IN ('Poprosił o usunięcie', 'Błędny rekord (do raportu)')
         -- Musi mieć telefon
         AND o.Telefon_K IS NOT NULL AND o.Telefon_K <> ''
-    ORDER BY NEWID(); -- Losowe sortowanie
+    ORDER BY
+        -- PKD priorytet: kontakty z pasującym PKD najpierw
+        CASE WHEN @HasPKDFilter = 1 AND o.PKD_Opis IN (SELECT PKDCode FROM #PKD) THEN 0 ELSE 1 END,
+        NEWID(); -- Losowe sortowanie w ramach grupy
+
+    DROP TABLE #Woj;
+    DROP TABLE #PKD;
 END
 GO
 
