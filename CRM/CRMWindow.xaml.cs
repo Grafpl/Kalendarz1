@@ -162,6 +162,91 @@ namespace Kalendarz1.CRM
             }
         }
 
+        private void LoadRankingAvatars()
+        {
+            try
+            {
+                if (listaRanking == null || listaRanking.Items.Count == 0) return;
+
+                for (int i = 0; i < listaRanking.Items.Count; i++)
+                {
+                    var container = listaRanking.ItemContainerGenerator.ContainerFromIndex(i) as FrameworkElement;
+                    if (container == null) continue;
+
+                    var img = FindVisualChild<System.Windows.Controls.Image>(container);
+                    if (img == null || img.Source != null) continue;
+
+                    if (listaRanking.Items[i] is DataRowView drv)
+                    {
+                        string operatorName = drv["Operator"]?.ToString();
+                        string operatorId = drv["OperatorID"]?.ToString();
+                        if (string.IsNullOrWhiteSpace(operatorName)) continue;
+
+                        BitmapSource avatar = null;
+                        try
+                        {
+                            string userId = !string.IsNullOrEmpty(operatorId) ? operatorId : operatorName;
+                            System.Drawing.Image avatarImg = null;
+                            if (UserAvatarManager.HasAvatar(userId))
+                                avatarImg = UserAvatarManager.GetAvatarRounded(userId, 30);
+                            if (avatarImg == null)
+                                avatarImg = UserAvatarManager.GenerateDefaultAvatar(operatorName, userId, 30);
+
+                            if (avatarImg != null)
+                            {
+                                using (avatarImg)
+                                using (var bmp = new System.Drawing.Bitmap(avatarImg))
+                                {
+                                    var hBitmap = bmp.GetHbitmap();
+                                    try
+                                    {
+                                        avatar = System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
+                                            hBitmap, IntPtr.Zero, Int32Rect.Empty,
+                                            BitmapSizeOptions.FromEmptyOptions());
+                                        avatar.Freeze();
+                                    }
+                                    finally { DeleteObject(hBitmap); }
+                                }
+                            }
+                        }
+                        catch { }
+
+                        if (avatar != null)
+                            img.Source = avatar;
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private void LoadNotatkiAvatars()
+        {
+            try
+            {
+                if (listaNotatek == null || listaNotatek.Items.Count == 0) return;
+
+                for (int i = 0; i < listaNotatek.Items.Count; i++)
+                {
+                    var container = listaNotatek.ItemContainerGenerator.ContainerFromIndex(i) as FrameworkElement;
+                    if (container == null) continue;
+
+                    var img = FindVisualChild<System.Windows.Controls.Image>(container);
+                    if (img == null || img.Source != null) continue;
+
+                    if (listaNotatek.Items[i] is NotatkaCRM notatka)
+                    {
+                        string operatorName = notatka.Operator;
+                        if (string.IsNullOrWhiteSpace(operatorName)) continue;
+
+                        var avatar = GetHandlowiecAvatar(operatorName);
+                        if (avatar != null)
+                            img.Source = avatar;
+                    }
+                }
+            }
+            catch { }
+        }
+
         private static T FindVisualChild<T>(DependencyObject obj) where T : DependencyObject
         {
             for (int i = 0; i < VisualTreeHelper.GetChildrenCount(obj); i++)
@@ -361,6 +446,7 @@ namespace Kalendarz1.CRM
                     var cmd = new SqlCommand($@"
                         SELECT TOP 10 ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) as Pozycja,
                             ISNULL(o.Name, 'ID: ' + h.KtoWykonal) as Operator,
+                            h.KtoWykonal as OperatorID,
                             COUNT(*) as Suma,
                             SUM(CASE WHEN WartoscNowa = 'Próba kontaktu' THEN 1 ELSE 0 END) as Proby,
                             SUM(CASE WHEN WartoscNowa = 'Nawiązano kontakt' THEN 1 ELSE 0 END) as Nawiazano,
@@ -374,7 +460,12 @@ namespace Kalendarz1.CRM
                     var adapter = new SqlDataAdapter(cmd);
                     var dt = new DataTable();
                     adapter.Fill(dt);
-                    if (listaRanking != null) listaRanking.ItemsSource = dt.DefaultView;
+                    if (listaRanking != null)
+                    {
+                        listaRanking.ItemsSource = dt.DefaultView;
+                        // Load avatars into ranking items after layout
+                        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(() => LoadRankingAvatars()));
+                    }
 
                     // Aktualizuj tytuł
                     if (txtRankingTytul != null)
@@ -486,6 +577,8 @@ namespace Kalendarz1.CRM
                     CzyNotatka = Convert.ToBoolean(r["CzyNotatka"])
                 });
                 listaNotatek.ItemsSource = list;
+                // Load avatars after layout
+                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(() => LoadNotatkiAvatars()));
             }
         }
 

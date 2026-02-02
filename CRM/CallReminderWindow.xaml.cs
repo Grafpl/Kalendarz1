@@ -388,6 +388,7 @@ namespace Kalendarz1.CRM
 
             LoadContacts();
             LoadWeeklyRanking();
+            LoadCRMActivityRanking();
             InitializeStatusButtons();
             ShowRandomTip();
             UpdateFlowPanel();
@@ -662,6 +663,190 @@ namespace Kalendarz1.CRM
             catch (Exception ex)
             {
                 Debug.WriteLine($"LoadWeeklyRanking error: {ex.Message}");
+            }
+        }
+
+        private void LoadCRMActivityRanking()
+        {
+            try
+            {
+                if (crmRankingPanel == null) return;
+                crmRankingPanel.Children.Clear();
+
+                var rankings = new List<(string UserID, string Name, int Suma, int Proby, int Nawiazano, int Zgoda, int Oferty)>();
+
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+                    var cmd = new SqlCommand(@"
+                        SELECT TOP 5
+                            h.KtoWykonal as UserID,
+                            ISNULL(o.Name, 'ID: ' + h.KtoWykonal) as Name,
+                            COUNT(*) as Suma,
+                            SUM(CASE WHEN WartoscNowa = 'Próba kontaktu' THEN 1 ELSE 0 END) as Proby,
+                            SUM(CASE WHEN WartoscNowa = 'Nawiązano kontakt' THEN 1 ELSE 0 END) as Nawiazano,
+                            SUM(CASE WHEN WartoscNowa = 'Zgoda na dalszy kontakt' THEN 1 ELSE 0 END) as Zgoda,
+                            SUM(CASE WHEN WartoscNowa = 'Do wysłania oferta' THEN 1 ELSE 0 END) as Oferty
+                        FROM HistoriaZmianCRM h
+                        LEFT JOIN operators o ON h.KtoWykonal = CAST(o.ID AS NVARCHAR)
+                        WHERE h.DataZmiany > DATEADD(day, -30, GETDATE())
+                          AND h.TypZmiany = 'Zmiana statusu'
+                          AND h.WartoscNowa <> 'Do zadzwonienia'
+                        GROUP BY h.KtoWykonal, o.Name
+                        ORDER BY Suma DESC", conn);
+
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            rankings.Add((
+                                reader["UserID"].ToString(),
+                                reader["Name"].ToString(),
+                                Convert.ToInt32(reader["Suma"]),
+                                Convert.ToInt32(reader["Proby"]),
+                                Convert.ToInt32(reader["Nawiazano"]),
+                                Convert.ToInt32(reader["Zgoda"]),
+                                Convert.ToInt32(reader["Oferty"])
+                            ));
+                        }
+                    }
+                }
+
+                if (rankings.Count == 0) return;
+
+                for (int i = 0; i < rankings.Count; i++)
+                {
+                    var r = rankings[i];
+                    bool isCurrentUser = r.UserID == _userID;
+
+                    var row = new Border
+                    {
+                        Background = isCurrentUser
+                            ? new SolidColorBrush(Color.FromArgb(20, 99, 102, 241))
+                            : Brushes.Transparent,
+                        CornerRadius = new CornerRadius(8),
+                        Padding = new Thickness(8, 5, 8, 5),
+                        Margin = new Thickness(0, 0, 0, 2)
+                    };
+
+                    var grid = new Grid();
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(22) });
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                    // Position
+                    string posText = i switch { 0 => "\U0001F947", 1 => "\U0001F948", 2 => "\U0001F949", _ => $"{i + 1}." };
+                    var txtPos = new TextBlock
+                    {
+                        Text = posText,
+                        FontSize = i < 3 ? 14 : 11,
+                        Foreground = i < 3 ? Brushes.White : new SolidColorBrush(Color.FromRgb(102, 102, 102)),
+                        VerticalAlignment = VerticalAlignment.Center,
+                        HorizontalAlignment = HorizontalAlignment.Center
+                    };
+                    Grid.SetColumn(txtPos, 0);
+                    grid.Children.Add(txtPos);
+
+                    // Avatar
+                    var avatarBorder = new Border
+                    {
+                        Width = 26, Height = 26,
+                        CornerRadius = new CornerRadius(13),
+                        ClipToBounds = true,
+                        Margin = new Thickness(2, 0, 0, 0),
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+
+                    BitmapSource avatarSource = null;
+                    try
+                    {
+                        if (UserAvatarManager.HasAvatar(r.UserID))
+                        {
+                            using var img = UserAvatarManager.GetAvatarRounded(r.UserID, 26);
+                            if (img != null) avatarSource = ConvertToBitmapSource(img);
+                        }
+                        if (avatarSource == null)
+                        {
+                            using var img = UserAvatarManager.GenerateDefaultAvatar(r.Name, r.UserID, 26);
+                            avatarSource = ConvertToBitmapSource(img);
+                        }
+                    }
+                    catch { }
+
+                    if (avatarSource != null)
+                    {
+                        avatarBorder.Child = new System.Windows.Controls.Image
+                        {
+                            Source = avatarSource,
+                            Stretch = Stretch.UniformToFill
+                        };
+                    }
+                    Grid.SetColumn(avatarBorder, 1);
+                    grid.Children.Add(avatarBorder);
+
+                    // Name + mini stats
+                    var namePanel = new StackPanel
+                    {
+                        Margin = new Thickness(6, 0, 8, 0),
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+
+                    string displayName = r.Name.Length > 14 ? r.Name.Substring(0, 12) + ".." : r.Name;
+                    var txtName = new TextBlock
+                    {
+                        Text = displayName,
+                        FontSize = 11,
+                        FontWeight = isCurrentUser ? FontWeights.Bold : FontWeights.Normal,
+                        Foreground = isCurrentUser
+                            ? new SolidColorBrush(Color.FromRgb(165, 180, 252))
+                            : new SolidColorBrush(Color.FromRgb(200, 200, 200))
+                    };
+                    namePanel.Children.Add(txtName);
+
+                    // Mini status badges
+                    var badgePanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 0) };
+                    void AddMiniStat(string emoji, int count, string color)
+                    {
+                        if (count <= 0) return;
+                        var tb = new TextBlock
+                        {
+                            FontSize = 9,
+                            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color)),
+                            Margin = new Thickness(0, 0, 6, 0)
+                        };
+                        tb.Inlines.Add(new System.Windows.Documents.Run(emoji + count));
+                        badgePanel.Children.Add(tb);
+                    }
+                    AddMiniStat("⏳", r.Proby, "#FCD34D");
+                    AddMiniStat("✅", r.Nawiazano, "#4ADE80");
+                    AddMiniStat("🤝", r.Zgoda, "#2DD4BF");
+                    AddMiniStat("📄", r.Oferty, "#60A5FA");
+                    namePanel.Children.Add(badgePanel);
+
+                    Grid.SetColumn(namePanel, 2);
+                    grid.Children.Add(namePanel);
+
+                    // Total
+                    var txtSuma = new TextBlock
+                    {
+                        Text = r.Suma.ToString(),
+                        FontSize = 16,
+                        FontWeight = FontWeights.Bold,
+                        Foreground = new SolidColorBrush(Color.FromRgb(99, 102, 241)),
+                        VerticalAlignment = VerticalAlignment.Center,
+                        HorizontalAlignment = HorizontalAlignment.Right
+                    };
+                    Grid.SetColumn(txtSuma, 3);
+                    grid.Children.Add(txtSuma);
+
+                    row.Child = grid;
+                    crmRankingPanel.Children.Add(row);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"LoadCRMActivityRanking error: {ex.Message}");
             }
         }
 

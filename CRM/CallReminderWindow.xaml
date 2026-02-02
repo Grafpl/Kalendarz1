@@ -324,19 +324,32 @@
                             </ItemsControl>
                         </ScrollViewer>
 
-                        <!-- Mini Ranking -->
+                        <!-- Mini Ranking - Tygodniowy -->
                         <Border Grid.Row="3" Background="#08FFFFFF" Padding="12,10" BorderBrush="#14FFFFFF"
                                 BorderThickness="0,1,0,0">
-                            <StackPanel>
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                    <TextBlock Text="🏆" FontSize="13" VerticalAlignment="Center"/>
-                                    <TextBlock Text="Ranking tygodnia" FontSize="11" FontWeight="SemiBold"
-                                               Foreground="#99FFFFFF" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="300">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                        <TextBlock Text="🏆" FontSize="13" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Ranking tygodnia" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="#99FFFFFF" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <StackPanel x:Name="rankingPanel">
+                                        <!-- Filled dynamically -->
+                                    </StackPanel>
+
+                                    <!-- CRM Activity Ranking -->
+                                    <Border Height="1" Background="#14FFFFFF" Margin="0,10,0,10"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                        <TextBlock Text="📊" FontSize="13" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Ranking aktywności CRM" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="#99FFFFFF" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <StackPanel x:Name="crmRankingPanel">
+                                        <!-- Filled dynamically -->
+                                    </StackPanel>
                                 </StackPanel>
-                                <StackPanel x:Name="rankingPanel">
-                                    <!-- Filled dynamically -->
-                                </StackPanel>
-                            </StackPanel>
+                            </ScrollViewer>
                         </Border>
 
                         <!-- Progress Footer -->
