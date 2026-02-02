@@ -460,13 +460,14 @@ namespace Kalendarz1.CRM
                     conn.Open();
 
                     // Get all active handlowcy with their weekly calls and targets
+                    // DATEADD z (DATEPART + @@DATEFIRST) daje poniedziałek niezależnie od ustawień serwera
                     var cmd = new SqlCommand(@"
                         SELECT c.UserID,
                                ISNULL(op.Name, c.UserID) as Name,
                                ISNULL((SELECT SUM(ContactsCalled) FROM CallReminderLog
                                         WHERE UserID = c.UserID
                                         AND ReminderTime >= DATEADD(DAY,
-                                            -DATEPART(WEEKDAY, GETDATE()) + 2,
+                                            -((DATEPART(WEEKDAY, GETDATE()) + @@DATEFIRST - 2) % 7),
                                             CAST(CAST(GETDATE() AS DATE) AS DATETIME))
                                        ), 0) as WeekCalls,
                                c.WeeklyCallTarget

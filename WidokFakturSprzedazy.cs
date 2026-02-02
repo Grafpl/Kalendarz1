@@ -167,66 +167,79 @@ namespace Kalendarz1
             
         }
 
+        private PictureBox _avatarPicture;
+
         private void DodajAvatarUzytkownika(string displayName)
         {
             try
             {
                 var avatarPanel = new Panel
                 {
-                    Height = 40,
-                    Width = 220,
+                    Height = 44,
+                    AutoSize = false,
                     BackColor = Color.Transparent,
                     Anchor = AnchorStyles.Top | AnchorStyles.Right,
                 };
-                avatarPanel.Location = new Point(panelFilters.Width - avatarPanel.Width - 10, 5);
 
-                var picAvatar = new PictureBox
+                // Avatar okrągły z ramką
+                _avatarPicture = new PictureBox
                 {
-                    Size = new Size(36, 36),
-                    Location = new Point(0, 2),
+                    Size = new Size(38, 38),
+                    Location = new Point(0, 3),
                     SizeMode = PictureBoxSizeMode.StretchImage,
                     BackColor = Color.Transparent
                 };
 
-                // Avatar - rounded z UserAvatarManager
-                Image avatar = UserAvatarManager.GetAvatarRounded(UserID, 36);
+                Image avatar = UserAvatarManager.GetAvatarRounded(UserID, 38);
                 if (avatar == null)
-                    avatar = UserAvatarManager.GenerateDefaultAvatar(displayName, UserID, 36);
-                picAvatar.Image = avatar;
+                    avatar = UserAvatarManager.GenerateDefaultAvatar(displayName, UserID, 38);
+                _avatarPicture.Image = avatar;
 
                 var lblName = new Label
                 {
                     Text = displayName,
-                    Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
                     ForeColor = ColorTranslator.FromHtml("#2c3e50"),
                     AutoSize = true,
-                    Location = new Point(42, 4),
-                    BackColor = Color.Transparent
+                    Location = new Point(44, 4),
+                    BackColor = Color.Transparent,
+                    MaximumSize = new Size(160, 0)
                 };
 
                 var lblRole = new Label
                 {
-                    Text = UserID == "11111" ? "Admin" : $"ID: {UserID}",
+                    Text = UserID == "11111" ? "Administrator" : $"ID: {UserID}",
                     Font = new Font("Segoe UI", 7.5f),
-                    ForeColor = ColorTranslator.FromHtml("#7f8c8d"),
+                    ForeColor = ColorTranslator.FromHtml("#95a5a6"),
                     AutoSize = true,
-                    Location = new Point(42, 22),
+                    Location = new Point(44, 22),
                     BackColor = Color.Transparent
                 };
 
-                avatarPanel.Controls.Add(picAvatar);
+                // Oblicz szerokość panelu na podstawie tekstu
+                int textWidth = Math.Max(
+                    TextRenderer.MeasureText(lblName.Text, lblName.Font).Width,
+                    TextRenderer.MeasureText(lblRole.Text, lblRole.Font).Width);
+                avatarPanel.Width = 44 + Math.Min(textWidth + 10, 170);
+
+                avatarPanel.Controls.Add(_avatarPicture);
                 avatarPanel.Controls.Add(lblName);
                 avatarPanel.Controls.Add(lblRole);
                 panelFilters.Controls.Add(avatarPanel);
                 avatarPanel.BringToFront();
 
-                // Responsywność - przesuwaj panel przy resize
-                panelFilters.Resize += (s, e) =>
+                // Pozycjonowanie po prawej stronie
+                void UpdatePosition()
                 {
-                    avatarPanel.Location = new Point(panelFilters.Width - avatarPanel.Width - 10, 5);
-                };
+                    avatarPanel.Location = new Point(panelFilters.Width - avatarPanel.Width - 14, 3);
+                }
+                UpdatePosition();
+                panelFilters.Resize += (s, e) => UpdatePosition();
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"DodajAvatarUzytkownika error: {ex.Message}");
+            }
         }
 
         private string PobierzNazweUzytkownika(string userId)

@@ -291,50 +291,74 @@ namespace Kalendarz1
             {
                 string displayName = App.UserFullName ?? UserID;
 
-                var picAvatar = new PictureBox
+                // Kontener na avatar + tekst - trzyma elementy razem
+                var avatarContainer = new Panel
                 {
-                    Size = new Size(32, 32),
-                    SizeMode = PictureBoxSizeMode.StretchImage,
+                    Height = 40,
                     BackColor = Color.Transparent,
                     Anchor = AnchorStyles.Top | AnchorStyles.Right
                 };
-                picAvatar.Location = new Point(panelOdbiorca.Width - 180, 6);
 
-                Image avatar = UserAvatarManager.GetAvatarRounded(UserID, 32);
+                var picAvatar = new PictureBox
+                {
+                    Size = new Size(34, 34),
+                    Location = new Point(0, 3),
+                    SizeMode = PictureBoxSizeMode.StretchImage,
+                    BackColor = Color.Transparent
+                };
+
+                Image avatar = UserAvatarManager.GetAvatarRounded(UserID, 34);
                 if (avatar == null)
-                    avatar = UserAvatarManager.GenerateDefaultAvatar(displayName, UserID, 32);
+                    avatar = UserAvatarManager.GenerateDefaultAvatar(displayName, UserID, 34);
                 picAvatar.Image = avatar;
 
                 var lblUser = new Label
                 {
                     Text = displayName,
-                    Font = new Font("Segoe UI", 9f, FontStyle.Bold),
+                    Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(44, 62, 80),
                     AutoSize = true,
+                    Location = new Point(38, 3),
                     BackColor = Color.Transparent,
-                    Anchor = AnchorStyles.Top | AnchorStyles.Right
+                    MaximumSize = new Size(120, 0)
                 };
-                lblUser.Location = new Point(panelOdbiorca.Width - 145, 8);
 
                 var lblId = new Label
                 {
                     Text = $"ID: {UserID}",
-                    Font = new Font("Segoe UI", 7.5f),
-                    ForeColor = Color.FromArgb(127, 140, 141),
+                    Font = new Font("Segoe UI", 7f),
+                    ForeColor = Color.FromArgb(149, 165, 166),
                     AutoSize = true,
-                    BackColor = Color.Transparent,
-                    Anchor = AnchorStyles.Top | AnchorStyles.Right
+                    Location = new Point(38, 21),
+                    BackColor = Color.Transparent
                 };
-                lblId.Location = new Point(panelOdbiorca.Width - 145, 26);
 
-                panelOdbiorca.Controls.Add(picAvatar);
-                panelOdbiorca.Controls.Add(lblUser);
-                panelOdbiorca.Controls.Add(lblId);
-                picAvatar.BringToFront();
-                lblUser.BringToFront();
-                lblId.BringToFront();
+                // Oblicz szerokość kontenera
+                int textWidth = Math.Max(
+                    TextRenderer.MeasureText(lblUser.Text, lblUser.Font).Width,
+                    TextRenderer.MeasureText(lblId.Text, lblId.Font).Width);
+                avatarContainer.Width = 38 + Math.Min(textWidth + 8, 130);
+
+                avatarContainer.Controls.Add(picAvatar);
+                avatarContainer.Controls.Add(lblUser);
+                avatarContainer.Controls.Add(lblId);
+
+                panelOdbiorca.Controls.Add(avatarContainer);
+                avatarContainer.BringToFront();
+
+                // Pozycjonowanie w prawym górnym rogu panelu
+                void UpdateAvatarPosition()
+                {
+                    avatarContainer.Location = new Point(
+                        panelOdbiorca.Width - avatarContainer.Width - 10, 15);
+                }
+                UpdateAvatarPosition();
+                panelOdbiorca.Resize += (s, e) => UpdateAvatarPosition();
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"DodajAvatarUzytkownika error: {ex.Message}");
+            }
         }
 
         private void CreateCompactRadioPanel()

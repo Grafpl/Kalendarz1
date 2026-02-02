@@ -452,7 +452,29 @@ namespace Kalendarz1
                     {
                         if (img != null)
                         {
-                            var bitmap = new System.Drawing.Bitmap(img);
+                            using (var bitmap = new System.Drawing.Bitmap(img))
+                            {
+                                var hBitmap = bitmap.GetHbitmap();
+                                try
+                                {
+                                    var bitmapSource = System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
+                                        hBitmap, IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+                                    UserAvatarBrush.ImageSource = bitmapSource;
+                                }
+                                finally
+                                {
+                                    DeleteObject(hBitmap);
+                                }
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    using (var img = UserAvatarManager.GenerateDefaultAvatar(App.UserFullName ?? App.UserID, App.UserID, 38))
+                    {
+                        using (var bitmap = new System.Drawing.Bitmap(img))
+                        {
                             var hBitmap = bitmap.GetHbitmap();
                             try
                             {
@@ -464,25 +486,6 @@ namespace Kalendarz1
                             {
                                 DeleteObject(hBitmap);
                             }
-                        }
-                    }
-                }
-                else
-                {
-                    // Wygeneruj domyślny avatar
-                    using (var img = UserAvatarManager.GenerateDefaultAvatar(App.UserFullName ?? App.UserID, App.UserID, 38))
-                    {
-                        var bitmap = new System.Drawing.Bitmap(img);
-                        var hBitmap = bitmap.GetHbitmap();
-                        try
-                        {
-                            var bitmapSource = System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
-                                hBitmap, IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
-                            UserAvatarBrush.ImageSource = bitmapSource;
-                        }
-                        finally
-                        {
-                            DeleteObject(hBitmap);
                         }
                     }
                 }

@@ -1107,6 +1107,17 @@ END";
                         }
                     }
                 }
+                // Wygeneruj domyślny avatar z inicjałami
+                using (var defaultAvatar = UserAvatarManager.GenerateDefaultAvatar(
+                    UserName ?? UserID, UserID, 42))
+                {
+                    if (defaultAvatar != null)
+                    {
+                        AvatarSource = ConvertToBitmapSource(defaultAvatar);
+                        HasAvatar = true;
+                        return;
+                    }
+                }
             }
             catch { }
             HasAvatar = false;
