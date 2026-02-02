@@ -50,6 +50,7 @@ namespace Kalendarz1.CRM.Dialogs
             // Set times - plain TextBox, user types freely (e.g. 09:30, 14:15)
             txtTime1.Text = _handlowiec.Time1String ?? "10:00";
             txtTime2.Text = _handlowiec.Time2String ?? "13:00";
+            txtTime3.Text = _handlowiec.Time3String ?? "";
 
             // Select count
             int countIdx = _handlowiec.ContactsPerReminder - 1;
@@ -342,6 +343,25 @@ namespace Kalendarz1.CRM.Dialogs
             _handlowiec.ReminderTime2 = time2.Value;
             _handlowiec.Time2String = txtTime2.Text.Trim();
 
+            // Time3 is optional
+            if (!string.IsNullOrWhiteSpace(txtTime3.Text))
+            {
+                var time3 = ParseTime(txtTime3.Text);
+                if (time3 == null)
+                {
+                    MessageBox.Show("Nieprawidlowy format godziny 3. Uzyj formatu HH:mm (np. 16:00) lub zostaw puste.",
+                        "Blad", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                _handlowiec.ReminderTime3 = time3.Value;
+                _handlowiec.Time3String = txtTime3.Text.Trim();
+            }
+            else
+            {
+                _handlowiec.ReminderTime3 = null;
+                _handlowiec.Time3String = "";
+            }
+
             if (cmbCount.SelectedItem is ComboBoxItem cntItem && int.TryParse(cntItem.Content.ToString(), out int cnt))
                 _handlowiec.ContactsPerReminder = cnt;
 
@@ -390,6 +410,7 @@ namespace Kalendarz1.CRM.Dialogs
                                 IsEnabled = @Enabled,
                                 ReminderTime1 = @Time1,
                                 ReminderTime2 = @Time2,
+                                ReminderTime3 = @Time3,
                                 ContactsPerReminder = @Count,
                                 ShowOnlyNewContacts = @OnlyNew,
                                 ShowOnlyAssigned = @OnlyAssigned,
@@ -405,6 +426,7 @@ namespace Kalendarz1.CRM.Dialogs
                         cmdUpdate.Parameters.AddWithValue("@Enabled", _handlowiec.IsEnabled);
                         cmdUpdate.Parameters.AddWithValue("@Time1", _handlowiec.ReminderTime1);
                         cmdUpdate.Parameters.AddWithValue("@Time2", _handlowiec.ReminderTime2);
+                        cmdUpdate.Parameters.AddWithValue("@Time3", (object)_handlowiec.ReminderTime3 ?? DBNull.Value);
                         cmdUpdate.Parameters.AddWithValue("@Count", _handlowiec.ContactsPerReminder);
                         cmdUpdate.Parameters.AddWithValue("@OnlyNew", _handlowiec.ShowOnlyNewContacts);
                         cmdUpdate.Parameters.AddWithValue("@OnlyAssigned", _handlowiec.ShowOnlyAssigned);
@@ -418,16 +440,17 @@ namespace Kalendarz1.CRM.Dialogs
                     else
                     {
                         var cmdInsert = new SqlCommand(
-                            @"INSERT INTO CallReminderConfig (UserID, IsEnabled, ReminderTime1, ReminderTime2,
+                            @"INSERT INTO CallReminderConfig (UserID, IsEnabled, ReminderTime1, ReminderTime2, ReminderTime3,
                                 ContactsPerReminder, ShowOnlyNewContacts, ShowOnlyAssigned, OnlyMyImports,
                                 DailyCallTarget, WeeklyCallTarget, TerritoryWojewodztwa, RequiredTags)
-                            VALUES (@UserID, @Enabled, @Time1, @Time2, @Count, @OnlyNew, @OnlyAssigned,
+                            VALUES (@UserID, @Enabled, @Time1, @Time2, @Time3, @Count, @OnlyNew, @OnlyAssigned,
                                 @OnlyMyImports, @DailyTarget, @WeeklyTarget, @Territory, @Tags)", conn, tran);
 
                         cmdInsert.Parameters.AddWithValue("@UserID", _handlowiec.UserID);
                         cmdInsert.Parameters.AddWithValue("@Enabled", _handlowiec.IsEnabled);
                         cmdInsert.Parameters.AddWithValue("@Time1", _handlowiec.ReminderTime1);
                         cmdInsert.Parameters.AddWithValue("@Time2", _handlowiec.ReminderTime2);
+                        cmdInsert.Parameters.AddWithValue("@Time3", (object)_handlowiec.ReminderTime3 ?? DBNull.Value);
                         cmdInsert.Parameters.AddWithValue("@Count", _handlowiec.ContactsPerReminder);
                         cmdInsert.Parameters.AddWithValue("@OnlyNew", _handlowiec.ShowOnlyNewContacts);
                         cmdInsert.Parameters.AddWithValue("@OnlyAssigned", _handlowiec.ShowOnlyAssigned);

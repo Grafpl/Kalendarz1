@@ -11,6 +11,7 @@ BEGIN
         IsEnabled BIT DEFAULT 1,                 -- Czy przypomnienia włączone
         ReminderTime1 TIME DEFAULT '10:00:00',   -- Pierwsza godzina przypomnienia
         ReminderTime2 TIME DEFAULT '13:00:00',   -- Druga godzina przypomnienia
+        ReminderTime3 TIME NULL,                 -- Trzecia godzina przypomnienia (opcjonalna)
         ContactsPerReminder INT DEFAULT 5,       -- Ile kontaktów pokazać
         ShowOnlyNewContacts BIT DEFAULT 1,       -- Tylko status "Do zadzwonienia"
         ShowOnlyAssigned BIT DEFAULT 0,          -- Tylko przypisani do handlowca

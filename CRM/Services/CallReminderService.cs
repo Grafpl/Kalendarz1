@@ -80,7 +80,7 @@ namespace Kalendarz1.CRM.Services
                       TerritoryWojewodztwa, ISNULL(UseAdvancedSchedule, 0),
                       LunchBreakStart, LunchBreakEnd,
                       VacationStart, VacationEnd, SubstituteUserID,
-                      ISNULL(OnlyMyImports, 0), RequiredTags
+                      ISNULL(OnlyMyImports, 0), RequiredTags, ReminderTime3
                       FROM CallReminderConfig WHERE UserID = @UserID", conn);
                 cmdGet.Parameters.AddWithValue("@UserID", _userID);
 
@@ -114,7 +114,8 @@ namespace Kalendarz1.CRM.Services
                         VacationEnd = reader.IsDBNull(21) ? null : reader.GetDateTime(21),
                         SubstituteUserID = reader.IsDBNull(22) ? null : reader.GetString(22),
                         OnlyMyImports = reader.GetBoolean(23),
-                        RequiredTags = reader.IsDBNull(24) ? null : reader.GetString(24)
+                        RequiredTags = reader.IsDBNull(24) ? null : reader.GetString(24),
+                        ReminderTime3 = reader.IsDBNull(25) ? null : reader.GetTimeSpan(25)
                     };
                 }
                 else
@@ -148,7 +149,7 @@ namespace Kalendarz1.CRM.Services
                     cmdInsert.ExecuteNonQuery();
                 }
 
-                Debug.WriteLine($"[CallReminderService] Config loaded: Enabled={_config.IsEnabled}, Time1={_config.ReminderTime1}, Time2={_config.ReminderTime2}");
+                Debug.WriteLine($"[CallReminderService] Config loaded: Enabled={_config.IsEnabled}, Time1={_config.ReminderTime1}, Time2={_config.ReminderTime2}, Time3={_config.ReminderTime3?.ToString() ?? "brak"}");
             }
             catch (Exception ex)
             {
@@ -205,9 +206,13 @@ namespace Kalendarz1.CRM.Services
                 return;
             }
 
-            // Check if it's time for reminder
-            if (IsTimeForReminder(currentTime, _config.ReminderTime1) ||
-                IsTimeForReminder(currentTime, _config.ReminderTime2))
+            // Check if it's time for reminder (exact minute match)
+            bool isTime = IsTimeForReminder(currentTime, _config.ReminderTime1) ||
+                          IsTimeForReminder(currentTime, _config.ReminderTime2);
+            if (_config.ReminderTime3.HasValue)
+                isTime = isTime || IsTimeForReminder(currentTime, _config.ReminderTime3.Value);
+
+            if (isTime)
             {
                 // Check if reminder wasn't shown recently (within tolerance window)
                 if (!WasReminderShownRecently())
@@ -220,8 +225,8 @@ namespace Kalendarz1.CRM.Services
 
         private bool IsTimeForReminder(TimeSpan current, TimeSpan target)
         {
-            var diff = Math.Abs((current - target).TotalMinutes);
-            return diff <= _config.MinutesTolerance;
+            // Only trigger at the exact minute (e.g. 10:00:00 - 10:00:59)
+            return current.Hours == target.Hours && current.Minutes == target.Minutes;
         }
 
         private bool WasReminderShownRecently()
@@ -229,7 +234,7 @@ namespace Kalendarz1.CRM.Services
             if (_lastReminderTime == null) return false;
 
             var diff = (DateTime.Now - _lastReminderTime.Value).TotalMinutes;
-            return diff < (_config.MinutesTolerance * 2 + 5); // Double tolerance + buffer
+            return diff < 2; // Don't show again within 2 minutes
         }
 
         private void ShowReminder()

@@ -86,6 +86,9 @@ namespace Kalendarz1.CRM
                 IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('CallReminderConfig') AND name = 'RequiredTags')
                     ALTER TABLE CallReminderConfig ADD RequiredTags NVARCHAR(MAX) NULL;
 
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('CallReminderConfig') AND name = 'ReminderTime3')
+                    ALTER TABLE CallReminderConfig ADD ReminderTime3 TIME NULL;
+
                 -- PKD Priority table with SortOrder
                 IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID('CallReminderPKDPriority') AND type = 'U')
                 BEGIN
@@ -345,7 +348,7 @@ END";
                              ISNULL(MaxAttemptsPerContact, 5), ISNULL(CooldownDays, 3),
                              ISNULL(PKDPriorityWeight, 70),
                              TerritoryWojewodztwa, PresetType,
-                             ISNULL(OnlyMyImports, 0), RequiredTags
+                             ISNULL(OnlyMyImports, 0), RequiredTags, ReminderTime3
                       FROM CallReminderConfig", conn);
                 using (var reader = cmdConfigs.ExecuteReader())
                 {
@@ -369,7 +372,8 @@ END";
                             TerritoryWojewodztwa = reader.IsDBNull(13) ? null : reader.GetString(13),
                             PresetType = reader.IsDBNull(14) ? null : reader.GetString(14),
                             OnlyMyImports = reader.GetBoolean(15),
-                            RequiredTags = reader.IsDBNull(16) ? null : reader.GetString(16)
+                            RequiredTags = reader.IsDBNull(16) ? null : reader.GetString(16),
+                            Time3 = reader.IsDBNull(17) ? null : reader.GetTimeSpan(17)
                         };
                     }
                 }
@@ -445,6 +449,7 @@ END";
                         vm.IsEnabled = cfg.Enabled;
                         vm.ReminderTime1 = cfg.Time1;
                         vm.ReminderTime2 = cfg.Time2;
+                        vm.ReminderTime3 = cfg.Time3;
                         vm.ContactsPerReminder = cfg.Count;
                         vm.ShowOnlyNewContacts = cfg.OnlyNew;
                         vm.ShowOnlyAssigned = cfg.OnlyAssigned;
@@ -596,6 +601,7 @@ END";
                                 IsEnabled = @Enabled,
                                 ReminderTime1 = @Time1,
                                 ReminderTime2 = @Time2,
+                                ReminderTime3 = @Time3,
                                 ContactsPerReminder = @Count,
                                 ShowOnlyNewContacts = @OnlyNew,
                                 ShowOnlyAssigned = @OnlyAssigned,
@@ -616,12 +622,12 @@ END";
                     {
                         var cmdInsert = new SqlCommand(
                             @"INSERT INTO CallReminderConfig (
-                                UserID, IsEnabled, ReminderTime1, ReminderTime2, ContactsPerReminder,
+                                UserID, IsEnabled, ReminderTime1, ReminderTime2, ReminderTime3, ContactsPerReminder,
                                 ShowOnlyNewContacts, ShowOnlyAssigned, DailyCallTarget, WeeklyCallTarget,
                                 MaxAttemptsPerContact, CooldownDays, PKDPriorityWeight,
                                 TerritoryWojewodztwa, PresetType, OnlyMyImports)
                               VALUES (
-                                @UserID, @Enabled, @Time1, @Time2, @Count,
+                                @UserID, @Enabled, @Time1, @Time2, @Time3, @Count,
                                 @OnlyNew, @OnlyAssigned, @DailyTarget, @WeeklyTarget,
                                 @MaxAttempts, @Cooldown, @PKDWeight,
                                 @Territory, @Preset, @OnlyMyImports)", conn);
@@ -645,6 +651,7 @@ END";
             cmd.Parameters.AddWithValue("@Enabled", h.IsEnabled);
             cmd.Parameters.AddWithValue("@Time1", h.ReminderTime1);
             cmd.Parameters.AddWithValue("@Time2", h.ReminderTime2);
+            cmd.Parameters.AddWithValue("@Time3", (object)h.ReminderTime3 ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@Count", h.ContactsPerReminder);
             cmd.Parameters.AddWithValue("@OnlyNew", h.ShowOnlyNewContacts);
             cmd.Parameters.AddWithValue("@OnlyAssigned", h.ShowOnlyAssigned);
@@ -807,6 +814,7 @@ END";
         public bool Enabled { get; set; }
         public TimeSpan Time1 { get; set; }
         public TimeSpan Time2 { get; set; }
+        public TimeSpan? Time3 { get; set; }
         public int Count { get; set; }
         public bool OnlyNew { get; set; }
         public bool OnlyAssigned { get; set; }
@@ -831,6 +839,7 @@ END";
         private bool _isEnabled = true;
         private TimeSpan _reminderTime1 = new TimeSpan(10, 0, 0);
         private TimeSpan _reminderTime2 = new TimeSpan(13, 0, 0);
+        private TimeSpan? _reminderTime3;
         private int _contactsPerReminder = 5;
         private bool _showOnlyNewContacts = true;
         private bool _showOnlyAssigned = false;
@@ -893,6 +902,24 @@ END";
         {
             get => $"{ReminderTime2.Hours:D2}:{ReminderTime2.Minutes:D2}";
             set { if (TimeSpan.TryParse(value, out var ts)) ReminderTime2 = ts; }
+        }
+
+        public TimeSpan? ReminderTime3
+        {
+            get => _reminderTime3;
+            set { _reminderTime3 = value; OnPropertyChanged(nameof(ReminderTime3)); OnPropertyChanged(nameof(Time3String)); }
+        }
+
+        public string Time3String
+        {
+            get => _reminderTime3.HasValue ? $"{_reminderTime3.Value.Hours:D2}:{_reminderTime3.Value.Minutes:D2}" : "";
+            set
+            {
+                if (string.IsNullOrWhiteSpace(value))
+                    ReminderTime3 = null;
+                else if (TimeSpan.TryParse(value, out var ts))
+                    ReminderTime3 = ts;
+            }
         }
 
         public int ContactsPerReminder

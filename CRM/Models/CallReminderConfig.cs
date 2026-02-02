@@ -10,6 +10,7 @@ namespace Kalendarz1.CRM.Models
         public bool IsEnabled { get; set; } = true;
         public TimeSpan ReminderTime1 { get; set; } = new TimeSpan(10, 0, 0);
         public TimeSpan ReminderTime2 { get; set; } = new TimeSpan(13, 0, 0);
+        public TimeSpan? ReminderTime3 { get; set; }
         public int ContactsPerReminder { get; set; } = 5;
         public bool ShowOnlyNewContacts { get; set; } = true;
         public bool ShowOnlyAssigned { get; set; } = false;

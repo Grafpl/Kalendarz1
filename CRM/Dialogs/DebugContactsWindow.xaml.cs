@@ -51,7 +51,10 @@ namespace Kalendarz1.CRM.Dialogs
 
             // Config
             txtConfigEnabled.Text = $"Enabled: {(h.IsEnabled ? "TAK" : "NIE")}";
-            txtConfigTimes.Text = $"Godziny: {h.Time1String}, {h.Time2String}";
+            var times = $"{h.Time1String}, {h.Time2String}";
+            if (!string.IsNullOrEmpty(h.Time3String))
+                times += $", {h.Time3String}";
+            txtConfigTimes.Text = $"Godziny: {times}";
             txtConfigCount.Text = $"Kontaktów/reminder: {h.ContactsPerReminder}";
 
             // Filters
