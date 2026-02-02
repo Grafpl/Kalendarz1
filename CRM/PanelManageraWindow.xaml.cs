@@ -35,7 +35,7 @@ namespace Kalendarz1.CRM
                     SUM(CASE WHEN WartoscNowa='Próba kontaktu' THEN 1 ELSE 0 END) as [Próby Tel],
                     SUM(CASE WHEN WartoscNowa LIKE '%oferta%' THEN 1 ELSE 0 END) as [Wysłane Oferty],
                     SUM(CASE WHEN WartoscNowa LIKE '%Zgoda%' THEN 1 ELSE 0 END) as [Pozytywne]
-                    FROM HistoriaZmianCRM h LEFT JOIN operators o ON o.ID = TRY_CONVERT(INT, h.KtoWykonal)
+                    FROM HistoriaZmianCRM h LEFT JOIN operators o ON o.ID = CASE WHEN ISNUMERIC(h.KtoWykonal) = 1 THEN CAST(h.KtoWykonal AS INT) END
                     WHERE DataZmiany >= @od AND DataZmiany < DATEADD(day, 1, @do)
                     GROUP BY o.Name, h.KtoWykonal
                     ORDER BY [Wszystkie Akcje] DESC", conn);
