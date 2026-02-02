@@ -331,13 +331,13 @@ namespace Kalendarz1.CRM
                             SELECT DataUtworzenia FROM NotatkiCRM WHERE IDOdbiorcy = o.ID
                         ) daty ORDER BY Data DESC) as OstatniaZmiana,
                         (SELECT TOP 1 ISNULL(op.Name, x.Operator) FROM (
-                            SELECT KtoDodal as Operator, DataUtworzenia as Data FROM NotatkiCRM WHERE IDOdbiorcy = o.ID
+                            SELECT CAST(KtoDodal AS VARCHAR(15)) as Operator, DataUtworzenia as Data FROM NotatkiCRM WHERE IDOdbiorcy = o.ID
                             UNION ALL
                             SELECT KtoWykonal, DataZmiany FROM HistoriaZmianCRM WHERE IDOdbiorcy = o.ID
                         ) x LEFT JOIN operators op ON op.ID = x.Operator OR op.Name = x.Operator
                         ORDER BY x.Data DESC) as OstatniHandlowiec,
                         (SELECT TOP 1 COALESCE(op2.ID, x.Operator) FROM (
-                            SELECT KtoDodal as Operator, DataUtworzenia as Data FROM NotatkiCRM WHERE IDOdbiorcy = o.ID
+                            SELECT CAST(KtoDodal AS VARCHAR(15)) as Operator, DataUtworzenia as Data FROM NotatkiCRM WHERE IDOdbiorcy = o.ID
                             UNION ALL
                             SELECT KtoWykonal, DataZmiany FROM HistoriaZmianCRM WHERE IDOdbiorcy = o.ID
                         ) x LEFT JOIN operators op2 ON op2.ID = x.Operator OR op2.Name = x.Operator
