@@ -250,6 +250,7 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
                     <!-- Nawigacja tygodniowa -->
@@ -336,6 +337,18 @@
                             </ControlTemplate>
                         </Button.Template>
                     </Button>
+
+                    <!-- Avatar użytkownika -->
+                    <StackPanel x:Name="panelUserAvatar" Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                        <Border x:Name="borderAvatar" Width="34" Height="34" CornerRadius="17" ClipToBounds="True"
+                                BorderBrush="#FFFFFF" BorderThickness="2" Background="#1E3A8A">
+                            <Image x:Name="imgUserAvatar" Stretch="UniformToFill"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center" Margin="8,0,0,0">
+                            <TextBlock x:Name="txtUserName" Text="" Foreground="White" FontSize="12" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="txtUserId" Text="" Foreground="#93C5FD" FontSize="9"/>
+                        </StackPanel>
+                    </StackPanel>
                 </Grid>
             </Border>
 

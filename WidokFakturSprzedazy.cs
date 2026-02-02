@@ -120,17 +120,20 @@ namespace Kalendarz1
         private void WidokFakturSprzedazy_Load(object? sender, EventArgs e)
         {
             // Obsługa UserID i uprawnień
+            string displayName;
             if (UserID == "11111")
             {
+                displayName = "ADMINISTRATOR";
                 this.Text = "📊 System Zarządzania Fakturami Sprzedaży - [ADMINISTRATOR]";
             }
             else
             {
-                string userName = PobierzNazweUzytkownika(UserID);
-                this.Text = $"📊 System Zarządzania Fakturami Sprzedaży - [{userName}]";
-
-                
+                displayName = PobierzNazweUzytkownika(UserID);
+                this.Text = $"📊 System Zarządzania Fakturami Sprzedaży - [{displayName}]";
             }
+
+            // Avatar użytkownika w panelu filtrów
+            DodajAvatarUzytkownika(displayName);
 
             dateTimePickerDo.Value = DateTime.Today;
             dateTimePickerOd.Value = DateTime.Today.AddMonths(-3);
@@ -162,6 +165,68 @@ namespace Kalendarz1
             splitContainerMain.SplitterDistance = 900;
             var handlowcy = UserHandlowcyManager.GetUserHandlowcy(UserID);
             
+        }
+
+        private void DodajAvatarUzytkownika(string displayName)
+        {
+            try
+            {
+                var avatarPanel = new Panel
+                {
+                    Height = 40,
+                    Width = 220,
+                    BackColor = Color.Transparent,
+                    Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                };
+                avatarPanel.Location = new Point(panelFilters.Width - avatarPanel.Width - 10, 5);
+
+                var picAvatar = new PictureBox
+                {
+                    Size = new Size(36, 36),
+                    Location = new Point(0, 2),
+                    SizeMode = PictureBoxSizeMode.StretchImage,
+                    BackColor = Color.Transparent
+                };
+
+                // Avatar - rounded z UserAvatarManager
+                Image avatar = UserAvatarManager.GetAvatarRounded(UserID, 36);
+                if (avatar == null)
+                    avatar = UserAvatarManager.GenerateDefaultAvatar(displayName, UserID, 36);
+                picAvatar.Image = avatar;
+
+                var lblName = new Label
+                {
+                    Text = displayName,
+                    Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    ForeColor = ColorTranslator.FromHtml("#2c3e50"),
+                    AutoSize = true,
+                    Location = new Point(42, 4),
+                    BackColor = Color.Transparent
+                };
+
+                var lblRole = new Label
+                {
+                    Text = UserID == "11111" ? "Admin" : $"ID: {UserID}",
+                    Font = new Font("Segoe UI", 7.5f),
+                    ForeColor = ColorTranslator.FromHtml("#7f8c8d"),
+                    AutoSize = true,
+                    Location = new Point(42, 22),
+                    BackColor = Color.Transparent
+                };
+
+                avatarPanel.Controls.Add(picAvatar);
+                avatarPanel.Controls.Add(lblName);
+                avatarPanel.Controls.Add(lblRole);
+                panelFilters.Controls.Add(avatarPanel);
+                avatarPanel.BringToFront();
+
+                // Responsywność - przesuwaj panel przy resize
+                panelFilters.Resize += (s, e) =>
+                {
+                    avatarPanel.Location = new Point(panelFilters.Width - avatarPanel.Width - 10, 5);
+                };
+            }
+            catch { }
         }
 
         private string PobierzNazweUzytkownika(string userId)

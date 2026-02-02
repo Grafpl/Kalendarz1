@@ -281,6 +281,60 @@ namespace Kalendarz1
             }
 
             CreateCompactRadioPanel();
+            DodajAvatarUzytkownika();
+        }
+
+        private void DodajAvatarUzytkownika()
+        {
+            if (panelOdbiorca == null || string.IsNullOrEmpty(UserID)) return;
+            try
+            {
+                string displayName = App.UserFullName ?? UserID;
+
+                var picAvatar = new PictureBox
+                {
+                    Size = new Size(32, 32),
+                    SizeMode = PictureBoxSizeMode.StretchImage,
+                    BackColor = Color.Transparent,
+                    Anchor = AnchorStyles.Top | AnchorStyles.Right
+                };
+                picAvatar.Location = new Point(panelOdbiorca.Width - 180, 6);
+
+                Image avatar = UserAvatarManager.GetAvatarRounded(UserID, 32);
+                if (avatar == null)
+                    avatar = UserAvatarManager.GenerateDefaultAvatar(displayName, UserID, 32);
+                picAvatar.Image = avatar;
+
+                var lblUser = new Label
+                {
+                    Text = displayName,
+                    Font = new Font("Segoe UI", 9f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(44, 62, 80),
+                    AutoSize = true,
+                    BackColor = Color.Transparent,
+                    Anchor = AnchorStyles.Top | AnchorStyles.Right
+                };
+                lblUser.Location = new Point(panelOdbiorca.Width - 145, 8);
+
+                var lblId = new Label
+                {
+                    Text = $"ID: {UserID}",
+                    Font = new Font("Segoe UI", 7.5f),
+                    ForeColor = Color.FromArgb(127, 140, 141),
+                    AutoSize = true,
+                    BackColor = Color.Transparent,
+                    Anchor = AnchorStyles.Top | AnchorStyles.Right
+                };
+                lblId.Location = new Point(panelOdbiorca.Width - 145, 26);
+
+                panelOdbiorca.Controls.Add(picAvatar);
+                panelOdbiorca.Controls.Add(lblUser);
+                panelOdbiorca.Controls.Add(lblId);
+                picAvatar.BringToFront();
+                lblUser.BringToFront();
+                lblId.BringToFront();
+            }
+            catch { }
         }
 
         private void CreateCompactRadioPanel()

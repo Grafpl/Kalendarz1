@@ -53,10 +53,54 @@ namespace Kalendarz1.WPF
         private async void PanelFakturWindow_Loaded(object sender, RoutedEventArgs e)
         {
             _selectedDate = DateTime.Today;
+            LoadUserAvatar();
             SetupDayButtons();
             await LoadContractorsCacheAsync();
             await LoadProductsCacheAsync();
             await RefreshDataAsync();
+        }
+
+        private void LoadUserAvatar()
+        {
+            try
+            {
+                string userId = UserID;
+                if (string.IsNullOrEmpty(userId)) userId = App.UserID ?? "";
+                string displayName = PobierzNazweOperatora(userId);
+
+                txtUserName.Text = displayName;
+                txtUserId.Text = $"ID: {userId}";
+
+                BitmapSource avatarSource = null;
+                if (UserAvatarManager.HasAvatar(userId))
+                {
+                    using var img = UserAvatarManager.GetAvatarRounded(userId, 34);
+                    if (img != null)
+                        avatarSource = ConvertToBitmapSource(img);
+                }
+                if (avatarSource == null)
+                {
+                    using var img = UserAvatarManager.GenerateDefaultAvatar(displayName, userId, 34);
+                    avatarSource = ConvertToBitmapSource(img);
+                }
+                if (avatarSource != null)
+                    imgUserAvatar.Source = avatarSource;
+            }
+            catch { }
+        }
+
+        private string PobierzNazweOperatora(string userId)
+        {
+            try
+            {
+                using var conn = new Microsoft.Data.SqlClient.SqlConnection(_connLibra);
+                conn.Open();
+                using var cmd = new Microsoft.Data.SqlClient.SqlCommand("SELECT Name FROM operators WHERE ID = @id", conn);
+                cmd.Parameters.AddWithValue("@id", userId);
+                var result = cmd.ExecuteScalar();
+                return result?.ToString() ?? $"Operator {userId}";
+            }
+            catch { return $"Operator {userId}"; }
         }
 
         private void SetupDayButtons()
