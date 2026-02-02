@@ -3,12 +3,14 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Imaging;
 using Microsoft.Data.SqlClient;
 using Kalendarz1.CRM.Models;
 using Kalendarz1.CRM.Services;
@@ -385,6 +387,7 @@ namespace Kalendarz1.CRM
             ApplyTheme(CRMThemeService.CurrentTheme);
 
             LoadContacts();
+            LoadWeeklyRanking();
             InitializeStatusButtons();
             ShowRandomTip();
             UpdateFlowPanel();
@@ -423,6 +426,242 @@ namespace Kalendarz1.CRM
 
             // Add click handlers to contact items
             contactsList.AddHandler(UIElement.MouseLeftButtonUpEvent, new MouseButtonEventHandler(ContactItem_Click), true);
+        }
+
+        [DllImport("gdi32.dll")]
+        private static extern bool DeleteObject(IntPtr hObject);
+
+        private static BitmapSource ConvertToBitmapSource(System.Drawing.Image image)
+        {
+            if (image == null) return null;
+            using (var bitmap = new System.Drawing.Bitmap(image))
+            {
+                var hBitmap = bitmap.GetHbitmap();
+                try
+                {
+                    return System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
+                        hBitmap, IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+                }
+                finally
+                {
+                    DeleteObject(hBitmap);
+                }
+            }
+        }
+
+        private void LoadWeeklyRanking()
+        {
+            try
+            {
+                var rankings = new List<(string UserID, string Name, int WeekCalls, int WeeklyTarget)>();
+
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+
+                    // Get all active handlowcy with their weekly calls and targets
+                    var cmd = new SqlCommand(@"
+                        SELECT c.UserID,
+                               ISNULL(op.Name, c.UserID) as Name,
+                               ISNULL((SELECT SUM(ContactsCalled) FROM CallReminderLog
+                                        WHERE UserID = c.UserID
+                                        AND ReminderTime >= DATEADD(DAY,
+                                            -DATEPART(WEEKDAY, GETDATE()) + 2,
+                                            CAST(CAST(GETDATE() AS DATE) AS DATETIME))
+                                       ), 0) as WeekCalls,
+                               c.WeeklyCallTarget
+                        FROM CallReminderConfig c
+                        LEFT JOIN operators op ON c.UserID = CAST(op.ID AS NVARCHAR)
+                        WHERE c.IsEnabled = 1
+                        ORDER BY WeekCalls DESC", conn);
+
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            rankings.Add((
+                                reader["UserID"].ToString(),
+                                reader["Name"].ToString(),
+                                Convert.ToInt32(reader["WeekCalls"]),
+                                Convert.ToInt32(reader["WeeklyTarget"])
+                            ));
+                        }
+                    }
+                }
+
+                rankingPanel.Children.Clear();
+
+                if (rankings.Count == 0) return;
+
+                for (int i = 0; i < rankings.Count; i++)
+                {
+                    var r = rankings[i];
+                    double pct = r.WeeklyTarget > 0 ? Math.Min(100.0, 100.0 * r.WeekCalls / r.WeeklyTarget) : 0;
+                    bool isCurrentUser = r.UserID == _userID;
+
+                    // Row container
+                    var row = new Border
+                    {
+                        Background = isCurrentUser
+                            ? new SolidColorBrush(Color.FromArgb(20, 59, 130, 246))
+                            : Brushes.Transparent,
+                        CornerRadius = new CornerRadius(8),
+                        Padding = new Thickness(8, 5, 8, 5),
+                        Margin = new Thickness(0, 0, 0, 2)
+                    };
+
+                    var grid = new Grid();
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(22) });  // #
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });  // avatar
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // name
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });      // stats
+
+                    // Position number with medal for top 3
+                    string posText = i switch
+                    {
+                        0 => "🥇",
+                        1 => "🥈",
+                        2 => "🥉",
+                        _ => $"{i + 1}."
+                    };
+                    var txtPos = new TextBlock
+                    {
+                        Text = posText,
+                        FontSize = i < 3 ? 14 : 11,
+                        Foreground = i < 3 ? Brushes.White : new SolidColorBrush(Color.FromRgb(102, 102, 102)),
+                        VerticalAlignment = VerticalAlignment.Center,
+                        HorizontalAlignment = HorizontalAlignment.Center
+                    };
+                    Grid.SetColumn(txtPos, 0);
+                    grid.Children.Add(txtPos);
+
+                    // Avatar
+                    var avatarBorder = new Border
+                    {
+                        Width = 26, Height = 26,
+                        CornerRadius = new CornerRadius(13),
+                        ClipToBounds = true,
+                        Margin = new Thickness(2, 0, 0, 0),
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+
+                    BitmapSource avatarSource = null;
+                    try
+                    {
+                        if (UserAvatarManager.HasAvatar(r.UserID))
+                        {
+                            using var img = UserAvatarManager.GetAvatarRounded(r.UserID, 26);
+                            if (img != null) avatarSource = ConvertToBitmapSource(img);
+                        }
+                        if (avatarSource == null)
+                        {
+                            using var img = UserAvatarManager.GenerateDefaultAvatar(r.Name, r.UserID, 26);
+                            avatarSource = ConvertToBitmapSource(img);
+                        }
+                    }
+                    catch { }
+
+                    if (avatarSource != null)
+                    {
+                        avatarBorder.Child = new System.Windows.Controls.Image
+                        {
+                            Source = avatarSource,
+                            Stretch = Stretch.UniformToFill
+                        };
+                    }
+                    Grid.SetColumn(avatarBorder, 1);
+                    grid.Children.Add(avatarBorder);
+
+                    // Name + progress bar
+                    var namePanel = new StackPanel
+                    {
+                        Margin = new Thickness(6, 0, 8, 0),
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+
+                    // Name (bold if current user)
+                    string displayName = r.Name.Length > 14 ? r.Name.Substring(0, 12) + ".." : r.Name;
+                    var txtName = new TextBlock
+                    {
+                        Text = displayName,
+                        FontSize = 11,
+                        FontWeight = isCurrentUser ? FontWeights.Bold : FontWeights.Normal,
+                        Foreground = isCurrentUser
+                            ? new SolidColorBrush(Color.FromRgb(96, 165, 250))
+                            : new SolidColorBrush(Color.FromRgb(200, 200, 200))
+                    };
+                    namePanel.Children.Add(txtName);
+
+                    // Progress bar
+                    var progressBg = new Border
+                    {
+                        Background = new SolidColorBrush(Color.FromArgb(26, 255, 255, 255)),
+                        CornerRadius = new CornerRadius(2),
+                        Height = 3,
+                        Margin = new Thickness(0, 3, 0, 0)
+                    };
+
+                    Color barColor = pct >= 80 ? Color.FromRgb(63, 185, 80)   // green
+                                   : pct >= 50 ? Color.FromRgb(245, 158, 11)  // orange
+                                   : Color.FromRgb(248, 81, 73);              // red
+
+                    var progressFillBar = new Border
+                    {
+                        Background = new SolidColorBrush(barColor),
+                        CornerRadius = new CornerRadius(2),
+                        HorizontalAlignment = HorizontalAlignment.Left,
+                        Width = Math.Max(0, (pct / 100.0) * 120) // max ~120px
+                    };
+
+                    // Set MaxWidth based on container width
+                    progressBg.SizeChanged += (s, e) =>
+                    {
+                        progressFillBar.Width = Math.Max(0, (pct / 100.0) * progressBg.ActualWidth);
+                    };
+
+                    progressBg.Child = progressFillBar;
+                    namePanel.Children.Add(progressBg);
+
+                    Grid.SetColumn(namePanel, 2);
+                    grid.Children.Add(namePanel);
+
+                    // Stats: calls / pct
+                    var statsPanel = new StackPanel
+                    {
+                        VerticalAlignment = VerticalAlignment.Center,
+                        HorizontalAlignment = HorizontalAlignment.Right
+                    };
+
+                    var txtCalls = new TextBlock
+                    {
+                        Text = $"{r.WeekCalls}/{r.WeeklyTarget}",
+                        FontSize = 10,
+                        Foreground = new SolidColorBrush(Color.FromRgb(150, 150, 150)),
+                        HorizontalAlignment = HorizontalAlignment.Right
+                    };
+                    statsPanel.Children.Add(txtCalls);
+
+                    var txtPct = new TextBlock
+                    {
+                        Text = $"{(int)pct}%",
+                        FontSize = 12,
+                        FontWeight = FontWeights.Bold,
+                        Foreground = new SolidColorBrush(barColor),
+                        HorizontalAlignment = HorizontalAlignment.Right
+                    };
+                    statsPanel.Children.Add(txtPct);
+
+                    Grid.SetColumn(statsPanel, 3);
+                    grid.Children.Add(statsPanel);
+
+                    row.Child = grid;
+                    rankingPanel.Children.Add(row);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"LoadWeeklyRanking error: {ex.Message}");
+            }
         }
 
         private void ContactItem_Click(object sender, MouseButtonEventArgs e)

@@ -269,6 +269,7 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
                         <!-- Header -->
@@ -323,8 +324,23 @@
                             </ItemsControl>
                         </ScrollViewer>
 
+                        <!-- Mini Ranking -->
+                        <Border Grid.Row="3" Background="#08FFFFFF" Padding="12,10" BorderBrush="#14FFFFFF"
+                                BorderThickness="0,1,0,0">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <TextBlock Text="🏆" FontSize="13" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Ranking tygodnia" FontSize="11" FontWeight="SemiBold"
+                                               Foreground="#99FFFFFF" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel x:Name="rankingPanel">
+                                    <!-- Filled dynamically -->
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- Progress Footer -->
-                        <Border Grid.Row="3" Background="#08FFFFFF" Padding="16" BorderBrush="#14FFFFFF"
+                        <Border Grid.Row="4" Background="#08FFFFFF" Padding="16" BorderBrush="#14FFFFFF"
                                 BorderThickness="0,1,0,0" CornerRadius="0,0,0,20">
                             <StackPanel>
                                 <Grid>
