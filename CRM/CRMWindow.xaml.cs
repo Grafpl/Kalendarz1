@@ -1,4 +1,5 @@
 using Kalendarz1.OfertaCenowa;
+using Kalendarz1.CRM.Services;
 using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.ObjectModel;
@@ -39,6 +40,14 @@ namespace Kalendarz1.CRM
                 if (btnManager != null) btnManager.Visibility = Visibility.Collapsed;
                 if (btnAdmin != null) btnAdmin.Visibility = Visibility.Collapsed;
             }
+
+            // Load and apply saved theme
+            CRMThemeService.Load();
+            if (CRMThemeService.CurrentTheme == CRMThemeMode.Light)
+                ApplyCRMTheme(true);
+            else
+                UpdateThemeButton(false);
+
             InicjalizujFiltry();
             WczytajDane();
         }
@@ -700,6 +709,296 @@ namespace Kalendarz1.CRM
                 Process.Start(new ProcessStartInfo($"https://www.google.com/maps/dir/{origin}/{query}") { UseShellExecute = true });
             }
         }
+        #endregion
+
+        #region Theme Switching
+
+        private void BtnToggleTheme_Click(object sender, RoutedEventArgs e)
+        {
+            CRMThemeService.Toggle();
+            bool isLight = CRMThemeService.CurrentTheme == CRMThemeMode.Light;
+            ApplyCRMTheme(isLight);
+        }
+
+        private void UpdateThemeButton(bool isLight)
+        {
+            if (btnToggleTheme != null)
+                btnToggleTheme.Content = isLight ? "\U0001F319 Ciemny" : "\u2600\uFE0F Jasny";
+        }
+
+        private void ApplyCRMTheme(bool isLight)
+        {
+            UpdateThemeButton(isLight);
+
+            if (isLight)
+            {
+                // ── LIGHT THEME: white dominant, green accents, red for danger ──
+                // Window background
+                mainWindow.Background = new SolidColorBrush(Color.FromRgb(245, 247, 250));
+
+                // Resource brushes - swap to light palette
+                Resources["BgPrimary"] = new SolidColorBrush(Color.FromRgb(245, 247, 250));
+                Resources["BgSecondary"] = new SolidColorBrush(Color.FromRgb(255, 255, 255));
+                Resources["BgTertiary"] = new SolidColorBrush(Color.FromRgb(235, 238, 243));
+                Resources["BgElevated"] = new SolidColorBrush(Color.FromRgb(210, 215, 224));
+
+                Resources["AccentPrimary"] = new SolidColorBrush(Color.FromRgb(34, 139, 34));   // Forest green
+                Resources["AccentLight"] = new SolidColorBrush(Color.FromRgb(74, 179, 74));
+                Resources["AccentBg"] = new SolidColorBrush(Color.FromRgb(220, 245, 220));
+
+                Resources["TextPrimary"] = new SolidColorBrush(Color.FromRgb(30, 30, 30));
+                Resources["TextSecondary"] = new SolidColorBrush(Color.FromRgb(80, 85, 95));
+                Resources["TextMuted"] = new SolidColorBrush(Color.FromRgb(120, 128, 140));
+
+                Resources["BorderDefault"] = new SolidColorBrush(Color.FromRgb(210, 215, 224));
+                Resources["BorderLight"] = new SolidColorBrush(Color.FromRgb(190, 196, 207));
+                Resources["BorderAccent"] = new SolidColorBrush(Color.FromRgb(34, 139, 34));
+
+                // Compat aliases
+                Resources["PrimaryColor"] = new SolidColorBrush(Color.FromRgb(34, 139, 34));
+                Resources["PrimaryLight"] = new SolidColorBrush(Color.FromRgb(220, 245, 220));
+                Resources["TextDark"] = new SolidColorBrush(Color.FromRgb(30, 30, 30));
+                Resources["TextGray"] = new SolidColorBrush(Color.FromRgb(80, 85, 95));
+                Resources["BorderColor"] = new SolidColorBrush(Color.FromRgb(210, 215, 224));
+
+                // Status colors stay the same (they're semantic)
+
+                // DataGrid
+                dgKontakty.Background = new SolidColorBrush(Color.FromRgb(255, 255, 255));
+                dgKontakty.RowBackground = new SolidColorBrush(Color.FromRgb(255, 255, 255));
+                dgKontakty.AlternatingRowBackground = new SolidColorBrush(Color.FromRgb(248, 249, 252));
+
+                // DataGrid header style
+                var headerStyle = new Style(typeof(DataGridColumnHeader));
+                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.BackgroundProperty, new SolidColorBrush(Color.FromRgb(245, 247, 250))));
+                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.ForegroundProperty, new SolidColorBrush(Color.FromRgb(80, 85, 95))));
+                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.PaddingProperty, new Thickness(12, 14, 12, 14)));
+                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.FontWeightProperty, FontWeights.SemiBold));
+                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.FontSizeProperty, 13.0));
+                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.BorderThicknessProperty, new Thickness(0, 0, 0, 2)));
+                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(210, 215, 224))));
+                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.HorizontalContentAlignmentProperty, HorizontalAlignment.Center));
+                dgKontakty.ColumnHeaderStyle = headerStyle;
+
+                // DataGrid cell style
+                var cellStyle = new Style(typeof(DataGridCell));
+                cellStyle.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(0)));
+                cellStyle.Setters.Add(new Setter(DataGridCell.FocusVisualStyleProperty, null));
+                cellStyle.Setters.Add(new Setter(DataGridCell.PaddingProperty, new Thickness(8, 4, 8, 4)));
+                cellStyle.Setters.Add(new Setter(DataGridCell.BackgroundProperty, Brushes.Transparent));
+                cellStyle.Setters.Add(new Setter(DataGridCell.ForegroundProperty, new SolidColorBrush(Color.FromRgb(30, 30, 30))));
+                dgKontakty.CellStyle = cellStyle;
+
+                // DataGrid row style
+                var rowStyle = new Style(typeof(DataGridRow));
+                rowStyle.Setters.Add(new Setter(DataGridRow.HeightProperty, 60.0));
+                rowStyle.Setters.Add(new Setter(DataGridRow.FontSizeProperty, 14.0));
+                rowStyle.Setters.Add(new Setter(DataGridRow.BackgroundProperty, new SolidColorBrush(Color.FromRgb(255, 255, 255))));
+                rowStyle.Setters.Add(new Setter(DataGridRow.BorderThicknessProperty, new Thickness(0)));
+                var hoverTrigger = new Trigger { Property = DataGridRow.IsMouseOverProperty, Value = true };
+                hoverTrigger.Setters.Add(new Setter(DataGridRow.BackgroundProperty, new SolidColorBrush(Color.FromRgb(230, 245, 230))));
+                rowStyle.Triggers.Add(hoverTrigger);
+                var selectedTrigger = new Trigger { Property = DataGridRow.IsSelectedProperty, Value = true };
+                selectedTrigger.Setters.Add(new Setter(DataGridRow.BackgroundProperty, new SolidColorBrush(Color.FromRgb(34, 139, 34))));
+                rowStyle.Triggers.Add(selectedTrigger);
+                dgKontakty.RowStyle = rowStyle;
+
+                // Walk tree for inline colors
+                ApplyThemeToTree(this, true);
+            }
+            else
+            {
+                // ── DARK THEME: restore original ──
+                mainWindow.Background = new SolidColorBrush(Color.FromRgb(15, 23, 42));
+
+                Resources["BgPrimary"] = new SolidColorBrush(Color.FromRgb(15, 23, 42));
+                Resources["BgSecondary"] = new SolidColorBrush(Color.FromRgb(30, 41, 59));
+                Resources["BgTertiary"] = new SolidColorBrush(Color.FromRgb(51, 65, 85));
+                Resources["BgElevated"] = new SolidColorBrush(Color.FromRgb(71, 85, 105));
+
+                Resources["AccentPrimary"] = new SolidColorBrush(Color.FromRgb(99, 102, 241));
+                Resources["AccentLight"] = new SolidColorBrush(Color.FromRgb(165, 180, 252));
+                Resources["AccentBg"] = new SolidColorBrush(Color.FromRgb(49, 46, 129));
+
+                Resources["TextPrimary"] = new SolidColorBrush(Color.FromRgb(226, 232, 240));
+                Resources["TextSecondary"] = new SolidColorBrush(Color.FromRgb(148, 163, 184));
+                Resources["TextMuted"] = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+
+                Resources["BorderDefault"] = new SolidColorBrush(Color.FromRgb(51, 65, 85));
+                Resources["BorderLight"] = new SolidColorBrush(Color.FromRgb(71, 85, 105));
+                Resources["BorderAccent"] = new SolidColorBrush(Color.FromRgb(99, 102, 241));
+
+                Resources["PrimaryColor"] = new SolidColorBrush(Color.FromRgb(99, 102, 241));
+                Resources["PrimaryLight"] = new SolidColorBrush(Color.FromRgb(49, 46, 129));
+                Resources["TextDark"] = new SolidColorBrush(Color.FromRgb(226, 232, 240));
+                Resources["TextGray"] = new SolidColorBrush(Color.FromRgb(148, 163, 184));
+                Resources["BorderColor"] = new SolidColorBrush(Color.FromRgb(51, 65, 85));
+
+                dgKontakty.Background = new SolidColorBrush(Color.FromRgb(30, 41, 59));
+                dgKontakty.RowBackground = new SolidColorBrush(Color.FromRgb(30, 41, 59));
+                dgKontakty.AlternatingRowBackground = new SolidColorBrush(Color.FromRgb(39, 53, 72));
+
+                // Restore dark DataGrid header style
+                var headerStyleDk = new Style(typeof(DataGridColumnHeader));
+                headerStyleDk.Setters.Add(new Setter(DataGridColumnHeader.BackgroundProperty, new SolidColorBrush(Color.FromRgb(15, 23, 42))));
+                headerStyleDk.Setters.Add(new Setter(DataGridColumnHeader.ForegroundProperty, new SolidColorBrush(Color.FromRgb(148, 163, 184))));
+                headerStyleDk.Setters.Add(new Setter(DataGridColumnHeader.PaddingProperty, new Thickness(12, 14, 12, 14)));
+                headerStyleDk.Setters.Add(new Setter(DataGridColumnHeader.FontWeightProperty, FontWeights.SemiBold));
+                headerStyleDk.Setters.Add(new Setter(DataGridColumnHeader.FontSizeProperty, 13.0));
+                headerStyleDk.Setters.Add(new Setter(DataGridColumnHeader.BorderThicknessProperty, new Thickness(0, 0, 0, 2)));
+                headerStyleDk.Setters.Add(new Setter(DataGridColumnHeader.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(51, 65, 85))));
+                headerStyleDk.Setters.Add(new Setter(DataGridColumnHeader.HorizontalContentAlignmentProperty, HorizontalAlignment.Center));
+                dgKontakty.ColumnHeaderStyle = headerStyleDk;
+
+                var cellStyleDk = new Style(typeof(DataGridCell));
+                cellStyleDk.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(0)));
+                cellStyleDk.Setters.Add(new Setter(DataGridCell.FocusVisualStyleProperty, null));
+                cellStyleDk.Setters.Add(new Setter(DataGridCell.PaddingProperty, new Thickness(8, 4, 8, 4)));
+                cellStyleDk.Setters.Add(new Setter(DataGridCell.BackgroundProperty, Brushes.Transparent));
+                cellStyleDk.Setters.Add(new Setter(DataGridCell.ForegroundProperty, new SolidColorBrush(Color.FromRgb(226, 232, 240))));
+                dgKontakty.CellStyle = cellStyleDk;
+
+                var rowStyleDk = new Style(typeof(DataGridRow));
+                rowStyleDk.Setters.Add(new Setter(DataGridRow.HeightProperty, 60.0));
+                rowStyleDk.Setters.Add(new Setter(DataGridRow.FontSizeProperty, 14.0));
+                rowStyleDk.Setters.Add(new Setter(DataGridRow.BackgroundProperty, new SolidColorBrush(Color.FromRgb(30, 41, 59))));
+                rowStyleDk.Setters.Add(new Setter(DataGridRow.BorderThicknessProperty, new Thickness(0)));
+                var hoverDk = new Trigger { Property = DataGridRow.IsMouseOverProperty, Value = true };
+                hoverDk.Setters.Add(new Setter(DataGridRow.BackgroundProperty, new SolidColorBrush(Color.FromRgb(51, 65, 85))));
+                rowStyleDk.Triggers.Add(hoverDk);
+                var selectedDk = new Trigger { Property = DataGridRow.IsSelectedProperty, Value = true };
+                selectedDk.Setters.Add(new Setter(DataGridRow.BackgroundProperty, new SolidColorBrush(Color.FromRgb(99, 102, 241))));
+                rowStyleDk.Triggers.Add(selectedDk);
+                dgKontakty.RowStyle = rowStyleDk;
+
+                ApplyThemeToTree(this, false);
+            }
+        }
+
+        private void ApplyThemeToTree(DependencyObject root, bool isLight)
+        {
+            // Light palette
+            var ltBg = Color.FromRgb(255, 255, 255);
+            var ltBgAlt = Color.FromRgb(248, 249, 252);
+            var ltBgPanel = Color.FromRgb(245, 247, 250);
+            var ltBorder = Color.FromRgb(210, 215, 224);
+            var ltTextPrimary = new SolidColorBrush(Color.FromRgb(30, 30, 30));
+            var ltTextSecondary = new SolidColorBrush(Color.FromRgb(80, 85, 95));
+            var ltTextMuted = new SolidColorBrush(Color.FromRgb(120, 128, 140));
+            var ltAccent = Color.FromRgb(34, 139, 34);
+
+            // Dark palette (original)
+            var dkBg = Color.FromRgb(30, 41, 59);
+            var dkBgDeep = Color.FromRgb(15, 23, 42);
+            var dkBorder = Color.FromRgb(51, 65, 85);
+            var dkTextPrimary = new SolidColorBrush(Color.FromRgb(226, 232, 240));
+            var dkTextSecondary = new SolidColorBrush(Color.FromRgb(148, 163, 184));
+            var dkTextMuted = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+            {
+                var child = VisualTreeHelper.GetChild(root, i);
+
+                if (child is TextBlock tb)
+                {
+                    if (tb.Foreground is SolidColorBrush brush)
+                    {
+                        var c = brush.Color;
+                        if (isLight)
+                        {
+                            // #E2E8F0 (226,232,240) primary text → dark
+                            if (c.R == 226 && c.G == 232 && c.B == 240) tb.Foreground = ltTextPrimary;
+                            // #94A3B8 (148,163,184) secondary → medium
+                            else if (c.R == 148 && c.G == 163 && c.B == 184) tb.Foreground = ltTextSecondary;
+                            // #64748B (100,116,139) muted → lighter gray
+                            else if (c.R == 100 && c.G == 116 && c.B == 139) tb.Foreground = ltTextMuted;
+                            // #A5B4FC (165,180,252) accent light → green
+                            else if (c.R == 165 && c.G == 180 && c.B == 252) tb.Foreground = new SolidColorBrush(ltAccent);
+                            // White text
+                            else if (c.R > 240 && c.G > 240 && c.B > 240 && c.A > 200) tb.Foreground = ltTextPrimary;
+                        }
+                        else
+                        {
+                            if (c.R == 30 && c.G == 30 && c.B == 30) tb.Foreground = dkTextPrimary;
+                            else if (c.R == 80 && c.G == 85 && c.B == 95) tb.Foreground = dkTextSecondary;
+                            else if (c.R == 120 && c.G == 128 && c.B == 140) tb.Foreground = dkTextMuted;
+                            else if (c.R == 34 && c.G == 139 && c.B == 34) tb.Foreground = new SolidColorBrush(Color.FromRgb(165, 180, 252));
+                        }
+                    }
+                }
+                else if (child is Border border)
+                {
+                    if (border.Background is SolidColorBrush bg)
+                    {
+                        var c = bg.Color;
+                        if (isLight)
+                        {
+                            // #1E293B (30,41,59) → white
+                            if (c.R == 30 && c.G == 41 && c.B == 59) border.Background = new SolidColorBrush(ltBg);
+                            // #0F172A (15,23,42) → light panel
+                            else if (c.R == 15 && c.G == 23 && c.B == 42) border.Background = new SolidColorBrush(ltBgPanel);
+                            // #334155 (51,65,85) → light border bg
+                            else if (c.R == 51 && c.G == 65 && c.B == 85) border.Background = new SolidColorBrush(Color.FromRgb(235, 238, 243));
+                            // #273548 alternating row → light alt
+                            else if (c.R == 39 && c.G == 53 && c.B == 72) border.Background = new SolidColorBrush(ltBgAlt);
+                        }
+                        else
+                        {
+                            if (c.R == 255 && c.G == 255 && c.B == 255 && c.A > 200) border.Background = new SolidColorBrush(dkBg);
+                            else if (c.R == 245 && c.G == 247 && c.B == 250) border.Background = new SolidColorBrush(dkBgDeep);
+                            else if (c.R == 235 && c.G == 238 && c.B == 243) border.Background = new SolidColorBrush(dkBorder);
+                            else if (c.R == 248 && c.G == 249 && c.B == 252) border.Background = new SolidColorBrush(Color.FromRgb(39, 53, 72));
+                        }
+                    }
+                    if (border.BorderBrush is SolidColorBrush bb)
+                    {
+                        var c = bb.Color;
+                        if (isLight)
+                        {
+                            if (c.R == 51 && c.G == 65 && c.B == 85) border.BorderBrush = new SolidColorBrush(ltBorder);
+                            else if (c.R == 71 && c.G == 85 && c.B == 105) border.BorderBrush = new SolidColorBrush(ltBorder);
+                        }
+                        else
+                        {
+                            if (c.R == 210 && c.G == 215 && c.B == 224) border.BorderBrush = new SolidColorBrush(dkBorder);
+                        }
+                    }
+                }
+                else if (child is TextBox textBox)
+                {
+                    if (isLight)
+                    {
+                        if (textBox.Foreground is SolidColorBrush tbBrush && tbBrush.Color.R > 200)
+                            textBox.Foreground = ltTextPrimary;
+                        if (textBox.CaretBrush is SolidColorBrush cb && cb.Color.R > 200)
+                            textBox.CaretBrush = ltTextPrimary;
+                    }
+                    else
+                    {
+                        textBox.Foreground = dkTextPrimary;
+                        textBox.CaretBrush = dkTextPrimary;
+                    }
+                }
+                else if (child is DataGrid dg)
+                {
+                    if (isLight)
+                    {
+                        dg.Background = new SolidColorBrush(ltBg);
+                        dg.RowBackground = new SolidColorBrush(ltBg);
+                        dg.AlternatingRowBackground = new SolidColorBrush(ltBgAlt);
+                    }
+                    else
+                    {
+                        dg.Background = new SolidColorBrush(dkBg);
+                        dg.RowBackground = new SolidColorBrush(dkBg);
+                        dg.AlternatingRowBackground = new SolidColorBrush(Color.FromRgb(39, 53, 72));
+                    }
+                }
+
+                ApplyThemeToTree(child, isLight);
+            }
+        }
+
         #endregion
     }
 

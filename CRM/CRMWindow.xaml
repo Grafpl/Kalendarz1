@@ -308,6 +308,7 @@
                     <Button Content="🗺️ Mapa" Style="{StaticResource BtnIcon}" Click="BtnMapa_Click"/>
                     <Button Content="📥 Import" Style="{StaticResource BtnIcon}" Click="BtnImportFirm_Click"/>
                     <Button x:Name="btnAdmin" Content="⚙️ Admin" Style="{StaticResource BtnIcon}" Click="BtnAdmin_Click"/>
+                    <Button x:Name="btnToggleTheme" Content="☀️ Jasny" Style="{StaticResource BtnIcon}" Click="BtnToggleTheme_Click" ToolTip="Przełącz tryb jasny/ciemny"/>
 
                     <Button Content="+ Nowy" Click="BtnDodaj_Click" Margin="10,0,0,0" Padding="15,8" BorderThickness="0" Cursor="Hand" Foreground="White" FontWeight="Bold">
                         <Button.Template>
