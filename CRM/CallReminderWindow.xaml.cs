@@ -673,29 +673,37 @@ namespace Kalendarz1.CRM
                 if (crmRankingPanel == null) return;
                 crmRankingPanel.Children.Clear();
 
-                // Load daily/weekly progress for current user
+                // Load my progress bars
                 LoadDailyWeeklyProgress();
 
-                var rankings = new List<(string UserID, string Name, int Suma, int Proby, int Nawiazano, int Zgoda, int Oferty)>();
+                var rankings = new List<(string UserID, string Name, int Suma, int DayCalls, int WeekCalls, int DailyTarget, int WeeklyTarget)>();
 
                 using (var conn = new SqlConnection(_connectionString))
                 {
                     conn.Open();
+                    // CRM activity + call progress per user
                     var cmd = new SqlCommand(@"
-                        SELECT TOP 5
-                            h.KtoWykonal as UserID,
-                            ISNULL(o.Name, 'ID: ' + h.KtoWykonal) as Name,
-                            COUNT(*) as Suma,
-                            SUM(CASE WHEN WartoscNowa = 'Próba kontaktu' THEN 1 ELSE 0 END) as Proby,
-                            SUM(CASE WHEN WartoscNowa = 'Nawiązano kontakt' THEN 1 ELSE 0 END) as Nawiazano,
-                            SUM(CASE WHEN WartoscNowa = 'Zgoda na dalszy kontakt' THEN 1 ELSE 0 END) as Zgoda,
-                            SUM(CASE WHEN WartoscNowa = 'Do wysłania oferta' THEN 1 ELSE 0 END) as Oferty
-                        FROM HistoriaZmianCRM h
-                        LEFT JOIN operators o ON h.KtoWykonal = CAST(o.ID AS NVARCHAR)
-                        WHERE h.DataZmiany > DATEADD(day, -30, GETDATE())
-                          AND h.TypZmiany = 'Zmiana statusu'
-                          AND h.WartoscNowa <> 'Do zadzwonienia'
-                        GROUP BY h.KtoWykonal, o.Name
+                        SELECT TOP 6
+                            c.UserID,
+                            ISNULL(o.Name, 'ID: ' + c.UserID) as Name,
+                            ISNULL((SELECT COUNT(*) FROM HistoriaZmianCRM h
+                                    WHERE h.KtoWykonal = c.UserID
+                                    AND h.DataZmiany > DATEADD(day, -30, GETDATE())
+                                    AND h.TypZmiany = 'Zmiana statusu'
+                                    AND h.WartoscNowa <> 'Do zadzwonienia'), 0) as Suma,
+                            ISNULL((SELECT SUM(ContactsCalled) FROM CallReminderLog
+                                    WHERE UserID = c.UserID
+                                    AND ReminderTime >= CAST(CAST(GETDATE() AS DATE) AS DATETIME)), 0) as DayCalls,
+                            ISNULL((SELECT SUM(ContactsCalled) FROM CallReminderLog
+                                    WHERE UserID = c.UserID
+                                    AND ReminderTime >= DATEADD(DAY,
+                                        -((DATEPART(WEEKDAY, GETDATE()) + @@DATEFIRST - 2) % 7),
+                                        CAST(CAST(GETDATE() AS DATE) AS DATETIME))), 0) as WeekCalls,
+                            c.DailyCallTarget,
+                            c.WeeklyCallTarget
+                        FROM CallReminderConfig c
+                        LEFT JOIN operators o ON c.UserID = CAST(o.ID AS NVARCHAR)
+                        WHERE c.IsEnabled = 1
                         ORDER BY Suma DESC", conn);
 
                     using (var reader = cmd.ExecuteReader())
@@ -706,10 +714,10 @@ namespace Kalendarz1.CRM
                                 reader["UserID"].ToString(),
                                 reader["Name"].ToString(),
                                 Convert.ToInt32(reader["Suma"]),
-                                Convert.ToInt32(reader["Proby"]),
-                                Convert.ToInt32(reader["Nawiazano"]),
-                                Convert.ToInt32(reader["Zgoda"]),
-                                Convert.ToInt32(reader["Oferty"])
+                                Convert.ToInt32(reader["DayCalls"]),
+                                Convert.ToInt32(reader["WeekCalls"]),
+                                Convert.ToInt32(reader["DailyCallTarget"]),
+                                Convert.ToInt32(reader["WeeklyCallTarget"])
                             ));
                         }
                     }
@@ -717,10 +725,15 @@ namespace Kalendarz1.CRM
 
                 if (rankings.Count == 0) return;
 
-                for (int i = 0; i < rankings.Count; i++)
+                // Sort by Suma desc
+                var sorted = rankings.OrderByDescending(r => r.Suma).ToList();
+
+                for (int i = 0; i < sorted.Count; i++)
                 {
-                    var r = rankings[i];
+                    var r = sorted[i];
                     bool isCurrentUser = r.UserID == _userID;
+                    double dayPct = r.DailyTarget > 0 ? Math.Min(100.0, 100.0 * r.DayCalls / r.DailyTarget) : 0;
+                    double weekPct = r.WeeklyTarget > 0 ? Math.Min(100.0, 100.0 * r.WeekCalls / r.WeeklyTarget) : 0;
 
                     var row = new Border
                     {
@@ -728,119 +741,102 @@ namespace Kalendarz1.CRM
                             ? new SolidColorBrush(Color.FromArgb(20, 99, 102, 241))
                             : Brushes.Transparent,
                         CornerRadius = new CornerRadius(6),
-                        Padding = new Thickness(6, 3, 6, 3),
+                        Padding = new Thickness(5, 3, 5, 3),
                         Margin = new Thickness(0, 0, 0, 1)
                     };
 
                     var grid = new Grid();
-                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(18) });  // pos
-                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) });  // avatar
-                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // name+stats
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });  // pos
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(22) });  // avatar
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // name+bars
                     grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });      // total
 
-                    // Position - compact
+                    // Position
                     string posText = i switch { 0 => "\U0001F947", 1 => "\U0001F948", 2 => "\U0001F949", _ => $"{i + 1}." };
-                    var txtPos = new TextBlock
+                    grid.Children.Add(new TextBlock
                     {
                         Text = posText,
-                        FontSize = i < 3 ? 12 : 9,
+                        FontSize = i < 3 ? 11 : 8,
                         Foreground = i < 3 ? Brushes.White : new SolidColorBrush(Color.FromRgb(102, 102, 102)),
                         VerticalAlignment = VerticalAlignment.Center,
                         HorizontalAlignment = HorizontalAlignment.Center
-                    };
-                    Grid.SetColumn(txtPos, 0);
-                    grid.Children.Add(txtPos);
+                    });
 
-                    // Avatar - smaller
+                    // Avatar
                     var avatarBorder = new Border
                     {
-                        Width = 22, Height = 22,
-                        CornerRadius = new CornerRadius(11),
+                        Width = 20, Height = 20,
+                        CornerRadius = new CornerRadius(10),
                         ClipToBounds = true,
                         Margin = new Thickness(1, 0, 0, 0),
                         VerticalAlignment = VerticalAlignment.Center
                     };
-
                     BitmapSource avatarSource = null;
                     try
                     {
                         if (UserAvatarManager.HasAvatar(r.UserID))
                         {
-                            using var img = UserAvatarManager.GetAvatarRounded(r.UserID, 22);
+                            using var img = UserAvatarManager.GetAvatarRounded(r.UserID, 20);
                             if (img != null) avatarSource = ConvertToBitmapSource(img);
                         }
                         if (avatarSource == null)
                         {
-                            using var img = UserAvatarManager.GenerateDefaultAvatar(r.Name, r.UserID, 22);
+                            using var img = UserAvatarManager.GenerateDefaultAvatar(r.Name, r.UserID, 20);
                             avatarSource = ConvertToBitmapSource(img);
                         }
                     }
                     catch { }
-
                     if (avatarSource != null)
-                    {
-                        avatarBorder.Child = new System.Windows.Controls.Image
-                        {
-                            Source = avatarSource,
-                            Stretch = Stretch.UniformToFill
-                        };
-                    }
+                        avatarBorder.Child = new System.Windows.Controls.Image { Source = avatarSource, Stretch = Stretch.UniformToFill };
                     Grid.SetColumn(avatarBorder, 1);
                     grid.Children.Add(avatarBorder);
 
-                    // Name + compact status line
-                    var namePanel = new StackPanel
-                    {
-                        Margin = new Thickness(5, 0, 4, 0),
-                        VerticalAlignment = VerticalAlignment.Center
-                    };
+                    // Name + daily/weekly progress bars
+                    var namePanel = new StackPanel { Margin = new Thickness(4, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center };
 
                     string displayName = r.Name.Length > 12 ? r.Name.Substring(0, 10) + ".." : r.Name;
-                    var txtName = new TextBlock
+                    namePanel.Children.Add(new TextBlock
                     {
                         Text = displayName,
-                        FontSize = 10,
+                        FontSize = 9,
                         FontWeight = isCurrentUser ? FontWeights.Bold : FontWeights.Normal,
                         Foreground = isCurrentUser
                             ? new SolidColorBrush(Color.FromRgb(165, 180, 252))
                             : new SolidColorBrush(Color.FromRgb(200, 200, 200))
-                    };
-                    namePanel.Children.Add(txtName);
+                    });
 
-                    // Compact inline stats
-                    var badgePanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 1, 0, 0) };
-                    void AddMiniStat(string label, int count, string color)
-                    {
-                        if (count <= 0) return;
-                        badgePanel.Children.Add(new TextBlock
-                        {
-                            Text = label + count,
-                            FontSize = 8,
-                            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color)),
-                            Margin = new Thickness(0, 0, 4, 0)
-                        });
-                    }
-                    AddMiniStat("P:", r.Proby, "#FCD34D");
-                    AddMiniStat("N:", r.Nawiazano, "#4ADE80");
-                    AddMiniStat("Z:", r.Zgoda, "#2DD4BF");
-                    AddMiniStat("O:", r.Oferty, "#60A5FA");
-                    namePanel.Children.Add(badgePanel);
+                    // Daily progress bar
+                    var dayBar = CreateMiniProgressBar(dayPct, r.DayCalls, r.DailyTarget,
+                        Color.FromRgb(34, 197, 94), "D");
+                    namePanel.Children.Add(dayBar);
+
+                    // Weekly progress bar
+                    var weekBar = CreateMiniProgressBar(weekPct, r.WeekCalls, r.WeeklyTarget,
+                        Color.FromRgb(59, 130, 246), "T");
+                    namePanel.Children.Add(weekBar);
 
                     Grid.SetColumn(namePanel, 2);
                     grid.Children.Add(namePanel);
 
-                    // Total - compact
-                    var txtSuma = new TextBlock
+                    // Total CRM activity
+                    var totalPanel = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
+                    totalPanel.Children.Add(new TextBlock
                     {
                         Text = r.Suma.ToString(),
-                        FontSize = 13,
+                        FontSize = 12,
                         FontWeight = FontWeights.Bold,
                         Foreground = new SolidColorBrush(Color.FromRgb(99, 102, 241)),
-                        VerticalAlignment = VerticalAlignment.Center,
                         HorizontalAlignment = HorizontalAlignment.Right
-                    };
-                    Grid.SetColumn(txtSuma, 3);
-                    grid.Children.Add(txtSuma);
+                    });
+                    totalPanel.Children.Add(new TextBlock
+                    {
+                        Text = "CRM",
+                        FontSize = 7,
+                        Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
+                        HorizontalAlignment = HorizontalAlignment.Right
+                    });
+                    Grid.SetColumn(totalPanel, 3);
+                    grid.Children.Add(totalPanel);
 
                     row.Child = grid;
                     crmRankingPanel.Children.Add(row);
@@ -850,6 +846,57 @@ namespace Kalendarz1.CRM
             {
                 Debug.WriteLine($"LoadCRMActivityRanking error: {ex.Message}");
             }
+        }
+
+        private FrameworkElement CreateMiniProgressBar(double pct, int current, int target, Color barColor, string label)
+        {
+            var container = new Grid { Margin = new Thickness(0, 1, 0, 0) };
+            container.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(12) });
+            container.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            container.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            container.Children.Add(new TextBlock
+            {
+                Text = label,
+                FontSize = 7,
+                Foreground = new SolidColorBrush(Color.FromArgb(128, barColor.R, barColor.G, barColor.B)),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+
+            var bgBar = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(26, 255, 255, 255)),
+                CornerRadius = new CornerRadius(1.5),
+                Height = 3,
+                Margin = new Thickness(2, 0, 2, 0)
+            };
+            var fillBar = new Border
+            {
+                Background = new SolidColorBrush(barColor),
+                CornerRadius = new CornerRadius(1.5),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Width = 0
+            };
+            bgBar.SizeChanged += (s, e) =>
+            {
+                fillBar.Width = Math.Max(0, (pct / 100.0) * bgBar.ActualWidth);
+            };
+            bgBar.Child = fillBar;
+            Grid.SetColumn(bgBar, 1);
+            container.Children.Add(bgBar);
+
+            var pctText = new TextBlock
+            {
+                Text = $"{current}/{target}",
+                FontSize = 7,
+                Foreground = new SolidColorBrush(barColor),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(2, 0, 0, 0)
+            };
+            Grid.SetColumn(pctText, 2);
+            container.Children.Add(pctText);
+
+            return container;
         }
 
         private void LoadDailyWeeklyProgress()
@@ -1650,11 +1697,11 @@ namespace Kalendarz1.CRM
             // Update objections
             PopulateObjections();
 
-            // Update flow stats
-            txtStatToday.Text = _callsCount.ToString();
+            // Update flow stats (stats panel removed, keep for compatibility)
+            if (txtStatToday != null) txtStatToday.Text = _callsCount.ToString();
             int completed = _contacts?.Count(c => c.IsCompleted) ?? 0;
             int total = _contacts?.Count ?? 0;
-            txtStatRate.Text = total > 0 ? $"{(completed * 100 / total)}%" : "0%";
+            if (txtStatRate != null) txtStatRate.Text = total > 0 ? $"{(completed * 100 / total)}%" : "0%";
         }
 
         private void PopulateObjections()
@@ -1775,19 +1822,19 @@ namespace Kalendarz1.CRM
         {
             if (theme == CRMThemeMode.Light)
             {
-                // Light theme: white-green-red with white dominant
-                this.Background = new SolidColorBrush(Color.FromRgb(245, 245, 245));
+                // Light theme: slate palette with good contrast
+                this.Background = new SolidColorBrush(Color.FromRgb(241, 245, 249));  // #F1F5F9
 
                 mainBorder.Background = new LinearGradientBrush(
-                    Color.FromRgb(250, 250, 250),
-                    Color.FromRgb(240, 240, 240),
+                    Color.FromRgb(241, 245, 249),
+                    Color.FromRgb(226, 232, 240),
                     45);
 
-                leftPanel.Background = new SolidColorBrush(Color.FromRgb(255, 255, 255));
-                leftPanel.BorderBrush = new SolidColorBrush(Color.FromRgb(220, 220, 220));
+                leftPanel.Background = new SolidColorBrush(Color.FromRgb(248, 250, 252)); // #F8FAFC
+                leftPanel.BorderBrush = new SolidColorBrush(Color.FromRgb(203, 213, 225)); // #CBD5E1
 
-                FlowPanel.Background = new SolidColorBrush(Color.FromRgb(252, 252, 252));
-                FlowPanel.BorderBrush = new SolidColorBrush(Color.FromRgb(220, 220, 220));
+                FlowPanel.Background = new SolidColorBrush(Color.FromRgb(248, 250, 252));
+                FlowPanel.BorderBrush = new SolidColorBrush(Color.FromRgb(203, 213, 225));
 
                 btnToggleTheme.Content = "\U0001F319"; // Moon emoji for switch to dark
 
@@ -1818,11 +1865,13 @@ namespace Kalendarz1.CRM
 
         private void ApplyLightThemeToVisualTree(DependencyObject root)
         {
-            var darkText = new SolidColorBrush(Color.FromRgb(30, 30, 30));
-            var mediumText = new SolidColorBrush(Color.FromRgb(80, 80, 80));
+            var darkText = new SolidColorBrush(Color.FromRgb(20, 20, 30));
+            var mediumText = new SolidColorBrush(Color.FromRgb(60, 60, 70));
+            var mutedText = new SolidColorBrush(Color.FromRgb(100, 100, 110));
             var lightBg = new SolidColorBrush(Color.FromRgb(255, 255, 255));
-            var cardBg = new SolidColorBrush(Color.FromRgb(248, 248, 248));
-            var borderColor = new SolidColorBrush(Color.FromRgb(215, 215, 215));
+            var cardBg = new SolidColorBrush(Color.FromRgb(245, 247, 250));
+            var nestedBg = new SolidColorBrush(Color.FromRgb(235, 238, 243));
+            var borderColor = new SolidColorBrush(Color.FromRgb(200, 205, 215));
 
             for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
             {
@@ -1833,12 +1882,27 @@ namespace Kalendarz1.CRM
                     if (tb.Foreground is SolidColorBrush brush)
                     {
                         var c = brush.Color;
-                        // White or near-white text -> dark
-                        if (c.R > 200 && c.G > 200 && c.B > 200 && c.A > 150)
+                        // Pure white or near-white → dark
+                        if (c.R > 220 && c.G > 220 && c.B > 220 && c.A > 150)
                             tb.Foreground = darkText;
-                        // Semi-transparent white text -> medium gray
-                        else if (c.R > 200 && c.G > 200 && c.B > 200 && c.A > 50)
+                        // Semi-transparent white → medium
+                        else if (c.R > 200 && c.G > 200 && c.B > 200 && c.A > 40 && c.A <= 150)
                             tb.Foreground = mediumText;
+                        // Light gray foreground → muted
+                        else if (c.R > 130 && c.G > 130 && c.B > 130 && c.R < 200 && c.A > 150)
+                            tb.Foreground = mutedText;
+                        // Keep colors like green (#22C55E), blue (#3B82F6), indigo (#6366F1) -
+                        // but darken them for light bg
+                        else if (c.R == 34 && c.G == 197 && c.B == 94)  // green
+                            tb.Foreground = new SolidColorBrush(Color.FromRgb(21, 128, 61));   // darker green
+                        else if (c.R == 59 && c.G == 130 && c.B == 246) // blue
+                            tb.Foreground = new SolidColorBrush(Color.FromRgb(37, 99, 235));   // darker blue
+                        else if (c.R == 99 && c.G == 102 && c.B == 241) // indigo
+                            tb.Foreground = new SolidColorBrush(Color.FromRgb(67, 56, 202));   // darker indigo
+                        else if (c.R == 165 && c.G == 180 && c.B == 252) // light indigo
+                            tb.Foreground = new SolidColorBrush(Color.FromRgb(55, 48, 163));   // dark indigo
+                        else if (c.R == 245 && c.G == 158 && c.B == 11) // amber
+                            tb.Foreground = new SolidColorBrush(Color.FromRgb(180, 83, 9));    // darker amber
                     }
                 }
                 else if (child is Border border)
@@ -1846,18 +1910,46 @@ namespace Kalendarz1.CRM
                     if (border.Background is SolidColorBrush bg)
                     {
                         var c = bg.Color;
-                        // Dark backgrounds (#0d1117, #161b22, etc) -> light
-                        if (c.R < 40 && c.G < 40 && c.B < 40 && c.A > 200)
+                        // Very dark backgrounds → light card
+                        if (c.R < 30 && c.G < 30 && c.B < 40 && c.A > 200)
                             border.Background = cardBg;
-                        // Semi-transparent white backgrounds -> solid white
+                        // Medium dark (#111118, #0D0D14, etc.) → nested
+                        else if (c.R < 50 && c.G < 50 && c.B < 50 && c.A > 200)
+                            border.Background = nestedBg;
+                        // Semi-transparent white → subtle gray
                         else if (c.R == 255 && c.G == 255 && c.B == 255 && c.A < 100)
-                            border.Background = new SolidColorBrush(Color.FromArgb(20, 0, 0, 0));
+                            border.Background = new SolidColorBrush(Color.FromArgb(15, 0, 0, 0));
+                    }
+                    else if (border.Background is LinearGradientBrush lgb)
+                    {
+                        // Dark gradient → light gradient
+                        bool isDark = lgb.GradientStops.Any(s => s.Color.R < 40 && s.Color.G < 40);
+                        if (isDark)
+                        {
+                            border.Background = new LinearGradientBrush(
+                                Color.FromRgb(245, 247, 250),
+                                Color.FromRgb(235, 238, 243), 45);
+                        }
                     }
                     if (border.BorderBrush is SolidColorBrush bb)
                     {
                         var c = bb.Color;
+                        // Semi-transparent white borders → visible gray
                         if (c.R == 255 && c.G == 255 && c.B == 255 && c.A < 80)
                             border.BorderBrush = borderColor;
+                        // Dark borders → light gray
+                        else if (c.R < 50 && c.G < 50 && c.B < 50 && c.A > 200)
+                            border.BorderBrush = borderColor;
+                    }
+                }
+                else if (child is Button btn)
+                {
+                    // Status buttons text
+                    if (btn.Foreground is SolidColorBrush btnBrush)
+                    {
+                        var c = btnBrush.Color;
+                        if (c.R > 200 && c.G > 200 && c.B > 200 && c.A > 150)
+                            btn.Foreground = darkText;
                     }
                 }
 

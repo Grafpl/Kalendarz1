@@ -339,28 +339,69 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Progress Footer -->
-                        <Border Grid.Row="4" Background="#08FFFFFF" Padding="16" BorderBrush="#14FFFFFF"
+                        <!-- Progress Footer with daily/weekly -->
+                        <Border Grid.Row="4" Background="#08FFFFFF" Padding="10,8" BorderBrush="#14FFFFFF"
                                 BorderThickness="0,1,0,0" CornerRadius="0,0,0,20">
                             <StackPanel>
+                                <!-- Session progress -->
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock x:Name="txtProgressLabel" Text="Postęp sesji" FontSize="12"
+                                    <TextBlock x:Name="txtProgressLabel" Text="Postęp sesji" FontSize="11"
                                                Foreground="#66FFFFFF"/>
                                     <TextBlock x:Name="txtProgressCount" Grid.Column="1" Text="0/5"
-                                               FontSize="12" FontWeight="SemiBold" Foreground="#3fb950"/>
+                                               FontSize="11" FontWeight="SemiBold" Foreground="#3fb950"/>
                                 </Grid>
-                                <Border Background="#1AFFFFFF" CornerRadius="4" Height="6" Margin="0,8,0,0">
-                                    <Border x:Name="progressFill" Background="#3fb950" CornerRadius="4"
+                                <Border Background="#1AFFFFFF" CornerRadius="3" Height="5" Margin="0,5,0,0">
+                                    <Border x:Name="progressFill" Background="#3fb950" CornerRadius="3"
                                             HorizontalAlignment="Left" Width="0">
                                         <Border.Effect>
-                                            <DropShadowEffect ShadowDepth="0" Color="#3fb950" Opacity="0.5" BlurRadius="8"/>
+                                            <DropShadowEffect ShadowDepth="0" Color="#3fb950" Opacity="0.5" BlurRadius="6"/>
                                         </Border.Effect>
                                     </Border>
                                 </Border>
+                                <!-- Daily/Weekly my progress -->
+                                <Grid Margin="0,8,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <!-- Daily -->
+                                    <Border Grid.Column="0" Background="#0CFFFFFF" CornerRadius="6" Padding="8,5">
+                                        <StackPanel>
+                                            <Grid>
+                                                <TextBlock Text="Dzienny" FontSize="8" Foreground="#66FFFFFF"/>
+                                                <TextBlock x:Name="txtDailyProgress" Text="0/30" FontSize="8"
+                                                           FontWeight="Bold" Foreground="#FF22C55E" HorizontalAlignment="Right"/>
+                                            </Grid>
+                                            <Border Background="#1AFFFFFF" CornerRadius="2" Height="4" Margin="0,3,0,0">
+                                                <Border x:Name="dailyProgressFill" Background="#FF22C55E" CornerRadius="2"
+                                                        HorizontalAlignment="Left" Width="0"/>
+                                            </Border>
+                                            <TextBlock x:Name="txtDailyPct" Text="0%" FontSize="13" FontWeight="Bold"
+                                                       Foreground="#FF22C55E" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <!-- Weekly -->
+                                    <Border Grid.Column="2" Background="#0CFFFFFF" CornerRadius="6" Padding="8,5">
+                                        <StackPanel>
+                                            <Grid>
+                                                <TextBlock Text="Tygodniowy" FontSize="8" Foreground="#66FFFFFF"/>
+                                                <TextBlock x:Name="txtWeeklyProgress" Text="0/120" FontSize="8"
+                                                           FontWeight="Bold" Foreground="#FF3B82F6" HorizontalAlignment="Right"/>
+                                            </Grid>
+                                            <Border Background="#1AFFFFFF" CornerRadius="2" Height="4" Margin="0,3,0,0">
+                                                <Border x:Name="weeklyProgressFill" Background="#FF3B82F6" CornerRadius="2"
+                                                        HorizontalAlignment="Left" Width="0"/>
+                                            </Border>
+                                            <TextBlock x:Name="txtWeeklyPct" Text="0%" FontSize="13" FontWeight="Bold"
+                                                       Foreground="#FF3B82F6" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
                             </StackPanel>
                         </Border>
                     </Grid>
@@ -371,7 +412,7 @@
                 <!-- ============================================ -->
                 <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto"
                               Style="{StaticResource GlassScrollViewer}">
-                    <Grid x:Name="detailsPanel" Margin="20,14,20,14">
+                    <Grid x:Name="detailsPanel" Margin="14,8,14,8">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
@@ -418,7 +459,7 @@
                         </Grid>
 
                         <!-- PKD Section -->
-                        <Border x:Name="pkdSection" Grid.Row="1" Margin="0,10,0,0"
+                        <Border x:Name="pkdSection" Grid.Row="1" Margin="0,6,0,0"
                                 Background="#1Aa78bfa" BorderBrush="#33a78bfa" BorderThickness="1"
                                 CornerRadius="12" Padding="16" Visibility="Collapsed">
                             <StackPanel Orientation="Horizontal">
@@ -433,7 +474,7 @@
                         </Border>
 
                         <!-- Phone Section -->
-                        <Border Grid.Row="2" Margin="0,10,0,0" CornerRadius="14" Padding="18"
+                        <Border Grid.Row="2" Margin="0,6,0,0" CornerRadius="12" Padding="14"
                                 BorderBrush="#4D58a6ff" BorderThickness="1">
                             <Border.Background>
                                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
@@ -479,8 +520,8 @@
                         </Border>
 
                         <!-- Status Change Section -->
-                        <Border Grid.Row="3" Margin="0,10,0,0" Background="#08FFFFFF"
-                                BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="10" Padding="12">
+                        <Border Grid.Row="3" Margin="0,6,0,0" Background="#08FFFFFF"
+                                BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="10" Padding="10">
                             <StackPanel>
                                 <TextBlock Text="🔄 ZMIEŃ STATUS" FontSize="11" Foreground="#66FFFFFF"
                                            FontWeight="SemiBold"/>
@@ -492,7 +533,7 @@
                         </Border>
 
                         <!-- Last Note Section -->
-                        <Border x:Name="lastNoteSection" Grid.Row="4" Margin="0,10,0,0"
+                        <Border x:Name="lastNoteSection" Grid.Row="4" Margin="0,6,0,0"
                                 Background="#1Ad29922" BorderBrush="#33d29922" BorderThickness="1"
                                 CornerRadius="12" Padding="16" Visibility="Collapsed">
                             <StackPanel>
@@ -516,7 +557,7 @@
                         </Border>
 
                         <!-- New Note Section -->
-                        <Border Grid.Row="5" Margin="0,10,0,0" Background="#08FFFFFF"
+                        <Border Grid.Row="5" Margin="0,6,0,0" Background="#08FFFFFF"
                                 BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="10" Padding="12">
                             <StackPanel>
                                 <TextBlock Text="📝 DODAJ NOTATKĘ" FontSize="11" Foreground="#66FFFFFF"
@@ -527,7 +568,7 @@
                                          MaxLength="500" MinHeight="60" MaxHeight="100"
                                          TextChanged="TxtNewNote_TextChanged"/>
 
-                                <Grid Margin="0,10,0,0">
+                                <Grid Margin="0,6,0,0">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
@@ -576,7 +617,7 @@
                         </Border>
 
                         <!-- Quick Actions -->
-                        <Grid Grid.Row="6" Margin="0,10,0,0">
+                        <Grid Grid.Row="6" Margin="0,6,0,0">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
@@ -632,7 +673,7 @@
                         </Grid>
 
                         <!-- Footer Stats -->
-                        <Border Grid.Row="7" Margin="0,10,0,0" BorderBrush="#14FFFFFF"
+                        <Border Grid.Row="7" Margin="0,6,0,0" BorderBrush="#14FFFFFF"
                                 BorderThickness="0,1,0,0" Padding="0,10,0,0">
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -842,61 +883,17 @@
                             </StackPanel>
                         </ScrollViewer>
 
-                        <!-- ROW 2: CRM Activity Ranking with Progress Bars -->
+                        <!-- ROW 2: CRM Activity Ranking with per-user progress -->
                         <Border Grid.Row="2" Background="#FF0D0D14" BorderBrush="#FF1A1A24"
-                                BorderThickness="0,1,0,0" Padding="14,10">
+                                BorderThickness="0,1,0,0" Padding="10,6">
                             <StackPanel>
-                                <!-- Daily / Weekly Progress -->
-                                <Grid Margin="0,0,0,8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="8"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <!-- Daily Progress -->
-                                    <Border Grid.Column="0" Background="#FF111118" CornerRadius="8" Padding="10,8">
-                                        <StackPanel>
-                                            <Grid>
-                                                <TextBlock Text="Cel dzienny" FontSize="9" Foreground="#FF888888"/>
-                                                <TextBlock x:Name="txtDailyProgress" Text="0/30" FontSize="9" FontWeight="Bold"
-                                                           Foreground="#FF22C55E" HorizontalAlignment="Right"/>
-                                            </Grid>
-                                            <Border Background="#1AFFFFFF" CornerRadius="3" Height="6" Margin="0,5,0,0">
-                                                <Border x:Name="dailyProgressFill" Background="#FF22C55E" CornerRadius="3"
-                                                        HorizontalAlignment="Left" Width="0"/>
-                                            </Border>
-                                            <TextBlock x:Name="txtDailyPct" Text="0%" FontSize="16" FontWeight="Bold"
-                                                       Foreground="#FF22C55E" HorizontalAlignment="Center" Margin="0,4,0,0"/>
-                                        </StackPanel>
-                                    </Border>
-                                    <!-- Weekly Progress -->
-                                    <Border Grid.Column="2" Background="#FF111118" CornerRadius="8" Padding="10,8">
-                                        <StackPanel>
-                                            <Grid>
-                                                <TextBlock Text="Cel tygodniowy" FontSize="9" Foreground="#FF888888"/>
-                                                <TextBlock x:Name="txtWeeklyProgress" Text="0/120" FontSize="9" FontWeight="Bold"
-                                                           Foreground="#FF3B82F6" HorizontalAlignment="Right"/>
-                                            </Grid>
-                                            <Border Background="#1AFFFFFF" CornerRadius="3" Height="6" Margin="0,5,0,0">
-                                                <Border x:Name="weeklyProgressFill" Background="#FF3B82F6" CornerRadius="3"
-                                                        HorizontalAlignment="Left" Width="0"/>
-                                            </Border>
-                                            <TextBlock x:Name="txtWeeklyPct" Text="0%" FontSize="16" FontWeight="Bold"
-                                                       Foreground="#FF3B82F6" HorizontalAlignment="Center" Margin="0,4,0,0"/>
-                                        </StackPanel>
-                                    </Border>
-                                </Grid>
-                                <!-- CRM Ranking Header -->
-                                <StackPanel Orientation="Horizontal" Margin="0,4,0,6">
-                                    <TextBlock Text="📊" FontSize="11" VerticalAlignment="Center"/>
-                                    <TextBlock Text="Ranking aktywności CRM" FontSize="10" FontWeight="SemiBold"
-                                               Foreground="#99FFFFFF" Margin="5,0,0,0" VerticalAlignment="Center"/>
-                                    <TextBlock Text="(30 dni)" FontSize="9" Foreground="#FF555555" Margin="4,0,0,0"
-                                               VerticalAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                    <TextBlock Text="📊" FontSize="10" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Ranking aktywności" FontSize="10" FontWeight="SemiBold"
+                                               Foreground="#99FFFFFF" Margin="4,0,0,0" VerticalAlignment="Center"/>
                                 </StackPanel>
-                                <!-- CRM Ranking Items -->
                                 <StackPanel x:Name="crmRankingPanel">
-                                    <!-- Filled dynamically -->
+                                    <!-- Filled dynamically with per-user daily/weekly progress -->
                                 </StackPanel>
                             </StackPanel>
                         </Border>
@@ -936,34 +933,7 @@
                             </Button>
                         </Grid>
 
-                        <!-- ROW 4: Stats -->
-                        <Border Grid.Row="4" Background="#FF111111"
-                                BorderBrush="#FF1A1A24" BorderThickness="0,1,0,0"
-                                Padding="12,12">
-                            <UniformGrid Columns="3">
-                                <StackPanel HorizontalAlignment="Center">
-                                    <TextBlock x:Name="txtStatToday" Text="0"
-                                               Foreground="#FF22C55E" FontSize="20" FontWeight="Bold"
-                                               HorizontalAlignment="Center"/>
-                                    <TextBlock Text="dziś" Foreground="#FF555555" FontSize="10"
-                                               HorizontalAlignment="Center"/>
-                                </StackPanel>
-                                <StackPanel HorizontalAlignment="Center">
-                                    <TextBlock x:Name="txtStatStreak" Text="0"
-                                               Foreground="#FFF59E0B" FontSize="20" FontWeight="Bold"
-                                               HorizontalAlignment="Center"/>
-                                    <TextBlock Text="streak" Foreground="#FF555555" FontSize="10"
-                                               HorizontalAlignment="Center"/>
-                                </StackPanel>
-                                <StackPanel HorizontalAlignment="Center">
-                                    <TextBlock x:Name="txtStatRate" Text="0%"
-                                               Foreground="#FF3B82F6" FontSize="20" FontWeight="Bold"
-                                               HorizontalAlignment="Center"/>
-                                    <TextBlock Text="skuteczność" Foreground="#FF555555" FontSize="10"
-                                               HorizontalAlignment="Center"/>
-                                </StackPanel>
-                            </UniformGrid>
-                        </Border>
+                        <!-- ROW 4: removed -->
                     </Grid>
                 </Border>
             </Grid>

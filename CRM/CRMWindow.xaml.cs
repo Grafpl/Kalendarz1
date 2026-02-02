@@ -1054,15 +1054,22 @@ namespace Kalendarz1.CRM
                 rowStyle.Setters.Add(new Setter(DataGridRow.BackgroundProperty, Brushes.White));
                 rowStyle.Setters.Add(new Setter(DataGridRow.BorderThicknessProperty, new Thickness(0, 0, 0, 1)));
                 rowStyle.Setters.Add(new Setter(DataGridRow.BorderBrushProperty,
-                    new SolidColorBrush(Color.FromRgb(241, 245, 249))));  // #F1F5F9 subtelna linia
+                    new SolidColorBrush(Color.FromRgb(226, 232, 240))));  // #E2E8F0 visible line
                 var hoverTrigger = new Trigger { Property = DataGridRow.IsMouseOverProperty, Value = true };
                 hoverTrigger.Setters.Add(new Setter(DataGridRow.BackgroundProperty,
-                    new SolidColorBrush(Color.FromRgb(220, 252, 231)))); // #DCFCE7 zielony highlight
+                    new SolidColorBrush(Color.FromRgb(219, 234, 254)))); // #DBEAFE blue-100 hover
+                hoverTrigger.Setters.Add(new Setter(DataGridRow.BorderBrushProperty,
+                    new SolidColorBrush(Color.FromRgb(147, 197, 253)))); // #93C5FD blue-300 border
+                hoverTrigger.Setters.Add(new Setter(DataGridRow.BorderThicknessProperty, new Thickness(2)));
                 rowStyle.Triggers.Add(hoverTrigger);
                 var selectedTrigger = new Trigger { Property = DataGridRow.IsSelectedProperty, Value = true };
                 selectedTrigger.Setters.Add(new Setter(DataGridRow.BackgroundProperty,
-                    new SolidColorBrush(Color.FromRgb(21, 128, 61))));   // #15803D zielony zaznaczony
-                selectedTrigger.Setters.Add(new Setter(DataGridRow.ForegroundProperty, Brushes.White));
+                    new SolidColorBrush(Color.FromRgb(191, 219, 254)))); // #BFDBFE blue-200 selected bg
+                selectedTrigger.Setters.Add(new Setter(DataGridRow.ForegroundProperty,
+                    new SolidColorBrush(Color.FromRgb(15, 23, 42))));    // dark text on blue
+                selectedTrigger.Setters.Add(new Setter(DataGridRow.BorderBrushProperty,
+                    new SolidColorBrush(Color.FromRgb(59, 130, 246))));  // #3B82F6 blue-500 border
+                selectedTrigger.Setters.Add(new Setter(DataGridRow.BorderThicknessProperty, new Thickness(2)));
                 rowStyle.Triggers.Add(selectedTrigger);
                 dgKontakty.RowStyle = rowStyle;
 
@@ -1136,11 +1143,16 @@ namespace Kalendarz1.CRM
                 rowStyleDk.Setters.Add(new Setter(DataGridRow.FontSizeProperty, 14.0));
                 rowStyleDk.Setters.Add(new Setter(DataGridRow.BackgroundProperty, new SolidColorBrush(Color.FromRgb(30, 41, 59))));
                 rowStyleDk.Setters.Add(new Setter(DataGridRow.BorderThicknessProperty, new Thickness(0)));
+                rowStyleDk.Setters.Add(new Setter(DataGridRow.BorderBrushProperty, Brushes.Transparent));
                 var hoverDk = new Trigger { Property = DataGridRow.IsMouseOverProperty, Value = true };
                 hoverDk.Setters.Add(new Setter(DataGridRow.BackgroundProperty, new SolidColorBrush(Color.FromRgb(51, 65, 85))));
+                hoverDk.Setters.Add(new Setter(DataGridRow.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(99, 102, 241))));
+                hoverDk.Setters.Add(new Setter(DataGridRow.BorderThicknessProperty, new Thickness(2)));
                 rowStyleDk.Triggers.Add(hoverDk);
                 var selectedDk = new Trigger { Property = DataGridRow.IsSelectedProperty, Value = true };
-                selectedDk.Setters.Add(new Setter(DataGridRow.BackgroundProperty, new SolidColorBrush(Color.FromRgb(99, 102, 241))));
+                selectedDk.Setters.Add(new Setter(DataGridRow.BackgroundProperty, new SolidColorBrush(Color.FromArgb(40, 99, 102, 241))));
+                selectedDk.Setters.Add(new Setter(DataGridRow.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(129, 140, 248)))); // indigo-400
+                selectedDk.Setters.Add(new Setter(DataGridRow.BorderThicknessProperty, new Thickness(2)));
                 rowStyleDk.Triggers.Add(selectedDk);
                 dgKontakty.RowStyle = rowStyleDk;
 
@@ -1182,14 +1194,19 @@ namespace Kalendarz1.CRM
                         {
                             // Primary text #E2E8F0 → dark
                             if (c.R == 226 && c.G == 232 && c.B == 240) tb.Foreground = ltTextPrimary;
-                            // Secondary #94A3B8 → medium
+                            // Secondary #94A3B8 → dark gray
                             else if (c.R == 148 && c.G == 163 && c.B == 184) tb.Foreground = ltTextSecondary;
-                            // Muted #64748B → stays (works on both)
-                            // Accent light #A5B4FC → green
-                            else if (c.R == 165 && c.G == 180 && c.B == 252) tb.Foreground = ltAccent;
+                            // Accent light #A5B4FC → dark blue for readability on white
+                            else if (c.R == 165 && c.G == 180 && c.B == 252)
+                                tb.Foreground = new SolidColorBrush(Color.FromRgb(37, 99, 235)); // #2563EB blue-600
                             // Pure white → dark text
                             else if (c.R > 240 && c.G > 240 && c.B > 240 && c.A > 200) tb.Foreground = ltTextPrimary;
-                            // #6366F1 indigo accent → keep in light (still looks good)
+                            // Light grays/semi-transparent → medium text
+                            else if (c.R > 180 && c.G > 180 && c.B > 180 && c.A > 100)
+                                tb.Foreground = ltTextSecondary;
+                            // #6366F1 indigo → darken slightly for light bg
+                            else if (c.R == 99 && c.G == 102 && c.B == 241)
+                                tb.Foreground = new SolidColorBrush(Color.FromRgb(67, 56, 202)); // #4338CA indigo-700
                         }
                         else
                         {
@@ -1197,6 +1214,9 @@ namespace Kalendarz1.CRM
                             if (c.R == 15 && c.G == 23 && c.B == 42) tb.Foreground = dkTextPrimary;
                             else if (c.R == 51 && c.G == 65 && c.B == 85) tb.Foreground = dkTextSecondary;
                             else if (c.R == 21 && c.G == 128 && c.B == 61) tb.Foreground = dkAccentLight;
+                            else if (c.R == 37 && c.G == 99 && c.B == 235) tb.Foreground = dkAccentLight; // blue-600 → #A5B4FC
+                            else if (c.R == 67 && c.G == 56 && c.B == 202) // indigo-700 → #6366F1
+                                tb.Foreground = new SolidColorBrush(Color.FromRgb(99, 102, 241));
                         }
                     }
                 }
