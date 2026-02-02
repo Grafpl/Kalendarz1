@@ -887,7 +887,7 @@ namespace Kalendarz1.CRM
 
             var pctText = new TextBlock
             {
-                Text = $"{current}/{target}",
+                Text = $"{(int)pct}%",
                 FontSize = 7,
                 Foreground = new SolidColorBrush(barColor),
                 VerticalAlignment = VerticalAlignment.Center,
@@ -936,8 +936,7 @@ namespace Kalendarz1.CRM
                 double dailyPct = dailyTarget > 0 ? Math.Min(100.0, 100.0 * dailyCalls / dailyTarget) : 0;
                 double weeklyPct = weeklyTarget > 0 ? Math.Min(100.0, 100.0 * weeklyCalls / weeklyTarget) : 0;
 
-                if (txtDailyProgress != null) txtDailyProgress.Text = $"{dailyCalls}/{dailyTarget}";
-                if (txtWeeklyProgress != null) txtWeeklyProgress.Text = $"{weeklyCalls}/{weeklyTarget}";
+                // Progress text removed - show only %
                 if (txtDailyPct != null) txtDailyPct.Text = $"{(int)dailyPct}%";
                 if (txtWeeklyPct != null) txtWeeklyPct.Text = $"{(int)weeklyPct}%";
 
@@ -981,11 +980,11 @@ namespace Kalendarz1.CRM
 
                 if (dailyProgressFill != null) dailyProgressFill.Background = new SolidColorBrush(dailyColor);
                 if (txtDailyPct != null) txtDailyPct.Foreground = new SolidColorBrush(dailyColor);
-                if (txtDailyProgress != null) txtDailyProgress.Foreground = new SolidColorBrush(dailyColor);
+                // txtDailyProgress removed
 
                 if (weeklyProgressFill != null) weeklyProgressFill.Background = new SolidColorBrush(weeklyColor);
                 if (txtWeeklyPct != null) txtWeeklyPct.Foreground = new SolidColorBrush(weeklyColor);
-                if (txtWeeklyProgress != null) txtWeeklyProgress.Foreground = new SolidColorBrush(weeklyColor);
+                // txtWeeklyProgress removed
             }
             catch (Exception ex)
             {
@@ -1076,12 +1075,26 @@ namespace Kalendarz1.CRM
                 pkdSection.Visibility = Visibility.Collapsed;
             }
 
-            // Phone section
-            txtMainPhone.Text = FormatPhoneNumber(contact.Telefon);
-            txtPhone2.Text = contact.Telefon2 ?? "";
+            // Phone section - use Tag for template binding
+            btnCall.Tag = FormatPhoneNumber(contact.Telefon);
+            btnCall.IsEnabled = !string.IsNullOrWhiteSpace(contact.Telefon);
+
+            // Phone 2
+            if (!string.IsNullOrWhiteSpace(contact.Telefon2))
+            {
+                btnCallPhone2.Tag = FormatPhoneNumber(contact.Telefon2);
+                btnCallPhone2.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                btnCallPhone2.Visibility = Visibility.Collapsed;
+            }
+
+            // Email
             txtEmail.Text = contact.Email ?? "-";
             emailStack.Visibility = contact.HasEmail ? Visibility.Visible : Visibility.Collapsed;
-            btnCall.IsEnabled = !string.IsNullOrWhiteSpace(contact.Telefon);
+            if (txtEmailInput != null) txtEmailInput.Text = contact.Email ?? "";
+            if (txtEmailCurrent != null) txtEmailCurrent.Text = contact.HasEmail ? $"Aktualny: {contact.Email}" : "";
 
             // Status badge
             UpdateStatusBadge(contact.Status);
@@ -1236,39 +1249,12 @@ namespace Kalendarz1.CRM
             progressFill.Width = Math.Max(0, targetWidth);
         }
 
-        private void FilterTab_Checked(object sender, RoutedEventArgs e)
-        {
-            // Guard against firing during InitializeComponent
-            if (tabAll == null || tabNew == null || tabHot == null || _contacts == null) return;
-
-            if (sender is ToggleButton tb)
-            {
-                // Uncheck other tabs
-                if (tb == tabAll) { tabNew.IsChecked = false; tabHot.IsChecked = false; }
-                else if (tb == tabNew) { tabAll.IsChecked = false; tabHot.IsChecked = false; }
-                else if (tb == tabHot) { tabAll.IsChecked = false; tabNew.IsChecked = false; }
-
-                // Filter contacts
-                FilterContacts();
-            }
-        }
-
         private void FilterContacts()
         {
             var allContacts = CallReminderService.Instance.GetRandomContacts(_config?.ContactsPerReminder ?? 10);
-            IEnumerable<ContactToCall> filtered = allContacts;
-
-            if (tabNew?.IsChecked == true)
-            {
-                filtered = allContacts.Where(c => c.Status == "Nowy" || c.Status == "Do zadzwonienia");
-            }
-            else if (tabHot?.IsChecked == true)
-            {
-                filtered = allContacts.Where(c => c.Status == "Gorący" || c.Priority == "urgent" || c.Priority == "high");
-            }
 
             _contacts.Clear();
-            foreach (var contact in filtered.Take(_config?.ContactsPerReminder ?? 5))
+            foreach (var contact in allContacts.Take(_config?.ContactsPerReminder ?? 5))
             {
                 _contacts.Add(contact);
             }
@@ -1499,6 +1485,27 @@ namespace Kalendarz1.CRM
             }
         }
 
+        private void BtnCallPhone2_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedContact == null) return;
+            try
+            {
+                var phone = _selectedContact.Telefon2?.Replace(" ", "").Replace("-", "");
+                if (!string.IsNullOrEmpty(phone))
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = $"tel:{phone}",
+                        UseShellExecute = true
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error opening phone2: {ex.Message}");
+            }
+        }
+
         private void BtnSaveNote_Click(object sender, RoutedEventArgs e)
         {
             if (_selectedContact == null || string.IsNullOrWhiteSpace(txtNewNote.Text)) return;
@@ -1518,6 +1525,17 @@ namespace Kalendarz1.CRM
             _selectedContact.OstatniaNotaAutor = _userID;
             _selectedContact.DataOstatniejNotatki = DateTime.Now;
             SelectContact(_selectedContact); // Refresh display
+
+            // Auto-refresh ranking
+            Task.Run(() =>
+            {
+                System.Threading.Thread.Sleep(500);
+                Dispatcher.Invoke(() =>
+                {
+                    try { LoadCRMActivityRanking(); } catch { }
+                    try { LoadDailyWeeklyProgress(); } catch { }
+                });
+            });
         }
 
         private void TxtNewNote_TextChanged(object sender, TextChangedEventArgs e)
@@ -1670,12 +1688,6 @@ namespace Kalendarz1.CRM
         {
             var phase = _phases[_currentPhase];
 
-            // Update phase icon (Path data)
-            try { pathPhaseIcon.Data = Geometry.Parse(phase.IconPath); } catch { }
-
-            txtPhaseName.Text = phase.Name;
-            txtPhaseNumber.Text = $"Faza {_currentPhase + 1} z {_phases.Count}";
-
             // Pick random script for this phase
             _currentScriptIndex = _rng.Next(phase.Scripts.Length);
             txtScript.Text = phase.Scripts[_currentScriptIndex];
@@ -1692,12 +1704,8 @@ namespace Kalendarz1.CRM
             btnPhase2.Background = _currentPhase == 2 ? activeBg : inactiveBg;
             btnPhase3.Background = _currentPhase == 3 ? activeBg : inactiveBg;
 
-            btnPrevPhase.IsEnabled = _currentPhase > 0;
-
             // Update objections
             PopulateObjections();
-
-            // Stats panel removed
         }
 
         private void PopulateObjections()
@@ -2036,6 +2044,17 @@ namespace Kalendarz1.CRM
                 UpdateStatusBadge(newStatus);
                 UpdateProgress();
                 contactsList.Items.Refresh();
+
+                // Auto-refresh ranking and progress
+                Task.Run(() =>
+                {
+                    System.Threading.Thread.Sleep(500);
+                    Dispatcher.Invoke(() =>
+                    {
+                        try { LoadCRMActivityRanking(); } catch { }
+                        try { LoadDailyWeeklyProgress(); } catch { }
+                    });
+                });
             }
             catch (Exception ex)
             {

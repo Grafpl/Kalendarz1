@@ -310,6 +310,7 @@ namespace Kalendarz1.CRM
 
         private void WczytajKontakty()
         {
+            _handlowiecAvatarCache.Clear();
             bool tylkoMoje = chkTylkoMoje?.IsChecked == true;
 
             using (var conn = new SqlConnection(connectionString))
@@ -333,13 +334,14 @@ namespace Kalendarz1.CRM
                             SELECT KtoDodal as Operator, DataUtworzenia as Data FROM NotatkiCRM WHERE IDOdbiorcy = o.ID
                             UNION ALL
                             SELECT KtoWykonal, DataZmiany FROM HistoriaZmianCRM WHERE IDOdbiorcy = o.ID
-                        ) x LEFT JOIN operators op ON x.Operator = CAST(op.ID AS NVARCHAR)
+                        ) x LEFT JOIN operators op ON x.Operator = CAST(op.ID AS NVARCHAR) OR op.Name = x.Operator
                         ORDER BY x.Data DESC) as OstatniHandlowiec,
-                        (SELECT TOP 1 x.Operator FROM (
+                        (SELECT TOP 1 COALESCE(CAST(op2.ID AS NVARCHAR(20)), x.Operator) FROM (
                             SELECT KtoDodal as Operator, DataUtworzenia as Data FROM NotatkiCRM WHERE IDOdbiorcy = o.ID
                             UNION ALL
                             SELECT KtoWykonal, DataZmiany FROM HistoriaZmianCRM WHERE IDOdbiorcy = o.ID
-                        ) x ORDER BY x.Data DESC) as OstatniHandlowiecID,
+                        ) x LEFT JOIN operators op2 ON x.Operator = CAST(op2.ID AS NVARCHAR(20)) OR op2.Name = x.Operator
+                        ORDER BY x.Data DESC) as OstatniHandlowiecID,
                         kp.Latitude, kp.Longitude
                     FROM OdbiorcyCRM o
                     LEFT JOIN WlascicieleOdbiorcow w ON o.ID = w.IDOdbiorcy
