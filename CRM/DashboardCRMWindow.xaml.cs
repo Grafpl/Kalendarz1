@@ -115,7 +115,7 @@ namespace Kalendarz1.CRM
                     var cmd = new SqlCommand(@"
                         SELECT ISNULL(o.Name, h.KtoWykonal), MONTH(h.DataZmiany), COUNT(*)
                         FROM HistoriaZmianCRM h
-                        LEFT JOIN operators o ON o.ID = CASE WHEN ISNUMERIC(h.KtoWykonal) = 1 THEN CAST(h.KtoWykonal AS INT) END
+                        LEFT JOIN operators o ON o.ID = h.KtoWykonal
                         WHERE h.TypZmiany = 'Zmiana statusu'
                         AND h.DataZmiany >= @od AND h.DataZmiany < @do
                         GROUP BY ISNULL(o.Name, h.KtoWykonal), MONTH(h.DataZmiany)", conn);
@@ -146,7 +146,7 @@ namespace Kalendarz1.CRM
                     var cmdN = new SqlCommand(@"
                         SELECT ISNULL(o.Name, n.KtoDodal), MONTH(n.DataUtworzenia), COUNT(*)
                         FROM NotatkiCRM n
-                        LEFT JOIN operators o ON o.ID = CASE WHEN ISNUMERIC(n.KtoDodal) = 1 THEN CAST(n.KtoDodal AS INT) END
+                        LEFT JOIN operators o ON o.ID = CAST(n.KtoDodal AS VARCHAR(15))
                         WHERE n.DataUtworzenia >= @od AND n.DataUtworzenia < @do
                         GROUP BY ISNULL(o.Name, n.KtoDodal), MONTH(n.DataUtworzenia)", conn);
                     cmdN.Parameters.AddWithValue("@od", od);
@@ -206,7 +206,7 @@ namespace Kalendarz1.CRM
                     var cmd = new SqlCommand(@"
                         SELECT ISNULL(o.Name, h.KtoWykonal), CAST(h.DataZmiany AS DATE), COUNT(*)
                         FROM HistoriaZmianCRM h
-                        LEFT JOIN operators o ON o.ID = CASE WHEN ISNUMERIC(h.KtoWykonal) = 1 THEN CAST(h.KtoWykonal AS INT) END
+                        LEFT JOIN operators o ON o.ID = h.KtoWykonal
                         WHERE h.TypZmiany = 'Zmiana statusu'
                         AND h.DataZmiany >= @od AND h.DataZmiany < @do
                         GROUP BY ISNULL(o.Name, h.KtoWykonal), CAST(h.DataZmiany AS DATE)", conn);
@@ -238,7 +238,7 @@ namespace Kalendarz1.CRM
                     var cmdN = new SqlCommand(@"
                         SELECT ISNULL(o.Name, n.KtoDodal), CAST(n.DataUtworzenia AS DATE), COUNT(*)
                         FROM NotatkiCRM n
-                        LEFT JOIN operators o ON o.ID = CASE WHEN ISNUMERIC(n.KtoDodal) = 1 THEN CAST(n.KtoDodal AS INT) END
+                        LEFT JOIN operators o ON o.ID = CAST(n.KtoDodal AS VARCHAR(15))
                         WHERE n.DataUtworzenia >= @od AND n.DataUtworzenia < @do
                         GROUP BY ISNULL(o.Name, n.KtoDodal), CAST(n.DataUtworzenia AS DATE)", conn);
                     cmdN.Parameters.AddWithValue("@od", od);

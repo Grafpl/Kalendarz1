@@ -175,7 +175,7 @@ namespace Kalendarz1.CRM
                         CASE WHEN pb.PKD_Opis IS NOT NULL THEN 1 ELSE 0 END as CzyPriorytetowa,
                         kp.Latitude,
                         kp.Longitude,
-                        (SELECT TOP 1 ISNULL(op.Name, h.KtoWykonal) FROM HistoriaZmianCRM h LEFT JOIN operators op ON op.ID = CASE WHEN ISNUMERIC(h.KtoWykonal) = 1 THEN CAST(h.KtoWykonal AS INT) END WHERE h.IDOdbiorcy = o.ID ORDER BY h.DataZmiany DESC) as Handlowiec,
+                        (SELECT TOP 1 ISNULL(op.Name, h.KtoWykonal) FROM HistoriaZmianCRM h LEFT JOIN operators op ON op.ID = h.KtoWykonal WHERE h.IDOdbiorcy = o.ID ORDER BY h.DataZmiany DESC) as Handlowiec,
                         notatki_agg.Notatki,
                         historia_agg.Historia
                     FROM OdbiorcyCRM o
@@ -184,12 +184,12 @@ namespace Kalendarz1.CRM
                     OUTER APPLY (
                         SELECT STRING_AGG(CONCAT(FORMAT(n.DataDodania, 'dd.MM'), '|', ISNULL(op.Name, 'System'), '|', LEFT(n.Tresc, 100)), ';;;') as Notatki
                         FROM (SELECT TOP 3 ID, IDOdbiorcy, DataDodania, Tresc, KtoDodal FROM NotatkiCRM WHERE IDOdbiorcy = o.ID ORDER BY DataDodania DESC) n
-                        LEFT JOIN operators op ON op.ID = CASE WHEN ISNUMERIC(n.KtoDodal) = 1 THEN CAST(n.KtoDodal AS INT) END
+                        LEFT JOIN operators op ON op.ID = CAST(n.KtoDodal AS VARCHAR(15))
                     ) notatki_agg
                     OUTER APPLY (
                         SELECT STRING_AGG(CONCAT(FORMAT(h.DataZmiany, 'dd.MM HH:mm'), '|', h.TypZmiany, '|', ISNULL(h.WartoscNowa, ''), '|', ISNULL(op.Name, 'System')), ';;;') as Historia
                         FROM (SELECT TOP 5 ID, IDOdbiorcy, DataZmiany, TypZmiany, WartoscNowa, KtoWykonal FROM HistoriaZmianCRM WHERE IDOdbiorcy = o.ID ORDER BY DataZmiany DESC) h
-                        LEFT JOIN operators op ON op.ID = CASE WHEN ISNUMERIC(h.KtoWykonal) = 1 THEN CAST(h.KtoWykonal AS INT) END
+                        LEFT JOIN operators op ON op.ID = h.KtoWykonal
                     ) historia_agg
                     WHERE ISNULL(o.Status, '') NOT IN ('Poprosił o usunięcie', 'Błędny rekord (do raportu)')
                       AND kp.Latitude IS NOT NULL
