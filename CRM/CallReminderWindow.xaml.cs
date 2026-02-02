@@ -474,7 +474,7 @@ namespace Kalendarz1.CRM
                                        ), 0) as WeekCalls,
                                c.WeeklyCallTarget
                         FROM CallReminderConfig c
-                        LEFT JOIN operators op ON c.UserID = CAST(op.ID AS NVARCHAR)
+                        LEFT JOIN operators op ON op.ID = TRY_CONVERT(INT, c.UserID)
                         WHERE c.IsEnabled = 1
                         ORDER BY WeekCalls DESC", conn);
 
@@ -703,7 +703,7 @@ namespace Kalendarz1.CRM
                             c.DailyCallTarget,
                             c.WeeklyCallTarget
                         FROM CallReminderConfig c
-                        LEFT JOIN operators o ON c.UserID = CAST(o.ID AS NVARCHAR)
+                        LEFT JOIN operators o ON o.ID = TRY_CONVERT(INT, c.UserID)
                         WHERE c.IsEnabled = 1
                         ORDER BY Suma DESC", conn);
 

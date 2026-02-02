@@ -334,13 +334,13 @@ namespace Kalendarz1.CRM
                             SELECT KtoDodal as Operator, DataUtworzenia as Data FROM NotatkiCRM WHERE IDOdbiorcy = o.ID
                             UNION ALL
                             SELECT KtoWykonal, DataZmiany FROM HistoriaZmianCRM WHERE IDOdbiorcy = o.ID
-                        ) x LEFT JOIN operators op ON x.Operator = CAST(op.ID AS NVARCHAR) OR op.Name = x.Operator
+                        ) x LEFT JOIN operators op ON op.ID = TRY_CONVERT(INT, x.Operator) OR op.Name = x.Operator
                         ORDER BY x.Data DESC) as OstatniHandlowiec,
                         (SELECT TOP 1 COALESCE(CAST(op2.ID AS NVARCHAR(20)), x.Operator) FROM (
                             SELECT KtoDodal as Operator, DataUtworzenia as Data FROM NotatkiCRM WHERE IDOdbiorcy = o.ID
                             UNION ALL
                             SELECT KtoWykonal, DataZmiany FROM HistoriaZmianCRM WHERE IDOdbiorcy = o.ID
-                        ) x LEFT JOIN operators op2 ON x.Operator = CAST(op2.ID AS NVARCHAR(20)) OR op2.Name = x.Operator
+                        ) x LEFT JOIN operators op2 ON op2.ID = TRY_CONVERT(INT, x.Operator) OR op2.Name = x.Operator
                         ORDER BY x.Data DESC) as OstatniHandlowiecID,
                         kp.Latitude, kp.Longitude
                     FROM OdbiorcyCRM o
@@ -467,7 +467,7 @@ namespace Kalendarz1.CRM
                             SUM(CASE WHEN WartoscNowa = 'Zgoda na dalszy kontakt' THEN 1 ELSE 0 END) as Zgoda,
                             SUM(CASE WHEN WartoscNowa = 'Do wysłania oferta' THEN 1 ELSE 0 END) as Oferty,
                             SUM(CASE WHEN WartoscNowa = 'Nie zainteresowany' THEN 1 ELSE 0 END) as NieZainteresowany
-                        FROM HistoriaZmianCRM h LEFT JOIN operators o ON h.KtoWykonal = CAST(o.ID AS NVARCHAR)
+                        FROM HistoriaZmianCRM h LEFT JOIN operators o ON o.ID = TRY_CONVERT(INT, h.KtoWykonal)
                         {whereDate}
                         GROUP BY h.KtoWykonal, o.Name ORDER BY Suma DESC", conn);
 
@@ -568,13 +568,13 @@ namespace Kalendarz1.CRM
                         SELECT n.ID as Id, n.Tresc, n.DataUtworzenia, ISNULL(o.Name, n.KtoDodal) as Operator,
                                '📝' as Typ, CAST(1 AS BIT) as CzyNotatka
                         FROM NotatkiCRM n
-                        LEFT JOIN operators o ON n.KtoDodal = CAST(o.ID AS NVARCHAR)
+                        LEFT JOIN operators o ON o.ID = TRY_CONVERT(INT, n.KtoDodal)
                         WHERE n.IDOdbiorcy = @id
                         UNION ALL
                         SELECT 0 as Id, CONCAT('Status: ', h.WartoscNowa) as Tresc, h.DataZmiany as DataUtworzenia,
                                ISNULL(o.Name, h.KtoWykonal) as Operator, '🔄' as Typ, CAST(0 AS BIT) as CzyNotatka
                         FROM HistoriaZmianCRM h
-                        LEFT JOIN operators o ON h.KtoWykonal = CAST(o.ID AS NVARCHAR)
+                        LEFT JOIN operators o ON o.ID = TRY_CONVERT(INT, h.KtoWykonal)
                         WHERE h.IDOdbiorcy = @id AND h.TypZmiany = 'Zmiana statusu'
                     ) AS Historia
                     ORDER BY DataUtworzenia DESC", conn);
