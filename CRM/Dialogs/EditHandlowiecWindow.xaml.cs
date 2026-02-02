@@ -34,12 +34,12 @@ namespace Kalendarz1.CRM.Dialogs
 
         private void InitializeControls()
         {
-            // Populate time combos
-            var times = Enumerable.Range(6, 18).SelectMany(h => new[] { $"{h:D2}:00", $"{h:D2}:30" }).ToList();
+            // Populate time combos with common times (user can also type any time like 07:45)
+            var times = Enumerable.Range(6, 18).SelectMany(h => new[] { $"{h:D2}:00", $"{h:D2}:15", $"{h:D2}:30", $"{h:D2}:45" }).ToList();
             foreach (var t in times)
             {
-                cmbTime1.Items.Add(new ComboBoxItem { Content = t });
-                cmbTime2.Items.Add(new ComboBoxItem { Content = t });
+                cmbTime1.Items.Add(t);
+                cmbTime2.Items.Add(t);
             }
 
             // Populate counts
@@ -54,23 +54,11 @@ namespace Kalendarz1.CRM.Dialogs
             txtDailyTarget.Text = _handlowiec.DailyCallTarget.ToString();
             txtWeeklyTarget.Text = _handlowiec.WeeklyCallTarget.ToString();
 
-            // Select time1
-            string t1 = _handlowiec.Time1String;
-            for (int i = 0; i < cmbTime1.Items.Count; i++)
-            {
-                if (((ComboBoxItem)cmbTime1.Items[i]).Content.ToString() == t1)
-                { cmbTime1.SelectedIndex = i; break; }
-            }
-            if (cmbTime1.SelectedIndex < 0 && cmbTime1.Items.Count > 0) cmbTime1.SelectedIndex = 0;
+            // Set time1 - editable combo, just set the Text
+            cmbTime1.Text = _handlowiec.Time1String ?? "10:00";
 
-            // Select time2
-            string t2 = _handlowiec.Time2String;
-            for (int i = 0; i < cmbTime2.Items.Count; i++)
-            {
-                if (((ComboBoxItem)cmbTime2.Items[i]).Content.ToString() == t2)
-                { cmbTime2.SelectedIndex = i; break; }
-            }
-            if (cmbTime2.SelectedIndex < 0 && cmbTime2.Items.Count > 0) cmbTime2.SelectedIndex = 0;
+            // Set time2
+            cmbTime2.Text = _handlowiec.Time2String ?? "13:00";
 
             // Select count
             int countIdx = _handlowiec.ContactsPerReminder - 1;
@@ -78,6 +66,20 @@ namespace Kalendarz1.CRM.Dialogs
                 cmbCount.SelectedIndex = countIdx;
             else if (cmbCount.Items.Count > 0)
                 cmbCount.SelectedIndex = 4; // default 5
+        }
+
+        private TimeSpan? ParseTime(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return null;
+            text = text.Trim();
+            // Try HH:mm
+            if (TimeSpan.TryParseExact(text, new[] { "h\\:mm", "hh\\:mm" }, null, out var ts))
+                return ts;
+            // Try H.mm or HH.mm (dot separator)
+            text = text.Replace('.', ':');
+            if (TimeSpan.TryParseExact(text, new[] { "h\\:mm", "hh\\:mm" }, null, out ts))
+                return ts;
+            return null;
         }
 
         private void LoadWojewodztwa()
@@ -273,10 +275,20 @@ namespace Kalendarz1.CRM.Dialogs
             if (int.TryParse(txtWeeklyTarget.Text, out int weekly))
                 _handlowiec.WeeklyCallTarget = weekly;
 
-            if (cmbTime1.SelectedItem is ComboBoxItem t1Item)
-                _handlowiec.Time1String = t1Item.Content.ToString();
-            if (cmbTime2.SelectedItem is ComboBoxItem t2Item)
-                _handlowiec.Time2String = t2Item.Content.ToString();
+            // Parse times - editable combo, read from Text
+            var time1 = ParseTime(cmbTime1.Text);
+            var time2 = ParseTime(cmbTime2.Text);
+            if (time1 == null || time2 == null)
+            {
+                MessageBox.Show("Nieprawidlowy format godziny. Uzyj formatu HH:mm (np. 09:30, 14:15).",
+                    "Blad", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            _handlowiec.ReminderTime1 = time1.Value;
+            _handlowiec.Time1String = cmbTime1.Text.Trim();
+            _handlowiec.ReminderTime2 = time2.Value;
+            _handlowiec.Time2String = cmbTime2.Text.Trim();
+
             if (cmbCount.SelectedItem is ComboBoxItem cntItem && int.TryParse(cntItem.Content.ToString(), out int cnt))
                 _handlowiec.ContactsPerReminder = cnt;
 
