@@ -89,29 +89,33 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- Parse województwa JSON into temp table
+    -- Parse województwa JSON array using XML (compatible with all SQL Server versions)
     CREATE TABLE #Woj (Woj NVARCHAR(100));
     IF @Wojewodztwa IS NOT NULL AND @Wojewodztwa <> '' AND @Wojewodztwa <> 'NULL'
     BEGIN
         BEGIN TRY
+            DECLARE @WojClean NVARCHAR(MAX) = REPLACE(REPLACE(REPLACE(@Wojewodztwa, '[', ''), ']', ''), '"', '');
+            DECLARE @WojXml XML = CAST('<x>' + REPLACE(@WojClean, ',', '</x><x>') + '</x>' AS XML);
             INSERT INTO #Woj (Woj)
-            SELECT LTRIM(RTRIM(REPLACE(REPLACE(value, '"', ''), '''', '')))
-            FROM STRING_SPLIT(REPLACE(REPLACE(@Wojewodztwa, '[', ''), ']', ''), ',')
-            WHERE LEN(LTRIM(RTRIM(REPLACE(REPLACE(value, '"', ''), '''', '')))) > 0;
+            SELECT LTRIM(RTRIM(T.c.value('.', 'NVARCHAR(100)')))
+            FROM @WojXml.nodes('/x') AS T(c)
+            WHERE LEN(LTRIM(RTRIM(T.c.value('.', 'NVARCHAR(100)')))) > 0;
         END TRY
         BEGIN CATCH
         END CATCH
     END
 
-    -- Parse PKD priorities into temp table
+    -- Parse PKD priorities JSON array using XML
     CREATE TABLE #PKD (PKDCode NVARCHAR(20));
     IF @PKDPriorities IS NOT NULL AND @PKDPriorities <> '' AND @PKDPriorities <> 'NULL'
     BEGIN
         BEGIN TRY
+            DECLARE @PKDClean NVARCHAR(MAX) = REPLACE(REPLACE(REPLACE(@PKDPriorities, '[', ''), ']', ''), '"', '');
+            DECLARE @PKDXml XML = CAST('<x>' + REPLACE(@PKDClean, ',', '</x><x>') + '</x>' AS XML);
             INSERT INTO #PKD (PKDCode)
-            SELECT LTRIM(RTRIM(REPLACE(REPLACE(value, '"', ''), '''', '')))
-            FROM STRING_SPLIT(REPLACE(REPLACE(@PKDPriorities, '[', ''), ']', ''), ',')
-            WHERE LEN(LTRIM(RTRIM(REPLACE(REPLACE(value, '"', ''), '''', '')))) > 0;
+            SELECT LTRIM(RTRIM(T.c.value('.', 'NVARCHAR(20)')))
+            FROM @PKDXml.nodes('/x') AS T(c)
+            WHERE LEN(LTRIM(RTRIM(T.c.value('.', 'NVARCHAR(20)')))) > 0;
         END TRY
         BEGIN CATCH
         END CATCH

@@ -270,96 +270,187 @@ namespace Kalendarz1.CRM.Services
                 using var conn = new SqlConnection(_connectionString);
                 conn.Open();
 
-                var cmd = new SqlCommand("GetRandomContactsForReminder", conn);
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.CommandTimeout = 30;
-                cmd.Parameters.AddWithValue("@UserID", _userID);
-                cmd.Parameters.AddWithValue("@Count", count);
-                cmd.Parameters.AddWithValue("@OnlyNew", _config?.ShowOnlyNewContacts ?? true);
-                cmd.Parameters.AddWithValue("@OnlyAssigned", _config?.ShowOnlyAssigned ?? false);
-                cmd.Parameters.AddWithValue("@Wojewodztwa", (object)_config?.TerritoryWojewodztwa ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@OnlyMyImports", _config?.OnlyMyImports ?? false);
-                cmd.Parameters.AddWithValue("@ImportedByUser", (object)_userID ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@MaxAttempts", _config?.MaxAttemptsPerContact ?? 5);
-                cmd.Parameters.AddWithValue("@CooldownDays", _config?.CooldownDays ?? 3);
-
-                // PKD priorities - load from DB for this user's config
-                string pkdJson = null;
-                if (_config?.PKDPriorityWeight > 0)
+                // Try stored procedure first
+                bool usedSP = false;
+                try
                 {
-                    try
+                    var cmd = new SqlCommand("GetRandomContactsForReminder", conn);
+                    cmd.CommandType = CommandType.StoredProcedure;
+                    cmd.CommandTimeout = 30;
+                    cmd.Parameters.AddWithValue("@UserID", _userID);
+                    cmd.Parameters.AddWithValue("@Count", count);
+                    cmd.Parameters.AddWithValue("@OnlyNew", _config?.ShowOnlyNewContacts ?? true);
+                    cmd.Parameters.AddWithValue("@OnlyAssigned", _config?.ShowOnlyAssigned ?? false);
+                    cmd.Parameters.AddWithValue("@Wojewodztwa", (object)_config?.TerritoryWojewodztwa ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@OnlyMyImports", _config?.OnlyMyImports ?? false);
+                    cmd.Parameters.AddWithValue("@ImportedByUser", (object)_userID ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@MaxAttempts", _config?.MaxAttemptsPerContact ?? 5);
+                    cmd.Parameters.AddWithValue("@CooldownDays", _config?.CooldownDays ?? 3);
+
+                    // PKD priorities - load from DB for this user's config
+                    string pkdJson = null;
+                    if (_config?.PKDPriorityWeight > 0)
                     {
-                        using var conn2 = new SqlConnection(_connectionString);
-                        conn2.Open();
-                        var cmdPkd = new SqlCommand(
-                            "SELECT PKDCode FROM CallReminderPKDPriority WHERE ConfigID = @CID ORDER BY SortOrder", conn2);
-                        cmdPkd.Parameters.AddWithValue("@CID", _config.ID);
-                        var pkdCodes = new List<string>();
-                        using var rdr = cmdPkd.ExecuteReader();
-                        while (rdr.Read()) pkdCodes.Add(rdr.GetString(0));
-                        if (pkdCodes.Count > 0)
-                            pkdJson = System.Text.Json.JsonSerializer.Serialize(pkdCodes);
+                        try
+                        {
+                            using var conn2 = new SqlConnection(_connectionString);
+                            conn2.Open();
+                            var cmdPkd = new SqlCommand(
+                                "SELECT PKDCode FROM CallReminderPKDPriority WHERE ConfigID = @CID ORDER BY SortOrder", conn2);
+                            cmdPkd.Parameters.AddWithValue("@CID", _config.ID);
+                            var pkdCodes = new List<string>();
+                            using var rdr = cmdPkd.ExecuteReader();
+                            while (rdr.Read()) pkdCodes.Add(rdr.GetString(0));
+                            if (pkdCodes.Count > 0)
+                                pkdJson = System.Text.Json.JsonSerializer.Serialize(pkdCodes);
+                        }
+                        catch { }
                     }
-                    catch { }
+                    cmd.Parameters.AddWithValue("@PKDPriorities", (object)pkdJson ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@PKDWeight", _config?.PKDPriorityWeight ?? 70);
+
+                    using var reader = cmd.ExecuteReader();
+                    contacts = ReadContactsFromReader(reader);
+                    usedSP = true;
                 }
-                cmd.Parameters.AddWithValue("@PKDPriorities", (object)pkdJson ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@PKDWeight", _config?.PKDPriorityWeight ?? 70);
-
-                using var reader = cmd.ExecuteReader();
-
-                // Build column index map for optional columns
-                var columnMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-                for (int i = 0; i < reader.FieldCount; i++)
-                    columnMap[reader.GetName(i)] = i;
-
-                while (reader.Read())
+                catch (Exception spEx)
                 {
-                    var contact = new ContactToCall
-                    {
-                        ID = reader.GetInt32(0),
-                        Nazwa = reader.IsDBNull(1) ? "" : reader.GetString(1),
-                        Telefon = reader.IsDBNull(2) ? "" : reader.GetString(2),
-                        Email = reader.IsDBNull(3) ? "" : reader.GetString(3),
-                        Miasto = reader.IsDBNull(4) ? "" : reader.GetString(4),
-                        Wojewodztwo = reader.IsDBNull(5) ? "" : reader.GetString(5),
-                        Status = reader.IsDBNull(6) ? "Do zadzwonienia" : reader.GetString(6),
-                        Branza = reader.IsDBNull(7) ? "" : reader.GetString(7),
-                        OstatniaNota = reader.IsDBNull(8) ? "" : reader.GetString(8),
-                        DataOstatniejNotatki = reader.IsDBNull(9) ? null : reader.GetDateTime(9)
-                    };
+                    Debug.WriteLine($"[CallReminderService] SP failed, using fallback: {spEx.Message}");
+                }
 
-                    // Read additional columns if available from SP
-                    if (columnMap.TryGetValue("KodPocztowy", out int colKod) && !reader.IsDBNull(colKod))
-                        contact.KodPocztowy = reader.GetString(colKod);
-                    if (columnMap.TryGetValue("PKD", out int colPkd) && !reader.IsDBNull(colPkd))
-                        contact.PKD = reader.GetString(colPkd);
-                    if (columnMap.TryGetValue("PKDNazwa", out int colPkdN) && !reader.IsDBNull(colPkdN))
-                        contact.PKDNazwa = reader.GetString(colPkdN);
-                    if (columnMap.TryGetValue("NIP", out int colNip) && !reader.IsDBNull(colNip))
-                        contact.NIP = reader.GetString(colNip);
-                    if (columnMap.TryGetValue("Telefon2", out int colTel2) && !reader.IsDBNull(colTel2))
-                        contact.Telefon2 = reader.GetString(colTel2);
-                    if (columnMap.TryGetValue("Adres", out int colAddr) && !reader.IsDBNull(colAddr))
-                        contact.Adres = reader.GetString(colAddr);
-                    if (columnMap.TryGetValue("CallCount", out int colCalls) && !reader.IsDBNull(colCalls))
-                        contact.CallCount = reader.GetInt32(colCalls);
-                    if (columnMap.TryGetValue("LastCallDate", out int colLastCall) && !reader.IsDBNull(colLastCall))
-                        contact.LastCallDate = reader.GetDateTime(colLastCall);
-                    if (columnMap.TryGetValue("AssignedTo", out int colAssign) && !reader.IsDBNull(colAssign))
-                        contact.AssignedTo = reader.GetString(colAssign);
-                    if (columnMap.TryGetValue("OdlegloscKm", out int colDist) && !reader.IsDBNull(colDist))
-                        contact.OdlegloscKm = Convert.ToDouble(reader.GetValue(colDist));
-                    if (columnMap.TryGetValue("OstatniaNotaAutor", out int colAutor) && !reader.IsDBNull(colAutor))
-                        contact.OstatniaNotaAutor = reader.GetString(colAutor);
-                    if (columnMap.TryGetValue("Priority", out int colPrio) && !reader.IsDBNull(colPrio))
-                        contact.Priority = reader.GetString(colPrio);
-
-                    contacts.Add(contact);
+                // Fallback: direct query if SP failed
+                if (!usedSP)
+                {
+                    contacts = GetContactsFallback(conn, count);
                 }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"[CallReminderService] Error getting contacts: {ex.Message}");
+            }
+
+            return contacts;
+        }
+
+        private List<ContactToCall> ReadContactsFromReader(SqlDataReader reader)
+        {
+            var contacts = new List<ContactToCall>();
+            var columnMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < reader.FieldCount; i++)
+                columnMap[reader.GetName(i)] = i;
+
+            while (reader.Read())
+            {
+                var contact = new ContactToCall
+                {
+                    ID = reader.GetInt32(0),
+                    Nazwa = reader.IsDBNull(1) ? "" : reader.GetString(1),
+                    Telefon = reader.IsDBNull(2) ? "" : reader.GetString(2),
+                };
+
+                if (columnMap.TryGetValue("Email", out int colEmail) && !reader.IsDBNull(colEmail))
+                    contact.Email = reader.GetValue(colEmail).ToString();
+                if (columnMap.TryGetValue("MIASTO", out int colMiasto) && !reader.IsDBNull(colMiasto))
+                    contact.Miasto = reader.GetValue(colMiasto).ToString();
+                else if (columnMap.TryGetValue("Miasto", out int colMiasto2) && !reader.IsDBNull(colMiasto2))
+                    contact.Miasto = reader.GetValue(colMiasto2).ToString();
+                if (columnMap.TryGetValue("Wojewodztwo", out int colWoj) && !reader.IsDBNull(colWoj))
+                    contact.Wojewodztwo = reader.GetValue(colWoj).ToString();
+                if (columnMap.TryGetValue("Status", out int colStatus) && !reader.IsDBNull(colStatus))
+                    contact.Status = reader.GetValue(colStatus).ToString();
+                else
+                    contact.Status = "Do zadzwonienia";
+                if (columnMap.TryGetValue("Branza", out int colBr) && !reader.IsDBNull(colBr))
+                    contact.Branza = reader.GetValue(colBr).ToString();
+                if (columnMap.TryGetValue("OstatniaNota", out int colNota) && !reader.IsDBNull(colNota))
+                    contact.OstatniaNota = reader.GetValue(colNota).ToString();
+                if (columnMap.TryGetValue("DataOstatniejNotatki", out int colNotaDate) && !reader.IsDBNull(colNotaDate))
+                    contact.DataOstatniejNotatki = reader.GetDateTime(colNotaDate);
+                if (columnMap.TryGetValue("PKD", out int colPkd) && !reader.IsDBNull(colPkd))
+                    contact.PKD = reader.GetValue(colPkd).ToString();
+                if (columnMap.TryGetValue("Priority", out int colPrio) && !reader.IsDBNull(colPrio))
+                    contact.Priority = reader.GetValue(colPrio).ToString();
+
+                contacts.Add(contact);
+            }
+            return contacts;
+        }
+
+        private List<ContactToCall> GetContactsFallback(SqlConnection conn, int count)
+        {
+            var contacts = new List<ContactToCall>();
+            var sb = new System.Text.StringBuilder();
+            var parameters = new List<SqlParameter>();
+
+            sb.AppendLine("SELECT TOP (@Count) o.ID, o.Nazwa, o.Telefon_K as Telefon, o.MIASTO as Miasto, o.Wojewodztwo,");
+            sb.AppendLine("  o.PKD_Opis as PKD, ISNULL(o.Status, 'Do zadzwonienia') as Status, o.Tagi as Branza,");
+            sb.AppendLine("  (SELECT TOP 1 n.Tresc FROM NotatkiCRM n WHERE n.IDOdbiorcy = o.ID ORDER BY n.DataUtworzenia DESC) as OstatniaNota,");
+            sb.AppendLine("  (SELECT TOP 1 n.DataUtworzenia FROM NotatkiCRM n WHERE n.IDOdbiorcy = o.ID ORDER BY n.DataUtworzenia DESC) as DataOstatniejNotatki");
+            sb.AppendLine("FROM OdbiorcyCRM o");
+            sb.AppendLine("LEFT JOIN WlascicieleOdbiorcow w ON o.ID = w.IDOdbiorcy");
+            sb.AppendLine("WHERE o.Telefon_K IS NOT NULL AND o.Telefon_K <> ''");
+            sb.AppendLine("  AND ISNULL(o.Status, '') NOT IN ('Poprosił o usunięcie', 'Błędny rekord (do raportu)')");
+
+            parameters.Add(new SqlParameter("@Count", count));
+
+            if (_config?.ShowOnlyNewContacts == true)
+                sb.AppendLine("  AND ISNULL(o.Status, 'Do zadzwonienia') = 'Do zadzwonienia'");
+
+            if (_config?.ShowOnlyAssigned == true)
+            {
+                sb.AppendLine("  AND w.OperatorID = @UserID");
+                parameters.Add(new SqlParameter("@UserID", _userID));
+            }
+
+            if (_config?.OnlyMyImports == true)
+            {
+                sb.AppendLine("  AND o.ImportedBy = @ImportedByUser");
+                parameters.Add(new SqlParameter("@ImportedByUser", _userID));
+            }
+
+            // Territory filter
+            if (!string.IsNullOrEmpty(_config?.TerritoryWojewodztwa))
+            {
+                try
+                {
+                    var woj = System.Text.Json.JsonSerializer.Deserialize<List<string>>(_config.TerritoryWojewodztwa);
+                    if (woj != null && woj.Count > 0)
+                    {
+                        var wojParams = new List<string>();
+                        for (int i = 0; i < woj.Count; i++)
+                        {
+                            var pName = $"@woj{i}";
+                            wojParams.Add(pName);
+                            parameters.Add(new SqlParameter(pName, woj[i]));
+                        }
+                        sb.AppendLine($"  AND o.Wojewodztwo IN ({string.Join(",", wojParams)})");
+                    }
+                }
+                catch { }
+            }
+
+            // Exclude already shown today
+            sb.AppendLine("  AND o.ID NOT IN (SELECT crc.ContactID FROM CallReminderContacts crc");
+            sb.AppendLine("    INNER JOIN CallReminderLog crl ON crc.ReminderLogID = crl.ID");
+            sb.AppendLine("    WHERE crl.UserID = @UserIDLog AND CAST(crl.ReminderTime AS DATE) = CAST(GETDATE() AS DATE))");
+            parameters.Add(new SqlParameter("@UserIDLog", _userID));
+
+            sb.AppendLine("ORDER BY NEWID()");
+
+            try
+            {
+                var cmd = new SqlCommand(sb.ToString(), conn);
+                cmd.CommandTimeout = 30;
+                foreach (var p in parameters)
+                    cmd.Parameters.Add(p);
+
+                using var reader = cmd.ExecuteReader();
+                contacts = ReadContactsFromReader(reader);
+                Debug.WriteLine($"[CallReminderService] Fallback query returned {contacts.Count} contacts");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[CallReminderService] Fallback query error: {ex.Message}");
             }
 
             return contacts;
