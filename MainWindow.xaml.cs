@@ -278,7 +278,8 @@ namespace Kalendarz1
                 },
                 ["Finanse"] = new List<ModuleConfig>
                 {
-                    new ModuleConfig("DaneFinansowe", "Wynik Finansowy", "Analizuj dane finansowe firmy", "#7F8C8D", () => new WidokSprzeZakup(), "💼")
+                    new ModuleConfig("DaneFinansowe", "Wynik Finansowy", "Analizuj dane finansowe firmy", "#7F8C8D", () => new WidokSprzeZakup(), "💼"),
+                    new ModuleConfig("MarketIntelligence", "Intel Rynkowy", "Dashboard informacji rynkowych", "#3498DB", () => new MarketIntelligence.Views.MarketIntelligenceWindow(), "📊")
                 }
             };
 
