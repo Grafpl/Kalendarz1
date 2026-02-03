@@ -187,42 +187,43 @@ namespace Kalendarz1.CRM
 
         private void DgKontakty_LoadingRow(object sender, DataGridRowEventArgs e)
         {
-            if (e.Row.Item is DataRowView drv)
+            // Usuwamy poprzedni handler jeśli istniał (ważne przy wirtualizacji)
+            e.Row.Loaded -= Row_Loaded;
+            e.Row.Loaded += Row_Loaded;
+        }
+
+        private void Row_Loaded(object sender, RoutedEventArgs e)
+        {
+            try
             {
+                var row = sender as DataGridRow;
+                if (row == null) return;
+
+                // Pobierz AKTUALNE dane z DataContext (nie z closure!)
+                if (row.Item is not DataRowView drv) return;
+
                 string handlowiec = drv["OstatniHandlowiec"]?.ToString();
                 if (string.IsNullOrWhiteSpace(handlowiec)) return;
 
-                // Use the direct operator ID for precise avatar matching
                 string handlowiecId = drv.Row.Table.Columns.Contains("OstatniHandlowiecID")
                     ? drv["OstatniHandlowiecID"]?.ToString() : null;
 
-                // Defer avatar loading to after layout
-                e.Row.Loaded += (s, args) =>
+                // Find the Image element inside the Handlowiec cell
+                var presenter = FindVisualChild<DataGridCellsPresenter>(row);
+                if (presenter == null) return;
+
+                // Handlowiec is column index 2 (Status=0, Firma=1, Handlowiec=2)
+                var cell = presenter.ItemContainerGenerator.ContainerFromIndex(2) as DataGridCell;
+                if (cell == null) return;
+
+                var img = FindVisualChild<System.Windows.Controls.Image>(cell);
+                if (img != null)
                 {
-                    try
-                    {
-                        var row = s as DataGridRow;
-                        if (row == null) return;
-
-                        // Find the Image element inside the Handlowiec cell
-                        var presenter = FindVisualChild<DataGridCellsPresenter>(row);
-                        if (presenter == null) return;
-
-                        // Handlowiec is column index 2 (Status=0, Firma=1, Handlowiec=2)
-                        var cell = presenter.ItemContainerGenerator.ContainerFromIndex(2) as DataGridCell;
-                        if (cell == null) return;
-
-                        var img = FindVisualChild<System.Windows.Controls.Image>(cell);
-                        if (img != null)
-                        {
-                            var avatarSource = GetHandlowiecAvatar(handlowiec, handlowiecId);
-                            if (avatarSource != null)
-                                img.Source = avatarSource;
-                        }
-                    }
-                    catch { }
-                };
+                    var avatarSource = GetHandlowiecAvatar(handlowiec, handlowiecId);
+                    img.Source = avatarSource; // Zawsze ustaw (nawet null, żeby wyczyścić stary)
+                }
             }
+            catch { }
         }
 
         private void LoadRankingAvatars()
