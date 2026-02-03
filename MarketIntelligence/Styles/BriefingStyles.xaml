@@ -1,0 +1,589 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- PORANNY BRIEFING - PREMIUM EDITORIAL DARK THEME                          -->
+    <!-- Styl: Financial Times + Bloomberg Terminal                               -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- COLORS - TLA                                                             -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <Color x:Key="BgDeepColor">#0C0A07</Color>
+    <Color x:Key="BgCardColor">#15120D</Color>
+    <Color x:Key="BgSurfaceColor">#1E1A14</Color>
+    <Color x:Key="BgElevatedColor">#262118</Color>
+    <Color x:Key="BgBorderColor">#2A2520</Color>
+    <Color x:Key="BgBorderLightColor">#3A352E</Color>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- COLORS - AKCENTY                                                         -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <Color x:Key="GoldColor">#C9A96E</Color>
+    <Color x:Key="GoldDimColor">#8B7355</Color>
+    <Color x:Key="GoldLightColor">#E8D5A8</Color>
+    <Color x:Key="WarmWhiteColor">#F5EDE0</Color>
+    <Color x:Key="TextNormalColor">#D5CCC0</Color>
+    <Color x:Key="TextDimColor">#7A6F63</Color>
+    <Color x:Key="TextMutedColor">#5A5248</Color>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- COLORS - SEVERITY                                                        -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <Color x:Key="CriticalColor">#C05050</Color>
+    <Color x:Key="CriticalBgColor">#1C1210</Color>
+    <Color x:Key="CriticalBorderColor">#5A2525</Color>
+
+    <Color x:Key="WarningColor">#D4A035</Color>
+    <Color x:Key="WarningBgColor">#1C1808</Color>
+    <Color x:Key="WarningBorderColor">#5A4520</Color>
+
+    <Color x:Key="PositiveColor">#6DAF6D</Color>
+    <Color x:Key="PositiveBgColor">#101C10</Color>
+    <Color x:Key="PositiveBorderColor">#2A4A2A</Color>
+
+    <Color x:Key="InfoColor">#5A8FC0</Color>
+    <Color x:Key="InfoBgColor">#101520</Color>
+    <Color x:Key="InfoBorderColor">#2A4060</Color>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- COLORS - ROLE                                                            -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <Color x:Key="CeoRoleColor">#C9A96E</Color>
+    <Color x:Key="SalesRoleColor">#6DAF6D</Color>
+    <Color x:Key="BuyerRoleColor">#5AB8B8</Color>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- BRUSHES - TLA                                                            -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <SolidColorBrush x:Key="BgDeep" Color="{StaticResource BgDeepColor}"/>
+    <SolidColorBrush x:Key="BgCard" Color="{StaticResource BgCardColor}"/>
+    <SolidColorBrush x:Key="BgSurface" Color="{StaticResource BgSurfaceColor}"/>
+    <SolidColorBrush x:Key="BgElevated" Color="{StaticResource BgElevatedColor}"/>
+    <SolidColorBrush x:Key="BgBorder" Color="{StaticResource BgBorderColor}"/>
+    <SolidColorBrush x:Key="BgBorderLight" Color="{StaticResource BgBorderLightColor}"/>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- BRUSHES - AKCENTY                                                        -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <SolidColorBrush x:Key="Gold" Color="{StaticResource GoldColor}"/>
+    <SolidColorBrush x:Key="GoldDim" Color="{StaticResource GoldDimColor}"/>
+    <SolidColorBrush x:Key="GoldLight" Color="{StaticResource GoldLightColor}"/>
+    <SolidColorBrush x:Key="WarmWhite" Color="{StaticResource WarmWhiteColor}"/>
+    <SolidColorBrush x:Key="TextNormal" Color="{StaticResource TextNormalColor}"/>
+    <SolidColorBrush x:Key="TextDim" Color="{StaticResource TextDimColor}"/>
+    <SolidColorBrush x:Key="TextMuted" Color="{StaticResource TextMutedColor}"/>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- BRUSHES - SEVERITY                                                       -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <SolidColorBrush x:Key="Critical" Color="{StaticResource CriticalColor}"/>
+    <SolidColorBrush x:Key="CriticalBg" Color="{StaticResource CriticalBgColor}"/>
+    <SolidColorBrush x:Key="CriticalBorder" Color="{StaticResource CriticalBorderColor}"/>
+
+    <SolidColorBrush x:Key="Warning" Color="{StaticResource WarningColor}"/>
+    <SolidColorBrush x:Key="WarningBg" Color="{StaticResource WarningBgColor}"/>
+    <SolidColorBrush x:Key="WarningBorder" Color="{StaticResource WarningBorderColor}"/>
+
+    <SolidColorBrush x:Key="Positive" Color="{StaticResource PositiveColor}"/>
+    <SolidColorBrush x:Key="PositiveBg" Color="{StaticResource PositiveBgColor}"/>
+    <SolidColorBrush x:Key="PositiveBorder" Color="{StaticResource PositiveBorderColor}"/>
+
+    <SolidColorBrush x:Key="Info" Color="{StaticResource InfoColor}"/>
+    <SolidColorBrush x:Key="InfoBg" Color="{StaticResource InfoBgColor}"/>
+    <SolidColorBrush x:Key="InfoBorder" Color="{StaticResource InfoBorderColor}"/>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- BRUSHES - ROLE                                                           -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <SolidColorBrush x:Key="CeoRole" Color="{StaticResource CeoRoleColor}"/>
+    <SolidColorBrush x:Key="SalesRole" Color="{StaticResource SalesRoleColor}"/>
+    <SolidColorBrush x:Key="BuyerRole" Color="{StaticResource BuyerRoleColor}"/>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- GRADIENT BRUSHES                                                         -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <LinearGradientBrush x:Key="GoldGradient" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="{StaticResource GoldColor}" Offset="0"/>
+        <GradientStop Color="{StaticResource GoldDimColor}" Offset="1"/>
+    </LinearGradientBrush>
+
+    <LinearGradientBrush x:Key="ChartFillGradient" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#40C9A96E" Offset="0"/>
+        <GradientStop Color="#00C9A96E" Offset="1"/>
+    </LinearGradientBrush>
+
+    <LinearGradientBrush x:Key="ThreatHighGradient" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#C05050" Offset="0"/>
+        <GradientStop Color="#802020" Offset="1"/>
+    </LinearGradientBrush>
+
+    <LinearGradientBrush x:Key="ThreatMedGradient" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#D4A035" Offset="0"/>
+        <GradientStop Color="#8A6820" Offset="1"/>
+    </LinearGradientBrush>
+
+    <LinearGradientBrush x:Key="ThreatLowGradient" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#5A8FC0" Offset="0"/>
+        <GradientStop Color="#3A5F80" Offset="1"/>
+    </LinearGradientBrush>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- TEXT STYLES - SERIF (NAGLOWKI)                                          -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <Style x:Key="SerifMainTitle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Georgia"/>
+        <Setter Property="FontSize" Value="22"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="Foreground" Value="{StaticResource WarmWhite}"/>
+    </Style>
+
+    <Style x:Key="SerifArticleTitleFeatured" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Georgia"/>
+        <Setter Property="FontSize" Value="17"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="Foreground" Value="{StaticResource WarmWhite}"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="LineHeight" Value="24"/>
+    </Style>
+
+    <Style x:Key="SerifArticleTitle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Georgia"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{StaticResource WarmWhite}"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="LineHeight" Value="20"/>
+    </Style>
+
+    <Style x:Key="SerifSummary" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Georgia"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Foreground" Value="{StaticResource WarmWhite}"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="LineHeight" Value="22"/>
+    </Style>
+
+    <Style x:Key="SerifDate" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Georgia"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Foreground" Value="{StaticResource TextNormal}"/>
+    </Style>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- TEXT STYLES - SANS-SERIF (TRESC)                                        -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <Style x:Key="BodyText" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Foreground" Value="{StaticResource TextNormal}"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="LineHeight" Value="20"/>
+    </Style>
+
+    <Style x:Key="BodyTextSmall" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Foreground" Value="{StaticResource TextNormal}"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="LineHeight" Value="18"/>
+    </Style>
+
+    <Style x:Key="PreviewText" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Foreground" Value="{StaticResource TextDim}"/>
+        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+        <Setter Property="MaxHeight" Value="18"/>
+    </Style>
+
+    <Style x:Key="DimText" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Foreground" Value="{StaticResource TextDim}"/>
+    </Style>
+
+    <Style x:Key="MutedText" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="Foreground" Value="{StaticResource TextMuted}"/>
+    </Style>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- TEXT STYLES - LABELS (UPPERCASE)                                        -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <Style x:Key="SectionLabel" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="9"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="Foreground" Value="{StaticResource GoldDim}"/>
+    </Style>
+
+    <Style x:Key="SeverityLabel" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="9"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+    </Style>
+
+    <Style x:Key="CategoryLabel" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{StaticResource Gold}"/>
+    </Style>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- TEXT STYLES - MONOSPACE (LICZBY)                                        -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <Style x:Key="MonoValue" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Consolas"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="Foreground" Value="{StaticResource WarmWhite}"/>
+    </Style>
+
+    <Style x:Key="MonoValueLarge" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Consolas"/>
+        <Setter Property="FontSize" Value="22"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="Foreground" Value="{StaticResource WarmWhite}"/>
+    </Style>
+
+    <Style x:Key="MonoValueSmall" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Consolas"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{StaticResource WarmWhite}"/>
+    </Style>
+
+    <Style x:Key="MonoChange" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Consolas"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- CARD STYLES                                                              -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <Style x:Key="CardBorder" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource BgCard}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BgBorder}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Padding" Value="16"/>
+    </Style>
+
+    <Style x:Key="ArticleCard" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource BgCard}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BgBorder}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="Margin" Value="0,0,0,8"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{StaticResource BgSurface}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource BgBorderLight}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="IndicatorCard" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource BgCard}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BgBorder}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="Padding" Value="12,8"/>
+        <Setter Property="Margin" Value="0,0,8,0"/>
+    </Style>
+
+    <Style x:Key="SidePanelCard" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource BgSurface}"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="Padding" Value="12"/>
+        <Setter Property="Margin" Value="0,0,0,8"/>
+    </Style>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- BUTTON STYLES                                                            -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <Style x:Key="RoleButton" TargetType="RadioButton">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border x:Name="border" Background="Transparent"
+                            BorderBrush="{StaticResource BgBorderLight}"
+                            BorderThickness="1" CornerRadius="4"
+                            Padding="12,6" Cursor="Hand">
+                        <ContentPresenter x:Name="content"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="{StaticResource BgElevated}"/>
+                            <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource Gold}"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="{StaticResource BgSurface}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="FilterButton" TargetType="ToggleButton">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{StaticResource TextDim}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BgBorder}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="10,5"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border x:Name="border" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="{StaticResource BgElevated}"/>
+                            <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource Gold}"/>
+                            <Setter Property="Foreground" Value="{StaticResource WarmWhite}"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="{StaticResource BgSurface}"/>
+                            <Setter Property="Foreground" Value="{StaticResource TextNormal}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="TasksButton" TargetType="Button">
+        <Setter Property="Background" Value="{StaticResource CriticalBg}"/>
+        <Setter Property="Foreground" Value="{StaticResource Critical}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource CriticalBorder}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="12,6"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="border" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="{StaticResource CriticalBorder}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="GhostButton" TargetType="Button">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{StaticResource TextDim}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BgBorder}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="12,6"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="border" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="{StaticResource BgElevated}"/>
+                            <Setter Property="Foreground" Value="{StaticResource WarmWhite}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- SCROLLBAR STYLE                                                          -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <Style x:Key="BriefingScrollBar" TargetType="ScrollBar">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Width" Value="8"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollBar">
+                    <Grid Background="Transparent">
+                        <Track x:Name="PART_Track" IsDirectionReversed="True">
+                            <Track.Thumb>
+                                <Thumb Background="{StaticResource BgBorderLight}" Opacity="0.6">
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border Background="{TemplateBinding Background}"
+                                                    CornerRadius="4" Margin="1"/>
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Track.Thumb>
+                        </Track>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="BriefingScrollViewer" TargetType="ScrollViewer">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollViewer">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <ScrollContentPresenter Grid.Column="0"/>
+                        <ScrollBar x:Name="PART_VerticalScrollBar"
+                                   Grid.Column="1"
+                                   Style="{StaticResource BriefingScrollBar}"
+                                   Value="{TemplateBinding VerticalOffset}"
+                                   Maximum="{TemplateBinding ScrollableHeight}"
+                                   ViewportSize="{TemplateBinding ViewportHeight}"
+                                   Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- TABCONTROL STYLE                                                         -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <Style x:Key="BriefingTabControl" TargetType="TabControl">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+    </Style>
+
+    <Style x:Key="BriefingTabItem" TargetType="TabItem">
+        <Setter Property="Foreground" Value="{StaticResource TextDim}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TabItem">
+                    <Border x:Name="border" Background="Transparent"
+                            BorderBrush="Transparent" BorderThickness="0,0,0,2"
+                            Padding="12,8" Margin="0,0,4,0">
+                        <ContentPresenter x:Name="content"
+                                          ContentSource="Header"
+                                          VerticalAlignment="Center"
+                                          HorizontalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource Gold}"/>
+                            <Setter Property="Foreground" Value="{StaticResource WarmWhite}"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Foreground" Value="{StaticResource TextNormal}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- TEXTBOX STYLE                                                            -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <Style x:Key="SearchTextBox" TargetType="TextBox">
+        <Setter Property="Background" Value="{StaticResource BgSurface}"/>
+        <Setter Property="Foreground" Value="{StaticResource TextNormal}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BgBorder}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="10,6"/>
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="CaretBrush" Value="{StaticResource WarmWhite}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border x:Name="border" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4" SnapsToDevicePixels="True">
+                        <ScrollViewer x:Name="PART_ContentHost" Focusable="False"
+                                      HorizontalScrollBarVisibility="Hidden"
+                                      VerticalScrollBarVisibility="Hidden"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsFocused" Value="True">
+                            <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource Gold}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- SEPARATOR                                                                -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <Style x:Key="GoldSeparator" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource GoldDim}"/>
+        <Setter Property="Height" Value="1"/>
+        <Setter Property="Opacity" Value="0.3"/>
+        <Setter Property="Margin" Value="0,12"/>
+    </Style>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- HYPERLINK STYLE                                                          -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <Style x:Key="SourceLink" TargetType="Hyperlink">
+        <Setter Property="Foreground" Value="{StaticResource Gold}"/>
+        <Setter Property="TextDecorations" Value="None"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Foreground" Value="{StaticResource GoldLight}"/>
+                <Setter Property="TextDecorations" Value="Underline"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- TAG PILL STYLE                                                           -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <Style x:Key="TagPill" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource BgSurface}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BgBorderLight}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="3"/>
+        <Setter Property="Padding" Value="6,2"/>
+        <Setter Property="Margin" Value="0,0,4,0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{StaticResource BgElevated}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource Gold}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+</ResourceDictionary>
