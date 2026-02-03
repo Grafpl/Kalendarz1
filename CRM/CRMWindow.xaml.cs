@@ -398,13 +398,17 @@ namespace Kalendarz1.CRM
                             SELECT CAST(KtoDodal AS VARCHAR(15)) as Operator, DataUtworzenia as Data FROM NotatkiCRM WHERE IDOdbiorcy = o.ID
                             UNION ALL
                             SELECT KtoWykonal, DataZmiany FROM HistoriaZmianCRM WHERE IDOdbiorcy = o.ID
-                        ) x LEFT JOIN operators op ON op.ID = x.Operator OR op.Name = x.Operator
+                        ) x LEFT JOIN operators op ON
+                            (TRY_CAST(x.Operator AS INT) IS NOT NULL AND op.ID = x.Operator)
+                            OR (TRY_CAST(x.Operator AS INT) IS NULL AND op.Name = x.Operator)
                         ORDER BY x.Data DESC) as OstatniHandlowiec,
-                        (SELECT TOP 1 COALESCE(op2.ID, x.Operator) FROM (
+                        (SELECT TOP 1 op2.ID FROM (
                             SELECT CAST(KtoDodal AS VARCHAR(15)) as Operator, DataUtworzenia as Data FROM NotatkiCRM WHERE IDOdbiorcy = o.ID
                             UNION ALL
                             SELECT KtoWykonal, DataZmiany FROM HistoriaZmianCRM WHERE IDOdbiorcy = o.ID
-                        ) x LEFT JOIN operators op2 ON op2.ID = x.Operator OR op2.Name = x.Operator
+                        ) x LEFT JOIN operators op2 ON
+                            (TRY_CAST(x.Operator AS INT) IS NOT NULL AND op2.ID = x.Operator)
+                            OR (TRY_CAST(x.Operator AS INT) IS NULL AND op2.Name = x.Operator)
                         ORDER BY x.Data DESC) as OstatniHandlowiecID,
                         kp.Latitude, kp.Longitude
                     FROM OdbiorcyCRM o
