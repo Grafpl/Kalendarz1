@@ -380,10 +380,9 @@
                             Background="{StaticResource AccentIndigo}"
                             Margin="0,0,10,0" VerticalAlignment="Center"/>
                     <StackPanel>
-                        <TextBlock Text="MARKET INTELLIGENCE"
+                        <TextBlock Text="M A R K E T   I N T E L L I G E N C E"
                                    FontSize="14" FontWeight="SemiBold"
-                                   Foreground="{StaticResource TextBright}"
-                                   CharacterSpacing="80"/>
+                                   Foreground="{StaticResource TextBright}"/>
                         <TextBlock Text="Piórkowscy • Ubojnia Drobiu • Brzeziny"
                                    FontSize="11"
                                    Foreground="{StaticResource TextSecondary}"
