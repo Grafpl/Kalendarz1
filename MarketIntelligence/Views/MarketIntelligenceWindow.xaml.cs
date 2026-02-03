@@ -259,16 +259,6 @@ namespace Kalendarz1.MarketIntelligence.Views
             _searchText = txtSearch.Text;
             _ = RefreshArticlesAsync();
         }
-
-        private void Article_Click(object sender, MouseButtonEventArgs e)
-        {
-            if (sender is Border border && border.DataContext is IntelArticle article)
-            {
-                var detail = new ArticleDetailWindow(article);
-                detail.Owner = this;
-                detail.ShowDialog();
-            }
-        }
     }
 
     // Converter for positive values

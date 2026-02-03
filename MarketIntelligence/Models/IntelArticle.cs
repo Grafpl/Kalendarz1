@@ -48,5 +48,9 @@ namespace Kalendarz1.MarketIntelligence.Models
         public string ShortBody => Body?.Length > 200
             ? Body.Substring(0, 200) + "..."
             : Body;
+
+        public bool HasAiAnalysis => !string.IsNullOrWhiteSpace(AiAnalysis);
+
+        public bool HasTags => !string.IsNullOrWhiteSpace(Tags);
     }
 }
