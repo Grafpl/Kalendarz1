@@ -12,6 +12,7 @@
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <local:PhoneFormatConverter x:Key="PhoneFormatConverter"/>
+        <local:HandlowiecAvatarConverter x:Key="HandlowiecAvatarConverter"/>
 
         <!-- DARK CORPORATE THEME -->
         <SolidColorBrush x:Key="BgPrimary" Color="#0F172A"/>
@@ -241,13 +242,8 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,20,0">
-                    <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="CRM Manager Pro" FontWeight="Black" FontSize="18" Foreground="#A5B4FC"/>
-                    </StackPanel>
-                </StackPanel>
-
-                <Border Grid.Column="1" Margin="20,0" Padding="20,0" BorderBrush="#334155" BorderThickness="1,0,0,0">
+                <!-- Aktywny klient w nagłówku -->
+                <Border Grid.Column="0" Margin="0,0,20,0" Padding="10,0" VerticalAlignment="Center">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -256,10 +252,7 @@
                         </Grid.ColumnDefinitions>
 
                         <StackPanel VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="AKTYWNY:" FontSize="10" FontWeight="Bold" Foreground="#64748B" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                                <TextBlock x:Name="txtHeaderKlient" Text="Wybierz z listy..." FontWeight="Bold" FontSize="15" Foreground="#E2E8F0" TextTrimming="CharacterEllipsis" MaxWidth="200"/>
-                            </StackPanel>
+                            <TextBlock x:Name="txtHeaderKlient" Text="Wybierz klienta z listy..." FontWeight="Bold" FontSize="15" Foreground="#E2E8F0" TextTrimming="CharacterEllipsis" MaxWidth="280"/>
                             <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
                                 <TextBlock x:Name="txtHeaderMiasto" Text="" FontSize="12" Foreground="#94A3B8" Margin="0,0,15,0"/>
                                 <TextBlock x:Name="txtHeaderTelefon" Text="" FontSize="13" FontWeight="Bold" Foreground="#A5B4FC"/>
@@ -287,20 +280,41 @@
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
 
-                    <!-- Avatar i nazwa zalogowanego użytkownika -->
-                    <Border Background="#334155" CornerRadius="8" Padding="8,4" Margin="0,0,15,0" VerticalAlignment="Center">
+                    <!-- Avatar i nazwa zalogowanego użytkownika z celami -->
+                    <Border Background="#334155" CornerRadius="8" Padding="12,8" Margin="0,0,15,0" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal">
-                            <Border x:Name="userAvatarBorder" Width="28" Height="28" CornerRadius="14" ClipToBounds="True" Margin="0,0,8,0" Background="#312E81">
+                            <Border x:Name="userAvatarBorder" Width="40" Height="40" CornerRadius="20" ClipToBounds="True" Margin="0,0,12,0" Background="#312E81">
                                 <Image x:Name="imgUserAvatar" Stretch="UniformToFill"/>
                             </Border>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock x:Name="txtUserName" Text="Użytkownik" FontSize="11" FontWeight="SemiBold" Foreground="#E2E8F0"/>
-                                <TextBlock Text="Zalogowany" FontSize="8" Foreground="#64748B"/>
+                            <StackPanel VerticalAlignment="Center" Margin="0,0,20,0">
+                                <TextBlock x:Name="txtUserName" Text="Użytkownik" FontSize="14" FontWeight="Bold" Foreground="#E2E8F0"/>
                             </StackPanel>
+                            <!-- Cel dzienny -->
+                            <Border Background="#14532D" CornerRadius="6" Padding="12,6" Margin="0,0,8,0">
+                                <StackPanel>
+                                    <TextBlock Text="CEL DNIA" FontSize="9" FontWeight="Bold" Foreground="#22C55E" HorizontalAlignment="Center"/>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock x:Name="txtCelDziennyWykonane" Text="0" FontSize="22" FontWeight="Black" Foreground="#22C55E"/>
+                                        <TextBlock Text="/" FontSize="18" FontWeight="Bold" Foreground="#64748B" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="txtCelDziennyCel" Text="15" FontSize="18" FontWeight="Bold" Foreground="#64748B" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                            <!-- Cel tygodniowy -->
+                            <Border Background="#1E3A8A" CornerRadius="6" Padding="12,6">
+                                <StackPanel>
+                                    <TextBlock Text="CEL TYGODNIA" FontSize="9" FontWeight="Bold" Foreground="#60A5FA" HorizontalAlignment="Center"/>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock x:Name="txtCelTygodniowyWykonane" Text="0" FontSize="22" FontWeight="Black" Foreground="#60A5FA"/>
+                                        <TextBlock Text="/" FontSize="18" FontWeight="Bold" Foreground="#64748B" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="txtCelTygodniowyCel" Text="120" FontSize="18" FontWeight="Bold" Foreground="#64748B" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                     </Border>
 
-                    <StackPanel VerticalAlignment="Center" Margin="0,0,15,0" Width="120">
+                    <StackPanel VerticalAlignment="Center" Margin="0,0,15,0" Width="120" Visibility="Collapsed">
                         <Grid Margin="0,0,0,4">
                             <TextBlock x:Name="txtTargetLabel" Text="CEL DNIA (15)" FontSize="9" FontWeight="Bold" Foreground="#64748B"/>
                             <TextBlock x:Name="txtTargetInfo" Text="0/15" FontSize="10" FontWeight="Bold" Foreground="#6366F1" HorizontalAlignment="Right"/>
@@ -559,7 +573,7 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTemplateColumn Header="Firma" Width="280" SortMemberPath="NAZWA">
+                            <DataGridTemplateColumn Header="Firma" Width="320" SortMemberPath="NAZWA">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0">
@@ -608,7 +622,8 @@
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
-                                                <Image x:Name="imgHandlowiecAvatar" Stretch="UniformToFill"/>
+                                                <Image x:Name="imgHandlowiecAvatar" Stretch="UniformToFill"
+                                                       Source="{Binding OstatniHandlowiec, Converter={StaticResource HandlowiecAvatarConverter}}"/>
                                             </Border>
                                             <TextBlock Text="{Binding OstatniHandlowiec}" FontSize="9" FontWeight="SemiBold"
                                                        TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center"
@@ -787,55 +802,52 @@
                 <ScrollViewer VerticalScrollBarVisibility="Hidden">
                     <StackPanel>
 
-                        <!-- Aktywny odbiorca - pełna nazwa -->
-                        <Border Style="{StaticResource CardStyle}" Padding="12,10" Margin="0,0,0,10">
+                        <!-- Klient - nazwa i duży telefon -->
+                        <Border Style="{StaticResource CardStyle}" Padding="15,12" Margin="0,0,0,10">
                             <StackPanel>
-                                <TextBlock Text="AKTYWNY ODBIORCA" FontSize="10" FontWeight="Bold" Foreground="#64748B" Margin="0,0,0,4"/>
-                                <TextBlock x:Name="txtPanelKlientNazwa" Text="Wybierz klienta z listy..." FontSize="16" FontWeight="Bold" Foreground="#E2E8F0" TextWrapping="Wrap"/>
-                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                    <TextBlock x:Name="txtPanelKlientMiasto" Text="" FontSize="12" Foreground="#94A3B8" Margin="0,0,15,0"/>
-                                    <TextBlock x:Name="txtPanelKlientTelefon" Text="" FontSize="13" FontWeight="Bold" Foreground="#A5B4FC"/>
-                                </StackPanel>
+                                <TextBlock x:Name="txtPanelKlientNazwa" Text="Wybierz klienta z listy..." FontSize="18" FontWeight="Bold" Foreground="#E2E8F0" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="txtPanelKlientMiasto" Text="" FontSize="12" Foreground="#94A3B8" Margin="0,4,0,8"/>
+                                <TextBlock x:Name="txtPanelKlientTelefon" Text="" FontSize="28" FontWeight="Black" Foreground="#22C55E" HorizontalAlignment="Center"/>
                             </StackPanel>
                         </Border>
 
                         <Border Style="{StaticResource CardStyle}" Padding="12,10" Margin="0,0,0,10">
                             <StackPanel>
-                                <TextBlock Text="NOTATKI / HISTORIA" FontSize="12" FontWeight="Bold" Foreground="#64748B" Margin="0,0,0,10"/>
-                                <Border Background="#0F172A" CornerRadius="6" Height="320" BorderBrush="#334155" BorderThickness="1" Padding="4">
+                                <TextBlock Text="NOTATKI / HISTORIA" FontSize="14" FontWeight="Bold" Foreground="#64748B" Margin="0,0,0,12"/>
+                                <Border Background="#0F172A" CornerRadius="6" Height="350" BorderBrush="#334155" BorderThickness="1" Padding="6">
                                     <ScrollViewer>
                                         <ItemsControl x:Name="listaNotatek">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <Border Background="#1E293B" CornerRadius="4" Padding="6,4" Margin="2" BorderBrush="#334155" BorderThickness="1">
+                                                    <Border Background="#1E293B" CornerRadius="6" Padding="10,8" Margin="2,2,2,6" BorderBrush="#334155" BorderThickness="1">
                                                         <Grid>
                                                             <Grid.ColumnDefinitions>
                                                                 <ColumnDefinition Width="Auto"/>
                                                                 <ColumnDefinition Width="*"/>
                                                                 <ColumnDefinition Width="Auto"/>
                                                             </Grid.ColumnDefinitions>
-                                                            <!-- Avatar -->
-                                                            <Border Width="24" Height="24" CornerRadius="12" ClipToBounds="True"
-                                                                    VerticalAlignment="Top" Margin="0,2,6,0" Background="#312E81">
+                                                            <!-- Avatar - większy -->
+                                                            <Border Width="40" Height="40" CornerRadius="20" ClipToBounds="True"
+                                                                    VerticalAlignment="Top" Margin="0,2,10,0" Background="#312E81">
                                                                 <Image x:Name="imgNotatkaAvatar" Stretch="UniformToFill"/>
                                                             </Border>
                                                             <StackPanel Grid.Column="1">
                                                                 <StackPanel Orientation="Horizontal">
-                                                                    <TextBlock Text="{Binding Typ}" FontSize="11" Margin="0,0,5,0"/>
-                                                                    <TextBlock Text="{Binding Tresc}" TextWrapping="Wrap" FontSize="11" Foreground="#E2E8F0"/>
+                                                                    <TextBlock Text="{Binding Typ}" FontSize="14" Margin="0,0,6,0"/>
+                                                                    <TextBlock Text="{Binding Tresc}" TextWrapping="Wrap" FontSize="14" Foreground="#E2E8F0"/>
                                                                 </StackPanel>
-                                                                <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
-                                                                    <TextBlock Text="{Binding Operator}" FontSize="9" FontWeight="Bold" Foreground="#6366F1"/>
-                                                                    <TextBlock Text=" • " FontSize="9" Foreground="#64748B"/>
-                                                                    <TextBlock Text="{Binding DataUtworzenia, StringFormat='dd.MM HH:mm'}" FontSize="9" Foreground="#64748B"/>
+                                                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                                                    <TextBlock Text="{Binding Operator}" FontSize="12" FontWeight="Bold" Foreground="#6366F1"/>
+                                                                    <TextBlock Text=" • " FontSize="12" Foreground="#64748B"/>
+                                                                    <TextBlock Text="{Binding DataUtworzenia, StringFormat='dd.MM HH:mm'}" FontSize="12" Foreground="#64748B"/>
                                                                 </StackPanel>
                                                             </StackPanel>
                                                             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top"
                                                                         Visibility="{Binding CzyNotatka, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                                                <Button Content="✏️" FontSize="12" Padding="5,2" Margin="0,0,5,0"
+                                                                <Button Content="✏️" FontSize="14" Padding="6,3" Margin="0,0,5,0"
                                                                         Background="Transparent" BorderThickness="0" Cursor="Hand"
                                                                         Tag="{Binding}" Click="BtnEdytujNotatke_Click" ToolTip="Edytuj"/>
-                                                                <Button Content="🗑️" FontSize="12" Padding="5,2"
+                                                                <Button Content="🗑️" FontSize="14" Padding="6,3"
                                                                         Background="Transparent" BorderThickness="0" Cursor="Hand"
                                                                         Tag="{Binding}" Click="BtnUsunNotatke_Click" ToolTip="Usuń"/>
                                                             </StackPanel>
@@ -857,92 +869,104 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- Ranking dzienny i tygodniowy obok siebie -->
                         <Border Style="{StaticResource CardStyle}" Padding="12,10">
                             <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="*"/>
-                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
 
-                                <!-- Nagłówek kompaktowy -->
-                                <Grid Margin="0,0,0,10">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock x:Name="txtRankingTytul" Text="CELE HANDLOWCÓW" FontSize="14" FontWeight="Bold" Foreground="#E2E8F0" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                        <RadioButton x:Name="rbDzienny" Content="Dzienny" IsChecked="True" GroupName="OkresRankingu" Margin="0,0,6,0" FontSize="12" Foreground="#94A3B8" Checked="RbOkresRankingu_Checked"/>
-                                        <RadioButton x:Name="rbTygodniowy" Content="Tygodniowy" GroupName="OkresRankingu" FontSize="12" Foreground="#94A3B8" Checked="RbOkresRankingu_Checked"/>
-                                    </StackPanel>
-                                </Grid>
+                                <!-- RANKING DZIENNY -->
+                                <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                                    <TextBlock x:Name="txtRankingTytul" Text="RANKING DZIENNY" FontSize="12" FontWeight="Bold" Foreground="#22C55E" Margin="0,0,0,8"/>
+                                    <ItemsControl x:Name="listaRankingDzienny" BorderThickness="0" Background="Transparent">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="#0F172A" CornerRadius="6" Padding="8,6" Margin="0,0,0,4" BorderBrush="#334155" BorderThickness="1">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="24"/>
+                                                            <ColumnDefinition Width="32"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
 
-                                <!-- Lista rankingu - kompaktowa -->
-                                <ListBox x:Name="listaRanking" Grid.Row="1" BorderThickness="0" Background="Transparent"
-                                         MouseDoubleClick="ListaRanking_MouseDoubleClick"
-                                         ScrollViewer.VerticalScrollBarVisibility="Auto">
-                                    <ListBox.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Background="#0F172A" CornerRadius="8" Padding="10,8" Margin="0,0,0,6" BorderBrush="#334155" BorderThickness="1">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="30"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                    </Grid.ColumnDefinitions>
+                                                        <!-- Pozycja -->
+                                                        <Border Background="#14532D" Width="20" Height="20" CornerRadius="10" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding Pozycja}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10" FontWeight="Bold" Foreground="#22C55E"/>
+                                                        </Border>
 
-                                                    <!-- Pozycja -->
-                                                    <Border Background="#312E81" Width="26" Height="26" CornerRadius="13" VerticalAlignment="Center">
-                                                        <TextBlock Text="{Binding Pozycja}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" FontWeight="Bold" Foreground="#A5B4FC"/>
-                                                    </Border>
+                                                        <!-- Avatar -->
+                                                        <Border Grid.Column="1" Width="26" Height="26" CornerRadius="13" ClipToBounds="True"
+                                                                VerticalAlignment="Center" Margin="4,0,0,0" Background="#312E81">
+                                                            <Image Stretch="UniformToFill" Source="{Binding Operator, Converter={StaticResource HandlowiecAvatarConverter}}"/>
+                                                        </Border>
 
-                                                    <!-- Avatar -->
-                                                    <Border Grid.Column="1" Width="30" Height="30" CornerRadius="15" ClipToBounds="True"
-                                                            VerticalAlignment="Center" Margin="6,0,0,0" Background="#312E81">
-                                                        <Image x:Name="imgRankingAvatar" Stretch="UniformToFill"/>
-                                                    </Border>
+                                                        <!-- Nazwa -->
+                                                        <TextBlock Grid.Column="2" Text="{Binding Operator}" FontWeight="SemiBold" FontSize="11" Foreground="#E2E8F0"
+                                                                   VerticalAlignment="Center" Margin="6,0,0,0" TextTrimming="CharacterEllipsis"/>
 
-                                                    <!-- Nazwa i progres -->
-                                                    <StackPanel Grid.Column="2" Margin="8,0,0,0" VerticalAlignment="Center">
-                                                        <TextBlock Text="{Binding Operator}" FontWeight="SemiBold" FontSize="14" Foreground="#E2E8F0" TextTrimming="CharacterEllipsis"/>
-                                                        <Grid Margin="0,6,0,0">
-                                                            <ProgressBar Height="8" Minimum="0" Maximum="{Binding Cel}" Value="{Binding Wykonane}"
-                                                                         Background="#334155" Foreground="#22C55E" BorderThickness="0">
-                                                                <ProgressBar.Clip>
-                                                                    <RectangleGeometry Rect="0,0,200,8" RadiusX="4" RadiusY="4"/>
-                                                                </ProgressBar.Clip>
-                                                            </ProgressBar>
-                                                        </Grid>
-                                                    </StackPanel>
-
-                                                    <!-- Wynik / Cel -->
-                                                    <StackPanel Grid.Column="3" VerticalAlignment="Center" Margin="10,0,0,0" HorizontalAlignment="Right">
-                                                        <StackPanel Orientation="Horizontal">
-                                                            <TextBlock Text="{Binding Wykonane}" FontSize="18" FontWeight="Bold" Foreground="#22C55E"/>
-                                                            <TextBlock Text="/" FontSize="18" FontWeight="Bold" Foreground="#64748B"/>
-                                                            <TextBlock Text="{Binding Cel}" FontSize="18" FontWeight="Bold" Foreground="#64748B"/>
+                                                        <!-- Wynik -->
+                                                        <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding Wykonane}" FontSize="14" FontWeight="Bold" Foreground="#22C55E"/>
+                                                            <TextBlock Text="/" FontSize="12" Foreground="#64748B"/>
+                                                            <TextBlock Text="{Binding Cel}" FontSize="12" Foreground="#64748B"/>
                                                         </StackPanel>
-                                                        <TextBlock Text="{Binding ProcentTekst}" FontSize="11" Foreground="#94A3B8" HorizontalAlignment="Center" FontWeight="Bold"/>
-                                                    </StackPanel>
-                                                </Grid>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ListBox.ItemTemplate>
-                                    <ListBox.ItemContainerStyle>
-                                        <Style TargetType="ListBoxItem">
-                                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                                            <Setter Property="Padding" Value="0"/>
-                                            <Setter Property="Margin" Value="0"/>
-                                            <Setter Property="Background" Value="Transparent"/>
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ListBoxItem">
-                                                        <ContentPresenter/>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ListBox.ItemContainerStyle>
-                                </ListBox>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+
+                                <!-- RANKING TYGODNIOWY -->
+                                <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                                    <TextBlock Text="RANKING TYGODNIOWY" FontSize="12" FontWeight="Bold" Foreground="#60A5FA" Margin="0,0,0,8"/>
+                                    <ItemsControl x:Name="listaRankingTygodniowy" BorderThickness="0" Background="Transparent">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="#0F172A" CornerRadius="6" Padding="8,6" Margin="0,0,0,4" BorderBrush="#334155" BorderThickness="1">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="24"/>
+                                                            <ColumnDefinition Width="32"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <!-- Pozycja -->
+                                                        <Border Background="#1E3A8A" Width="20" Height="20" CornerRadius="10" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding Pozycja}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10" FontWeight="Bold" Foreground="#60A5FA"/>
+                                                        </Border>
+
+                                                        <!-- Avatar -->
+                                                        <Border Grid.Column="1" Width="26" Height="26" CornerRadius="13" ClipToBounds="True"
+                                                                VerticalAlignment="Center" Margin="4,0,0,0" Background="#312E81">
+                                                            <Image Stretch="UniformToFill" Source="{Binding Operator, Converter={StaticResource HandlowiecAvatarConverter}}"/>
+                                                        </Border>
+
+                                                        <!-- Nazwa -->
+                                                        <TextBlock Grid.Column="2" Text="{Binding Operator}" FontWeight="SemiBold" FontSize="11" Foreground="#E2E8F0"
+                                                                   VerticalAlignment="Center" Margin="6,0,0,0" TextTrimming="CharacterEllipsis"/>
+
+                                                        <!-- Wynik -->
+                                                        <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding Wykonane}" FontSize="14" FontWeight="Bold" Foreground="#60A5FA"/>
+                                                            <TextBlock Text="/" FontSize="12" Foreground="#64748B"/>
+                                                            <TextBlock Text="{Binding Cel}" FontSize="12" Foreground="#64748B"/>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+
+                                <!-- Ukryte elementy dla kompatybilności -->
+                                <RadioButton x:Name="rbDzienny" Visibility="Collapsed" IsChecked="True" GroupName="OkresRankingu" Checked="RbOkresRankingu_Checked"/>
+                                <RadioButton x:Name="rbTygodniowy" Visibility="Collapsed" GroupName="OkresRankingu" Checked="RbOkresRankingu_Checked"/>
+                                <ListBox x:Name="listaRanking" Visibility="Collapsed" MouseDoubleClick="ListaRanking_MouseDoubleClick"/>
                             </Grid>
                         </Border>
 

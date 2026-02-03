@@ -82,17 +82,17 @@ namespace Kalendarz1.CRM
                         txtUserName.Text = name;
                 }
 
-                // Załaduj avatar
+                // Załaduj avatar - teraz 40px
                 if (imgUserAvatar != null)
                 {
                     System.Drawing.Image avatarImg = null;
                     if (UserAvatarManager.HasAvatar(operatorID))
-                        avatarImg = UserAvatarManager.GetAvatarRounded(operatorID, 28);
+                        avatarImg = UserAvatarManager.GetAvatarRounded(operatorID, 40);
 
                     if (avatarImg == null)
                     {
                         string userName = txtUserName?.Text ?? "U";
-                        avatarImg = UserAvatarManager.GenerateDefaultAvatar(userName, operatorID, 28);
+                        avatarImg = UserAvatarManager.GenerateDefaultAvatar(userName, operatorID, 40);
                     }
 
                     if (avatarImg != null)
@@ -190,41 +190,14 @@ namespace Kalendarz1.CRM
 
         private void DgKontakty_LoadingRow(object sender, DataGridRowEventArgs e)
         {
-            // Usuwamy poprzedni handler jeśli istniał (ważne przy wirtualizacji)
-            e.Row.Loaded -= Row_Loaded;
-            e.Row.Loaded += Row_Loaded;
+            // Avatar jest teraz ładowany przez HandlowiecAvatarConverter w XAML
+            // Nie potrzebujemy już Row_Loaded dla avatarów
         }
 
         private void Row_Loaded(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                var row = sender as DataGridRow;
-                if (row == null) return;
-
-                // Pobierz AKTUALNE dane z DataContext (nie z closure!)
-                if (row.Item is not DataRowView drv) return;
-
-                string handlowiec = drv["OstatniHandlowiec"]?.ToString();
-                if (string.IsNullOrWhiteSpace(handlowiec)) return;
-
-                // Find the Image element inside the Handlowiec cell
-                var presenter = FindVisualChild<DataGridCellsPresenter>(row);
-                if (presenter == null) return;
-
-                // Handlowiec is column index 2 (Status=0, Firma=1, Handlowiec=2)
-                var cell = presenter.ItemContainerGenerator.ContainerFromIndex(2) as DataGridCell;
-                if (cell == null) return;
-
-                var img = FindVisualChild<System.Windows.Controls.Image>(cell);
-                if (img != null)
-                {
-                    // Użyj TYLKO nazwy do pobrania avatara (nie directId - bo jest błędne)
-                    var avatarSource = GetHandlowiecAvatar(handlowiec, null);
-                    img.Source = avatarSource;
-                }
-            }
-            catch { }
+            // Avatar jest teraz ładowany przez HandlowiecAvatarConverter w XAML binding
+            // Ta metoda jest zachowana dla kompatybilności, ale nie wykonuje już żadnych operacji
         }
 
         private void LoadRankingAvatars()
@@ -373,6 +346,7 @@ namespace Kalendarz1.CRM
         private void WczytajKontakty()
         {
             _handlowiecAvatarCache.Clear();
+            HandlowiecAvatarConverter.ClearCache(); // Wyczyść cache konwertera
             bool tylkoMoje = chkTylkoMoje?.IsChecked == true;
 
             using (var conn = new SqlConnection(connectionString))
@@ -490,26 +464,54 @@ namespace Kalendarz1.CRM
                 {
                     conn.Open();
 
-                    // Pobierz cel dnia z tabeli CallReminderSalesTargets
-                    int CEL = 15;
+                    // Pobierz cele z tabeli CallReminderSalesTargets
+                    int celDzienny = 15;
+                    int celTygodniowy = 120;
                     var cmdTarget = new SqlCommand(@"
-                        SELECT TOP 1 DailyTarget FROM CallReminderSalesTargets
+                        SELECT TOP 1 DailyTarget, WeeklyTarget FROM CallReminderSalesTargets
                         WHERE UserID = @op", conn);
                     cmdTarget.Parameters.AddWithValue("@op", operatorID);
-                    var targetResult = cmdTarget.ExecuteScalar();
-                    if (targetResult != null && targetResult != DBNull.Value)
-                        CEL = Convert.ToInt32(targetResult);
+                    using (var reader = cmdTarget.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            if (reader["DailyTarget"] != DBNull.Value)
+                                celDzienny = Convert.ToInt32(reader["DailyTarget"]);
+                            if (reader["WeeklyTarget"] != DBNull.Value)
+                                celTygodniowy = Convert.ToInt32(reader["WeeklyTarget"]);
+                        }
+                    }
 
-                    var cmd = new SqlCommand("SELECT COUNT(*) FROM HistoriaZmianCRM WHERE KtoWykonal = @op AND CAST(DataZmiany AS DATE) = CAST(GETDATE() AS DATE)", conn);
-                    cmd.Parameters.AddWithValue("@op", operatorID);
-                    int wykonane = (int)cmd.ExecuteScalar();
+                    // Wykonane dziś
+                    var cmdDzis = new SqlCommand(@"SELECT COUNT(*) FROM HistoriaZmianCRM
+                        WHERE KtoWykonal = @op AND CAST(DataZmiany AS DATE) = CAST(GETDATE() AS DATE)
+                        AND TypZmiany = 'Zmiana statusu' AND WartoscNowa <> 'Do zadzwonienia'", conn);
+                    cmdDzis.Parameters.AddWithValue("@op", operatorID);
+                    int wykonaneDzis = (int)cmdDzis.ExecuteScalar();
 
-                    if (txtTargetLabel != null) txtTargetLabel.Text = $"CEL DNIA ({CEL})";
-                    if (txtTargetInfo != null) txtTargetInfo.Text = $"{wykonane}/{CEL}";
+                    // Wykonane w tym tygodniu
+                    var cmdTydzien = new SqlCommand(@"SELECT COUNT(*) FROM HistoriaZmianCRM
+                        WHERE KtoWykonal = @op
+                        AND DataZmiany >= DATEADD(day, 1 - DATEPART(WEEKDAY, GETDATE()), CAST(GETDATE() AS DATE))
+                        AND TypZmiany = 'Zmiana statusu' AND WartoscNowa <> 'Do zadzwonienia'", conn);
+                    cmdTydzien.Parameters.AddWithValue("@op", operatorID);
+                    int wykonaneTydzien = (int)cmdTydzien.ExecuteScalar();
+
+                    // Aktualizuj nowe UI - cele dzienne
+                    if (txtCelDziennyWykonane != null) txtCelDziennyWykonane.Text = wykonaneDzis.ToString();
+                    if (txtCelDziennyCel != null) txtCelDziennyCel.Text = celDzienny.ToString();
+
+                    // Aktualizuj nowe UI - cele tygodniowe
+                    if (txtCelTygodniowyWykonane != null) txtCelTygodniowyWykonane.Text = wykonaneTydzien.ToString();
+                    if (txtCelTygodniowyCel != null) txtCelTygodniowyCel.Text = celTygodniowy.ToString();
+
+                    // Stare UI (ukryte, ale zachowane dla kompatybilności)
+                    if (txtTargetLabel != null) txtTargetLabel.Text = $"CEL DNIA ({celDzienny})";
+                    if (txtTargetInfo != null) txtTargetInfo.Text = $"{wykonaneDzis}/{celDzienny}";
                     if (pbTarget != null)
                     {
-                        pbTarget.Maximum = CEL;
-                        pbTarget.Value = wykonane;
+                        pbTarget.Maximum = celDzienny;
+                        pbTarget.Value = wykonaneDzis;
                     }
                 }
             }
@@ -556,59 +558,69 @@ namespace Kalendarz1.CRM
                 {
                     conn.Open();
 
-                    string dateFilter = tygodniowy
-                        ? "AND h.DataZmiany >= DATEADD(day, 1 - DATEPART(WEEKDAY, GETDATE()), CAST(GETDATE() AS DATE))"
-                        : "AND CAST(h.DataZmiany AS DATE) = CAST(GETDATE() AS DATE)";
+                    // Ładuj ranking dzienny
+                    var dtDzienny = LoadRankingData(conn, false);
+                    if (listaRankingDzienny != null)
+                        listaRankingDzienny.ItemsSource = dtDzienny.DefaultView;
 
-                    string targetColumn = tygodniowy ? "ISNULL(t.WeeklyTarget, 120)" : "ISNULL(t.DailyTarget, 15)";
+                    // Ładuj ranking tygodniowy
+                    var dtTygodniowy = LoadRankingData(conn, true);
+                    if (listaRankingTygodniowy != null)
+                        listaRankingTygodniowy.ItemsSource = dtTygodniowy.DefaultView;
 
-                    var cmd = new SqlCommand($@"
-                        SELECT
-                            ROW_NUMBER() OVER (ORDER BY
-                                CASE WHEN {targetColumn} > 0
-                                     THEN CAST(COUNT(h.ID) AS FLOAT) / {targetColumn}
-                                     ELSE 0 END DESC) as Pozycja,
-                            o.Name as Operator,
-                            o.ID as OperatorID,
-                            COUNT(h.ID) as Wykonane,
-                            {targetColumn} as Cel,
-                            CASE WHEN {targetColumn} > 0
-                                 THEN CAST(ROUND(CAST(COUNT(h.ID) AS FLOAT) / {targetColumn} * 100, 0) AS INT)
-                                 ELSE 0 END as Procent
-                        FROM operators o
-                        LEFT JOIN CallReminderSalesTargets t ON t.UserID = o.ID
-                        LEFT JOIN HistoriaZmianCRM h ON h.KtoWykonal = o.ID
-                            AND h.TypZmiany = 'Zmiana statusu'
-                            AND h.WartoscNowa <> 'Do zadzwonienia'
-                            {dateFilter}
-                        WHERE o.Name IS NOT NULL AND o.ID NOT IN ('admin', 'system')
-                        GROUP BY o.ID, o.Name, t.DailyTarget, t.WeeklyTarget
-                        HAVING COUNT(h.ID) > 0 OR {targetColumn} > 0
-                        ORDER BY Pozycja", conn);
-
-                    var adapter = new SqlDataAdapter(cmd);
-                    var dt = new DataTable();
-                    adapter.Fill(dt);
-
-                    // Dodaj kolumnę ProcentTekst
-                    dt.Columns.Add("ProcentTekst", typeof(string));
-                    foreach (DataRow row in dt.Rows)
-                    {
-                        int procent = row["Procent"] != DBNull.Value ? Convert.ToInt32(row["Procent"]) : 0;
-                        row["ProcentTekst"] = $"({procent}%)";
-                    }
-
+                    // Stara lista dla kompatybilności
                     if (listaRanking != null)
-                    {
-                        listaRanking.ItemsSource = dt.DefaultView;
-                        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(() => LoadRankingAvatars()));
-                    }
-
-                    if (txtRankingTytul != null)
-                        txtRankingTytul.Text = tygodniowy ? "CELE TYGODNIOWE" : "CELE DZIENNE";
+                        listaRanking.ItemsSource = (tygodniowy ? dtTygodniowy : dtDzienny).DefaultView;
                 }
             }
             catch { }
+        }
+
+        private DataTable LoadRankingData(SqlConnection conn, bool tygodniowy)
+        {
+            string dateFilter = tygodniowy
+                ? "AND h.DataZmiany >= DATEADD(day, 1 - DATEPART(WEEKDAY, GETDATE()), CAST(GETDATE() AS DATE))"
+                : "AND CAST(h.DataZmiany AS DATE) = CAST(GETDATE() AS DATE)";
+
+            string targetColumn = tygodniowy ? "ISNULL(t.WeeklyTarget, 120)" : "ISNULL(t.DailyTarget, 15)";
+
+            var cmd = new SqlCommand($@"
+                SELECT
+                    ROW_NUMBER() OVER (ORDER BY
+                        CASE WHEN {targetColumn} > 0
+                             THEN CAST(COUNT(h.ID) AS FLOAT) / {targetColumn}
+                             ELSE 0 END DESC) as Pozycja,
+                    o.Name as Operator,
+                    o.ID as OperatorID,
+                    COUNT(h.ID) as Wykonane,
+                    {targetColumn} as Cel,
+                    CASE WHEN {targetColumn} > 0
+                         THEN CAST(ROUND(CAST(COUNT(h.ID) AS FLOAT) / {targetColumn} * 100, 0) AS INT)
+                         ELSE 0 END as Procent
+                FROM operators o
+                LEFT JOIN CallReminderSalesTargets t ON t.UserID = o.ID
+                LEFT JOIN HistoriaZmianCRM h ON h.KtoWykonal = o.ID
+                    AND h.TypZmiany = 'Zmiana statusu'
+                    AND h.WartoscNowa <> 'Do zadzwonienia'
+                    {dateFilter}
+                WHERE o.Name IS NOT NULL AND o.ID NOT IN ('admin', 'system')
+                GROUP BY o.ID, o.Name, t.DailyTarget, t.WeeklyTarget
+                HAVING COUNT(h.ID) > 0 OR {targetColumn} > 0
+                ORDER BY Pozycja", conn);
+
+            var adapter = new SqlDataAdapter(cmd);
+            var dt = new DataTable();
+            adapter.Fill(dt);
+
+            // Dodaj kolumnę ProcentTekst
+            dt.Columns.Add("ProcentTekst", typeof(string));
+            foreach (DataRow row in dt.Rows)
+            {
+                int procent = row["Procent"] != DBNull.Value ? Convert.ToInt32(row["Procent"]) : 0;
+                row["ProcentTekst"] = $"({procent}%)";
+            }
+
+            return dt;
         }
 
         private void RbOkresRankingu_Checked(object sender, RoutedEventArgs e)
@@ -1497,6 +1509,101 @@ namespace Kalendarz1.CRM
         public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
         {
             throw new NotImplementedException();
+        }
+    }
+
+    /// <summary>
+    /// Konwerter avatara handlowca - pobiera avatar na podstawie nazwy operatora
+    /// </summary>
+    public class HandlowiecAvatarConverter : System.Windows.Data.IValueConverter
+    {
+        private static readonly Dictionary<string, BitmapSource> _avatarCache = new();
+        private static readonly Dictionary<string, string> _nameToId = new();
+        private static bool _isInitialized = false;
+        private static readonly string _connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+
+        [System.Runtime.InteropServices.DllImport("gdi32.dll")]
+        private static extern bool DeleteObject(IntPtr hObject);
+
+        private static void Initialize()
+        {
+            if (_isInitialized) return;
+            _isInitialized = true;
+
+            try
+            {
+                using var conn = new Microsoft.Data.SqlClient.SqlConnection(_connectionString);
+                conn.Open();
+                using var cmd = new Microsoft.Data.SqlClient.SqlCommand("SELECT ID, Name FROM operators WHERE Name IS NOT NULL", conn);
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    string id = reader["ID"].ToString();
+                    string name = reader["Name"]?.ToString()?.Trim() ?? "";
+                    if (!string.IsNullOrEmpty(name) && !_nameToId.ContainsKey(name))
+                        _nameToId[name] = id;
+                }
+            }
+            catch { }
+        }
+
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            Initialize();
+
+            string name = value?.ToString()?.Trim();
+            if (string.IsNullOrWhiteSpace(name)) return null;
+
+            // Sprawdź cache
+            if (_avatarCache.TryGetValue(name, out var cached))
+                return cached;
+
+            BitmapSource source = null;
+            try
+            {
+                // Znajdź ID po nazwie
+                string userId = _nameToId.TryGetValue(name, out var id) ? id : name;
+
+                System.Drawing.Image img = null;
+                if (UserAvatarManager.HasAvatar(userId))
+                    img = UserAvatarManager.GetAvatarRounded(userId, 28);
+                if (img == null)
+                    img = UserAvatarManager.GenerateDefaultAvatar(name, userId, 28);
+
+                if (img != null)
+                {
+                    using (img)
+                    using (var bmp = new System.Drawing.Bitmap(img))
+                    {
+                        var hBitmap = bmp.GetHbitmap();
+                        try
+                        {
+                            source = System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
+                                hBitmap, IntPtr.Zero, System.Windows.Int32Rect.Empty,
+                                BitmapSizeOptions.FromEmptyOptions());
+                            source.Freeze();
+                        }
+                        finally { DeleteObject(hBitmap); }
+                    }
+                }
+            }
+            catch { }
+
+            _avatarCache[name] = source;
+            return source;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// Czyści cache (wywoływane przy przeładowaniu danych)
+        /// </summary>
+        public static void ClearCache()
+        {
+            _avatarCache.Clear();
         }
     }
 }
