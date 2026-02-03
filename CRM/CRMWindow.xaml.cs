@@ -340,6 +340,10 @@ namespace Kalendarz1.CRM
 
             cmbWojewodztwo.Items.Clear(); cmbWojewodztwo.Items.Add(new ComboBoxItem { Content = "Wszystkie woj.", IsSelected = true });
             cmbBranza.Items.Clear(); cmbBranza.Items.Add(new ComboBoxItem { Content = "Wszystkie branże", IsSelected = true });
+
+            cmbMojeZmiany.Items.Clear();
+            cmbMojeZmiany.Items.Add(new ComboBoxItem { Content = "Wszystkie", IsSelected = true });
+            cmbMojeZmiany.Items.Add(new ComboBoxItem { Content = "Moje zmiany" });
         }
 
         private void WczytajDane()
@@ -544,45 +548,64 @@ namespace Kalendarz1.CRM
             return telefon;
         }
 
-        private void WczytajRanking(bool wszystkieDni = false)
+        private void WczytajRanking(bool tygodniowy = false)
         {
             try
             {
                 using (var conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-                    // Liczymy wszystko oprócz 'Do zadzwonienia'
-                    string whereDate = wszystkieDni
-                        ? "WHERE h.TypZmiany = 'Zmiana statusu' AND h.WartoscNowa <> 'Do zadzwonienia'"
-                        : "WHERE h.DataZmiany > DATEADD(day, -30, GETDATE()) AND h.TypZmiany = 'Zmiana statusu' AND h.WartoscNowa <> 'Do zadzwonienia'";
+
+                    string dateFilter = tygodniowy
+                        ? "AND h.DataZmiany >= DATEADD(day, 1 - DATEPART(WEEKDAY, GETDATE()), CAST(GETDATE() AS DATE))"
+                        : "AND CAST(h.DataZmiany AS DATE) = CAST(GETDATE() AS DATE)";
+
+                    string targetColumn = tygodniowy ? "ISNULL(t.WeeklyTarget, 120)" : "ISNULL(t.DailyTarget, 15)";
 
                     var cmd = new SqlCommand($@"
-                        SELECT TOP 10 ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) as Pozycja,
-                            ISNULL(o.Name, 'ID: ' + h.KtoWykonal) as Operator,
-                            h.KtoWykonal as OperatorID,
-                            COUNT(*) as Suma,
-                            SUM(CASE WHEN WartoscNowa = 'Próba kontaktu' THEN 1 ELSE 0 END) as Proby,
-                            SUM(CASE WHEN WartoscNowa = 'Nawiązano kontakt' THEN 1 ELSE 0 END) as Nawiazano,
-                            SUM(CASE WHEN WartoscNowa = 'Zgoda na dalszy kontakt' THEN 1 ELSE 0 END) as Zgoda,
-                            SUM(CASE WHEN WartoscNowa = 'Do wysłania oferta' THEN 1 ELSE 0 END) as Oferty,
-                            SUM(CASE WHEN WartoscNowa = 'Nie zainteresowany' THEN 1 ELSE 0 END) as NieZainteresowany
-                        FROM HistoriaZmianCRM h LEFT JOIN operators o ON o.ID = h.KtoWykonal
-                        {whereDate}
-                        GROUP BY h.KtoWykonal, o.Name ORDER BY Suma DESC", conn);
+                        SELECT
+                            ROW_NUMBER() OVER (ORDER BY
+                                CASE WHEN {targetColumn} > 0
+                                     THEN CAST(COUNT(h.ID) AS FLOAT) / {targetColumn}
+                                     ELSE 0 END DESC) as Pozycja,
+                            o.Name as Operator,
+                            o.ID as OperatorID,
+                            COUNT(h.ID) as Wykonane,
+                            {targetColumn} as Cel,
+                            CASE WHEN {targetColumn} > 0
+                                 THEN CAST(ROUND(CAST(COUNT(h.ID) AS FLOAT) / {targetColumn} * 100, 0) AS INT)
+                                 ELSE 0 END as Procent
+                        FROM operators o
+                        LEFT JOIN CallReminderSalesTargets t ON t.UserID = o.ID
+                        LEFT JOIN HistoriaZmianCRM h ON h.KtoWykonal = o.ID
+                            AND h.TypZmiany = 'Zmiana statusu'
+                            AND h.WartoscNowa <> 'Do zadzwonienia'
+                            {dateFilter}
+                        WHERE o.Name IS NOT NULL AND o.ID NOT IN ('admin', 'system')
+                        GROUP BY o.ID, o.Name, t.DailyTarget, t.WeeklyTarget
+                        HAVING COUNT(h.ID) > 0 OR {targetColumn} > 0
+                        ORDER BY Pozycja", conn);
 
                     var adapter = new SqlDataAdapter(cmd);
                     var dt = new DataTable();
                     adapter.Fill(dt);
+
+                    // Dodaj kolumnę ProcentTekst
+                    dt.Columns.Add("ProcentTekst", typeof(string));
+                    foreach (DataRow row in dt.Rows)
+                    {
+                        int procent = row["Procent"] != DBNull.Value ? Convert.ToInt32(row["Procent"]) : 0;
+                        row["ProcentTekst"] = $"({procent}%)";
+                    }
+
                     if (listaRanking != null)
                     {
                         listaRanking.ItemsSource = dt.DefaultView;
-                        // Load avatars into ranking items after layout
                         Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(() => LoadRankingAvatars()));
                     }
 
-                    // Aktualizuj tytuł
                     if (txtRankingTytul != null)
-                        txtRankingTytul.Text = wszystkieDni ? "RANKING AKTYWNOŚCI (Wszystkie dni)" : "RANKING AKTYWNOŚCI (Ostatnie 30 dni)";
+                        txtRankingTytul.Text = tygodniowy ? "CELE TYGODNIOWE" : "CELE DZIENNE";
                 }
             }
             catch { }
@@ -590,16 +613,16 @@ namespace Kalendarz1.CRM
 
         private void RbOkresRankingu_Checked(object sender, RoutedEventArgs e)
         {
-            if (rb30Dni == null || rbWszystkie == null) return;
-            WczytajRanking(rbWszystkie.IsChecked == true);
+            if (rbDzienny == null || rbTygodniowy == null) return;
+            WczytajRanking(rbTygodniowy.IsChecked == true);
         }
 
         private void ListaRanking_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
             if (listaRanking.SelectedItem is DataRowView row)
             {
-                bool wszystkie = rbWszystkie?.IsChecked == true;
-                var okno = new HistoriaHandlowcaWindow(connectionString, row, wszystkie);
+                bool tygodniowy = rbTygodniowy?.IsChecked == true;
+                var okno = new HistoriaHandlowcaWindow(connectionString, row, tygodniowy);
                 okno.Show();
             }
         }
@@ -827,6 +850,7 @@ namespace Kalendarz1.CRM
         private void CmbStatus_SelectionChanged(object sender, SelectionChangedEventArgs e) => Filtruj();
         private void CmbWojewodztwo_SelectionChanged(object sender, SelectionChangedEventArgs e) => Filtruj();
         private void CmbBranza_SelectionChanged(object sender, SelectionChangedEventArgs e) => Filtruj();
+        private void CmbMojeZmiany_SelectionChanged(object sender, SelectionChangedEventArgs e) => Filtruj();
 
         private void Filtruj()
         {
@@ -841,6 +865,9 @@ namespace Kalendarz1.CRM
             if (cmbStatus.SelectedIndex > 0) filter += $" AND Status = '{(cmbStatus.SelectedItem as ComboBoxItem).Content}'";
             if (cmbWojewodztwo.SelectedIndex > 0) filter += $" AND Wojewodztwo = '{(cmbWojewodztwo.SelectedItem as ComboBoxItem).Content}'";
             if (cmbBranza.SelectedIndex > 0) filter += $" AND PKD_Opis = '{(cmbBranza.SelectedItem as ComboBoxItem).Content}'";
+
+            // Filtr "Moje zmiany" - pokazuj tylko wiersze gdzie ostatnią zmianę wykonał zalogowany użytkownik
+            if (cmbMojeZmiany.SelectedIndex == 1) filter += $" AND OstatniHandlowiecID = '{operatorID}'";
 
             // Quick filter chips
             if (!string.IsNullOrEmpty(aktywnyChip))
@@ -1426,5 +1453,50 @@ namespace Kalendarz1.CRM
         public string Operator { get; set; }
         public string Typ { get; set; } = "📝";
         public bool CzyNotatka { get; set; } = true;
+    }
+
+    public class PhoneFormatConverter : System.Windows.Data.IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (value == null || value == DBNull.Value) return "";
+            string phone = value.ToString().Trim();
+            if (string.IsNullOrEmpty(phone)) return "";
+
+            // Usuń wszystkie znaki oprócz cyfr i +
+            string digits = new string(phone.Where(c => char.IsDigit(c) || c == '+').ToArray());
+
+            // Formatuj w zależności od długości
+            if (digits.StartsWith("+48") && digits.Length == 12)
+            {
+                // +48 XXX XXX XXX
+                return $"+48 {digits.Substring(3, 3)} {digits.Substring(6, 3)} {digits.Substring(9, 3)}";
+            }
+            else if (digits.StartsWith("+") && digits.Length >= 10)
+            {
+                // Międzynarodowy: +XX XXX XXX XXX
+                string countryCode = digits.Substring(0, digits.Length - 9);
+                string rest = digits.Substring(digits.Length - 9);
+                return $"{countryCode} {rest.Substring(0, 3)} {rest.Substring(3, 3)} {rest.Substring(6, 3)}";
+            }
+            else if (digits.Length == 9)
+            {
+                // Polski: XXX XXX XXX
+                return $"{digits.Substring(0, 3)} {digits.Substring(3, 3)} {digits.Substring(6, 3)}";
+            }
+            else if (digits.Length == 11 && digits.StartsWith("48"))
+            {
+                // 48XXXXXXXXX -> +48 XXX XXX XXX
+                return $"+48 {digits.Substring(2, 3)} {digits.Substring(5, 3)} {digits.Substring(8, 3)}";
+            }
+
+            // Fallback - zwróć oryginał
+            return phone;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
