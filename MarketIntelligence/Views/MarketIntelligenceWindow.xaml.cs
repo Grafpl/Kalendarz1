@@ -27,8 +27,8 @@ namespace Kalendarz1.MarketIntelligence.Views
 
         public MarketIntelligenceWindow()
         {
-            InitializeComponent();
             _service = new MarketIntelligenceService();
+            InitializeComponent();
 
             // Setup auto-refresh timer (every 5 minutes)
             _refreshTimer = new DispatcherTimer
@@ -143,6 +143,8 @@ namespace Kalendarz1.MarketIntelligence.Views
 
         private async Task RefreshArticlesAsync()
         {
+            if (icArticles == null) return; // Guard against calls during initialization
+
             var articles = await _service.GetArticlesAsync(
                 _currentCategory == "Wszystkie" ? null : _currentCategory,
                 _currentSeverity == "Wszystkie" ? null : _currentSeverity,
