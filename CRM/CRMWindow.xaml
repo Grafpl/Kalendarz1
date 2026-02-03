@@ -802,27 +802,42 @@
                             <DataGridTemplateColumn Header="Ost. notatka" Width="180" SortMemberPath="OstatniNotatka">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Expander Header="" HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="2,0"
-                                                  Background="Transparent" BorderThickness="0">
-                                            <Expander.Style>
-                                                <Style TargetType="Expander">
-                                                    <Setter Property="HeaderTemplate">
+                                        <ToggleButton x:Name="tbNotatka" Background="Transparent" BorderThickness="0"
+                                                      HorizontalContentAlignment="Left" Padding="4,2" Cursor="Hand">
+                                            <ToggleButton.Style>
+                                                <Style TargetType="ToggleButton">
+                                                    <Setter Property="Template">
                                                         <Setter.Value>
-                                                            <DataTemplate>
-                                                                <TextBlock Text="{Binding DataContext.OstatniNotatka, RelativeSource={RelativeSource AncestorType=Expander}}"
-                                                                           FontSize="10" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
-                                                                           Foreground="#94A3B8" MaxWidth="150"/>
-                                                            </DataTemplate>
+                                                            <ControlTemplate TargetType="ToggleButton">
+                                                                <Border Background="Transparent">
+                                                                    <ContentPresenter/>
+                                                                </Border>
+                                                            </ControlTemplate>
                                                         </Setter.Value>
                                                     </Setter>
                                                 </Style>
-                                            </Expander.Style>
-                                            <Border Background="#1E293B" CornerRadius="4" Padding="8" Margin="0,4,0,0"
-                                                    BorderBrush="#475569" BorderThickness="1" MaxWidth="300">
-                                                <TextBlock Text="{Binding OstatniNotatka}" FontSize="11" TextWrapping="Wrap"
-                                                           Foreground="#E2E8F0"/>
-                                            </Border>
-                                        </Expander>
+                                            </ToggleButton.Style>
+                                            <TextBlock FontSize="10" Foreground="#94A3B8" ToolTip="Kliknij aby rozwinąć/zwinąć">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Text" Value="{Binding OstatniNotatka}"/>
+                                                        <Setter Property="TextWrapping" Value="NoWrap"/>
+                                                        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                                        <Setter Property="MaxWidth" Value="160"/>
+                                                        <Setter Property="MaxHeight" Value="18"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsChecked, RelativeSource={RelativeSource AncestorType=ToggleButton}}" Value="True">
+                                                                <Setter Property="TextWrapping" Value="Wrap"/>
+                                                                <Setter Property="TextTrimming" Value="None"/>
+                                                                <Setter Property="MaxWidth" Value="300"/>
+                                                                <Setter Property="MaxHeight" Value="200"/>
+                                                                <Setter Property="Background" Value="#1E293B"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </ToggleButton>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
