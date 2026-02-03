@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
@@ -6,8 +7,11 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
+using System.Windows.Media;
 using Kalendarz1.MarketIntelligence.Models;
 using Kalendarz1.MarketIntelligence.Services;
+using LiveCharts;
+using LiveCharts.Wpf;
 
 namespace Kalendarz1.MarketIntelligence.Views
 {
@@ -98,84 +102,62 @@ namespace Kalendarz1.MarketIntelligence.Views
 
         private async Task LoadSidePanelsAsync()
         {
-            // Load prices
-            var prices = await _service.GetLatestPricesAsync();
-            pnlPrices.Children.Clear();
-
-            var priceGroups = new[]
+            // === WYKRES: Historia cen skupu ===
+            var priceHistory = await _service.GetPriceHistoryAsync("WolnyRynek", 60);
+            if (priceHistory.Any())
             {
-                ("Skup żywca", new[] { "WolnyRynek", "Kontraktacja" }),
-                ("Tuszka i elementy", new[] { "TuszkaHurt", "Filet", "Udko", "Skrzydlo", "Podudzie", "Cwiartka", "Korpus" })
-            };
+                var values = new ChartValues<double>(priceHistory.Select(p => (double)p.Value));
+                var labels = priceHistory.Select(p => p.Date.ToString("dd.MM")).ToArray();
 
-            foreach (var (groupName, types) in priceGroups)
-            {
-                var header = new TextBlock
+                chartPriceHistory.Series = new SeriesCollection
                 {
-                    Text = groupName,
-                    FontWeight = FontWeights.Bold,
-                    Foreground = FindResource("TextPrimary") as System.Windows.Media.Brush,
-                    Margin = new Thickness(0, 12, 0, 8)
-                };
-                pnlPrices.Children.Add(header);
-
-                foreach (var type in types)
-                {
-                    var price = prices.FirstOrDefault(p => p.PriceType == type);
-                    if (price != null)
+                    new LineSeries
                     {
-                        var row = new Border
-                        {
-                            Background = FindResource("BgTertiary") as System.Windows.Media.Brush,
-                            CornerRadius = new CornerRadius(4),
-                            Padding = new Thickness(8, 6, 8, 6),
-                            Margin = new Thickness(0, 0, 0, 4)
-                        };
-
-                        var grid = new Grid();
-                        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-                        var nameText = new TextBlock
-                        {
-                            Text = price.PriceTypeDisplay,
-                            Foreground = FindResource("TextSecondary") as System.Windows.Media.Brush,
-                            FontSize = 12
-                        };
-                        Grid.SetColumn(nameText, 0);
-
-                        var valueText = new TextBlock
-                        {
-                            Text = price.FormattedValue,
-                            Foreground = FindResource("TextPrimary") as System.Windows.Media.Brush,
-                            FontWeight = FontWeights.SemiBold
-                        };
-                        Grid.SetColumn(valueText, 1);
-
-                        grid.Children.Add(nameText);
-                        grid.Children.Add(valueText);
-                        row.Child = grid;
-                        pnlPrices.Children.Add(row);
+                        Title = "Wolny rynek",
+                        Values = values,
+                        Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6366F1")),
+                        Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1A6366F1")),
+                        StrokeThickness = 2,
+                        PointGeometry = DefaultGeometries.Circle,
+                        PointGeometrySize = 6
                     }
-                }
+                };
+                axisXPriceHistory.Labels = labels;
             }
 
-            // Load feed prices
-            var feedPrices = await _service.GetLatestFeedPricesAsync();
-            var feedHeader = new TextBlock
+            // === WYKRES: Ceny elementów ===
+            var prices = await _service.GetLatestPricesAsync();
+            var elementTypes = new[] { "Filet", "Podudzie", "Udko", "Skrzydlo", "TuszkaHurt", "Cwiartka", "Korpus" };
+            var elementLabels = new[] { "Filet", "Podudzie", "Udko", "Skrzydło", "Tuszka", "Ćwiartka", "Korpus" };
+            var elementValues = new ChartValues<double>();
+
+            foreach (var type in elementTypes)
             {
-                Text = "Pasze (MATIF)",
-                FontWeight = FontWeights.Bold,
-                Foreground = FindResource("TextPrimary") as System.Windows.Media.Brush,
-                Margin = new Thickness(0, 16, 0, 8)
+                var price = prices.FirstOrDefault(p => p.PriceType == type);
+                elementValues.Add(price != null ? (double)price.Value : 0);
+            }
+
+            chartElements.Series = new SeriesCollection
+            {
+                new ColumnSeries
+                {
+                    Title = "zł/kg",
+                    Values = elementValues,
+                    Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#22C55E")),
+                    MaxColumnWidth = 30
+                }
             };
-            pnlPrices.Children.Add(feedHeader);
+            axisXElements.Labels = elementLabels;
+
+            // === Ceny pasz (lista) ===
+            var feedPrices = await _service.GetLatestFeedPricesAsync();
+            pnlFeedPrices.Children.Clear();
 
             foreach (var feed in feedPrices)
             {
                 var row = new Border
                 {
-                    Background = FindResource("BgTertiary") as System.Windows.Media.Brush,
+                    Background = FindResource("BgTertiary") as Brush,
                     CornerRadius = new CornerRadius(4),
                     Padding = new Thickness(8, 6, 8, 6),
                     Margin = new Thickness(0, 0, 0, 4)
@@ -188,7 +170,7 @@ namespace Kalendarz1.MarketIntelligence.Views
                 var nameText = new TextBlock
                 {
                     Text = feed.Commodity,
-                    Foreground = FindResource("TextSecondary") as System.Windows.Media.Brush,
+                    Foreground = FindResource("TextSecondary") as Brush,
                     FontSize = 12
                 };
                 Grid.SetColumn(nameText, 0);
@@ -196,7 +178,7 @@ namespace Kalendarz1.MarketIntelligence.Views
                 var valueText = new TextBlock
                 {
                     Text = $"{feed.Value:N2} {feed.Unit}",
-                    Foreground = FindResource("TextPrimary") as System.Windows.Media.Brush,
+                    Foreground = FindResource("TextPrimary") as Brush,
                     FontWeight = FontWeights.SemiBold
                 };
                 Grid.SetColumn(valueText, 1);
@@ -204,22 +186,49 @@ namespace Kalendarz1.MarketIntelligence.Views
                 grid.Children.Add(nameText);
                 grid.Children.Add(valueText);
                 row.Child = grid;
-                pnlPrices.Children.Add(row);
+                pnlFeedPrices.Children.Add(row);
             }
 
-            // Load competitors
+            // === Konkurencja ===
             var competitors = await _service.GetCompetitorsAsync();
             icCompetitors.ItemsSource = competitors;
 
-            // Load HPAI
+            // === HPAI ===
             var hpai = await _service.GetHpaiOutbreaksAsync("PL");
             var totalOutbreaks = await _service.GetTotalHpaiOutbreaks2026Async();
             txtHpaiSummary.Text = $"Ogniska HPAI 2026: {totalOutbreaks} w Polsce";
             icHpai.ItemsSource = hpai.Take(10);
 
-            // Load EU Benchmark
+            // === WYKRES: EU Benchmark ===
             var benchmark = await _service.GetEuBenchmarkAsync();
             icBenchmark.ItemsSource = benchmark;
+
+            if (benchmark.Any())
+            {
+                var benchmarkValues = new ChartValues<double>(benchmark.Select(b => (double)b.PricePer100kg));
+                var benchmarkLabels = benchmark.Select(b => b.Country).ToArray();
+
+                // Kolorowanie słupków - Polska na zielono, reszta na szaro/niebiesko
+                var benchmarkColors = benchmark.Select(b =>
+                    b.Country == "PL"
+                        ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#22C55E"))
+                        : b.Country == "UA" || b.Country == "BR"
+                            ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444"))
+                            : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6366F1"))
+                ).ToList();
+
+                chartEuBenchmark.Series = new SeriesCollection
+                {
+                    new ColumnSeries
+                    {
+                        Title = "EUR/100kg",
+                        Values = benchmarkValues,
+                        Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6366F1")),
+                        MaxColumnWidth = 25
+                    }
+                };
+                axisXBenchmark.Labels = benchmarkLabels;
+            }
         }
 
         private void BtnRefresh_Click(object sender, RoutedEventArgs e)
