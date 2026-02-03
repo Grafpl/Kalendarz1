@@ -245,7 +245,7 @@ namespace Kalendarz1.OfertaCenowa
                     var cmd = new SqlCommand(@"
                         SELECT TOP 30
                             C.Name as Nazwa,
-                            ISNULL(POA.Place, '') as Miasto,
+                            ISNULL(POA.City, '') as Miasto,
                             ISNULL(POA.Street, '') as Ulica,
                             ISNULL(POA.PostCode, '') as Kod,
                             ISNULL(C.Phone, '') as Telefon,
@@ -281,11 +281,22 @@ namespace Kalendarz1.OfertaCenowa
                             string nip = reader.IsDBNull(6) ? "" : reader.GetString(6);
                             string skrot = reader.IsDBNull(7) ? "" : reader.GetString(7);
 
-                            // Sprawdz czy juz nie ma takiego klienta (po nazwie)
+                            // Sprawdz czy juz nie ma DOKLADNIE takiego samego klienta (porownaj nazwe bez tagu zrodla)
                             bool juzJest = false;
+                            string nazwaUpper = nazwa.ToUpper().Trim();
                             foreach (var item in listPodobni.Items)
                             {
-                                if (item.ToString().StartsWith(nazwa))
+                                string itemStr = item.ToString();
+                                // Wyciagnij nazwe z istniejacego wpisu (do pierwszego [)
+                                int bracketIdx = itemStr.IndexOf("  [");
+                                string istniejacaNazwa = bracketIdx > 0 ? itemStr.Substring(0, bracketIdx).Trim().ToUpper() : itemStr.ToUpper();
+                                // Usun ewentualny skrot na poczatku [XXX]
+                                if (istniejacaNazwa.StartsWith("[") && istniejacaNazwa.Contains("] "))
+                                {
+                                    istniejacaNazwa = istniejacaNazwa.Substring(istniejacaNazwa.IndexOf("] ") + 2);
+                                }
+
+                                if (istniejacaNazwa == nazwaUpper)
                                 {
                                     juzJest = true;
                                     break;
@@ -306,6 +317,8 @@ namespace Kalendarz1.OfertaCenowa
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Blad szukania w Symfonii: {ex.Message}");
+                // Pokaz blad w statusie
+                txtStatus.Text = $"Blad Symfonia: {ex.Message}";
             }
         }
 
