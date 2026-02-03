@@ -802,42 +802,10 @@
                             <DataGridTemplateColumn Header="Ost. notatka" Width="180" SortMemberPath="OstatniNotatka">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <ToggleButton x:Name="tbNotatka" Background="Transparent" BorderThickness="0"
-                                                      HorizontalContentAlignment="Left" Padding="4,2" Cursor="Hand">
-                                            <ToggleButton.Style>
-                                                <Style TargetType="ToggleButton">
-                                                    <Setter Property="Template">
-                                                        <Setter.Value>
-                                                            <ControlTemplate TargetType="ToggleButton">
-                                                                <Border Background="Transparent">
-                                                                    <ContentPresenter/>
-                                                                </Border>
-                                                            </ControlTemplate>
-                                                        </Setter.Value>
-                                                    </Setter>
-                                                </Style>
-                                            </ToggleButton.Style>
-                                            <TextBlock FontSize="10" Foreground="#94A3B8" ToolTip="Kliknij aby rozwinąć/zwinąć">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="Text" Value="{Binding OstatniNotatka}"/>
-                                                        <Setter Property="TextWrapping" Value="NoWrap"/>
-                                                        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-                                                        <Setter Property="MaxWidth" Value="160"/>
-                                                        <Setter Property="MaxHeight" Value="18"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsChecked, RelativeSource={RelativeSource AncestorType=ToggleButton}}" Value="True">
-                                                                <Setter Property="TextWrapping" Value="Wrap"/>
-                                                                <Setter Property="TextTrimming" Value="None"/>
-                                                                <Setter Property="MaxWidth" Value="300"/>
-                                                                <Setter Property="MaxHeight" Value="200"/>
-                                                                <Setter Property="Background" Value="#1E293B"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </ToggleButton>
+                                        <TextBlock Text="{Binding OstatniNotatka}" FontSize="10" Foreground="#94A3B8"
+                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                                                   VerticalAlignment="Center" Margin="4,0"
+                                                   ToolTip="{Binding OstatniNotatka}"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
