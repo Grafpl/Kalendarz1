@@ -389,11 +389,29 @@
                                        Foreground="{StaticResource WarningRed}" Margin="0,0,0,10"/>
 
                             <ListBox Grid.Row="1" x:Name="listPodobni" BorderThickness="0" Background="Transparent"
-                                     FontSize="11" MouseDoubleClick="ListPodobni_MouseDoubleClick">
+                                     FontSize="11" MouseDoubleClick="ListPodobni_MouseDoubleClick"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                        <Setter Property="Padding" Value="0"/>
+                                        <Setter Property="Margin" Value="0"/>
+                                        <Setter Property="Background" Value="Transparent"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="ListBoxItem">
+                                                    <ContentPresenter/>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Padding="8,6" Margin="0,0,0,4" Background="#7F1D1D" CornerRadius="4">
-                                            <TextBlock Text="{Binding}" TextWrapping="Wrap" Foreground="#FCA5A5"/>
+                                        <Border Padding="10,8" Margin="0,0,0,6" Background="#7F1D1D" CornerRadius="6"
+                                                BorderBrush="#991B1B" BorderThickness="1">
+                                            <TextBlock Text="{Binding}" TextWrapping="Wrap" Foreground="#FCA5A5"
+                                                       FontSize="12" LineHeight="18"/>
                                         </Border>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>

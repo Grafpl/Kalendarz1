@@ -152,7 +152,15 @@ namespace Kalendarz1.OfertaCenowa
                     conn.Open();
 
                     var cmd = new SqlCommand(@"
-                        SELECT TOP 50 ID, Nazwa, MIASTO, Status
+                        SELECT TOP 50
+                            Nazwa,
+                            MIASTO,
+                            ULICA,
+                            KOD,
+                            Telefon_K,
+                            Email,
+                            Status,
+                            Wojewodztwo
                         FROM OdbiorcyCRM
                         WHERE Nazwa LIKE '%' + @szukany + '%'
                         ORDER BY
@@ -168,16 +176,35 @@ namespace Kalendarz1.OfertaCenowa
                     {
                         while (reader.Read())
                         {
-                            int id = reader.GetInt32(0);
-                            string nazwa = reader.IsDBNull(1) ? "" : reader.GetString(1);
-                            string miasto = reader.IsDBNull(2) ? "" : reader.GetString(2);
-                            string status = reader.IsDBNull(3) ? "" : reader.GetString(3);
+                            string nazwa = reader.IsDBNull(0) ? "" : reader.GetString(0);
+                            string miasto = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                            string ulica = reader.IsDBNull(2) ? "" : reader.GetString(2);
+                            string kod = reader.IsDBNull(3) ? "" : reader.GetString(3);
+                            string telefon = reader.IsDBNull(4) ? "" : reader.GetString(4);
+                            string email = reader.IsDBNull(5) ? "" : reader.GetString(5);
+                            string status = reader.IsDBNull(6) ? "" : reader.GetString(6);
+                            string woj = reader.IsDBNull(7) ? "" : reader.GetString(7);
 
-                            string info = $"[{id}]  {nazwa}";
-                            if (!string.IsNullOrEmpty(miasto))
-                                info += $"   -   {miasto}";
+                            // Format: Nazwa firmy
+                            string info = nazwa;
+
+                            // Adres: Miasto, ulica
+                            var adresParts = new List<string>();
+                            if (!string.IsNullOrEmpty(miasto)) adresParts.Add(miasto);
+                            if (!string.IsNullOrEmpty(ulica)) adresParts.Add(ulica);
+                            if (adresParts.Count > 0)
+                                info += $"\n📍 {string.Join(", ", adresParts)}";
+
+                            // Kontakt: telefon, email
+                            var kontaktParts = new List<string>();
+                            if (!string.IsNullOrEmpty(telefon)) kontaktParts.Add($"☎ {telefon}");
+                            if (!string.IsNullOrEmpty(email)) kontaktParts.Add($"✉ {email}");
+                            if (kontaktParts.Count > 0)
+                                info += $"\n{string.Join("   ", kontaktParts)}";
+
+                            // Status
                             if (!string.IsNullOrEmpty(status))
-                                info += $"   ({status})";
+                                info += $"\n🏷 {status}";
 
                             listPodobni.Items.Add(info);
                         }
