@@ -59,9 +59,65 @@ namespace Kalendarz1.CRM
             else
                 UpdateThemeButton(false);
 
+            // Załaduj avatar i nazwę zalogowanego użytkownika
+            LoadCurrentUserInfo();
+
             InicjalizujFiltry();
             LoadHandlowiecAvatarMap();
             WczytajDane();
+        }
+
+        private void LoadCurrentUserInfo()
+        {
+            try
+            {
+                // Pobierz nazwę użytkownika
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    var cmd = new SqlCommand("SELECT Name FROM operators WHERE ID = @id", conn);
+                    cmd.Parameters.AddWithValue("@id", operatorID);
+                    var name = cmd.ExecuteScalar()?.ToString();
+                    if (!string.IsNullOrEmpty(name) && txtUserName != null)
+                        txtUserName.Text = name;
+                }
+
+                // Załaduj avatar
+                if (imgUserAvatar != null)
+                {
+                    System.Drawing.Image avatarImg = null;
+                    if (UserAvatarManager.HasAvatar(operatorID))
+                        avatarImg = UserAvatarManager.GetAvatarRounded(operatorID, 28);
+
+                    if (avatarImg == null)
+                    {
+                        string userName = txtUserName?.Text ?? "U";
+                        avatarImg = UserAvatarManager.GenerateDefaultAvatar(userName, operatorID, 28);
+                    }
+
+                    if (avatarImg != null)
+                    {
+                        using (avatarImg)
+                        using (var bmp = new System.Drawing.Bitmap(avatarImg))
+                        {
+                            var hBitmap = bmp.GetHbitmap();
+                            try
+                            {
+                                var source = System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
+                                    hBitmap, IntPtr.Zero, Int32Rect.Empty,
+                                    BitmapSizeOptions.FromEmptyOptions());
+                                source.Freeze();
+                                imgUserAvatar.Source = source;
+                            }
+                            finally { DeleteObject(hBitmap); }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"LoadCurrentUserInfo error: {ex.Message}");
+            }
         }
 
         #region Handlowiec Avatars
@@ -440,11 +496,22 @@ namespace Kalendarz1.CRM
                 using (var conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
+
+                    // Pobierz cel dnia z tabeli CallReminderSalesTargets
+                    int CEL = 15;
+                    var cmdTarget = new SqlCommand(@"
+                        SELECT TOP 1 DailyTarget FROM CallReminderSalesTargets
+                        WHERE UserID = @op", conn);
+                    cmdTarget.Parameters.AddWithValue("@op", operatorID);
+                    var targetResult = cmdTarget.ExecuteScalar();
+                    if (targetResult != null && targetResult != DBNull.Value)
+                        CEL = Convert.ToInt32(targetResult);
+
                     var cmd = new SqlCommand("SELECT COUNT(*) FROM HistoriaZmianCRM WHERE KtoWykonal = @op AND CAST(DataZmiany AS DATE) = CAST(GETDATE() AS DATE)", conn);
                     cmd.Parameters.AddWithValue("@op", operatorID);
                     int wykonane = (int)cmd.ExecuteScalar();
-                    int CEL = 15;
 
+                    if (txtTargetLabel != null) txtTargetLabel.Text = $"CEL DNIA ({CEL})";
                     if (txtTargetInfo != null) txtTargetInfo.Text = $"{wykonane}/{CEL}";
                     if (pbTarget != null)
                     {
@@ -454,6 +521,38 @@ namespace Kalendarz1.CRM
                 }
             }
             catch { }
+        }
+
+        private string FormatujTelefon(string telefon)
+        {
+            if (string.IsNullOrWhiteSpace(telefon)) return "";
+
+            // Usuń wszystkie znaki niebędące cyframi
+            var digits = new string(telefon.Where(char.IsDigit).ToArray());
+
+            if (digits.Length == 9)
+            {
+                // Format: XXX XXX XXX
+                return $"{digits.Substring(0, 3)} {digits.Substring(3, 3)} {digits.Substring(6, 3)}";
+            }
+            else if (digits.Length == 11 && digits.StartsWith("48"))
+            {
+                // Format: +48 XXX XXX XXX
+                return $"+48 {digits.Substring(2, 3)} {digits.Substring(5, 3)} {digits.Substring(8, 3)}";
+            }
+            else if (digits.Length >= 7)
+            {
+                // Format ogólny z separatorami co 3 cyfry
+                var result = "";
+                for (int i = 0; i < digits.Length; i++)
+                {
+                    if (i > 0 && i % 3 == 0) result += " ";
+                    result += digits[i];
+                }
+                return result;
+            }
+
+            return telefon;
         }
 
         private void WczytajRanking(bool wszystkieDni = false)
@@ -543,8 +642,13 @@ namespace Kalendarz1.CRM
 
                 // HEADER
                 if (txtHeaderKlient != null) txtHeaderKlient.Text = row["NAZWA"].ToString();
-                if (txtHeaderTelefon != null) txtHeaderTelefon.Text = row["TELEFON_K"].ToString();
+                if (txtHeaderTelefon != null) txtHeaderTelefon.Text = FormatujTelefon(row["TELEFON_K"].ToString());
                 if (txtHeaderMiasto != null) txtHeaderMiasto.Text = row["MIASTO"].ToString();
+
+                // PANEL BOCZNY - AKTYWNY ODBIORCA
+                if (txtPanelKlientNazwa != null) txtPanelKlientNazwa.Text = row["NAZWA"].ToString();
+                if (txtPanelKlientMiasto != null) txtPanelKlientMiasto.Text = row["MIASTO"].ToString();
+                if (txtPanelKlientTelefon != null) txtPanelKlientTelefon.Text = FormatujTelefon(row["TELEFON_K"].ToString());
 
                 // PLANOWANY KONTAKT W HEADERZE
                 if (row["DataNastepnegoKontaktu"] != DBNull.Value && txtKlientNastepnyKontakt != null)
@@ -766,6 +870,7 @@ namespace Kalendarz1.CRM
         private void BtnDashboard_Click(object sender, RoutedEventArgs e) { new DashboardCRMWindow(connectionString).Show(); }
         private void BtnManager_Click(object sender, RoutedEventArgs e) { new PanelManageraWindow(connectionString).Show(); }
         private void BtnMapa_Click(object sender, RoutedEventArgs e) { new MapaCRMWindow(connectionString, operatorID).Show(); }
+        private void BtnReminder_Click(object sender, RoutedEventArgs e) { new CallReminderWindow(operatorID).Show(); }
         private void BtnDodaj_Click(object sender, RoutedEventArgs e)
         {
             var okno = new OfertaCenowa.DodajOdbiorceWindow(connectionString, operatorID);
