@@ -317,6 +317,14 @@ namespace Kalendarz1.CRM
             {
                 conn.Open();
 
+                // Upewnij się że tabela WlascicieleOdbiorcow ma kolumnę Priorytet
+                using (var cmdCheck = new SqlCommand(@"
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('WlascicieleOdbiorcow') AND name = 'Priorytet')
+                    ALTER TABLE WlascicieleOdbiorcow ADD Priorytet BIT DEFAULT 0", conn))
+                {
+                    cmdCheck.ExecuteNonQuery();
+                }
+
                 // Różne zapytanie w zależności od filtra "Tylko moi"
                 string whereClause = tylkoMoje
                     ? "WHERE w.OperatorID = @OperatorID AND ISNULL(o.Status, '') NOT IN ('Poprosił o usunięcie', 'Błędny rekord (do raportu)')"
