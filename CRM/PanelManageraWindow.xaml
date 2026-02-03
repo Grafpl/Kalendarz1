@@ -1,14 +1,22 @@
 <Window x:Class="Kalendarz1.CRM.PanelManageraWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Panel Szefa - Raporty CRM" Height="600" Width="1000" WindowStartupLocation="CenterScreen"
+        Title="Panel Szefa - Raporty CRM" Height="900" Width="1400" WindowStartupLocation="CenterScreen"
         WindowState="Maximized" Background="#0F172A" FontFamily="Segoe UI">
 
     <Window.Resources>
         <!-- DARK CORPORATE THEME -->
-        <SolidColorBrush x:Key="PrimaryColor" Color="#6366F1"/>
-        <SolidColorBrush x:Key="TextDark" Color="#E2E8F0"/>
-        <SolidColorBrush x:Key="TextGray" Color="#94A3B8"/>
+        <SolidColorBrush x:Key="BgPrimary" Color="#0F172A"/>
+        <SolidColorBrush x:Key="BgSecondary" Color="#1E293B"/>
+        <SolidColorBrush x:Key="BgTertiary" Color="#334155"/>
+        <SolidColorBrush x:Key="AccentPrimary" Color="#6366F1"/>
+        <SolidColorBrush x:Key="AccentGreen" Color="#22C55E"/>
+        <SolidColorBrush x:Key="AccentRed" Color="#EF4444"/>
+        <SolidColorBrush x:Key="AccentYellow" Color="#F59E0B"/>
+        <SolidColorBrush x:Key="AccentBlue" Color="#3B82F6"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#94A3B8"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#64748B"/>
         <SolidColorBrush x:Key="BorderColor" Color="#334155"/>
 
         <Style x:Key="CardStyle" TargetType="Border">
@@ -23,17 +31,22 @@
             </Setter>
         </Style>
 
+        <Style x:Key="KpiCard" TargetType="Border" BasedOn="{StaticResource CardStyle}">
+            <Setter Property="Padding" Value="20,16"/>
+            <Setter Property="MinWidth" Value="200"/>
+        </Style>
+
         <Style x:Key="BtnPrimary" TargetType="Button">
             <Setter Property="Background" Value="#6366F1"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Padding" Value="15,8"/>
+            <Setter Property="Padding" Value="20,10"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="8">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -45,82 +58,367 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <Style x:Key="BtnIcon" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#94A3B8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#334155"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="TabButton" TargetType="RadioButton">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#94A3B8"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#6366F1"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#334155"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <Border Style="{StaticResource CardStyle}" Padding="15" Margin="0,0,0,20">
+        <!-- HEADER -->
+        <Border Grid.Row="0" Style="{StaticResource CardStyle}" Padding="20,16" Margin="0,0,0,16">
             <Grid>
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Width="40" Height="40" CornerRadius="20" Margin="0,0,12,0" Background="#312E81">
-                        <TextBlock Text="👔" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <Border Width="50" Height="50" CornerRadius="25" Margin="0,0,16,0" Background="#312E81">
+                        <TextBlock Text="👔" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="PANEL SZEFA" FontSize="18" FontWeight="Bold" Foreground="#E2E8F0"/>
-                        <TextBlock Text="Raporty CRM" FontSize="11" Foreground="#64748B"/>
+                        <TextBlock Text="PANEL SZEFA" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextPrimary}"/>
+                        <TextBlock Text="Kompleksowe raporty i analityka CRM" FontSize="12" Foreground="{StaticResource TextMuted}"/>
                     </StackPanel>
                 </StackPanel>
 
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="📅 Raport od:" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="#94A3B8"/>
-                    <DatePicker x:Name="dpOd" Width="120" SelectedDateChanged="Dp_SelectedDateChanged" Background="#334155" Foreground="#E2E8F0" BorderBrush="#475569"/>
-                    <TextBlock Text="do:" VerticalAlignment="Center" Margin="15,0,10,0" Foreground="#94A3B8"/>
-                    <DatePicker x:Name="dpDo" Width="120" SelectedDateChanged="Dp_SelectedDateChanged" Background="#334155" Foreground="#E2E8F0" BorderBrush="#475569"/>
-                    <Button Content="Generuj Raport" Style="{StaticResource BtnPrimary}" Margin="20,0,0,0" Click="BtnGeneruj_Click"/>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Okres:" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="{StaticResource TextSecondary}" FontSize="13"/>
+                    <DatePicker x:Name="dpOd" Width="130" SelectedDateChanged="Dp_SelectedDateChanged" Background="#334155" Foreground="{StaticResource TextPrimary}" BorderBrush="#475569"/>
+                    <TextBlock Text="—" VerticalAlignment="Center" Margin="10,0" Foreground="{StaticResource TextMuted}"/>
+                    <DatePicker x:Name="dpDo" Width="130" SelectedDateChanged="Dp_SelectedDateChanged" Background="#334155" Foreground="{StaticResource TextPrimary}" BorderBrush="#475569"/>
+                    <Button Content="Odswiez" Style="{StaticResource BtnPrimary}" Margin="16,0,0,0" Click="BtnGeneruj_Click"/>
+                    <Button Content="Eksport" Style="{StaticResource BtnIcon}" Margin="8,0,0,0" Click="BtnExport_Click" Foreground="#22C55E" FontWeight="SemiBold"/>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <Border Grid.Row="1" Style="{StaticResource CardStyle}" Padding="15">
-            <DataGrid x:Name="dgRaport" AutoGenerateColumns="True" IsReadOnly="True" RowHeaderWidth="0"
-                      Background="#1E293B" RowBackground="#1E293B" AlternatingRowBackground="#273548"
-                      BorderThickness="0" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#334155">
+        <!-- KPI CARDS -->
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,0,0,16">
+            <StackPanel Orientation="Horizontal">
+                <!-- Wszystkie akcje -->
+                <Border Style="{StaticResource KpiCard}" Margin="0,0,12,0">
+                    <StackPanel>
+                        <TextBlock Text="WSZYSTKIE AKCJE" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMuted}" Margin="0,0,0,8"/>
+                        <TextBlock x:Name="txtKpiWszystkieAkcje" Text="0" FontSize="32" FontWeight="Black" Foreground="{StaticResource AccentPrimary}"/>
+                        <TextBlock x:Name="txtKpiWszystkieAkcjeTrend" Text="+0% vs poprzedni okres" FontSize="11" Foreground="{StaticResource TextMuted}" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
 
-                <DataGrid.ColumnHeaderStyle>
-                    <Style TargetType="DataGridColumnHeader">
-                        <Setter Property="Background" Value="#0F172A"/>
-                        <Setter Property="Foreground" Value="#94A3B8"/>
-                        <Setter Property="Padding" Value="12,10"/>
-                        <Setter Property="FontWeight" Value="SemiBold"/>
-                        <Setter Property="FontSize" Value="12"/>
-                        <Setter Property="BorderThickness" Value="0,0,0,2"/>
-                        <Setter Property="BorderBrush" Value="#334155"/>
-                    </Style>
-                </DataGrid.ColumnHeaderStyle>
+                <!-- Proby kontaktu -->
+                <Border Style="{StaticResource KpiCard}" Margin="0,0,12,0">
+                    <StackPanel>
+                        <TextBlock Text="PROBY KONTAKTU" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMuted}" Margin="0,0,0,8"/>
+                        <TextBlock x:Name="txtKpiProby" Text="0" FontSize="32" FontWeight="Black" Foreground="{StaticResource AccentYellow}"/>
+                        <TextBlock x:Name="txtKpiProbyTrend" Text="+0% vs poprzedni okres" FontSize="11" Foreground="{StaticResource TextMuted}" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
 
-                <DataGrid.CellStyle>
-                    <Style TargetType="DataGridCell">
-                        <Setter Property="BorderThickness" Value="0"/>
-                        <Setter Property="Background" Value="Transparent"/>
-                        <Setter Property="Foreground" Value="#E2E8F0"/>
-                        <Setter Property="Padding" Value="10,8"/>
-                    </Style>
-                </DataGrid.CellStyle>
+                <!-- Pozytywne kontakty -->
+                <Border Style="{StaticResource KpiCard}" Margin="0,0,12,0">
+                    <StackPanel>
+                        <TextBlock Text="POZYTYWNE" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMuted}" Margin="0,0,0,8"/>
+                        <TextBlock x:Name="txtKpiPozytywne" Text="0" FontSize="32" FontWeight="Black" Foreground="{StaticResource AccentGreen}"/>
+                        <TextBlock x:Name="txtKpiPozytywneTrend" Text="+0% vs poprzedni okres" FontSize="11" Foreground="{StaticResource TextMuted}" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
 
-                <DataGrid.RowStyle>
-                    <Style TargetType="DataGridRow">
-                        <Setter Property="Height" Value="45"/>
-                        <Setter Property="Background" Value="#1E293B"/>
-                        <Style.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#334155"/>
-                            </Trigger>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter Property="Background" Value="#6366F1"/>
-                            </Trigger>
-                        </Style.Triggers>
-                    </Style>
-                </DataGrid.RowStyle>
-            </DataGrid>
-        </Border>
+                <!-- Wyslane oferty -->
+                <Border Style="{StaticResource KpiCard}" Margin="0,0,12,0">
+                    <StackPanel>
+                        <TextBlock Text="WYSLANE OFERTY" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMuted}" Margin="0,0,0,8"/>
+                        <TextBlock x:Name="txtKpiOferty" Text="0" FontSize="32" FontWeight="Black" Foreground="{StaticResource AccentBlue}"/>
+                        <TextBlock x:Name="txtKpiOfertyTrend" Text="+0% vs poprzedni okres" FontSize="11" Foreground="{StaticResource TextMuted}" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Konwersja -->
+                <Border Style="{StaticResource KpiCard}" Margin="0,0,12,0">
+                    <StackPanel>
+                        <TextBlock Text="KONWERSJA" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMuted}" Margin="0,0,0,8"/>
+                        <TextBlock x:Name="txtKpiKonwersja" Text="0%" FontSize="32" FontWeight="Black" Foreground="#8B5CF6"/>
+                        <TextBlock x:Name="txtKpiKonwersjaTrend" Text="Proby -> Pozytywne" FontSize="11" Foreground="{StaticResource TextMuted}" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Srednia dzienna -->
+                <Border Style="{StaticResource KpiCard}">
+                    <StackPanel>
+                        <TextBlock Text="SREDNIA DZIENNA" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMuted}" Margin="0,0,0,8"/>
+                        <TextBlock x:Name="txtKpiSrednia" Text="0" FontSize="32" FontWeight="Black" Foreground="#14B8A6"/>
+                        <TextBlock Text="akcji na dzien" FontSize="11" Foreground="{StaticResource TextMuted}" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- MAIN CONTENT -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="400"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- LEFT: Team Comparison Table -->
+            <Border Grid.Column="0" Style="{StaticResource CardStyle}" Padding="16" Margin="0,0,16,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                        <TextBlock Text="POROWNANIE ZESPOLU" FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="txtTeamCount" Text=" (0 handlowcow)" FontSize="12" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <DataGrid x:Name="dgRaport" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True" RowHeaderWidth="0"
+                              Background="#1E293B" RowBackground="#1E293B" AlternatingRowBackground="#273548"
+                              BorderThickness="0" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#334155"
+                              CanUserSortColumns="True">
+
+                        <DataGrid.ColumnHeaderStyle>
+                            <Style TargetType="DataGridColumnHeader">
+                                <Setter Property="Background" Value="#0F172A"/>
+                                <Setter Property="Foreground" Value="#94A3B8"/>
+                                <Setter Property="Padding" Value="12,12"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="FontSize" Value="11"/>
+                                <Setter Property="BorderThickness" Value="0,0,0,2"/>
+                                <Setter Property="BorderBrush" Value="#334155"/>
+                                <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                            </Style>
+                        </DataGrid.ColumnHeaderStyle>
+
+                        <DataGrid.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="BorderThickness" Value="0"/>
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="Foreground" Value="#E2E8F0"/>
+                                <Setter Property="Padding" Value="10,8"/>
+                                <Setter Property="TextBlock.TextAlignment" Value="Center"/>
+                            </Style>
+                        </DataGrid.CellStyle>
+
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Setter Property="Height" Value="50"/>
+                                <Setter Property="Background" Value="#1E293B"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#334155"/>
+                                    </Trigger>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter Property="Background" Value="#6366F1"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
+
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="#" Binding="{Binding Pozycja}" Width="40"/>
+                            <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="*"/>
+                            <DataGridTextColumn Header="Akcje" Binding="{Binding WszystkieAkcje}" Width="70"/>
+                            <DataGridTextColumn Header="Proby" Binding="{Binding ProbyTel}" Width="70"/>
+                            <DataGridTextColumn Header="Kontakty" Binding="{Binding Kontakty}" Width="80"/>
+                            <DataGridTextColumn Header="Oferty" Binding="{Binding WyslaneOferty}" Width="70"/>
+                            <DataGridTextColumn Header="Pozytywne" Binding="{Binding Pozytywne}" Width="85"/>
+                            <DataGridTextColumn Header="Konwersja" Binding="{Binding KonwersjaTekst}" Width="85"/>
+                            <DataGridTextColumn Header="Sr./dzien" Binding="{Binding SredniaDzienna}" Width="80"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </Border>
+
+            <!-- RIGHT: Charts and Stats -->
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Funnel -->
+                <Border Grid.Row="0" Style="{StaticResource CardStyle}" Padding="16" Margin="0,0,0,16">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Text="LEJEK KONWERSJI" FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,16"/>
+
+                        <StackPanel Grid.Row="1" VerticalAlignment="Center">
+                            <!-- Do zadzwonienia -->
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="60"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Do zadzwonienia" FontSize="11" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center"/>
+                                <Border Grid.Column="1" Background="#334155" CornerRadius="4" Height="24" Margin="8,0">
+                                    <Border x:Name="barDoZadzwonienia" Background="#94A3B8" CornerRadius="4" HorizontalAlignment="Left" Width="100"/>
+                                </Border>
+                                <TextBlock x:Name="txtFunnelDoZadzwonienia" Grid.Column="2" Text="0" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                            </Grid>
+
+                            <!-- Proba kontaktu -->
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="60"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Proba kontaktu" FontSize="11" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center"/>
+                                <Border Grid.Column="1" Background="#334155" CornerRadius="4" Height="24" Margin="8,0">
+                                    <Border x:Name="barProbaKontaktu" Background="{StaticResource AccentYellow}" CornerRadius="4" HorizontalAlignment="Left" Width="80"/>
+                                </Border>
+                                <TextBlock x:Name="txtFunnelProbaKontaktu" Grid.Column="2" Text="0" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                            </Grid>
+
+                            <!-- Nawiazano kontakt -->
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="60"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Nawiazano" FontSize="11" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center"/>
+                                <Border Grid.Column="1" Background="#334155" CornerRadius="4" Height="24" Margin="8,0">
+                                    <Border x:Name="barNawiazanoKontakt" Background="{StaticResource AccentBlue}" CornerRadius="4" HorizontalAlignment="Left" Width="60"/>
+                                </Border>
+                                <TextBlock x:Name="txtFunnelNawiazanoKontakt" Grid.Column="2" Text="0" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                            </Grid>
+
+                            <!-- Zgoda -->
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="60"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Zgoda" FontSize="11" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center"/>
+                                <Border Grid.Column="1" Background="#334155" CornerRadius="4" Height="24" Margin="8,0">
+                                    <Border x:Name="barZgoda" Background="#8B5CF6" CornerRadius="4" HorizontalAlignment="Left" Width="40"/>
+                                </Border>
+                                <TextBlock x:Name="txtFunnelZgoda" Grid.Column="2" Text="0" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                            </Grid>
+
+                            <!-- Oferta -->
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="60"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Oferta" FontSize="11" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center"/>
+                                <Border Grid.Column="1" Background="#334155" CornerRadius="4" Height="24" Margin="8,0">
+                                    <Border x:Name="barOferta" Background="#14B8A6" CornerRadius="4" HorizontalAlignment="Left" Width="30"/>
+                                </Border>
+                                <TextBlock x:Name="txtFunnelOferta" Grid.Column="2" Text="0" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                            </Grid>
+
+                            <!-- Sukces -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="60"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Sukces" FontSize="11" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center"/>
+                                <Border Grid.Column="1" Background="#334155" CornerRadius="4" Height="24" Margin="8,0">
+                                    <Border x:Name="barSukces" Background="{StaticResource AccentGreen}" CornerRadius="4" HorizontalAlignment="Left" Width="20"/>
+                                </Border>
+                                <TextBlock x:Name="txtFunnelSukces" Grid.Column="2" Text="0" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                            </Grid>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Activity by Day -->
+                <Border Grid.Row="1" Style="{StaticResource CardStyle}" Padding="16">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Text="AKTYWNOSC WG DNIA TYGODNIA" FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,16"/>
+
+                        <ItemsControl x:Name="icDayActivity" Grid.Row="1">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Rows="1"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel HorizontalAlignment="Center" Margin="4">
+                                        <Border Background="{StaticResource BgTertiary}" CornerRadius="4" Width="40" Height="120" VerticalAlignment="Bottom">
+                                            <Border Background="{Binding Color}" CornerRadius="4" VerticalAlignment="Bottom" Height="{Binding BarHeight}"/>
+                                        </Border>
+                                        <TextBlock Text="{Binding Day}" FontSize="10" Foreground="{StaticResource TextSecondary}" HorizontalAlignment="Center" Margin="0,6,0,0"/>
+                                        <TextBlock Text="{Binding Count}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
     </Grid>
 </Window>

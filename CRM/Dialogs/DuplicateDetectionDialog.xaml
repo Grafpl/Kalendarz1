@@ -1,0 +1,193 @@
+<Window x:Class="Kalendarz1.CRM.Dialogs.DuplicateDetectionDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Wykrywanie duplikatow"
+        Width="900" Height="700"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="CanResizeWithGrip">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="BgPrimary" Color="#0F172A"/>
+        <SolidColorBrush x:Key="BgSecondary" Color="#1E293B"/>
+        <SolidColorBrush x:Key="BgTertiary" Color="#334155"/>
+        <SolidColorBrush x:Key="AccentPrimary" Color="#6366F1"/>
+        <SolidColorBrush x:Key="AccentWarning" Color="#F59E0B"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#94A3B8"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#334155"/>
+
+        <Style x:Key="ActionButton" TargetType="Button">
+            <Setter Property="Background" Value="#6366F1"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#4F46E5"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="bd" Property="Background" Value="#475569"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource ActionButton}">
+            <Setter Property="Background" Value="#475569"/>
+        </Style>
+
+        <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource ActionButton}">
+            <Setter Property="Background" Value="#DC2626"/>
+        </Style>
+    </Window.Resources>
+
+    <Border Background="{StaticResource BgPrimary}" CornerRadius="16" BorderThickness="1" BorderBrush="{StaticResource BorderColor}">
+        <Border.Effect>
+            <DropShadowEffect ShadowDepth="0" Color="Black" Opacity="0.5" BlurRadius="30"/>
+        </Border.Effect>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Border Grid.Row="0" Background="#7C3AED" CornerRadius="16,16,0,0" Padding="24,18" MouseLeftButtonDown="Header_MouseLeftButtonDown">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Path Fill="White" Stretch="Uniform" Width="24" Height="24" VerticalAlignment="Center" Margin="0,0,14,0"
+                          Data="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,6A2,2 0 0,0 10,8A2,2 0 0,0 12,10A2,2 0 0,0 14,8A2,2 0 0,0 12,6M12,13C14.67,13 20,14.33 20,17V20H4V17C4,14.33 9.33,13 12,13M12,14.9C9.03,14.9 5.9,16.36 5.9,17V18.1H18.1V17C18.1,16.36 14.97,14.9 12,14.9M17.5,12A4.5,4.5 0 0,1 22,16.5A4.5,4.5 0 0,1 17.5,21A4.5,4.5 0 0,1 13,16.5A4.5,4.5 0 0,1 17.5,12M17.5,13.5A3,3 0 0,0 14.5,16.5A3,3 0 0,0 17.5,19.5A3,3 0 0,0 20.5,16.5A3,3 0 0,0 17.5,13.5Z"/>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="Wykrywanie duplikatow" FontSize="20" FontWeight="Bold" Foreground="White"/>
+                        <TextBlock Text="Znajdz i polacz potencjalne duplikaty kontaktow" FontSize="12" Foreground="#DDD6FE" Margin="0,3,0,0"/>
+                    </StackPanel>
+                    <Button Grid.Column="2" Style="{StaticResource SecondaryButton}" Content="X" Padding="10,6" Click="BtnClose_Click" ToolTip="Zamknij"/>
+                </Grid>
+            </Border>
+
+            <!-- Search Options -->
+            <Border Grid.Row="1" Background="{StaticResource BgSecondary}" Padding="20,14">
+                <StackPanel>
+                    <TextBlock Text="Szukaj duplikatow wedlug:" Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,0,0,10"/>
+                    <WrapPanel>
+                        <CheckBox x:Name="chkTelefon" Content="Telefon" Foreground="{StaticResource TextPrimary}" IsChecked="True" Margin="0,0,20,0" FontSize="13"/>
+                        <CheckBox x:Name="chkNIP" Content="NIP" Foreground="{StaticResource TextPrimary}" IsChecked="True" Margin="0,0,20,0" FontSize="13"/>
+                        <CheckBox x:Name="chkNazwa" Content="Nazwa firmy" Foreground="{StaticResource TextPrimary}" Margin="0,0,20,0" FontSize="13"/>
+                        <CheckBox x:Name="chkEmail" Content="Email" Foreground="{StaticResource TextPrimary}" Margin="0,0,20,0" FontSize="13"/>
+                        <Button Style="{StaticResource ActionButton}" Content="Szukaj duplikatow" Click="BtnSearch_Click" Padding="16,8"/>
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Results -->
+            <Border Grid.Row="2" Margin="16" Background="{StaticResource BgSecondary}" CornerRadius="10" Padding="12">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <TextBlock x:Name="txtResultCount" Text="Znalezione grupy duplikatow: 0" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"/>
+                    </StackPanel>
+
+                    <DataGrid x:Name="dgDuplicates" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True"
+                              Background="{StaticResource BgSecondary}" RowBackground="{StaticResource BgSecondary}"
+                              AlternatingRowBackground="#273548" BorderThickness="0" GridLinesVisibility="Horizontal"
+                              HorizontalGridLinesBrush="{StaticResource BorderColor}" RowHeaderWidth="0"
+                              SelectionMode="Single" SelectionChanged="DgDuplicates_SelectionChanged">
+
+                        <DataGrid.ColumnHeaderStyle>
+                            <Style TargetType="DataGridColumnHeader">
+                                <Setter Property="Background" Value="#0F172A"/>
+                                <Setter Property="Foreground" Value="#94A3B8"/>
+                                <Setter Property="Padding" Value="12,10"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="FontSize" Value="12"/>
+                                <Setter Property="BorderThickness" Value="0,0,0,2"/>
+                                <Setter Property="BorderBrush" Value="#334155"/>
+                            </Style>
+                        </DataGrid.ColumnHeaderStyle>
+
+                        <DataGrid.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="BorderThickness" Value="0"/>
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="Foreground" Value="#E2E8F0"/>
+                                <Setter Property="Padding" Value="8,6"/>
+                            </Style>
+                        </DataGrid.CellStyle>
+
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Setter Property="Height" Value="45"/>
+                                <Setter Property="Background" Value="#1E293B"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#334155"/>
+                                    </Trigger>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter Property="Background" Value="#6366F1"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
+
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="ID" Binding="{Binding ID}" Width="60"/>
+                            <DataGridTextColumn Header="Nazwa firmy" Binding="{Binding NAZWA}" Width="*"/>
+                            <DataGridTextColumn Header="Telefon" Binding="{Binding TELEFON_K}" Width="120"/>
+                            <DataGridTextColumn Header="NIP" Binding="{Binding NIP}" Width="110"/>
+                            <DataGridTextColumn Header="Email" Binding="{Binding EMAIL}" Width="150"/>
+                            <DataGridTextColumn Header="Miasto" Binding="{Binding MIASTO}" Width="100"/>
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="100"/>
+                            <DataGridTextColumn Header="Grupa" Binding="{Binding DuplicateGroup}" Width="70"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </Border>
+
+            <!-- Footer -->
+            <Border Grid.Row="3" Background="{StaticResource BgSecondary}" CornerRadius="0,0,16,16" Padding="20,14">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock x:Name="txtSelectedInfo" Text="Wybierz kontakty do polaczenia" VerticalAlignment="Center"
+                               Foreground="{StaticResource TextSecondary}" FontSize="12"/>
+
+                    <Button Grid.Column="1" x:Name="btnIgnore" Style="{StaticResource SecondaryButton}"
+                            Content="Ignoruj wybrane" Click="BtnIgnore_Click" Margin="0,0,10,0" IsEnabled="False"/>
+                    <Button Grid.Column="2" x:Name="btnMerge" Style="{StaticResource DangerButton}"
+                            Content="Polacz duplikaty" Click="BtnMerge_Click" Margin="0,0,10,0" IsEnabled="False"/>
+                    <Button Grid.Column="3" Style="{StaticResource SecondaryButton}" Content="Zamknij" Click="BtnClose_Click"/>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

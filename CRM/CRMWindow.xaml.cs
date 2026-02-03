@@ -1825,6 +1825,78 @@ namespace Kalendarz1.CRM
         }
 
         #endregion
+
+        #region New Dialogs
+
+        private void BtnDuplicates_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new Dialogs.DuplicateDetectionDialog(connectionString);
+            dialog.Owner = this;
+            dialog.ShowDialog();
+            WczytajDane(zachowajFiltry: true);
+        }
+
+        private void BtnEmailTemplate_Click(object sender, RoutedEventArgs e)
+        {
+            if (aktualnyOdbiorcaID <= 0)
+            {
+                ShowToast("Wybierz klienta z listy");
+                return;
+            }
+
+            if (dgKontakty.SelectedItem is DataRowView row)
+            {
+                var dialog = new Dialogs.EmailTemplateDialog(connectionString, row, operatorID);
+                dialog.Owner = this;
+                if (dialog.ShowDialog() == true)
+                {
+                    ShowToast("Email wyslany!");
+                }
+            }
+        }
+
+        #endregion
+
+        #region Quick Status Buttons
+
+        private void BtnQuickStatus_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag != null)
+            {
+                string nowyStatus = btn.Tag.ToString();
+                if (aktualnyOdbiorcaID <= 0)
+                {
+                    ShowToast("Wybierz klienta z listy");
+                    return;
+                }
+
+                try
+                {
+                    using (var conn = new SqlConnection(connectionString))
+                    {
+                        conn.Open();
+                        var cmdUpdate = new SqlCommand("UPDATE OdbiorcyCRM SET Status = @status WHERE ID = @id", conn);
+                        cmdUpdate.Parameters.AddWithValue("@status", nowyStatus);
+                        cmdUpdate.Parameters.AddWithValue("@id", aktualnyOdbiorcaID);
+                        cmdUpdate.ExecuteNonQuery();
+
+                        var cmdLog = new SqlCommand("INSERT INTO HistoriaZmianCRM (IDOdbiorcy, TypZmiany, WartoscNowa, KtoWykonal, DataZmiany) VALUES (@id, 'Zmiana statusu', @val, @op, GETDATE())", conn);
+                        cmdLog.Parameters.AddWithValue("@id", aktualnyOdbiorcaID);
+                        cmdLog.Parameters.AddWithValue("@val", nowyStatus);
+                        cmdLog.Parameters.AddWithValue("@op", operatorID);
+                        cmdLog.ExecuteNonQuery();
+                    }
+                    WczytajDane(zachowajFiltry: true);
+                    ShowToast($"Status: {nowyStatus}");
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd zmiany statusu: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        #endregion
     }
 
     public class NotatkaCRM
@@ -1974,6 +2046,82 @@ namespace Kalendarz1.CRM
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    /// <summary>
+    /// Konwerter walidacji danych - sprawdza kompletność danych kontaktu
+    /// </summary>
+    public class ValidationWarningConverter : System.Windows.Data.IMultiValueConverter
+    {
+        public object Convert(object[] values, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (values == null || values.Length < 3) return "";
+
+            string telefon = values[0]?.ToString()?.Trim() ?? "";
+            string email = values[1]?.ToString()?.Trim() ?? "";
+            object ostatniaZmiana = values[2];
+
+            var warnings = new List<string>();
+
+            // Sprawdź telefon
+            if (string.IsNullOrEmpty(telefon))
+                warnings.Add("Brak telefonu");
+
+            // Sprawdź email
+            if (string.IsNullOrEmpty(email) || !email.Contains("@"))
+                warnings.Add("Brak/nieprawidłowy email");
+
+            // Sprawdź ostatni kontakt > 60 dni
+            if (ostatniaZmiana != null && ostatniaZmiana != DBNull.Value)
+            {
+                if (DateTime.TryParse(ostatniaZmiana.ToString(), out DateTime dt))
+                {
+                    if ((DateTime.Now - dt).TotalDays > 60)
+                        warnings.Add("Kontakt > 60 dni temu");
+                }
+            }
+
+            return warnings.Count > 0 ? string.Join("\n", warnings) : "";
+        }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, System.Globalization.CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    /// <summary>
+    /// Konwerter widoczności ostrzeżenia walidacji
+    /// </summary>
+    public class ValidationWarningVisibilityConverter : System.Windows.Data.IMultiValueConverter
+    {
+        public object Convert(object[] values, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (values == null || values.Length < 3) return Visibility.Collapsed;
+
+            string telefon = values[0]?.ToString()?.Trim() ?? "";
+            string email = values[1]?.ToString()?.Trim() ?? "";
+            object ostatniaZmiana = values[2];
+
+            // Brak telefonu
+            if (string.IsNullOrEmpty(telefon)) return Visibility.Visible;
+
+            // Brak email
+            if (string.IsNullOrEmpty(email) || !email.Contains("@")) return Visibility.Visible;
+
+            // Stary kontakt
+            if (ostatniaZmiana != null && ostatniaZmiana != DBNull.Value)
+            {
+                if (DateTime.TryParse(ostatniaZmiana.ToString(), out DateTime dt))
+                {
+                    if ((DateTime.Now - dt).TotalDays > 60)
+                        return Visibility.Visible;
+                }
+            }
+
+            return Visibility.Collapsed;
+        }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, System.Globalization.CultureInfo culture)
             => throw new NotImplementedException();
     }
 
