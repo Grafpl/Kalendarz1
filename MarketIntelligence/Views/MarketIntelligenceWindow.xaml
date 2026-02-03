@@ -9,7 +9,7 @@
         WindowStartupLocation="CenterScreen"
         WindowState="Maximized"
         FontFamily="Segoe UI"
-        Background="{StaticResource BgDeep}">
+        Background="#0B0F19">
 
     <Window.Resources>
         <!-- ═══════════════════════════════════════════════════════════════ -->
