@@ -1530,7 +1530,12 @@ namespace Kalendarz1
                     new MenuItemConfig("KomunikatorFirmowy", "Komunikator Firmowy",
                         "Wewnętrzny czat firmowy z powiadomieniami i avatarami pracowników",
                         Color.FromArgb(124, 58, 237), // Fioletowy #7C3AED
-                        () => new Kalendarz1.Komunikator.Views.ChatMainWindow(App.UserID, App.UserFullName), "💬", "Komunikator")
+                        () => new Kalendarz1.Komunikator.Views.ChatMainWindow(App.UserID, App.UserFullName), "💬", "Komunikator"),
+
+                    new MenuItemConfig("MarketIntelligence", "Intel Rynkowy",
+                        "Dashboard informacji rynkowych - ceny, HPAI, konkurencja, analizy AI",
+                        Color.FromArgb(99, 102, 241), // Indigo #6366F1
+                        () => new Kalendarz1.MarketIntelligence.Views.MarketIntelligenceWindow(), "📊", "Intel")
                 },
 
                 // ═══════════════════════════════════════════════════════════════════════════
