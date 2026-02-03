@@ -1,0 +1,838 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Diagnostics;
+using Kalendarz1.MarketIntelligence.Services.DataSources;
+
+namespace Kalendarz1.MarketIntelligence.Services.AI
+{
+    /// <summary>
+    /// Serwis do analizy artykułów przez Claude AI
+    /// Używa Haiku do filtrowania i Sonnet do pełnej analizy
+    /// </summary>
+    public class ClaudeAnalysisService : IDisposable
+    {
+        private readonly HttpClient _httpClient;
+        private readonly string _apiKey;
+        private readonly SemaphoreSlim _rateLimiter;
+
+        // Claude API endpoints and models
+        private const string ClaudeApiUrl = "https://api.anthropic.com/v1/messages";
+        private const string HaikuModel = "claude-3-haiku-20240307";
+        private const string SonnetModel = "claude-3-5-sonnet-20241022";
+        private const string ApiVersion = "2023-06-01";
+
+        // Rate limiting (Anthropic limits)
+        private DateTime _lastRequestTime = DateTime.MinValue;
+        private readonly TimeSpan _minRequestInterval = TimeSpan.FromMilliseconds(200);
+
+        public ClaudeAnalysisService(string apiKey = null)
+        {
+            _apiKey = apiKey ?? Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY")
+                ?? System.Configuration.ConfigurationManager.AppSettings["ClaudeApiKey"];
+
+            _httpClient = new HttpClient
+            {
+                Timeout = TimeSpan.FromSeconds(120)
+            };
+
+            _httpClient.DefaultRequestHeaders.Add("x-api-key", _apiKey ?? "");
+            _httpClient.DefaultRequestHeaders.Add("anthropic-version", ApiVersion);
+
+            _rateLimiter = new SemaphoreSlim(1);
+        }
+
+        public bool IsConfigured => !string.IsNullOrEmpty(_apiKey);
+
+        #region Quick Filtering (Haiku)
+
+        /// <summary>
+        /// Szybkie filtrowanie artykułów z Haiku (tanie)
+        /// Zwraca tylko relevantne artykuły z podstawową kategoryzacją
+        /// </summary>
+        public async Task<List<FilteredArticle>> QuickFilterArticlesAsync(
+            List<RawArticle> articles,
+            CancellationToken ct = default)
+        {
+            if (!IsConfigured)
+            {
+                Debug.WriteLine("[Claude] API key not configured, returning all articles as unfiltered");
+                return articles.Select(a => new FilteredArticle
+                {
+                    Article = a,
+                    IsRelevant = a.IsRelevant,
+                    Category = DetermineLocalCategory(a),
+                    Priority = a.RelevanceScore / 10
+                }).ToList();
+            }
+
+            var filtered = new List<FilteredArticle>();
+            var batch = new List<RawArticle>();
+            const int batchSize = 10;
+
+            foreach (var article in articles)
+            {
+                batch.Add(article);
+
+                if (batch.Count >= batchSize)
+                {
+                    var results = await FilterBatchAsync(batch, ct);
+                    filtered.AddRange(results);
+                    batch.Clear();
+                }
+            }
+
+            // Process remaining
+            if (batch.Any())
+            {
+                var results = await FilterBatchAsync(batch, ct);
+                filtered.AddRange(results);
+            }
+
+            return filtered.Where(f => f.IsRelevant).OrderByDescending(f => f.Priority).ToList();
+        }
+
+        private async Task<List<FilteredArticle>> FilterBatchAsync(List<RawArticle> batch, CancellationToken ct)
+        {
+            var results = new List<FilteredArticle>();
+
+            var articlesText = string.Join("\n\n", batch.Select((a, i) =>
+                $"[{i + 1}] {a.Title}\n{(a.Summary?.Length > 300 ? a.Summary.Substring(0, 300) + "..." : a.Summary)}"));
+
+            var prompt = $@"Jesteś asystentem analityka rynku drobiarskiego dla polskiej ubojni drobiu.
+Oceń poniższe artykuły pod kątem relevantności dla branży drobiarskiej w Polsce.
+
+ARTYKUŁY:
+{articlesText}
+
+Dla każdego artykułu odpowiedz w formacie JSON (tablica):
+[
+  {{
+    ""id"": 1,
+    ""relevant"": true/false,
+    ""category"": ""HPAI|Ceny|Konkurencja|Eksport|Import|Regulacje|Pasze|Pogoda|Klienci|Info"",
+    ""priority"": 1-10,
+    ""reason"": ""krótkie uzasadnienie""
+  }},
+  ...
+]
+
+Relevant = true jeśli artykuł dotyczy:
+- Drobiu, kurczaków, indyków, ubojni
+- HPAI / grypy ptaków
+- Cen skupu/hurtowych mięsa
+- Eksportu/importu drobiu
+- Pasz, zbóż (kukurydza, soja, pszenica)
+- Konkurencji (Cedrob, SuperDrob, Animex, etc.)
+- Regulacji weterynaryjnych/rolnych
+- Sieci handlowych (Biedronka, Lidl) - jeśli o cenach mięsa
+
+Relevant = false jeśli:
+- Przepisy kulinarne
+- Restauracje (chyba że o cenach hurtowych)
+- Niezwiązane z branżą spożywczą/rolną
+
+Odpowiedz TYLKO tablicą JSON, bez dodatkowego tekstu.";
+
+            try
+            {
+                var response = await CallClaudeAsync(prompt, HaikuModel, 1000, ct);
+
+                if (!string.IsNullOrEmpty(response))
+                {
+                    // Parse JSON response
+                    var jsonStart = response.IndexOf('[');
+                    var jsonEnd = response.LastIndexOf(']') + 1;
+
+                    if (jsonStart >= 0 && jsonEnd > jsonStart)
+                    {
+                        var json = response.Substring(jsonStart, jsonEnd - jsonStart);
+                        var filterResults = JsonSerializer.Deserialize<List<FilterResult>>(json, new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true
+                        });
+
+                        if (filterResults != null)
+                        {
+                            foreach (var result in filterResults)
+                            {
+                                var idx = result.Id - 1;
+                                if (idx >= 0 && idx < batch.Count)
+                                {
+                                    results.Add(new FilteredArticle
+                                    {
+                                        Article = batch[idx],
+                                        IsRelevant = result.Relevant,
+                                        Category = result.Category,
+                                        Priority = result.Priority,
+                                        FilterReason = result.Reason
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Claude] Filter batch error: {ex.Message}");
+            }
+
+            // Add any missing articles with local filtering
+            foreach (var article in batch)
+            {
+                if (!results.Any(r => r.Article.UrlHash == article.UrlHash))
+                {
+                    results.Add(new FilteredArticle
+                    {
+                        Article = article,
+                        IsRelevant = article.IsRelevant,
+                        Category = DetermineLocalCategory(article),
+                        Priority = article.RelevanceScore / 10
+                    });
+                }
+            }
+
+            return results;
+        }
+
+        #endregion
+
+        #region Full Analysis (Sonnet)
+
+        /// <summary>
+        /// Pełna analiza artykułu z Claude Sonnet
+        /// Generuje 3 perspektywy (CEO/Handlowiec/Zakupowiec) + edukację
+        /// </summary>
+        public async Task<ArticleAnalysis> AnalyzeArticleAsync(
+            RawArticle article,
+            BusinessContext context,
+            CancellationToken ct = default)
+        {
+            if (!IsConfigured)
+            {
+                Debug.WriteLine("[Claude] API key not configured, returning stub analysis");
+                return CreateStubAnalysis(article);
+            }
+
+            var prompt = CreateAnalysisPrompt(article, context);
+
+            try
+            {
+                var response = await CallClaudeAsync(prompt, SonnetModel, 2000, ct);
+
+                if (!string.IsNullOrEmpty(response))
+                {
+                    return ParseAnalysisResponse(response, article);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Claude] Analysis error: {ex.Message}");
+            }
+
+            return CreateStubAnalysis(article);
+        }
+
+        /// <summary>
+        /// Analiza wielu artykułów (batch)
+        /// </summary>
+        public async Task<List<ArticleAnalysis>> AnalyzeArticlesAsync(
+            List<RawArticle> articles,
+            BusinessContext context,
+            int maxArticles = 20,
+            CancellationToken ct = default)
+        {
+            var analyses = new List<ArticleAnalysis>();
+            var toAnalyze = articles.Take(maxArticles).ToList();
+
+            foreach (var article in toAnalyze)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                var analysis = await AnalyzeArticleAsync(article, context, ct);
+                analyses.Add(analysis);
+
+                // Progress logging
+                Debug.WriteLine($"[Claude] Analyzed {analyses.Count}/{toAnalyze.Count}: {article.Title.Substring(0, Math.Min(50, article.Title.Length))}...");
+            }
+
+            return analyses;
+        }
+
+        private string CreateAnalysisPrompt(RawArticle article, BusinessContext context)
+        {
+            var contextJson = context != null ? JsonSerializer.Serialize(context, new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            }) : "{}";
+
+            return $@"Jesteś analitykiem rynku drobiarskiego dla Ubojni Drobiu Piórkowscy (Brzeziny, województwo łódzkie).
+Przeanalizuj poniższy artykuł pod kątem wpływu na naszą firmę.
+
+=== ARTYKUŁ ===
+Tytuł: {article.Title}
+Źródło: {article.SourceName}
+Data: {article.PublishDate:yyyy-MM-dd}
+Kategoria źródła: {article.SourceCategory}
+
+Treść:
+{article.Summary ?? article.Title}
+
+=== KONTEKST FIRMY ===
+{contextJson}
+
+=== ZADANIE ===
+Przygotuj analizę w formacie JSON:
+
+{{
+  ""kategoria"": ""HPAI|Ceny|Konkurencja|Eksport|Import|Regulacje|Pasze|Pogoda|Klienci|Dotacje|Info"",
+  ""severity"": ""critical|warning|positive|info"",
+  ""istotnosc"": 1-10,
+
+  ""analiza_ceo"": ""2-3 zdania: strategiczne implikacje dla właściciela firmy. Co to oznacza dla biznesu? Jakie decyzje trzeba podjąć?"",
+
+  ""analiza_handlowiec"": ""2-3 zdania: co powinien wiedzieć dział sprzedaży. Jak to wpłynie na ceny? Co powiedzieć klientom?"",
+
+  ""analiza_zakupowiec"": ""2-3 zdania: wpływ na zakupy i dostawców. Czy trzeba zmienić zamówienia? Negocjować ceny?"",
+
+  ""rekomendacje_ceo"": [""konkretna akcja 1"", ""konkretna akcja 2""],
+  ""rekomendacje_handlowiec"": [""konkretna akcja 1"", ""konkretna akcja 2""],
+  ""rekomendacje_zakupowiec"": [""konkretna akcja 1"", ""konkretna akcja 2""],
+
+  ""edukacja"": ""Krótkie (2-3 zdań) wyjaśnienie kontekstu dla osoby niezorientowanej w temacie. Kim jest podmiot X? Co to jest Y? Dlaczego to ważne?"",
+
+  ""kluczowe_liczby"": [
+    {{""nazwa"": ""np. cena"", ""wartosc"": ""5.80 zł/kg"", ""zmiana"": ""+5%""}},
+    ...
+  ],
+
+  ""powiazane_tematy"": [""temat 1"", ""temat 2""]
+}}
+
+WAŻNE:
+- Pisz konkretnie, z liczbami i faktami z artykułu
+- Odnoś się do kontekstu firmy (lokalizacja, klienci, konkurencja)
+- Rekomendacje muszą być WYKONALNE i KONKRETNE
+- Edukacja powinna być zrozumiała dla laika
+
+Odpowiedz TYLKO JSON-em, bez dodatkowego tekstu.";
+        }
+
+        private ArticleAnalysis ParseAnalysisResponse(string response, RawArticle article)
+        {
+            try
+            {
+                // Find JSON in response
+                var jsonStart = response.IndexOf('{');
+                var jsonEnd = response.LastIndexOf('}') + 1;
+
+                if (jsonStart >= 0 && jsonEnd > jsonStart)
+                {
+                    var json = response.Substring(jsonStart, jsonEnd - jsonStart);
+                    var parsed = JsonSerializer.Deserialize<AnalysisResponse>(json, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+
+                    if (parsed != null)
+                    {
+                        return new ArticleAnalysis
+                        {
+                            Article = article,
+                            Category = parsed.Kategoria,
+                            Severity = parsed.Severity,
+                            Importance = parsed.Istotnosc,
+
+                            CeoAnalysis = parsed.AnalizaCeo,
+                            SalesAnalysis = parsed.AnalizaHandlowiec,
+                            BuyerAnalysis = parsed.AnalizaZakupowiec,
+
+                            CeoRecommendations = parsed.RekomendacjeCeo ?? new List<string>(),
+                            SalesRecommendations = parsed.RekomendacjeHandlowiec ?? new List<string>(),
+                            BuyerRecommendations = parsed.RekomendacjeZakupowiec ?? new List<string>(),
+
+                            EducationalContent = parsed.Edukacja,
+                            KeyNumbers = parsed.KluczoweLiczby ?? new List<KeyNumber>(),
+                            RelatedTopics = parsed.PowiazaneTematy ?? new List<string>(),
+
+                            AnalyzedAt = DateTime.Now,
+                            Model = SonnetModel
+                        };
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Claude] Parse analysis error: {ex.Message}");
+            }
+
+            return CreateStubAnalysis(article);
+        }
+
+        #endregion
+
+        #region Daily Summary
+
+        /// <summary>
+        /// Generuj poranne streszczenie dnia
+        /// </summary>
+        public async Task<DailySummary> GenerateDailySummaryAsync(
+            List<ArticleAnalysis> analyses,
+            BusinessContext context,
+            CancellationToken ct = default)
+        {
+            if (!IsConfigured || !analyses.Any())
+            {
+                return CreateStubSummary(analyses);
+            }
+
+            var articlesOverview = string.Join("\n", analyses.Take(20).Select((a, i) =>
+                $"{i + 1}. [{a.Category}] {a.Article.Title} (ważność: {a.Importance}/10)"));
+
+            var prompt = $@"Jesteś analitykiem przygotowującym poranny briefing dla Ubojni Drobiu Piórkowscy.
+
+=== DZISIEJSZE ARTYKUŁY ===
+{articlesOverview}
+
+=== KONTEKST FIRMY ===
+Lokalizacja: Brzeziny, łódzkie
+Specjalizacja: ubój kurczaków brojlerów
+Zdolność: ~70,000 szt/dzień
+
+=== ZADANIE ===
+Przygotuj poranne streszczenie w formacie JSON:
+
+{{
+  ""headline"": ""Główny nagłówek dnia (max 100 znaków)"",
+  ""summary_ceo"": ""3-4 zdania: kluczowe informacje dla CEO. Co najważniejsze? Jakie ryzyka/szanse?"",
+  ""summary_sales"": ""3-4 zdania: podsumowanie dla działu sprzedaży"",
+  ""summary_buyer"": ""3-4 zdania: podsumowanie dla działu zakupów"",
+
+  ""top_alerts"": [
+    {{""category"": ""HPAI"", ""severity"": ""critical"", ""message"": ""krótki opis alertu""}},
+    ...
+  ],
+
+  ""market_mood"": ""positive|neutral|negative"",
+  ""market_mood_reason"": ""Krótkie uzasadnienie nastroju rynku"",
+
+  ""action_items"": [
+    {{""priority"": ""high|medium|low"", ""action"": ""co zrobić"", ""owner"": ""CEO|Sprzedaż|Zakupy""}},
+    ...
+  ],
+
+  ""weekly_outlook"": ""Krótka prognoza na najbliższe dni""
+}}
+
+Odpowiedz TYLKO JSON-em.";
+
+            try
+            {
+                var response = await CallClaudeAsync(prompt, SonnetModel, 1500, ct);
+
+                if (!string.IsNullOrEmpty(response))
+                {
+                    var jsonStart = response.IndexOf('{');
+                    var jsonEnd = response.LastIndexOf('}') + 1;
+
+                    if (jsonStart >= 0 && jsonEnd > jsonStart)
+                    {
+                        var json = response.Substring(jsonStart, jsonEnd - jsonStart);
+                        var parsed = JsonSerializer.Deserialize<SummaryResponse>(json, new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true
+                        });
+
+                        if (parsed != null)
+                        {
+                            return new DailySummary
+                            {
+                                Date = DateTime.Today,
+                                Headline = parsed.Headline,
+                                CeoSummary = parsed.SummaryCeo,
+                                SalesSummary = parsed.SummarySales,
+                                BuyerSummary = parsed.SummaryBuyer,
+                                TopAlerts = parsed.TopAlerts ?? new List<Alert>(),
+                                MarketMood = parsed.MarketMood,
+                                MarketMoodReason = parsed.MarketMoodReason,
+                                ActionItems = parsed.ActionItems ?? new List<ActionItem>(),
+                                WeeklyOutlook = parsed.WeeklyOutlook,
+                                ArticlesAnalyzed = analyses.Count,
+                                GeneratedAt = DateTime.Now
+                            };
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Claude] Summary error: {ex.Message}");
+            }
+
+            return CreateStubSummary(analyses);
+        }
+
+        #endregion
+
+        #region API Call
+
+        private async Task<string> CallClaudeAsync(string prompt, string model, int maxTokens, CancellationToken ct)
+        {
+            if (!IsConfigured)
+            {
+                throw new InvalidOperationException("Claude API key not configured");
+            }
+
+            await _rateLimiter.WaitAsync(ct);
+            try
+            {
+                // Rate limiting
+                var elapsed = DateTime.Now - _lastRequestTime;
+                if (elapsed < _minRequestInterval)
+                {
+                    await Task.Delay(_minRequestInterval - elapsed, ct);
+                }
+
+                var request = new
+                {
+                    model = model,
+                    max_tokens = maxTokens,
+                    messages = new[]
+                    {
+                        new { role = "user", content = prompt }
+                    }
+                };
+
+                var json = JsonSerializer.Serialize(request);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PostAsync(ClaudeApiUrl, content, ct);
+                _lastRequestTime = DateTime.Now;
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = await response.Content.ReadAsStringAsync(ct);
+                    Debug.WriteLine($"[Claude] API error {(int)response.StatusCode}: {error}");
+                    return null;
+                }
+
+                var responseJson = await response.Content.ReadAsStringAsync(ct);
+                var responseObj = JsonSerializer.Deserialize<ClaudeResponse>(responseJson, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                return responseObj?.Content?.FirstOrDefault()?.Text;
+            }
+            finally
+            {
+                _rateLimiter.Release();
+            }
+        }
+
+        #endregion
+
+        #region Helpers
+
+        private string DetermineLocalCategory(RawArticle article)
+        {
+            var text = $"{article.Title} {article.Summary}".ToLowerInvariant();
+
+            if (text.Contains("hpai") || text.Contains("grypa") || text.Contains("ognisko"))
+                return "HPAI";
+            if (text.Contains("cena") || text.Contains("notowania") || text.Contains("price"))
+                return "Ceny";
+            if (text.Contains("eksport") || text.Contains("export"))
+                return "Eksport";
+            if (text.Contains("import"))
+                return "Import";
+            if (text.Contains("cedrob") || text.Contains("superdrob") || text.Contains("animex"))
+                return "Konkurencja";
+            if (text.Contains("pasza") || text.Contains("kukurydz") || text.Contains("soja"))
+                return "Pasze";
+            if (text.Contains("regulac") || text.Contains("ustawa") || text.Contains("prawo"))
+                return "Regulacje";
+
+            return article.SourceCategory ?? "Info";
+        }
+
+        private ArticleAnalysis CreateStubAnalysis(RawArticle article)
+        {
+            return new ArticleAnalysis
+            {
+                Article = article,
+                Category = DetermineLocalCategory(article),
+                Severity = article.RelevanceScore >= 15 ? "warning" : "info",
+                Importance = Math.Min(10, article.RelevanceScore / 3),
+
+                CeoAnalysis = $"Artykuł wymaga przeglądu. Źródło: {article.SourceName}.",
+                SalesAnalysis = "Brak automatycznej analizy - skonfiguruj klucz API Claude.",
+                BuyerAnalysis = "Brak automatycznej analizy - skonfiguruj klucz API Claude.",
+
+                CeoRecommendations = new List<string> { "Przeczytaj artykuł źródłowy" },
+                SalesRecommendations = new List<string>(),
+                BuyerRecommendations = new List<string>(),
+
+                EducationalContent = "Analiza AI niedostępna. Przeczytaj oryginalny artykuł.",
+                KeyNumbers = new List<KeyNumber>(),
+                RelatedTopics = article.MatchedKeywords?.ToList() ?? new List<string>(),
+
+                AnalyzedAt = DateTime.Now,
+                Model = "local-fallback"
+            };
+        }
+
+        private DailySummary CreateStubSummary(List<ArticleAnalysis> analyses)
+        {
+            var criticalCount = analyses.Count(a => a.Severity == "critical");
+            var warningCount = analyses.Count(a => a.Severity == "warning");
+
+            return new DailySummary
+            {
+                Date = DateTime.Today,
+                Headline = $"Poranny briefing: {analyses.Count} artykułów do przeglądu",
+                CeoSummary = $"Zebrano {analyses.Count} artykułów. {criticalCount} krytycznych, {warningCount} ostrzeżeń. Skonfiguruj klucz API Claude dla pełnej analizy.",
+                SalesSummary = "Analiza AI niedostępna.",
+                BuyerSummary = "Analiza AI niedostępna.",
+                TopAlerts = criticalCount > 0
+                    ? new List<Alert> { new Alert { Category = "System", Severity = "warning", Message = $"{criticalCount} artykułów wymaga uwagi" } }
+                    : new List<Alert>(),
+                MarketMood = "neutral",
+                MarketMoodReason = "Brak analizy AI",
+                ActionItems = new List<ActionItem>
+                {
+                    new ActionItem { Priority = "high", Action = "Skonfiguruj klucz API Claude", Owner = "IT" }
+                },
+                WeeklyOutlook = "Brak prognozy bez AI",
+                ArticlesAnalyzed = analyses.Count,
+                GeneratedAt = DateTime.Now
+            };
+        }
+
+        #endregion
+
+        public void Dispose()
+        {
+            _httpClient?.Dispose();
+            _rateLimiter?.Dispose();
+        }
+    }
+
+    #region Response Models
+
+    internal class ClaudeResponse
+    {
+        public string Id { get; set; }
+        public string Model { get; set; }
+        public List<ContentBlock> Content { get; set; }
+    }
+
+    internal class ContentBlock
+    {
+        public string Type { get; set; }
+        public string Text { get; set; }
+    }
+
+    internal class FilterResult
+    {
+        public int Id { get; set; }
+        public bool Relevant { get; set; }
+        public string Category { get; set; }
+        public int Priority { get; set; }
+        public string Reason { get; set; }
+    }
+
+    internal class AnalysisResponse
+    {
+        public string Kategoria { get; set; }
+        public string Severity { get; set; }
+        public int Istotnosc { get; set; }
+
+        [JsonPropertyName("analiza_ceo")]
+        public string AnalizaCeo { get; set; }
+
+        [JsonPropertyName("analiza_handlowiec")]
+        public string AnalizaHandlowiec { get; set; }
+
+        [JsonPropertyName("analiza_zakupowiec")]
+        public string AnalizaZakupowiec { get; set; }
+
+        [JsonPropertyName("rekomendacje_ceo")]
+        public List<string> RekomendacjeCeo { get; set; }
+
+        [JsonPropertyName("rekomendacje_handlowiec")]
+        public List<string> RekomendacjeHandlowiec { get; set; }
+
+        [JsonPropertyName("rekomendacje_zakupowiec")]
+        public List<string> RekomendacjeZakupowiec { get; set; }
+
+        public string Edukacja { get; set; }
+
+        [JsonPropertyName("kluczowe_liczby")]
+        public List<KeyNumber> KluczoweLiczby { get; set; }
+
+        [JsonPropertyName("powiazane_tematy")]
+        public List<string> PowiazaneTematy { get; set; }
+    }
+
+    internal class SummaryResponse
+    {
+        public string Headline { get; set; }
+
+        [JsonPropertyName("summary_ceo")]
+        public string SummaryCeo { get; set; }
+
+        [JsonPropertyName("summary_sales")]
+        public string SummarySales { get; set; }
+
+        [JsonPropertyName("summary_buyer")]
+        public string SummaryBuyer { get; set; }
+
+        [JsonPropertyName("top_alerts")]
+        public List<Alert> TopAlerts { get; set; }
+
+        [JsonPropertyName("market_mood")]
+        public string MarketMood { get; set; }
+
+        [JsonPropertyName("market_mood_reason")]
+        public string MarketMoodReason { get; set; }
+
+        [JsonPropertyName("action_items")]
+        public List<ActionItem> ActionItems { get; set; }
+
+        [JsonPropertyName("weekly_outlook")]
+        public string WeeklyOutlook { get; set; }
+    }
+
+    #endregion
+
+    #region Output Models
+
+    public class FilteredArticle
+    {
+        public RawArticle Article { get; set; }
+        public bool IsRelevant { get; set; }
+        public string Category { get; set; }
+        public int Priority { get; set; }
+        public string FilterReason { get; set; }
+    }
+
+    public class ArticleAnalysis
+    {
+        public RawArticle Article { get; set; }
+        public string Category { get; set; }
+        public string Severity { get; set; }
+        public int Importance { get; set; }
+
+        public string CeoAnalysis { get; set; }
+        public string SalesAnalysis { get; set; }
+        public string BuyerAnalysis { get; set; }
+
+        public List<string> CeoRecommendations { get; set; } = new();
+        public List<string> SalesRecommendations { get; set; } = new();
+        public List<string> BuyerRecommendations { get; set; } = new();
+
+        public string EducationalContent { get; set; }
+        public List<KeyNumber> KeyNumbers { get; set; } = new();
+        public List<string> RelatedTopics { get; set; } = new();
+
+        public DateTime AnalyzedAt { get; set; }
+        public string Model { get; set; }
+    }
+
+    public class KeyNumber
+    {
+        [JsonPropertyName("nazwa")]
+        public string Name { get; set; }
+
+        [JsonPropertyName("wartosc")]
+        public string Value { get; set; }
+
+        [JsonPropertyName("zmiana")]
+        public string Change { get; set; }
+    }
+
+    public class DailySummary
+    {
+        public DateTime Date { get; set; }
+        public string Headline { get; set; }
+        public string CeoSummary { get; set; }
+        public string SalesSummary { get; set; }
+        public string BuyerSummary { get; set; }
+        public List<Alert> TopAlerts { get; set; } = new();
+        public string MarketMood { get; set; }
+        public string MarketMoodReason { get; set; }
+        public List<ActionItem> ActionItems { get; set; } = new();
+        public string WeeklyOutlook { get; set; }
+        public int ArticlesAnalyzed { get; set; }
+        public DateTime GeneratedAt { get; set; }
+    }
+
+    public class Alert
+    {
+        public string Category { get; set; }
+        public string Severity { get; set; }
+        public string Message { get; set; }
+    }
+
+    public class ActionItem
+    {
+        public string Priority { get; set; }
+        public string Action { get; set; }
+        public string Owner { get; set; }
+    }
+
+    /// <summary>
+    /// Kontekst biznesowy firmy do analizy AI
+    /// </summary>
+    public class BusinessContext
+    {
+        public CompanyInfo Company { get; set; }
+        public List<SupplierInfo> TopSuppliers { get; set; } = new();
+        public List<CustomerInfo> TopCustomers { get; set; } = new();
+        public List<PriceInfo> CurrentPrices { get; set; } = new();
+        public List<string> Competitors { get; set; } = new();
+    }
+
+    public class CompanyInfo
+    {
+        public string Name { get; set; }
+        public string Location { get; set; }
+        public string Voivodeship { get; set; }
+        public int DailyCapacity { get; set; }
+        public string Specialization { get; set; }
+    }
+
+    public class SupplierInfo
+    {
+        public string Name { get; set; }
+        public string Location { get; set; }
+        public string Category { get; set; }
+        public int DistanceKm { get; set; }
+    }
+
+    public class CustomerInfo
+    {
+        public string Name { get; set; }
+        public decimal VolumePallets { get; set; }
+        public string SalesRep { get; set; }
+    }
+
+    public class PriceInfo
+    {
+        public string Product { get; set; }
+        public decimal Price { get; set; }
+        public string Unit { get; set; }
+        public DateTime Date { get; set; }
+    }
+
+    #endregion
+}

@@ -5,8 +5,12 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Input;
 using Kalendarz1.MarketIntelligence.Models;
+using Kalendarz1.MarketIntelligence.Services;
+using Kalendarz1.MarketIntelligence.Services.AI;
 
 namespace Kalendarz1.MarketIntelligence.ViewModels
 {
@@ -65,6 +69,8 @@ namespace Kalendarz1.MarketIntelligence.ViewModels
             FilterByCategoryCommand = new RelayCommand<string>(FilterByCategory);
             ToggleTasksPanelCommand = new RelayCommand(_ => ToggleTasksPanel());
             RefreshCommand = new RelayCommand(_ => Refresh());
+            RefreshFromInternetCommand = new RelayCommand(_ => RefreshFromInternetAsync(), _ => !IsLoading);
+            LoadFromDatabaseCommand = new RelayCommand(_ => LoadFromDatabaseAsync(), _ => !IsLoading);
 
             // Set defaults
             CurrentRole = UserRole.CEO;
@@ -217,6 +223,40 @@ namespace Kalendarz1.MarketIntelligence.ViewModels
         public ICommand FilterByCategoryCommand { get; }
         public ICommand ToggleTasksPanelCommand { get; }
         public ICommand RefreshCommand { get; }
+        public ICommand RefreshFromInternetCommand { get; }
+        public ICommand LoadFromDatabaseCommand { get; }
+
+        #endregion
+
+        #region Progress Properties
+
+        private string _loadingStatus;
+        public string LoadingStatus
+        {
+            get => _loadingStatus;
+            set => SetProperty(ref _loadingStatus, value);
+        }
+
+        private int _loadingProgress;
+        public int LoadingProgress
+        {
+            get => _loadingProgress;
+            set => SetProperty(ref _loadingProgress, value);
+        }
+
+        private string _lastFetchTime;
+        public string LastFetchTime
+        {
+            get => _lastFetchTime;
+            set => SetProperty(ref _lastFetchTime, value);
+        }
+
+        private int _fetchedArticlesCount;
+        public int FetchedArticlesCount
+        {
+            get => _fetchedArticlesCount;
+            set => SetProperty(ref _fetchedArticlesCount, value);
+        }
 
         #endregion
 
@@ -269,7 +309,174 @@ namespace Kalendarz1.MarketIntelligence.ViewModels
         private void Refresh()
         {
             CurrentDate = DateTime.Now;
-            // In future: reload data from services
+            OnPropertyChanged(nameof(DateDisplay));
+            OnPropertyChanged(nameof(WeekDisplay));
+        }
+
+        /// <summary>
+        /// Pobierz nowe dane z internetu (RSS, scraping, AI)
+        /// </summary>
+        private async void RefreshFromInternetAsync()
+        {
+            if (IsLoading) return;
+
+            IsLoading = true;
+            LoadingStatus = "Inicjalizacja...";
+            LoadingProgress = 0;
+
+            var progress = new Progress<FetchProgress>(p =>
+            {
+                LoadingStatus = p.Message;
+                LoadingProgress = p.Percent;
+            });
+
+            try
+            {
+                var loader = BriefingDataLoaderService.Instance;
+                var result = await loader.FetchNewDataAsync(fullFetch: false, progress: progress);
+
+                if (result.Success)
+                {
+                    // Add fetched articles to collection
+                    foreach (var article in result.Articles)
+                    {
+                        // Check if not already exists
+                        if (!AllArticles.Any(a => a.Title == article.Title))
+                        {
+                            AllArticles.Add(article);
+                        }
+                    }
+
+                    // Update indicators if available
+                    if (result.Indicators?.Any() == true)
+                    {
+                        foreach (var indicator in result.Indicators)
+                        {
+                            var existing = Indicators.FirstOrDefault(i => i.Name == indicator.Name);
+                            if (existing != null)
+                            {
+                                var idx = Indicators.IndexOf(existing);
+                                Indicators[idx] = indicator;
+                            }
+                            else
+                            {
+                                Indicators.Add(indicator);
+                            }
+                        }
+                    }
+
+                    // Add HPAI alerts as articles
+                    foreach (var alert in result.HpaiAlerts ?? Enumerable.Empty<BriefingArticle>())
+                    {
+                        if (!AllArticles.Any(a => a.Title == alert.Title))
+                        {
+                            AllArticles.Add(alert);
+                        }
+                    }
+
+                    // Update summary segments if available
+                    if (result.Summary != null)
+                    {
+                        UpdateSummaryFromDailySummary(result.Summary);
+                    }
+
+                    FetchedArticlesCount = result.Statistics?.RelevantArticles ?? result.Articles.Count;
+                    LastFetchTime = DateTime.Now.ToString("HH:mm");
+                    LoadingStatus = $"Pobrano {FetchedArticlesCount} artykułów";
+                }
+                else
+                {
+                    LoadingStatus = $"Błąd: {result.Error}";
+                }
+            }
+            catch (Exception ex)
+            {
+                LoadingStatus = $"Błąd: {ex.Message}";
+                Debug.WriteLine($"[ViewModel] Refresh error: {ex}");
+            }
+            finally
+            {
+                IsLoading = false;
+                ApplyFilters();
+                CurrentDate = DateTime.Now;
+            }
+        }
+
+        /// <summary>
+        /// Załaduj dane tylko z bazy danych (bez internetu)
+        /// </summary>
+        private async void LoadFromDatabaseAsync()
+        {
+            if (IsLoading) return;
+
+            IsLoading = true;
+            LoadingStatus = "Ładowanie z bazy...";
+
+            try
+            {
+                var loader = BriefingDataLoaderService.Instance;
+                var result = await loader.LoadFromDatabaseAsync(days: 7);
+
+                if (result.Success && result.Articles.Any())
+                {
+                    foreach (var article in result.Articles)
+                    {
+                        if (!AllArticles.Any(a => a.Title == article.Title))
+                        {
+                            AllArticles.Add(article);
+                        }
+                    }
+
+                    FetchedArticlesCount = result.Articles.Count;
+                    LoadingStatus = $"Załadowano {result.Articles.Count} artykułów z bazy";
+                }
+                else
+                {
+                    LoadingStatus = result.Success ? "Brak artykułów w bazie" : $"Błąd: {result.Error}";
+                }
+            }
+            catch (Exception ex)
+            {
+                LoadingStatus = $"Błąd bazy: {ex.Message}";
+            }
+            finally
+            {
+                IsLoading = false;
+                ApplyFilters();
+            }
+        }
+
+        private void UpdateSummaryFromDailySummary(DailySummary summary)
+        {
+            if (summary == null) return;
+
+            SummarySegments.Clear();
+
+            // Build summary from AI-generated content
+            if (!string.IsNullOrEmpty(summary.Headline))
+            {
+                SummarySegments.Add(new SummarySegment(summary.Headline + " ", "#C9A96E", true));
+            }
+
+            // Add market mood
+            var moodColor = summary.MarketMood switch
+            {
+                "positive" => "#6DAF6D",
+                "negative" => "#C05050",
+                _ => "#C9A96E"
+            };
+
+            if (!string.IsNullOrEmpty(summary.MarketMoodReason))
+            {
+                SummarySegments.Add(new SummarySegment(summary.MarketMoodReason));
+            }
+
+            // Add top alerts if any
+            foreach (var alert in summary.TopAlerts?.Take(3) ?? Enumerable.Empty<Alert>())
+            {
+                var alertColor = alert.Severity == "critical" ? "#C05050" : "#D4A035";
+                SummarySegments.Add(new SummarySegment($" {alert.Message}", alertColor, true));
+            }
         }
 
         #endregion
