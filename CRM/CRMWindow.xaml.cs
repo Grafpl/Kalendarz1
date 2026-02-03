@@ -320,15 +320,87 @@ namespace Kalendarz1.CRM
 
         private void WczytajDane()
         {
+            WczytajDane(zachowajFiltry: false);
+        }
+
+        private void WczytajDane(bool zachowajFiltry)
+        {
             isLoading = true;
             if (loadingOverlay != null) loadingOverlay.Visibility = Visibility.Visible;
+
+            // Zapisz stan filtrów przed odświeżeniem
+            int savedStatusIndex = zachowajFiltry ? cmbStatus.SelectedIndex : 0;
+            int savedWojIndex = zachowajFiltry ? cmbWojewodztwo.SelectedIndex : 0;
+            int savedBranzaIndex = zachowajFiltry ? cmbBranza.SelectedIndex : 0;
+            int savedHandlowiecIndex = zachowajFiltry ? cmbHandlowiec.SelectedIndex : 0;
+            string savedBranzaText = zachowajFiltry && cmbBranza.SelectedItem is ComboBoxItem bi ? bi.Content?.ToString() : null;
+            string savedHandlowiecText = zachowajFiltry && cmbHandlowiec.SelectedItem is ComboBoxItem hi ? hi.Content?.ToString() : null;
+            int savedOdbiorcaID = zachowajFiltry ? aktualnyOdbiorcaID : 0;
+
             try
             {
                 WczytajKontakty();
                 WczytajKPI();
                 WczytajRanking();
-                WypelnijFiltryDynamiczne();
+
+                if (!zachowajFiltry)
+                {
+                    InicjalizujFiltry();
+                    WypelnijFiltryDynamiczne();
+                }
+
                 ObliczTargetDnia();
+
+                // Przywróć filtry
+                if (zachowajFiltry)
+                {
+                    if (savedStatusIndex >= 0 && savedStatusIndex < cmbStatus.Items.Count)
+                        cmbStatus.SelectedIndex = savedStatusIndex;
+
+                    if (savedWojIndex >= 0 && savedWojIndex < cmbWojewodztwo.Items.Count)
+                        cmbWojewodztwo.SelectedIndex = savedWojIndex;
+
+                    // Przywróć branżę po tekście (bo lista może się zmienić)
+                    if (!string.IsNullOrEmpty(savedBranzaText))
+                    {
+                        for (int i = 0; i < cmbBranza.Items.Count; i++)
+                        {
+                            if (cmbBranza.Items[i] is ComboBoxItem item && item.Content?.ToString() == savedBranzaText)
+                            {
+                                cmbBranza.SelectedIndex = i;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Przywróć handlowca po tekście
+                    if (!string.IsNullOrEmpty(savedHandlowiecText))
+                    {
+                        for (int i = 0; i < cmbHandlowiec.Items.Count; i++)
+                        {
+                            if (cmbHandlowiec.Items[i] is ComboBoxItem item && item.Content?.ToString() == savedHandlowiecText)
+                            {
+                                cmbHandlowiec.SelectedIndex = i;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Przywróć zaznaczony wiersz
+                    if (savedOdbiorcaID > 0 && dgKontakty.ItemsSource != null)
+                    {
+                        Filtruj();
+                        foreach (DataRowView row in dgKontakty.Items)
+                        {
+                            if (row["ID"] != DBNull.Value && (int)row["ID"] == savedOdbiorcaID)
+                            {
+                                dgKontakty.SelectedItem = row;
+                                dgKontakty.ScrollIntoView(row);
+                                break;
+                            }
+                        }
+                    }
+                }
             }
             catch (Exception ex) { MessageBox.Show($"Błąd: {ex.Message}"); }
             finally
@@ -389,12 +461,15 @@ namespace Kalendarz1.CRM
                             (TRY_CAST(x.Operator AS INT) IS NOT NULL AND op2.ID = x.Operator)
                             OR (TRY_CAST(x.Operator AS INT) IS NULL AND op2.Name = x.Operator)
                         ORDER BY x.Data DESC) as OstatniHandlowiecID,
-                        kp.Latitude, kp.Longitude
+                        (SELECT TOP 1 Tresc FROM NotatkiCRM WHERE IDOdbiorcy = o.ID ORDER BY DataUtworzenia DESC) as OstatniNotatka,
+                        kp.Latitude, kp.Longitude,
+                        CASE WHEN EXISTS (SELECT 1 FROM CRM_PKDPriority pkp WHERE pkp.PKDCode = o.PKD_Opis) THEN 1 ELSE 0 END as IsPriorityPKD
                     FROM OdbiorcyCRM o
                     LEFT JOIN WlascicieleOdbiorcow w ON o.ID = w.IDOdbiorcy
                     LEFT JOIN KodyPocztowe kp ON o.KOD = kp.Kod
                     {whereClause}
                     ORDER BY
+                        CASE WHEN EXISTS (SELECT 1 FROM CRM_PKDPriority pkp WHERE pkp.PKDCode = o.PKD_Opis) THEN 0 ELSE 1 END,
                         ISNULL(w.Priorytet, 0) DESC,
                         CASE WHEN o.DataNastepnegoKontaktu IS NULL THEN 1 ELSE 0 END,
                         o.DataNastepnegoKontaktu ASC", conn);
@@ -1034,7 +1109,7 @@ namespace Kalendarz1.CRM
                     conn.Open();
                     new SqlCommand($"UPDATE OdbiorcyCRM SET Tagi = '{noweTagi}' WHERE ID={id}", conn).ExecuteNonQuery();
                 }
-                WczytajDane();
+                WczytajDane(zachowajFiltry: true);
                 ShowToast(tag == "CLEAR" ? "Usunięto tagi" : $"Oznaczono jako: {tag}");
             }
         }
@@ -1184,7 +1259,7 @@ namespace Kalendarz1.CRM
                         }
 
                         ShowToast($"Logo zapisane: {System.IO.Path.GetFileName(selectedPath)}");
-                        WczytajDane(); // Odśwież dane
+                        WczytajDane(zachowajFiltry: true); // Odśwież dane
                     }
                     else
                     {
@@ -1263,7 +1338,7 @@ namespace Kalendarz1.CRM
         private void BtnKlientEdytuj_Click(object sender, RoutedEventArgs e)
         {
             if (aktualnyOdbiorcaID == 0) return;
-            if (new EdycjaKontaktuWindow { KlientID = aktualnyOdbiorcaID, OperatorID = operatorID }.ShowDialog() == true) WczytajDane();
+            if (new EdycjaKontaktuWindow { KlientID = aktualnyOdbiorcaID, OperatorID = operatorID }.ShowDialog() == true) WczytajDane(zachowajFiltry: true);
         }
 
         private void TxtKlientTelefon_Click(object sender, MouseButtonEventArgs e) => BtnKlientZadzwon_Click(sender, null);
@@ -1283,7 +1358,7 @@ namespace Kalendarz1.CRM
                     conn.Open();
                     new SqlCommand($"UPDATE OdbiorcyCRM SET DataNastepnegoKontaktu = '{dialog.WybranaData:yyyy-MM-dd}' WHERE ID={aktualnyOdbiorcaID}", conn).ExecuteNonQuery();
                 }
-                WczytajDane();
+                WczytajDane(zachowajFiltry: true);
             }
         }
 
@@ -1306,7 +1381,7 @@ namespace Kalendarz1.CRM
                         cmdLog.Parameters.AddWithValue("@op", operatorID);
                         cmdLog.ExecuteNonQuery();
                     }
-                    WczytajDane();
+                    WczytajDane(zachowajFiltry: true);
                     ShowToast("Zmieniono status na: " + nowyStatus);
                 }
             }
