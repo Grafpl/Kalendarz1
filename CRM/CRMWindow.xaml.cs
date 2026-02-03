@@ -314,9 +314,8 @@ namespace Kalendarz1.CRM
             cmbWojewodztwo.Items.Clear(); cmbWojewodztwo.Items.Add(new ComboBoxItem { Content = "Wszystkie woj.", IsSelected = true });
             cmbBranza.Items.Clear(); cmbBranza.Items.Add(new ComboBoxItem { Content = "Wszystkie branże", IsSelected = true });
 
-            cmbMojeZmiany.Items.Clear();
-            cmbMojeZmiany.Items.Add(new ComboBoxItem { Content = "Wszystkie", IsSelected = true });
-            cmbMojeZmiany.Items.Add(new ComboBoxItem { Content = "Moje zmiany" });
+            cmbHandlowiec.Items.Clear();
+            cmbHandlowiec.Items.Add(new ComboBoxItem { Content = "Wszyscy", IsSelected = true });
         }
 
         private void WczytajDane()
@@ -482,19 +481,31 @@ namespace Kalendarz1.CRM
                         }
                     }
 
-                    // Wykonane dziś
+                    // Pobierz nazwę operatora do dopasowania
+                    string opName = "";
+                    var cmdName = new SqlCommand("SELECT Name FROM operators WHERE ID = @op", conn);
+                    cmdName.Parameters.AddWithValue("@op", operatorID);
+                    opName = cmdName.ExecuteScalar()?.ToString() ?? "";
+
+                    // Wykonane dziś - zliczaj zmiany statusu (bez "Do zadzwonienia")
+                    // Dopasuj po ID lub nazwie operatora
                     var cmdDzis = new SqlCommand(@"SELECT COUNT(*) FROM HistoriaZmianCRM
-                        WHERE KtoWykonal = @op AND CAST(DataZmiany AS DATE) = CAST(GETDATE() AS DATE)
-                        AND TypZmiany = 'Zmiana statusu' AND WartoscNowa <> 'Do zadzwonienia'", conn);
+                        WHERE (KtoWykonal = @op OR KtoWykonal = @opName)
+                        AND CAST(DataZmiany AS DATE) = CAST(GETDATE() AS DATE)
+                        AND TypZmiany = 'Zmiana statusu'
+                        AND WartoscNowa NOT IN ('Do zadzwonienia', '')", conn);
                     cmdDzis.Parameters.AddWithValue("@op", operatorID);
+                    cmdDzis.Parameters.AddWithValue("@opName", opName);
                     int wykonaneDzis = (int)cmdDzis.ExecuteScalar();
 
                     // Wykonane w tym tygodniu
                     var cmdTydzien = new SqlCommand(@"SELECT COUNT(*) FROM HistoriaZmianCRM
-                        WHERE KtoWykonal = @op
+                        WHERE (KtoWykonal = @op OR KtoWykonal = @opName)
                         AND DataZmiany >= DATEADD(day, 1 - DATEPART(WEEKDAY, GETDATE()), CAST(GETDATE() AS DATE))
-                        AND TypZmiany = 'Zmiana statusu' AND WartoscNowa <> 'Do zadzwonienia'", conn);
+                        AND TypZmiany = 'Zmiana statusu'
+                        AND WartoscNowa NOT IN ('Do zadzwonienia', '')", conn);
                     cmdTydzien.Parameters.AddWithValue("@op", operatorID);
+                    cmdTydzien.Parameters.AddWithValue("@opName", opName);
                     int wykonaneTydzien = (int)cmdTydzien.ExecuteScalar();
 
                     // Aktualizuj nowe UI - cele dzienne
@@ -584,12 +595,11 @@ namespace Kalendarz1.CRM
 
             string targetColumn = tygodniowy ? "ISNULL(t.WeeklyTarget, 120)" : "ISNULL(t.DailyTarget, 15)";
 
+            // Zapytanie dopasowuje po ID lub nazwie operatora
+            // Pokazuje WSZYSTKICH handlowców (nawet z 0 aktywnością)
             var cmd = new SqlCommand($@"
                 SELECT
-                    ROW_NUMBER() OVER (ORDER BY
-                        CASE WHEN {targetColumn} > 0
-                             THEN CAST(COUNT(h.ID) AS FLOAT) / {targetColumn}
-                             ELSE 0 END DESC) as Pozycja,
+                    ROW_NUMBER() OVER (ORDER BY COUNT(h.ID) DESC, o.Name) as Pozycja,
                     o.Name as Operator,
                     o.ID as OperatorID,
                     COUNT(h.ID) as Wykonane,
@@ -599,14 +609,15 @@ namespace Kalendarz1.CRM
                          ELSE 0 END as Procent
                 FROM operators o
                 LEFT JOIN CallReminderSalesTargets t ON t.UserID = o.ID
-                LEFT JOIN HistoriaZmianCRM h ON h.KtoWykonal = o.ID
+                LEFT JOIN HistoriaZmianCRM h ON (h.KtoWykonal = o.ID OR h.KtoWykonal = o.Name)
                     AND h.TypZmiany = 'Zmiana statusu'
-                    AND h.WartoscNowa <> 'Do zadzwonienia'
+                    AND h.WartoscNowa NOT IN ('Do zadzwonienia', '')
                     {dateFilter}
-                WHERE o.Name IS NOT NULL AND o.ID NOT IN ('admin', 'system')
+                WHERE o.Name IS NOT NULL
+                    AND o.ID NOT IN ('admin', 'system', '0')
+                    AND o.Name NOT LIKE '%test%'
                 GROUP BY o.ID, o.Name, t.DailyTarget, t.WeeklyTarget
-                HAVING COUNT(h.ID) > 0 OR {targetColumn} > 0
-                ORDER BY Pozycja", conn);
+                ORDER BY Wykonane DESC, o.Name", conn);
 
             var adapter = new SqlDataAdapter(cmd);
             var dt = new DataTable();
@@ -646,6 +657,14 @@ namespace Kalendarz1.CRM
             foreach (var w in woj) cmbWojewodztwo.Items.Add(new ComboBoxItem { Content = w });
             var branze = dtKontakty.AsEnumerable().Select(r => r["PKD_Opis"].ToString()).Where(x => !string.IsNullOrEmpty(x)).Distinct().OrderBy(x => x);
             foreach (var b in branze) cmbBranza.Items.Add(new ComboBoxItem { Content = b });
+
+            // Wypełnij listę handlowców którzy mieli aktywność
+            var handlowcy = dtKontakty.AsEnumerable()
+                .Select(r => r["OstatniHandlowiec"]?.ToString())
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Distinct()
+                .OrderBy(x => x);
+            foreach (var h in handlowcy) cmbHandlowiec.Items.Add(new ComboBoxItem { Content = h });
         }
         #endregion
 
@@ -862,7 +881,7 @@ namespace Kalendarz1.CRM
         private void CmbStatus_SelectionChanged(object sender, SelectionChangedEventArgs e) => Filtruj();
         private void CmbWojewodztwo_SelectionChanged(object sender, SelectionChangedEventArgs e) => Filtruj();
         private void CmbBranza_SelectionChanged(object sender, SelectionChangedEventArgs e) => Filtruj();
-        private void CmbMojeZmiany_SelectionChanged(object sender, SelectionChangedEventArgs e) => Filtruj();
+        private void CmbHandlowiec_SelectionChanged(object sender, SelectionChangedEventArgs e) => Filtruj();
 
         private void Filtruj()
         {
@@ -878,8 +897,12 @@ namespace Kalendarz1.CRM
             if (cmbWojewodztwo.SelectedIndex > 0) filter += $" AND Wojewodztwo = '{(cmbWojewodztwo.SelectedItem as ComboBoxItem).Content}'";
             if (cmbBranza.SelectedIndex > 0) filter += $" AND PKD_Opis = '{(cmbBranza.SelectedItem as ComboBoxItem).Content}'";
 
-            // Filtr "Moje zmiany" - pokazuj tylko wiersze gdzie ostatnią zmianę wykonał zalogowany użytkownik
-            if (cmbMojeZmiany.SelectedIndex == 1) filter += $" AND OstatniHandlowiecID = '{operatorID}'";
+            // Filtr handlowca - pokazuj tylko wiersze gdzie ostatnią zmianę wykonał wybrany handlowiec
+            if (cmbHandlowiec.SelectedIndex > 0)
+            {
+                string handlowiec = (cmbHandlowiec.SelectedItem as ComboBoxItem).Content.ToString().Replace("'", "''");
+                filter += $" AND OstatniHandlowiec = '{handlowiec}'";
+            }
 
             // Quick filter chips
             if (!string.IsNullOrEmpty(aktywnyChip))
