@@ -36,6 +36,8 @@
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
         </Style>
 
         <!-- Indicator Card Style -->
@@ -308,14 +310,19 @@
                     </StackPanel>
 
                     <!-- Articles -->
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                        <ItemsControl x:Name="icArticles">
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <ItemsControl x:Name="icArticles" HorizontalContentAlignment="Stretch">
+                            <ItemsControl.ItemContainerStyle>
+                                <Style TargetType="ContentPresenter">
+                                    <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                                </Style>
+                            </ItemsControl.ItemContainerStyle>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Border Style="{StaticResource ArticleCard}" Tag="{Binding Id}">
-                                        <Expander IsExpanded="False">
+                                        <Expander IsExpanded="False" HorizontalContentAlignment="Stretch" HorizontalAlignment="Stretch">
                                             <Expander.Header>
-                                                <Grid Width="500">
+                                                <Grid HorizontalAlignment="Stretch">
                                                     <Grid.RowDefinitions>
                                                         <RowDefinition Height="Auto"/>
                                                         <RowDefinition Height="Auto"/>
@@ -539,12 +546,12 @@
                                 <!-- Mapa Polski z ogniskami -->
                                 <Border Background="{StaticResource BgTertiary}" CornerRadius="6" Padding="8" Height="200" Margin="0,0,0,12">
                                     <Grid>
-                                        <Canvas x:Name="canvasPolandMap" Background="Transparent">
+                                        <Canvas x:Name="canvasPolandMap" Background="Transparent" Width="220" Height="180">
                                             <!-- Kontury Polski (uproszczone) -->
                                             <Path Stroke="#475569" StrokeThickness="1" Fill="#1E293B"
                                                   Data="M 80,20 L 120,15 L 160,25 L 180,45 L 175,80 L 185,110 L 170,140 L 140,160 L 100,165 L 60,150 L 40,120 L 35,80 L 50,50 L 80,20 Z"/>
-                                            <!-- Brzeziny (nasz zakład) -->
-                                            <Ellipse Canvas.Left="95" Canvas.Top="85" Width="8" Height="8" Fill="#22C55E" ToolTip="🏭 Brzeziny - nasz zakład"/>
+                                            <!-- Brzeziny (nasz zakład) - Łódzkie oznaczone żółtym (nasz region) -->
+                                            <Ellipse Canvas.Left="95" Canvas.Top="85" Width="10" Height="10" Fill="#FBBF24" Stroke="#F59E0B" StrokeThickness="2" ToolTip="🏭 Brzeziny - nasz zakład (łódzkie)"/>
                                         </Canvas>
                                         <!-- Legenda -->
                                         <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="8">
@@ -553,8 +560,8 @@
                                                 <TextBlock Text="Ognisko HPAI" Foreground="{StaticResource TextMuted}" FontSize="9"/>
                                             </StackPanel>
                                             <StackPanel Orientation="Horizontal" Margin="0,2">
-                                                <Ellipse Width="8" Height="8" Fill="#22C55E" Margin="0,0,6,0"/>
-                                                <TextBlock Text="Brzeziny (my)" Foreground="{StaticResource TextMuted}" FontSize="9"/>
+                                                <Ellipse Width="8" Height="8" Fill="#FBBF24" Stroke="#F59E0B" StrokeThickness="1" Margin="0,0,6,0"/>
+                                                <TextBlock Text="Brzeziny (łódzkie)" Foreground="{StaticResource TextMuted}" FontSize="9"/>
                                             </StackPanel>
                                         </StackPanel>
                                         <!-- Status -->
@@ -664,7 +671,7 @@
                                                                FontWeight="Bold"
                                                                VerticalAlignment="Center"
                                                                Margin="0,0,12,0"/>
-                                                    <TextBlock Grid.Column="3" Text="{Binding ChangeFormatted}"
+                                                    <TextBlock Grid.Column="3" Text="{Binding ChangeDisplay}"
                                                                VerticalAlignment="Center" FontSize="11">
                                                         <TextBlock.Style>
                                                             <Style TargetType="TextBlock">

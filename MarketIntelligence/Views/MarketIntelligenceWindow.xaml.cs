@@ -343,33 +343,62 @@ namespace Kalendarz1.MarketIntelligence.Views
             }
         }
 
-        private void BtnRefresh_Click(object sender, RoutedEventArgs e)
+        private async void BtnRefresh_Click(object sender, RoutedEventArgs e)
         {
-            _ = LoadDataAsync();
+            try
+            {
+                await LoadDataAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd odświeżania danych:\n{ex.Message}", "Błąd",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
-        private void CmbCategory_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private async void CmbCategory_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (cmbCategory.SelectedItem is ComboBoxItem item)
+            if (cmbCategory?.SelectedItem is ComboBoxItem item)
             {
                 _currentCategory = item.Content?.ToString() ?? "Wszystkie";
-                _ = RefreshArticlesAsync();
+                try
+                {
+                    await RefreshArticlesAsync();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Błąd filtrowania: {ex.Message}");
+                }
             }
         }
 
-        private void CmbSeverity_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private async void CmbSeverity_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (cmbSeverity.SelectedItem is ComboBoxItem item)
+            if (cmbSeverity?.SelectedItem is ComboBoxItem item)
             {
                 _currentSeverity = item.Content?.ToString() ?? "Wszystkie";
-                _ = RefreshArticlesAsync();
+                try
+                {
+                    await RefreshArticlesAsync();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Błąd filtrowania: {ex.Message}");
+                }
             }
         }
 
-        private void TxtSearch_TextChanged(object sender, TextChangedEventArgs e)
+        private async void TxtSearch_TextChanged(object sender, TextChangedEventArgs e)
         {
-            _searchText = txtSearch.Text;
-            _ = RefreshArticlesAsync();
+            _searchText = txtSearch?.Text ?? "";
+            try
+            {
+                await RefreshArticlesAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd wyszukiwania: {ex.Message}");
+            }
         }
     }
 

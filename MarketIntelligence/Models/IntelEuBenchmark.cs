@@ -14,20 +14,35 @@ namespace Kalendarz1.MarketIntelligence.Models
         public decimal? ChangeMonthPercent { get; set; }
         public DateTime CreatedAt { get; set; }
 
-        // Computed properties
+        // Computed properties - używamy 2-literowych kodów ISO (PL, DE, FR, etc.)
         public string CountryFlag => Country switch
         {
-            "Polska" => "🇵🇱",
-            "Niemcy" => "🇩🇪",
-            "Francja" => "🇫🇷",
-            "Holandia" => "🇳🇱",
-            "Włochy" => "🇮🇹",
-            "Hiszpania" => "🇪🇸",
-            "Węgry" => "🇭🇺",
-            "Ukraina" => "🇺🇦",
-            "Brazylia" => "🇧🇷",
-            "USA" => "🇺🇸",
+            "PL" => "🇵🇱",
+            "DE" => "🇩🇪",
+            "FR" => "🇫🇷",
+            "NL" => "🇳🇱",
+            "IT" => "🇮🇹",
+            "ES" => "🇪🇸",
+            "HU" => "🇭🇺",
+            "UA" => "🇺🇦",
+            "BR" => "🇧🇷",
+            "US" => "🇺🇸",
             _ => "🌍"
+        };
+
+        public string CountryName => Country switch
+        {
+            "PL" => "Polska",
+            "DE" => "Niemcy",
+            "FR" => "Francja",
+            "NL" => "Holandia",
+            "IT" => "Włochy",
+            "ES" => "Hiszpania",
+            "HU" => "Węgry",
+            "UA" => "Ukraina",
+            "BR" => "Brazylia",
+            "US" => "USA",
+            _ => Country
         };
 
         public string FormattedPrice => $"{PricePer100kg:N1} EUR/100kg";
@@ -43,6 +58,6 @@ namespace Kalendarz1.MarketIntelligence.Models
             _ => "#94A3B8"     // gray
         };
 
-        public string CountryDisplay => $"{CountryFlag} {Country}";
+        public string CountryDisplay => $"{CountryFlag} {CountryName}";
     }
 }

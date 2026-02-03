@@ -749,6 +749,7 @@ namespace Kalendarz1.MarketIntelligence.Services
                 ("2026-02-02", "Podudzie", 10.20m, "PLN/kg"),
                 ("2026-02-02", "Cwiartka", 7.10m, "PLN/kg"),
                 ("2026-02-02", "Korpus", 3.20m, "PLN/kg"),
+                ("2026-02-02", "Noga", 8.90m, "PLN/kg"),
 
                 ("2026-01-26", "WolnyRynek", 4.74m, "PLN/kg"),
                 ("2026-01-26", "Kontraktacja", 4.87m, "PLN/kg"),
