@@ -207,7 +207,7 @@
             <ItemsControl x:Name="icAlerts">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Style="{StaticResource AlertPanel}">
+                        <Border>
                             <Border.Style>
                                 <Style TargetType="Border" BasedOn="{StaticResource AlertPanel}">
                                     <Style.Triggers>
