@@ -380,14 +380,17 @@ END";
                     }
                 }
 
-                // Get today's call counts
+                // Get today's contact counts (calls, status changes, or notes)
                 var todayCalls = new Dictionary<string, int>();
                 try
                 {
                     var cmdTodayCalls = new SqlCommand(
-                        @"SELECT UserID, SUM(ContactsCalled) FROM CallReminderLog
-                          WHERE CAST(ReminderTime AS DATE) = CAST(GETDATE() AS DATE)
-                          GROUP BY UserID", conn);
+                        @"SELECT crl.UserID, COUNT(DISTINCT crc.ContactID)
+                          FROM CallReminderLog crl
+                          INNER JOIN CallReminderContacts crc ON crc.ReminderLogID = crl.ID
+                          WHERE CAST(crl.ReminderTime AS DATE) = CAST(GETDATE() AS DATE)
+                            AND (crc.WasCalled = 1 OR crc.StatusChanged = 1 OR crc.NoteAdded = 1)
+                          GROUP BY crl.UserID", conn);
                     using (var reader = cmdTodayCalls.ExecuteReader())
                     {
                         while (reader.Read())
@@ -398,14 +401,17 @@ END";
                 }
                 catch { }
 
-                // Get week call counts
+                // Get week contact counts (calls, status changes, or notes)
                 var weekCalls = new Dictionary<string, int>();
                 try
                 {
                     var cmdWeekCalls = new SqlCommand(
-                        @"SELECT UserID, SUM(ContactsCalled) FROM CallReminderLog
-                          WHERE ReminderTime >= DATEADD(DAY, -7, GETDATE())
-                          GROUP BY UserID", conn);
+                        @"SELECT crl.UserID, COUNT(DISTINCT crc.ContactID)
+                          FROM CallReminderLog crl
+                          INNER JOIN CallReminderContacts crc ON crc.ReminderLogID = crl.ID
+                          WHERE crl.ReminderTime >= DATEADD(DAY, -7, GETDATE())
+                            AND (crc.WasCalled = 1 OR crc.StatusChanged = 1 OR crc.NoteAdded = 1)
+                          GROUP BY crl.UserID", conn);
                     using (var reader = cmdWeekCalls.ExecuteReader())
                     {
                         while (reader.Read())
@@ -547,9 +553,13 @@ END";
                 using var conn = new SqlConnection(_connectionString);
                 conn.Open();
 
-                // Today calls count
+                // Today contacts count (calls, status changes, or notes)
                 var cmdToday = new SqlCommand(
-                    "SELECT ISNULL(SUM(ContactsCalled), 0) FROM CallReminderLog WHERE CAST(ReminderTime AS DATE) = CAST(GETDATE() AS DATE)", conn);
+                    @"SELECT COUNT(DISTINCT crc.ContactID)
+                      FROM CallReminderLog crl
+                      INNER JOIN CallReminderContacts crc ON crc.ReminderLogID = crl.ID
+                      WHERE CAST(crl.ReminderTime AS DATE) = CAST(GETDATE() AS DATE)
+                        AND (crc.WasCalled = 1 OR crc.StatusChanged = 1 OR crc.NoteAdded = 1)", conn);
                 txtStatsDzis.Text = cmdToday.ExecuteScalar()?.ToString() ?? "0";
 
                 // Active agents
@@ -557,9 +567,13 @@ END";
                 var totalCount = _handlowcy?.Count ?? 0;
                 txtStatsAgents.Text = $"{activeCount}/{totalCount}";
 
-                // This week
+                // This week contacts count
                 var cmdWeek = new SqlCommand(
-                    "SELECT ISNULL(SUM(ContactsCalled), 0) FROM CallReminderLog WHERE ReminderTime >= DATEADD(DAY, -7, GETDATE())", conn);
+                    @"SELECT COUNT(DISTINCT crc.ContactID)
+                      FROM CallReminderLog crl
+                      INNER JOIN CallReminderContacts crc ON crc.ReminderLogID = crl.ID
+                      WHERE crl.ReminderTime >= DATEADD(DAY, -7, GETDATE())
+                        AND (crc.WasCalled = 1 OR crc.StatusChanged = 1 OR crc.NoteAdded = 1)", conn);
                 txtStatsTydzien.Text = cmdWeek.ExecuteScalar()?.ToString() ?? "0";
 
                 // Top performer today

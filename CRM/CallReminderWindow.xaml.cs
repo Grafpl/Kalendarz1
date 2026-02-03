@@ -463,14 +463,18 @@ namespace Kalendarz1.CRM
 
                     // Get all active handlowcy with their weekly calls and targets
                     // DATEADD z (DATEPART + @@DATEFIRST) daje poniedziałek niezależnie od ustawień serwera
+                    // Count actual contact actions (calls, status changes, or notes) from CallReminderContacts
                     var cmd = new SqlCommand(@"
                         SELECT c.UserID,
                                ISNULL(op.Name, c.UserID) as Name,
-                               ISNULL((SELECT SUM(ContactsCalled) FROM CallReminderLog
-                                        WHERE UserID = c.UserID
-                                        AND ReminderTime >= DATEADD(DAY,
+                               ISNULL((SELECT COUNT(DISTINCT crc.ContactID)
+                                        FROM CallReminderLog crl
+                                        INNER JOIN CallReminderContacts crc ON crc.ReminderLogID = crl.ID
+                                        WHERE crl.UserID = c.UserID
+                                        AND crl.ReminderTime >= DATEADD(DAY,
                                             -((DATEPART(WEEKDAY, GETDATE()) + @@DATEFIRST - 2) % 7),
                                             CAST(CAST(GETDATE() AS DATE) AS DATETIME))
+                                        AND (crc.WasCalled = 1 OR crc.StatusChanged = 1 OR crc.NoteAdded = 1)
                                        ), 0) as WeekCalls,
                                c.WeeklyCallTarget
                         FROM CallReminderConfig c
@@ -692,14 +696,20 @@ namespace Kalendarz1.CRM
                                     AND h.DataZmiany > DATEADD(day, -30, GETDATE())
                                     AND h.TypZmiany = 'Zmiana statusu'
                                     AND h.WartoscNowa <> 'Do zadzwonienia'), 0) as Suma,
-                            ISNULL((SELECT SUM(ContactsCalled) FROM CallReminderLog
-                                    WHERE UserID = c.UserID
-                                    AND ReminderTime >= CAST(CAST(GETDATE() AS DATE) AS DATETIME)), 0) as DayCalls,
-                            ISNULL((SELECT SUM(ContactsCalled) FROM CallReminderLog
-                                    WHERE UserID = c.UserID
-                                    AND ReminderTime >= DATEADD(DAY,
+                            ISNULL((SELECT COUNT(DISTINCT crc.ContactID)
+                                    FROM CallReminderLog crl
+                                    INNER JOIN CallReminderContacts crc ON crc.ReminderLogID = crl.ID
+                                    WHERE crl.UserID = c.UserID
+                                    AND crl.ReminderTime >= CAST(CAST(GETDATE() AS DATE) AS DATETIME)
+                                    AND (crc.WasCalled = 1 OR crc.StatusChanged = 1 OR crc.NoteAdded = 1)), 0) as DayCalls,
+                            ISNULL((SELECT COUNT(DISTINCT crc.ContactID)
+                                    FROM CallReminderLog crl
+                                    INNER JOIN CallReminderContacts crc ON crc.ReminderLogID = crl.ID
+                                    WHERE crl.UserID = c.UserID
+                                    AND crl.ReminderTime >= DATEADD(DAY,
                                         -((DATEPART(WEEKDAY, GETDATE()) + @@DATEFIRST - 2) % 7),
-                                        CAST(CAST(GETDATE() AS DATE) AS DATETIME))), 0) as WeekCalls,
+                                        CAST(CAST(GETDATE() AS DATE) AS DATETIME))
+                                    AND (crc.WasCalled = 1 OR crc.StatusChanged = 1 OR crc.NoteAdded = 1)), 0) as WeekCalls,
                             c.DailyCallTarget,
                             c.WeeklyCallTarget
                         FROM CallReminderConfig c
@@ -911,16 +921,24 @@ namespace Kalendarz1.CRM
                 using (var conn = new SqlConnection(_connectionString))
                 {
                     conn.Open();
+                    // Count actual contact actions (calls, status changes, notes) from CallReminderContacts
+                    // This gives accurate count even if user only changed status without clicking phone button
                     var cmd = new SqlCommand(@"
                         SELECT
-                            ISNULL((SELECT SUM(ContactsCalled) FROM CallReminderLog
-                                    WHERE UserID = @UserID
-                                    AND ReminderTime >= CAST(CAST(GETDATE() AS DATE) AS DATETIME)), 0) as DayCalls,
-                            ISNULL((SELECT SUM(ContactsCalled) FROM CallReminderLog
-                                    WHERE UserID = @UserID
-                                    AND ReminderTime >= DATEADD(DAY,
+                            ISNULL((SELECT COUNT(DISTINCT crc.ContactID)
+                                    FROM CallReminderContacts crc
+                                    INNER JOIN CallReminderLog crl ON crc.ReminderLogID = crl.ID
+                                    WHERE crl.UserID = @UserID
+                                    AND crl.ReminderTime >= CAST(CAST(GETDATE() AS DATE) AS DATETIME)
+                                    AND (crc.WasCalled = 1 OR crc.StatusChanged = 1 OR crc.NoteAdded = 1)), 0) as DayCalls,
+                            ISNULL((SELECT COUNT(DISTINCT crc.ContactID)
+                                    FROM CallReminderContacts crc
+                                    INNER JOIN CallReminderLog crl ON crc.ReminderLogID = crl.ID
+                                    WHERE crl.UserID = @UserID
+                                    AND crl.ReminderTime >= DATEADD(DAY,
                                         -((DATEPART(WEEKDAY, GETDATE()) + @@DATEFIRST - 2) % 7),
-                                        CAST(CAST(GETDATE() AS DATE) AS DATETIME))), 0) as WeekCalls", conn);
+                                        CAST(CAST(GETDATE() AS DATE) AS DATETIME))
+                                    AND (crc.WasCalled = 1 OR crc.StatusChanged = 1 OR crc.NoteAdded = 1)), 0) as WeekCalls", conn);
                     cmd.Parameters.AddWithValue("@UserID", _userID);
 
                     using (var reader = cmd.ExecuteReader())
