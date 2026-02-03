@@ -469,24 +469,7 @@ namespace Kalendarz1.CRM
 
         private void WczytajKPI()
         {
-            using (var conn = new SqlConnection(connectionString))
-            {
-                conn.Open();
-                var cmd = new SqlCommand(@"SELECT SUM(CASE WHEN CAST(DataNastepnegoKontaktu AS DATE) = CAST(GETDATE() AS DATE) THEN 1 ELSE 0 END) as Dzis,
-                        SUM(CASE WHEN CAST(DataNastepnegoKontaktu AS DATE) < CAST(GETDATE() AS DATE) THEN 1 ELSE 0 END) as Zalegle,
-                        SUM(CASE WHEN Status = 'Do wysłania oferta' THEN 1 ELSE 0 END) as Oferty
-                    FROM OdbiorcyCRM LEFT JOIN WlascicieleOdbiorcow w ON ID = w.IDOdbiorcy WHERE (w.OperatorID = @Op OR w.OperatorID IS NULL)", conn);
-                cmd.Parameters.AddWithValue("@Op", operatorID);
-                using (var reader = cmd.ExecuteReader())
-                {
-                    if (reader.Read())
-                    {
-                        if (txtKpiDzisiaj != null) txtKpiDzisiaj.Text = reader["Dzis"].ToString();
-                        if (txtKpiZalegle != null) txtKpiZalegle.Text = reader["Zalegle"].ToString();
-                        if (txtKpiOferty != null) txtKpiOferty.Text = reader["Oferty"].ToString();
-                    }
-                }
-            }
+            // KPI cards removed from UI - method kept for compatibility
         }
 
         private void ObliczTargetDnia()
@@ -870,7 +853,11 @@ namespace Kalendarz1.CRM
         private void BtnDashboard_Click(object sender, RoutedEventArgs e) { new DashboardCRMWindow(connectionString).Show(); }
         private void BtnManager_Click(object sender, RoutedEventArgs e) { new PanelManageraWindow(connectionString).Show(); }
         private void BtnMapa_Click(object sender, RoutedEventArgs e) { new MapaCRMWindow(connectionString, operatorID).Show(); }
-        private void BtnReminder_Click(object sender, RoutedEventArgs e) { new CallReminderWindow(operatorID).Show(); }
+        private void BtnReminder_Click(object sender, RoutedEventArgs e)
+        {
+            var config = new Models.CallReminderConfig { UserID = operatorID };
+            new CallReminderWindow(connectionString, operatorID, config).Show();
+        }
         private void BtnDodaj_Click(object sender, RoutedEventArgs e)
         {
             var okno = new OfertaCenowa.DodajOdbiorceWindow(connectionString, operatorID);
