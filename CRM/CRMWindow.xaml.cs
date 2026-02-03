@@ -59,12 +59,56 @@ namespace Kalendarz1.CRM
             else
                 UpdateThemeButton(false);
 
+            // Załaduj logo firmy
+            LoadCompanyLogo();
+
             // Załaduj avatar i nazwę zalogowanego użytkownika
             LoadCurrentUserInfo();
 
             InicjalizujFiltry();
             LoadHandlowiecAvatarMap();
             WczytajDane();
+        }
+
+        private static readonly string LogoSettingsPath = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "Kalendarz1", "crm_logo.txt");
+
+        private void LoadCompanyLogo()
+        {
+            try
+            {
+                if (System.IO.File.Exists(LogoSettingsPath))
+                {
+                    string logoPath = System.IO.File.ReadAllText(LogoSettingsPath).Trim();
+                    if (!string.IsNullOrEmpty(logoPath) && System.IO.File.Exists(logoPath))
+                    {
+                        var bitmap = new System.Windows.Media.Imaging.BitmapImage();
+                        bitmap.BeginInit();
+                        bitmap.UriSource = new Uri(logoPath);
+                        bitmap.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                        bitmap.EndInit();
+                        imgLogo.Source = bitmap;
+                        txtLogoPlaceholder.Visibility = Visibility.Collapsed;
+                    }
+                }
+            }
+            catch
+            {
+                // Ignoruj błędy ładowania logo
+            }
+        }
+
+        private void SaveLogoPath(string path)
+        {
+            try
+            {
+                var dir = System.IO.Path.GetDirectoryName(LogoSettingsPath);
+                if (!System.IO.Directory.Exists(dir))
+                    System.IO.Directory.CreateDirectory(dir);
+                System.IO.File.WriteAllText(LogoSettingsPath, path ?? "");
+            }
+            catch { }
         }
 
         private void LoadCurrentUserInfo()
@@ -1410,7 +1454,7 @@ namespace Kalendarz1.CRM
                         cmdLog.Parameters.AddWithValue("@op", operatorID);
                         cmdLog.ExecuteNonQuery();
                     }
-                    WczytajDane();
+                    WczytajDane(zachowajFiltry: true);
                     ShowToast($"Status zmieniony na: {nowyStatus}");
                 }
             }
@@ -1437,6 +1481,50 @@ namespace Kalendarz1.CRM
                 string origin = System.Net.WebUtility.UrlEncode("Koziołki 40, 95-061 Dmosin");
                 Process.Start(new ProcessStartInfo($"https://www.google.com/maps/dir/{origin}/{query}") { UseShellExecute = true });
             }
+        }
+
+        private void MenuZmienLogo_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Wybierz logo firmy",
+                Filter = "Obrazy|*.png;*.jpg;*.jpeg;*.bmp;*.gif|Wszystkie pliki|*.*",
+                InitialDirectory = @"\\192.168.0.109\dane"
+            };
+
+            if (dlg.ShowDialog() == true)
+            {
+                try
+                {
+                    var bitmap = new System.Windows.Media.Imaging.BitmapImage();
+                    bitmap.BeginInit();
+                    bitmap.UriSource = new Uri(dlg.FileName);
+                    bitmap.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                    bitmap.EndInit();
+                    imgLogo.Source = bitmap;
+                    txtLogoPlaceholder.Visibility = Visibility.Collapsed;
+
+                    // Zapisz ścieżkę do pliku
+                    SaveLogoPath(dlg.FileName);
+
+                    ShowToast("Logo zostało zmienione");
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Nie udało się wczytać logo:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        private void MenuUsunLogo_Click(object sender, RoutedEventArgs e)
+        {
+            imgLogo.Source = null;
+            txtLogoPlaceholder.Visibility = Visibility.Visible;
+
+            // Usuń ścieżkę z pliku
+            SaveLogoPath("");
+
+            ShowToast("Logo zostało usunięte");
         }
         #endregion
 
@@ -1932,15 +2020,15 @@ namespace Kalendarz1.CRM
     /// </summary>
     public class NoteTypeToPathConverter : System.Windows.Data.IValueConverter
     {
-        // Notatka (📝) - pencil icon
-        private const string NotePath = "M3,17.25V21h3.75L17.81,9.94l-3.75-3.75L3,17.25zM20.71,7.04c0.39-0.39,0.39-1.02,0-1.41l-2.34-2.34c-0.39-0.39-1.02-0.39-1.41,0l-1.83,1.83l3.75,3.75L20.71,7.04z";
-        // Status (🔄) - sync/refresh icon
+        // Notatka/Wiadomość (📝) - envelope icon
+        private const string MessagePath = "M20,4H4C2.9,4,2.01,4.9,2.01,6L2,18c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V6C22,4.9,21.1,4,20,4z M20,8l-8,5L4,8V6l8,5l8-5V8z";
+        // Status (🔄) - sync/refresh arrow icon
         private const string StatusPath = "M12,4V1L8,5l4,4V6c3.31,0,6,2.69,6,6c0,1.01-0.25,1.97-0.7,2.8l1.46,1.46C19.54,15.03,20,13.57,20,12C20,7.58,16.42,4,12,4z M12,18c-3.31,0-6-2.69-6-6c0-1.01,0.25-1.97,0.7-2.8L5.24,7.74C4.46,8.97,4,10.43,4,12c0,4.42,3.58,8,8,8v3l4-4l-4-4V18z";
 
         public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
         {
             string typ = value?.ToString() ?? "";
-            string pathData = typ.Contains("🔄") || typ.ToLower().Contains("status") ? StatusPath : NotePath;
+            string pathData = typ.Contains("🔄") || typ.ToLower().Contains("status") ? StatusPath : MessagePath;
             return Geometry.Parse(pathData);
         }
 
