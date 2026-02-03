@@ -237,11 +237,11 @@
         </Border>
 
         <!-- Glowna tresc -->
-        <Grid Grid.Row="1" Margin="24,16,24,10">
+        <Grid Grid.Row="1" Margin="24,16,16,10">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" MaxWidth="900"/>
+                <ColumnDefinition Width="Auto" MinWidth="600" MaxWidth="900"/>
                 <ColumnDefinition Width="24"/>
-                <ColumnDefinition Width="350"/>
+                <ColumnDefinition Width="*" MinWidth="400"/>
             </Grid.ColumnDefinitions>
 
             <!-- Lewa kolumna - Formularz w dwoch kolumnach -->
