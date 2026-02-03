@@ -478,7 +478,7 @@ namespace Kalendarz1.OfertaCenowa
                         cmdCheckTable.ExecuteNonQuery();
 
                         // Sprawdz i utworz brakujace kolumny (tak jak w EdycjaKontaktuWindow)
-                        string[] kolumny = { "Email", "Imie", "Nazwisko", "Stanowisko", "TelefonDodatkowy", "NIP", "REGON" };
+                        string[] kolumny = { "Email", "Imie", "Nazwisko", "Stanowisko", "TelefonDodatkowy", "NIP", "REGON", "WWW" };
                         foreach (var kol in kolumny)
                         {
                             var cmdKol = new SqlCommand($@"
@@ -492,9 +492,9 @@ namespace Kalendarz1.OfertaCenowa
 
                         var cmdOdbiorca = new SqlCommand(@"
                             INSERT INTO OdbiorcyCRM
-                            (ID, Nazwa, KOD, MIASTO, Ulica, Telefon_K, Email, Wojewodztwo, PKD_Opis, Status, Imie, Nazwisko, Stanowisko, TelefonDodatkowy, NIP, REGON)
+                            (ID, Nazwa, KOD, MIASTO, Ulica, Telefon_K, Email, Wojewodztwo, PKD_Opis, Status, Imie, Nazwisko, Stanowisko, TelefonDodatkowy, NIP, REGON, WWW)
                             VALUES
-                            (@id, @nazwa, @kod, @miasto, @ulica, @tel, @email, @woj, @pkd, 'Do zadzwonienia', @imie, @nazwisko, @stanowisko, @telDod, @nip, @regon)",
+                            (@id, @nazwa, @kod, @miasto, @ulica, @tel, @email, @woj, @pkd, 'Do zadzwonienia', @imie, @nazwisko, @stanowisko, @telDod, @nip, @regon, @www)",
                             conn, transaction);
 
                         cmdOdbiorca.Parameters.AddWithValue("@id", nowyID);
@@ -512,6 +512,7 @@ namespace Kalendarz1.OfertaCenowa
                         cmdOdbiorca.Parameters.AddWithValue("@telDod", txtTelefonDodatkowy.Text.Trim());
                         cmdOdbiorca.Parameters.AddWithValue("@nip", txtNIP.Text.Trim());
                         cmdOdbiorca.Parameters.AddWithValue("@regon", txtREGON.Text.Trim());
+                        cmdOdbiorca.Parameters.AddWithValue("@www", txtWWW.Text.Trim());
 
                         cmdOdbiorca.ExecuteNonQuery();
 

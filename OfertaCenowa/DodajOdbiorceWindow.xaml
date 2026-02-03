@@ -388,6 +388,9 @@
                             </StackPanel>
                         </Grid>
 
+                        <TextBlock Text="Strona www" Style="{StaticResource LabelStyle}"/>
+                        <TextBox x:Name="txtWWW" Style="{StaticResource TextBoxStyle}"/>
+
                         <TextBlock Text="Notatki" Style="{StaticResource LabelStyle}"/>
                         <TextBox x:Name="txtNotatki" Style="{StaticResource TextBoxStyle}"
                                  Height="60" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Margin="0"/>
