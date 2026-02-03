@@ -289,8 +289,8 @@ namespace Kalendarz1.CRM
 
         private static readonly string[] Statuses = new[]
         {
-            "Do zadzwonienia", "Nowy", "W trakcie", "Gorący", "Oferta wysłana", "Negocjacje",
-            "Zgoda na dalszy kontakt", "Nie zainteresowany", "Zamknięty"
+            "Do zadzwonienia", "Próba kontaktu", "Nowy", "W trakcie", "Gorący", "Oferta wysłana",
+            "Negocjacje", "Zgoda na dalszy kontakt", "Nie zainteresowany", "Zamknięty"
         };
 
         private int _currentTipIndex = 0;
@@ -1030,10 +1030,10 @@ namespace Kalendarz1.CRM
 
         private void SelectContact(ContactToCall contact)
         {
-            // Auto-save pending note before switching
+            // Auto-save pending note before switching and clear textbox
             if (_selectedContact != null && !string.IsNullOrWhiteSpace(txtNewNote.Text))
             {
-                SavePendingNote();
+                SavePendingNote(clearTextBox: true);
             }
 
             // Auto-save pending email before switching
@@ -1050,6 +1050,11 @@ namespace Kalendarz1.CRM
 
             _selectedContact = contact;
             contact.IsSelected = true;
+
+            // Reset note tracking for new contact
+            _lastSavedNoteText = "";
+            _lastSavedNoteContactId = -1;
+            txtNewNote.Text = "";
 
             // Update details panel
             txtCompanyName.Text = contact.Nazwa ?? "Brak nazwy";
@@ -1130,20 +1135,23 @@ namespace Kalendarz1.CRM
             // Status badge
             UpdateStatusBadge(contact.Status);
 
-            // Last note
+            // Last note with avatar
             if (contact.HasLastNote)
             {
                 lastNoteSection.Visibility = Visibility.Visible;
                 txtLastNote.Text = contact.OstatniaNota;
-                txtLastNoteAuthor.Text = $"{contact.OstatniaNotaAutor ?? ""} • {contact.LastNoteDate}";
+                txtLastNoteAuthor.Text = contact.OstatniaNotaAutor ?? "";
+                txtLastNoteDate.Text = contact.LastNoteDate;
+
+                // Load avatar for note author
+                LoadAuthorAvatar(contact.OstatniaNotaAutor);
             }
             else
             {
                 lastNoteSection.Visibility = Visibility.Collapsed;
             }
 
-            // Clear new note
-            txtNewNote.Text = "";
+            // Note is cleared in SelectContact before calling this
 
             // Footer stats
             txtCallCount.Text = $"{contact.CallCount} połączeń";
@@ -1537,13 +1545,28 @@ namespace Kalendarz1.CRM
             }
         }
 
-        private void SavePendingNote()
+        private string _lastSavedNoteText = "";
+        private int _lastSavedNoteContactId = -1;
+
+        private void SavePendingNote(bool clearTextBox = false)
         {
             if (_selectedContact == null || string.IsNullOrWhiteSpace(txtNewNote.Text)) return;
 
-            var noteText = txtNewNote.Text;
+            var noteText = txtNewNote.Text.Trim();
+
+            // Don't save if it's the same note we already saved for this contact
+            if (_lastSavedNoteContactId == _selectedContact.ID && _lastSavedNoteText == noteText)
+            {
+                if (clearTextBox) txtNewNote.Text = "";
+                return;
+            }
+
             AddNoteToContact(_selectedContact, noteText);
             _selectedContact.NoteAdded = true;
+
+            // Remember what we saved to avoid duplicates
+            _lastSavedNoteText = noteText;
+            _lastSavedNoteContactId = _selectedContact.ID;
 
             CallReminderService.Instance.LogContactAction(_reminderLogID, _selectedContact.ID,
                 false, true, false, null);
@@ -1553,7 +1576,9 @@ namespace Kalendarz1.CRM
             _selectedContact.OstatniaNotaAutor = _userID;
             _selectedContact.DataOstatniejNotatki = DateTime.Now;
 
-            txtNewNote.Text = "";
+            // Only clear textbox if explicitly requested (when switching contacts)
+            if (clearTextBox) txtNewNote.Text = "";
+
             UpdateProgress();
             contactsList.Items.Refresh();
 
@@ -2240,6 +2265,71 @@ namespace Kalendarz1.CRM
             {
                 MessageBox.Show($"Błąd dodawania notatki: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private void LoadAuthorAvatar(string authorId)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(authorId))
+                {
+                    lastNoteAvatar.Visibility = Visibility.Collapsed;
+                    return;
+                }
+
+                lastNoteAvatar.Visibility = Visibility.Visible;
+
+                // Get author name for fallback
+                string authorName = authorId;
+                try
+                {
+                    using var conn = new SqlConnection(_connectionString);
+                    conn.Open();
+                    var cmd = new SqlCommand("SELECT Name FROM operators WHERE ID = @id", conn);
+                    cmd.Parameters.AddWithValue("@id", authorId);
+                    var name = cmd.ExecuteScalar()?.ToString();
+                    if (!string.IsNullOrEmpty(name)) authorName = name;
+                }
+                catch { }
+
+                // Try to load avatar
+                if (UserAvatarManager.HasAvatar(authorId))
+                {
+                    using var avatar = UserAvatarManager.GetAvatarRounded(authorId, 22);
+                    if (avatar != null)
+                    {
+                        lastNoteAvatarBrush.ImageSource = ConvertToBitmapSource(avatar);
+                        return;
+                    }
+                }
+
+                // Generate default avatar with initials
+                using var defaultAvatar = UserAvatarManager.GenerateDefaultAvatar(authorName, authorId, 22);
+                if (defaultAvatar != null)
+                {
+                    lastNoteAvatarBrush.ImageSource = ConvertToBitmapSource(defaultAvatar);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"LoadAuthorAvatar error: {ex.Message}");
+                lastNoteAvatar.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private static BitmapSource ConvertToBitmapSource(System.Drawing.Image image)
+        {
+            if (image == null) return null;
+            using var ms = new System.IO.MemoryStream();
+            image.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+            ms.Position = 0;
+            var bitmapImage = new BitmapImage();
+            bitmapImage.BeginInit();
+            bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
+            bitmapImage.StreamSource = ms;
+            bitmapImage.EndInit();
+            bitmapImage.Freeze();
+            return bitmapImage;
         }
 
         private void BtnToggleTheme_Click(object sender, RoutedEventArgs e)
