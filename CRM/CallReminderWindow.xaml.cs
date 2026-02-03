@@ -1012,6 +1012,18 @@ namespace Kalendarz1.CRM
 
         private void SelectContact(ContactToCall contact)
         {
+            // Auto-save pending note before switching
+            if (_selectedContact != null && !string.IsNullOrWhiteSpace(txtNewNote.Text))
+            {
+                SavePendingNote();
+            }
+
+            // Auto-save pending email before switching
+            if (_selectedContact != null && !string.IsNullOrWhiteSpace(txtEmailInput?.Text))
+            {
+                SavePendingEmail();
+            }
+
             // Deselect previous
             if (_selectedContact != null)
             {
@@ -1507,30 +1519,41 @@ namespace Kalendarz1.CRM
             }
         }
 
-        private void BtnSaveNote_Click(object sender, RoutedEventArgs e)
+        private void SavePendingNote()
         {
             if (_selectedContact == null || string.IsNullOrWhiteSpace(txtNewNote.Text)) return;
 
-            AddNoteToContact(_selectedContact, txtNewNote.Text);
+            var noteText = txtNewNote.Text;
+            AddNoteToContact(_selectedContact, noteText);
             _selectedContact.NoteAdded = true;
 
             CallReminderService.Instance.LogContactAction(_reminderLogID, _selectedContact.ID,
                 false, true, false, null);
 
+            // Update last note display
+            _selectedContact.OstatniaNota = noteText;
+            _selectedContact.OstatniaNotaAutor = _userID;
+            _selectedContact.DataOstatniejNotatki = DateTime.Now;
+
             txtNewNote.Text = "";
             UpdateProgress();
             contactsList.Items.Refresh();
 
-            // Show the new note in last note section
-            _selectedContact.OstatniaNota = txtNewNote.Text;
-            _selectedContact.OstatniaNotaAutor = _userID;
-            _selectedContact.DataOstatniejNotatki = DateTime.Now;
-            SelectContact(_selectedContact); // Refresh display
+            // Show auto-save confirmation
+            if (txtAutoSaveStatus != null)
+            {
+                txtAutoSaveStatus.Text = "✓ Zapisano";
+                Task.Run(async () =>
+                {
+                    await Task.Delay(2000);
+                    Dispatcher.Invoke(() => { if (txtAutoSaveStatus != null) txtAutoSaveStatus.Text = ""; });
+                });
+            }
 
             // Auto-refresh ranking
-            Task.Run(() =>
+            Task.Run(async () =>
             {
-                System.Threading.Thread.Sleep(500);
+                await Task.Delay(500);
                 Dispatcher.Invoke(() =>
                 {
                     try { LoadCRMActivityRanking(); } catch { }
@@ -1539,11 +1562,395 @@ namespace Kalendarz1.CRM
             });
         }
 
+        private void SavePendingEmail()
+        {
+            if (_selectedContact == null || string.IsNullOrWhiteSpace(txtEmailInput?.Text)) return;
+
+            var newEmail = txtEmailInput.Text.Trim();
+            if (newEmail == _selectedContact.Email) return; // No change
+
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                conn.Open();
+
+                var cmd = new SqlCommand("UPDATE OdbiorcyCRM SET Email = @email WHERE ID = @id", conn);
+                cmd.Parameters.AddWithValue("@email", newEmail);
+                cmd.Parameters.AddWithValue("@id", _selectedContact.ID);
+                cmd.ExecuteNonQuery();
+
+                _selectedContact.Email = newEmail;
+
+                // Show auto-save confirmation
+                if (txtAutoSaveStatus != null)
+                {
+                    txtAutoSaveStatus.Text = "✓ Email zapisany";
+                    Task.Run(async () =>
+                    {
+                        await Task.Delay(2000);
+                        Dispatcher.Invoke(() => { if (txtAutoSaveStatus != null) txtAutoSaveStatus.Text = ""; });
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error saving email: {ex.Message}");
+            }
+        }
+
+        private void TxtNewNote_LostFocus(object sender, RoutedEventArgs e)
+        {
+            SavePendingNote();
+        }
+
+        private void TxtEmailInput_LostFocus(object sender, RoutedEventArgs e)
+        {
+            SavePendingEmail();
+        }
+
         private void TxtNewNote_TextChanged(object sender, TextChangedEventArgs e)
         {
             var length = txtNewNote.Text?.Length ?? 0;
-            txtNoteCharCount.Text = $"{length}/500 znaków";
-            btnSaveNote.IsEnabled = length > 0 && _selectedContact != null;
+            txtNoteCharCount.Text = $"{length}/500 znaków • Auto-zapis";
+        }
+
+        private string _connectionHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+        private System.Windows.Threading.DispatcherTimer _searchTimer;
+
+        private void TxtSearchClient_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            var query = txtSearchClient?.Text?.Trim() ?? "";
+
+            if (query.Length < 3)
+            {
+                searchResultsPanel.Visibility = Visibility.Collapsed;
+                searchResultsList.Children.Clear();
+                return;
+            }
+
+            // Debounce search
+            if (_searchTimer == null)
+            {
+                _searchTimer = new System.Windows.Threading.DispatcherTimer
+                {
+                    Interval = TimeSpan.FromMilliseconds(300)
+                };
+                _searchTimer.Tick += (s, args) =>
+                {
+                    _searchTimer.Stop();
+                    PerformClientSearch(txtSearchClient?.Text?.Trim() ?? "");
+                };
+            }
+
+            _searchTimer.Stop();
+            _searchTimer.Start();
+        }
+
+        private void PerformClientSearch(string query)
+        {
+            if (query.Length < 3) return;
+
+            searchResultsList.Children.Clear();
+            var results = new List<(string Source, string Name, string City, string NIP)>();
+
+            // Search CRM
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                conn.Open();
+                var cmd = new SqlCommand(@"
+                    SELECT TOP 10 'CRM' as Source, Nazwa, ISNULL(MIASTO, '') as Miasto, ISNULL(NIP, '') as NIP
+                    FROM OdbiorcyCRM
+                    WHERE Nazwa LIKE '%' + @q + '%' OR NIP LIKE '%' + @q + '%'
+                    ORDER BY Nazwa", conn);
+                cmd.Parameters.AddWithValue("@q", query);
+
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    results.Add(("CRM", reader["Nazwa"].ToString(), reader["Miasto"].ToString(), reader["NIP"].ToString()));
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"CRM search error: {ex.Message}");
+            }
+
+            // Search Symfonia
+            try
+            {
+                using var conn = new SqlConnection(_connectionHandel);
+                conn.Open();
+                var cmd = new SqlCommand(@"
+                    SELECT TOP 10 'Symfonia' as Source, C.Name as Nazwa,
+                           ISNULL(POA.Place, '') as Miasto, ISNULL(C.NIP, '') as NIP
+                    FROM [SSCommon].[STContractors] C
+                    LEFT JOIN [SSCommon].[STPostOfficeAddresses] POA
+                        ON POA.ContactGuid = C.ContactGuid AND POA.AddressName = N'adres domyślny'
+                    WHERE C.Name LIKE '%' + @q + '%' OR C.NIP LIKE '%' + @q + '%'
+                    ORDER BY C.Name", conn);
+                cmd.Parameters.AddWithValue("@q", query);
+
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    results.Add(("Symfonia", reader["Nazwa"].ToString(), reader["Miasto"].ToString(), reader["NIP"].ToString()));
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Symfonia search error: {ex.Message}");
+            }
+
+            // Display results
+            if (results.Count == 0)
+            {
+                searchResultsList.Children.Add(new TextBlock
+                {
+                    Text = "Nie znaleziono klientów",
+                    Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                    FontSize = 11,
+                    Margin = new Thickness(4)
+                });
+            }
+            else
+            {
+                foreach (var (source, name, city, nip) in results)
+                {
+                    var border = new Border
+                    {
+                        Background = source == "CRM"
+                            ? new SolidColorBrush(Color.FromArgb(20, 59, 130, 246))    // blue for CRM
+                            : new SolidColorBrush(Color.FromArgb(20, 139, 92, 246)),   // purple for Symfonia
+                        CornerRadius = new CornerRadius(4),
+                        Padding = new Thickness(6, 4, 6, 4),
+                        Margin = new Thickness(0, 2, 0, 2)
+                    };
+
+                    var sp = new StackPanel();
+
+                    // Source badge + Name
+                    var headerPanel = new StackPanel { Orientation = Orientation.Horizontal };
+                    headerPanel.Children.Add(new Border
+                    {
+                        Background = source == "CRM"
+                            ? new SolidColorBrush(Color.FromArgb(50, 59, 130, 246))
+                            : new SolidColorBrush(Color.FromArgb(50, 139, 92, 246)),
+                        CornerRadius = new CornerRadius(3),
+                        Padding = new Thickness(4, 1, 4, 1),
+                        Margin = new Thickness(0, 0, 6, 0),
+                        Child = new TextBlock
+                        {
+                            Text = source,
+                            FontSize = 8,
+                            FontWeight = FontWeights.Bold,
+                            Foreground = source == "CRM"
+                                ? new SolidColorBrush(Color.FromRgb(96, 165, 250))
+                                : new SolidColorBrush(Color.FromRgb(167, 139, 250))
+                        }
+                    });
+                    headerPanel.Children.Add(new TextBlock
+                    {
+                        Text = name.Length > 35 ? name.Substring(0, 32) + "..." : name,
+                        FontSize = 11,
+                        FontWeight = FontWeights.SemiBold,
+                        Foreground = new SolidColorBrush(Color.FromRgb(229, 231, 235))
+                    });
+                    sp.Children.Add(headerPanel);
+
+                    // City + NIP
+                    var detailText = "";
+                    if (!string.IsNullOrEmpty(city)) detailText += city;
+                    if (!string.IsNullOrEmpty(nip)) detailText += (detailText.Length > 0 ? " • NIP: " : "NIP: ") + nip;
+
+                    if (!string.IsNullOrEmpty(detailText))
+                    {
+                        sp.Children.Add(new TextBlock
+                        {
+                            Text = detailText,
+                            FontSize = 9,
+                            Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)),
+                            Margin = new Thickness(0, 2, 0, 0)
+                        });
+                    }
+
+                    border.Child = sp;
+                    searchResultsList.Children.Add(border);
+                }
+            }
+
+            searchResultsPanel.Visibility = Visibility.Visible;
+        }
+
+        private void BtnFinishCalling_Click(object sender, RoutedEventArgs e)
+        {
+            // Save any pending notes/email first
+            SavePendingNote();
+            SavePendingEmail();
+
+            int completed = _contacts.Count(c => c.IsCompleted);
+
+            // Complete reminder log
+            CallReminderService.Instance.CompleteReminder(
+                _reminderLogID,
+                _callsCount,
+                _notesCount,
+                _statusChangesCount,
+                completed < (_contacts.Count / 2.0),
+                "Zakończono przez przycisk"
+            );
+
+            // Show summary
+            MessageBox.Show(
+                $"Sesja dzwonienia zakończona!\n\n" +
+                $"📞 Wykonano połączeń: {_callsCount}\n" +
+                $"📝 Dodano notatek: {_notesCount}\n" +
+                $"🔄 Zmieniono statusów: {_statusChangesCount}\n" +
+                $"✓ Obsłużono kontaktów: {completed}/{_contacts.Count}",
+                "Zakończono dzwonienie",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+
+            // Refresh rankings one more time
+            try { LoadCRMActivityRanking(); } catch { }
+            try { LoadDailyWeeklyProgress(); } catch { }
+            try { LoadWeeklyRanking(); } catch { }
+
+            Close();
+        }
+
+        private List<(string PKD, string PKDNazwa, int ContactCount)> LoadAllPKDFromCRM()
+        {
+            var pkdList = new List<(string PKD, string PKDNazwa, int ContactCount)>();
+
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                conn.Open();
+
+                // Get all unique PKD codes with counts
+                var cmd = new SqlCommand(@"
+                    SELECT PKD_Opis, Branza, COUNT(*) as ContactCount
+                    FROM OdbiorcyCRM
+                    WHERE PKD_Opis IS NOT NULL AND PKD_Opis <> ''
+                    GROUP BY PKD_Opis, Branza
+                    ORDER BY COUNT(*) DESC", conn);
+
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    pkdList.Add((
+                        reader["PKD_Opis"]?.ToString() ?? "",
+                        reader["Branza"]?.ToString() ?? "",
+                        Convert.ToInt32(reader["ContactCount"])
+                    ));
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"LoadAllPKDFromCRM error: {ex.Message}");
+            }
+
+            return pkdList;
+        }
+
+        private List<string> GetCurrentPKDPriorities()
+        {
+            var priorities = new List<string>();
+
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                conn.Open();
+
+                // Get config ID for current user
+                var cmdConfig = new SqlCommand(
+                    "SELECT ID FROM CallReminderConfig WHERE UserID = @UserID", conn);
+                cmdConfig.Parameters.AddWithValue("@UserID", _userID);
+                var configId = cmdConfig.ExecuteScalar();
+
+                if (configId != null)
+                {
+                    var cmd = new SqlCommand(@"
+                        SELECT PKDCode FROM CallReminderPKDPriority
+                        WHERE ConfigID = @ConfigID
+                        ORDER BY SortOrder", conn);
+                    cmd.Parameters.AddWithValue("@ConfigID", configId);
+
+                    using var reader = cmd.ExecuteReader();
+                    while (reader.Read())
+                    {
+                        priorities.Add(reader.GetString(0));
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"GetCurrentPKDPriorities error: {ex.Message}");
+            }
+
+            return priorities;
+        }
+
+        private void SavePKDPriorities(List<string> priorities)
+        {
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                conn.Open();
+
+                // Get config ID
+                var cmdConfig = new SqlCommand(
+                    "SELECT ID FROM CallReminderConfig WHERE UserID = @UserID", conn);
+                cmdConfig.Parameters.AddWithValue("@UserID", _userID);
+                var configId = cmdConfig.ExecuteScalar();
+
+                if (configId == null) return;
+
+                // Create table if not exists
+                var cmdCreate = new SqlCommand(@"
+                    IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'CallReminderPKDPriority')
+                    CREATE TABLE CallReminderPKDPriority (
+                        ID INT IDENTITY(1,1) PRIMARY KEY,
+                        ConfigID INT NOT NULL,
+                        PKDCode NVARCHAR(50) NOT NULL,
+                        SortOrder INT NOT NULL
+                    )", conn);
+                cmdCreate.ExecuteNonQuery();
+
+                // Clear existing
+                var cmdDelete = new SqlCommand(
+                    "DELETE FROM CallReminderPKDPriority WHERE ConfigID = @ConfigID", conn);
+                cmdDelete.Parameters.AddWithValue("@ConfigID", configId);
+                cmdDelete.ExecuteNonQuery();
+
+                // Insert new priorities
+                for (int i = 0; i < priorities.Count; i++)
+                {
+                    var cmdInsert = new SqlCommand(
+                        "INSERT INTO CallReminderPKDPriority (ConfigID, PKDCode, SortOrder) VALUES (@ConfigID, @PKD, @Sort)", conn);
+                    cmdInsert.Parameters.AddWithValue("@ConfigID", configId);
+                    cmdInsert.Parameters.AddWithValue("@PKD", priorities[i]);
+                    cmdInsert.Parameters.AddWithValue("@Sort", i);
+                    cmdInsert.ExecuteNonQuery();
+                }
+
+                // Show confirmation
+                if (txtAutoSaveStatus != null)
+                {
+                    txtAutoSaveStatus.Text = "✓ Priorytety PKD zapisane";
+                    Task.Run(async () =>
+                    {
+                        await Task.Delay(2000);
+                        Dispatcher.Invoke(() => { if (txtAutoSaveStatus != null) txtAutoSaveStatus.Text = ""; });
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"SavePKDPriorities error: {ex.Message}");
+                MessageBox.Show($"Błąd zapisu priorytetów PKD: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void BtnGoogle_Click(object sender, RoutedEventArgs e)

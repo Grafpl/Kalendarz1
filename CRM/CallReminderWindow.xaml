@@ -24,6 +24,18 @@
                 <Border x:Name="contactBorder" Background="#0CFFFFFF" BorderBrush="#18FFFFFF"
                         BorderThickness="1" CornerRadius="14" Padding="14,12" Margin="0,5"
                         Cursor="Hand" RenderTransformOrigin="0.5,0.5">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="#0CFFFFFF"/>
+                            <Setter Property="BorderBrush" Value="#18FFFFFF"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding StatusChanged}" Value="True">
+                                    <Setter Property="Background" Value="#1A22C55E"/>
+                                    <Setter Property="BorderBrush" Value="#4D22C55E"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
                     <Border.RenderTransform>
                         <TranslateTransform X="0" Y="0"/>
                     </Border.RenderTransform>
@@ -266,6 +278,7 @@
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
@@ -289,6 +302,25 @@
                                     </StackPanel>
 
                                     <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                        <Button x:Name="btnFinishCalling" Click="BtnFinishCalling_Click" Cursor="Hand" Margin="0,0,6,0"
+                                                ToolTip="Zakończ sesję dzwonienia i zapisz postęp">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="finishBd" Background="#303fb950" CornerRadius="8" Padding="10,6"
+                                                            BorderBrush="#3fb950" BorderThickness="1">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="✓" FontSize="12" Foreground="#3fb950" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="Zakończ" FontSize="11" FontWeight="SemiBold" Foreground="#3fb950" VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="finishBd" Property="Background" Value="#503fb950"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
                                         <Button x:Name="btnToggleTheme" Content="☀️" Style="{StaticResource GlassButton}"
                                                 Padding="10,8" Click="BtnToggleTheme_Click" ToolTip="Przełącz tryb jasny/ciemny"
                                                 Margin="0,0,6,0"/>
@@ -308,8 +340,26 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- Search Contacts Panel -->
+                        <Border Grid.Row="1" Background="#08FFFFFF" Padding="10,8" BorderBrush="#14FFFFFF" BorderThickness="0,0,0,1">
+                            <StackPanel>
+                                <TextBlock Text="🔍 SPRAWDŹ KLIENTA (Symfonia/CRM)" FontSize="10" Foreground="#66FFFFFF"
+                                           FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                <TextBox x:Name="txtSearchClient" Style="{StaticResource GlassTextBox}"
+                                         FontSize="12" MinHeight="28" MaxHeight="28"
+                                         TextChanged="TxtSearchClient_TextChanged"
+                                         ToolTip="Wpisz min. 3 znaki aby wyszukać w Symfonia i CRM"/>
+                                <Border x:Name="searchResultsPanel" Background="#0CFFFFFF" CornerRadius="6"
+                                        Margin="0,4,0,0" MaxHeight="150" Visibility="Collapsed">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="150">
+                                        <StackPanel x:Name="searchResultsList" Margin="4"/>
+                                    </ScrollViewer>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
                         <!-- Contact List (no filter tabs - show all) -->
-                        <ScrollViewer Grid.Row="1" Style="{StaticResource GlassScrollViewer}"
+                        <ScrollViewer Grid.Row="2" Style="{StaticResource GlassScrollViewer}"
                                       VerticalScrollBarVisibility="Auto" Padding="12,8">
                             <ItemsControl x:Name="contactsList" ItemTemplate="{StaticResource ContactListItemTemplate}">
                                 <ItemsControl.ItemsPanel>
@@ -321,7 +371,7 @@
                         </ScrollViewer>
 
                         <!-- Mini Ranking - Tygodniowy -->
-                        <Border Grid.Row="2" Background="#08FFFFFF" Padding="12,10" BorderBrush="#14FFFFFF"
+                        <Border Grid.Row="3" Background="#08FFFFFF" Padding="12,10" BorderBrush="#14FFFFFF"
                                 BorderThickness="0,1,0,0">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
@@ -336,7 +386,7 @@
                         </Border>
 
                         <!-- Progress Footer with daily/weekly -->
-                        <Border Grid.Row="3" Background="#08FFFFFF" Padding="10,8" BorderBrush="#14FFFFFF"
+                        <Border Grid.Row="4" Background="#08FFFFFF" Padding="10,8" BorderBrush="#14FFFFFF"
                                 BorderThickness="0,1,0,0" CornerRadius="0,0,0,20">
                             <StackPanel>
                                 <!-- Session progress -->
@@ -551,8 +601,12 @@
                         <Border Grid.Row="4" Margin="0,6,0,0" Background="#08FFFFFF"
                                 BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="10" Padding="12">
                             <StackPanel>
-                                <TextBlock Text="📝 DODAJ NOTATKĘ" FontSize="12" Foreground="#66FFFFFF"
-                                           FontWeight="SemiBold"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="📝 DODAJ NOTATKĘ" FontSize="12" Foreground="#66FFFFFF"
+                                               FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="txtAutoSaveStatus" Text="" FontSize="10"
+                                               Foreground="#3fb950" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
 
                                 <Grid Margin="0,8,0,0">
                                     <Grid.ColumnDefinitions>
@@ -561,11 +615,13 @@
                                         <ColumnDefinition Width="200"/>
                                     </Grid.ColumnDefinitions>
 
-                                    <!-- Note input - bigger font -->
+                                    <!-- Note input - bigger font, auto-save on blur -->
                                     <TextBox x:Name="txtNewNote" Grid.Column="0" Style="{StaticResource GlassTextBox}"
                                              AcceptsReturn="True" TextWrapping="Wrap" FontSize="14"
                                              MaxLength="500" MinHeight="80" MaxHeight="120"
-                                             TextChanged="TxtNewNote_TextChanged"/>
+                                             TextChanged="TxtNewNote_TextChanged"
+                                             LostFocus="TxtNewNote_LostFocus"
+                                             ToolTip="Notatka zapisze się automatycznie"/>
 
                                     <!-- Email input -->
                                     <StackPanel Grid.Column="2">
@@ -573,57 +629,15 @@
                                                    FontWeight="SemiBold" Margin="0,0,0,4"/>
                                         <TextBox x:Name="txtEmailInput" Style="{StaticResource GlassTextBox}"
                                                  FontSize="13" MinHeight="30" MaxHeight="30"
-                                                 ToolTip="Wpisz email kontaktu"/>
+                                                 LostFocus="TxtEmailInput_LostFocus"
+                                                 ToolTip="Email zapisze się automatycznie"/>
                                         <TextBlock x:Name="txtEmailCurrent" Text="" FontSize="10"
                                                    Foreground="#55FFFFFF" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"/>
                                     </StackPanel>
                                 </Grid>
 
-                                <Grid Margin="0,6,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-
-                                    <TextBlock x:Name="txtNoteCharCount" Text="0/500 znaków" FontSize="12"
-                                               Foreground="#66FFFFFF" VerticalAlignment="Center"/>
-
-                                    <Button x:Name="btnSaveNote" Grid.Column="1" Click="BtnSaveNote_Click"
-                                            IsEnabled="False" Padding="20,10">
-                                        <Button.Style>
-                                            <Style TargetType="Button">
-                                                <Setter Property="Background" Value="#08FFFFFF"/>
-                                                <Setter Property="Foreground" Value="#4DFFFFFF"/>
-                                                <Setter Property="BorderBrush" Value="#14FFFFFF"/>
-                                                <Setter Property="BorderThickness" Value="1"/>
-                                                <Setter Property="Cursor" Value="Hand"/>
-                                                <Setter Property="Template">
-                                                    <Setter.Value>
-                                                        <ControlTemplate TargetType="Button">
-                                                            <Border x:Name="bd" Background="{TemplateBinding Background}"
-                                                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                                                    BorderThickness="{TemplateBinding BorderThickness}"
-                                                                    CornerRadius="8" Padding="{TemplateBinding Padding}">
-                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                            </Border>
-                                                        </ControlTemplate>
-                                                    </Setter.Value>
-                                                </Setter>
-                                                <Style.Triggers>
-                                                    <Trigger Property="IsEnabled" Value="True">
-                                                        <Setter Property="Background" Value="#303fb950"/>
-                                                        <Setter Property="BorderBrush" Value="#3fb950"/>
-                                                        <Setter Property="Foreground" Value="#3fb950"/>
-                                                    </Trigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Button.Style>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="💾" FontSize="12" Margin="0,0,6,0"/>
-                                            <TextBlock Text="Zapisz" FontSize="12" FontWeight="Medium"/>
-                                        </StackPanel>
-                                    </Button>
-                                </Grid>
+                                <TextBlock x:Name="txtNoteCharCount" Text="0/500 znaków • Auto-zapis" FontSize="11"
+                                           Foreground="#66FFFFFF" Margin="0,6,0,0"/>
                             </StackPanel>
                         </Border>
 
