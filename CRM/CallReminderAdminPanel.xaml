@@ -384,6 +384,14 @@
 
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="16,0">
                             <Button Style="{StaticResource GlassButton}" Margin="0,0,6,0"
+                                    Click="BtnPKDPriority_Click" Padding="10,5" ToolTip="Zarządzaj priorytetowymi branżami PKD (czerwone w CRM)">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Fill="#EF4444" Stretch="Uniform" Width="11" Height="11" VerticalAlignment="Center" Margin="0,0,4,0"
+                                          Data="M12,2L4.5,20.29l0.71,0.71L12,18l6.79,3l0.71-0.71L12,2z"/>
+                                    <TextBlock Text="PKD Priority" FontSize="10" Foreground="#EF4444"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource GlassButton}" Margin="0,0,6,0"
                                     Click="BtnImport_Click" Padding="10,5" ToolTip="Import firm z Excel">
                                 <StackPanel Orientation="Horizontal">
                                     <Path Fill="#f59e0b" Stretch="Uniform" Width="11" Height="11" VerticalAlignment="Center" Margin="0,0,4,0"

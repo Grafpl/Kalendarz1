@@ -585,6 +585,63 @@ namespace Kalendarz1.CRM
                     // Stara lista dla kompatybilności
                     if (listaRanking != null)
                         listaRanking.ItemsSource = (tygodniowy ? dtTygodniowy : dtDzienny).DefaultView;
+
+                    // Aktualizuj pozycję użytkownika w nagłówku
+                    AktualizujPozycjeUzytkownika(dtDzienny, dtTygodniowy);
+                }
+            }
+            catch { }
+        }
+
+        private void AktualizujPozycjeUzytkownika(DataTable dtDzienny, DataTable dtTygodniowy)
+        {
+            try
+            {
+                // Znajdź pozycję w rankingu dziennym
+                int pozDzienna = 0;
+                for (int i = 0; i < dtDzienny.Rows.Count; i++)
+                {
+                    if (dtDzienny.Rows[i]["OperatorID"]?.ToString() == operatorID)
+                    {
+                        pozDzienna = i + 1;
+                        break;
+                    }
+                }
+
+                // Znajdź pozycję w rankingu tygodniowym
+                int pozTygodniowa = 0;
+                for (int i = 0; i < dtTygodniowy.Rows.Count; i++)
+                {
+                    if (dtTygodniowy.Rows[i]["OperatorID"]?.ToString() == operatorID)
+                    {
+                        pozTygodniowa = i + 1;
+                        break;
+                    }
+                }
+
+                // Aktualizuj UI
+                if (txtPozycjaDzienna != null)
+                {
+                    txtPozycjaDzienna.Text = pozDzienna switch
+                    {
+                        1 => "🥇",
+                        2 => "🥈",
+                        3 => "🥉",
+                        > 0 => $"#{pozDzienna}",
+                        _ => ""
+                    };
+                }
+
+                if (txtPozycjaTygodniowa != null)
+                {
+                    txtPozycjaTygodniowa.Text = pozTygodniowa switch
+                    {
+                        1 => "🥇",
+                        2 => "🥈",
+                        3 => "🥉",
+                        > 0 => $"#{pozTygodniowa}",
+                        _ => ""
+                    };
                 }
             }
             catch { }
@@ -639,12 +696,25 @@ namespace Kalendarz1.CRM
             var dt = new DataTable();
             adapter.Fill(dt);
 
-            // Dodaj kolumnę ProcentTekst
+            // Dodaj kolumny Medal i ProcentTekst
+            dt.Columns.Add("Medal", typeof(string));
             dt.Columns.Add("ProcentTekst", typeof(string));
+
+            int pozycja = 1;
             foreach (DataRow row in dt.Rows)
             {
                 int procent = row["Procent"] != DBNull.Value ? Convert.ToInt32(row["Procent"]) : 0;
-                row["ProcentTekst"] = $"({procent}%)";
+                row["ProcentTekst"] = $"{procent}%";
+
+                // Medale dla top 3
+                row["Medal"] = pozycja switch
+                {
+                    1 => "🥇",
+                    2 => "🥈",
+                    3 => "🥉",
+                    _ => $"{pozycja}."
+                };
+                pozycja++;
             }
 
             return dt;
@@ -671,8 +741,58 @@ namespace Kalendarz1.CRM
             if (dtKontakty == null) return;
             var woj = dtKontakty.AsEnumerable().Select(r => r["Wojewodztwo"].ToString()).Where(x => !string.IsNullOrEmpty(x)).Distinct().OrderBy(x => x);
             foreach (var w in woj) cmbWojewodztwo.Items.Add(new ComboBoxItem { Content = w });
-            var branze = dtKontakty.AsEnumerable().Select(r => r["PKD_Opis"].ToString()).Where(x => !string.IsNullOrEmpty(x)).Distinct().OrderBy(x => x);
-            foreach (var b in branze) cmbBranza.Items.Add(new ComboBoxItem { Content = b });
+
+            // Load priority PKDs from database
+            var priorityPKDs = new HashSet<string>();
+            try
+            {
+                using var conn = new SqlConnection(connectionString);
+                conn.Open();
+                var cmd = new SqlCommand("SELECT PKDCode FROM CRM_PKDPriority ORDER BY SortOrder", conn);
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    priorityPKDs.Add(reader.GetString(0));
+                }
+            }
+            catch { }
+
+            // Get all unique branches
+            var branze = dtKontakty.AsEnumerable()
+                .Select(r => r["PKD_Opis"].ToString())
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Distinct()
+                .ToList();
+
+            // Add priority PKDs first (in red)
+            var priorityBranze = branze.Where(b => priorityPKDs.Contains(b)).OrderBy(b => b).ToList();
+            foreach (var b in priorityBranze)
+            {
+                cmbBranza.Items.Add(new ComboBoxItem
+                {
+                    Content = b,
+                    Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(239, 68, 68)), // #EF4444
+                    FontWeight = FontWeights.SemiBold
+                });
+            }
+
+            // Add separator if there are priority items
+            if (priorityBranze.Count > 0)
+            {
+                cmbBranza.Items.Add(new ComboBoxItem
+                {
+                    Content = "─────────────",
+                    IsEnabled = false,
+                    Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(100, 116, 139))
+                });
+            }
+
+            // Add remaining PKDs (not in priority list)
+            var normalBranze = branze.Where(b => !priorityPKDs.Contains(b)).OrderBy(b => b);
+            foreach (var b in normalBranze)
+            {
+                cmbBranza.Items.Add(new ComboBoxItem { Content = b });
+            }
 
             // Wypełnij listę handlowców którzy mieli aktywność
             var handlowcy = dtKontakty.AsEnumerable()
@@ -911,7 +1031,11 @@ namespace Kalendarz1.CRM
             }
             if (cmbStatus.SelectedIndex > 0) filter += $" AND Status = '{(cmbStatus.SelectedItem as ComboBoxItem).Content}'";
             if (cmbWojewodztwo.SelectedIndex > 0) filter += $" AND Wojewodztwo = '{(cmbWojewodztwo.SelectedItem as ComboBoxItem).Content}'";
-            if (cmbBranza.SelectedIndex > 0) filter += $" AND PKD_Opis = '{(cmbBranza.SelectedItem as ComboBoxItem).Content}'";
+            // Skip separator (disabled item) in Branża filter
+            if (cmbBranza.SelectedIndex > 0 && cmbBranza.SelectedItem is ComboBoxItem branzaItem && branzaItem.IsEnabled)
+            {
+                filter += $" AND PKD_Opis = '{branzaItem.Content}'";
+            }
 
             // Filtr handlowca - pokazuj tylko wiersze gdzie ostatnią zmianę wykonał wybrany handlowiec
             if (cmbHandlowiec.SelectedIndex > 0)
@@ -1543,6 +1667,38 @@ namespace Kalendarz1.CRM
 
             // Fallback - zwróć oryginał
             return phone;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    /// <summary>
+    /// Konwerter daty z polskim dniem tygodnia - format: "dd.MM.yyyy (Pn)"
+    /// </summary>
+    public class DateWithDayConverter : System.Windows.Data.IValueConverter
+    {
+        private static readonly string[] PolishDays = { "Nd", "Pn", "Wt", "Śr", "Cz", "Pt", "Sb" };
+
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (value == null || value == DBNull.Value) return "";
+
+            if (value is DateTime dt)
+            {
+                string dayAbbrev = PolishDays[(int)dt.DayOfWeek];
+                return $"{dt:dd.MM.yyyy} ({dayAbbrev})";
+            }
+
+            if (DateTime.TryParse(value.ToString(), out DateTime parsed))
+            {
+                string dayAbbrev = PolishDays[(int)parsed.DayOfWeek];
+                return $"{parsed:dd.MM.yyyy} ({dayAbbrev})";
+            }
+
+            return value.ToString();
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)

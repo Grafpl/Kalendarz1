@@ -13,6 +13,7 @@
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <local:PhoneFormatConverter x:Key="PhoneFormatConverter"/>
         <local:HandlowiecAvatarConverter x:Key="HandlowiecAvatarConverter"/>
+        <local:DateWithDayConverter x:Key="DateWithDayConverter"/>
 
         <!-- DARK CORPORATE THEME -->
         <SolidColorBrush x:Key="BgPrimary" Color="#0F172A"/>
@@ -289,10 +290,13 @@
                             <StackPanel VerticalAlignment="Center" Margin="0,0,20,0">
                                 <TextBlock x:Name="txtUserName" Text="Użytkownik" FontSize="14" FontWeight="Bold" Foreground="#E2E8F0"/>
                             </StackPanel>
-                            <!-- Cel dzienny -->
+                            <!-- Cel dzienny z pozycją -->
                             <Border Background="#14532D" CornerRadius="6" Padding="12,6" Margin="0,0,8,0">
                                 <StackPanel>
-                                    <TextBlock Text="CEL DNIA" FontSize="9" FontWeight="Bold" Foreground="#22C55E" HorizontalAlignment="Center"/>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock x:Name="txtPozycjaDzienna" Text="" FontSize="14" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="CEL DNIA" FontSize="9" FontWeight="Bold" Foreground="#22C55E" VerticalAlignment="Center"/>
+                                    </StackPanel>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                         <TextBlock x:Name="txtCelDziennyWykonane" Text="0" FontSize="22" FontWeight="Black" Foreground="#22C55E"/>
                                         <TextBlock Text="/" FontSize="18" FontWeight="Bold" Foreground="#64748B" VerticalAlignment="Center"/>
@@ -300,10 +304,13 @@
                                     </StackPanel>
                                 </StackPanel>
                             </Border>
-                            <!-- Cel tygodniowy -->
+                            <!-- Cel tygodniowy z pozycją -->
                             <Border Background="#1E3A8A" CornerRadius="6" Padding="12,6">
                                 <StackPanel>
-                                    <TextBlock Text="CEL TYGODNIA" FontSize="9" FontWeight="Bold" Foreground="#60A5FA" HorizontalAlignment="Center"/>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock x:Name="txtPozycjaTygodniowa" Text="" FontSize="14" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="CEL TYGODNIA" FontSize="9" FontWeight="Bold" Foreground="#60A5FA" VerticalAlignment="Center"/>
+                                    </StackPanel>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                         <TextBlock x:Name="txtCelTygodniowyWykonane" Text="0" FontSize="22" FontWeight="Black" Foreground="#60A5FA"/>
                                         <TextBlock Text="/" FontSize="18" FontWeight="Bold" Foreground="#64748B" VerticalAlignment="Center"/>
@@ -745,10 +752,10 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTemplateColumn Header="Ost. Zmiana" Width="90" SortMemberPath="OstatniaZmiana">
+                            <DataGridTemplateColumn Header="Ost. Zmiana" Width="115" SortMemberPath="OstatniaZmiana">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock Text="{Binding OstatniaZmiana, StringFormat=dd.MM.yyyy}" TextAlignment="Center"
+                                        <TextBlock Text="{Binding OstatniaZmiana, Converter={StaticResource DateWithDayConverter}}" TextAlignment="Center"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">
@@ -892,10 +899,8 @@
                                                             <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
 
-                                                        <!-- Pozycja -->
-                                                        <Border Background="#14532D" Width="20" Height="20" CornerRadius="10" VerticalAlignment="Center">
-                                                            <TextBlock Text="{Binding Pozycja}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10" FontWeight="Bold" Foreground="#22C55E"/>
-                                                        </Border>
+                                                        <!-- Pozycja z medalem -->
+                                                        <TextBlock Text="{Binding Medal}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14"/>
 
                                                         <!-- Avatar -->
                                                         <Border Grid.Column="1" Width="26" Height="26" CornerRadius="13" ClipToBounds="True"
@@ -907,12 +912,8 @@
                                                         <TextBlock Grid.Column="2" Text="{Binding Operator}" FontWeight="SemiBold" FontSize="11" Foreground="#E2E8F0"
                                                                    VerticalAlignment="Center" Margin="6,0,0,0" TextTrimming="CharacterEllipsis"/>
 
-                                                        <!-- Wynik -->
-                                                        <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
-                                                            <TextBlock Text="{Binding Wykonane}" FontSize="14" FontWeight="Bold" Foreground="#22C55E"/>
-                                                            <TextBlock Text="/" FontSize="12" Foreground="#64748B"/>
-                                                            <TextBlock Text="{Binding Cel}" FontSize="12" Foreground="#64748B"/>
-                                                        </StackPanel>
+                                                        <!-- Procent -->
+                                                        <TextBlock Grid.Column="3" Text="{Binding ProcentTekst}" FontSize="14" FontWeight="Bold" Foreground="#22C55E" VerticalAlignment="Center"/>
                                                     </Grid>
                                                 </Border>
                                             </DataTemplate>
@@ -935,10 +936,8 @@
                                                             <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
 
-                                                        <!-- Pozycja -->
-                                                        <Border Background="#1E3A8A" Width="20" Height="20" CornerRadius="10" VerticalAlignment="Center">
-                                                            <TextBlock Text="{Binding Pozycja}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10" FontWeight="Bold" Foreground="#60A5FA"/>
-                                                        </Border>
+                                                        <!-- Pozycja z medalem -->
+                                                        <TextBlock Text="{Binding Medal}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14"/>
 
                                                         <!-- Avatar -->
                                                         <Border Grid.Column="1" Width="26" Height="26" CornerRadius="13" ClipToBounds="True"
@@ -950,12 +949,8 @@
                                                         <TextBlock Grid.Column="2" Text="{Binding Operator}" FontWeight="SemiBold" FontSize="11" Foreground="#E2E8F0"
                                                                    VerticalAlignment="Center" Margin="6,0,0,0" TextTrimming="CharacterEllipsis"/>
 
-                                                        <!-- Wynik -->
-                                                        <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
-                                                            <TextBlock Text="{Binding Wykonane}" FontSize="14" FontWeight="Bold" Foreground="#60A5FA"/>
-                                                            <TextBlock Text="/" FontSize="12" Foreground="#64748B"/>
-                                                            <TextBlock Text="{Binding Cel}" FontSize="12" Foreground="#64748B"/>
-                                                        </StackPanel>
+                                                        <!-- Procent -->
+                                                        <TextBlock Grid.Column="3" Text="{Binding ProcentTekst}" FontSize="14" FontWeight="Bold" Foreground="#60A5FA" VerticalAlignment="Center"/>
                                                     </Grid>
                                                 </Border>
                                             </DataTemplate>

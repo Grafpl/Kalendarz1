@@ -162,6 +162,19 @@ namespace Kalendarz1.CRM
                         ChangeType NVARCHAR(20)
                     );
                 END
+
+                -- Global CRM PKD Priority table (for red highlighting in CRM Branża combobox)
+                IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID('CRM_PKDPriority') AND type = 'U')
+                BEGIN
+                    CREATE TABLE CRM_PKDPriority (
+                        ID INT IDENTITY(1,1) PRIMARY KEY,
+                        PKDCode NVARCHAR(100) NOT NULL,
+                        SortOrder INT DEFAULT 0,
+                        CreatedAt DATETIME DEFAULT GETDATE(),
+                        CreatedBy NVARCHAR(50) NULL
+                    );
+                    CREATE INDEX IX_CRM_PKDPriority_Code ON CRM_PKDPriority(PKDCode);
+                END
                 ";
 
                 var cmd = new SqlCommand(schemaSql, conn);
@@ -708,6 +721,13 @@ END";
                 debugWindow.Owner = this;
                 debugWindow.Show();
             }
+        }
+
+        private void BtnPKDPriority_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new PKDPriorityDialog(_connectionString);
+            dialog.Owner = this;
+            dialog.ShowDialog();
         }
 
         private void BtnImport_Click(object sender, RoutedEventArgs e)
