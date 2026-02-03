@@ -145,16 +145,19 @@ namespace Kalendarz1.CRM
         {
             if (string.IsNullOrWhiteSpace(name)) return null;
 
-            // Use directId as cache key when available for precise matching
-            string cacheKey = !string.IsNullOrEmpty(directId) ? $"id:{directId}" : name;
+            // Trim i normalizuj nazwę
+            name = name.Trim();
+
+            // Cache key oparty tylko na nazwie (nie na directId - bo bywa błędne)
+            string cacheKey = name;
             if (_handlowiecAvatarCache.TryGetValue(cacheKey, out var cached))
                 return cached;
 
             BitmapSource source = null;
             try
             {
-                string userId = !string.IsNullOrEmpty(directId) ? directId
-                    : _handlowiecNameToId.TryGetValue(name, out var id) ? id : name;
+                // Szukaj ID po nazwie w mapie
+                string userId = _handlowiecNameToId.TryGetValue(name, out var id) ? id : name;
 
                 System.Drawing.Image img = null;
                 if (UserAvatarManager.HasAvatar(userId))
@@ -205,9 +208,6 @@ namespace Kalendarz1.CRM
                 string handlowiec = drv["OstatniHandlowiec"]?.ToString();
                 if (string.IsNullOrWhiteSpace(handlowiec)) return;
 
-                string handlowiecId = drv.Row.Table.Columns.Contains("OstatniHandlowiecID")
-                    ? drv["OstatniHandlowiecID"]?.ToString() : null;
-
                 // Find the Image element inside the Handlowiec cell
                 var presenter = FindVisualChild<DataGridCellsPresenter>(row);
                 if (presenter == null) return;
@@ -219,8 +219,9 @@ namespace Kalendarz1.CRM
                 var img = FindVisualChild<System.Windows.Controls.Image>(cell);
                 if (img != null)
                 {
-                    var avatarSource = GetHandlowiecAvatar(handlowiec, handlowiecId);
-                    img.Source = avatarSource; // Zawsze ustaw (nawet null, żeby wyczyścić stary)
+                    // Użyj TYLKO nazwy do pobrania avatara (nie directId - bo jest błędne)
+                    var avatarSource = GetHandlowiecAvatar(handlowiec, null);
+                    img.Source = avatarSource;
                 }
             }
             catch { }
