@@ -8,6 +8,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Kalendarz1.MarketIntelligence.Models;
 using Kalendarz1.MarketIntelligence.Services;
 using LiveCharts;
@@ -18,20 +19,70 @@ namespace Kalendarz1.MarketIntelligence.Views
     public partial class MarketIntelligenceWindow : Window
     {
         private readonly MarketIntelligenceService _service;
+        private readonly DispatcherTimer _refreshTimer;
         private string _currentCategory = "Wszystkie";
         private string _currentSeverity = "Wszystkie";
         private string _searchText = "";
+        private bool _autoRefreshEnabled = true;
 
         public MarketIntelligenceWindow()
         {
             InitializeComponent();
             _service = new MarketIntelligenceService();
+
+            // Setup auto-refresh timer (every 5 minutes)
+            _refreshTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMinutes(5)
+            };
+            _refreshTimer.Tick += async (s, args) =>
+            {
+                if (_autoRefreshEnabled)
+                {
+                    await RefreshDataSilentAsync();
+                }
+            };
+
             Loaded += MarketIntelligenceWindow_Loaded;
+            Closed += (s, args) => _refreshTimer.Stop();
         }
 
         private async void MarketIntelligenceWindow_Loaded(object sender, RoutedEventArgs e)
         {
             await LoadDataAsync();
+            _refreshTimer.Start();
+        }
+
+        private async Task RefreshDataSilentAsync()
+        {
+            try
+            {
+                // Refresh indicators
+                var indicators = await _service.GetDashboardIndicatorsAsync();
+                icIndicators.ItemsSource = indicators;
+
+                // Refresh alerts
+                var allArticles = await _service.GetArticlesAsync();
+                var alerts = allArticles
+                    .Where(a => a.Severity == "critical" || a.Severity == "warning")
+                    .OrderByDescending(a => a.Severity == "critical")
+                    .ThenByDescending(a => a.PublishDate)
+                    .Take(5)
+                    .ToList();
+
+                if (alerts.Any())
+                {
+                    icAlerts.ItemsSource = alerts;
+                    pnlAlerts.Visibility = Visibility.Visible;
+                }
+
+                // Update timestamp
+                txtLastUpdate.Text = $"Ostatnia aktualizacja: {DateTime.Now:HH:mm:ss} (auto)";
+            }
+            catch
+            {
+                // Silent fail for auto-refresh
+            }
         }
 
         private async Task LoadDataAsync()
@@ -198,6 +249,7 @@ namespace Kalendarz1.MarketIntelligence.Views
             var totalOutbreaks = await _service.GetTotalHpaiOutbreaks2026Async();
             txtHpaiSummary.Text = $"Ogniska HPAI 2026: {totalOutbreaks} w Polsce";
             icHpai.ItemsSource = hpai.Take(10);
+            DrawHpaiMarkers(hpai);
 
             // === WYKRES: EU Benchmark ===
             var benchmark = await _service.GetEuBenchmarkAsync();
@@ -228,6 +280,64 @@ namespace Kalendarz1.MarketIntelligence.Views
                     }
                 };
                 axisXBenchmark.Labels = benchmarkLabels;
+            }
+        }
+
+        private void DrawHpaiMarkers(IEnumerable<IntelHpaiOutbreak> outbreaks)
+        {
+            // Region coordinates on the canvas (approximate positions for Polish voivodeships)
+            var regionCoords = new Dictionary<string, (double X, double Y)>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "zachodniopomorskie", (55, 35) },
+                { "pomorskie", (95, 25) },
+                { "warmińsko-mazurskie", (145, 35) },
+                { "podlaskie", (170, 60) },
+                { "lubuskie", (40, 70) },
+                { "wielkopolskie", (75, 80) },
+                { "kujawsko-pomorskie", (100, 55) },
+                { "mazowieckie", (135, 80) },
+                { "łódzkie", (105, 100) },
+                { "dolnośląskie", (55, 110) },
+                { "opolskie", (75, 125) },
+                { "śląskie", (90, 135) },
+                { "świętokrzyskie", (120, 120) },
+                { "lubelskie", (160, 110) },
+                { "małopolskie", (110, 145) },
+                { "podkarpackie", (150, 140) }
+            };
+
+            // Remove existing HPAI markers (keep elements with Tag != "hpai")
+            var toRemove = canvasPolandMap.Children.OfType<System.Windows.Shapes.Ellipse>()
+                .Where(e => e.Tag?.ToString() == "hpai")
+                .ToList();
+            foreach (var el in toRemove)
+                canvasPolandMap.Children.Remove(el);
+
+            // Group outbreaks by region and draw markers
+            var grouped = outbreaks.GroupBy(o => o.Region.ToLowerInvariant()).ToList();
+
+            foreach (var group in grouped)
+            {
+                if (regionCoords.TryGetValue(group.Key, out var coords))
+                {
+                    var totalOutbreaks = group.Sum(o => o.OutbreakCount);
+                    var size = Math.Min(6 + totalOutbreaks * 2, 20); // Size based on outbreak count
+
+                    var marker = new System.Windows.Shapes.Ellipse
+                    {
+                        Width = size,
+                        Height = size,
+                        Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444")),
+                        Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FCA5A5")),
+                        StrokeThickness = 1,
+                        Tag = "hpai",
+                        ToolTip = $"🦠 {group.First().Region}: {totalOutbreaks} ognisk"
+                    };
+
+                    Canvas.SetLeft(marker, coords.X - size / 2);
+                    Canvas.SetTop(marker, coords.Y - size / 2);
+                    canvasPolandMap.Children.Add(marker);
+                }
             }
         }
 

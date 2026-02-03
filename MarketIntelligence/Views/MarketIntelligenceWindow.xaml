@@ -535,6 +535,43 @@
                                            Foreground="{StaticResource TextPrimary}"
                                            FontWeight="Bold" FontSize="16"
                                            Margin="0,0,0,12"/>
+
+                                <!-- Mapa Polski z ogniskami -->
+                                <Border Background="{StaticResource BgTertiary}" CornerRadius="6" Padding="8" Height="200" Margin="0,0,0,12">
+                                    <Grid>
+                                        <Canvas x:Name="canvasPolandMap" Background="Transparent">
+                                            <!-- Kontury Polski (uproszczone) -->
+                                            <Path Stroke="#475569" StrokeThickness="1" Fill="#1E293B"
+                                                  Data="M 80,20 L 120,15 L 160,25 L 180,45 L 175,80 L 185,110 L 170,140 L 140,160 L 100,165 L 60,150 L 40,120 L 35,80 L 50,50 L 80,20 Z"/>
+                                            <!-- Brzeziny (nasz zakład) -->
+                                            <Ellipse Canvas.Left="95" Canvas.Top="85" Width="8" Height="8" Fill="#22C55E" ToolTip="🏭 Brzeziny - nasz zakład"/>
+                                        </Canvas>
+                                        <!-- Legenda -->
+                                        <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="8">
+                                            <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                <Ellipse Width="8" Height="8" Fill="#EF4444" Margin="0,0,6,0"/>
+                                                <TextBlock Text="Ognisko HPAI" Foreground="{StaticResource TextMuted}" FontSize="9"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                <Ellipse Width="8" Height="8" Fill="#22C55E" Margin="0,0,6,0"/>
+                                                <TextBlock Text="Brzeziny (my)" Foreground="{StaticResource TextMuted}" FontSize="9"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <!-- Status -->
+                                        <TextBlock x:Name="txtMapStatus"
+                                                   Text="Mapa ognisk HPAI w Polsce"
+                                                   Foreground="{StaticResource TextMuted}"
+                                                   FontSize="10"
+                                                   HorizontalAlignment="Right"
+                                                   VerticalAlignment="Top"
+                                                   Margin="8"/>
+                                    </Grid>
+                                </Border>
+
+                                <TextBlock Text="Lista ognisk wg regionów"
+                                           Foreground="{StaticResource TextSecondary}"
+                                           FontWeight="SemiBold" FontSize="12"
+                                           Margin="0,0,0,8"/>
                                 <ItemsControl x:Name="icHpai">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
