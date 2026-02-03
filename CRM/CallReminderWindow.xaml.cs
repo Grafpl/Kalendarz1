@@ -2317,21 +2317,6 @@ namespace Kalendarz1.CRM
             }
         }
 
-        private static BitmapSource ConvertToBitmapSource(System.Drawing.Image image)
-        {
-            if (image == null) return null;
-            using var ms = new System.IO.MemoryStream();
-            image.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
-            ms.Position = 0;
-            var bitmapImage = new BitmapImage();
-            bitmapImage.BeginInit();
-            bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
-            bitmapImage.StreamSource = ms;
-            bitmapImage.EndInit();
-            bitmapImage.Freeze();
-            return bitmapImage;
-        }
-
         private void BtnToggleTheme_Click(object sender, RoutedEventArgs e)
         {
             CRMThemeService.Toggle();
