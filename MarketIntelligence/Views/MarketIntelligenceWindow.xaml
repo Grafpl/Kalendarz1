@@ -3,178 +3,442 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:Kalendarz1.MarketIntelligence.Views"
         xmlns:lvc="clr-namespace:LiveCharts.Wpf;assembly=LiveCharts.Wpf"
-        Title="📊 Market Intelligence - Piórkowscy"
+        Title="Market Intelligence - Piórkowscy"
         Height="900" Width="1400"
+        MinHeight="700" MinWidth="1100"
         WindowStartupLocation="CenterScreen"
         WindowState="Maximized"
-        Background="#0F172A">
+        FontFamily="Segoe UI"
+        Background="{StaticResource BgDeep}">
 
     <Window.Resources>
-        <!-- Dark Corporate Theme -->
-        <SolidColorBrush x:Key="BgPrimary" Color="#0F172A"/>
-        <SolidColorBrush x:Key="BgSecondary" Color="#1E293B"/>
-        <SolidColorBrush x:Key="BgTertiary" Color="#334155"/>
-        <SolidColorBrush x:Key="BgElevated" Color="#475569"/>
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- PROFESSIONAL DARK THEME - BLOOMBERG STYLE -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
 
-        <SolidColorBrush x:Key="AccentPrimary" Color="#6366F1"/>
-        <SolidColorBrush x:Key="AccentLight" Color="#A5B4FC"/>
-        <SolidColorBrush x:Key="TextPrimary" Color="#E2E8F0"/>
-        <SolidColorBrush x:Key="TextSecondary" Color="#94A3B8"/>
-        <SolidColorBrush x:Key="TextMuted" Color="#64748B"/>
+        <!-- BACKGROUNDS -->
+        <SolidColorBrush x:Key="BgDeep" Color="#0B0F19"/>
+        <SolidColorBrush x:Key="BgCard" Color="#111827"/>
+        <SolidColorBrush x:Key="BgCardHover" Color="#1A2332"/>
+        <SolidColorBrush x:Key="BgSurface" Color="#1F2937"/>
+        <SolidColorBrush x:Key="BgElevated" Color="#374151"/>
+        <SolidColorBrush x:Key="BgBorder" Color="#2A3441"/>
 
-        <SolidColorBrush x:Key="StatusSuccess" Color="#22C55E"/>
-        <SolidColorBrush x:Key="StatusWarning" Color="#F59E0B"/>
-        <SolidColorBrush x:Key="StatusDanger" Color="#EF4444"/>
-        <SolidColorBrush x:Key="StatusInfo" Color="#3B82F6"/>
+        <!-- TEXT -->
+        <SolidColorBrush x:Key="TextBright" Color="#F9FAFB"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#E5E7EB"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#9CA3AF"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#6B7280"/>
 
-        <!-- Converters -->
+        <!-- ACCENT -->
+        <SolidColorBrush x:Key="AccentBlue" Color="#3B82F6"/>
+        <SolidColorBrush x:Key="AccentIndigo" Color="#6366F1"/>
+        <SolidColorBrush x:Key="AccentIndigoLight" Color="#818CF8"/>
+
+        <!-- STATUS COLORS -->
+        <SolidColorBrush x:Key="Critical" Color="#DC2626"/>
+        <SolidColorBrush x:Key="CriticalBg" Color="#1C1012"/>
+        <SolidColorBrush x:Key="CriticalBorder" Color="#7F1D1D"/>
+        <SolidColorBrush x:Key="CriticalText" Color="#FCA5A5"/>
+
+        <SolidColorBrush x:Key="Warning" Color="#D97706"/>
+        <SolidColorBrush x:Key="WarningBg" Color="#1C1608"/>
+        <SolidColorBrush x:Key="WarningBorder" Color="#78350F"/>
+        <SolidColorBrush x:Key="WarningText" Color="#FCD34D"/>
+
+        <SolidColorBrush x:Key="Success" Color="#16A34A"/>
+        <SolidColorBrush x:Key="SuccessBg" Color="#0A1C10"/>
+        <SolidColorBrush x:Key="SuccessBorder" Color="#14532D"/>
+        <SolidColorBrush x:Key="SuccessText" Color="#6EE7B7"/>
+
+        <SolidColorBrush x:Key="Info" Color="#2563EB"/>
+        <SolidColorBrush x:Key="InfoBg" Color="#0B1221"/>
+        <SolidColorBrush x:Key="InfoBorder" Color="#1E3A5F"/>
+        <SolidColorBrush x:Key="InfoText" Color="#93C5FD"/>
+
+        <!-- CHART COLORS -->
+        <SolidColorBrush x:Key="ChartLine" Color="#818CF8"/>
+        <SolidColorBrush x:Key="ChartBar" Color="#6366F1"/>
+        <SolidColorBrush x:Key="ChartBarPL" Color="#22D3EE"/>
+        <SolidColorBrush x:Key="ChartBarDanger" Color="#F87171"/>
+        <SolidColorBrush x:Key="ChartGrid" Color="#1F2937"/>
+
+        <!-- CONVERTERS -->
         <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
 
-        <!-- Expander Style for Dark Theme -->
-        <Style TargetType="Expander">
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- DARK SCROLLBAR STYLE -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <Style x:Key="DarkScrollBar" TargetType="ScrollBar">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Width" Value="8"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Grid Background="Transparent">
+                            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                <Track.Thumb>
+                                    <Thumb Background="{StaticResource BgElevated}"
+                                           Opacity="0.6">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Border Background="{TemplateBinding Background}"
+                                                        CornerRadius="4" Margin="1"/>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="ScrollViewer">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollViewer">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ScrollContentPresenter Grid.Column="0"/>
+                            <ScrollBar x:Name="PART_VerticalScrollBar"
+                                       Grid.Column="1"
+                                       Style="{StaticResource DarkScrollBar}"
+                                       Value="{TemplateBinding VerticalOffset}"
+                                       Maximum="{TemplateBinding ScrollableHeight}"
+                                       ViewportSize="{TemplateBinding ViewportHeight}"
+                                       Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- DARK COMBOBOX STYLE -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <ControlTemplate x:Key="DarkComboBoxToggleButton" TargetType="ToggleButton">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition/>
+                    <ColumnDefinition Width="20"/>
+                </Grid.ColumnDefinitions>
+                <Border x:Name="Border" Grid.ColumnSpan="2"
+                        Background="{StaticResource BgElevated}"
+                        BorderBrush="{StaticResource BgBorder}"
+                        BorderThickness="1" CornerRadius="4"/>
+                <Path x:Name="Arrow" Grid.Column="1"
+                      Data="M 0 0 L 4 4 L 8 0 Z"
+                      Fill="{StaticResource TextMuted}"
+                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Grid>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="Border" Property="BorderBrush" Value="{StaticResource AccentIndigo}"/>
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+
+        <Style TargetType="ComboBox">
             <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="Background" Value="{StaticResource BgElevated}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BgBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton x:Name="ToggleButton"
+                                          Template="{StaticResource DarkComboBoxToggleButton}"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                          Focusable="False" ClickMode="Press"/>
+                            <ContentPresenter x:Name="ContentSite"
+                                              Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                              Margin="10,3,23,3"
+                                              VerticalAlignment="Center"
+                                              HorizontalAlignment="Left"
+                                              IsHitTestVisible="False"/>
+                            <Popup x:Name="Popup" IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   Placement="Bottom" Focusable="False" AllowsTransparency="True">
+                                <Grid x:Name="DropDown" MinWidth="{TemplateBinding ActualWidth}"
+                                      MaxHeight="{TemplateBinding MaxDropDownHeight}" SnapsToDevicePixels="True">
+                                    <Border x:Name="DropDownBorder"
+                                            Background="{StaticResource BgCard}"
+                                            BorderBrush="{StaticResource BgBorder}"
+                                            BorderThickness="1" CornerRadius="4" Margin="0,2,0,0">
+                                        <ScrollViewer Margin="4" SnapsToDevicePixels="True">
+                                            <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                        </ScrollViewer>
+                                    </Border>
+                                </Grid>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                Padding="{TemplateBinding Padding}" CornerRadius="3">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource BgSurface}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentIndigo}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- DARK TABCONTROL STYLE -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <Style TargetType="TabControl">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="0"/>
-            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-            <Setter Property="HorizontalAlignment" Value="Stretch"/>
         </Style>
 
-        <!-- Indicator Card Style -->
-        <Style x:Key="IndicatorCard" TargetType="Border">
-            <Setter Property="Background" Value="{StaticResource BgSecondary}"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="16,12"/>
-            <Setter Property="Margin" Value="4"/>
-            <Setter Property="MinWidth" Value="180"/>
-        </Style>
-
-        <!-- Alert Panel Style -->
-        <Style x:Key="AlertPanel" TargetType="Border">
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Padding" Value="12,8"/>
-            <Setter Property="Margin" Value="0,4"/>
-        </Style>
-
-        <!-- Article Card Style -->
-        <Style x:Key="ArticleCard" TargetType="Border">
-            <Setter Property="Background" Value="{StaticResource BgSecondary}"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="16"/>
-            <Setter Property="Margin" Value="0,6"/>
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
-
-        <!-- Tab Style -->
         <Style TargetType="TabItem">
-            <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextMuted}"/>
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Padding" Value="16,8"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Style.Triggers>
-                <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Foreground" Value="{StaticResource AccentLight}"/>
-                </Trigger>
-            </Style.Triggers>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="Border" Background="Transparent"
+                                BorderBrush="Transparent" BorderThickness="0,0,0,2"
+                                Padding="14,10" Margin="0,0,4,0">
+                            <ContentPresenter x:Name="ContentSite"
+                                              ContentSource="Header"
+                                              VerticalAlignment="Center"
+                                              HorizontalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Border" Property="BorderBrush" Value="{StaticResource AccentIndigo}"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextBright}"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
-        <!-- Button Style -->
-        <Style x:Key="FilterButton" TargetType="Button">
-            <Setter Property="Background" Value="{StaticResource BgTertiary}"/>
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- DARK TEXTBOX STYLE -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <Style x:Key="DarkTextBox" TargetType="TextBox">
+            <Setter Property="Background" Value="{StaticResource BgSurface}"/>
             <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="12,6"/>
-            <Setter Property="Margin" Value="4,0"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BgBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="CaretBrush" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4" SnapsToDevicePixels="True">
+                            <ScrollViewer x:Name="PART_ContentHost" Focusable="False"
+                                          HorizontalScrollBarVisibility="Hidden"
+                                          VerticalScrollBarVisibility="Hidden"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource AccentBlue}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- BUTTON STYLES -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <Style x:Key="GhostButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BgBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="14,6"/>
+            <Setter Property="FontSize" Value="12"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                CornerRadius="4"
-                                Padding="{TemplateBinding Padding}">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4" Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource BgElevated}"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+        </Style>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- INDICATOR CARD STYLE -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <Style x:Key="IndicatorCard" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource BgCard}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BgBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="14,10"/>
+            <Setter Property="MinWidth" Value="155"/>
+            <Setter Property="MaxWidth" Value="200"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{StaticResource BgElevated}"/>
+                    <Setter Property="BorderBrush" Value="{StaticResource AccentIndigo}"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- ARTICLE CARD STYLE -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <Style x:Key="ArticleCard" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource BgCard}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BgBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource BgCardHover}"/>
+                    <Setter Property="BorderBrush" Value="{StaticResource AccentIndigo}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
     </Window.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
+            <RowDefinition Height="56"/>
             <RowDefinition Height="Auto"/>
-            <!-- Header -->
-            <RowDefinition Height="Auto"/>
-            <!-- Indicators -->
-            <RowDefinition Height="Auto"/>
-            <!-- Alerts -->
             <RowDefinition Height="*"/>
-            <!-- Content -->
         </Grid.RowDefinitions>
 
-        <!-- HEADER -->
-        <Border Grid.Row="0" Background="{StaticResource BgSecondary}" Padding="20,16">
-            <Grid>
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- ROW 0: HEADER BAR -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <Border Grid.Row="0" Background="{StaticResource BgSurface}"
+                BorderBrush="{StaticResource BgBorder}" BorderThickness="0,0,0,1">
+            <Grid Margin="20,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
+                <!-- LEFT: Title -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="📊" FontSize="28" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <Border Width="4" Height="4" CornerRadius="2"
+                            Background="{StaticResource AccentIndigo}"
+                            Margin="0,0,10,0" VerticalAlignment="Center"/>
                     <StackPanel>
                         <TextBlock Text="MARKET INTELLIGENCE"
-                                   FontSize="20" FontWeight="Bold"
-                                   Foreground="{StaticResource TextPrimary}"/>
-                        <TextBlock Text="Dashboard informacji rynkowych • Piórkowscy Sp. z o.o."
-                                   FontSize="12"
-                                   Foreground="{StaticResource TextSecondary}"/>
+                                   FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextBright}"
+                                   CharacterSpacing="80"/>
+                        <TextBlock Text="Piórkowscy • Ubojnia Drobiu • Brzeziny"
+                                   FontSize="11"
+                                   Foreground="{StaticResource TextSecondary}"
+                                   Margin="0,2,0,0"/>
                     </StackPanel>
                 </StackPanel>
 
+                <!-- RIGHT: DateTime + Refresh -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock x:Name="txtLastUpdate"
-                               Text="Ostatnia aktualizacja: --"
+                               Text="02.02.2026 18:08"
                                Foreground="{StaticResource TextMuted}"
+                               FontSize="11"
                                VerticalAlignment="Center"
                                Margin="0,0,16,0"/>
-                    <Button x:Name="btnRefresh" Content="🔄 Odśwież"
-                            Style="{StaticResource FilterButton}"
+                    <Button x:Name="btnRefresh" Content="Odśwież"
+                            Style="{StaticResource GhostButton}"
                             Click="BtnRefresh_Click"/>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- INDICATORS BAR -->
-        <Border Grid.Row="1" Background="{StaticResource BgPrimary}" Padding="16,8">
-            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-                <ItemsControl x:Name="icIndicators">
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- ROW 1: INDICATORS + ALERTS BAR -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <Border Grid.Row="1" Background="{StaticResource BgDeep}" Padding="16,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- LEFT: Indicators -->
+                <ItemsControl x:Name="icIndicators" Grid.Column="0">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Orientation="Horizontal"/>
+                            <WrapPanel Orientation="Horizontal"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Style="{StaticResource IndicatorCard}" Cursor="Hand">
+                            <Border Style="{StaticResource IndicatorCard}">
                                 <StackPanel>
                                     <TextBlock Text="{Binding Name}"
-                                               Foreground="{StaticResource TextSecondary}"
-                                               FontSize="11"
+                                               Foreground="{StaticResource TextMuted}"
+                                               FontSize="10"
+                                               FontWeight="Medium"
                                                Margin="0,0,0,4"/>
-                                    <StackPanel Orientation="Horizontal">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding DisplayValue}"
-                                                   Foreground="{StaticResource TextPrimary}"
-                                                   FontSize="18"
+                                                   Foreground="{StaticResource TextBright}"
+                                                   FontSize="20"
                                                    FontWeight="Bold"/>
                                         <TextBlock Text="{Binding TrendIcon}"
-                                                   FontSize="14"
+                                                   FontSize="12"
                                                    Margin="8,0,0,0"
                                                    VerticalAlignment="Center">
                                             <TextBlock.Style>
@@ -182,10 +446,10 @@
                                                     <Setter Property="Foreground" Value="{StaticResource TextMuted}"/>
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding Trend}" Value="up">
-                                                            <Setter Property="Foreground" Value="{StaticResource StatusSuccess}"/>
+                                                            <Setter Property="Foreground" Value="#34D399"/>
                                                         </DataTrigger>
                                                         <DataTrigger Binding="{Binding Trend}" Value="down">
-                                                            <Setter Property="Foreground" Value="{StaticResource StatusDanger}"/>
+                                                            <Setter Property="Foreground" Value="#F87171"/>
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
@@ -201,76 +465,103 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-            </ScrollViewer>
+
+                <!-- RIGHT: Compact Alerts (max 2) -->
+                <StackPanel x:Name="pnlAlerts" Grid.Column="1" Orientation="Horizontal"
+                            VerticalAlignment="Center" Visibility="Collapsed">
+                    <ItemsControl x:Name="icAlerts">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border CornerRadius="6" Padding="10,6" Margin="0,0,8,0"
+                                        MaxWidth="280" Cursor="Hand">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="{StaticResource InfoBg}"/>
+                                            <Setter Property="BorderBrush" Value="{StaticResource InfoBorder}"/>
+                                            <Setter Property="BorderThickness" Value="1"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Severity}" Value="critical">
+                                                    <Setter Property="Background" Value="{StaticResource CriticalBg}"/>
+                                                    <Setter Property="BorderBrush" Value="{StaticResource CriticalBorder}"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Severity}" Value="warning">
+                                                    <Setter Property="Background" Value="{StaticResource WarningBg}"/>
+                                                    <Setter Property="BorderBrush" Value="{StaticResource WarningBorder}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="3"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0" CornerRadius="2" Margin="0,0,8,0">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="{StaticResource Info}"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Severity}" Value="critical">
+                                                            <Setter Property="Background" Value="{StaticResource Critical}"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Severity}" Value="warning">
+                                                            <Setter Property="Background" Value="{StaticResource Warning}"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                        </Border>
+                                        <TextBlock Grid.Column="1" Text="{Binding Title}"
+                                                   Foreground="{StaticResource TextPrimary}"
+                                                   FontSize="11"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Grid>
         </Border>
 
-        <!-- ALERTS PANEL -->
-        <Border x:Name="pnlAlerts" Grid.Row="2" Background="{StaticResource BgPrimary}" Padding="16,8" Visibility="Collapsed">
-            <ItemsControl x:Name="icAlerts">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Border>
-                            <Border.Style>
-                                <Style TargetType="Border" BasedOn="{StaticResource AlertPanel}">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding Severity}" Value="critical">
-                                            <Setter Property="Background" Value="#7F1D1D"/>
-                                            <Setter Property="BorderBrush" Value="#EF4444"/>
-                                            <Setter Property="BorderThickness" Value="1"/>
-                                        </DataTrigger>
-                                        <DataTrigger Binding="{Binding Severity}" Value="warning">
-                                            <Setter Property="Background" Value="#78350F"/>
-                                            <Setter Property="BorderBrush" Value="#F59E0B"/>
-                                            <Setter Property="BorderThickness" Value="1"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Border.Style>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="{Binding SeverityIcon}"
-                                           FontSize="16" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                                <TextBlock Grid.Column="1" Text="{Binding Title}"
-                                           Foreground="{StaticResource TextPrimary}"
-                                           FontWeight="SemiBold"
-                                           TextWrapping="Wrap"
-                                           VerticalAlignment="Center"/>
-                                <TextBlock Grid.Column="2" Text="{Binding FormattedDate}"
-                                           Foreground="{StaticResource TextMuted}"
-                                           VerticalAlignment="Center"
-                                           Margin="12,0,0,0"/>
-                            </Grid>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </Border>
-
-        <!-- MAIN CONTENT -->
-        <Grid Grid.Row="3" Margin="16">
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- ROW 2: MAIN CONTENT -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <Grid Grid.Row="2" Margin="16">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*"/>
+                <ColumnDefinition Width="16"/>
                 <ColumnDefinition Width="2*"/>
-                <!-- Articles List -->
-                <ColumnDefinition Width="8"/>
-                <ColumnDefinition Width="*"/>
-                <!-- Side Panel -->
             </Grid.ColumnDefinitions>
 
+            <!-- ═══════════════════════════════════════════════════════════ -->
             <!-- LEFT: ARTICLES LIST -->
-            <Border Grid.Column="0" Background="{StaticResource BgSecondary}" CornerRadius="8" Padding="16">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
 
-                    <!-- Filters -->
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,16">
-                        <ComboBox x:Name="cmbCategory" Width="150" Margin="0,0,8,0"
+                <!-- TOOLBAR / FILTERS -->
+                <Border Grid.Row="0" Background="{StaticResource BgCard}"
+                        CornerRadius="8,8,0,0" Padding="12,10"
+                        BorderBrush="{StaticResource BgBorder}" BorderThickness="1,1,1,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <ComboBox x:Name="cmbCategory" Grid.Column="0" Width="140" Margin="0,0,8,0"
                                   SelectionChanged="CmbCategory_SelectionChanged">
                             <ComboBoxItem Content="Wszystkie" IsSelected="True"/>
                             <ComboBoxItem Content="HPAI"/>
@@ -281,36 +572,50 @@
                             <ComboBoxItem Content="Regulacje"/>
                             <ComboBoxItem Content="Swiat"/>
                             <ComboBoxItem Content="Klienci"/>
-                            <ComboBoxItem Content="Pogoda"/>
                         </ComboBox>
-                        <ComboBox x:Name="cmbSeverity" Width="120" Margin="0,0,8,0"
+
+                        <ComboBox x:Name="cmbSeverity" Grid.Column="1" Width="130" Margin="0,0,8,0"
                                   SelectionChanged="CmbSeverity_SelectionChanged">
                             <ComboBoxItem Content="Wszystkie" IsSelected="True"/>
-                            <ComboBoxItem Content="critical"/>
-                            <ComboBoxItem Content="warning"/>
-                            <ComboBoxItem Content="info"/>
-                            <ComboBoxItem Content="positive"/>
+                            <ComboBoxItem Content="🔴 Krytyczne" Tag="critical"/>
+                            <ComboBoxItem Content="🟠 Ostrzeżenia" Tag="warning"/>
+                            <ComboBoxItem Content="🔵 Info" Tag="info"/>
+                            <ComboBoxItem Content="🟢 Pozytywne" Tag="positive"/>
                         </ComboBox>
-                        <TextBox x:Name="txtSearch" Width="200"
-                                 Background="{StaticResource BgTertiary}"
-                                 Foreground="{StaticResource TextPrimary}"
-                                 BorderThickness="0" Padding="8,6"
-                                 Text=""
-                                 TextChanged="TxtSearch_TextChanged">
-                            <TextBox.Style>
-                                <Style TargetType="TextBox">
-                                    <Style.Triggers>
-                                        <Trigger Property="Text" Value="">
-                                            <Setter Property="Background" Value="{StaticResource BgTertiary}"/>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBox.Style>
-                        </TextBox>
-                    </StackPanel>
 
-                    <!-- Articles -->
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <Grid Grid.Column="2" Margin="0,0,12,0">
+                            <TextBox x:Name="txtSearch" Style="{StaticResource DarkTextBox}"
+                                     TextChanged="TxtSearch_TextChanged"/>
+                            <TextBlock Text="Szukaj..." IsHitTestVisible="False"
+                                       Foreground="{StaticResource TextMuted}"
+                                       FontSize="12" Margin="12,0,0,0"
+                                       VerticalAlignment="Center">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Text, ElementName=txtSearch}" Value="">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
+
+                        <TextBlock x:Name="txtArticleCount" Grid.Column="3"
+                                   Text="47 artykułów"
+                                   Foreground="{StaticResource TextMuted}"
+                                   FontSize="11"
+                                   VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
+                <!-- ARTICLES LIST -->
+                <Border Grid.Row="1" Background="{StaticResource BgCard}"
+                        CornerRadius="0,0,8,8"
+                        BorderBrush="{StaticResource BgBorder}" BorderThickness="1,0,1,1">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12">
                         <ItemsControl x:Name="icArticles" HorizontalContentAlignment="Stretch">
                             <ItemsControl.ItemContainerStyle>
                                 <Style TargetType="ContentPresenter">
@@ -319,133 +624,133 @@
                             </ItemsControl.ItemContainerStyle>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Style="{StaticResource ArticleCard}" Tag="{Binding Id}">
-                                        <Expander IsExpanded="False" HorizontalContentAlignment="Stretch" HorizontalAlignment="Stretch">
-                                            <Expander.Header>
-                                                <Grid HorizontalAlignment="Stretch">
-                                                    <Grid.RowDefinitions>
-                                                        <RowDefinition Height="Auto"/>
-                                                        <RowDefinition Height="Auto"/>
-                                                        <RowDefinition Height="Auto"/>
-                                                    </Grid.RowDefinitions>
+                                    <Border Style="{StaticResource ArticleCard}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="4"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
 
-                                                    <!-- Header -->
-                                                    <Grid Grid.Row="0">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <TextBlock Grid.Column="0" Text="{Binding SeverityIcon}"
-                                                                   FontSize="18" Margin="0,0,10,0" VerticalAlignment="Top"/>
-                                                        <TextBlock Grid.Column="1" Text="{Binding Title}"
-                                                                   Foreground="{StaticResource TextPrimary}"
-                                                                   FontWeight="SemiBold"
-                                                                   FontSize="13"
-                                                                   TextWrapping="Wrap"/>
-                                                        <TextBlock Grid.Column="2" Text="{Binding FormattedDate}"
-                                                                   Foreground="{StaticResource TextMuted}"
-                                                                   FontSize="11" Margin="8,0,0,0"/>
-                                                    </Grid>
+                                            <!-- SEVERITY BAR -->
+                                            <Border Grid.Column="0" CornerRadius="2" Margin="0,0,0,0">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="{StaticResource Info}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Severity}" Value="critical">
+                                                                <Setter Property="Background" Value="{StaticResource Critical}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Severity}" Value="warning">
+                                                                <Setter Property="Background" Value="{StaticResource Warning}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Severity}" Value="positive">
+                                                                <Setter Property="Background" Value="{StaticResource Success}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                            </Border>
 
-                                                    <!-- Meta -->
-                                                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="28,6,0,0">
-                                                        <Border CornerRadius="4" Padding="8,3" Margin="0,0,8,0">
-                                                            <Border.Style>
-                                                                <Style TargetType="Border">
-                                                                    <Setter Property="Background" Value="{StaticResource BgTertiary}"/>
+                                            <!-- CONTENT -->
+                                            <StackPanel Grid.Column="1" Margin="14,12,12,12">
+                                                <!-- META ROW -->
+                                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                                    <!-- Severity Badge -->
+                                                    <Border CornerRadius="3" Padding="6,2" Margin="0,0,8,0">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="Background" Value="{StaticResource InfoBg}"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding Severity}" Value="critical">
+                                                                        <Setter Property="Background" Value="{StaticResource CriticalBg}"/>
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding Severity}" Value="warning">
+                                                                        <Setter Property="Background" Value="{StaticResource WarningBg}"/>
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding Severity}" Value="positive">
+                                                                        <Setter Property="Background" Value="{StaticResource SuccessBg}"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                        <TextBlock FontSize="9" FontWeight="Bold">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Foreground" Value="{StaticResource InfoText}"/>
+                                                                    <Setter Property="Text" Value="INFO"/>
                                                                     <Style.Triggers>
                                                                         <DataTrigger Binding="{Binding Severity}" Value="critical">
-                                                                            <Setter Property="Background" Value="#7F1D1D"/>
+                                                                            <Setter Property="Foreground" Value="{StaticResource CriticalText}"/>
+                                                                            <Setter Property="Text" Value="KRYTYCZNE"/>
                                                                         </DataTrigger>
                                                                         <DataTrigger Binding="{Binding Severity}" Value="warning">
-                                                                            <Setter Property="Background" Value="#78350F"/>
+                                                                            <Setter Property="Foreground" Value="{StaticResource WarningText}"/>
+                                                                            <Setter Property="Text" Value="OSTRZEŻENIE"/>
                                                                         </DataTrigger>
                                                                         <DataTrigger Binding="{Binding Severity}" Value="positive">
-                                                                            <Setter Property="Background" Value="#14532D"/>
+                                                                            <Setter Property="Foreground" Value="{StaticResource SuccessText}"/>
+                                                                            <Setter Property="Text" Value="POZYTYWNE"/>
                                                                         </DataTrigger>
                                                                     </Style.Triggers>
                                                                 </Style>
-                                                            </Border.Style>
-                                                            <TextBlock Text="{Binding CategoryBadge}"
-                                                                       Foreground="{StaticResource TextSecondary}"
-                                                                       FontSize="10" FontWeight="SemiBold"/>
-                                                        </Border>
-                                                        <TextBlock Text="{Binding Source}"
-                                                                   Foreground="{StaticResource TextMuted}"
-                                                                   FontSize="11"
-                                                                   VerticalAlignment="Center"/>
-                                                    </StackPanel>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                    </Border>
+                                                    <TextBlock Text=" • " Foreground="{StaticResource TextMuted}" FontSize="11"/>
+                                                    <TextBlock Text="{Binding Category}" Foreground="{StaticResource TextSecondary}" FontSize="11"/>
+                                                    <TextBlock Text=" • " Foreground="{StaticResource TextMuted}" FontSize="11"/>
+                                                    <TextBlock Text="{Binding Source}" Foreground="{StaticResource AccentBlue}" FontSize="11"/>
+                                                    <TextBlock Text="{Binding FormattedDate}"
+                                                               Foreground="{StaticResource TextMuted}"
+                                                               FontSize="11"
+                                                               HorizontalAlignment="Right"
+                                                               Margin="20,0,0,0"/>
+                                                </StackPanel>
 
-                                                    <!-- Body Preview -->
-                                                    <TextBlock Grid.Row="2" Text="{Binding ShortBody}"
-                                                               Foreground="{StaticResource TextSecondary}"
-                                                               FontSize="12"
-                                                               TextWrapping="Wrap"
-                                                               Margin="28,6,0,0"
-                                                               MaxHeight="45"
-                                                               TextTrimming="CharacterEllipsis"/>
-                                                </Grid>
-                                            </Expander.Header>
+                                                <!-- TITLE -->
+                                                <TextBlock Text="{Binding Title}"
+                                                           Foreground="{StaticResource TextBright}"
+                                                           FontSize="14" FontWeight="SemiBold"
+                                                           TextWrapping="Wrap"
+                                                           LineHeight="20"
+                                                           Margin="0,0,0,6"/>
 
-                                            <!-- Expanded Content -->
-                                            <StackPanel Margin="28,12,0,0">
-                                                <!-- Full Body -->
-                                                <TextBlock Text="{Binding Body}"
+                                                <!-- BODY PREVIEW -->
+                                                <TextBlock Text="{Binding ShortBody}"
                                                            Foreground="{StaticResource TextSecondary}"
                                                            FontSize="12"
-                                                           LineHeight="20"
                                                            TextWrapping="Wrap"
-                                                           Margin="0,0,0,12"/>
-
-                                                <!-- AI Analysis Box -->
-                                                <Border Background="#1E293B" CornerRadius="6" Padding="12"
-                                                        BorderBrush="#F59E0B" BorderThickness="1,0,0,0"
-                                                        Visibility="{Binding HasAiAnalysis, Converter={StaticResource BoolToVisibility}}">
-                                                    <StackPanel>
-                                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                                            <TextBlock Text="🤖" FontSize="14" Margin="0,0,6,0"/>
-                                                            <TextBlock Text="ANALIZA AI DLA PIÓRKOWSCY"
-                                                                       Foreground="#F59E0B"
-                                                                       FontWeight="Bold"
-                                                                       FontSize="11"/>
-                                                        </StackPanel>
-                                                        <TextBlock Text="{Binding AiAnalysis}"
-                                                                   Foreground="{StaticResource TextPrimary}"
-                                                                   FontSize="12"
-                                                                   LineHeight="20"
-                                                                   TextWrapping="Wrap"/>
-                                                    </StackPanel>
-                                                </Border>
-
-                                                <!-- Tags -->
-                                                <TextBlock Text="{Binding Tags, StringFormat='Tagi: {0}'}"
-                                                           Foreground="{StaticResource TextMuted}"
-                                                           FontSize="10"
-                                                           Margin="0,10,0,0"
-                                                           Visibility="{Binding HasTags, Converter={StaticResource BoolToVisibility}}"/>
+                                                           MaxHeight="40"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           LineHeight="18"
+                                                           Opacity="0.85"/>
                                             </StackPanel>
-                                        </Expander>
+                                        </Grid>
                                     </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </ScrollViewer>
-                </Grid>
-            </Border>
+                </Border>
+            </Grid>
 
+            <!-- ═══════════════════════════════════════════════════════════ -->
             <!-- RIGHT: SIDE PANEL -->
-            <Border Grid.Column="2" Background="{StaticResource BgSecondary}" CornerRadius="8">
-                <TabControl Background="Transparent" BorderThickness="0">
-                    <TabItem Header="💰 Ceny">
-                        <ScrollViewer Padding="16">
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <Border Grid.Column="2" Background="{StaticResource BgCard}"
+                    CornerRadius="8"
+                    BorderBrush="{StaticResource BgBorder}" BorderThickness="1">
+                <TabControl>
+                    <!-- TAB: CENY -->
+                    <TabItem Header="Ceny">
+                        <ScrollViewer Padding="14">
                             <StackPanel x:Name="pnlPrices">
-                                <!-- Wykres historii cen skupu -->
-                                <TextBlock Text="Historia cen skupu (30 dni)"
-                                           Foreground="{StaticResource TextPrimary}"
-                                           FontWeight="Bold" FontSize="14"
+                                <!-- Price History Chart -->
+                                <TextBlock Text="SKUP WOLNY RYNEK (30 DNI)"
+                                           Foreground="{StaticResource TextMuted}"
+                                           FontSize="10" FontWeight="Medium"
                                            Margin="0,0,0,8"/>
-                                <Border Background="{StaticResource BgTertiary}" CornerRadius="6" Padding="8" Height="180">
+                                <Border Background="Transparent" Height="160" Margin="0,0,0,16">
                                     <lvc:CartesianChart x:Name="chartPriceHistory"
                                                         DisableAnimations="True"
                                                         Hoverable="True"
@@ -454,71 +759,80 @@
                                             <lvc:Axis x:Name="axisXPriceHistory"
                                                       ShowLabels="True"
                                                       Foreground="{StaticResource TextMuted}"
-                                                      FontSize="10"/>
+                                                      FontSize="9">
+                                                <lvc:Axis.Separator>
+                                                    <lvc:Separator StrokeThickness="0" IsEnabled="False"/>
+                                                </lvc:Axis.Separator>
+                                            </lvc:Axis>
                                         </lvc:CartesianChart.AxisX>
                                         <lvc:CartesianChart.AxisY>
                                             <lvc:Axis MinValue="4" MaxValue="5.5"
                                                       Foreground="{StaticResource TextMuted}"
-                                                      FontSize="10">
+                                                      FontSize="9">
                                                 <lvc:Axis.Separator>
-                                                    <lvc:Separator StrokeThickness="0.5" Stroke="#334155"/>
+                                                    <lvc:Separator StrokeThickness="0.5" Stroke="#1F2937" StrokeDashArray="4 4"/>
                                                 </lvc:Axis.Separator>
                                             </lvc:Axis>
                                         </lvc:CartesianChart.AxisY>
                                     </lvc:CartesianChart>
                                 </Border>
 
-                                <!-- Wykres elementów -->
-                                <TextBlock Text="Ceny elementów (zł/kg)"
-                                           Foreground="{StaticResource TextPrimary}"
-                                           FontWeight="Bold" FontSize="14"
-                                           Margin="0,16,0,8"/>
-                                <Border Background="{StaticResource BgTertiary}" CornerRadius="6" Padding="8" Height="200">
-                                    <lvc:CartesianChart x:Name="chartElements"
-                                                        DisableAnimations="True">
+                                <!-- Elements Chart -->
+                                <TextBlock Text="CENY ELEMENTÓW (ZŁ/KG)"
+                                           Foreground="{StaticResource TextMuted}"
+                                           FontSize="10" FontWeight="Medium"
+                                           Margin="0,0,0,8"/>
+                                <Border Background="Transparent" Height="180" Margin="0,0,0,16">
+                                    <lvc:CartesianChart x:Name="chartElements" DisableAnimations="True">
                                         <lvc:CartesianChart.AxisX>
                                             <lvc:Axis x:Name="axisXElements"
                                                       ShowLabels="True"
                                                       Foreground="{StaticResource TextMuted}"
-                                                      FontSize="10"
-                                                      LabelsRotation="-45"/>
+                                                      FontSize="9">
+                                                <lvc:Axis.Separator>
+                                                    <lvc:Separator StrokeThickness="0" IsEnabled="False"/>
+                                                </lvc:Axis.Separator>
+                                            </lvc:Axis>
                                         </lvc:CartesianChart.AxisX>
                                         <lvc:CartesianChart.AxisY>
                                             <lvc:Axis MinValue="0"
                                                       Foreground="{StaticResource TextMuted}"
-                                                      FontSize="10">
+                                                      FontSize="9">
                                                 <lvc:Axis.Separator>
-                                                    <lvc:Separator StrokeThickness="0.5" Stroke="#334155"/>
+                                                    <lvc:Separator StrokeThickness="0.5" Stroke="#1F2937" StrokeDashArray="4 4"/>
                                                 </lvc:Axis.Separator>
                                             </lvc:Axis>
                                         </lvc:CartesianChart.AxisY>
                                     </lvc:CartesianChart>
                                 </Border>
 
-                                <!-- Ceny pasz -->
-                                <TextBlock Text="Pasze MATIF (EUR/t)"
-                                           Foreground="{StaticResource TextPrimary}"
-                                           FontWeight="Bold" FontSize="14"
-                                           Margin="0,16,0,8"/>
-                                <StackPanel x:Name="pnlFeedPrices"/>
+                                <!-- Feed Prices -->
+                                <TextBlock Text="PASZE MATIF"
+                                           Foreground="{StaticResource TextMuted}"
+                                           FontSize="10" FontWeight="Medium"
+                                           Margin="0,0,0,8"/>
+                                <UniformGrid Columns="3" x:Name="pnlFeedPrices"/>
                             </StackPanel>
                         </ScrollViewer>
                     </TabItem>
-                    <TabItem Header="🏢 Konkurencja">
-                        <ScrollViewer Padding="16">
+
+                    <!-- TAB: KONKURENCJA -->
+                    <TabItem Header="Konkurencja">
+                        <ScrollViewer Padding="14">
                             <ItemsControl x:Name="icCompetitors">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Background="{StaticResource BgTertiary}"
-                                                CornerRadius="6" Padding="12" Margin="0,0,0,8">
+                                        <Border Background="{StaticResource BgSurface}"
+                                                CornerRadius="6" Padding="12" Margin="0,0,0,6">
                                             <StackPanel>
                                                 <TextBlock Text="{Binding NameDisplay}"
-                                                           Foreground="{StaticResource TextPrimary}"
-                                                           FontWeight="SemiBold"/>
+                                                           Foreground="{StaticResource TextBright}"
+                                                           FontSize="13" FontWeight="SemiBold"/>
                                                 <TextBlock Text="{Binding OwnershipDisplay}"
                                                            Foreground="{StaticResource TextSecondary}"
-                                                           FontSize="11" Margin="0,4,0,0"/>
-                                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                           FontSize="11" Margin="0,4,0,0"
+                                                           TextWrapping="Wrap"/>
+                                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
                                                     <TextBlock Text="{Binding Revenue}"
                                                                Foreground="{StaticResource TextMuted}"
                                                                FontSize="10"/>
@@ -534,56 +848,51 @@
                             </ItemsControl>
                         </ScrollViewer>
                     </TabItem>
-                    <TabItem Header="🦠 HPAI">
-                        <ScrollViewer Padding="16">
+
+                    <!-- TAB: HPAI -->
+                    <TabItem Header="HPAI">
+                        <ScrollViewer Padding="14">
                             <StackPanel>
                                 <TextBlock x:Name="txtHpaiSummary"
                                            Text="Ogniska HPAI 2026"
-                                           Foreground="{StaticResource TextPrimary}"
-                                           FontWeight="Bold" FontSize="16"
+                                           Foreground="{StaticResource TextBright}"
+                                           FontWeight="SemiBold" FontSize="14"
                                            Margin="0,0,0,12"/>
 
-                                <!-- Mapa Polski z ogniskami -->
-                                <Border Background="{StaticResource BgTertiary}" CornerRadius="6" Padding="8" Height="200" Margin="0,0,0,12">
+                                <!-- Poland Map -->
+                                <Border Background="{StaticResource BgSurface}"
+                                        CornerRadius="6" Padding="8" Height="180" Margin="0,0,0,12">
                                     <Grid>
-                                        <Canvas x:Name="canvasPolandMap" Background="Transparent" Width="220" Height="180">
-                                            <!-- Kontury Polski (uproszczone) -->
-                                            <Path Stroke="#475569" StrokeThickness="1" Fill="#1E293B"
+                                        <Canvas x:Name="canvasPolandMap" Background="Transparent"
+                                                Width="200" Height="160">
+                                            <Path Stroke="#374151" StrokeThickness="1" Fill="#1F2937"
                                                   Data="M 80,20 L 120,15 L 160,25 L 180,45 L 175,80 L 185,110 L 170,140 L 140,160 L 100,165 L 60,150 L 40,120 L 35,80 L 50,50 L 80,20 Z"/>
-                                            <!-- Brzeziny (nasz zakład) - Łódzkie oznaczone żółtym (nasz region) -->
-                                            <Ellipse Canvas.Left="95" Canvas.Top="85" Width="10" Height="10" Fill="#FBBF24" Stroke="#F59E0B" StrokeThickness="2" ToolTip="🏭 Brzeziny - nasz zakład (łódzkie)"/>
+                                            <Ellipse Canvas.Left="95" Canvas.Top="85" Width="10" Height="10"
+                                                     Fill="#FBBF24" Stroke="#F59E0B" StrokeThickness="2"
+                                                     ToolTip="Brzeziny - nasz zakład"/>
                                         </Canvas>
-                                        <!-- Legenda -->
                                         <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="8">
                                             <StackPanel Orientation="Horizontal" Margin="0,2">
                                                 <Ellipse Width="8" Height="8" Fill="#EF4444" Margin="0,0,6,0"/>
                                                 <TextBlock Text="Ognisko HPAI" Foreground="{StaticResource TextMuted}" FontSize="9"/>
                                             </StackPanel>
                                             <StackPanel Orientation="Horizontal" Margin="0,2">
-                                                <Ellipse Width="8" Height="8" Fill="#FBBF24" Stroke="#F59E0B" StrokeThickness="1" Margin="0,0,6,0"/>
-                                                <TextBlock Text="Brzeziny (łódzkie)" Foreground="{StaticResource TextMuted}" FontSize="9"/>
+                                                <Ellipse Width="8" Height="8" Fill="#FBBF24" Margin="0,0,6,0"/>
+                                                <TextBlock Text="Brzeziny" Foreground="{StaticResource TextMuted}" FontSize="9"/>
                                             </StackPanel>
                                         </StackPanel>
-                                        <!-- Status -->
-                                        <TextBlock x:Name="txtMapStatus"
-                                                   Text="Mapa ognisk HPAI w Polsce"
-                                                   Foreground="{StaticResource TextMuted}"
-                                                   FontSize="10"
-                                                   HorizontalAlignment="Right"
-                                                   VerticalAlignment="Top"
-                                                   Margin="8"/>
                                     </Grid>
                                 </Border>
 
-                                <TextBlock Text="Lista ognisk wg regionów"
-                                           Foreground="{StaticResource TextSecondary}"
-                                           FontWeight="SemiBold" FontSize="12"
+                                <TextBlock Text="OGNISKA WG REGIONÓW"
+                                           Foreground="{StaticResource TextMuted}"
+                                           FontSize="10" FontWeight="Medium"
                                            Margin="0,0,0,8"/>
                                 <ItemsControl x:Name="icHpai">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Background="{StaticResource BgTertiary}"
-                                                    CornerRadius="6" Padding="12" Margin="0,0,0,8">
+                                            <Border Background="{StaticResource BgSurface}"
+                                                    CornerRadius="6" Padding="12" Margin="0,0,0,6">
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="*"/>
@@ -592,18 +901,15 @@
                                                     <StackPanel Grid.Column="0">
                                                         <TextBlock Text="{Binding RegionDisplay}"
                                                                    Foreground="{StaticResource TextPrimary}"
-                                                                   FontWeight="SemiBold"/>
+                                                                   FontWeight="SemiBold" FontSize="12"/>
                                                         <TextBlock Text="{Binding BirdsAffectedDisplay}"
                                                                    Foreground="{StaticResource TextSecondary}"
-                                                                   FontSize="11"/>
+                                                                   FontSize="10"/>
                                                     </StackPanel>
                                                     <StackPanel Grid.Column="1" HorizontalAlignment="Right">
                                                         <TextBlock Text="{Binding OutbreakCount}"
-                                                                   Foreground="{StaticResource StatusDanger}"
-                                                                   FontSize="20" FontWeight="Bold"/>
-                                                        <TextBlock Text="ognisk"
-                                                                   Foreground="{StaticResource TextMuted}"
-                                                                   FontSize="10"/>
+                                                                   Foreground="{StaticResource Critical}"
+                                                                   FontSize="18" FontWeight="Bold"/>
                                                     </StackPanel>
                                                 </Grid>
                                             </Border>
@@ -613,72 +919,77 @@
                             </StackPanel>
                         </ScrollViewer>
                     </TabItem>
-                    <TabItem Header="🇪🇺 EU Benchmark">
-                        <ScrollViewer Padding="16">
+
+                    <!-- TAB: EU BENCHMARK -->
+                    <TabItem Header="EU Benchmark">
+                        <ScrollViewer Padding="14">
                             <StackPanel>
-                                <TextBlock Text="Ceny drobiu w UE (EUR/100kg)"
-                                           Foreground="{StaticResource TextPrimary}"
-                                           FontWeight="Bold" FontSize="16"
+                                <TextBlock Text="CENY DROBIU W UE (EUR/100KG)"
+                                           Foreground="{StaticResource TextMuted}"
+                                           FontSize="10" FontWeight="Medium"
                                            Margin="0,0,0,12"/>
 
-                                <!-- Wykres słupkowy EU Benchmark -->
-                                <Border Background="{StaticResource BgTertiary}" CornerRadius="6" Padding="8" Height="220" Margin="0,0,0,16">
-                                    <lvc:CartesianChart x:Name="chartEuBenchmark"
-                                                        DisableAnimations="True">
+                                <!-- Benchmark Chart -->
+                                <Border Background="Transparent" Height="200" Margin="0,0,0,16">
+                                    <lvc:CartesianChart x:Name="chartEuBenchmark" DisableAnimations="True">
                                         <lvc:CartesianChart.AxisX>
                                             <lvc:Axis x:Name="axisXBenchmark"
                                                       ShowLabels="True"
                                                       Foreground="{StaticResource TextMuted}"
-                                                      FontSize="10"/>
+                                                      FontSize="9">
+                                                <lvc:Axis.Separator>
+                                                    <lvc:Separator StrokeThickness="0" IsEnabled="False"/>
+                                                </lvc:Axis.Separator>
+                                            </lvc:Axis>
                                         </lvc:CartesianChart.AxisX>
                                         <lvc:CartesianChart.AxisY>
                                             <lvc:Axis MinValue="0" MaxValue="280"
                                                       Foreground="{StaticResource TextMuted}"
-                                                      FontSize="10">
+                                                      FontSize="9">
                                                 <lvc:Axis.Separator>
-                                                    <lvc:Separator StrokeThickness="0.5" Stroke="#334155"/>
+                                                    <lvc:Separator StrokeThickness="0.5" Stroke="#1F2937" StrokeDashArray="4 4"/>
                                                 </lvc:Axis.Separator>
                                             </lvc:Axis>
                                         </lvc:CartesianChart.AxisY>
                                     </lvc:CartesianChart>
                                 </Border>
 
-                                <TextBlock Text="Szczegóły"
-                                           Foreground="{StaticResource TextSecondary}"
-                                           FontWeight="SemiBold" FontSize="12"
+                                <TextBlock Text="SZCZEGÓŁY"
+                                           Foreground="{StaticResource TextMuted}"
+                                           FontSize="10" FontWeight="Medium"
                                            Margin="0,0,0,8"/>
                                 <ItemsControl x:Name="icBenchmark">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Background="{StaticResource BgTertiary}"
-                                                    CornerRadius="6" Padding="12" Margin="0,0,0,6">
+                                            <Border Background="{StaticResource BgSurface}"
+                                                    CornerRadius="6" Padding="10" Margin="0,0,0,4">
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="30"/>
                                                         <ColumnDefinition Width="*"/>
                                                         <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="50"/>
                                                     </Grid.ColumnDefinitions>
                                                     <TextBlock Grid.Column="0" Text="{Binding CountryFlag}"
-                                                               FontSize="20" Margin="0,0,8,0"/>
-                                                    <TextBlock Grid.Column="1" Text="{Binding Country}"
+                                                               FontSize="16" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding CountryName}"
                                                                Foreground="{StaticResource TextPrimary}"
-                                                               FontWeight="SemiBold"
+                                                               FontSize="12"
                                                                VerticalAlignment="Center"/>
                                                     <TextBlock Grid.Column="2"
                                                                Text="{Binding PricePer100kg, StringFormat={}{0:N1}}"
-                                                               Foreground="{StaticResource TextPrimary}"
-                                                               FontWeight="Bold"
+                                                               Foreground="{StaticResource TextBright}"
+                                                               FontWeight="Bold" FontSize="12"
                                                                VerticalAlignment="Center"
-                                                               Margin="0,0,12,0"/>
+                                                               Margin="0,0,8,0"/>
                                                     <TextBlock Grid.Column="3" Text="{Binding ChangeDisplay}"
-                                                               VerticalAlignment="Center" FontSize="11">
+                                                               FontSize="10" VerticalAlignment="Center">
                                                         <TextBlock.Style>
                                                             <Style TargetType="TextBlock">
                                                                 <Setter Property="Foreground" Value="{StaticResource TextMuted}"/>
                                                                 <Style.Triggers>
                                                                     <DataTrigger Binding="{Binding ChangeMonthPercent, Converter={x:Static local:PositiveConverter.Instance}}" Value="True">
-                                                                        <Setter Property="Foreground" Value="{StaticResource StatusSuccess}"/>
+                                                                        <Setter Property="Foreground" Value="#34D399"/>
                                                                     </DataTrigger>
                                                                 </Style.Triggers>
                                                             </Style>
@@ -696,18 +1007,35 @@
             </Border>
         </Grid>
 
-        <!-- Loading Overlay -->
-        <Border x:Name="pnlLoading" Grid.RowSpan="4"
-                Background="#CC0F172A" Visibility="Visible">
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- LOADING OVERLAY -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <Border x:Name="pnlLoading" Grid.RowSpan="3"
+                Background="#E60B0F19" Visibility="Visible">
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                <TextBlock Text="⏳" FontSize="48" HorizontalAlignment="Center"/>
-                <TextBlock Text="Ładowanie danych Market Intelligence..."
-                           Foreground="{StaticResource TextPrimary}"
-                           FontSize="16" Margin="0,16,0,0"/>
+                <Border Background="{StaticResource AccentIndigo}"
+                        Width="200" Height="3" CornerRadius="2" Margin="0,0,0,16">
+                    <Border.Triggers>
+                        <EventTrigger RoutedEvent="Loaded">
+                            <BeginStoryboard>
+                                <Storyboard RepeatBehavior="Forever">
+                                    <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
+                                                     From="-200" To="200" Duration="0:0:1.5"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Border.Triggers>
+                    <Border.RenderTransform>
+                        <TranslateTransform/>
+                    </Border.RenderTransform>
+                </Border>
+                <TextBlock Text="Ładowanie danych..."
+                           Foreground="{StaticResource TextSecondary}"
+                           FontSize="13" HorizontalAlignment="Center"/>
                 <TextBlock x:Name="txtLoadingStatus"
-                           Text="Inicjalizacja tabel..."
+                           Text="Inicjalizacja..."
                            Foreground="{StaticResource TextMuted}"
-                           FontSize="12" Margin="0,8,0,0"/>
+                           FontSize="11" Margin="0,6,0,0" HorizontalAlignment="Center"/>
             </StackPanel>
         </Border>
     </Grid>

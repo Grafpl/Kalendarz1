@@ -376,7 +376,9 @@ namespace Kalendarz1.MarketIntelligence.Views
         {
             if (cmbSeverity?.SelectedItem is ComboBoxItem item)
             {
-                _currentSeverity = item.Content?.ToString() ?? "Wszystkie";
+                // Use Tag if available (contains actual severity value like "critical", "warning")
+                // Fall back to Content for "Wszystkie" which has no Tag
+                _currentSeverity = item.Tag?.ToString() ?? item.Content?.ToString() ?? "Wszystkie";
                 try
                 {
                     await RefreshArticlesAsync();
