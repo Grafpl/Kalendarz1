@@ -645,6 +645,13 @@ namespace Kalendarz1
             presetsBtn.Click += ShowPresets_Click;
             topToolbar.Controls.Add(presetsBtn);
 
+            btnX += 15;
+
+            // Przypisywanie klientów do handlowców
+            var przydzielKlientowBtn = CreateAnimatedButton("📊 Przypisz klientów", Color.FromArgb(0, 150, 136), ref btnX);
+            przydzielKlientowBtn.Click += PrzydzielKlientowButton_Click;
+            topToolbar.Controls.Add(przydzielKlientowBtn);
+
             // Wybrany użytkownik - elegancki badge
             selectedUserLabel = new Label
             {
@@ -1758,6 +1765,15 @@ namespace Kalendarz1
 
             var dialog = new EditOperatorContactDialog(connectionString, selectedUserId, userName);
             dialog.ShowDialog();
+        }
+
+        // ════════════════════════════════════════════════════════════════════════════════
+        // PRZYPISYWANIE KLIENTÓW DO HANDLOWCÓW
+        // ════════════════════════════════════════════════════════════════════════════════
+        private void PrzydzielKlientowButton_Click(object sender, EventArgs e)
+        {
+            var dialog = new PrzydzielKlientowDialog(connectionString);
+            dialog.Show();
         }
 
         // ════════════════════════════════════════════════════════════════════════════════

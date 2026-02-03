@@ -347,7 +347,10 @@ namespace Kalendarz1.CRM
                     LEFT JOIN WlascicieleOdbiorcow w ON o.ID = w.IDOdbiorcy
                     LEFT JOIN KodyPocztowe kp ON o.KOD = kp.Kod
                     {whereClause}
-                    ORDER BY CASE WHEN o.DataNastepnegoKontaktu IS NULL THEN 1 ELSE 0 END, o.DataNastepnegoKontaktu ASC", conn);
+                    ORDER BY
+                        ISNULL(w.Priorytet, 0) DESC,
+                        CASE WHEN o.DataNastepnegoKontaktu IS NULL THEN 1 ELSE 0 END,
+                        o.DataNastepnegoKontaktu ASC", conn);
 
                 cmd.Parameters.AddWithValue("@OperatorID", operatorID);
                 var adapter = new SqlDataAdapter(cmd);
