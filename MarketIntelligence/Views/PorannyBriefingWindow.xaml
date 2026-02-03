@@ -22,6 +22,7 @@
             </ResourceDictionary.MergedDictionaries>
 
             <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+            <local:InverseBoolToVisibilityConverter x:Key="InverseBoolToVis"/>
 
             <!-- Severity to Color Converter -->
             <local:SeverityToColorConverter x:Key="SeverityToColor"/>
@@ -302,7 +303,7 @@
                                             <!-- Content -->
                                             <StackPanel Grid.Column="1" Margin="14,12,12,12">
                                                 <!-- Collapsed View -->
-                                                <StackPanel Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVis}, ConverterParameter=Inverse}">
+                                                <StackPanel Visibility="{Binding IsExpanded, Converter={StaticResource InverseBoolToVis}}">
                                                     <!-- Meta Row -->
                                                     <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                                                         <Ellipse Width="6" Height="6"

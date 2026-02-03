@@ -1532,11 +1532,6 @@ namespace Kalendarz1
                         Color.FromArgb(124, 58, 237), // Fioletowy #7C3AED
                         () => new Kalendarz1.Komunikator.Views.ChatMainWindow(App.UserID, App.UserFullName), "💬", "Komunikator"),
 
-                    new MenuItemConfig("MarketIntelligence", "Intel Rynkowy",
-                        "Dashboard informacji rynkowych - ceny, HPAI, konkurencja, analizy AI",
-                        Color.FromArgb(99, 102, 241), // Indigo #6366F1
-                        () => new Kalendarz1.MarketIntelligence.Views.MarketIntelligenceWindow(), "📊", "Intel"),
-
                     new MenuItemConfig("PorannyBriefing", "Poranny Briefing",
                         "Premium editorial dashboard - newsy, analizy AI, konkurencja, ceny, kalendarz strategiczny",
                         Color.FromArgb(201, 169, 110), // Gold #C9A96E
