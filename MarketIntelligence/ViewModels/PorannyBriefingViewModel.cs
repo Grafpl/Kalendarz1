@@ -619,6 +619,240 @@ MATIF — Marche a Terme International de France. Gielda terminowa w Paryzu (obe
                 Severity = SeverityLevel.Positive,
                 Tags = new List<string> { "ceny", "oplacalnosc", "pasze", "MATIF" }
             });
+
+            // ARTICLE 7: Mercosur
+            AllArticles.Add(new BriefingArticle
+            {
+                Id = 7,
+                Title = "Umowa Mercosur wchodzi w zycie 1 lipca — 180 000 ton drobiu z Brazylii duty-free",
+                ShortPreview = "UE i Mercosur sfinalizowaly umowe handlowa — kontyngent drobiu bez cla...",
+                FullContent = @"Komisja Europejska potwierdzila wejscie w zycie umowy handlowej UE-Mercosur od 1 lipca 2026 roku. Dla sektora drobiarskiego kluczowy jest kontyngent 180 000 ton miesa drobiowego z krajow Mercosur (glownie Brazylia) bez cla.
+
+Szczegoly kontyngentu:
+• Wolumen: 180 000 ton/rok (wzrost z obecnych ~90 000 ton)
+• Clo: 0% (obecnie: 10.9% + opłaty dodatkowe)
+• Kraje: Brazylia (90%), Argentyna (8%), pozostale (2%)
+• Produkty: glownie filet mrozony, ale tez tuszki
+
+Skutki dla polskiego rynku:
+• Brazylijski filet mrozony: ~13 zl/kg vs polski swiezy ~17 zl/kg
+• Presja cenowa na segment mrozony
+• Szansa dla swiezego, lokalnego miesa (argument jakosciowy)
+
+Reakcje branzowe:
+• KRD-IG: ostrzezenie przed 'zalewem taniego miesa'
+• Copa-Cogeca: apel o monitoring importu
+• Producenci PL: fokus na swiezosc i śledzialnosc",
+                EducationalSection = @"Mercosur — Wspolny Rynek Poludnia. Blok gospodarczy: Brazylia, Argentyna, Paragwaj, Urugwaj. Brazylia to 2. najwiekszy eksporter drobiu na swiecie (za USA). Glowne firmy: BRF, JBS, Seara.
+
+KRD-IG — Krajowa Rada Drobiarstwa - Izba Gospodarcza. Glowna organizacja branzowa polskiego drobiarstwa. Prezes: Robert Krygier.",
+                AiAnalysisCeo = "STRATEGICZNE! Mercosur to sredniookresowe zagrozenie. Musimy ustawic pozycjonowanie: 'swieze, polskie, 24h od uboju'. Brazylijski mrozony filet to inna kategoria — nie konkurujemy bezposrednio. Ale uwaga: sieci moga uzywac brazyljiskiego importu do presji cenowej.",
+                AiAnalysisSales = "Przygotuj argumenty dla klientow: (1) Swiezosc 24h vs import mrozony 3-4 tygodnie, (2) Sledzialnosc od hodowcy do polki, (3) 'Kupujesz polskie, wspierasz lokalna gospodarke'. Klienci premium (Dino, Makro) docenia jakość.",
+                AiAnalysisBuyer = "Wplyw na ceny skupu bedzie ograniczony — import to glownie filet mrozony, nie zywiec. Ale monitorowac: jesli sieci zaczna kupowac wiecej importu, popyt na nasz zywiec moze spaść.",
+                RecommendedActionsCeo = "• Przygotowac strategie pozycjonowania 'swieze PL'\n• Monitorowac reakcje sieci na import\n• Rozwazyc certyfikacje dodatkowe (np. Zero Food Waste)",
+                RecommendedActionsSales = "• Przygotowac materiayl sprzedazowe o przewagach swiezego miesa\n• Rozmowy z klientami o lojalnosci wobec polskich dostawcow",
+                RecommendedActionsBuyer = "• Bez bezposredniego wplywu na zakup zywca\n• Monitorowac trendy popytu",
+                Category = "Regulacje",
+                Source = "KE / KRD-IG",
+                SourceUrl = "https://ec.europa.eu/trade/policy/countries-and-regions/regions/mercosur/",
+                PublishDate = new DateTime(2026, 1, 25),
+                Severity = SeverityLevel.Warning,
+                Tags = new List<string> { "Mercosur", "import", "Brazylia", "handel" }
+            });
+
+            // ARTICLE 8: Audyt IFS
+            AllArticles.Add(new BriefingArticle
+            {
+                Id = 8,
+                Title = "Audyt IFS Food 8 zaplanowany na 15 marca — nowe wymagania dotyczace food fraud",
+                ShortPreview = "Coroczny audyt certyfikacyjny IFS z nowymi wymaganiami wersji 8...",
+                FullContent = @"Jednostka certyfikujaca (TÜV Rheinland) potwierdzila termin corocznego audytu IFS Food dla Ubojni Piorkowscy: 15-16 marca 2026. Bedzie to pierwszy audyt wg nowej wersji standardu IFS Food 8 (obowiazuje od stycznia 2026).
+
+Kluczowe zmiany IFS Food 8:
+• Food Fraud Prevention: rozszerzone wymagania dot. oceny podatnosci na oszustwa zywnosciowe
+• Food Defense: nowe wymagania dot. ochrony przed celowym zanieczyszczeniem
+• Sustainability: elementy zrownowazonego rozwoju w ocenie
+• Digitalizacja: wymagania dot. systemow informatycznych i cyberbezpieczenstwa
+
+Obszary do przygotowania:
+• Aktualizacja procedury Food Fraud Vulnerability Assessment
+• Szkolenie pracownikow z food defense
+• Przeglad dokumentacji HACCP
+• Weryfikacja kalibracji urzadzen pomiarowych
+
+Poprzedni audyt (IFS Food 7): wynik Higher Level (97%), 2 niezgodnosci mniejsze.",
+                EducationalSection = @"IFS Food — International Featured Standards. Miedzynarodowy standard bezpieczenstwa zywnosci uznawany przez GFSI. Wymagany przez sieci detaliczne w Europie (Carrefour, Auchan, REWE, Lidl). Poziomy: Foundation (<75%), Higher Level (>=75%).
+
+TÜV Rheinland — Niemiecka jednostka certyfikujaca. Jedna z najwiekszych na swiecie. Certyfikuje m.in. IFS, BRC, ISO.",
+                AiAnalysisCeo = "Audyt IFS to kluczowy moment — utrata certyfikatu = utrata klientow sieciowych. 6 tygodni do audytu! Priorytet: spotkanie z dzialem jakości, przeglad gotowosci. Food Fraud to nowy obszar — upewnic sie, ze mamy procedury.",
+                AiAnalysisSales = "Certyfikat IFS Higher Level to argument sprzedazowy. Przed audytem NIE obiecuj klientom nowych wolumenow — poczekaj na wynik. Po pozytywnym audycie: komunikat do klientow o utrzymaniu najwyzszego poziomu.",
+                AiAnalysisBuyer = "Audyt IFS obejmuje tez weryfikacje dostawcow. Upewnic sie, ze dokumentacja od hodowcow jest kompletna (oswiadczenia, atesty, certyfikaty). Szczegolnie: Kowalski i Nowak (kontrakty).",
+                RecommendedActionsCeo = "• Spotkanie z dzialem jakosci — ten tydzien\n• Przeglad wynikow poprzedniego audytu\n• Budzet na ewentualne poprawki",
+                RecommendedActionsSales = "• Wstrzymac sie z nowymi zobowiazaniami do audytu\n• Przygotowac komunikat po audycie",
+                RecommendedActionsBuyer = "• Zweryfikowac dokumentacje dostawcow\n• Upewnic sie o komplecie certyfikatow hodowcow",
+                Category = "Regulacje",
+                Source = "IFS / TÜV Rheinland",
+                SourceUrl = "https://www.ifs-certification.com/index.php/en/",
+                PublishDate = new DateTime(2026, 2, 1),
+                Severity = SeverityLevel.Warning,
+                Tags = new List<string> { "IFS", "audyt", "certyfikacja", "jakosc" }
+            });
+
+            // ARTICLE 9: Biedronka przetarg
+            AllArticles.Add(new BriefingArticle
+            {
+                Id = 9,
+                Title = "Biedronka oglasza przetarg na dostawcow drobiu na 2026/2027 — termin 28 lutego",
+                ShortPreview = "Jeronimo Martins Polska zaprasza do składania ofert w przetargu...",
+                FullContent = @"Jeronimo Martins Polska (operator sieci Biedronka) oglosil przetarg na dostawcow miesa drobiowego na okres kwiecien 2026 - marzec 2027. Termin skladania ofert: 28 lutego 2026.
+
+Parametry przetargu:
+• Wolumen: ~50 000 ton/rok (filet, tuszka, udko, skrzydla)
+• Regiony dostaw: cala Polska (16 centrow dystrybucyjnych)
+• Wymagania: IFS Food Higher Level, zdolnosc dostaw 5x/tydzien
+• Ceny: formula oparta na indeksie + marza stala
+
+Aktualni dostawcy Biedronki:
+• Cedrob — glowny dostawca (~40%)
+• SuperDrob — drugi dostawca (~25%)
+• Drosed — trzeci (~15%)
+• Pozostali — 20%
+
+Dla Ubojni Piorkowscy:
+• Nie jestesmy aktualnym dostawcem Biedronki
+• Szansa na wejscie do portfolia
+• Wymagana skala moze byc wyzwaniem",
+                EducationalSection = @"Jeronimo Martins — Portugalski koncern handlowy, wlasciciel Biedronki (PL), Pingo Doce (Portugalia), Ara (Kolumbia). Biedronka: ~3500 sklepow, ~70 mld PLN obrotu/rok, najwiekszy detalista w Polsce.
+
+Centra dystrybucyjne Biedronki: Mszczonow, Sosnowiec, Gdansk, Poznan, Wroclaw, Krakow, i inne. Dla nas najblizsze: Mszczonow (~80 km).",
+                AiAnalysisCeo = "STRATEGICZNE! Biedronka to najwiekszy detalista w Polsce. Wejscie do ich portfolia = stabilne wolumeny, ale tez presja cenowa. Pytanie: czy mamy zdolnosci produkcyjne na 5000+ ton/rok dla jednego klienta? Rozwazyc ostrożnie.",
+                AiAnalysisSales = "Przetarg Biedronki to duza szansa, ale tez ryzyko. Przygotowac oferte, ale NIE za wszelka cene. Lepiej byc dostawca mniejszych, ale rentownych klientow (Dino, Makro) niz duzym, ale nierentownym dostawca Biedronki.",
+                AiAnalysisBuyer = "Jesli wejdziemy do Biedronki, potrzebujemy +30% zywca. Czy nasi hodowcy maja rezerwy? Sprawdzic: Sukiennikowa, Kaczmarek, Wojciechowski — ile moga zwiekszyc produkcje?",
+                RecommendedActionsCeo = "• Analiza zdolnosci produkcyjnych — do konca tygodnia\n• Decyzja strategiczna: skladamy oferte czy nie?\n• Jesli tak: kalkulacja cen i marży",
+                RecommendedActionsSales = "• Przygotowac oferte przetargowa\n• Skoordynowac z dzialem produkcji\n• Deadline: 28 lutego",
+                RecommendedActionsBuyer = "• Ocenic mozliwosci zwiekszenia zakupu zywca\n• Rozmowy z hodowcami o potencjale",
+                Category = "Klienci",
+                Source = "Biedronka / JMP",
+                SourceUrl = "https://www.biedronka.pl/pl/dla-dostawcow",
+                PublishDate = new DateTime(2026, 2, 2),
+                Severity = SeverityLevel.Positive,
+                Tags = new List<string> { "Biedronka", "przetarg", "sieci", "sprzedaz" }
+            });
+
+            // ARTICLE 10: Wzrost cen energii
+            AllArticles.Add(new BriefingArticle
+            {
+                Id = 10,
+                Title = "Ceny energii elektrycznej wzrosna o 23% od kwietnia — URE zatwierdza taryfy",
+                ShortPreview = "Urzad Regulacji Energetyki zatwierdził nowe taryfy dla odbiorcow przemyslowych...",
+                FullContent = @"Urzad Regulacji Energetyki (URE) zatwierdził nowe taryfy energii elektrycznej dla odbiorcow przemyslowych, obowiazujace od 1 kwietnia 2026. Sredni wzrost cen: +23% w stosunku do Q1 2026.
+
+Szczegoly dla przemyslu:
+• Energia czynna: 0.85 zl/kWh → 1.05 zl/kWh (+23%)
+• Oplaty dystrybucyjne: +12%
+• Oplaty mocowe: +8%
+
+Dla Ubojni Piorkowscy:
+• Aktualne zuzycie: ~120 000 kWh/mies
+• Obecny koszt: ~120 000 zl/mies
+• Po podwyzce: ~148 000 zl/mies (+28 000 zl/mies!)
+• Roczny wplyw: +336 000 zl
+
+Opcje:
+• Negocjacje z dostawca (TAURON) — deadline 15 marca
+• Instalacja PV (zwrot: 4-5 lat)
+• Optymalizacja produkcji (szczyty vs off-peak)",
+                EducationalSection = @"URE — Urzad Regulacji Energetyki. Regulator rynku energii w Polsce. Zatwierdza taryfy, wydaje koncesje, chroni konsumentow. Prezes: Rafał Gawin.
+
+TAURON — Jedna z 4 glownych grup energetycznych w Polsce (obok PGE, Enea, Energa). Dostawca energii dla Ubojni Piorkowscy. Obsluguje glownie poludniowa i centralna Polske.",
+                AiAnalysisCeo = "Poważny wzrost kosztow stalych! +336 000 zl/rok to znaczna kwota. Opcje: (1) renegocjowac umowe z TAURON, (2) rozwazyc instalacje PV, (3) przerzucic czesc kosztow na ceny sprzedazy. Pilne: analiza finansowa.",
+                AiAnalysisSales = "Wzrost kosztow energii MUSI byc czesciowo przerzucony na klientow. Przygotuj argumentacje: 'obiektywny wzrost kosztow produkcji, niezalezny od nas'. Docelowa podwyzka: +2-3% na cenach hurtowych.",
+                AiAnalysisBuyer = "Bezposredniego wplywu na zakup zywca brak. Ale: wzrost kosztow energii u hodowcow moze przelozyc sie na wyzsze ceny skupu w Q3-Q4.",
+                RecommendedActionsCeo = "• Spotkanie z TAURON ws. negocjacji — do 15 marca\n• Analiza oplacalnosci instalacji PV\n• Przeglad budzetu na Q2",
+                RecommendedActionsSales = "• Przygotowac komunikat o podwyzce cen dla klientow\n• Negocjacje cen z klientami — przed 1 kwietnia",
+                RecommendedActionsBuyer = "• Monitorowac sygnaly o podwyzkach od hodowcow\n• Bez natychmiastowych dzialan",
+                Category = "Koszty",
+                Source = "URE",
+                SourceUrl = "https://www.ure.gov.pl/",
+                PublishDate = new DateTime(2026, 1, 30),
+                Severity = SeverityLevel.Warning,
+                Tags = new List<string> { "energia", "koszty", "URE", "TAURON" }
+            });
+
+            // ARTICLE 11: Nowy klient — Carrefour rozbudowa
+            AllArticles.Add(new BriefingArticle
+            {
+                Id = 11,
+                Title = "Carrefour Polska inwestuje 500 mln PLN w rozbudowe sieci — szansa na wieksze wolumeny",
+                ShortPreview = "Carrefour zapowiada otwarcie 50 nowych sklepow i modernizacje istniejacych...",
+                FullContent = @"Carrefour Polska oglasza plan inwestycyjny na lata 2026-2027: 500 mln PLN na rozbudowe sieci i modernizacje istniejacych sklepow.
+
+Szczegoly planu:
+• 50 nowych sklepow (glownie format Express i Market)
+• Modernizacja 120 istniejacych placowek
+• Rozbudowa 3 centrow dystrybucyjnych
+• Fokus: centralna i wschodnia Polska
+
+Dla Ubojni Piorkowscy:
+• Carrefour to aktualny klient (handlowiec: Teresa)
+• Wolumeny: 340 palet/mies (trend: -30)
+• Szansa na odwrocenie trendu i wzrost
+
+Carrefour preferuje:
+• Lokanych dostawcow
+• Produkty premium/bio
+• Elastycznosc dostaw",
+                EducationalSection = @"Carrefour Polska — Czesc francuskiego koncernu Carrefour SA. W Polsce: ~900 sklepow (hipermarkety, supermarkety, Express). Obroty: ~15 mld PLN/rok. Silna pozycja w segmencie premium.",
+                AiAnalysisCeo = "Carrefour to wazny klient, ale wolumeny spadaja (-30). Inwestycja 500 mln to szansa na odwrocenie trendu. Teresa musi ustawic spotkanie z category managerem. Cel: wrócic do poziomu 400 palet/mies.",
+                AiAnalysisSales = "PRIORYTET dla Teresy! Carrefour inwestuje = szansa na wieksze zamowienia. Argumenty: lokalna produkcja z Brzezin, swiezosc, elastycznosc. Ustawic spotkanie z kupcem do konca lutego.",
+                AiAnalysisBuyer = "Jesli Carrefour zwiększy wolumeny, bedziemy potrzebowac wiecej zywca. Na razie: monitorowac rozmowy Teresy, przygotowac sie na potencjalny wzrost.",
+                RecommendedActionsCeo = "• Zlecic Teresie priorytetowe spotkanie z Carrefour\n• Przeanalizowac przyczyny spadku wolumenow",
+                RecommendedActionsSales = "• Teresa: umowic spotkanie z Carrefour — do konca lutego\n• Przygotowac prezentacje oferty",
+                RecommendedActionsBuyer = "• Monitorowac rozwoj sytuacji\n• Byc gotowym na zwiekszenie zakupow",
+                Category = "Klienci",
+                Source = "Carrefour Polska",
+                SourceUrl = "https://www.carrefour.pl/",
+                PublishDate = new DateTime(2026, 1, 27),
+                Severity = SeverityLevel.Positive,
+                Tags = new List<string> { "Carrefour", "inwestycje", "sprzedaz", "sieci" }
+            });
+
+            // ARTICLE 12: Strajk kierowcow Avilog
+            AllArticles.Add(new BriefingArticle
+            {
+                Id = 12,
+                Title = "Avilog ostrzega przed mozliwym strajkiem kierowcow — zagrozenie dla dostaw zywca",
+                ShortPreview = "Zwiazki zawodowe kierowcow Avilog zapowiadaja strajk ostrzegawczy...",
+                FullContent = @"Zwiazki zawodowe kierowcow firmy Avilog (glowny przewoznik zywca dla Ubojni Piorkowscy) zapowiedzialy strajk ostrzegawczy na 10-11 lutego 2026. Przyczyna: spor o podwyzki plac.
+
+Szczegoly sporu:
+• Zadania zwiazkow: +15% do plac zasadniczych
+• Oferta Avilog: +6%
+• Ostatnie negocjacje: 5 lutego (bez porozumienia)
+
+Potencjalny wplyw:
+• 2 dni bez transportu zywca = ~40 000 sztuk kurczakow niezodebranych
+• Koniecznosc przedluzenia pobytu ptakow u hodowcow
+• Ryzyko przekroczenia optymalnej wagi ubojowej
+• Straty szacunkowe: 80-120 tys. PLN
+
+Plan awaryjny:
+• Alternatywni przewoznicy: TRANS-KUR, DROBEX Trans
+• Wlasny transport? (2 samochody)",
+                EducationalSection = @"Avilog — Specjalistyczna firma transportowa, 40+ pojazdow do przewozu zywca drobiowego. Glowny przewoznik dla Ubojni Piorkowscy. Stawka: 116-145 zl/km. Siedziba: Lodz.",
+                AiAnalysisCeo = "RYZYKO OPERACYJNE! 2 dni bez transportu to powazny problem. Pilne: (1) kontakt z zarzadem Avilog — jaka szansa na porozumienie? (2) przygotowac plan B z alternatywnymi przewoznikami. (3) rozwazyc przedluzenie umow o dzieln wczesniej przed strajkiem.",
+                AiAnalysisSales = "Strajk Avilog moze opoznic dostawy do klientow. Przygotowac komunikat awaryjny. NIE obiecuj dostaw na 10-11 lutego poki sytuacja nie jest jasna.",
+                AiAnalysisBuyer = "PILNE! Skontaktowac sie z hodowcami — poinformowac o mozliwym opoznieniu odbioru. Sprawdzic alternatywnych przewoznikow: TRANS-KUR, DROBEX Trans. Czy moga przejac nasze trasy?",
+                RecommendedActionsCeo = "• Kontakt z zarzadem Avilog — dzis\n• Przygotowac plan B (alternatywni przewoznicy)\n• Ocenic mozliwosc wlasnego transportu",
+                RecommendedActionsSales = "• Przygotowac komunikat dla klientow o mozliwych opoznieniach\n• Nie skladac zobowiazan na 10-11 lutego",
+                RecommendedActionsBuyer = "• Skontaktowac sie z TRANS-KUR i DROBEX Trans\n• Poinformowac hodowcow o sytuacji\n• Przygotowac harmonogram awaryjny",
+                Category = "Logistyka",
+                Source = "Avilog / OZZL",
+                SourceUrl = "",
+                PublishDate = new DateTime(2026, 2, 3),
+                Severity = SeverityLevel.Critical,
+                Tags = new List<string> { "Avilog", "strajk", "transport", "logistyka" }
+            });
         }
 
         private void LoadCompetitors()

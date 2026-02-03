@@ -29,6 +29,9 @@
             <local:SeverityToBgConverter x:Key="SeverityToBg"/>
             <local:DirectionToColorConverter x:Key="DirectionToColor"/>
 
+            <!-- Role-based Analysis Converter -->
+            <local:RoleBasedAnalysisConverter x:Key="RoleAnalysisConverter"/>
+
         </ResourceDictionary>
     </Window.Resources>
 
@@ -248,6 +251,12 @@
                             <ToggleButton Content="Klienci" Margin="4,0,0,0"
                                           Style="{StaticResource FilterButton}"
                                           Click="FilterButton_Click" Tag="Klienci"/>
+                            <ToggleButton Content="Koszty" Margin="4,0,0,0"
+                                          Style="{StaticResource FilterButton}"
+                                          Click="FilterButton_Click" Tag="Koszty"/>
+                            <ToggleButton Content="Logistyka" Margin="4,0,0,0"
+                                          Style="{StaticResource FilterButton}"
+                                          Click="FilterButton_Click" Tag="Logistyka"/>
                             <ToggleButton Content="Pogoda" Margin="4,0,0,0"
                                           Style="{StaticResource FilterButton}"
                                           Click="FilterButton_Click" Tag="Pogoda"/>
@@ -385,23 +394,37 @@
                                                                 <TextBlock Text="CO TO ZNACZY DLA PIORKOWSCY"
                                                                            FontSize="9" FontWeight="Bold"
                                                                            Foreground="#C9A96E"/>
-                                                                <TextBlock x:Name="txtRoleLabel"
-                                                                           Text=" — CEO"
-                                                                           FontSize="9" FontWeight="Bold"
-                                                                           Foreground="#C9A96E"/>
+                                                                <TextBlock FontSize="9" FontWeight="Bold" Foreground="#C9A96E">
+                                                                    <TextBlock.Text>
+                                                                        <MultiBinding Converter="{StaticResource RoleAnalysisConverter}" ConverterParameter="Label">
+                                                                            <Binding/>
+                                                                            <Binding Path="DataContext.CurrentRole" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                                                        </MultiBinding>
+                                                                    </TextBlock.Text>
+                                                                </TextBlock>
                                                             </StackPanel>
-                                                            <TextBlock x:Name="txtAiAnalysis"
-                                                                       Text="{Binding AiAnalysisCeo}"
-                                                                       Style="{StaticResource BodyTextSmall}"
-                                                                       FontStyle="Italic"
-                                                                       Foreground="#F5EDE0"/>
+                                                            <TextBlock Style="{StaticResource BodyTextSmall}"
+                                                                       FontStyle="Italic" Foreground="#F5EDE0"
+                                                                       TextWrapping="Wrap">
+                                                                <TextBlock.Text>
+                                                                    <MultiBinding Converter="{StaticResource RoleAnalysisConverter}" ConverterParameter="Analysis">
+                                                                        <Binding/>
+                                                                        <Binding Path="DataContext.CurrentRole" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                                                    </MultiBinding>
+                                                                </TextBlock.Text>
+                                                            </TextBlock>
                                                             <TextBlock Text="ZALECANE DZIALANIA:"
                                                                        FontSize="9" FontWeight="Bold"
                                                                        Foreground="#8B7355" Margin="0,12,0,6"/>
-                                                            <TextBlock x:Name="txtActions"
-                                                                       Text="{Binding RecommendedActionsCeo}"
-                                                                       Style="{StaticResource BodyTextSmall}"
-                                                                       Foreground="#D5CCC0"/>
+                                                            <TextBlock Style="{StaticResource BodyTextSmall}"
+                                                                       Foreground="#D5CCC0" TextWrapping="Wrap">
+                                                                <TextBlock.Text>
+                                                                    <MultiBinding Converter="{StaticResource RoleAnalysisConverter}" ConverterParameter="Actions">
+                                                                        <Binding/>
+                                                                        <Binding Path="DataContext.CurrentRole" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                                                    </MultiBinding>
+                                                                </TextBlock.Text>
+                                                            </TextBlock>
                                                         </StackPanel>
                                                     </Border>
 
@@ -551,6 +574,66 @@
                                                         </TextBlock.Style>
                                                     </TextBlock>
                                                 </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- Retail Prices (Clickable) -->
+                                <TextBlock Text="CENY DETALICZNE (kliknij aby otworzyc zrodlo)"
+                                           FontSize="9" FontWeight="Bold"
+                                           Foreground="#8B7355" Margin="0,16,0,8"/>
+                                <ItemsControl ItemsSource="{Binding RetailPrices}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource SidePanelCard}"
+                                                    Cursor="Hand"
+                                                    Tag="{Binding SourceUrl}"
+                                                    MouseLeftButtonUp="OpenUrl_Click">
+                                                <StackPanel>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="{Binding ChainName}"
+                                                                   FontSize="11" FontWeight="SemiBold"
+                                                                   Foreground="#F5EDE0"/>
+                                                        <TextBlock Grid.Column="1" Text="🔗"
+                                                                   FontSize="10" Foreground="#C9A96E"
+                                                                   VerticalAlignment="Center"/>
+                                                    </Grid>
+                                                    <Grid Margin="0,6,0,0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <StackPanel Grid.Column="0">
+                                                            <TextBlock Text="Filet" FontSize="8" Foreground="#7A6F63"/>
+                                                            <TextBlock Text="{Binding FiletDisplay}"
+                                                                       FontFamily="Consolas" FontSize="10"
+                                                                       FontWeight="Bold" Foreground="#6DAF6D"/>
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="1">
+                                                            <TextBlock Text="Tuszka" FontSize="8" Foreground="#7A6F63"/>
+                                                            <TextBlock Text="{Binding TuszkaDisplay}"
+                                                                       FontFamily="Consolas" FontSize="10"
+                                                                       FontWeight="Bold" Foreground="#D5CCC0"/>
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="2">
+                                                            <TextBlock Text="Udko" FontSize="8" Foreground="#7A6F63"/>
+                                                            <TextBlock Text="{Binding UdkoDisplay}"
+                                                                       FontFamily="Consolas" FontSize="10"
+                                                                       FontWeight="Bold" Foreground="#D5CCC0"/>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                        <TextBlock Text="{Binding Source}" FontSize="8" Foreground="#5A5248"/>
+                                                        <TextBlock Text=" • " FontSize="8" Foreground="#5A5248"/>
+                                                        <TextBlock Text="{Binding CheckDateDisplay}" FontSize="8" Foreground="#5A5248"/>
+                                                    </StackPanel>
+                                                </StackPanel>
                                             </Border>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>

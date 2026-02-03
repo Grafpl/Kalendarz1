@@ -53,12 +53,12 @@ namespace Kalendarz1.MarketIntelligence.Views
                     }
                     catch
                     {
-                        run.Foreground = new SolidColorBrush(Color.FromRgb(213, 204, 192)); // TextNormal
+                        run.Foreground = new SolidColorBrush(Color.FromRgb(213, 204, 192));
                     }
                 }
                 else
                 {
-                    run.Foreground = new SolidColorBrush(Color.FromRgb(213, 204, 192)); // TextNormal
+                    run.Foreground = new SolidColorBrush(Color.FromRgb(213, 204, 192));
                 }
 
                 if (segment.IsBold)
@@ -80,7 +80,6 @@ namespace Kalendarz1.MarketIntelligence.Views
 
             canvasChart.Children.Clear();
 
-            // Get sparkline data from first indicator (SKUP)
             var skupIndicator = _viewModel.Indicators.Count > 0 ? _viewModel.Indicators[0] : null;
             if (skupIndicator?.SparkData == null || skupIndicator.SparkData.Length < 2) return;
 
@@ -89,7 +88,6 @@ namespace Kalendarz1.MarketIntelligence.Views
             double height = 80;
             double padding = 10;
 
-            // Calculate scales
             double minVal = double.MaxValue;
             double maxVal = double.MinValue;
             foreach (var val in data)
@@ -100,12 +98,10 @@ namespace Kalendarz1.MarketIntelligence.Views
             double range = maxVal - minVal;
             if (range < 0.01) range = 0.1;
 
-            // Add margins
             minVal -= range * 0.1;
             maxVal += range * 0.1;
             range = maxVal - minVal;
 
-            // Build points
             var points = new PointCollection();
             double stepX = (width - padding * 2) / (data.Length - 1);
 
@@ -116,7 +112,6 @@ namespace Kalendarz1.MarketIntelligence.Views
                 points.Add(new Point(x, y));
             }
 
-            // Draw gradient fill
             var fillPoints = new PointCollection(points);
             fillPoints.Add(new Point(padding + (data.Length - 1) * stepX, height - padding));
             fillPoints.Add(new Point(padding, height - padding));
@@ -137,17 +132,15 @@ namespace Kalendarz1.MarketIntelligence.Views
             };
             canvasChart.Children.Add(fillPolygon);
 
-            // Draw line
             var polyline = new Polyline
             {
                 Points = points,
-                Stroke = new SolidColorBrush(Color.FromRgb(201, 169, 110)), // Gold
+                Stroke = new SolidColorBrush(Color.FromRgb(201, 169, 110)),
                 StrokeThickness = 2,
                 StrokeLineJoin = PenLineJoin.Round
             };
             canvasChart.Children.Add(polyline);
 
-            // Draw current value dot
             if (points.Count > 0)
             {
                 var lastPoint = points[points.Count - 1];
@@ -164,7 +157,6 @@ namespace Kalendarz1.MarketIntelligence.Views
                 canvasChart.Children.Add(dot);
             }
 
-            // Draw current price label
             var priceLabel = new TextBlock
             {
                 Text = $"{data[data.Length - 1]:N2} zl",
@@ -187,6 +179,8 @@ namespace Kalendarz1.MarketIntelligence.Views
             if (sender is RadioButton rb && rb.Tag is string role)
             {
                 _viewModel?.ChangeRoleCommand.Execute(role);
+                // Force refresh of articles to update AI analysis
+                icArticles?.Items.Refresh();
             }
         }
 
@@ -199,7 +193,6 @@ namespace Kalendarz1.MarketIntelligence.Views
         {
             if (sender is ToggleButton btn && btn.Tag is string category)
             {
-                // Uncheck all other filter buttons
                 var parent = btn.Parent as Panel;
                 if (parent != null)
                 {
@@ -250,6 +243,25 @@ namespace Kalendarz1.MarketIntelligence.Views
             e.Handled = true;
         }
 
+        private void OpenUrl_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement fe && fe.Tag is string url && !string.IsNullOrEmpty(url))
+            {
+                try
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = url,
+                        UseShellExecute = true
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error opening URL: {ex.Message}");
+                }
+            }
+        }
+
         #endregion
     }
 
@@ -263,10 +275,10 @@ namespace Kalendarz1.MarketIntelligence.Views
             {
                 return severity switch
                 {
-                    SeverityLevel.Critical => new SolidColorBrush(Color.FromRgb(192, 80, 80)),   // #C05050
-                    SeverityLevel.Warning => new SolidColorBrush(Color.FromRgb(212, 160, 53)),   // #D4A035
-                    SeverityLevel.Positive => new SolidColorBrush(Color.FromRgb(109, 175, 109)), // #6DAF6D
-                    SeverityLevel.Info => new SolidColorBrush(Color.FromRgb(90, 143, 192)),      // #5A8FC0
+                    SeverityLevel.Critical => new SolidColorBrush(Color.FromRgb(192, 80, 80)),
+                    SeverityLevel.Warning => new SolidColorBrush(Color.FromRgb(212, 160, 53)),
+                    SeverityLevel.Positive => new SolidColorBrush(Color.FromRgb(109, 175, 109)),
+                    SeverityLevel.Info => new SolidColorBrush(Color.FromRgb(90, 143, 192)),
                     _ => new SolidColorBrush(Color.FromRgb(90, 143, 192))
                 };
             }
@@ -274,9 +286,7 @@ namespace Kalendarz1.MarketIntelligence.Views
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            throw new NotImplementedException();
-        }
+            => throw new NotImplementedException();
     }
 
     public class SeverityToBgConverter : IValueConverter
@@ -287,10 +297,10 @@ namespace Kalendarz1.MarketIntelligence.Views
             {
                 return severity switch
                 {
-                    SeverityLevel.Critical => new SolidColorBrush(Color.FromRgb(28, 18, 16)),    // #1C1210
-                    SeverityLevel.Warning => new SolidColorBrush(Color.FromRgb(28, 24, 8)),      // #1C1808
-                    SeverityLevel.Positive => new SolidColorBrush(Color.FromRgb(16, 28, 16)),    // #101C10
-                    SeverityLevel.Info => new SolidColorBrush(Color.FromRgb(16, 21, 32)),        // #101520
+                    SeverityLevel.Critical => new SolidColorBrush(Color.FromRgb(28, 18, 16)),
+                    SeverityLevel.Warning => new SolidColorBrush(Color.FromRgb(28, 24, 8)),
+                    SeverityLevel.Positive => new SolidColorBrush(Color.FromRgb(16, 28, 16)),
+                    SeverityLevel.Info => new SolidColorBrush(Color.FromRgb(16, 21, 32)),
                     _ => new SolidColorBrush(Color.FromRgb(16, 21, 32))
                 };
             }
@@ -298,9 +308,7 @@ namespace Kalendarz1.MarketIntelligence.Views
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            throw new NotImplementedException();
-        }
+            => throw new NotImplementedException();
     }
 
     public class DirectionToColorConverter : IValueConverter
@@ -311,9 +319,9 @@ namespace Kalendarz1.MarketIntelligence.Views
             {
                 return direction switch
                 {
-                    PriceDirection.Up => new SolidColorBrush(Color.FromRgb(109, 175, 109)),    // #6DAF6D - green
-                    PriceDirection.Down => new SolidColorBrush(Color.FromRgb(192, 80, 80)),   // #C05050 - red
-                    PriceDirection.Stable => new SolidColorBrush(Color.FromRgb(122, 111, 99)), // #7A6F63 - dim
+                    PriceDirection.Up => new SolidColorBrush(Color.FromRgb(109, 175, 109)),
+                    PriceDirection.Down => new SolidColorBrush(Color.FromRgb(192, 80, 80)),
+                    PriceDirection.Stable => new SolidColorBrush(Color.FromRgb(122, 111, 99)),
                     _ => new SolidColorBrush(Color.FromRgb(122, 111, 99))
                 };
             }
@@ -321,9 +329,7 @@ namespace Kalendarz1.MarketIntelligence.Views
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            throw new NotImplementedException();
-        }
+            => throw new NotImplementedException();
     }
 
     public class InverseBoolToVisibilityConverter : IValueConverter
@@ -338,9 +344,55 @@ namespace Kalendarz1.MarketIntelligence.Views
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    /// <summary>
+    /// Multi-value converter for role-based AI analysis.
+    /// Values[0] = BriefingArticle, Values[1] = UserRole
+    /// Parameter = "Analysis" or "Actions" or "Label"
+    /// </summary>
+    public class RoleBasedAnalysisConverter : IMultiValueConverter
+    {
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
-            throw new NotImplementedException();
+            if (values.Length < 2) return string.Empty;
+
+            var article = values[0] as BriefingArticle;
+            var role = values[1] is UserRole r ? r : UserRole.CEO;
+            var type = parameter as string ?? "Analysis";
+
+            if (article == null) return string.Empty;
+
+            return type switch
+            {
+                "Analysis" => role switch
+                {
+                    UserRole.CEO => article.AiAnalysisCeo ?? "",
+                    UserRole.Sales => article.AiAnalysisSales ?? "",
+                    UserRole.Buyer => article.AiAnalysisBuyer ?? "",
+                    _ => article.AiAnalysisCeo ?? ""
+                },
+                "Actions" => role switch
+                {
+                    UserRole.CEO => article.RecommendedActionsCeo ?? "",
+                    UserRole.Sales => article.RecommendedActionsSales ?? "",
+                    UserRole.Buyer => article.RecommendedActionsBuyer ?? "",
+                    _ => article.RecommendedActionsCeo ?? ""
+                },
+                "Label" => role switch
+                {
+                    UserRole.CEO => " — CEO / Strategia",
+                    UserRole.Sales => " — Handlowiec",
+                    UserRole.Buyer => " — Zakupowiec",
+                    _ => " — CEO"
+                },
+                _ => ""
+            };
         }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
     }
 
     #endregion
