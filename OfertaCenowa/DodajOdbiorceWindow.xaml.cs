@@ -13,6 +13,7 @@ namespace Kalendarz1.OfertaCenowa
     public partial class DodajOdbiorceWindow : Window
     {
         private readonly string _connectionString;
+        private readonly string _connectionHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
         private readonly string _operatorID;
         private DispatcherTimer _timerSzukaj;
 
@@ -148,14 +149,43 @@ namespace Kalendarz1.OfertaCenowa
 
             listPodobni.Items.Clear();
 
+            // 1. Szukaj w CRM (LibraNet)
+            SzukajWCRM(szukany);
+
+            // 2. Szukaj w Symfonii (Handel)
+            SzukajWSymfonii(szukany);
+
+            PokazWyniki(listPodobni.Items.Count);
+        }
+
+        private void SzukajWCRM(string szukany)
+        {
             try
             {
                 using (var conn = new SqlConnection(_connectionString))
                 {
                     conn.Open();
 
-                    var cmd = new SqlCommand(@"
-                        SELECT TOP 50
+                    // Sprawdz czy kolumny NIP i REGON istnieja
+                    bool maNIP = false, maREGON = false;
+                    var cmdCheck = new SqlCommand(@"
+                        SELECT
+                            CASE WHEN EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('OdbiorcyCRM') AND name = 'NIP') THEN 1 ELSE 0 END as MaNIP,
+                            CASE WHEN EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('OdbiorcyCRM') AND name = 'REGON') THEN 1 ELSE 0 END as MaREGON", conn);
+                    using (var r = cmdCheck.ExecuteReader())
+                    {
+                        if (r.Read())
+                        {
+                            maNIP = r.GetInt32(0) == 1;
+                            maREGON = r.GetInt32(1) == 1;
+                        }
+                    }
+
+                    string sqlNIP = maNIP ? "ISNULL(NIP, '')" : "''";
+                    string sqlREGON = maREGON ? "ISNULL(REGON, '')" : "''";
+
+                    var cmd = new SqlCommand($@"
+                        SELECT TOP 30
                             Nazwa,
                             MIASTO,
                             ULICA,
@@ -164,8 +194,8 @@ namespace Kalendarz1.OfertaCenowa
                             Email,
                             Status,
                             Wojewodztwo,
-                            ISNULL(NIP, '') as NIP,
-                            ISNULL(REGON, '') as REGON
+                            {sqlNIP} as NIP,
+                            {sqlREGON} as REGON
                         FROM OdbiorcyCRM
                         WHERE Nazwa LIKE '%' + @szukany + '%'
                         ORDER BY
@@ -192,42 +222,126 @@ namespace Kalendarz1.OfertaCenowa
                             string nip = reader.IsDBNull(8) ? "" : reader.GetString(8);
                             string regon = reader.IsDBNull(9) ? "" : reader.GetString(9);
 
-                            // Format: Nazwa firmy
-                            string info = nazwa;
-
-                            // NIP/REGON
-                            var nipRegonParts = new List<string>();
-                            if (!string.IsNullOrEmpty(nip)) nipRegonParts.Add($"NIP: {nip}");
-                            if (!string.IsNullOrEmpty(regon)) nipRegonParts.Add($"REGON: {regon}");
-                            if (nipRegonParts.Count > 0)
-                                info += $"\n🔢 {string.Join("  ", nipRegonParts)}";
-
-                            // Adres: Miasto, ulica
-                            var adresParts = new List<string>();
-                            if (!string.IsNullOrEmpty(miasto)) adresParts.Add(miasto);
-                            if (!string.IsNullOrEmpty(ulica)) adresParts.Add(ulica);
-                            if (adresParts.Count > 0)
-                                info += $"\n📍 {string.Join(", ", adresParts)}";
-
-                            // Kontakt: telefon, email
-                            var kontaktParts = new List<string>();
-                            if (!string.IsNullOrEmpty(telefon)) kontaktParts.Add($"☎ {telefon}");
-                            if (!string.IsNullOrEmpty(email)) kontaktParts.Add($"✉ {email}");
-                            if (kontaktParts.Count > 0)
-                                info += $"\n{string.Join("   ", kontaktParts)}";
-
-                            // Status
-                            if (!string.IsNullOrEmpty(status))
-                                info += $"\n🏷 {status}";
-
+                            string info = FormatujKlienta(nazwa, miasto, ulica, telefon, email, status, nip, regon, "CRM");
                             listPodobni.Items.Add(info);
                         }
                     }
                 }
-
-                PokazWyniki(listPodobni.Items.Count);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Blad szukania w CRM: {ex.Message}");
+            }
+        }
+
+        private void SzukajWSymfonii(string szukany)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(_connectionHandel))
+                {
+                    conn.Open();
+
+                    var cmd = new SqlCommand(@"
+                        SELECT TOP 30
+                            C.Name as Nazwa,
+                            ISNULL(POA.Place, '') as Miasto,
+                            ISNULL(POA.Street, '') as Ulica,
+                            ISNULL(POA.PostCode, '') as Kod,
+                            ISNULL(C.Phone, '') as Telefon,
+                            ISNULL(C.Email, '') as Email,
+                            ISNULL(C.NIP, '') as NIP,
+                            ISNULL(C.Shortcut, '') as Skrot
+                        FROM [SSCommon].[STContractors] C
+                        LEFT JOIN [SSCommon].[STPostOfficeAddresses] POA
+                            ON POA.ContactGuid = C.ContactGuid
+                            AND POA.AddressName = N'adres domyślny'
+                        WHERE C.Name LIKE '%' + @szukany + '%'
+                           OR C.Shortcut LIKE '%' + @szukany + '%'
+                           OR C.NIP LIKE '%' + @szukany + '%'
+                        ORDER BY
+                            CASE
+                                WHEN C.Name LIKE @szukany + '%' THEN 1
+                                WHEN C.Shortcut LIKE @szukany + '%' THEN 2
+                                ELSE 3
+                            END,
+                            C.Name", conn);
+                    cmd.Parameters.AddWithValue("@szukany", szukany);
+
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            string nazwa = reader.IsDBNull(0) ? "" : reader.GetString(0);
+                            string miasto = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                            string ulica = reader.IsDBNull(2) ? "" : reader.GetString(2);
+                            string kod = reader.IsDBNull(3) ? "" : reader.GetString(3);
+                            string telefon = reader.IsDBNull(4) ? "" : reader.GetString(4);
+                            string email = reader.IsDBNull(5) ? "" : reader.GetString(5);
+                            string nip = reader.IsDBNull(6) ? "" : reader.GetString(6);
+                            string skrot = reader.IsDBNull(7) ? "" : reader.GetString(7);
+
+                            // Sprawdz czy juz nie ma takiego klienta (po nazwie)
+                            bool juzJest = false;
+                            foreach (var item in listPodobni.Items)
+                            {
+                                if (item.ToString().StartsWith(nazwa))
+                                {
+                                    juzJest = true;
+                                    break;
+                                }
+                            }
+
+                            if (!juzJest)
+                            {
+                                string info = FormatujKlienta(nazwa, miasto, ulica, telefon, email, "", nip, "", "SYMFONIA");
+                                if (!string.IsNullOrEmpty(skrot))
+                                    info = $"[{skrot}] {info}";
+                                listPodobni.Items.Add(info);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Blad szukania w Symfonii: {ex.Message}");
+            }
+        }
+
+        private string FormatujKlienta(string nazwa, string miasto, string ulica, string telefon, string email, string status, string nip, string regon, string zrodlo)
+        {
+            string info = nazwa;
+
+            // Zrodlo danych
+            info += $"  [{zrodlo}]";
+
+            // NIP/REGON
+            var nipRegonParts = new List<string>();
+            if (!string.IsNullOrEmpty(nip)) nipRegonParts.Add($"NIP: {nip}");
+            if (!string.IsNullOrEmpty(regon)) nipRegonParts.Add($"REGON: {regon}");
+            if (nipRegonParts.Count > 0)
+                info += $"\n🔢 {string.Join("  ", nipRegonParts)}";
+
+            // Adres: Miasto, ulica
+            var adresParts = new List<string>();
+            if (!string.IsNullOrEmpty(miasto)) adresParts.Add(miasto);
+            if (!string.IsNullOrEmpty(ulica)) adresParts.Add(ulica);
+            if (adresParts.Count > 0)
+                info += $"\n📍 {string.Join(", ", adresParts)}";
+
+            // Kontakt: telefon, email
+            var kontaktParts = new List<string>();
+            if (!string.IsNullOrEmpty(telefon)) kontaktParts.Add($"☎ {telefon}");
+            if (!string.IsNullOrEmpty(email)) kontaktParts.Add($"✉ {email}");
+            if (kontaktParts.Count > 0)
+                info += $"\n{string.Join("   ", kontaktParts)}";
+
+            // Status
+            if (!string.IsNullOrEmpty(status))
+                info += $"\n🏷 {status}";
+
+            return info;
         }
 
         private void TxtKod_TextChanged(object sender, TextChangedEventArgs e)
