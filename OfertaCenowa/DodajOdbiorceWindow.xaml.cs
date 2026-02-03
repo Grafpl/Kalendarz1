@@ -242,16 +242,16 @@ namespace Kalendarz1.OfertaCenowa
                 {
                     conn.Open();
 
+                    // Zapytanie zgodne z OfertaHandlowaWindow - tylko kolumny ktore istnieja w Symfonii
                     var cmd = new SqlCommand(@"
                         SELECT TOP 30
+                            C.Id,
                             C.Name as Nazwa,
-                            ISNULL(POA.City, '') as Miasto,
+                            ISNULL(C.NIP, '') as NIP,
+                            ISNULL(C.Shortcut, '') as Skrot,
                             ISNULL(POA.Street, '') as Ulica,
                             ISNULL(POA.PostCode, '') as Kod,
-                            ISNULL(C.Phone, '') as Telefon,
-                            ISNULL(C.Email, '') as Email,
-                            ISNULL(C.NIP, '') as NIP,
-                            ISNULL(C.Shortcut, '') as Skrot
+                            ISNULL(POA.Place, '') as Miasto
                         FROM [SSCommon].[STContractors] C
                         LEFT JOIN [SSCommon].[STPostOfficeAddresses] POA
                             ON POA.ContactGuid = C.ContactGuid
@@ -272,14 +272,12 @@ namespace Kalendarz1.OfertaCenowa
                     {
                         while (reader.Read())
                         {
-                            string nazwa = reader.IsDBNull(0) ? "" : reader.GetString(0);
-                            string miasto = reader.IsDBNull(1) ? "" : reader.GetString(1);
-                            string ulica = reader.IsDBNull(2) ? "" : reader.GetString(2);
-                            string kod = reader.IsDBNull(3) ? "" : reader.GetString(3);
-                            string telefon = reader.IsDBNull(4) ? "" : reader.GetString(4);
-                            string email = reader.IsDBNull(5) ? "" : reader.GetString(5);
-                            string nip = reader.IsDBNull(6) ? "" : reader.GetString(6);
-                            string skrot = reader.IsDBNull(7) ? "" : reader.GetString(7);
+                            string nazwa = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                            string nip = reader.IsDBNull(2) ? "" : reader.GetString(2);
+                            string skrot = reader.IsDBNull(3) ? "" : reader.GetString(3);
+                            string ulica = reader.IsDBNull(4) ? "" : reader.GetString(4);
+                            string kod = reader.IsDBNull(5) ? "" : reader.GetString(5);
+                            string miasto = reader.IsDBNull(6) ? "" : reader.GetString(6);
 
                             // Sprawdz czy juz nie ma DOKLADNIE takiego samego klienta (porownaj nazwe bez tagu zrodla)
                             bool juzJest = false;
@@ -305,7 +303,8 @@ namespace Kalendarz1.OfertaCenowa
 
                             if (!juzJest)
                             {
-                                string info = FormatujKlienta(nazwa, miasto, ulica, telefon, email, "", nip, "", "SYMFONIA");
+                                // Telefon i Email nie sa dostepne w tabeli STContractors
+                                string info = FormatujKlienta(nazwa, miasto, ulica, "", "", "", nip, "", "SYMFONIA");
                                 if (!string.IsNullOrEmpty(skrot))
                                     info = $"[{skrot}] {info}";
                                 listPodobni.Items.Add(info);
