@@ -463,50 +463,53 @@ namespace Kalendarz1.CRM
                 {
                     conn.Open();
 
-                    // Pobierz cele z tabeli CallReminderSalesTargets
+                    // Pobierz cele z tabeli CallReminderConfig (jak w oknie Przypomnienia)
                     int celDzienny = 15;
                     int celTygodniowy = 120;
                     var cmdTarget = new SqlCommand(@"
-                        SELECT TOP 1 DailyTarget, WeeklyTarget FROM CallReminderSalesTargets
-                        WHERE UserID = @op", conn);
+                        SELECT TOP 1 DailyCallTarget, WeeklyCallTarget FROM CallReminderConfig
+                        WHERE UserID = @op AND IsEnabled = 1", conn);
                     cmdTarget.Parameters.AddWithValue("@op", operatorID);
                     using (var reader = cmdTarget.ExecuteReader())
                     {
                         if (reader.Read())
                         {
-                            if (reader["DailyTarget"] != DBNull.Value)
-                                celDzienny = Convert.ToInt32(reader["DailyTarget"]);
-                            if (reader["WeeklyTarget"] != DBNull.Value)
-                                celTygodniowy = Convert.ToInt32(reader["WeeklyTarget"]);
+                            if (reader["DailyCallTarget"] != DBNull.Value)
+                                celDzienny = Convert.ToInt32(reader["DailyCallTarget"]);
+                            if (reader["WeeklyCallTarget"] != DBNull.Value)
+                                celTygodniowy = Convert.ToInt32(reader["WeeklyCallTarget"]);
                         }
                     }
 
-                    // Pobierz nazwę operatora do dopasowania
-                    string opName = "";
-                    var cmdName = new SqlCommand("SELECT Name FROM operators WHERE ID = @op", conn);
-                    cmdName.Parameters.AddWithValue("@op", operatorID);
-                    opName = cmdName.ExecuteScalar()?.ToString() ?? "";
+                    // Wykonane dziś i w tym tygodniu - używamy tabeli CallReminderContacts (jak w oknie Przypomnienia)
+                    var cmdCalls = new SqlCommand(@"
+                        SELECT
+                            ISNULL((SELECT COUNT(DISTINCT crc.ContactID)
+                                    FROM CallReminderContacts crc
+                                    INNER JOIN CallReminderLog crl ON crc.ReminderLogID = crl.ID
+                                    WHERE crl.UserID = @op
+                                    AND crl.ReminderTime >= CAST(CAST(GETDATE() AS DATE) AS DATETIME)
+                                    AND (crc.WasCalled = 1 OR crc.StatusChanged = 1 OR crc.NoteAdded = 1)), 0) as DayCalls,
+                            ISNULL((SELECT COUNT(DISTINCT crc.ContactID)
+                                    FROM CallReminderContacts crc
+                                    INNER JOIN CallReminderLog crl ON crc.ReminderLogID = crl.ID
+                                    WHERE crl.UserID = @op
+                                    AND crl.ReminderTime >= DATEADD(DAY,
+                                        -((DATEPART(WEEKDAY, GETDATE()) + @@DATEFIRST - 2) % 7),
+                                        CAST(CAST(GETDATE() AS DATE) AS DATETIME))
+                                    AND (crc.WasCalled = 1 OR crc.StatusChanged = 1 OR crc.NoteAdded = 1)), 0) as WeekCalls", conn);
+                    cmdCalls.Parameters.AddWithValue("@op", operatorID);
 
-                    // Wykonane dziś - zliczaj zmiany statusu (bez "Do zadzwonienia")
-                    // Dopasuj po ID lub nazwie operatora
-                    var cmdDzis = new SqlCommand(@"SELECT COUNT(*) FROM HistoriaZmianCRM
-                        WHERE (KtoWykonal = @op OR KtoWykonal = @opName)
-                        AND CAST(DataZmiany AS DATE) = CAST(GETDATE() AS DATE)
-                        AND TypZmiany = 'Zmiana statusu'
-                        AND WartoscNowa NOT IN ('Do zadzwonienia', '')", conn);
-                    cmdDzis.Parameters.AddWithValue("@op", operatorID);
-                    cmdDzis.Parameters.AddWithValue("@opName", opName);
-                    int wykonaneDzis = (int)cmdDzis.ExecuteScalar();
-
-                    // Wykonane w tym tygodniu
-                    var cmdTydzien = new SqlCommand(@"SELECT COUNT(*) FROM HistoriaZmianCRM
-                        WHERE (KtoWykonal = @op OR KtoWykonal = @opName)
-                        AND DataZmiany >= DATEADD(day, 1 - DATEPART(WEEKDAY, GETDATE()), CAST(GETDATE() AS DATE))
-                        AND TypZmiany = 'Zmiana statusu'
-                        AND WartoscNowa NOT IN ('Do zadzwonienia', '')", conn);
-                    cmdTydzien.Parameters.AddWithValue("@op", operatorID);
-                    cmdTydzien.Parameters.AddWithValue("@opName", opName);
-                    int wykonaneTydzien = (int)cmdTydzien.ExecuteScalar();
+                    int wykonaneDzis = 0;
+                    int wykonaneTydzien = 0;
+                    using (var reader = cmdCalls.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            wykonaneDzis = Convert.ToInt32(reader["DayCalls"]);
+                            wykonaneTydzien = Convert.ToInt32(reader["WeekCalls"]);
+                        }
+                    }
 
                     // Aktualizuj nowe UI - cele dzienne
                     if (txtCelDziennyWykonane != null) txtCelDziennyWykonane.Text = wykonaneDzis.ToString();
@@ -589,35 +592,48 @@ namespace Kalendarz1.CRM
 
         private DataTable LoadRankingData(SqlConnection conn, bool tygodniowy)
         {
+            // Używamy tej samej logiki co w oknie Przypomnienia - z tabeli CallReminderConfig i CallReminderContacts
             string dateFilter = tygodniowy
-                ? "AND h.DataZmiany >= DATEADD(day, 1 - DATEPART(WEEKDAY, GETDATE()), CAST(GETDATE() AS DATE))"
-                : "AND CAST(h.DataZmiany AS DATE) = CAST(GETDATE() AS DATE)";
+                ? @"AND crl.ReminderTime >= DATEADD(DAY,
+                        -((DATEPART(WEEKDAY, GETDATE()) + @@DATEFIRST - 2) % 7),
+                        CAST(CAST(GETDATE() AS DATE) AS DATETIME))"
+                : "AND crl.ReminderTime >= CAST(CAST(GETDATE() AS DATE) AS DATETIME)";
 
-            string targetColumn = tygodniowy ? "ISNULL(t.WeeklyTarget, 120)" : "ISNULL(t.DailyTarget, 15)";
+            string targetColumn = tygodniowy ? "c.WeeklyCallTarget" : "c.DailyCallTarget";
 
-            // Zapytanie dopasowuje po ID lub nazwie operatora
-            // Pokazuje WSZYSTKICH handlowców (nawet z 0 aktywnością)
             var cmd = new SqlCommand($@"
                 SELECT
-                    ROW_NUMBER() OVER (ORDER BY COUNT(h.ID) DESC, o.Name) as Pozycja,
-                    o.Name as Operator,
-                    o.ID as OperatorID,
-                    COUNT(h.ID) as Wykonane,
-                    {targetColumn} as Cel,
-                    CASE WHEN {targetColumn} > 0
-                         THEN CAST(ROUND(CAST(COUNT(h.ID) AS FLOAT) / {targetColumn} * 100, 0) AS INT)
+                    ROW_NUMBER() OVER (ORDER BY
+                        ISNULL((SELECT COUNT(DISTINCT crc.ContactID)
+                                FROM CallReminderLog crl
+                                INNER JOIN CallReminderContacts crc ON crc.ReminderLogID = crl.ID
+                                WHERE crl.UserID = c.UserID
+                                {dateFilter}
+                                AND (crc.WasCalled = 1 OR crc.StatusChanged = 1 OR crc.NoteAdded = 1)), 0) DESC,
+                        o.Name) as Pozycja,
+                    ISNULL(o.Name, 'ID: ' + c.UserID) as Operator,
+                    c.UserID as OperatorID,
+                    ISNULL((SELECT COUNT(DISTINCT crc.ContactID)
+                            FROM CallReminderLog crl
+                            INNER JOIN CallReminderContacts crc ON crc.ReminderLogID = crl.ID
+                            WHERE crl.UserID = c.UserID
+                            {dateFilter}
+                            AND (crc.WasCalled = 1 OR crc.StatusChanged = 1 OR crc.NoteAdded = 1)), 0) as Wykonane,
+                    ISNULL({targetColumn}, {(tygodniowy ? "120" : "15")}) as Cel,
+                    CASE WHEN ISNULL({targetColumn}, {(tygodniowy ? "120" : "15")}) > 0
+                         THEN CAST(ROUND(
+                            CAST(ISNULL((SELECT COUNT(DISTINCT crc.ContactID)
+                                FROM CallReminderLog crl
+                                INNER JOIN CallReminderContacts crc ON crc.ReminderLogID = crl.ID
+                                WHERE crl.UserID = c.UserID
+                                {dateFilter}
+                                AND (crc.WasCalled = 1 OR crc.StatusChanged = 1 OR crc.NoteAdded = 1)), 0) AS FLOAT)
+                            / ISNULL({targetColumn}, {(tygodniowy ? "120" : "15")}) * 100, 0) AS INT)
                          ELSE 0 END as Procent
-                FROM operators o
-                LEFT JOIN CallReminderSalesTargets t ON t.UserID = o.ID
-                LEFT JOIN HistoriaZmianCRM h ON (h.KtoWykonal = o.ID OR h.KtoWykonal = o.Name)
-                    AND h.TypZmiany = 'Zmiana statusu'
-                    AND h.WartoscNowa NOT IN ('Do zadzwonienia', '')
-                    {dateFilter}
-                WHERE o.Name IS NOT NULL
-                    AND o.ID NOT IN ('admin', 'system', '0')
-                    AND o.Name NOT LIKE '%test%'
-                GROUP BY o.ID, o.Name, t.DailyTarget, t.WeeklyTarget
-                ORDER BY Wykonane DESC, o.Name", conn);
+                FROM CallReminderConfig c
+                LEFT JOIN operators o ON o.ID = c.UserID
+                WHERE c.IsEnabled = 1
+                ORDER BY Wykonane DESC, Operator", conn);
 
             var adapter = new SqlDataAdapter(cmd);
             var dt = new DataTable();
