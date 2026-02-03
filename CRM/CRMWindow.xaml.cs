@@ -1251,73 +1251,6 @@ namespace Kalendarz1.CRM
             }
         }
 
-        private void BtnImportLogo_Click(object sender, RoutedEventArgs e)
-        {
-            // Otwórz okno dialogowe do wyboru logo z dysku sieciowego
-            var openFileDialog = new Microsoft.Win32.OpenFileDialog
-            {
-                Title = "Wybierz logo firmy z dysku sieciowego",
-                Filter = "Pliki graficzne|*.png;*.jpg;*.jpeg;*.bmp;*.gif|Wszystkie pliki|*.*",
-                InitialDirectory = @"\\192.168.0.109\Libra\Logo" // Domyślna ścieżka sieciowa
-            };
-
-            // Sprawdź czy ścieżka sieciowa istnieje, jeśli nie użyj domyślnej
-            try
-            {
-                if (!System.IO.Directory.Exists(openFileDialog.InitialDirectory))
-                {
-                    openFileDialog.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
-                }
-            }
-            catch
-            {
-                openFileDialog.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
-            }
-
-            if (openFileDialog.ShowDialog() == true)
-            {
-                try
-                {
-                    string selectedPath = openFileDialog.FileName;
-
-                    // Zapisz ścieżkę do logo w bazie danych dla aktualnie wybranego odbiorcy
-                    if (aktualnyOdbiorcaID > 0)
-                    {
-                        using (var conn = new SqlConnection(connectionString))
-                        {
-                            conn.Open();
-
-                            // Sprawdź czy kolumna LogoPath istnieje
-                            var cmdCheck = new SqlCommand(@"
-                                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('OdbiorcyCRM') AND name = 'LogoPath')
-                                BEGIN
-                                    ALTER TABLE OdbiorcyCRM ADD LogoPath NVARCHAR(500) NULL
-                                END", conn);
-                            cmdCheck.ExecuteNonQuery();
-
-                            // Zapisz ścieżkę
-                            var cmd = new SqlCommand("UPDATE OdbiorcyCRM SET LogoPath = @path WHERE ID = @id", conn);
-                            cmd.Parameters.AddWithValue("@path", selectedPath);
-                            cmd.Parameters.AddWithValue("@id", aktualnyOdbiorcaID);
-                            cmd.ExecuteNonQuery();
-                        }
-
-                        ShowToast($"Logo zapisane: {System.IO.Path.GetFileName(selectedPath)}");
-                        WczytajDane(zachowajFiltry: true); // Odśwież dane
-                    }
-                    else
-                    {
-                        MessageBox.Show("Najpierw wybierz odbiorcę z listy.", "Brak wybranego odbiorcy",
-                            MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Błąd importu logo: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-            }
-        }
-
         private string aktywnyChip = "";
 
         private void Chip_Click(object sender, MouseButtonEventArgs e)
@@ -1488,9 +1421,17 @@ namespace Kalendarz1.CRM
             var dlg = new Microsoft.Win32.OpenFileDialog
             {
                 Title = "Wybierz logo firmy",
-                Filter = "Obrazy|*.png;*.jpg;*.jpeg;*.bmp;*.gif|Wszystkie pliki|*.*",
-                InitialDirectory = @"\\192.168.0.109\dane"
+                Filter = "Obrazy|*.png;*.jpg;*.jpeg;*.bmp;*.gif|Wszystkie pliki|*.*"
             };
+
+            // Ustaw katalog początkowy tylko jeśli istnieje
+            string networkPath = @"\\192.168.0.109\dane";
+            try
+            {
+                if (System.IO.Directory.Exists(networkPath))
+                    dlg.InitialDirectory = networkPath;
+            }
+            catch { }
 
             if (dlg.ShowDialog() == true)
             {
