@@ -260,6 +260,46 @@
                         <TextBlock Text="Nazwa firmy *" Style="{StaticResource LabelStyle}"/>
                         <TextBox x:Name="txtNazwa" Style="{StaticResource TextBoxStyle}" TextChanged="TxtNazwa_TextChanged"/>
 
+                        <!-- NIP i REGON z przyciskiem pobierania -->
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="NIP" Style="{StaticResource LabelStyle}"/>
+                                <TextBox x:Name="txtNIP" Style="{StaticResource TextBoxStyle}" Margin="0" MaxLength="13"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="REGON" Style="{StaticResource LabelStyle}"/>
+                                <TextBox x:Name="txtREGON" Style="{StaticResource TextBoxStyle}" Margin="0" MaxLength="14"/>
+                            </StackPanel>
+                            <Button Grid.Column="4" x:Name="btnPobierzGUS" Content="Pobierz dane"
+                                    VerticalAlignment="Bottom" Height="36"
+                                    Padding="12,0" Margin="0,0,0,0"
+                                    Background="#059669" Foreground="White" FontWeight="SemiBold"
+                                    Cursor="Hand" Click="BtnPobierzGUS_Click">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="5" Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="bd" Property="Background" Value="#047857"/>
+                                            </Trigger>
+                                            <Trigger Property="IsEnabled" Value="False">
+                                                <Setter TargetName="bd" Property="Background" Value="#475569"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </Grid>
+
                         <TextBlock Text="Branza (PKD)" Style="{StaticResource LabelStyle}"/>
                         <ComboBox x:Name="cmbPKD" Style="{StaticResource DarkComboBox}" IsEditable="True" ItemContainerStyle="{StaticResource DarkComboBoxItem}"/>
 

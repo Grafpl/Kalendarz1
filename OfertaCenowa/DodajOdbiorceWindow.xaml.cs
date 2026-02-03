@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
@@ -160,7 +163,9 @@ namespace Kalendarz1.OfertaCenowa
                             Telefon_K,
                             Email,
                             Status,
-                            Wojewodztwo
+                            Wojewodztwo,
+                            ISNULL(NIP, '') as NIP,
+                            ISNULL(REGON, '') as REGON
                         FROM OdbiorcyCRM
                         WHERE Nazwa LIKE '%' + @szukany + '%'
                         ORDER BY
@@ -184,9 +189,18 @@ namespace Kalendarz1.OfertaCenowa
                             string email = reader.IsDBNull(5) ? "" : reader.GetString(5);
                             string status = reader.IsDBNull(6) ? "" : reader.GetString(6);
                             string woj = reader.IsDBNull(7) ? "" : reader.GetString(7);
+                            string nip = reader.IsDBNull(8) ? "" : reader.GetString(8);
+                            string regon = reader.IsDBNull(9) ? "" : reader.GetString(9);
 
                             // Format: Nazwa firmy
                             string info = nazwa;
+
+                            // NIP/REGON
+                            var nipRegonParts = new List<string>();
+                            if (!string.IsNullOrEmpty(nip)) nipRegonParts.Add($"NIP: {nip}");
+                            if (!string.IsNullOrEmpty(regon)) nipRegonParts.Add($"REGON: {regon}");
+                            if (nipRegonParts.Count > 0)
+                                info += $"\n🔢 {string.Join("  ", nipRegonParts)}";
 
                             // Adres: Miasto, ulica
                             var adresParts = new List<string>();
@@ -338,7 +352,7 @@ namespace Kalendarz1.OfertaCenowa
                         cmdCheckTable.ExecuteNonQuery();
 
                         // Sprawdz i utworz brakujace kolumny (tak jak w EdycjaKontaktuWindow)
-                        string[] kolumny = { "Email", "Imie", "Nazwisko", "Stanowisko", "TelefonDodatkowy" };
+                        string[] kolumny = { "Email", "Imie", "Nazwisko", "Stanowisko", "TelefonDodatkowy", "NIP", "REGON" };
                         foreach (var kol in kolumny)
                         {
                             var cmdKol = new SqlCommand($@"
@@ -352,9 +366,9 @@ namespace Kalendarz1.OfertaCenowa
 
                         var cmdOdbiorca = new SqlCommand(@"
                             INSERT INTO OdbiorcyCRM
-                            (ID, Nazwa, KOD, MIASTO, Ulica, Telefon_K, Email, Wojewodztwo, PKD_Opis, Status, Imie, Nazwisko, Stanowisko, TelefonDodatkowy)
+                            (ID, Nazwa, KOD, MIASTO, Ulica, Telefon_K, Email, Wojewodztwo, PKD_Opis, Status, Imie, Nazwisko, Stanowisko, TelefonDodatkowy, NIP, REGON)
                             VALUES
-                            (@id, @nazwa, @kod, @miasto, @ulica, @tel, @email, @woj, @pkd, 'Do zadzwonienia', @imie, @nazwisko, @stanowisko, @telDod)",
+                            (@id, @nazwa, @kod, @miasto, @ulica, @tel, @email, @woj, @pkd, 'Do zadzwonienia', @imie, @nazwisko, @stanowisko, @telDod, @nip, @regon)",
                             conn, transaction);
 
                         cmdOdbiorca.Parameters.AddWithValue("@id", nowyID);
@@ -370,6 +384,8 @@ namespace Kalendarz1.OfertaCenowa
                         cmdOdbiorca.Parameters.AddWithValue("@nazwisko", txtNazwisko.Text.Trim());
                         cmdOdbiorca.Parameters.AddWithValue("@stanowisko", txtStanowisko.Text.Trim());
                         cmdOdbiorca.Parameters.AddWithValue("@telDod", txtTelefonDodatkowy.Text.Trim());
+                        cmdOdbiorca.Parameters.AddWithValue("@nip", txtNIP.Text.Trim());
+                        cmdOdbiorca.Parameters.AddWithValue("@regon", txtREGON.Text.Trim());
 
                         cmdOdbiorca.ExecuteNonQuery();
 
@@ -426,6 +442,219 @@ namespace Kalendarz1.OfertaCenowa
         {
             DialogResult = false;
             Close();
+        }
+
+        private async void BtnPobierzGUS_Click(object sender, RoutedEventArgs e)
+        {
+            string nip = txtNIP.Text.Replace("-", "").Replace(" ", "").Trim();
+            string regon = txtREGON.Text.Replace("-", "").Replace(" ", "").Trim();
+
+            if (string.IsNullOrEmpty(nip) && string.IsNullOrEmpty(regon))
+            {
+                MessageBox.Show("Podaj NIP lub REGON aby pobrac dane firmy.", "Brak danych", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            btnPobierzGUS.IsEnabled = false;
+            btnPobierzGUS.Content = "Pobieram...";
+            txtStatus.Text = "Laczenie z API Ministerstwa Finansow...";
+
+            try
+            {
+                // Preferuj NIP jesli podany
+                if (!string.IsNullOrEmpty(nip))
+                {
+                    await PobierzDaneZNIP(nip);
+                }
+                else if (!string.IsNullOrEmpty(regon))
+                {
+                    await PobierzDaneZREGON(regon);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad pobierania danych:\n{ex.Message}", "Blad API", MessageBoxButton.OK, MessageBoxImage.Error);
+                txtStatus.Text = "Blad pobierania danych";
+            }
+            finally
+            {
+                btnPobierzGUS.IsEnabled = true;
+                btnPobierzGUS.Content = "Pobierz dane";
+            }
+        }
+
+        private async Task PobierzDaneZNIP(string nip)
+        {
+            // Walidacja NIP (10 cyfr)
+            if (nip.Length != 10 || !long.TryParse(nip, out _))
+            {
+                MessageBox.Show("NIP musi skladac sie z 10 cyfr.", "Nieprawidlowy NIP", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            using (var client = new HttpClient())
+            {
+                client.Timeout = TimeSpan.FromSeconds(30);
+                string dzis = DateTime.Now.ToString("yyyy-MM-dd");
+                string url = $"https://wl-api.mf.gov.pl/api/search/nip/{nip}?date={dzis}";
+
+                var response = await client.GetAsync(url);
+                string json = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    txtStatus.Text = "Nie znaleziono firmy o podanym NIP";
+                    MessageBox.Show("Nie znaleziono firmy o podanym NIP w bazie Ministerstwa Finansow.", "Brak danych", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                ParseujOdpowiedzMF(json);
+            }
+        }
+
+        private async Task PobierzDaneZREGON(string regon)
+        {
+            // Walidacja REGON (9 lub 14 cyfr)
+            if ((regon.Length != 9 && regon.Length != 14) || !long.TryParse(regon, out _))
+            {
+                MessageBox.Show("REGON musi skladac sie z 9 lub 14 cyfr.", "Nieprawidlowy REGON", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            using (var client = new HttpClient())
+            {
+                client.Timeout = TimeSpan.FromSeconds(30);
+                string dzis = DateTime.Now.ToString("yyyy-MM-dd");
+                string url = $"https://wl-api.mf.gov.pl/api/search/regon/{regon}?date={dzis}";
+
+                var response = await client.GetAsync(url);
+                string json = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    txtStatus.Text = "Nie znaleziono firmy o podanym REGON";
+                    MessageBox.Show("Nie znaleziono firmy o podanym REGON w bazie Ministerstwa Finansow.", "Brak danych", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                ParseujOdpowiedzMF(json);
+            }
+        }
+
+        private void ParseujOdpowiedzMF(string json)
+        {
+            try
+            {
+                using (JsonDocument doc = JsonDocument.Parse(json))
+                {
+                    var root = doc.RootElement;
+
+                    if (root.TryGetProperty("result", out JsonElement result) &&
+                        result.TryGetProperty("subject", out JsonElement subject))
+                    {
+                        // Nazwa firmy
+                        if (subject.TryGetProperty("name", out JsonElement nameEl))
+                        {
+                            string nazwa = nameEl.GetString();
+                            if (!string.IsNullOrEmpty(nazwa))
+                                txtNazwa.Text = nazwa;
+                        }
+
+                        // NIP
+                        if (subject.TryGetProperty("nip", out JsonElement nipEl))
+                        {
+                            string nipVal = nipEl.GetString();
+                            if (!string.IsNullOrEmpty(nipVal))
+                                txtNIP.Text = nipVal;
+                        }
+
+                        // REGON
+                        if (subject.TryGetProperty("regon", out JsonElement regonEl))
+                        {
+                            string regonVal = regonEl.GetString();
+                            if (!string.IsNullOrEmpty(regonVal))
+                                txtREGON.Text = regonVal;
+                        }
+
+                        // Adres - parsuj z workingAddress lub residenceAddress
+                        string adres = "";
+                        if (subject.TryGetProperty("workingAddress", out JsonElement workAddr))
+                            adres = workAddr.GetString() ?? "";
+                        else if (subject.TryGetProperty("residenceAddress", out JsonElement resAddr))
+                            adres = resAddr.GetString() ?? "";
+
+                        if (!string.IsNullOrEmpty(adres))
+                        {
+                            ParseujAdres(adres);
+                        }
+
+                        txtStatus.Text = "Dane pobrane pomyslnie!";
+                        MessageBox.Show("Dane firmy zostaly pobrane z bazy Ministerstwa Finansow.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        txtStatus.Text = "Brak danych w odpowiedzi API";
+                        MessageBox.Show("Nie udalo sie odczytac danych z odpowiedzi API.", "Brak danych", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                txtStatus.Text = "Blad parsowania odpowiedzi";
+                MessageBox.Show($"Blad parsowania odpowiedzi API:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void ParseujAdres(string adres)
+        {
+            // Format adresu z API MF: "ul. Nazwa Ulicy 123, 00-000 Miasto"
+            // lub "Miejscowosc, ul. Nazwa 1, 00-000 Miasto"
+
+            try
+            {
+                // Szukaj kodu pocztowego (XX-XXX)
+                var kodMatch = System.Text.RegularExpressions.Regex.Match(adres, @"(\d{2}-\d{3})");
+                if (kodMatch.Success)
+                {
+                    txtKod.Text = kodMatch.Value;
+
+                    // Miasto jest zazwyczaj po kodzie pocztowym
+                    int kodIndex = adres.IndexOf(kodMatch.Value);
+                    if (kodIndex >= 0)
+                    {
+                        string poKodzie = adres.Substring(kodIndex + kodMatch.Value.Length).Trim();
+                        // Usun przecinki i bialeznak na poczatku
+                        poKodzie = poKodzie.TrimStart(',', ' ');
+
+                        if (!string.IsNullOrEmpty(poKodzie))
+                        {
+                            // Miasto to pierwszy wyraz lub do przecinka
+                            int przecinek = poKodzie.IndexOf(',');
+                            string miasto = przecinek > 0 ? poKodzie.Substring(0, przecinek) : poKodzie;
+                            txtMiasto.Text = miasto.Trim();
+                        }
+
+                        // Ulica to wszystko przed kodem pocztowym
+                        string przedKodem = adres.Substring(0, kodIndex).Trim();
+                        przedKodem = przedKodem.TrimEnd(',', ' ');
+
+                        if (!string.IsNullOrEmpty(przedKodem))
+                        {
+                            txtUlica.Text = przedKodem;
+                        }
+                    }
+                }
+                else
+                {
+                    // Brak kodu - sprobuj caly adres jako ulice
+                    txtUlica.Text = adres;
+                }
+            }
+            catch
+            {
+                // W razie bledu wstaw caly adres do ulicy
+                txtUlica.Text = adres;
+            }
         }
     }
 }
