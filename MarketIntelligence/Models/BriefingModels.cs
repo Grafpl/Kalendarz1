@@ -331,10 +331,311 @@ namespace Kalendarz1.MarketIntelligence.Models
         public decimal Price { get; set; }
         public string Unit { get; set; }
         public decimal ChangePercent { get; set; }
+        public List<PricePoint> HistoricalPrices { get; set; } = new List<PricePoint>();
+        public string SourceUrl { get; set; }
+        public string Source { get; set; }
 
         public string PriceDisplay => $"{Price:N2} {Unit}";
         public string ChangeDisplay => ChangePercent >= 0 ? $"+{ChangePercent:N1}%" : $"{ChangePercent:N1}%";
         public bool IsPositive => ChangePercent >= 0;
+    }
+
+    #endregion
+
+    #region Price Point (for charts)
+
+    public class PricePoint
+    {
+        public DateTime Date { get; set; }
+        public decimal Value { get; set; }
+
+        public PricePoint() { }
+        public PricePoint(DateTime date, decimal value)
+        {
+            Date = date;
+            Value = value;
+        }
+    }
+
+    #endregion
+
+    #region Export/Import Data
+
+    public class ExportImportData : NotifyBase
+    {
+        public string Country { get; set; }
+        public string CountryFlag { get; set; }
+        public string ProductType { get; set; } // Filet, Tuszka, Udko
+        public decimal VolumeThousandTons { get; set; }
+        public decimal ChangePercent { get; set; }
+        public decimal ValueMillionEur { get; set; }
+        public bool IsExport { get; set; } // true = export, false = import
+        public int Year { get; set; }
+        public string Source { get; set; }
+        public string SourceUrl { get; set; }
+
+        public string VolumeDisplay => $"{VolumeThousandTons:N1} tys. ton";
+        public string ValueDisplay => $"{ValueMillionEur:N1} mln EUR";
+        public string ChangeDisplay => ChangePercent >= 0 ? $"+{ChangePercent:N1}%" : $"{ChangePercent:N1}%";
+        public bool IsPositive => ChangePercent >= 0;
+        public string DirectionLabel => IsExport ? "EKSPORT" : "IMPORT";
+    }
+
+    #endregion
+
+    #region Subsidy/Grant
+
+    public class SubsidyGrant : NotifyBase
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public string Provider { get; set; } // ARiMR, NFOSiGW, PARP, EU
+        public string Description { get; set; }
+        public decimal MaxAmountPln { get; set; }
+        public decimal CoFinancingPercent { get; set; }
+        public DateTime DeadlineDate { get; set; }
+        public string EligibleFor { get; set; } // Lista kryteriow
+        public string RequiredDocuments { get; set; }
+        public string ApplicationUrl { get; set; }
+        public SeverityLevel Priority { get; set; }
+        public bool IsActive { get; set; }
+        public List<string> Tags { get; set; } = new List<string>();
+
+        public string MaxAmountDisplay => MaxAmountPln >= 1000000
+            ? $"{MaxAmountPln / 1000000:N1} mln PLN"
+            : $"{MaxAmountPln / 1000:N0} tys. PLN";
+        public string CoFinancingDisplay => $"do {CoFinancingPercent:N0}%";
+        public int DaysUntilDeadline => (DeadlineDate.Date - DateTime.Today).Days;
+        public string DeadlineDisplay => DeadlineDate.ToString("dd.MM.yyyy");
+        public string DaysUntilDisplay => DaysUntilDeadline switch
+        {
+            <= 0 => "ZAMKNIETE",
+            <= 7 => $"PILNE! {DaysUntilDeadline} dni",
+            <= 30 => $"{DaysUntilDeadline} dni",
+            _ => $"{DaysUntilDeadline} dni"
+        };
+        public string DaysLeftDisplay => DaysUntilDeadline switch
+        {
+            <= 0 => "(zamkniete)",
+            <= 7 => $"({DaysUntilDeadline} dni!)",
+            _ => $"({DaysUntilDeadline} dni)"
+        };
+    }
+
+    #endregion
+
+    #region Potential Client
+
+    public class PotentialClient : NotifyBase
+    {
+        public int Id { get; set; }
+        public string CompanyName { get; set; }
+        public string Industry { get; set; } // Siec detaliczna, HoReCa, Przetwórstwo
+        public string Description { get; set; }
+        public string Location { get; set; }
+        public string Region { get; set; }
+        public int EstimatedVolumePerMonth { get; set; } // palety E2
+        public string ContactPerson { get; set; }
+        public string ContactEmail { get; set; }
+        public string ContactPhone { get; set; }
+        public string Website { get; set; }
+        public string LatestNews { get; set; }
+        public string NewsSource { get; set; }
+        public string NewsSourceUrl { get; set; }
+        public DateTime NewsDate { get; set; }
+        public int OpportunityScore { get; set; } // 0-100
+        public string RecommendedAction { get; set; }
+        public string AssignedTo { get; set; }
+        public SeverityLevel Priority { get; set; }
+
+        public string VolumeDisplay => $"~{EstimatedVolumePerMonth} palet/mies.";
+        public string OpportunityDisplay => $"{OpportunityScore}%";
+        public string OpportunityScoreDisplay => $"{OpportunityScore}%";
+        public double OpportunityWidth => OpportunityScore * 2.0;
+    }
+
+    #endregion
+
+    #region International Market News
+
+    public class InternationalMarketNews : NotifyBase
+    {
+        public int Id { get; set; }
+        public string Country { get; set; }
+        public string CountryFlag { get; set; }
+        public string Region { get; set; } // EU, Mercosur, Asia
+        public string Title { get; set; }
+        public string Summary { get; set; }
+        public string FullContent { get; set; }
+        public string ImpactOnPoland { get; set; }
+        public SeverityLevel ThreatLevel { get; set; }
+        public string Source { get; set; }
+        public string SourceUrl { get; set; }
+        public DateTime PublishDate { get; set; }
+        public List<string> Tags { get; set; } = new List<string>();
+
+        public string DateDisplay => PublishDate.ToString("dd.MM.yyyy");
+        public string ThreatText => ThreatLevel switch
+        {
+            SeverityLevel.Critical => "WYSOKIE ZAGROZENIE",
+            SeverityLevel.Warning => "SREDNIE ZAGROZENIE",
+            SeverityLevel.Positive => "SZANSA",
+            SeverityLevel.Info => "INFORMACJA",
+            _ => "INFO"
+        };
+        public string ThreatLevelText => ThreatLevel switch
+        {
+            SeverityLevel.Critical => "WYSOKIE",
+            SeverityLevel.Warning => "SREDNIE",
+            SeverityLevel.Positive => "SZANSA",
+            SeverityLevel.Info => "INFO",
+            _ => "INFO"
+        };
+    }
+
+    #endregion
+
+    #region Extended Competitor Model
+
+    public class ExtendedCompetitor : NotifyBase
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public string ShortName { get; set; }
+        public string Owner { get; set; }
+        public string OwnerCountry { get; set; }
+        public string CountryFlag { get; set; }
+
+        // Location for map
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public string City { get; set; }
+        public string Voivodeship { get; set; }
+        public int DistanceFromUsKm { get; set; }
+
+        // Business data
+        public decimal RevenueMillionPln { get; set; }
+        public int CapacityPerDay { get; set; } // sztuk/dzien
+        public int Employees { get; set; }
+        public int NumberOfPlants { get; set; }
+        public decimal MarketSharePercent { get; set; }
+
+        // Tier and threat
+        public int Tier { get; set; } // 1 = giganci, 2 = regionalni, 3 = lokalni
+        public int ThreatLevel { get; set; } // 0-100
+
+        // Products and certifications
+        public List<string> MainProducts { get; set; } = new List<string>();
+        public List<string> Certifications { get; set; } = new List<string>();
+        public List<string> MainClients { get; set; } = new List<string>();
+
+        // History and news
+        public string CompanyHistory { get; set; }
+        public string LatestNews { get; set; }
+        public string NewsSource { get; set; }
+        public string NewsSourceUrl { get; set; }
+        public DateTime NewsDate { get; set; }
+
+        // SWOT
+        public string Strengths { get; set; }
+        public string Weaknesses { get; set; }
+        public string OpportunitiesForUs { get; set; }
+        public string ThreatsFromThem { get; set; }
+
+        // Contact
+        public string Website { get; set; }
+        public string Address { get; set; }
+
+        // Computed properties
+        public string RevenueDisplay => RevenueMillionPln >= 1000
+            ? $"{RevenueMillionPln / 1000:N1} mld PLN"
+            : $"{RevenueMillionPln:N0} mln PLN";
+        public string CapacityDisplay => CapacityPerDay >= 1000000
+            ? $"{CapacityPerDay / 1000000.0:N1}M szt./dzien"
+            : $"{CapacityPerDay / 1000}k szt./dzien";
+        public string MarketShareDisplay => $"{MarketSharePercent:N1}%";
+        public string ThreatDisplay => $"{ThreatLevel}%";
+        public double ThreatWidth => ThreatLevel * 2.5;
+        public string DistanceDisplay => $"{DistanceFromUsKm} km";
+        public string TierDisplay => Tier switch
+        {
+            1 => "GIGANT",
+            2 => "REGIONALNY",
+            3 => "LOKALNY",
+            _ => "INNY"
+        };
+    }
+
+    #endregion
+
+    #region Chart Data Series
+
+    public class ChartDataSeries : NotifyBase
+    {
+        public string Name { get; set; }
+        public string Color { get; set; }
+        public string Unit { get; set; }
+        public List<PricePoint> DataPoints { get; set; } = new List<PricePoint>();
+        public decimal CurrentValue { get; set; }
+        public decimal ChangePercent { get; set; }
+        public decimal MinValue { get; set; }
+        public decimal MaxValue { get; set; }
+        public decimal AvgValue { get; set; }
+        public string Source { get; set; }
+        public string SourceUrl { get; set; }
+
+        public string CurrentDisplay => $"{CurrentValue:N2} {Unit}";
+        public string CurrentValueDisplay => $"{CurrentValue:N2}";
+        public string ChangeDisplay => ChangePercent >= 0 ? $"+{ChangePercent:N2}%" : $"{ChangePercent:N2}%";
+        public bool IsPositive => ChangePercent >= 0;
+        public string RangeDisplay => $"{MinValue:N2} - {MaxValue:N2} {Unit}";
+        public string MinValueDisplay => $"Min: {MinValue:N2}";
+        public string MaxValueDisplay => $"Max: {MaxValue:N2}";
+    }
+
+    #endregion
+
+    #region Retail Chain Extended
+
+    public class RetailChainExtended : NotifyBase
+    {
+        public int Id { get; set; }
+        public string ChainName { get; set; }
+        public string ChainLogo { get; set; }
+        public string OwnerCompany { get; set; }
+        public string OwnerCountry { get; set; }
+        public string CountryFlag { get; set; }
+
+        // Prices
+        public decimal FiletPrice { get; set; }
+        public decimal FiletPricePromo { get; set; }
+        public decimal TuszkaPrice { get; set; }
+        public decimal TuszkaPricePromo { get; set; }
+        public decimal UdkoPrice { get; set; }
+        public decimal UdkoPricePromo { get; set; }
+        public decimal SkrzydloPrice { get; set; }
+        public decimal PodrudziePrice { get; set; }
+
+        // Source info
+        public string Source { get; set; }
+        public string SourceUrl { get; set; }
+        public DateTime CheckDate { get; set; }
+        public string PromoValidUntil { get; set; }
+
+        // Chain info
+        public int StoreCount { get; set; }
+        public string Regions { get; set; }
+        public bool IsOurClient { get; set; }
+        public string OurHandlowiec { get; set; }
+        public string Notes { get; set; }
+
+        // Computed
+        public string FiletDisplay => $"{FiletPrice:N2} zl";
+        public string FiletPromoDisplay => FiletPricePromo > 0 ? $"{FiletPricePromo:N2} zl" : "-";
+        public string TuszkaDisplay => $"{TuszkaPrice:N2} zl";
+        public string UdkoDisplay => $"{UdkoPrice:N2} zl";
+        public string CheckDateDisplay => CheckDate.ToString("dd.MM.yyyy");
+        public bool HasPromo => FiletPricePromo > 0 || TuszkaPricePromo > 0 || UdkoPricePromo > 0;
     }
 
     #endregion

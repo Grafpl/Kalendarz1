@@ -39,9 +39,12 @@ namespace Kalendarz1.MarketIntelligence.ViewModels
             AllArticles = new ObservableCollection<BriefingArticle>();
             FilteredArticles = new ObservableCollection<BriefingArticle>();
             Competitors = new ObservableCollection<BriefingCompetitor>();
+            ExtendedCompetitors = new ObservableCollection<ExtendedCompetitor>();
             RetailPrices = new ObservableCollection<RetailPrice>();
+            RetailChainsExtended = new ObservableCollection<RetailChainExtended>();
             Farmers = new ObservableCollection<BriefingFarmer>();
             Clients = new ObservableCollection<BriefingClient>();
+            PotentialClients = new ObservableCollection<PotentialClient>();
             CalendarEvents = new ObservableCollection<CalendarEvent>();
             Tasks = new ObservableCollection<BriefingTask>();
             Indicators = new ObservableCollection<PriceIndicator>();
@@ -49,6 +52,11 @@ namespace Kalendarz1.MarketIntelligence.ViewModels
             ElementPrices = new ObservableCollection<ElementPrice>();
             FeedPrices = new ObservableCollection<FeedPrice>();
             SummarySegments = new ObservableCollection<SummarySegment>();
+            ExportData = new ObservableCollection<ExportImportData>();
+            ImportData = new ObservableCollection<ExportImportData>();
+            Subsidies = new ObservableCollection<SubsidyGrant>();
+            InternationalNews = new ObservableCollection<InternationalMarketNews>();
+            ChartSeries = new ObservableCollection<ChartDataSeries>();
 
             // Initialize commands
             ToggleArticleCommand = new RelayCommand<BriefingArticle>(ToggleArticle);
@@ -75,9 +83,12 @@ namespace Kalendarz1.MarketIntelligence.ViewModels
         public ObservableCollection<BriefingArticle> AllArticles { get; }
         public ObservableCollection<BriefingArticle> FilteredArticles { get; }
         public ObservableCollection<BriefingCompetitor> Competitors { get; }
+        public ObservableCollection<ExtendedCompetitor> ExtendedCompetitors { get; }
         public ObservableCollection<RetailPrice> RetailPrices { get; }
+        public ObservableCollection<RetailChainExtended> RetailChainsExtended { get; }
         public ObservableCollection<BriefingFarmer> Farmers { get; }
         public ObservableCollection<BriefingClient> Clients { get; }
+        public ObservableCollection<PotentialClient> PotentialClients { get; }
         public ObservableCollection<CalendarEvent> CalendarEvents { get; }
         public ObservableCollection<BriefingTask> Tasks { get; }
         public ObservableCollection<PriceIndicator> Indicators { get; }
@@ -85,6 +96,11 @@ namespace Kalendarz1.MarketIntelligence.ViewModels
         public ObservableCollection<ElementPrice> ElementPrices { get; }
         public ObservableCollection<FeedPrice> FeedPrices { get; }
         public ObservableCollection<SummarySegment> SummarySegments { get; }
+        public ObservableCollection<ExportImportData> ExportData { get; }
+        public ObservableCollection<ExportImportData> ImportData { get; }
+        public ObservableCollection<SubsidyGrant> Subsidies { get; }
+        public ObservableCollection<InternationalMarketNews> InternationalNews { get; }
+        public ObservableCollection<ChartDataSeries> ChartSeries { get; }
 
         #endregion
 
@@ -306,14 +322,22 @@ namespace Kalendarz1.MarketIntelligence.ViewModels
             LoadIndicators();
             LoadArticles();
             LoadCompetitors();
+            LoadExtendedCompetitors();
             LoadRetailPrices();
+            LoadRetailChainsExtended();
             LoadFarmers();
             LoadClients();
+            LoadPotentialClients();
             LoadCalendarEvents();
             LoadTasks();
             LoadEuBenchmarks();
             LoadElementPrices();
             LoadFeedPrices();
+            LoadExportData();
+            LoadImportData();
+            LoadSubsidies();
+            LoadInternationalNews();
+            LoadChartSeries();
         }
 
         private void LoadSummarySegments()
@@ -1077,6 +1101,837 @@ Plan awaryjny:
             FeedPrices.Add(new FeedPrice { Commodity = "Pszenica", Contract = "MAR26", Price = 210.00m, Unit = "EUR/t", ChangePercent = -0.25m });
             FeedPrices.Add(new FeedPrice { Commodity = "Soja", Contract = "MAR26", Price = 385.00m, Unit = "EUR/t", ChangePercent = 0.15m });
             FeedPrices.Add(new FeedPrice { Commodity = "Rzepak", Contract = "MAY26", Price = 445.00m, Unit = "EUR/t", ChangePercent = -0.52m });
+        }
+
+        private void LoadExtendedCompetitors()
+        {
+            ExtendedCompetitors.Clear();
+
+            // MY LOCATION: Brzeziny, lodzkie - 51.7944° N, 19.7569° E
+            // Tier 1 - GIGANCI
+            ExtendedCompetitors.Add(new ExtendedCompetitor
+            {
+                Id = 1, Name = "Cedrob S.A.", ShortName = "Cedrob",
+                Owner = "Rodzina Gowin (negocjacje z ADQ)", OwnerCountry = "Polska/Emiraty", CountryFlag = "🇵🇱🇦🇪",
+                Latitude = 52.8833, Longitude = 19.4167, City = "Ujazdówek", Voivodeship = "kujawsko-pomorskie", DistanceFromUsKm = 180,
+                RevenueMillionPln = 5000, CapacityPerDay = 800000, Employees = 8000, NumberOfPlants = 5, MarketSharePercent = 25,
+                Tier = 1, ThreatLevel = 95,
+                MainProducts = new List<string> { "Tuszka", "Filet", "Elementy", "Produkty przetworzone" },
+                Certifications = new List<string> { "IFS Higher Level", "BRC A", "QAFP", "Halal" },
+                MainClients = new List<string> { "Biedronka", "Lidl", "Kaufland", "Tesco", "Auchan" },
+                CompanyHistory = "Zalozony 1993 przez rodzine Gowin. Od lat 90. dynamiczny rozwoj. 2024-2026: negocjacje sprzedazy do ADQ za 8 mld PLN.",
+                LatestNews = "ADQ (Abu Dhabi) negocjuje przejecie za 8 mld PLN. Jesli transakcja dojdzie do skutku, ADQ bedzie kontrolowac 45% rynku PL.",
+                NewsSource = "Bloomberg", NewsSourceUrl = "https://www.bloomberg.com", NewsDate = new DateTime(2026, 1, 28),
+                Strengths = "Najwiekszy gracz, efekt skali, pelna integracja pionowa, silna marka",
+                Weaknesses = "Biurokracja duzej firmy, negocjacje sprzedazy moga destabilizowac",
+                OpportunitiesForUs = "Chaos organizacyjny przy przejęciu, niezadowoleni hodowcy moga szukac alternatyw",
+                ThreatsFromThem = "Dominacja cenowa, moze przejmowac naszych hodowcow kontraktami",
+                Website = "https://www.cedrob.pl", Address = "Ujazdówek 20, 87-326 Ujazdówek"
+            });
+
+            ExtendedCompetitors.Add(new ExtendedCompetitor
+            {
+                Id = 2, Name = "SuperDrob / LipCo Foods", ShortName = "SuperDrob",
+                Owner = "Lipka + CPF (Tajlandia) + Jagiello", OwnerCountry = "Polska/Tajlandia", CountryFlag = "🇵🇱🇹🇭",
+                Latitude = 52.0833, Longitude = 21.2333, City = "Karczew", Voivodeship = "mazowieckie", DistanceFromUsKm = 95,
+                RevenueMillionPln = 4000, CapacityPerDay = 350000, Employees = 3500, NumberOfPlants = 3, MarketSharePercent = 15,
+                Tier = 1, ThreatLevel = 88,
+                MainProducts = new List<string> { "Filet", "Tuszka", "Produkty convenience" },
+                Certifications = new List<string> { "IFS Higher Level", "BRC", "ISO 22000" },
+                MainClients = new List<string> { "Biedronka", "Lidl", "Zabka", "Makro" },
+                CompanyHistory = "2015: Lipka zakłada SuperDrob. 2022: wejscie CPF (Charoen Pokphand Foods). 2025: Zbigniew Jagiello w RN.",
+                LatestNews = "180 mln PLN inwestycji w nowa linie. Cel: podwojenie przychodow do $2 mld do 2028.",
+                NewsSource = "Puls Biznesu", NewsSourceUrl = "https://www.pb.pl", NewsDate = new DateTime(2026, 1, 20),
+                Strengths = "Agresywna ekspansja, silne zaplecze finansowe (CPF), nowoczesne zaklady",
+                Weaknesses = "Relatywnie nowy gracz, mniejsza baza hodowcow",
+                OpportunitiesForUs = "Moga miec problemy z pozyskaniem zywca przy szybkim wzroscie",
+                ThreatsFromThem = "Agresywna polityka cenowa, przejmowanie hodowcow",
+                Website = "https://www.superdrob.pl", Address = "ul. Otwocka 1, 05-480 Karczew"
+            });
+
+            ExtendedCompetitors.Add(new ExtendedCompetitor
+            {
+                Id = 3, Name = "Drosed S.A.", ShortName = "Drosed",
+                Owner = "LDC Group (Francja) → ADQ", OwnerCountry = "Francja/Emiraty", CountryFlag = "🇫🇷🇦🇪",
+                Latitude = 52.1667, Longitude = 22.2833, City = "Siedlce", Voivodeship = "mazowieckie", DistanceFromUsKm = 200,
+                RevenueMillionPln = 2000, CapacityPerDay = 400000, Employees = 2500, NumberOfPlants = 2, MarketSharePercent = 12,
+                Tier = 1, ThreatLevel = 82,
+                MainProducts = new List<string> { "Tuszka", "Filet", "Elementy" },
+                Certifications = new List<string> { "IFS Higher Level", "BRC AA" },
+                MainClients = new List<string> { "Carrefour", "Auchan", "Intermarche", "Eksport UE" },
+                CompanyHistory = "Historia siega lat 60. Od 2006 w grupie LDC. 2024: ADQ przejmuje LDC Group.",
+                LatestNews = "Jesli ADQ kupi tez Cedrob, Drosed+Cedrob = 37% rynku pod jedna kontrola.",
+                NewsSource = "Reuters", NewsSourceUrl = "https://www.reuters.com", NewsDate = new DateTime(2026, 1, 25),
+                Strengths = "Silna pozycja eksportowa, doswiadczenie, know-how LDC",
+                Weaknesses = "Zmiany wlascicielskie moga destabilizowac",
+                OpportunitiesForUs = "Koncentracja na eksporcie = mniejszy fokus na rynek krajowy",
+                ThreatsFromThem = "Synergie z Cedrobem po przejęciu ADQ",
+                Website = "https://www.drosed.pl", Address = "ul. Brzeska 90, 08-110 Siedlce"
+            });
+
+            ExtendedCompetitors.Add(new ExtendedCompetitor
+            {
+                Id = 4, Name = "Animex Foods Sp. z o.o.", ShortName = "Animex",
+                Owner = "WH Group (Chiny/USA)", OwnerCountry = "Chiny", CountryFlag = "🇨🇳",
+                Latitude = 52.2297, Longitude = 21.0122, City = "Warszawa", Voivodeship = "mazowieckie", DistanceFromUsKm = 120,
+                RevenueMillionPln = 1500, CapacityPerDay = 200000, Employees = 2000, NumberOfPlants = 4, MarketSharePercent = 8,
+                Tier = 1, ThreatLevel = 70,
+                MainProducts = new List<string> { "Wieprzowina (glownie)", "Drob", "Wedliny" },
+                Certifications = new List<string> { "IFS", "BRC", "ISO" },
+                MainClients = new List<string> { "Sieci handlowe", "HoReCa", "Eksport" },
+                CompanyHistory = "Historia od 1951. Prywatyzacja 1995. 2014: przejecie przez WH Group (Shuanghui).",
+                LatestNews = "Stabilna pozycja, glowny fokus na wieprzowine. Drob to ok. 20% biznesu.",
+                NewsSource = "PAP", NewsSourceUrl = "https://www.pap.pl", NewsDate = new DateTime(2026, 1, 15),
+                Strengths = "Globalny koncern, dywersyfikacja produktowa",
+                Weaknesses = "Drob nie jest core business",
+                OpportunitiesForUs = "Mniejszy fokus na drob = szansa na klientow",
+                ThreatsFromThem = "Mogą zintensyfikować działania w drobiu",
+                Website = "https://www.animex.pl", Address = "ul. Chałubińskiego 8, 00-613 Warszawa"
+            });
+
+            ExtendedCompetitors.Add(new ExtendedCompetitor
+            {
+                Id = 5, Name = "Indykpol S.A.", ShortName = "Indykpol",
+                Owner = "LDC Group → ADQ", OwnerCountry = "Francja/Emiraty", CountryFlag = "🇫🇷🇦🇪",
+                Latitude = 53.7756, Longitude = 20.4833, City = "Olsztyn", Voivodeship = "warminsko-mazurskie", DistanceFromUsKm = 280,
+                RevenueMillionPln = 800, CapacityPerDay = 150000, Employees = 1500, NumberOfPlants = 2, MarketSharePercent = 5,
+                Tier = 1, ThreatLevel = 55,
+                MainProducts = new List<string> { "Indyk", "Kurczak", "Produkty przetworzone" },
+                Certifications = new List<string> { "IFS", "BRC" },
+                MainClients = new List<string> { "Sieci handlowe", "Eksport" },
+                CompanyHistory = "Zalozony 1972. Specjalizacja: indyk. Od 2010 w grupie LDC/Drosed.",
+                LatestNews = "Czesc grupy LDC/ADQ. Fokus na segment premium indyka.",
+                NewsSource = "Farmer.pl", NewsSourceUrl = "https://www.farmer.pl", NewsDate = new DateTime(2026, 1, 10),
+                Strengths = "Silna marka w segmencie indyka",
+                Weaknesses = "Ograniczona obecnosc w kurczaku",
+                OpportunitiesForUs = "Nie konkurujemy bezposrednio (my = kurczak)",
+                ThreatsFromThem = "Synergie grupowe z Drosed",
+                Website = "https://www.indykpol.pl", Address = "ul. Jesienna 3, 10-370 Olsztyn"
+            });
+
+            ExtendedCompetitors.Add(new ExtendedCompetitor
+            {
+                Id = 6, Name = "Drobimex Sp. z o.o. / PHW-Gruppe", ShortName = "Drobimex",
+                Owner = "PHW-Gruppe / Wiesenhof (Niemcy)", OwnerCountry = "Niemcy", CountryFlag = "🇩🇪",
+                Latitude = 53.4289, Longitude = 14.5530, City = "Szczecin", Voivodeship = "zachodniopomorskie", DistanceFromUsKm = 420,
+                RevenueMillionPln = 500, CapacityPerDay = 150000, Employees = 800, NumberOfPlants = 1, MarketSharePercent = 4,
+                Tier = 1, ThreatLevel = 60,
+                MainProducts = new List<string> { "Tuszka", "Filet", "Eksport do Niemiec" },
+                Certifications = new List<string> { "IFS Higher Level", "QS", "Tierschutz" },
+                MainClients = new List<string> { "Sieci niemieckie", "REWE", "EDEKA" },
+                CompanyHistory = "Czesc niemieckiej grupy PHW (Wiesenhof) - najwiekszego producenta drobiu w Niemczech.",
+                LatestNews = "Silna pozycja eksportowa do Niemiec. Fokus na polnocno-zachodnia Polske.",
+                NewsSource = "Fleischwirtschaft", NewsSourceUrl = "https://www.fleischwirtschaft.de", NewsDate = new DateTime(2026, 1, 18),
+                Strengths = "Know-how niemieckie, dostep do rynku DE",
+                Weaknesses = "Ograniczona obecnosc w centralnej/wschodniej PL",
+                OpportunitiesForUs = "Nie konkurujemy geograficznie",
+                ThreatsFromThem = "Moga ekspandowac na wschod",
+                Website = "https://www.drobimex.pl", Address = "ul. Welecka 20, 72-006 Mierzyn"
+            });
+
+            // Tier 2 - REGIONALNI
+            ExtendedCompetitors.Add(new ExtendedCompetitor
+            {
+                Id = 7, Name = "Wipasz S.A.", ShortName = "Wipasz",
+                Owner = "Polski prywatny", OwnerCountry = "Polska", CountryFlag = "🇵🇱",
+                Latitude = 53.7756, Longitude = 20.4833, City = "Wadąg k/Olsztyna", Voivodeship = "warminsko-mazurskie", DistanceFromUsKm = 290,
+                RevenueMillionPln = 800, CapacityPerDay = 100000, Employees = 600, NumberOfPlants = 1, MarketSharePercent = 3,
+                Tier = 2, ThreatLevel = 55,
+                MainProducts = new List<string> { "Drob", "Pasze", "Zintegrowany pionowo" },
+                Certifications = new List<string> { "IFS", "ISO 22000" },
+                MainClients = new List<string> { "Sieci regionalne", "Hurt" },
+                CompanyHistory = "Zintegrowany pionowo: od produkcji pasz, przez hodowle, do uboju.",
+                LatestNews = "Inwestycje w rozbudowe mocy produkcyjnych.",
+                NewsSource = "Farmer.pl", NewsSourceUrl = "https://www.farmer.pl", NewsDate = new DateTime(2026, 1, 12),
+                Strengths = "Integracja pionowa, kontrola kosztow",
+                Weaknesses = "Ograniczony zasieg geograficzny",
+                OpportunitiesForUs = "Daleko od naszego regionu",
+                ThreatsFromThem = "Model integracji pionowej moze byc inspiracja",
+                Website = "https://www.wipasz.pl", Address = "Wadąg 9, 11-034 Stawiguda"
+            });
+
+            ExtendedCompetitors.Add(new ExtendedCompetitor
+            {
+                Id = 8, Name = "Konspol Holding Sp. z o.o.", ShortName = "Konspol",
+                Owner = "Rodzina Krupa", OwnerCountry = "Polska", CountryFlag = "🇵🇱",
+                Latitude = 50.0833, Longitude = 19.9167, City = "Nowy Sącz", Voivodeship = "malopolskie", DistanceFromUsKm = 280,
+                RevenueMillionPln = 600, CapacityPerDay = 80000, Employees = 500, NumberOfPlants = 1, MarketSharePercent = 2,
+                Tier = 2, ThreatLevel = 40,
+                MainProducts = new List<string> { "Kurczak", "Indyk", "Produkty przetworzone" },
+                Certifications = new List<string> { "IFS", "BRC" },
+                MainClients = new List<string> { "Sieci handlowe", "Gastronomia" },
+                CompanyHistory = "Firma rodzinna z Malopolski. Od lat 90. dynamiczny rozwoj.",
+                LatestNews = "Stabilna pozycja w poludniowej Polsce.",
+                NewsSource = "Portal Spozywczy", NewsSourceUrl = "https://www.portalspozywczy.pl", NewsDate = new DateTime(2026, 1, 8),
+                Strengths = "Silna pozycja regionalna, lojalnosc klientow",
+                Weaknesses = "Ograniczony zasieg poza Malopolska",
+                OpportunitiesForUs = "Nie konkurujemy geograficznie",
+                ThreatsFromThem = "Minimalne - daleko",
+                Website = "https://www.konspol.pl", Address = "ul. Lwowska 164, 33-300 Nowy Sącz"
+            });
+
+            ExtendedCompetitors.Add(new ExtendedCompetitor
+            {
+                Id = 9, Name = "RADDROB Chlebowski", ShortName = "RADDROB",
+                Owner = "Rodzina Chlebowski", OwnerCountry = "Polska", CountryFlag = "🇵🇱",
+                Latitude = 51.75, Longitude = 19.45, City = "Lodz region", Voivodeship = "lodzkie", DistanceFromUsKm = 35,
+                RevenueMillionPln = 100, CapacityPerDay = 30000, Employees = 150, NumberOfPlants = 1, MarketSharePercent = 0.5m,
+                Tier = 2, ThreatLevel = 45,
+                MainProducts = new List<string> { "Hurt drobiu", "Uboj" },
+                Certifications = new List<string> { "Weterynaryjny" },
+                MainClients = new List<string> { "Lokalne sklepy", "Targowiska" },
+                CompanyHistory = "Lokalna hurtownia z wlasna mala ubojnia. Nasz klient ALE TEZ konkurent.",
+                LatestNews = "Rozbudowuje wlasna ubojnie - moze stac sie wiekszym konkurentem.",
+                NewsSource = "Lokalne info", NewsSourceUrl = "", NewsDate = new DateTime(2026, 1, 5),
+                Strengths = "Zna lokalny rynek, blisko nas",
+                Weaknesses = "Mala skala, ograniczone certyfikaty",
+                OpportunitiesForUs = "Jest naszym klientem - mozemy kontrolowac relacje",
+                ThreatsFromThem = "Moze przejmowac lokalnych hodowcow, rozbudowuje ubojnie",
+                Website = "", Address = "Lodzkie"
+            });
+
+            ExtendedCompetitors.Add(new ExtendedCompetitor
+            {
+                Id = 10, Name = "Zakłady Drobiarskie Koziegłowy", ShortName = "ZD Koziegłowy",
+                Owner = "Polski prywatny", OwnerCountry = "Polska", CountryFlag = "🇵🇱",
+                Latitude = 50.4667, Longitude = 19.1833, City = "Koziegłowy", Voivodeship = "slaskie", DistanceFromUsKm = 130,
+                RevenueMillionPln = 150, CapacityPerDay = 40000, Employees = 200, NumberOfPlants = 1, MarketSharePercent = 0.8m,
+                Tier = 2, ThreatLevel = 35,
+                MainProducts = new List<string> { "Tuszka", "Elementy", "Hurt regionalny" },
+                Certifications = new List<string> { "IFS", "Weterynaryjny" },
+                MainClients = new List<string> { "Hurt slaski", "Lokalne sieci" },
+                CompanyHistory = "Tradycyjna ubojnia ze Slaska.",
+                LatestNews = "Stabilna pozycja na Slasku.",
+                NewsSource = "Farmer.pl", NewsSourceUrl = "https://www.farmer.pl", NewsDate = new DateTime(2026, 1, 3),
+                Strengths = "Silna pozycja na Slasku",
+                Weaknesses = "Ograniczona skala",
+                OpportunitiesForUs = "Mozemy konkurowac o klientow ze Slaska",
+                ThreatsFromThem = "Konkuruja o tych samych klientow hurtowych",
+                Website = "", Address = "Koziegłowy, woj. slaskie"
+            });
+
+            ExtendedCompetitors.Add(new ExtendedCompetitor
+            {
+                Id = 11, Name = "Res-Drob Sp. z o.o.", ShortName = "Res-Drob",
+                Owner = "Polski prywatny", OwnerCountry = "Polska", CountryFlag = "🇵🇱",
+                Latitude = 51.4, Longitude = 21.15, City = "Radom region", Voivodeship = "mazowieckie", DistanceFromUsKm = 110,
+                RevenueMillionPln = 200, CapacityPerDay = 50000, Employees = 250, NumberOfPlants = 1, MarketSharePercent = 1.0m,
+                Tier = 2, ThreatLevel = 50,
+                MainProducts = new List<string> { "Filet", "Tuszka", "Elementy" },
+                Certifications = new List<string> { "IFS", "BRC" },
+                MainClients = new List<string> { "Hurt", "Sieci regionalne" },
+                CompanyHistory = "Sredniej wielkosci ubojnia z regionu radomskiego.",
+                LatestNews = "Rozbudowa mocy produkcyjnych planowana na 2026.",
+                NewsSource = "Portal Spozywczy", NewsSourceUrl = "https://www.portalspozywczy.pl", NewsDate = new DateTime(2026, 1, 22),
+                Strengths = "Dobra lokalizacja (centralna PL)",
+                Weaknesses = "Srednia skala",
+                OpportunitiesForUs = "Mozemy byc alternatywa dla ich klientow",
+                ThreatsFromThem = "Blisko geograficznie, podobna skala",
+                Website = "https://www.res-drob.pl", Address = "Region Radom"
+            });
+
+            ExtendedCompetitors.Add(new ExtendedCompetitor
+            {
+                Id = 12, Name = "Zakład Drobiarski Gzella", ShortName = "Gzella",
+                Owner = "Rodzina Gzella", OwnerCountry = "Polska", CountryFlag = "🇵🇱",
+                Latitude = 52.4, Longitude = 16.9, City = "Poznan region", Voivodeship = "wielkopolskie", DistanceFromUsKm = 210,
+                RevenueMillionPln = 300, CapacityPerDay = 60000, Employees = 300, NumberOfPlants = 1, MarketSharePercent = 1.2m,
+                Tier = 2, ThreatLevel = 40,
+                MainProducts = new List<string> { "Tuszka", "Filet", "Wedliny drobiowe" },
+                Certifications = new List<string> { "IFS", "ISO" },
+                MainClients = new List<string> { "Sieci Wielkopolska", "Hurt" },
+                CompanyHistory = "Tradycyjna firma rodzinna z Wielkopolski.",
+                LatestNews = "Inwestycje w linie przetworcze.",
+                NewsSource = "Glos Wielkopolski", NewsSourceUrl = "https://www.gloswielkopolski.pl", NewsDate = new DateTime(2026, 1, 15),
+                Strengths = "Silna marka lokalna",
+                Weaknesses = "Ograniczony zasieg geograficzny",
+                OpportunitiesForUs = "Nie konkurujemy bezposrednio",
+                ThreatsFromThem = "Mogą ekspandowac na wschod",
+                Website = "", Address = "Region Poznania"
+            });
+
+            // Lokalizacja NASZA dla porownania
+            ExtendedCompetitors.Add(new ExtendedCompetitor
+            {
+                Id = 99, Name = "UBOJNIA PIORKOWSCY (MY)", ShortName = "MY",
+                Owner = "Rodzina Piorkowscy", OwnerCountry = "Polska", CountryFlag = "🇵🇱",
+                Latitude = 51.7944, Longitude = 19.7569, City = "Brzeziny", Voivodeship = "lodzkie", DistanceFromUsKm = 0,
+                RevenueMillionPln = 50, CapacityPerDay = 25000, Employees = 80, NumberOfPlants = 1, MarketSharePercent = 0.3m,
+                Tier = 3, ThreatLevel = 0,
+                MainProducts = new List<string> { "Tuszka", "Filet", "Elementy" },
+                Certifications = new List<string> { "IFS Higher Level", "Weterynaryjny" },
+                MainClients = new List<string> { "Dino", "Makro", "Selgros", "Carrefour", "Hurt" },
+                CompanyHistory = "Rodzinna ubojnia z Brzezin. Fokus na jakosc i swiezosc.",
+                LatestNews = "Nasz zaklad - centrum naszej dzialalnosci",
+                NewsSource = "", NewsSourceUrl = "", NewsDate = DateTime.Today,
+                Strengths = "Swiezosc, elastycznosc, lokalna marka",
+                Weaknesses = "Mala skala vs giganci",
+                OpportunitiesForUs = "Wzrost z Dino, nowi klienci",
+                ThreatsFromThem = "N/A",
+                Website = "", Address = "Brzeziny, woj. lodzkie"
+            });
+        }
+
+        private void LoadRetailChainsExtended()
+        {
+            RetailChainsExtended.Clear();
+
+            RetailChainsExtended.Add(new RetailChainExtended
+            {
+                Id = 1, ChainName = "Biedronka", OwnerCompany = "Jeronimo Martins", OwnerCountry = "Portugalia", CountryFlag = "🇵🇹",
+                FiletPrice = 22.99m, FiletPricePromo = 18.99m, TuszkaPrice = 9.99m, TuszkaPricePromo = 7.99m,
+                UdkoPrice = 12.99m, UdkoPricePromo = 9.99m, SkrzydloPrice = 9.99m, PodrudziePrice = 7.99m,
+                Source = "Gazetka promocyjna", SourceUrl = "https://www.biedronka.pl/pl/gazetki-promocyjne",
+                CheckDate = new DateTime(2026, 2, 1), PromoValidUntil = "05.02.2026",
+                StoreCount = 3500, Regions = "Cala Polska", IsOurClient = false, OurHandlowiec = "-",
+                Notes = "Najwieksza siec, bardzo konkurencyjne ceny. Przetarg do 28.02!"
+            });
+
+            RetailChainsExtended.Add(new RetailChainExtended
+            {
+                Id = 2, ChainName = "Lidl", OwnerCompany = "Schwarz Gruppe", OwnerCountry = "Niemcy", CountryFlag = "🇩🇪",
+                FiletPrice = 23.49m, FiletPricePromo = 19.99m, TuszkaPrice = 10.49m, TuszkaPricePromo = 8.49m,
+                UdkoPrice = 13.49m, UdkoPricePromo = 10.99m, SkrzydloPrice = 10.49m, PodrudziePrice = 8.49m,
+                Source = "Gazetka promocyjna", SourceUrl = "https://www.lidl.pl/c/nasze-gazetki/s10005918",
+                CheckDate = new DateTime(2026, 2, 1), PromoValidUntil = "04.02.2026",
+                StoreCount = 850, Regions = "Cala Polska", IsOurClient = false, OurHandlowiec = "-",
+                Notes = "Silny gracz, premium quality image"
+            });
+
+            RetailChainsExtended.Add(new RetailChainExtended
+            {
+                Id = 3, ChainName = "Kaufland", OwnerCompany = "Schwarz Gruppe", OwnerCountry = "Niemcy", CountryFlag = "🇩🇪",
+                FiletPrice = 24.99m, FiletPricePromo = 0, TuszkaPrice = 10.99m, TuszkaPricePromo = 0,
+                UdkoPrice = 13.99m, UdkoPricePromo = 0, SkrzydloPrice = 10.99m, PodrudziePrice = 8.99m,
+                Source = "Cennik online", SourceUrl = "https://www.kaufland.pl",
+                CheckDate = new DateTime(2026, 1, 30), PromoValidUntil = "",
+                StoreCount = 230, Regions = "Duze miasta", IsOurClient = false, OurHandlowiec = "-",
+                Notes = "Format hipermarket, wieksze opakowania"
+            });
+
+            RetailChainsExtended.Add(new RetailChainExtended
+            {
+                Id = 4, ChainName = "Dino", OwnerCompany = "Dino Polska S.A.", OwnerCountry = "Polska", CountryFlag = "🇵🇱",
+                FiletPrice = 24.49m, FiletPricePromo = 21.99m, TuszkaPrice = 10.49m, TuszkaPricePromo = 0,
+                UdkoPrice = 14.49m, UdkoPricePromo = 0, SkrzydloPrice = 11.49m, PodrudziePrice = 9.49m,
+                Source = "Wizyta w sklepie", SourceUrl = "https://www.marketdino.pl",
+                CheckDate = new DateTime(2026, 2, 1), PromoValidUntil = "07.02.2026",
+                StoreCount = 2500, Regions = "Cala Polska (300 nowych w 2026!)", IsOurClient = true, OurHandlowiec = "Jola",
+                Notes = "NASZ KLIENT! 250 palet/mies. Cel: 500 palet. Polski kapital!"
+            });
+
+            RetailChainsExtended.Add(new RetailChainExtended
+            {
+                Id = 5, ChainName = "Carrefour", OwnerCompany = "Carrefour SA", OwnerCountry = "Francja", CountryFlag = "🇫🇷",
+                FiletPrice = 25.99m, FiletPricePromo = 22.99m, TuszkaPrice = 11.99m, TuszkaPricePromo = 0,
+                UdkoPrice = 14.99m, UdkoPricePromo = 0, SkrzydloPrice = 11.99m, PodrudziePrice = 9.99m,
+                Source = "Carrefour online", SourceUrl = "https://www.carrefour.pl",
+                CheckDate = new DateTime(2026, 1, 30), PromoValidUntil = "",
+                StoreCount = 900, Regions = "Duze miasta", IsOurClient = true, OurHandlowiec = "Teresa",
+                Notes = "NASZ KLIENT! 340 palet/mies. Trend spadkowy - dzialac!"
+            });
+
+            RetailChainsExtended.Add(new RetailChainExtended
+            {
+                Id = 6, ChainName = "Auchan", OwnerCompany = "Groupe Auchan", OwnerCountry = "Francja", CountryFlag = "🇫🇷",
+                FiletPrice = 24.49m, FiletPricePromo = 0, TuszkaPrice = 10.99m, TuszkaPricePromo = 0,
+                UdkoPrice = 13.99m, UdkoPricePromo = 0, SkrzydloPrice = 10.49m, PodrudziePrice = 8.99m,
+                Source = "Auchan online", SourceUrl = "https://www.auchan.pl",
+                CheckDate = new DateTime(2026, 1, 28), PromoValidUntil = "",
+                StoreCount = 75, Regions = "Duze miasta", IsOurClient = false, OurHandlowiec = "-",
+                Notes = "Potencjalny klient - duze hipermarkety"
+            });
+
+            RetailChainsExtended.Add(new RetailChainExtended
+            {
+                Id = 7, ChainName = "Makro", OwnerCompany = "Metro AG", OwnerCountry = "Niemcy", CountryFlag = "🇩🇪",
+                FiletPrice = 19.90m, FiletPricePromo = 0, TuszkaPrice = 8.50m, TuszkaPricePromo = 0,
+                UdkoPrice = 10.90m, UdkoPricePromo = 0, SkrzydloPrice = 8.90m, PodrudziePrice = 6.90m,
+                Source = "Cennik hurtowy", SourceUrl = "https://www.makro.pl",
+                CheckDate = new DateTime(2026, 1, 30), PromoValidUntil = "",
+                StoreCount = 30, Regions = "Duze miasta (C&C)", IsOurClient = true, OurHandlowiec = "Ania",
+                Notes = "NASZ KLIENT! 480 palet/mies. Ceny hurtowe. B2B."
+            });
+
+            RetailChainsExtended.Add(new RetailChainExtended
+            {
+                Id = 8, ChainName = "Selgros", OwnerCompany = "Transgourmet/Coop", OwnerCountry = "Szwajcaria", CountryFlag = "🇨🇭",
+                FiletPrice = 20.50m, FiletPricePromo = 0, TuszkaPrice = 8.90m, TuszkaPricePromo = 0,
+                UdkoPrice = 11.20m, UdkoPricePromo = 0, SkrzydloPrice = 9.20m, PodrudziePrice = 7.20m,
+                Source = "Cennik hurtowy", SourceUrl = "https://www.selgros.pl",
+                CheckDate = new DateTime(2026, 1, 30), PromoValidUntil = "",
+                StoreCount = 20, Regions = "Duze miasta (C&C)", IsOurClient = true, OurHandlowiec = "Ania",
+                Notes = "NASZ KLIENT! 420 palet/mies. Trend spadkowy (-80)."
+            });
+
+            RetailChainsExtended.Add(new RetailChainExtended
+            {
+                Id = 9, ChainName = "Stokrotka", OwnerCompany = "Maxima Gruppe", OwnerCountry = "Litwa", CountryFlag = "🇱🇹",
+                FiletPrice = 23.99m, FiletPricePromo = 0, TuszkaPrice = 10.99m, TuszkaPricePromo = 0,
+                UdkoPrice = 13.49m, UdkoPricePromo = 0, SkrzydloPrice = 10.99m, PodrudziePrice = 8.99m,
+                Source = "Stokrotka online", SourceUrl = "https://www.stokrotka.pl",
+                CheckDate = new DateTime(2026, 1, 28), PromoValidUntil = "",
+                StoreCount = 700, Regions = "Wschodnia i centralna PL", IsOurClient = true, OurHandlowiec = "Maja",
+                Notes = "NASZ KLIENT! 280 palet/mies. Trend wzrostowy."
+            });
+
+            RetailChainsExtended.Add(new RetailChainExtended
+            {
+                Id = 10, ChainName = "Netto", OwnerCompany = "Salling Group", OwnerCountry = "Dania", CountryFlag = "🇩🇰",
+                FiletPrice = 21.99m, FiletPricePromo = 17.99m, TuszkaPrice = 9.49m, TuszkaPricePromo = 0,
+                UdkoPrice = 11.99m, UdkoPricePromo = 0, SkrzydloPrice = 9.49m, PodrudziePrice = 7.49m,
+                Source = "Gazetka", SourceUrl = "https://www.netto.pl",
+                CheckDate = new DateTime(2026, 1, 30), PromoValidUntil = "",
+                StoreCount = 400, Regions = "Cala Polska", IsOurClient = false, OurHandlowiec = "-",
+                Notes = "Potencjalny klient - dyskont, dobre ceny"
+            });
+
+            RetailChainsExtended.Add(new RetailChainExtended
+            {
+                Id = 11, ChainName = "Zabka", OwnerCompany = "CVC Capital Partners", OwnerCountry = "UK", CountryFlag = "🇬🇧",
+                FiletPrice = 27.99m, FiletPricePromo = 0, TuszkaPrice = 0, TuszkaPricePromo = 0,
+                UdkoPrice = 0, UdkoPricePromo = 0, SkrzydloPrice = 0, PodrudziePrice = 0,
+                Source = "Zabka app", SourceUrl = "https://www.zabka.pl",
+                CheckDate = new DateTime(2026, 1, 30), PromoValidUntil = "",
+                StoreCount = 10000, Regions = "Cala Polska", IsOurClient = false, OurHandlowiec = "-",
+                Notes = "Convenience, tylko produkty przetworzone (kanapki)"
+            });
+
+            RetailChainsExtended.Add(new RetailChainExtended
+            {
+                Id = 12, ChainName = "Intermarche", OwnerCompany = "Muszkieterowie", OwnerCountry = "Francja", CountryFlag = "🇫🇷",
+                FiletPrice = 23.99m, FiletPricePromo = 0, TuszkaPrice = 10.49m, TuszkaPricePromo = 0,
+                UdkoPrice = 13.49m, UdkoPricePromo = 0, SkrzydloPrice = 10.49m, PodrudziePrice = 8.49m,
+                Source = "Intermarche online", SourceUrl = "https://www.intermarche.pl",
+                CheckDate = new DateTime(2026, 1, 28), PromoValidUntil = "",
+                StoreCount = 230, Regions = "Cala Polska", IsOurClient = false, OurHandlowiec = "-",
+                Notes = "Potencjalny klient - supermarkety"
+            });
+        }
+
+        private void LoadPotentialClients()
+        {
+            PotentialClients.Clear();
+
+            PotentialClients.Add(new PotentialClient
+            {
+                Id = 1, CompanyName = "Siec Netto Polska", Industry = "Siec detaliczna (dyskont)",
+                Description = "Dunski dyskont z 400+ sklepami. Poszukuja lokalnych dostawcow drobiu.",
+                Location = "Cala Polska", Region = "Centrala: Motaniec",
+                EstimatedVolumePerMonth = 300, OpportunityScore = 75,
+                ContactPerson = "Dzial zakupow", ContactEmail = "zakupy@netto.pl", ContactPhone = "61 XXX XX XX",
+                Website = "https://www.netto.pl",
+                LatestNews = "Netto oglasza program 'Lokalny Dostawca 2026' - poszukuja producentow z centralnej Polski",
+                NewsSource = "Portal Spozywczy", NewsSourceUrl = "https://www.portalspozywczy.pl/handel/wiadomosci/netto-lokalny-dostawca",
+                NewsDate = new DateTime(2026, 1, 28),
+                RecommendedAction = "Zgloszenie do programu 'Lokalny Dostawca'. Kontakt z dzialem zakupow.",
+                AssignedTo = "Jola", Priority = SeverityLevel.Positive
+            });
+
+            PotentialClients.Add(new PotentialClient
+            {
+                Id = 2, CompanyName = "Auchan Polska", Industry = "Siec detaliczna (hipermarket)",
+                Description = "Francuska siec hipermarketow. 75 sklepow w duzych miastach.",
+                Location = "Duze miasta", Region = "Centrala: Warszawa",
+                EstimatedVolumePerMonth = 400, OpportunityScore = 60,
+                ContactPerson = "Category Manager Mieso", ContactEmail = "", ContactPhone = "",
+                Website = "https://www.auchan.pl",
+                LatestNews = "Auchan poszukuje dostawcow swiezego drobiu z certyfikatem IFS Higher Level",
+                NewsSource = "Detal Dzisiaj", NewsSourceUrl = "https://www.dlahandlu.pl",
+                NewsDate = new DateTime(2026, 1, 22),
+                RecommendedAction = "Przygotowac prezentacje firmy. Podkreslic IFS Higher Level i swiezosc.",
+                AssignedTo = "Teresa", Priority = SeverityLevel.Positive
+            });
+
+            PotentialClients.Add(new PotentialClient
+            {
+                Id = 3, CompanyName = "Siec Restauracji Sfinks (Sphinx, Chlopskie Jadlo)", Industry = "HoReCa",
+                Description = "Najwieksza polska siec gastronomiczna. 200+ restauracji.",
+                Location = "Cala Polska", Region = "Centrala: Piaseczno",
+                EstimatedVolumePerMonth = 150, OpportunityScore = 55,
+                ContactPerson = "Dzial zaopatrzenia", ContactEmail = "", ContactPhone = "",
+                Website = "https://www.sfinks.pl",
+                LatestNews = "Sfinks Polska szuka nowych dostawcow drobiu po problemach z dotychczasowym",
+                NewsSource = "HoReCa Biznes", NewsSourceUrl = "https://www.horecabiznes.pl",
+                NewsDate = new DateTime(2026, 1, 20),
+                RecommendedAction = "Kontakt telefoniczny. Oferta na filet i udka.",
+                AssignedTo = "Nieprzypisany", Priority = SeverityLevel.Warning
+            });
+
+            PotentialClients.Add(new PotentialClient
+            {
+                Id = 4, CompanyName = "Zaklady Miesne Madej & Wrobel", Industry = "Przetworstwo",
+                Description = "Producent wedlin i produktow miesnych. Szuka dostawcy surowca drobiowego.",
+                Location = "Wodzislaw Slaski", Region = "Slaskie",
+                EstimatedVolumePerMonth = 200, OpportunityScore = 70,
+                ContactPerson = "Dyrektor ds. zakupow", ContactEmail = "", ContactPhone = "",
+                Website = "https://www.madejwrobel.pl",
+                LatestNews = "Firma rozbudowuje linie produkcyjna i poszukuje stalych dostawcow kurczaka",
+                NewsSource = "Farmer.pl", NewsSourceUrl = "https://www.farmer.pl",
+                NewsDate = new DateTime(2026, 1, 25),
+                RecommendedAction = "Spotkanie handlowe. Oferta na korpusy i elementy do przetwórstwa.",
+                AssignedTo = "Nieprzypisany", Priority = SeverityLevel.Positive
+            });
+
+            PotentialClients.Add(new PotentialClient
+            {
+                Id = 5, CompanyName = "Siec Polomarket", Industry = "Siec detaliczna (supermarket)",
+                Description = "Polska siec supermarketow, 300+ sklepow w centralnej Polsce.",
+                Location = "Centralna Polska", Region = "Centrala: Giebultow",
+                EstimatedVolumePerMonth = 250, OpportunityScore = 80,
+                ContactPerson = "Kupiec kategoria mieso", ContactEmail = "", ContactPhone = "",
+                Website = "https://www.polomarket.pl",
+                LatestNews = "Polomarket otwiera 30 nowych sklepow w 2026 i szuka dostawcow swiezego miesa",
+                NewsSource = "Portal Spozywczy", NewsSourceUrl = "https://www.portalspozywczy.pl",
+                NewsDate = new DateTime(2026, 1, 30),
+                RecommendedAction = "PRIORYTET! Blisko nas geograficznie. Umowic spotkanie.",
+                AssignedTo = "Jola", Priority = SeverityLevel.Critical
+            });
+
+            PotentialClients.Add(new PotentialClient
+            {
+                Id = 6, CompanyName = "Eurocash (Delikatesy Centrum, Lewiatan)", Industry = "Hurt i sieci franczyzowe",
+                Description = "Najwiekszy dystrybutor FMCG w Polsce. Obsluguje 15000+ sklepow.",
+                Location = "Cala Polska", Region = "Centrala: Komorniki",
+                EstimatedVolumePerMonth = 500, OpportunityScore = 50,
+                ContactPerson = "Dzial zakupow fresh", ContactEmail = "", ContactPhone = "",
+                Website = "https://www.eurocash.pl",
+                LatestNews = "Eurocash rozwija kategorie fresh i szuka lokalnych dostawcow",
+                NewsSource = "Wiadomosci Handlowe", NewsSourceUrl = "https://www.wiadomoscihandlowe.pl",
+                NewsDate = new DateTime(2026, 1, 18),
+                RecommendedAction = "Duzy gracz, trudne negocjacje. Przygotowac solidna oferte.",
+                AssignedTo = "Nieprzypisany", Priority = SeverityLevel.Warning
+            });
+        }
+
+        private void LoadExportData()
+        {
+            ExportData.Clear();
+
+            // Polski eksport drobiu 2025 (dane szacunkowe)
+            ExportData.Add(new ExportImportData { Country = "Niemcy", CountryFlag = "🇩🇪", ProductType = "Drob ogolem", VolumeThousandTons = 320, ChangePercent = 2.5m, ValueMillionEur = 640, IsExport = true, Year = 2025, Source = "GUS/KRD-IG", SourceUrl = "https://www.krd-ig.pl" });
+            ExportData.Add(new ExportImportData { Country = "UK", CountryFlag = "🇬🇧", ProductType = "Drob ogolem", VolumeThousandTons = 180, ChangePercent = -5.2m, ValueMillionEur = 360, IsExport = true, Year = 2025, Source = "GUS/KRD-IG", SourceUrl = "https://www.krd-ig.pl" });
+            ExportData.Add(new ExportImportData { Country = "Francja", CountryFlag = "🇫🇷", ProductType = "Drob ogolem", VolumeThousandTons = 120, ChangePercent = 8.1m, ValueMillionEur = 250, IsExport = true, Year = 2025, Source = "GUS/KRD-IG", SourceUrl = "https://www.krd-ig.pl" });
+            ExportData.Add(new ExportImportData { Country = "Holandia", CountryFlag = "🇳🇱", ProductType = "Drob ogolem", VolumeThousandTons = 95, ChangePercent = 3.2m, ValueMillionEur = 190, IsExport = true, Year = 2025, Source = "GUS/KRD-IG", SourceUrl = "https://www.krd-ig.pl" });
+            ExportData.Add(new ExportImportData { Country = "Czechy", CountryFlag = "🇨🇿", ProductType = "Drob ogolem", VolumeThousandTons = 85, ChangePercent = 1.8m, ValueMillionEur = 145, IsExport = true, Year = 2025, Source = "GUS/KRD-IG", SourceUrl = "https://www.krd-ig.pl" });
+            ExportData.Add(new ExportImportData { Country = "Belgia", CountryFlag = "🇧🇪", ProductType = "Drob ogolem", VolumeThousandTons = 70, ChangePercent = 12.5m, ValueMillionEur = 140, IsExport = true, Year = 2025, Source = "GUS/KRD-IG", SourceUrl = "https://www.krd-ig.pl" });
+            ExportData.Add(new ExportImportData { Country = "Slowacja", CountryFlag = "🇸🇰", ProductType = "Drob ogolem", VolumeThousandTons = 55, ChangePercent = 4.5m, ValueMillionEur = 95, IsExport = true, Year = 2025, Source = "GUS/KRD-IG", SourceUrl = "https://www.krd-ig.pl" });
+            ExportData.Add(new ExportImportData { Country = "Hiszpania", CountryFlag = "🇪🇸", ProductType = "Drob ogolem", VolumeThousandTons = 45, ChangePercent = 15.2m, ValueMillionEur = 90, IsExport = true, Year = 2025, Source = "GUS/KRD-IG", SourceUrl = "https://www.krd-ig.pl" });
+            ExportData.Add(new ExportImportData { Country = "Wlochy", CountryFlag = "🇮🇹", ProductType = "Drob ogolem", VolumeThousandTons = 40, ChangePercent = 6.8m, ValueMillionEur = 85, IsExport = true, Year = 2025, Source = "GUS/KRD-IG", SourceUrl = "https://www.krd-ig.pl" });
+            ExportData.Add(new ExportImportData { Country = "Inne UE", CountryFlag = "🇪🇺", ProductType = "Drob ogolem", VolumeThousandTons = 150, ChangePercent = 3.5m, ValueMillionEur = 280, IsExport = true, Year = 2025, Source = "GUS/KRD-IG", SourceUrl = "https://www.krd-ig.pl" });
+            ExportData.Add(new ExportImportData { Country = "Kraje trzecie", CountryFlag = "🌍", ProductType = "Drob ogolem", VolumeThousandTons = 90, ChangePercent = -8.5m, ValueMillionEur = 150, IsExport = true, Year = 2025, Source = "GUS/KRD-IG", SourceUrl = "https://www.krd-ig.pl" });
+        }
+
+        private void LoadImportData()
+        {
+            ImportData.Clear();
+
+            // Import do Polski 2025
+            ImportData.Add(new ExportImportData { Country = "Brazylia", CountryFlag = "🇧🇷", ProductType = "Filet mrozony", VolumeThousandTons = 45, ChangePercent = 18.5m, ValueMillionEur = 85, IsExport = false, Year = 2025, Source = "GUS/Eurostat", SourceUrl = "https://ec.europa.eu/eurostat" });
+            ImportData.Add(new ExportImportData { Country = "Ukraina", CountryFlag = "🇺🇦", ProductType = "Drob ogolem", VolumeThousandTons = 35, ChangePercent = 25.2m, ValueMillionEur = 55, IsExport = false, Year = 2025, Source = "GUS/Eurostat", SourceUrl = "https://ec.europa.eu/eurostat" });
+            ImportData.Add(new ExportImportData { Country = "Niemcy", CountryFlag = "🇩🇪", ProductType = "Produkty przetw.", VolumeThousandTons = 25, ChangePercent = 3.5m, ValueMillionEur = 65, IsExport = false, Year = 2025, Source = "GUS/Eurostat", SourceUrl = "https://ec.europa.eu/eurostat" });
+            ImportData.Add(new ExportImportData { Country = "Holandia", CountryFlag = "🇳🇱", ProductType = "Drob ogolem", VolumeThousandTons = 18, ChangePercent = 5.2m, ValueMillionEur = 42, IsExport = false, Year = 2025, Source = "GUS/Eurostat", SourceUrl = "https://ec.europa.eu/eurostat" });
+            ImportData.Add(new ExportImportData { Country = "Tajlandia", CountryFlag = "🇹🇭", ProductType = "Filet mrozony", VolumeThousandTons = 12, ChangePercent = -2.5m, ValueMillionEur = 28, IsExport = false, Year = 2025, Source = "GUS/Eurostat", SourceUrl = "https://ec.europa.eu/eurostat" });
+            ImportData.Add(new ExportImportData { Country = "Argentyna", CountryFlag = "🇦🇷", ProductType = "Filet mrozony", VolumeThousandTons = 8, ChangePercent = 35.0m, ValueMillionEur = 15, IsExport = false, Year = 2025, Source = "GUS/Eurostat", SourceUrl = "https://ec.europa.eu/eurostat" });
+        }
+
+        private void LoadSubsidies()
+        {
+            Subsidies.Clear();
+
+            Subsidies.Add(new SubsidyGrant
+            {
+                Id = 1,
+                Name = "Modernizacja gospodarstw rolnych - obszar D (zielone inwestycje)",
+                Provider = "ARiMR",
+                Description = "Dofinansowanie na inwestycje zwiazane z ochrona srodowiska, OZE, efektywnoscia energetyczna w zakladach przetworstwa rolno-spozywczego.",
+                MaxAmountPln = 500000,
+                CoFinancingPercent = 50,
+                DeadlineDate = new DateTime(2026, 3, 31),
+                EligibleFor = "MSP w sektorze przetworstwa, w tym ubojnie",
+                RequiredDocuments = "Biznesplan, kosztorys inwestycji, dokumenty rejestrowe, zaswiadczenia",
+                ApplicationUrl = "https://www.arimr.gov.pl/pomoc-unijna/prow-2021-2027",
+                Priority = SeverityLevel.Critical,
+                IsActive = true,
+                Tags = new List<string> { "OZE", "modernizacja", "energia" }
+            });
+
+            Subsidies.Add(new SubsidyGrant
+            {
+                Id = 2,
+                Name = "Kredyt technologiczny (BGK)",
+                Provider = "BGK / NCBiR",
+                Description = "Kredyt na wdrozenie nowych technologii z premia technologiczna (umorzenie czesci kredytu).",
+                MaxAmountPln = 6000000,
+                CoFinancingPercent = 70,
+                DeadlineDate = new DateTime(2026, 6, 30),
+                EligibleFor = "MSP wdrazajace innowacje technologiczne",
+                RequiredDocuments = "Opinia o innowacyjnosci, biznesplan, dokumenty kredytowe",
+                ApplicationUrl = "https://www.bgk.pl/przedsiebiorstwa/kredyt-technologiczny",
+                Priority = SeverityLevel.Warning,
+                IsActive = true,
+                Tags = new List<string> { "technologia", "innowacja", "kredyt" }
+            });
+
+            Subsidies.Add(new SubsidyGrant
+            {
+                Id = 3,
+                Name = "Gospodarka o obiegu zamknietym (NFOSiGW)",
+                Provider = "NFOSiGW",
+                Description = "Dofinansowanie na projekty dot. gospodarki odpadami, GOZ, zmniejszenia emisji.",
+                MaxAmountPln = 2000000,
+                CoFinancingPercent = 60,
+                DeadlineDate = new DateTime(2026, 4, 15),
+                EligibleFor = "Przedsiebiorstwa realizujace projekty proekologiczne",
+                RequiredDocuments = "Audyt energetyczny/srodowiskowy, kosztorys, pozwolenia",
+                ApplicationUrl = "https://www.gov.pl/nfosigw",
+                Priority = SeverityLevel.Warning,
+                IsActive = true,
+                Tags = new List<string> { "ekologia", "odpady", "GOZ" }
+            });
+
+            Subsidies.Add(new SubsidyGrant
+            {
+                Id = 4,
+                Name = "Wsparcie MSP w promocji marek produktowych - Go to Brand",
+                Provider = "PARP",
+                Description = "Dofinansowanie udzialu w targach miedzynarodowych i misjach gospodarczych.",
+                MaxAmountPln = 500000,
+                CoFinancingPercent = 50,
+                DeadlineDate = new DateTime(2026, 5, 31),
+                EligibleFor = "MSP z branzy spozywczej chcace eksportowac",
+                RequiredDocuments = "Strategia eksportowa, dokumenty rejestrowe",
+                ApplicationUrl = "https://www.parp.gov.pl/go-to-brand",
+                Priority = SeverityLevel.Positive,
+                IsActive = true,
+                Tags = new List<string> { "eksport", "targi", "promocja" }
+            });
+
+            Subsidies.Add(new SubsidyGrant
+            {
+                Id = 5,
+                Name = "Dofinansowanie fotowoltaiki dla przedsiebiorstw (Moj Prad dla Firm)",
+                Provider = "NFOSiGW",
+                Description = "Dotacja na instalacje PV i magazyny energii dla firm.",
+                MaxAmountPln = 300000,
+                CoFinancingPercent = 50,
+                DeadlineDate = new DateTime(2026, 12, 31),
+                EligibleFor = "Przedsiebiorstwa, w tym MSP",
+                RequiredDocuments = "Projekt instalacji, kosztorys, umowa z wykonawca",
+                ApplicationUrl = "https://www.gov.pl/mojprad-dla-firm",
+                Priority = SeverityLevel.Positive,
+                IsActive = true,
+                Tags = new List<string> { "PV", "fotowoltaika", "energia" }
+            });
+        }
+
+        private void LoadInternationalNews()
+        {
+            InternationalNews.Clear();
+
+            InternationalNews.Add(new InternationalMarketNews
+            {
+                Id = 1, Country = "Brazylia", CountryFlag = "🇧🇷", Region = "Mercosur",
+                Title = "Brazylia zwieksza eksport drobiu do UE o 25% — rekordowy styczen 2026",
+                Summary = "Brazylijscy eksporterzy (BRF, JBS, Seara) notuja rekordowe dostawy do UE. Niskie koszty produkcji (kukurydza $180/t) pozwalaja na ceny 30% nizsze niz europejskie.",
+                FullContent = "Brazylijski eksport drobiu do UE w styczniu 2026 osiagnal rekordowy poziom 42 tys. ton (+25% r/r). Glowni beneficjenci: BRF, JBS, Seara. Ceny brazylijskiego fileta mrozone: $3.20/kg FOB (ok. 13 zl/kg po doliczeniu transportu i cla). Polski filet swiezy: 17-19 zl/kg. Roznica: 30%.",
+                ImpactOnPoland = "Presja cenowa na segment mrozony. Sieci moga wykorzystywac tani import jako leverage w negocjacjach. Nasze przewagi: swiezosc, lokalnosc, sledzialnosc.",
+                ThreatLevel = SeverityLevel.Critical,
+                Source = "ABPA / Reuters", SourceUrl = "https://www.abpa-br.org",
+                PublishDate = new DateTime(2026, 2, 1),
+                Tags = new List<string> { "Brazylia", "import", "ceny", "konkurencja" }
+            });
+
+            InternationalNews.Add(new InternationalMarketNews
+            {
+                Id = 2, Country = "Ukraina", CountryFlag = "🇺🇦", Region = "Europa Wschodnia",
+                Title = "MHP (Ukraina) uruchamia nowa linie — zdolnosc eksportowa +100k ton/rok",
+                Summary = "MHP, najwiekszy ukrainski producent drobiu, uruchomil nowa linie produkcyjna w Winnicy. Zdolnosc eksportowa do UE wzrosla o 100k ton rocznie.",
+                FullContent = "MHP (Mironivsky Hliboproduct) zainwestowalo $150 mln w rozbudowe zakladu w Winnicy. Nowa linia: zdolnosc 300k sztuk/dzien. Eksport do UE (glownie Holandia, Niemcy, Polska) wzrosnie o 100k ton/rok. Ceny ukrainskiego drobiu: 15-20% nizsze niz polskie.",
+                ImpactOnPoland = "Ukraina to rosnacie zagrozenie. Nizsze koszty pracy, tansza pasza. Bezcłowy dostep do UE. Moga przejmowac udzialy w rynku.",
+                ThreatLevel = SeverityLevel.Warning,
+                Source = "MHP / Interfax-Ukraine", SourceUrl = "https://www.mhp.com.ua",
+                PublishDate = new DateTime(2026, 1, 28),
+                Tags = new List<string> { "Ukraina", "MHP", "konkurencja", "eksport" }
+            });
+
+            InternationalNews.Add(new InternationalMarketNews
+            {
+                Id = 3, Country = "Francja", CountryFlag = "🇫🇷", Region = "UE",
+                Title = "Francja: 68 ognisk HPAI — deficyt drobiu, ceny +15%",
+                Summary = "Francja boryka sie z najgorsza epidemia HPAI od lat. 68 ognisk, 10 mln ptakow zlikwidowanych. Deficyt produkcji, ceny wzrosly o 15%.",
+                FullContent = "Francuskie HPAI: 68 ognisk (stan na 01.02.2026), glownie pd-zach. Francja (Landes, Gers). 10 mln ptakow zlikwidowanych. Produkcja spadla o 12%. Ceny francuskiego drobiu +15% m/m. Import z Polski i Hiszpanii wzrasta.",
+                ImpactOnPoland = "SZANSA! Francja potrzebuje importu. Polscy eksporterzy moga zwiekszyc dostawy. Ale uwaga: HPAI moze sie rozprzestrzeniac.",
+                ThreatLevel = SeverityLevel.Positive,
+                Source = "ITAVI / FAO", SourceUrl = "https://www.itavi.asso.fr",
+                PublishDate = new DateTime(2026, 2, 2),
+                Tags = new List<string> { "Francja", "HPAI", "eksport", "szansa" }
+            });
+
+            InternationalNews.Add(new InternationalMarketNews
+            {
+                Id = 4, Country = "Rumunia", CountryFlag = "🇷🇴", Region = "UE",
+                Title = "Rumunia: Transavia inwestuje €80 mln — nowa ubojnia 400k/dzien",
+                Summary = "Rumuński producent Transavia buduje nowa ubojnie o zdolnosci 400k sztuk/dzien. Cel: eksport do UE zachodniej.",
+                FullContent = "Transavia (lider rynku rumunskiego) zainwestuje €80 mln w nowy zaklad. Lokalizacja: Alba Iulia. Zdolnosc: 400k szt./dzien (porownywalna z Cedrobem). Start: Q4 2026. Cel: eksport do Niemiec, Wloch, Hiszpanii.",
+                ImpactOnPoland = "Rumunia staje sie konkurentem eksportowym. Nizsze koszty pracy niz w Polsce. Moga przejmowac kontrakty eksportowe.",
+                ThreatLevel = SeverityLevel.Warning,
+                Source = "Transavia / Ziarul Financiar", SourceUrl = "https://www.transavia.ro",
+                PublishDate = new DateTime(2026, 1, 25),
+                Tags = new List<string> { "Rumunia", "konkurencja", "eksport", "inwestycja" }
+            });
+
+            InternationalNews.Add(new InternationalMarketNews
+            {
+                Id = 5, Country = "Portugalia", CountryFlag = "🇵🇹", Region = "UE",
+                Title = "Portugalia: JM (Biedronka) testuje dostawcow drobiu z Portugalii",
+                Summary = "Jeronimo Martins testuje dostawy drobiu portugalskiego do polskich Biedronek. Pilotaz w 50 sklepach.",
+                FullContent = "JM (wlasciciel Biedronki) testuje import drobiu z portugalskich zakladow Avicola do polskich sklepow. Pilotaz: 50 sklepow w Warszawie. Argument: 'integracja pionowa w grupie'. Ceny porownywalne z polskimi.",
+                ImpactOnPoland = "Potencjalne zagrozenie dla polskich dostawcow Biedronki. Jesli pilotaz sie sprawdzi, JM moze zwiekszyc import z Portugalii.",
+                ThreatLevel = SeverityLevel.Warning,
+                Source = "Dinheiro Vivo / PAP", SourceUrl = "https://www.dinheirovivo.pt",
+                PublishDate = new DateTime(2026, 1, 20),
+                Tags = new List<string> { "Portugalia", "Biedronka", "import", "JM" }
+            });
+
+            InternationalNews.Add(new InternationalMarketNews
+            {
+                Id = 6, Country = "Niemcy", CountryFlag = "🇩🇪", Region = "UE",
+                Title = "Niemcy: popyt na drob +8% — Polska glownym importerem",
+                Summary = "Niemiecki rynek drobiu rosnie. Popyt +8% r/r. Polska pozostaje glownym dostawca (32% importu).",
+                FullContent = "Niemiecki rynek drobiu w 2025: +8% r/r. Glowni importerzy: Polska (32%), Holandia (22%), Belgia (15%). Trend: rosnie popyt na drob ekologiczny i wellness. Polska moze skorzystac na trendzie.",
+                ImpactOnPoland = "SZANSA! Niemcy to nasz glowny rynek eksportowy. Rosnacy popyt = wieksza sprzedaz. Ale rosnie konkurencja z Ukrainy i Rumunii.",
+                ThreatLevel = SeverityLevel.Positive,
+                Source = "Destatis / BLE", SourceUrl = "https://www.ble.de",
+                PublishDate = new DateTime(2026, 1, 30),
+                Tags = new List<string> { "Niemcy", "eksport", "szansa", "popyt" }
+            });
+        }
+
+        private void LoadChartSeries()
+        {
+            ChartSeries.Clear();
+            var today = DateTime.Today;
+
+            // Cena skupu zywca - 30 dni
+            var skupData = new ChartDataSeries
+            {
+                Name = "Cena skupu zywca",
+                Color = "#C9A96E",
+                Unit = "zl/kg",
+                CurrentValue = 4.72m,
+                ChangePercent = -0.4m,
+                MinValue = 4.55m,
+                MaxValue = 4.85m,
+                AvgValue = 4.68m,
+                Source = "farmer.pl",
+                SourceUrl = "https://www.farmer.pl/ceny/zywiec-drobiowy"
+            };
+            for (int i = 30; i >= 0; i--)
+            {
+                skupData.DataPoints.Add(new PricePoint(today.AddDays(-i), 4.55m + (decimal)(Math.Sin(i * 0.3) * 0.15 + 0.15)));
+            }
+            ChartSeries.Add(skupData);
+
+            // Kukurydza MATIF
+            var kukurydzaData = new ChartDataSeries
+            {
+                Name = "Kukurydza MATIF",
+                Color = "#6DAF6D",
+                Unit = "EUR/t",
+                CurrentValue = 192.50m,
+                ChangePercent = -0.39m,
+                MinValue = 185m,
+                MaxValue = 210m,
+                AvgValue = 195m,
+                Source = "MATIF/Euronext",
+                SourceUrl = "https://www.euronext.com/en/products/commodities/corn"
+            };
+            for (int i = 30; i >= 0; i--)
+            {
+                kukurydzaData.DataPoints.Add(new PricePoint(today.AddDays(-i), 185m + (decimal)(Math.Cos(i * 0.2) * 10 + 10)));
+            }
+            ChartSeries.Add(kukurydzaData);
+
+            // Filet hurt
+            var filetData = new ChartDataSeries
+            {
+                Name = "Filet z piersi (hurt)",
+                Color = "#5AB8B8",
+                Unit = "zl/kg",
+                CurrentValue = 24.50m,
+                ChangePercent = 2.1m,
+                MinValue = 22.00m,
+                MaxValue = 26.00m,
+                AvgValue = 24.00m,
+                Source = "farmer.pl",
+                SourceUrl = "https://www.farmer.pl/ceny/drob"
+            };
+            for (int i = 30; i >= 0; i--)
+            {
+                filetData.DataPoints.Add(new PricePoint(today.AddDays(-i), 22m + (decimal)(Math.Sin(i * 0.15) * 2 + 2)));
+            }
+            ChartSeries.Add(filetData);
+
+            // Tuszka hurt
+            var tuszkaData = new ChartDataSeries
+            {
+                Name = "Tuszka (hurt)",
+                Color = "#C05050",
+                Unit = "zl/kg",
+                CurrentValue = 7.33m,
+                ChangePercent = -3.0m,
+                MinValue = 7.00m,
+                MaxValue = 8.50m,
+                AvgValue = 7.60m,
+                Source = "farmer.pl",
+                SourceUrl = "https://www.farmer.pl/ceny/drob"
+            };
+            for (int i = 30; i >= 0; i--)
+            {
+                tuszkaData.DataPoints.Add(new PricePoint(today.AddDays(-i), 7.5m + (decimal)(Math.Sin(i * 0.25) * 0.5)));
+            }
+            ChartSeries.Add(tuszkaData);
+
+            // Pszenica MATIF
+            var pszericaData = new ChartDataSeries
+            {
+                Name = "Pszenica MATIF",
+                Color = "#D4A035",
+                Unit = "EUR/t",
+                CurrentValue = 210m,
+                ChangePercent = -0.25m,
+                MinValue = 200m,
+                MaxValue = 225m,
+                AvgValue = 212m,
+                Source = "MATIF/Euronext",
+                SourceUrl = "https://www.euronext.com/en/products/commodities/wheat"
+            };
+            for (int i = 30; i >= 0; i--)
+            {
+                pszericaData.DataPoints.Add(new PricePoint(today.AddDays(-i), 200m + (decimal)(Math.Sin(i * 0.18) * 12 + 12)));
+            }
+            ChartSeries.Add(pszericaData);
+
+            // Relacja zywiec/pasza
+            var relacjaData = new ChartDataSeries
+            {
+                Name = "Relacja zywiec/pasza",
+                Color = "#9B59B6",
+                Unit = "",
+                CurrentValue = 4.24m,
+                ChangePercent = 25.0m,
+                MinValue = 3.20m,
+                MaxValue = 4.30m,
+                AvgValue = 3.80m,
+                Source = "Obliczenia wlasne",
+                SourceUrl = ""
+            };
+            for (int i = 30; i >= 0; i--)
+            {
+                relacjaData.DataPoints.Add(new PricePoint(today.AddDays(-i), 3.8m + (decimal)(i * 0.015)));
+            }
+            ChartSeries.Add(relacjaData);
         }
 
         #endregion

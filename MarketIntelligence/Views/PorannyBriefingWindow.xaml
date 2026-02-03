@@ -835,6 +835,522 @@
                             </StackPanel>
                         </ScrollViewer>
                     </TabItem>
+
+                    <!-- TAB: Wykresy (Charts) -->
+                    <TabItem Header="Wykresy">
+                        <ScrollViewer Style="{StaticResource BriefingScrollViewer}" Padding="14">
+                            <StackPanel>
+                                <TextBlock Text="WYKRESY CEN (30 DNI)"
+                                           FontSize="9" FontWeight="Bold"
+                                           Foreground="#8B7355" Margin="0,0,0,12"/>
+                                <ItemsControl ItemsSource="{Binding ChartSeries}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource SidePanelCard}" Margin="0,0,0,12">
+                                                <StackPanel>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <StackPanel Grid.Column="0">
+                                                            <TextBlock Text="{Binding Name}"
+                                                                       FontSize="11" FontWeight="SemiBold"
+                                                                       Foreground="#F5EDE0"/>
+                                                            <TextBlock Text="{Binding Unit}"
+                                                                       FontSize="9" Foreground="#7A6F63"/>
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+                                                            <TextBlock Text="{Binding CurrentValueDisplay}"
+                                                                       FontFamily="Consolas" FontSize="14"
+                                                                       FontWeight="Bold" Foreground="#C9A96E"
+                                                                       HorizontalAlignment="Right"/>
+                                                            <TextBlock Text="{Binding ChangeDisplay}"
+                                                                       FontFamily="Consolas" FontSize="10"
+                                                                       HorizontalAlignment="Right">
+                                                                <TextBlock.Style>
+                                                                    <Style TargetType="TextBlock">
+                                                                        <Setter Property="Foreground" Value="#C05050"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding IsPositive}" Value="True">
+                                                                                <Setter Property="Foreground" Value="#6DAF6D"/>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </TextBlock.Style>
+                                                            </TextBlock>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                    <!-- Mini Chart Placeholder -->
+                                                    <Border Background="#1E1A14" Height="60" CornerRadius="4"
+                                                            Margin="0,8,0,0" BorderBrush="#2A2520" BorderThickness="1">
+                                                        <Canvas x:Name="chartCanvas" Tag="{Binding}"/>
+                                                    </Border>
+                                                    <!-- Min/Max Values -->
+                                                    <Grid Margin="0,4,0,0">
+                                                        <TextBlock Text="{Binding MinValueDisplay}"
+                                                                   FontSize="8" Foreground="#5A5248"
+                                                                   HorizontalAlignment="Left"/>
+                                                        <TextBlock Text="{Binding MaxValueDisplay}"
+                                                                   FontSize="8" Foreground="#5A5248"
+                                                                   HorizontalAlignment="Right"/>
+                                                    </Grid>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <!-- TAB: Eksport/Import -->
+                    <TabItem Header="Handel">
+                        <ScrollViewer Style="{StaticResource BriefingScrollViewer}" Padding="14">
+                            <StackPanel>
+                                <!-- Export Section -->
+                                <TextBlock Text="EKSPORT POLSKI (2024)"
+                                           FontSize="9" FontWeight="Bold"
+                                           Foreground="#6DAF6D" Margin="0,0,0,8"/>
+                                <ItemsControl ItemsSource="{Binding ExportData}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource SidePanelCard}"
+                                                    BorderThickness="2,0,0,0" BorderBrush="#6DAF6D">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="24"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="50"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{Binding CountryFlag}"
+                                                               FontSize="14" VerticalAlignment="Center"/>
+                                                    <StackPanel Grid.Column="1">
+                                                        <TextBlock Text="{Binding Country}"
+                                                                   FontSize="10" FontWeight="SemiBold"
+                                                                   Foreground="#F5EDE0"/>
+                                                        <TextBlock Text="{Binding ProductType}"
+                                                                   FontSize="8" Foreground="#7A6F63"/>
+                                                    </StackPanel>
+                                                    <TextBlock Grid.Column="2" Text="{Binding VolumeDisplay}"
+                                                               FontFamily="Consolas" FontSize="10"
+                                                               FontWeight="Bold" Foreground="#6DAF6D"
+                                                               VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="3" Text="{Binding ChangeDisplay}"
+                                                               FontFamily="Consolas" FontSize="9"
+                                                               HorizontalAlignment="Right"
+                                                               VerticalAlignment="Center">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Foreground" Value="#C05050"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsPositive}" Value="True">
+                                                                        <Setter Property="Foreground" Value="#6DAF6D"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- Import Section -->
+                                <TextBlock Text="IMPORT DO POLSKI (ZAGROZENIA)"
+                                           FontSize="9" FontWeight="Bold"
+                                           Foreground="#C05050" Margin="0,16,0,8"/>
+                                <ItemsControl ItemsSource="{Binding ImportData}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource SidePanelCard}"
+                                                    BorderThickness="2,0,0,0" BorderBrush="#C05050">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="24"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="50"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{Binding CountryFlag}"
+                                                               FontSize="14" VerticalAlignment="Center"/>
+                                                    <StackPanel Grid.Column="1">
+                                                        <TextBlock Text="{Binding Country}"
+                                                                   FontSize="10" FontWeight="SemiBold"
+                                                                   Foreground="#F5EDE0"/>
+                                                        <TextBlock Text="{Binding ProductType}"
+                                                                   FontSize="8" Foreground="#7A6F63"/>
+                                                    </StackPanel>
+                                                    <TextBlock Grid.Column="2" Text="{Binding VolumeDisplay}"
+                                                               FontFamily="Consolas" FontSize="10"
+                                                               FontWeight="Bold" Foreground="#C05050"
+                                                               VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="3" Text="{Binding ChangeDisplay}"
+                                                               FontFamily="Consolas" FontSize="9"
+                                                               HorizontalAlignment="Right"
+                                                               VerticalAlignment="Center">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Foreground" Value="#C05050"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsPositive}" Value="False">
+                                                                        <Setter Property="Foreground" Value="#6DAF6D"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <!-- TAB: Dotacje -->
+                    <TabItem Header="Dotacje">
+                        <ScrollViewer Style="{StaticResource BriefingScrollViewer}" Padding="14">
+                            <StackPanel>
+                                <TextBlock Text="DOSTEPNE DOFINANSOWANIA"
+                                           FontSize="9" FontWeight="Bold"
+                                           Foreground="#C9A96E" Margin="0,0,0,12"/>
+                                <ItemsControl ItemsSource="{Binding Subsidies}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource SidePanelCard}"
+                                                    BorderThickness="3,0,0,0"
+                                                    BorderBrush="{Binding Priority, Converter={StaticResource SeverityToColor}}"
+                                                    Cursor="Hand"
+                                                    Tag="{Binding ApplicationUrl}"
+                                                    MouseLeftButtonUp="OpenUrl_Click">
+                                                <StackPanel>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="{Binding Name}"
+                                                                   FontSize="10" FontWeight="SemiBold"
+                                                                   Foreground="#F5EDE0" TextWrapping="Wrap"/>
+                                                        <TextBlock Grid.Column="1" Text="🔗"
+                                                                   FontSize="10" Foreground="#C9A96E"
+                                                                   VerticalAlignment="Top" Margin="8,0,0,0"/>
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding Provider}"
+                                                               FontSize="9" Foreground="#C9A96E"
+                                                               Margin="0,4,0,0"/>
+                                                    <TextBlock Text="{Binding Description}"
+                                                               FontSize="9" Foreground="#7A6F63"
+                                                               TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                                    <Grid Margin="0,8,0,0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <StackPanel Grid.Column="0">
+                                                            <TextBlock Text="Maks. kwota"
+                                                                       FontSize="8" Foreground="#5A5248"/>
+                                                            <TextBlock Text="{Binding MaxAmountDisplay}"
+                                                                       FontFamily="Consolas" FontSize="11"
+                                                                       FontWeight="Bold" Foreground="#6DAF6D"/>
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="1">
+                                                            <TextBlock Text="Dofinansowanie"
+                                                                       FontSize="8" Foreground="#5A5248"/>
+                                                            <TextBlock Text="{Binding CoFinancingDisplay}"
+                                                                       FontFamily="Consolas" FontSize="11"
+                                                                       FontWeight="Bold" Foreground="#C9A96E"/>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                    <Border Background="#1E1A14" CornerRadius="4"
+                                                            Padding="8,4" Margin="0,8,0,0">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="⏰ Termin: "
+                                                                       FontSize="9" Foreground="#7A6F63"/>
+                                                            <TextBlock Text="{Binding DeadlineDisplay}"
+                                                                       FontSize="9" FontWeight="SemiBold"
+                                                                       Foreground="{Binding Priority, Converter={StaticResource SeverityToColor}}"/>
+                                                            <TextBlock Text="{Binding DaysLeftDisplay}"
+                                                                       FontSize="9" Foreground="#7A6F63"
+                                                                       Margin="8,0,0,0"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <!-- TAB: Klienci Potencjalni -->
+                    <TabItem Header="Szanse">
+                        <ScrollViewer Style="{StaticResource BriefingScrollViewer}" Padding="14">
+                            <StackPanel>
+                                <TextBlock Text="POTENCJALNI KLIENCI"
+                                           FontSize="9" FontWeight="Bold"
+                                           Foreground="#5AB8B8" Margin="0,0,0,12"/>
+                                <ItemsControl ItemsSource="{Binding PotentialClients}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource SidePanelCard}"
+                                                    Cursor="Hand"
+                                                    Tag="{Binding NewsSourceUrl}"
+                                                    MouseLeftButtonUp="OpenUrl_Click">
+                                                <StackPanel>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <StackPanel Grid.Column="0">
+                                                            <TextBlock Text="{Binding CompanyName}"
+                                                                       FontSize="11" FontWeight="SemiBold"
+                                                                       Foreground="#F5EDE0"/>
+                                                            <TextBlock Text="{Binding Industry}"
+                                                                       FontSize="9" Foreground="#5AB8B8"/>
+                                                        </StackPanel>
+                                                        <!-- Opportunity Score -->
+                                                        <Border Grid.Column="1" Background="#1E1A14"
+                                                                CornerRadius="12" Padding="8,4">
+                                                            <TextBlock Text="{Binding OpportunityScoreDisplay}"
+                                                                       FontFamily="Consolas" FontSize="10"
+                                                                       FontWeight="Bold" Foreground="#C9A96E"/>
+                                                        </Border>
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding Description}"
+                                                               FontSize="9" Foreground="#7A6F63"
+                                                               TextWrapping="Wrap" Margin="0,6,0,0"/>
+                                                    <Border Background="#1E1A14" CornerRadius="4"
+                                                            Padding="8" Margin="0,8,0,0">
+                                                        <StackPanel>
+                                                            <TextBlock Text="NAJNOWSZE INFO"
+                                                                       FontSize="8" FontWeight="Bold"
+                                                                       Foreground="#8B7355" Margin="0,0,0,4"/>
+                                                            <TextBlock Text="{Binding LatestNews}"
+                                                                       FontSize="9" FontStyle="Italic"
+                                                                       Foreground="#D5CCC0" TextWrapping="Wrap"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                                        <TextBlock Text="📍 " FontSize="9"/>
+                                                        <TextBlock Text="{Binding Location}"
+                                                                   FontSize="9" Foreground="#7A6F63"/>
+                                                        <TextBlock Text=" • " FontSize="9" Foreground="#5A5248"/>
+                                                        <TextBlock Text="{Binding VolumeDisplay}"
+                                                                   FontSize="9" Foreground="#6DAF6D"/>
+                                                    </StackPanel>
+                                                    <Border Background="#1C1210" CornerRadius="4"
+                                                            Padding="8" Margin="0,8,0,0"
+                                                            BorderBrush="#C9A96E" BorderThickness="0,0,0,2">
+                                                        <StackPanel>
+                                                            <TextBlock Text="ZALECANE DZIALANIE:"
+                                                                       FontSize="8" FontWeight="Bold"
+                                                                       Foreground="#C9A96E" Margin="0,0,0,4"/>
+                                                            <TextBlock Text="{Binding RecommendedAction}"
+                                                                       FontSize="9" Foreground="#F5EDE0"
+                                                                       TextWrapping="Wrap"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <!-- TAB: Miedzynarodowe -->
+                    <TabItem Header="Swiat">
+                        <ScrollViewer Style="{StaticResource BriefingScrollViewer}" Padding="14">
+                            <StackPanel>
+                                <TextBlock Text="NEWSY MIEDZYNARODOWE"
+                                           FontSize="9" FontWeight="Bold"
+                                           Foreground="#8B7355" Margin="0,0,0,12"/>
+                                <ItemsControl ItemsSource="{Binding InternationalNews}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource SidePanelCard}"
+                                                    BorderThickness="3,0,0,0"
+                                                    BorderBrush="{Binding ThreatLevel, Converter={StaticResource SeverityToColor}}"
+                                                    Cursor="Hand"
+                                                    Tag="{Binding SourceUrl}"
+                                                    MouseLeftButtonUp="OpenUrl_Click">
+                                                <StackPanel>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="24"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="{Binding CountryFlag}"
+                                                                   FontSize="14" VerticalAlignment="Center"/>
+                                                        <StackPanel Grid.Column="1">
+                                                            <TextBlock Text="{Binding Country}"
+                                                                       FontSize="10" FontWeight="SemiBold"
+                                                                       Foreground="#F5EDE0"/>
+                                                            <TextBlock Text="{Binding Region}"
+                                                                       FontSize="8" Foreground="#7A6F63"/>
+                                                        </StackPanel>
+                                                        <Border Grid.Column="2"
+                                                                Background="{Binding ThreatLevel, Converter={StaticResource SeverityToBg}}"
+                                                                CornerRadius="3" Padding="6,2">
+                                                            <TextBlock Text="{Binding ThreatLevelText}"
+                                                                       FontSize="8" FontWeight="Bold"
+                                                                       Foreground="{Binding ThreatLevel, Converter={StaticResource SeverityToColor}}"/>
+                                                        </Border>
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding Title}"
+                                                               FontSize="10" FontWeight="SemiBold"
+                                                               Foreground="#D5CCC0" TextWrapping="Wrap"
+                                                               Margin="0,8,0,0"/>
+                                                    <TextBlock Text="{Binding Summary}"
+                                                               FontSize="9" Foreground="#7A6F63"
+                                                               TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                                    <Border Background="#1C1210" CornerRadius="4"
+                                                            Padding="8" Margin="0,8,0,0">
+                                                        <StackPanel>
+                                                            <TextBlock Text="WPLYW NA POLSKE:"
+                                                                       FontSize="8" FontWeight="Bold"
+                                                                       Foreground="#C05050" Margin="0,0,0,4"/>
+                                                            <TextBlock Text="{Binding ImpactOnPoland}"
+                                                                       FontSize="9" Foreground="#D5CCC0"
+                                                                       TextWrapping="Wrap"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <!-- TAB: Mapa Konkurencji -->
+                    <TabItem Header="Mapa">
+                        <ScrollViewer Style="{StaticResource BriefingScrollViewer}" Padding="14">
+                            <StackPanel>
+                                <TextBlock Text="MAPA KONKURENCJI"
+                                           FontSize="9" FontWeight="Bold"
+                                           Foreground="#8B7355" Margin="0,0,0,8"/>
+
+                                <!-- Our Location -->
+                                <Border Background="#1C2A1C" CornerRadius="6" Padding="12" Margin="0,0,0,12"
+                                        BorderBrush="#6DAF6D" BorderThickness="1">
+                                    <StackPanel>
+                                        <TextBlock Text="📍 NASZA LOKALIZACJA"
+                                                   FontSize="9" FontWeight="Bold"
+                                                   Foreground="#6DAF6D" Margin="0,0,0,4"/>
+                                        <TextBlock Text="Piorkowscy - Brzeziny (lodzkie)"
+                                                   FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="#F5EDE0"/>
+                                        <TextBlock Text="51.7944°N, 19.7569°E"
+                                                   FontSize="9" Foreground="#7A6F63"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <TextBlock Text="KONKURENCI WG ODLEGLOSCI"
+                                           FontSize="9" FontWeight="Bold"
+                                           Foreground="#8B7355" Margin="0,0,0,8"/>
+                                <ItemsControl ItemsSource="{Binding ExtendedCompetitors}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource SidePanelCard}">
+                                                <StackPanel>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <StackPanel Grid.Column="0">
+                                                            <TextBlock Text="{Binding Name}"
+                                                                       FontSize="10" FontWeight="SemiBold"
+                                                                       Foreground="#F5EDE0"/>
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="{Binding City}"
+                                                                           FontSize="9" Foreground="#7A6F63"/>
+                                                                <TextBlock Text=", " FontSize="9" Foreground="#5A5248"/>
+                                                                <TextBlock Text="{Binding Voivodeship}"
+                                                                           FontSize="9" Foreground="#7A6F63"/>
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+                                                            <TextBlock Text="{Binding DistanceDisplay}"
+                                                                       FontFamily="Consolas" FontSize="11"
+                                                                       FontWeight="Bold" Foreground="#C9A96E"
+                                                                       HorizontalAlignment="Right"/>
+                                                            <TextBlock Text="{Binding TierDisplay}"
+                                                                       FontSize="8" Foreground="#7A6F63"
+                                                                       HorizontalAlignment="Right"/>
+                                                        </StackPanel>
+                                                    </Grid>
+
+                                                    <!-- Threat & Market Share -->
+                                                    <Grid Margin="0,8,0,0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <StackPanel Grid.Column="0">
+                                                            <TextBlock Text="Zagrozenie"
+                                                                       FontSize="8" Foreground="#5A5248"/>
+                                                            <TextBlock Text="{Binding ThreatDisplay}"
+                                                                       FontFamily="Consolas" FontSize="10"
+                                                                       FontWeight="Bold" Foreground="#C05050"/>
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="1">
+                                                            <TextBlock Text="Rynek"
+                                                                       FontSize="8" Foreground="#5A5248"/>
+                                                            <TextBlock Text="{Binding MarketShareDisplay}"
+                                                                       FontFamily="Consolas" FontSize="10"
+                                                                       FontWeight="Bold" Foreground="#D5CCC0"/>
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="2">
+                                                            <TextBlock Text="Przychod"
+                                                                       FontSize="8" Foreground="#5A5248"/>
+                                                            <TextBlock Text="{Binding RevenueDisplay}"
+                                                                       FontFamily="Consolas" FontSize="10"
+                                                                       FontWeight="Bold" Foreground="#D5CCC0"/>
+                                                        </StackPanel>
+                                                    </Grid>
+
+                                                    <!-- SWOT Summary (collapsed) -->
+                                                    <Expander Header="SWOT / Analiza" Margin="0,8,0,0"
+                                                              Foreground="#7A6F63" FontSize="9">
+                                                        <StackPanel Margin="0,8,0,0">
+                                                            <TextBlock Text="SILNE STRONY:" FontSize="8"
+                                                                       FontWeight="Bold" Foreground="#6DAF6D"/>
+                                                            <TextBlock Text="{Binding Strengths}" FontSize="9"
+                                                                       Foreground="#D5CCC0" TextWrapping="Wrap"
+                                                                       Margin="0,2,0,6"/>
+                                                            <TextBlock Text="SLABE STRONY:" FontSize="8"
+                                                                       FontWeight="Bold" Foreground="#C05050"/>
+                                                            <TextBlock Text="{Binding Weaknesses}" FontSize="9"
+                                                                       Foreground="#D5CCC0" TextWrapping="Wrap"
+                                                                       Margin="0,2,0,6"/>
+                                                            <TextBlock Text="SZANSE DLA NAS:" FontSize="8"
+                                                                       FontWeight="Bold" Foreground="#5AB8B8"/>
+                                                            <TextBlock Text="{Binding OpportunitiesForUs}" FontSize="9"
+                                                                       Foreground="#D5CCC0" TextWrapping="Wrap"
+                                                                       Margin="0,2,0,0"/>
+                                                        </StackPanel>
+                                                    </Expander>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
                 </TabControl>
             </Border>
         </Grid>
