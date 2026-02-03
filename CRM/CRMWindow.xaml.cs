@@ -619,29 +619,45 @@ namespace Kalendarz1.CRM
                     }
                 }
 
-                // Aktualizuj UI
+                // Aktualizuj UI - kolorowe medale (złoto, srebro, brąz)
                 if (txtPozycjaDzienna != null)
                 {
                     txtPozycjaDzienna.Text = pozDzienna switch
                     {
-                        1 => "🥇",
-                        2 => "🥈",
-                        3 => "🥉",
+                        1 => "1",
+                        2 => "2",
+                        3 => "3",
                         > 0 => $"#{pozDzienna}",
                         _ => ""
                     };
+                    txtPozycjaDzienna.Foreground = new SolidColorBrush(pozDzienna switch
+                    {
+                        1 => System.Windows.Media.Color.FromRgb(255, 215, 0),   // Gold
+                        2 => System.Windows.Media.Color.FromRgb(192, 192, 192), // Silver
+                        3 => System.Windows.Media.Color.FromRgb(205, 127, 50),  // Bronze
+                        _ => System.Windows.Media.Color.FromRgb(148, 163, 184)  // Gray
+                    });
+                    txtPozycjaDzienna.FontWeight = pozDzienna <= 3 ? FontWeights.Bold : FontWeights.Normal;
                 }
 
                 if (txtPozycjaTygodniowa != null)
                 {
                     txtPozycjaTygodniowa.Text = pozTygodniowa switch
                     {
-                        1 => "🥇",
-                        2 => "🥈",
-                        3 => "🥉",
+                        1 => "1",
+                        2 => "2",
+                        3 => "3",
                         > 0 => $"#{pozTygodniowa}",
                         _ => ""
                     };
+                    txtPozycjaTygodniowa.Foreground = new SolidColorBrush(pozTygodniowa switch
+                    {
+                        1 => System.Windows.Media.Color.FromRgb(255, 215, 0),   // Gold
+                        2 => System.Windows.Media.Color.FromRgb(192, 192, 192), // Silver
+                        3 => System.Windows.Media.Color.FromRgb(205, 127, 50),  // Bronze
+                        _ => System.Windows.Media.Color.FromRgb(148, 163, 184)  // Gray
+                    });
+                    txtPozycjaTygodniowa.FontWeight = pozTygodniowa <= 3 ? FontWeights.Bold : FontWeights.Normal;
                 }
             }
             catch { }
@@ -1705,6 +1721,69 @@ namespace Kalendarz1.CRM
         {
             throw new NotImplementedException();
         }
+    }
+
+    /// <summary>
+    /// Konwerter koloru medalu - złoty, srebrny, brązowy
+    /// </summary>
+    public class MedalColorConverter : System.Windows.Data.IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            string medal = value?.ToString() ?? "";
+            return medal switch
+            {
+                "🥇" or "1" => new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 215, 0)),   // Gold
+                "🥈" or "2" => new SolidColorBrush(System.Windows.Media.Color.FromRgb(192, 192, 192)), // Silver
+                "🥉" or "3" => new SolidColorBrush(System.Windows.Media.Color.FromRgb(205, 127, 50)),  // Bronze
+                _ => new SolidColorBrush(System.Windows.Media.Color.FromRgb(148, 163, 184))           // Gray for others
+            };
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    /// <summary>
+    /// Konwerter tekstu medalu - zamienia emoji na numer
+    /// </summary>
+    public class MedalTextConverter : System.Windows.Data.IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            string medal = value?.ToString() ?? "";
+            return medal switch
+            {
+                "🥇" => "1",
+                "🥈" => "2",
+                "🥉" => "3",
+                _ => medal.TrimEnd('.')
+            };
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    /// <summary>
+    /// Konwerter typu notatki - zamienia emoji na ścieżkę SVG
+    /// </summary>
+    public class NoteTypeToPathConverter : System.Windows.Data.IValueConverter
+    {
+        // Notatka (📝) - pencil icon
+        private const string NotePath = "M3,17.25V21h3.75L17.81,9.94l-3.75-3.75L3,17.25zM20.71,7.04c0.39-0.39,0.39-1.02,0-1.41l-2.34-2.34c-0.39-0.39-1.02-0.39-1.41,0l-1.83,1.83l3.75,3.75L20.71,7.04z";
+        // Status (🔄) - sync/refresh icon
+        private const string StatusPath = "M12,4V1L8,5l4,4V6c3.31,0,6,2.69,6,6c0,1.01-0.25,1.97-0.7,2.8l1.46,1.46C19.54,15.03,20,13.57,20,12C20,7.58,16.42,4,12,4z M12,18c-3.31,0-6-2.69-6-6c0-1.01,0.25-1.97,0.7-2.8L5.24,7.74C4.46,8.97,4,10.43,4,12c0,4.42,3.58,8,8,8v3l4-4l-4-4V18z";
+
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            string typ = value?.ToString() ?? "";
+            string pathData = typ.Contains("🔄") || typ.ToLower().Contains("status") ? StatusPath : NotePath;
+            return Geometry.Parse(pathData);
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => throw new NotImplementedException();
     }
 
     /// <summary>

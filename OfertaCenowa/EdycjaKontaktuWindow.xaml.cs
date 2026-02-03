@@ -87,7 +87,8 @@ namespace Kalendarz1.OfertaCenowa
 
                     const string sql = @"
                         SELECT Nazwa, PKD_Opis, KOD, MIASTO, Ulica, Wojewodztwo,
-                               Imie, Nazwisko, Stanowisko, Email, TELEFON_K, TelefonDodatkowy
+                               Imie, Nazwisko, Stanowisko, Email, TELEFON_K, TelefonDodatkowy,
+                               Status, Tagi
                         FROM OdbiorcyCRM
                         WHERE ID = @ID";
 
@@ -115,6 +116,20 @@ namespace Kalendarz1.OfertaCenowa
                                 txtEmail.Text = reader.IsDBNull(9) ? "" : reader.GetString(9);
                                 txtTelefon.Text = reader.IsDBNull(10) ? "" : reader.GetString(10);
                                 txtTelefonDodatkowy.Text = reader.IsDBNull(11) ? "" : reader.GetString(11);
+
+                                // Status
+                                string status = reader.IsDBNull(12) ? "Do zadzwonienia" : reader.GetString(12);
+                                for (int i = 0; i < cmbStatus.Items.Count; i++)
+                                {
+                                    if (cmbStatus.Items[i] is System.Windows.Controls.ComboBoxItem item && item.Content.ToString() == status)
+                                    {
+                                        cmbStatus.SelectedIndex = i;
+                                        break;
+                                    }
+                                }
+
+                                // Tagi
+                                txtTagi.Text = reader.IsDBNull(13) ? "" : reader.GetString(13);
 
                                 txtKlientNazwa.Text = txtNazwa.Text;
                             }
@@ -151,6 +166,11 @@ namespace Kalendarz1.OfertaCenowa
                 {
                     conn.Open();
 
+                    // Get selected status
+                    string selectedStatus = "Do zadzwonienia";
+                    if (cmbStatus.SelectedItem is System.Windows.Controls.ComboBoxItem statusItem)
+                        selectedStatus = statusItem.Content.ToString();
+
                     const string sql = @"
                         UPDATE OdbiorcyCRM
                         SET Nazwa = @Nazwa,
@@ -164,7 +184,9 @@ namespace Kalendarz1.OfertaCenowa
                             Stanowisko = @Stanowisko,
                             Email = @Email,
                             TELEFON_K = @Telefon,
-                            TelefonDodatkowy = @TelefonDodatkowy
+                            TelefonDodatkowy = @TelefonDodatkowy,
+                            Status = @Status,
+                            Tagi = @Tagi
                         WHERE ID = @ID";
 
                     using (var cmd = new SqlCommand(sql, conn))
@@ -181,6 +203,8 @@ namespace Kalendarz1.OfertaCenowa
                         cmd.Parameters.AddWithValue("@Email", txtEmail.Text ?? "");
                         cmd.Parameters.AddWithValue("@Telefon", txtTelefon.Text ?? "");
                         cmd.Parameters.AddWithValue("@TelefonDodatkowy", txtTelefonDodatkowy.Text ?? "");
+                        cmd.Parameters.AddWithValue("@Status", selectedStatus);
+                        cmd.Parameters.AddWithValue("@Tagi", txtTagi.Text ?? "");
                         cmd.Parameters.AddWithValue("@ID", KlientID);
 
                         int rowsAffected = cmd.ExecuteNonQuery();
