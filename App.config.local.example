@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+    INSTRUKCJA:
+    1. Skopiuj ten plik jako "App.config.local"
+    2. Uzupełnij swoje klucze API
+    3. Plik App.config.local jest ignorowany przez git (.gitignore)
+
+    System automatycznie sprawdza:
+    1. App.config.local (preferowane - nie commitowane)
+    2. App.config (backup)
+    3. Zmienne środowiskowe (ANTHROPIC_API_KEY, TAVILY_API_KEY)
+-->
+<configuration>
+    <appSettings>
+        <!-- Twoje klucze API - NIE COMMITUJ tego pliku! -->
+        <add key="ClaudeApiKey" value="sk-ant-api03-TWÓJ-KLUCZ-TUTAJ"/>
+        <add key="TavilyApiKey" value="tvly-dev-TWÓJ-KLUCZ-TUTAJ"/>
+    </appSettings>
+</configuration>
