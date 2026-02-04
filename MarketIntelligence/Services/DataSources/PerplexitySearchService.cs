@@ -90,6 +90,7 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
 
             try
             {
+                // Prompt naturalny - NIE prosimy o JSON, zeby Perplexity zwrocil citations
                 var requestBody = new
                 {
                     model = Model,
@@ -98,17 +99,18 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                         new
                         {
                             role = "system",
-                            content = "Jestes pomocnym asystentem wyszukujacym najnowsze wiadomosci z branzy drobiarskiej w Polsce. Odpowiadaj TYLKO w formacie JSON. Szukaj wiadomosci po polsku i z polskich zrodel."
+                            content = "Jestes ekspertem od branzy drobiarskiej w Polsce. Podawaj konkretne informacje z wiarygodnych zrodel. Cytuj zrodla uzywajac numerow [1], [2] itd."
                         },
                         new
                         {
                             role = "user",
-                            content = $"Znajdz najnowsze wiadomosci na temat: {query}. Dla kazdej wiadomosci podaj: tytul, krotki opis (2-3 zdania), zrodlo (nazwa portalu), URL, date publikacji. WAZNE: Odpowiedz TYLKO jako tablica JSON bez zadnego tekstu przed ani po: [{{\"title\": \"tytul\", \"snippet\": \"opis\", \"source\": \"portal.pl\", \"url\": \"https://...\", \"date\": \"2026-02-04\"}}]"
+                            content = $"Znajdz najnowsze wiadomosci i artykuly na temat: {query}. Podaj krotkie podsumowanie kazdej znalezionej informacji z numerem zrodla. Szukaj w polskich portalach: farmer.pl, topagrar.pl, poultry.pl, portalspozywczy.pl, wiadomoscihandlowe.pl, money.pl, pulshr.pl, rp.pl."
                         }
                     },
                     max_tokens = 2000,
-                    temperature = 0.2,
-                    search_recency_filter = "week"
+                    temperature = 0.3,
+                    search_recency_filter = "week",
+                    return_citations = true  // Wymuszenie zwracania citations
                 };
 
                 var json = JsonSerializer.Serialize(requestBody);
