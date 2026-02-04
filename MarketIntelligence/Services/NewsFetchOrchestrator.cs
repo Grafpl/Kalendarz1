@@ -107,7 +107,7 @@ namespace Kalendarz1.MarketIntelligence.Services
                     });
 
                     var tavilyResult = await _tavilySearchService.SearchPoultryNewsAsync(
-                        includeInternational: true, ct);
+                        includeInternational: true, ct: ct);
 
                     // Convert to RawArticle format
                     tavilyArticles = _tavilySearchService.ConvertToRawArticles(
