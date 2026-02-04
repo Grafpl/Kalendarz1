@@ -742,6 +742,7 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
             {
                 MaxResults = 5,
                 IncludeAiAnswer = true,
+                IncludeRawContent = true,  // Pobiera pełną treść artykułów
                 Deep = false
             };
 
@@ -1205,7 +1206,7 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
     {
         public int MaxResults { get; set; } = 5;
         public bool IncludeAiAnswer { get; set; } = true;
-        public bool IncludeRawContent { get; set; } = false;
+        public bool IncludeRawContent { get; set; } = true;  // Włączone - pobiera pełną treść artykułów
         public bool Deep { get; set; } = false;
         public List<string> IncludeDomains { get; set; }
         public List<string> ExcludeDomains { get; set; }

@@ -281,62 +281,135 @@ Odpowiedz TYLKO tablicą JSON, bez dodatkowego tekstu.";
 
         private string CreateAnalysisPrompt(RawArticle article, BusinessContext context)
         {
-            var contextJson = context != null ? JsonSerializer.Serialize(context, new JsonSerializerOptions
+            // 1. Pobierz pełną treść (FullContent ma priorytet nad Summary)
+            var contentToAnalyze = !string.IsNullOrEmpty(article.FullContent) && article.FullContent.Length > 500
+                ? article.FullContent
+                : article.Summary ?? article.Title;
+
+            // Ogranicz długość do 6000 znaków (limit dla Claude)
+            if (contentToAnalyze.Length > 6000)
             {
-                WriteIndented = true,
-                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-            }) : "{}";
+                // Obetnij na granicy zdania
+                var truncated = contentToAnalyze.Substring(0, 6000);
+                var lastSentence = truncated.LastIndexOfAny(new[] { '.', '!', '?' });
+                if (lastSentence > 4000)
+                    contentToAnalyze = truncated.Substring(0, lastSentence + 1) + "\n[...]";
+                else
+                    contentToAnalyze = truncated + "...";
+            }
 
-            return $@"Jesteś analitykiem rynku drobiarskiego dla Ubojni Drobiu Piórkowscy (Brzeziny, województwo łódzkie).
-Przeanalizuj poniższy artykuł pod kątem wpływu na naszą firmę.
+            // 2. Wykryj podmioty i wygeneruj sekcję "KIM JEST"
+            var fullText = $"{article.Title} {contentToAnalyze}";
+            var detectedEntities = EntityKnowledgeBase.FindEntitiesInText(fullText);
+            var whoIsSection = detectedEntities.Any()
+                ? EntityKnowledgeBase.GenerateWhoIsSection(detectedEntities)
+                : "Brak rozpoznanych podmiotów wymagających wyjaśnienia.";
 
-=== ARTYKUŁ ===
-Tytuł: {article.Title}
-Źródło: {article.SourceName}
-Data: {article.PublishDate:yyyy-MM-dd}
-Kategoria źródła: {article.SourceCategory}
+            // 3. Przygotuj skrócony kontekst firmy
+            var companyContext = $@"
+FIRMA: Ubojnia Drobiu Piórkowscy, Brzeziny (łódzkie)
+ZDOLNOŚĆ: 70 000 kurczaków/dzień (~200 ton)
+SYTUACJA KRYZYSOWA: Sprzedaż spadła z 25M do 15M PLN/mies, straty ~2M PLN/mies
+CENY WŁASNE: żywiec {context?.Company?.LiveChickenPrice ?? 4.72m} zł/kg, filet {context?.Company?.FiletWholesalePrice ?? 24.50m} zł/kg
 
-Treść:
-{article.Summary ?? article.Title}
+KONKURENCI GŁÓWNI:
+- Cedrob (ADQ negocjuje przejęcie za 8 mld) - KRYTYCZNE ZAGROŻENIE
+- SuperDrob/LipCo (CPF Tajlandia) - WYSOKIE ZAGROŻENIE
+- Drosed (LDC/ADQ) - część potencjalnego monopolu
 
-=== KONTEKST FIRMY ===
-{contextJson}
+GŁÓWNI KLIENCI: {string.Join(", ", context?.TopCustomers?.Take(5).Select(c => c.Name) ?? new[] { "Biedronka", "Makro", "Dino" })}
 
-=== ZADANIE ===
-Przygotuj analizę w formacie JSON:
+BIEŻĄCE ZAGROŻENIA:
+- HPAI: 19 ognisk w Polsce, 2 w łódzkim (NASZ REGION!)
+- Import: Brazylia filet 13 zł/kg vs nasze 15-17 zł
+- Mercosur: 180k ton bezcłowego drobiu do UE
+- KSeF: obowiązkowy od 01.04.2026";
+
+            // 4. Zbuduj pełny prompt
+            return $@"Jesteś STARSZYM ANALITYKIEM RYNKU DROBIARSKIEGO dla Ubojni Drobiu Piórkowscy.
+Przygotuj SZCZEGÓŁOWĄ i KONKRETNĄ analizę artykułu.
+
+═══════════════════════════════════════════════════════════════════
+                           ARTYKUŁ
+═══════════════════════════════════════════════════════════════════
+TYTUŁ: {article.Title}
+ŹRÓDŁO: {article.SourceName}
+DATA: {article.PublishDate:yyyy-MM-dd}
+KATEGORIA: {article.SourceCategory}
+
+PEŁNA TREŚĆ:
+{contentToAnalyze}
+
+═══════════════════════════════════════════════════════════════════
+                    KONTEKST NASZEJ FIRMY
+═══════════════════════════════════════════════════════════════════
+{companyContext}
+
+═══════════════════════════════════════════════════════════════════
+             KIM SĄ PODMIOTY WYMIENIONE W ARTYKULE
+═══════════════════════════════════════════════════════════════════
+{whoIsSection}
+
+═══════════════════════════════════════════════════════════════════
+                          ZADANIE
+═══════════════════════════════════════════════════════════════════
+Przygotuj SZCZEGÓŁOWĄ analizę w formacie JSON:
 
 {{
-  ""kategoria"": ""HPAI|Ceny|Konkurencja|Eksport|Import|Regulacje|Pasze|Pogoda|Klienci|Dotacje|Info"",
+  ""kategoria"": ""HPAI|Ceny|Konkurencja|Eksport|Import|Regulacje|Pasze|Pogoda|Klienci|Info"",
   ""severity"": ""critical|warning|positive|info"",
   ""istotnosc"": 1-10,
 
-  ""analiza_ceo"": ""2-3 zdania: strategiczne implikacje dla właściciela firmy. Co to oznacza dla biznesu? Jakie decyzje trzeba podjąć?"",
+  ""streszczenie"": ""SZCZEGÓŁOWE streszczenie artykułu (3-5 zdań): CO się wydarzyło? Podaj KONKRETNE fakty, liczby, daty, nazwy firm/osób z artykułu. Nie pisz ogólników."",
 
-  ""analiza_handlowiec"": ""2-3 zdania: co powinien wiedzieć dział sprzedaży. Jak to wpłynie na ceny? Co powiedzieć klientom?"",
+  ""kim_jest"": ""Wyjaśnij WSZYSTKIE podmioty (firmy, osoby, organizacje) wymienione w artykule:
+- Kim są? Czym się zajmują? Jaka jest ich skala działalności?
+- Dlaczego są ważni dla branży drobiarskiej?
+- Jakie mają powiązania kapitałowe (właściciele, inwestorzy)?
+- Użyj informacji z sekcji KIM SĄ PODMIOTY powyżej.
+Napisz minimum 2-4 zdania na KAŻDY istotny podmiot."",
 
-  ""analiza_zakupowiec"": ""2-3 zdania: wpływ na zakupy i dostawców. Czy trzeba zmienić zamówienia? Negocjować ceny?"",
+  ""co_to_znaczy_dla_piorkowscy"": ""KONKRETNA analiza wpływu na NASZĄ firmę (3-5 zdań):
+- Czy to zagrożenie czy szansa dla Piórkowscy?
+- Jak to wpływa na naszą konkurencyjność w regionie łódzkim?
+- Jaki wpływ na nasze ceny, klientów, dostawców (hodowców)?
+- ODNIEŚ SIĘ DO NASZEJ SYTUACJI KRYZYSOWEJ (spadek sprzedaży o 40%, straty 2M/mies)
+- Co KONKRETNIE powinniśmy zrobić w reakcji?"",
 
-  ""rekomendacje_ceo"": [""konkretna akcja 1"", ""konkretna akcja 2""],
-  ""rekomendacje_handlowiec"": [""konkretna akcja 1"", ""konkretna akcja 2""],
-  ""rekomendacje_zakupowiec"": [""konkretna akcja 1"", ""konkretna akcja 2""],
+  ""analiza_ceo"": ""Dla WŁAŚCICIELA firmy (2-3 zdania): strategiczne implikacje, decyzje do podjęcia, ryzyka."",
+  ""analiza_handlowiec"": ""Dla DZIAŁU SPRZEDAŻY (2-3 zdania): wpływ na ceny, argumenty dla klientów, zagrożenia/szanse."",
+  ""analiza_zakupowiec"": ""Dla DZIAŁU ZAKUPÓW (2-3 zdania): wpływ na hodowców, ceny skupu żywca, pasze."",
 
-  ""edukacja"": ""Krótkie (2-3 zdań) wyjaśnienie kontekstu dla osoby niezorientowanej w temacie. Kim jest podmiot X? Co to jest Y? Dlaczego to ważne?"",
+  ""rekomendacje_ceo"": [""KONKRETNA akcja 1 z terminem"", ""KONKRETNA akcja 2 z terminem""],
+  ""rekomendacje_handlowiec"": [""KONKRETNA akcja 1"", ""KONKRETNA akcja 2""],
+  ""rekomendacje_zakupowiec"": [""KONKRETNA akcja 1"", ""KONKRETNA akcja 2""],
 
-  ""kluczowe_liczby"": [
-    {{""nazwa"": ""np. cena"", ""wartosc"": ""5.80 zł/kg"", ""zmiana"": ""+5%""}},
-    ...
+  ""zalecane_dzialania"": [
+    {{
+      ""priorytet"": ""PILNE|WAŻNE|DO_ROZWAŻENIA"",
+      ""dzialanie"": ""KONKRETNY krok do podjęcia - co DOKŁADNIE zrobić?"",
+      ""odpowiedzialny"": ""CEO|Sprzedaż|Zakupy|Produkcja"",
+      ""termin"": ""natychmiast|ten tydzień|ten miesiąc""
+    }}
   ],
 
-  ""powiazane_tematy"": [""temat 1"", ""temat 2""]
+  ""kluczowe_liczby"": [
+    {{""nazwa"": ""np. cena fileta"", ""wartosc"": ""wartość z artykułu"", ""kontekst"": ""co to oznacza dla nas""}}
+  ],
+
+  ""zrodla_do_monitorowania"": [""źródło do dalszego śledzenia tematu""]
 }}
 
-WAŻNE:
-- Pisz konkretnie, z liczbami i faktami z artykułu
-- Odnoś się do kontekstu firmy (lokalizacja, klienci, konkurencja)
-- Rekomendacje muszą być WYKONALNE i KONKRETNE
-- Edukacja powinna być zrozumiała dla laika
+═══════════════════════════════════════════════════════════════════
+                    ZASADY BEZWZGLĘDNE
+═══════════════════════════════════════════════════════════════════
+1. STRESZCZENIE musi zawierać FAKTY z artykułu - liczby, daty, nazwy. NIE PISZ OGÓLNIKÓW.
+2. KIM_JEST musi wyjaśnić KAŻDY podmiot z artykułu - nie pisz ""nieznany"" ani ""brak informacji"".
+3. CO_TO_ZNACZY musi odnieść się do NASZEJ SYTUACJI KRYZYSOWEJ i być KONKRETNE.
+4. ZALECANE_DZIALANIA muszą być WYKONALNE i KONKRETNE (nie ""monitoruj sytuację"" ani ""bądź na bieżąco"").
+5. Pisz po polsku, profesjonalnie, rzeczowo.
 
-Odpowiedz TYLKO JSON-em, bez dodatkowego tekstu.";
+Odpowiedz WYŁĄCZNIE poprawnym JSON-em, bez żadnego tekstu przed ani po.";
         }
 
         private ArticleAnalysis ParseAnalysisResponse(string response, RawArticle article)
