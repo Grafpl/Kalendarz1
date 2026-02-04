@@ -5,6 +5,8 @@
 
 # Pliki z hasłami - NIGDY nie commituj!
 App.config
+App.config.local
+*.local
 
 # User-specific files
 *.rsuser

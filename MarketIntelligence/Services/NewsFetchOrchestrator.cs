@@ -18,6 +18,7 @@ namespace Kalendarz1.MarketIntelligence.Services
     {
         private readonly RssFeedService _rssFeedService;
         private readonly WebScraperService _webScraperService;
+        private readonly TavilySearchService _tavilySearchService;
         private readonly ContentFilterService _contentFilterService;
         private readonly ClaudeAnalysisService _claudeAnalysisService;
         private readonly ContextBuilderService _contextBuilderService;
@@ -34,6 +35,7 @@ namespace Kalendarz1.MarketIntelligence.Services
 
             _rssFeedService = new RssFeedService();
             _webScraperService = new WebScraperService();
+            _tavilySearchService = new TavilySearchService();
             _contentFilterService = new ContentFilterService(_connectionString);
             _claudeAnalysisService = new ClaudeAnalysisService(claudeApiKey);
             _contextBuilderService = new ContextBuilderService(_connectionString);
@@ -93,8 +95,36 @@ namespace Kalendarz1.MarketIntelligence.Services
                     Debug.WriteLine($"[Orchestrator] Scraped: {scrapedArticles.Count} articles");
                 }
 
+                // 3.5 Tavily internet search (if enabled)
+                var tavilyArticles = new List<RawArticle>();
+                if (options.UseTavilySearch && _tavilySearchService.IsConfigured)
+                {
+                    progress?.Report(new FetchProgress
+                    {
+                        Stage = "Tavily",
+                        Percent = 30,
+                        Message = "Przeszukuję cały internet przez Tavily AI..."
+                    });
+
+                    var tavilyResult = await _tavilySearchService.SearchPoultryNewsAsync(
+                        includeInternational: true, ct);
+
+                    // Convert to RawArticle format
+                    tavilyArticles = _tavilySearchService.ConvertToRawArticles(
+                        new TavilySearchResult
+                        {
+                            Success = true,
+                            Results = tavilyResult.PolishNews.Concat(tavilyResult.InternationalNews).ToList()
+                        });
+
+                    stats.TavilyArticlesFetched = tavilyArticles.Count;
+                    Debug.WriteLine($"[Orchestrator] Tavily: {tavilyArticles.Count} articles from internet search");
+                }
+
                 // 4. Combine and deduplicate
-                var allArticles = rssArticles.Concat(scrapedArticles)
+                var allArticles = rssArticles
+                    .Concat(scrapedArticles)
+                    .Concat(tavilyArticles)
                     .GroupBy(a => a.UrlHash)
                     .Select(g => g.First())
                     .ToList();
@@ -540,6 +570,7 @@ namespace Kalendarz1.MarketIntelligence.Services
         {
             _rssFeedService?.Dispose();
             _webScraperService?.Dispose();
+            _tavilySearchService?.Dispose();
             _claudeAnalysisService?.Dispose();
         }
     }
@@ -549,6 +580,7 @@ namespace Kalendarz1.MarketIntelligence.Services
     public class FetchOptions
     {
         public bool IncludeScrapingSources { get; set; } = true;
+        public bool UseTavilySearch { get; set; } = true;  // Przeszukiwanie całego internetu
         public bool UseAiFiltering { get; set; } = true;
         public bool UseAiAnalysis { get; set; } = true;
         public bool GenerateSummary { get; set; } = true;
@@ -562,6 +594,7 @@ namespace Kalendarz1.MarketIntelligence.Services
         public static FetchOptions Full => new()
         {
             IncludeScrapingSources = true,
+            UseTavilySearch = true,
             UseAiFiltering = true,
             UseAiAnalysis = true,
             GenerateSummary = true,
@@ -574,6 +607,7 @@ namespace Kalendarz1.MarketIntelligence.Services
         public static FetchOptions Quick => new()
         {
             IncludeScrapingSources = false,
+            UseTavilySearch = false,
             UseAiFiltering = false,
             UseAiAnalysis = false,
             GenerateSummary = false,
@@ -607,6 +641,7 @@ namespace Kalendarz1.MarketIntelligence.Services
     {
         public int RssArticlesFetched { get; set; }
         public int ScrapedArticlesFetched { get; set; }
+        public int TavilyArticlesFetched { get; set; }  // Z przeszukiwania internetu
         public int TotalArticlesFetched { get; set; }
         public int RelevantArticles { get; set; }
         public int AiFilteredArticles { get; set; }
