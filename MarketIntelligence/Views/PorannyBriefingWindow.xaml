@@ -173,9 +173,19 @@
                     <Button x:Name="btnQuickRefresh" Margin="0,0,8,0"
                             Command="{Binding QuickRefreshCommand}"
                             Style="{StaticResource TasksButton}"
-                            ToolTip="Szybki briefing - 20 najwazniejszych zapytan (~30 sek)">
+                            ToolTip="Szybki briefing - 5 najwazniejszych zapytan (~30 sek)">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="Szybki" FontSize="11" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Single Article Test Button -->
+                    <Button x:Name="btnSingleArticle" Margin="0,0,8,0"
+                            Command="{Binding TestPipelineCommand}"
+                            Style="{StaticResource TasksButton}"
+                            ToolTip="Pobierz i przeanalizuj 1 artykul - podglad jak wyglada analiza">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="1 Artykuł" FontSize="11" FontWeight="SemiBold"/>
                         </StackPanel>
                     </Button>
 
