@@ -159,19 +159,34 @@ namespace Kalendarz1.MarketIntelligence.Services
 
             foreach (var analysis in analyses)
             {
+                // Użyj nowych pól (WhoIs, WhatItMeansForPiorkowscy, StructuredActions) z fallback do starych
+                var educationalContent = !string.IsNullOrEmpty(analysis.WhoIs)
+                    ? analysis.WhoIs
+                    : analysis.EducationalContent ?? "Brak informacji";
+
+                var ceoAnalysis = !string.IsNullOrEmpty(analysis.WhatItMeansForPiorkowscy)
+                    ? analysis.WhatItMeansForPiorkowscy
+                    : analysis.CeoAnalysis ?? "Brak analizy";
+
+                // Formatuj strukturalne akcje jeśli dostępne
+                var ceoRecommendations = analysis.StructuredActions?.Any() == true
+                    ? string.Join("\n", analysis.StructuredActions.Select(a =>
+                        $"• [{a.Priorytet}] {a.Dzialanie}\n   Odpowiedzialny: {a.Odpowiedzialny} | Termin: {a.Termin}"))
+                    : string.Join("\n", analysis.CeoRecommendations?.Select(r => $"• {r}") ?? Array.Empty<string>());
+
                 var article = new BriefingArticle
                 {
                     Id = id++,
                     Title = analysis.Article.Title,
-                    ShortPreview = TruncateText(analysis.Article.Summary, 200),
-                    FullContent = analysis.Article.Summary ?? analysis.Article.Title,
-                    EducationalSection = analysis.EducationalContent,
-                    AiAnalysisCeo = analysis.CeoAnalysis,
-                    AiAnalysisSales = analysis.SalesAnalysis,
-                    AiAnalysisBuyer = analysis.BuyerAnalysis,
-                    RecommendedActionsCeo = string.Join("\n", analysis.CeoRecommendations.Select(r => $"• {r}")),
-                    RecommendedActionsSales = string.Join("\n", analysis.SalesRecommendations.Select(r => $"• {r}")),
-                    RecommendedActionsBuyer = string.Join("\n", analysis.BuyerRecommendations.Select(r => $"• {r}")),
+                    ShortPreview = TruncateText(analysis.Summary ?? analysis.Article.Summary, 300),
+                    FullContent = analysis.Summary ?? analysis.Article.Summary ?? analysis.Article.Title,
+                    EducationalSection = educationalContent,
+                    AiAnalysisCeo = ceoAnalysis,
+                    AiAnalysisSales = analysis.SalesAnalysis ?? ceoAnalysis,
+                    AiAnalysisBuyer = analysis.BuyerAnalysis ?? ceoAnalysis,
+                    RecommendedActionsCeo = ceoRecommendations,
+                    RecommendedActionsSales = string.Join("\n", analysis.SalesRecommendations?.Select(r => $"• {r}") ?? Array.Empty<string>()),
+                    RecommendedActionsBuyer = string.Join("\n", analysis.BuyerRecommendations?.Select(r => $"• {r}") ?? Array.Empty<string>()),
                     Category = MapCategory(analysis.Category),
                     Source = analysis.Article.SourceName,
                     SourceUrl = analysis.Article.Url,

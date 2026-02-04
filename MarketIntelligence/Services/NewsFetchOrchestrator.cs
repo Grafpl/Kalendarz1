@@ -22,6 +22,7 @@ namespace Kalendarz1.MarketIntelligence.Services
         private readonly ContentFilterService _contentFilterService;
         private readonly ClaudeAnalysisService _claudeAnalysisService;
         private readonly ContextBuilderService _contextBuilderService;
+        private readonly ContentEnrichmentService _contentEnrichmentService;
 
         private readonly string _connectionString;
 
@@ -39,6 +40,7 @@ namespace Kalendarz1.MarketIntelligence.Services
             _contentFilterService = new ContentFilterService(_connectionString);
             _claudeAnalysisService = new ClaudeAnalysisService(claudeApiKey);
             _contextBuilderService = new ContextBuilderService(_connectionString);
+            _contentEnrichmentService = new ContentEnrichmentService();
         }
 
         #region Main Fetch Pipeline
@@ -176,6 +178,26 @@ namespace Kalendarz1.MarketIntelligence.Services
                     aiFiltered = await _claudeAnalysisService.QuickFilterArticlesAsync(filteredArticles, ct);
                     filteredArticles = aiFiltered.Select(f => f.Article).ToList();
                     stats.AiFilteredArticles = filteredArticles.Count;
+                }
+
+                // 6.5 Content Enrichment - pobierz pełną treść artykułów
+                if (options.UseContentEnrichment)
+                {
+                    progress?.Report(new FetchProgress
+                    {
+                        Stage = "Wzbogacanie treści",
+                        Percent = 52,
+                        Message = $"Pobieram pełną treść {Math.Min(options.MaxArticlesToAnalyze, filteredArticles.Count)} artykułów..."
+                    });
+
+                    filteredArticles = await _contentEnrichmentService.EnrichArticlesAsync(
+                        filteredArticles,
+                        Math.Min(options.MaxArticlesToAnalyze, filteredArticles.Count),
+                        ct);
+
+                    var enrichedCount = filteredArticles.Count(a => !string.IsNullOrEmpty(a.FullContent) && a.FullContent.Length > 500);
+                    stats.ArticlesEnriched = enrichedCount;
+                    Debug.WriteLine($"[Orchestrator] Enriched {enrichedCount} articles with full content");
                 }
 
                 // 7. Get business context
@@ -590,6 +612,7 @@ namespace Kalendarz1.MarketIntelligence.Services
             _webScraperService?.Dispose();
             _tavilySearchService?.Dispose();
             _claudeAnalysisService?.Dispose();
+            _contentEnrichmentService?.Dispose();
         }
     }
 
@@ -599,6 +622,7 @@ namespace Kalendarz1.MarketIntelligence.Services
     {
         public bool IncludeScrapingSources { get; set; } = true;
         public bool UseTavilySearch { get; set; } = true;  // Przeszukiwanie całego internetu
+        public bool UseContentEnrichment { get; set; } = true;  // Wzbogacanie artykułów o pełną treść (web scraping)
         public bool UseAiFiltering { get; set; } = true;
         public bool UseAiAnalysis { get; set; } = true;
         public bool GenerateSummary { get; set; } = true;
@@ -613,6 +637,7 @@ namespace Kalendarz1.MarketIntelligence.Services
         {
             IncludeScrapingSources = true,
             UseTavilySearch = true,
+            UseContentEnrichment = true,
             UseAiFiltering = true,
             UseAiAnalysis = true,
             GenerateSummary = true,
@@ -663,6 +688,7 @@ namespace Kalendarz1.MarketIntelligence.Services
         public int TotalArticlesFetched { get; set; }
         public int RelevantArticles { get; set; }
         public int AiFilteredArticles { get; set; }
+        public int ArticlesEnriched { get; set; }  // Artykuły wzbogacone o pełną treść
         public int ArticlesAnalyzed { get; set; }
         public int HpaiAlertsFound { get; set; }
         public TimeSpan TotalDuration { get; set; }

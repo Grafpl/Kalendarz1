@@ -433,19 +433,31 @@ Odpowiedz WYŁĄCZNIE poprawnym JSON-em, bez żadnego tekstu przed ani po.";
                         return new ArticleAnalysis
                         {
                             Article = article,
-                            Category = parsed.Kategoria,
-                            Severity = parsed.Severity,
+                            Category = parsed.Kategoria ?? "Info",
+                            Severity = parsed.Severity ?? "info",
                             Importance = parsed.Istotnosc,
 
-                            CeoAnalysis = parsed.AnalizaCeo,
-                            SalesAnalysis = parsed.AnalizaHandlowiec,
-                            BuyerAnalysis = parsed.AnalizaZakupowiec,
+                            // NOWE POLA - priorytet dla rozszerzonej analizy
+                            Summary = parsed.Streszczenie,
+                            WhoIs = parsed.KimJest,
+                            WhatItMeansForPiorkowscy = parsed.CoToZnaczyDlaPiorkowscy,
+                            StructuredActions = parsed.ZalecaneDzialania ?? new List<ZalecaneDzialaniaItem>(),
+                            SourcesToMonitor = parsed.ZrodlaDoMonitorowania ?? new List<string>(),
 
-                            CeoRecommendations = parsed.RekomendacjeCeo ?? new List<string>(),
+                            // Mapowanie do starych pól (kompatybilność wsteczna z UI)
+                            CeoAnalysis = parsed.CoToZnaczyDlaPiorkowscy ?? parsed.AnalizaCeo ?? "Brak analizy",
+                            SalesAnalysis = parsed.AnalizaHandlowiec ?? parsed.CoToZnaczyDlaPiorkowscy ?? "Brak analizy",
+                            BuyerAnalysis = parsed.AnalizaZakupowiec ?? parsed.CoToZnaczyDlaPiorkowscy ?? "Brak analizy",
+
+                            // Rekomendacje - użyj strukturalnych jeśli dostępne
+                            CeoRecommendations = parsed.ZalecaneDzialania?.Any() == true
+                                ? parsed.ZalecaneDzialania.Select(z => $"[{z.Priorytet}] {z.Dzialanie} ({z.Odpowiedzialny}, {z.Termin})").ToList()
+                                : parsed.RekomendacjeCeo ?? new List<string>(),
                             SalesRecommendations = parsed.RekomendacjeHandlowiec ?? new List<string>(),
                             BuyerRecommendations = parsed.RekomendacjeZakupowiec ?? new List<string>(),
 
-                            EducationalContent = parsed.Edukacja,
+                            // Edukacja - użyj KimJest jeśli dostępne
+                            EducationalContent = parsed.KimJest ?? parsed.Edukacja ?? "Brak informacji edukacyjnej",
                             KeyNumbers = parsed.KluczoweLiczby ?? new List<KeyNumber>(),
                             RelatedTopics = parsed.PowiazaneTematy ?? new List<string>(),
 
@@ -786,6 +798,23 @@ Odpowiedz w formacie JSON:
                 Severity = article.RelevanceScore >= 15 ? "warning" : "info",
                 Importance = Math.Min(10, article.RelevanceScore / 3),
 
+                // NOWE POLA - stub values
+                Summary = article.Summary ?? article.Title,
+                WhoIs = "Analiza AI niedostępna - sprawdź konfigurację klucza API Claude.",
+                WhatItMeansForPiorkowscy = $"Artykuł wymaga ręcznego przeglądu. Źródło: {article.SourceName}.",
+                StructuredActions = new List<ZalecaneDzialaniaItem>
+                {
+                    new ZalecaneDzialaniaItem
+                    {
+                        Priorytet = "DO_ROZWAŻENIA",
+                        Dzialanie = "Przeczytaj artykuł źródłowy i oceń wpływ na firmę",
+                        Odpowiedzialny = "CEO",
+                        Termin = "ten tydzień"
+                    }
+                },
+                SourcesToMonitor = new List<string>(),
+
+                // Stare pola (kompatybilność wsteczna)
                 CeoAnalysis = $"Artykuł wymaga przeglądu. Źródło: {article.SourceName}.",
                 SalesAnalysis = "Brak automatycznej analizy - skonfiguruj klucz API Claude.",
                 BuyerAnalysis = "Brak automatycznej analizy - skonfiguruj klucz API Claude.",
@@ -794,7 +823,7 @@ Odpowiedz w formacie JSON:
                 SalesRecommendations = new List<string>(),
                 BuyerRecommendations = new List<string>(),
 
-                EducationalContent = "Analiza AI niedostępna. Przeczytaj oryginalny artykuł.",
+                EducationalContent = "Analiza AI niedostępna - sprawdź konfigurację klucza API.",
                 KeyNumbers = new List<KeyNumber>(),
                 RelatedTopics = article.MatchedKeywords?.ToList() ?? new List<string>(),
 
@@ -889,6 +918,22 @@ Odpowiedz w formacie JSON:
 
         public string Edukacja { get; set; }
 
+        // NOWE POLA dla rozszerzonej analizy AI
+        [JsonPropertyName("streszczenie")]
+        public string Streszczenie { get; set; }
+
+        [JsonPropertyName("kim_jest")]
+        public string KimJest { get; set; }
+
+        [JsonPropertyName("co_to_znaczy_dla_piorkowscy")]
+        public string CoToZnaczyDlaPiorkowscy { get; set; }
+
+        [JsonPropertyName("zalecane_dzialania")]
+        public List<ZalecaneDzialaniaItem> ZalecaneDzialania { get; set; }
+
+        [JsonPropertyName("zrodla_do_monitorowania")]
+        public List<string> ZrodlaDoMonitorowania { get; set; }
+
         [JsonPropertyName("kluczowe_liczby")]
         public List<KeyNumber> KluczoweLiczby { get; set; }
 
@@ -959,6 +1004,23 @@ Odpowiedz w formacie JSON:
         public string Severity { get; set; }
         public int Importance { get; set; }
 
+        // NOWE POLA dla rozszerzonej analizy AI
+        /// <summary>Szczegółowe streszczenie z faktami</summary>
+        public string Summary { get; set; }
+
+        /// <summary>Kim są podmioty wymienione w artykule</summary>
+        public string WhoIs { get; set; }
+
+        /// <summary>Co to znaczy dla Ubojni Piórkowscy</summary>
+        public string WhatItMeansForPiorkowscy { get; set; }
+
+        /// <summary>Strukturalne zalecane działania z priorytetami</summary>
+        public List<ZalecaneDzialaniaItem> StructuredActions { get; set; } = new();
+
+        /// <summary>Źródła do monitorowania</summary>
+        public List<string> SourcesToMonitor { get; set; } = new();
+
+        // Stare pola (zachowane dla kompatybilności wstecznej)
         public string CeoAnalysis { get; set; }
         public string SalesAnalysis { get; set; }
         public string BuyerAnalysis { get; set; }
@@ -985,6 +1047,27 @@ Odpowiedz w formacie JSON:
 
         [JsonPropertyName("zmiana")]
         public string Change { get; set; }
+
+        [JsonPropertyName("kontekst")]
+        public string Kontekst { get; set; }
+    }
+
+    /// <summary>
+    /// Struktura dla zalecanych działań z priorytetami i terminami
+    /// </summary>
+    public class ZalecaneDzialaniaItem
+    {
+        [JsonPropertyName("priorytet")]
+        public string Priorytet { get; set; }
+
+        [JsonPropertyName("dzialanie")]
+        public string Dzialanie { get; set; }
+
+        [JsonPropertyName("odpowiedzialny")]
+        public string Odpowiedzialny { get; set; }
+
+        [JsonPropertyName("termin")]
+        public string Termin { get; set; }
     }
 
     public class DailySummary
