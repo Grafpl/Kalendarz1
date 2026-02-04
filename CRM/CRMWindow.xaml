@@ -250,7 +250,7 @@
 
                 <!-- Logo firmowe w nagłówku -->
                 <Border Grid.Column="0" Margin="0,0,20,0" Padding="10,0" VerticalAlignment="Center">
-                    <Border x:Name="borderLogo" Width="120" Height="50" CornerRadius="6" Background="#334155"
+                    <Border x:Name="borderLogo" MinWidth="80" MinHeight="60" MaxWidth="280" MaxHeight="80" CornerRadius="6" Background="#334155"
                             BorderBrush="#475569" BorderThickness="1" ToolTip="Prawy przycisk myszy aby zmienić logo" Cursor="Hand">
                         <Border.ContextMenu>
                             <ContextMenu Background="#1E293B" BorderBrush="#475569">
@@ -269,7 +269,7 @@
                             </ContextMenu>
                         </Border.ContextMenu>
                         <Grid>
-                            <Image x:Name="imgLogo" Stretch="Uniform" Margin="8"/>
+                            <Image x:Name="imgLogo" Stretch="Uniform" Margin="6"/>
                             <TextBlock x:Name="txtLogoPlaceholder" Text="LOGO" FontSize="14" FontWeight="Bold"
                                        Foreground="#64748B" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Grid>

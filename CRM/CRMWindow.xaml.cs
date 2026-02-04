@@ -90,6 +90,9 @@ namespace Kalendarz1.CRM
                         bitmap.EndInit();
                         imgLogo.Source = bitmap;
                         txtLogoPlaceholder.Visibility = Visibility.Collapsed;
+
+                        // Dostosuj rozmiar kontenera do proporcji obrazu
+                        AdjustLogoContainerSize(bitmap.PixelWidth, bitmap.PixelHeight);
                     }
                 }
             }
@@ -97,6 +100,38 @@ namespace Kalendarz1.CRM
             {
                 // Ignoruj błędy ładowania logo
             }
+        }
+
+        private void AdjustLogoContainerSize(int imgWidth, int imgHeight)
+        {
+            if (imgWidth <= 0 || imgHeight <= 0) return;
+
+            double maxWidth = 280;
+            double maxHeight = 80;
+            double aspectRatio = (double)imgWidth / imgHeight;
+
+            double targetWidth, targetHeight;
+
+            // Oblicz rozmiar zachowując proporcje
+            if (aspectRatio > maxWidth / maxHeight)
+            {
+                // Obraz jest szerszy - ogranicz szerokością
+                targetWidth = maxWidth;
+                targetHeight = maxWidth / aspectRatio;
+            }
+            else
+            {
+                // Obraz jest wyższy - ogranicz wysokością
+                targetHeight = maxHeight;
+                targetWidth = maxHeight * aspectRatio;
+            }
+
+            // Ustaw minimalne wymiary
+            targetWidth = Math.Max(80, targetWidth);
+            targetHeight = Math.Max(50, targetHeight);
+
+            borderLogo.Width = targetWidth;
+            borderLogo.Height = targetHeight;
         }
 
         private void SaveLogoPath(string path)
@@ -1445,6 +1480,9 @@ namespace Kalendarz1.CRM
                     imgLogo.Source = bitmap;
                     txtLogoPlaceholder.Visibility = Visibility.Collapsed;
 
+                    // Dostosuj rozmiar kontenera do proporcji obrazu
+                    AdjustLogoContainerSize(bitmap.PixelWidth, bitmap.PixelHeight);
+
                     // Zapisz ścieżkę do pliku
                     SaveLogoPath(dlg.FileName);
 
@@ -1461,6 +1499,9 @@ namespace Kalendarz1.CRM
         {
             imgLogo.Source = null;
             txtLogoPlaceholder.Visibility = Visibility.Visible;
+            // Przywróć domyślny rozmiar
+            borderLogo.Width = double.NaN;
+            borderLogo.Height = double.NaN;
 
             // Usuń ścieżkę z pliku
             SaveLogoPath("");
