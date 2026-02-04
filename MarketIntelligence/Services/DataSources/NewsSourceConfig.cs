@@ -766,6 +766,17 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
         }
 
         /// <summary>
+        /// Pobierz wszystkie źródła wymagające scrapingu (bez RSS)
+        /// </summary>
+        public static List<NewsSource> GetAllScrapingSources()
+        {
+            var sources = new List<NewsSource>();
+            sources.AddRange(PolishScrapingSources);
+            sources.AddRange(InternationalPoultrySources.FindAll(s => s.Type == SourceType.Scraping));
+            return sources;
+        }
+
+        /// <summary>
         /// Pobierz źródła według kategorii
         /// </summary>
         public static List<NewsSource> GetSourcesByCategory(string category)
