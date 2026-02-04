@@ -13,7 +13,7 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
 {
     /// <summary>
     /// Serwis wzbogacania artykułów o pełną treść
-    /// Używany gdy Tavily nie zwraca RawContent lub treść jest za krótka
+    /// Używany gdy Perplexity/Tavily nie zwraca pełnej treści lub treść jest za krótka
     ///
     /// Funkcje:
     /// - Pobieranie HTML ze strony źródłowej

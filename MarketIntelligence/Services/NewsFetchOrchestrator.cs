@@ -18,7 +18,7 @@ namespace Kalendarz1.MarketIntelligence.Services
     {
         private readonly RssFeedService _rssFeedService;
         private readonly WebScraperService _webScraperService;
-        private readonly TavilySearchService _tavilySearchService;
+        private readonly PerplexitySearchService _perplexitySearchService;  // Zastąpiło Tavily
         private readonly ContentFilterService _contentFilterService;
         private readonly ClaudeAnalysisService _claudeAnalysisService;
         private readonly ContextBuilderService _contextBuilderService;
@@ -36,7 +36,7 @@ namespace Kalendarz1.MarketIntelligence.Services
 
             _rssFeedService = new RssFeedService();
             _webScraperService = new WebScraperService();
-            _tavilySearchService = new TavilySearchService();
+            _perplexitySearchService = new PerplexitySearchService();  // Zastąpiło Tavily
             _contentFilterService = new ContentFilterService(_connectionString);
             _claudeAnalysisService = new ClaudeAnalysisService(claudeApiKey);
             _contextBuilderService = new ContextBuilderService(_connectionString);
@@ -97,43 +97,41 @@ namespace Kalendarz1.MarketIntelligence.Services
                     Debug.WriteLine($"[Orchestrator] Scraped: {scrapedArticles.Count} articles");
                 }
 
-                // 3.5 Tavily internet search (if enabled)
-                var tavilyArticles = new List<RawArticle>();
-                if (options.UseTavilySearch && _tavilySearchService.IsConfigured)
+                // 3.5 Perplexity AI internet search (if enabled) - zastąpiło Tavily
+                var perplexityArticles = new List<RawArticle>();
+                if (options.UsePerplexitySearch && _perplexitySearchService.IsConfigured)
                 {
                     progress?.Report(new FetchProgress
                     {
-                        Stage = "Tavily",
+                        Stage = "Perplexity AI",
                         Percent = 30,
-                        Message = "Przeszukuję cały internet przez Tavily AI..."
+                        Message = "Przeszukuję cały internet przez Perplexity AI..."
                     });
 
-                    var tavilyResult = await _tavilySearchService.SearchPoultryNewsAsync(
-                        includeInternational: true, ct: ct);
+                    var perplexityResult = await _perplexitySearchService.SearchPoultryNewsAsync(
+                        includeInternational: true,
+                        maxPriority: SearchPriority.All,
+                        ct: ct);
 
                     // Convert to RawArticle format
-                    tavilyArticles = _tavilySearchService.ConvertToRawArticles(
-                        new TavilySearchResult
-                        {
-                            Success = true,
-                            Results = tavilyResult.PolishNews.Concat(tavilyResult.InternationalNews).ToList()
-                        });
+                    perplexityArticles = _perplexitySearchService.ConvertToRawArticles(perplexityResult);
 
-                    stats.TavilyArticlesFetched = tavilyArticles.Count;
-                    Debug.WriteLine($"[Orchestrator] Tavily: {tavilyArticles.Count} articles from internet search");
+                    stats.PerplexityArticlesFetched = perplexityArticles.Count;
+                    Debug.WriteLine($"[Orchestrator] Perplexity: {perplexityArticles.Count} articles from internet search " +
+                        $"({perplexityResult.PolishNews.Count} PL, {perplexityResult.InternationalNews.Count} INT)");
                 }
 
                 // 4. Combine and deduplicate
                 var allArticles = rssArticles
                     .Concat(scrapedArticles)
-                    .Concat(tavilyArticles)
+                    .Concat(perplexityArticles)  // Zastąpiło tavilyArticles
                     .GroupBy(a => a.UrlHash)
                     .Select(g => g.First())
                     .ToList();
 
                 stats.TotalArticlesFetched = allArticles.Count;
 
-                // 4.5 Translate English articles (Tavily often returns EN)
+                // 4.5 Translate English articles (Perplexity often returns EN from international sources)
                 if (_claudeAnalysisService.IsConfigured)
                 {
                     var englishArticles = allArticles.Where(a => a.Language?.ToLower() == "en").ToList();
@@ -610,7 +608,7 @@ namespace Kalendarz1.MarketIntelligence.Services
         {
             _rssFeedService?.Dispose();
             _webScraperService?.Dispose();
-            _tavilySearchService?.Dispose();
+            _perplexitySearchService?.Dispose();  // Zastąpiło _tavilySearchService
             _claudeAnalysisService?.Dispose();
             _contentEnrichmentService?.Dispose();
         }
@@ -621,7 +619,7 @@ namespace Kalendarz1.MarketIntelligence.Services
     public class FetchOptions
     {
         public bool IncludeScrapingSources { get; set; } = true;
-        public bool UseTavilySearch { get; set; } = true;  // Przeszukiwanie całego internetu
+        public bool UsePerplexitySearch { get; set; } = true;  // Przeszukiwanie całego internetu przez Perplexity AI (zastąpiło Tavily)
         public bool UseContentEnrichment { get; set; } = true;  // Wzbogacanie artykułów o pełną treść (web scraping)
         public bool UseAiFiltering { get; set; } = true;
         public bool UseAiAnalysis { get; set; } = true;
@@ -636,7 +634,7 @@ namespace Kalendarz1.MarketIntelligence.Services
         public static FetchOptions Full => new()
         {
             IncludeScrapingSources = true,
-            UseTavilySearch = true,
+            UsePerplexitySearch = true,  // Zastąpiło UseTavilySearch
             UseContentEnrichment = true,
             UseAiFiltering = true,
             UseAiAnalysis = true,
@@ -650,7 +648,7 @@ namespace Kalendarz1.MarketIntelligence.Services
         public static FetchOptions Quick => new()
         {
             IncludeScrapingSources = false,
-            UseTavilySearch = false,
+            UsePerplexitySearch = false,  // Zastąpiło UseTavilySearch
             UseAiFiltering = false,
             UseAiAnalysis = false,
             GenerateSummary = false,
@@ -684,7 +682,7 @@ namespace Kalendarz1.MarketIntelligence.Services
     {
         public int RssArticlesFetched { get; set; }
         public int ScrapedArticlesFetched { get; set; }
-        public int TavilyArticlesFetched { get; set; }  // Z przeszukiwania internetu
+        public int PerplexityArticlesFetched { get; set; }  // Z przeszukiwania internetu przez Perplexity (zastąpiło Tavily)
         public int TotalArticlesFetched { get; set; }
         public int RelevantArticles { get; set; }
         public int AiFilteredArticles { get; set; }
