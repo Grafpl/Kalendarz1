@@ -101,7 +101,7 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
 
             try
             {
-                var response = await CallClaudeAsync(prompt, SonnetModel, 4000, ct);
+                var response = await CallClaudeAsync(prompt, SonnetModel, 8000, ct);
                 return ParseAnalysisResponse(response, title);
             }
             catch (Exception ex)
@@ -295,8 +295,10 @@ Wygeneruj streszczenie poranne w formacie JSON:
 
         private string CreateAnalysisPrompt(string title, string content, string source, string businessContext)
         {
-            return $@"Jestes starszym analitykiem rynku drobiarskiego dla Ubojni Drobiu Piorkowscy w Brzezinach.
-Twoja analiza musi byc KONKRETNA, z FAKTAMI, LICZBAMI, NAZWAMI. Zadnych ogolnikow!
+            return $@"Jestes STARSZYM ANALITYKIEM RYNKU DROBIARSKIEGO z 20-letnim doswiadczeniem, pracujacym dla Ubojni Drobiu Piorkowscy w Brzezinach.
+Twoja rola to dostarczanie KOMPLEKSOWEJ, EDUKACYJNEJ i STRATEGICZNEJ analizy - tak jakbys pisal raport dla zarzadu.
+
+TWOJE ZADANIE: Napisz BARDZO SZCZEGOLOWA analize (minimum 3000 slow). Nie oszczedzaj miejsca - im wiecej tresci, tym lepiej!
 
 KONTEKST BIZNESOWY FIRMY:
 {businessContext}
@@ -308,39 +310,99 @@ Tresc: {content}
 
 Odpowiedz TYLKO w formacie JSON (bez markdown, bez ```):
 {{
-  ""streszczenie"": ""MINIMUM 5 zdan szczegolowego streszczenia. Podaj WSZYSTKIE fakty, liczby, daty, nazwy z artykulu. Jesli artykul jest krotki, UZUPELNIJ wlasnymi informacjami o temacie bazujac na wiedzy o branzy drobiarskiej. NIGDY nie pisz mniej niz 5 zdan."",
+  ""streszczenie"": ""NAPISZ MINIMUM 10-15 ZDAN szczegolowego streszczenia. Podaj WSZYSTKIE fakty, liczby, daty, nazwy z artykulu. UZUPELNIJ wlasnymi informacjami o temacie bazujac na wiedzy o branzy drobiarskiej - kontekst historyczny, trendy, porownania z innymi rynkami. Wyjasni CO, GDZIE, KIEDY, DLACZEGO, JAKIE KONSEKWENCJE. Napisz tak, jakbys tlumaczyl temat osobie spoza branzy."",
 
-  ""kim_jest"": ""Wyjasnienie KAZDEGO podmiotu wspomnianego w artykule (firmy, osoby, organizacje, instytucje). Dla kazdego podmiotu: 2-4 zdania opisu, powiazania kapitalowe, wlasciciele, skala dzialalnosci, znaczenie dla branzy. Format: '• NAZWA — opis...'"",
+  ""kontekst_rynkowy"": ""NAPISZ 8-10 ZDAN o szerszym kontekscie rynkowym. Jak ta informacja wpisuje sie w obecna sytuacje na rynku drobiarskim? Jakie sa trendy cenowe ostatnich miesiecy? Jak wyglada sytuacja w Polsce vs UE vs swiat? Jakie czynniki makroekonomiczne wplywaja na rynek (inflacja, kursy walut, ceny energii, ceny zboz)?"",
 
-  ""analiza_ceo"": ""Analiza strategiczna dla CEO/wlasciciela. Co to oznacza dla firmy? Jakie ryzyka? Jakie decyzje podjac? Odnosic sie do konkretnej sytuacji Piorkowscy (straty 2M/mies, import brazylijski, HPAI w lodzkim)."",
+  ""kim_jest"": ""DLA KAZDEGO podmiotu wspomnianego w artykule napisz MINIMUM 4-6 ZDAN edukacyjnego opisu:
+• NAZWA FIRMY/ORGANIZACJI — pelna nazwa, rok zalozenia, siedziba, wlasciciele/akcjonariusze, skala dzialalnosci (obroty, zatrudnienie, moce produkcyjne), pozycja rynkowa w Polsce i UE, kluczowe produkty/uslugi, ostatnie wazne wydarzenia, powiazania kapitalowe z innymi firmami, znaczenie dla branzy drobiarskiej.
+• OSOBA — pelne imie i nazwisko, stanowisko, wyksztalcenie i doswiadczenie zawodowe, wczesniejsze role, znaczenie w branzy, kontrowersje jesli sa.
+• ORGANIZACJA BRANZOWA — pelna nazwa, rok powstania, cel dzialania, czlonkowie, wplyw na regulacje, kluczowe publikacje i raporty.
+Jesli w artykule nie ma podmiotow, opisz podmioty ZWIAZANE z tematem (np. dla cen drobiu opisz KRD-IG, GUS, MRiRW, glownych producentow)."",
 
-  ""analiza_handlowiec"": ""Analiza dla handlowca. Jak to wplywa na ceny? Jakie argumenty dla klientow (Makro, Biedronka, Dino)? Jakie szanse sprzedazowe? Konkretne dzialania."",
+  ""tlumaczenie_pojec"": ""Wyjasni WSZYSTKIE specjalistyczne pojecia i terminy dla osoby spoza branzy. Minimum 5 pojec. Format:
+• TERMIN — definicja prostym jezykiem, znaczenie dla branzy, przyklad uzycia, dlaczego to wazne dla Piorkowscy."",
 
-  ""analiza_zakupowiec"": ""Analiza dla zakupowca. Jak to wplywa na hodowcow? Na ceny zywca? Na pasze? Konkretne dzialania wobec dostawcow (Sukiennikowa, Kaczmarek, Wojciechowski)."",
+  ""analiza_ceo"": ""NAPISZ MINIMUM 12-15 ZDAN kompleksowej analizy strategicznej dla CEO/wlasciciela Justyny Chrostowskiej:
+1. WPLYW NA FIRME: Jak ta informacja bezposrednio wplywa na Piorkowscy? Jakie sa konsekwencje finansowe (przychody, koszty, marza)?
+2. ANALIZA RYZYKA: Jakie ryzyka stwarza ta sytuacja? Prawdopodobienstwo i potencjalny wplyw kazdego ryzyka. Scenariusze pesymistyczny/optymistyczny.
+3. SZANSE STRATEGICZNE: Jakie szanse mozna wykorzystac? Jak wyprzedzic konkurencje?
+4. POZYCJA KONKURENCYJNA: Jak to wplywa na pozycje wobec Cedrob, SuperDrob, Plukon, System-Drob?
+5. PERSPEKTYWA 3/6/12 MIESIECY: Co moze sie wydarzyc w krotkim/srednim/dlugim terminie?
+6. DECYZJE DO PODJECIA: Jakie konkretne decyzje musi podjac CEO? Z jakimi trade-offami?
+Odnosic sie do konkretnej sytuacji: straty 2M PLN/mies, spadek sprzedazy z 25M do 15M, import brazylijski 13 zl/kg, HPAI 19 ognisk w Polsce (2 w lodzkim), break-even spread 2.50 zl."",
+
+  ""analiza_handlowiec"": ""NAPISZ MINIMUM 12-15 ZDAN kompleksowej analizy dla dzialu handlowego:
+1. WPLYW NA CENY: Jak ta informacja wplywa na ceny sprzedazy? O ile mozna/trzeba podniesc ceny? Jakie sa granice cenowe?
+2. ARGUMENTACJA DLA KLIENTOW: Konkretne argumenty do rozmow z kazdym klientem:
+   - Makro: jak przekonac do akceptacji wyzszych cen? Jakie alternatywy maja?
+   - Biedronka DC: jak renegocjowac kontrakty? Jakie sa ich priorytety?
+   - Dino: jak wykorzystac ich ekspansje (300 nowych sklepow)?
+   - Selgros, Carrefour, Stokrotka, Auchan: indywidualne podejscie
+3. SZANSE SPRZEDAZOWE: Nowi klienci do pozyskania? Nowe kanaly? Nowe produkty?
+4. ZAGROZENIA: Ryzyko utraty klientow? Dzialania konkurencji?
+5. TAKTYKI NEGOCJACYJNE: Konkretne techniki negocjacyjne, timing rozmow
+Przypisz dzialania do konkretnych handlowcow: Jola (Dino, Biedronka), Maja (Makro, Selgros), Radek (sieci lokalne), Teresa (RADDROB, hurt), Ania (Carrefour, Stokrotka)."",
+
+  ""analiza_zakupowiec"": ""NAPISZ MINIMUM 12-15 ZDAN kompleksowej analizy dla dzialu zakupow:
+1. WPLYW NA DOSTAWCOW: Jak ta informacja wplywa na hodowcow (Sukiennikowa 20km, Kaczmarek 20km, Wojciechowski 7km)?
+2. CENY ZYWCA: Jak zmienia sie cena skupu? Jaki spread zywiec/pasza? Czy hodowcom sie oplaca?
+3. RYNEK PASZ: Ceny kukurydzy, pszenicy, soi, sruty. Prognozy. Wplyw na koszty tuczu.
+4. RYZYKO UTRATY DOSTAWCOW: Czy hodowcy moga przejsc do konkurencji (Plukon Sieradz 80km, System-Drob, Exdrob Kutno 100km)?
+5. BIOSEKURNOSC I HPAI: Stan zabezpieczen u hodowcow, ryzyko wybiecia stad, plan awaryjny
+6. NEGOCJACJE: Konkretne stawki do zaproponowania, argumenty, timing
+7. DYWERSYFIKACJA: Nowi hodowcy do pozyskania? Alternatywne zrodla zywca?"",
+
+  ""lekcja_branzowa"": ""NAPISZ 8-10 ZDAN edukacyjnych o tym, czego ta sytuacja uczy o branzy drobiarskiej. Jakie sa mechanizmy rynkowe? Jak dziala lancuch dostaw drobiu? Jakie sa typowe cykle cenowe? Co warto wiedziec o ekonomice ubojni/hodowli?"",
 
   ""dzialania_ceo"": [
-    ""[PILNE/WAZNE/DO_ROZWAZENIA] Konkretne dzialanie. Odpowiedzialny: osoba. Termin: kiedy."",
-    ""Kolejne dzialanie...""
+    ""[PILNE] Szczegolowy opis dzialania (2-3 zdania co dokladnie zrobic). Odpowiedzialny: imie i nazwisko/stanowisko. Termin: konkretna data. Oczekiwany rezultat: co ma byc efektem."",
+    ""[PILNE] Kolejne pilne dzialanie..."",
+    ""[WAZNE] Dzialanie wazne ale nie pilne..."",
+    ""[WAZNE] Kolejne..."",
+    ""[DO_ROZWAZENIA] Dzialanie do przemyslenia..."",
+    ""[DO_ROZWAZENIA] Kolejne...""
   ],
 
   ""dzialania_handlowiec"": [
-    ""[PILNE/WAZNE] Konkretne dzialanie dla handlowca. Odpowiedzialny: Jola/Maja/Radek/Teresa/Ania. Termin: kiedy.""
+    ""[PILNE] Szczegolowe dzialanie dla handlowca. Odpowiedzialny: Jola/Maja/Radek/Teresa/Ania. Klient: nazwa. Termin: data. Cel: co osiagnac."",
+    ""[PILNE] Kolejne..."",
+    ""[WAZNE] Kolejne..."",
+    ""[WAZNE] Kolejne...""
   ],
 
   ""dzialania_zakupowiec"": [
-    ""[PILNE/WAZNE] Konkretne dzialanie dla zakupowca. Termin: kiedy.""
+    ""[PILNE] Szczegolowe dzialanie dla zakupowca. Dostawca: nazwa. Termin: data. Stawka/warunki do wynegocjowania."",
+    ""[PILNE] Kolejne..."",
+    ""[WAZNE] Kolejne..."",
+    ""[WAZNE] Kolejne...""
+  ],
+
+  ""pytania_do_przemyslenia"": [
+    ""Strategiczne pytanie 1, ktore CEO powinien rozwazyc?"",
+    ""Pytanie 2 dotyczace dlugookresowej strategii?"",
+    ""Pytanie 3 o pozycjonowanie firmy?""
+  ],
+
+  ""zrodla_do_monitorowania"": [
+    ""Zrodlo 1: co monitorowac i dlaczego"",
+    ""Zrodlo 2: wskaznik do sledzenia"",
+    ""Zrodlo 3: portal/raport do sprawdzania""
   ],
 
   ""kategoria"": ""HPAI|Ceny|Konkurencja|Regulacje|Eksport|Import|Klienci|Koszty|Pogoda|Logistyka|Inwestycje"",
   ""severity"": ""critical|warning|positive|info"",
-  ""tagi"": [""tag1"", ""tag2"", ""tag3""]
+  ""tagi"": [""tag1"", ""tag2"", ""tag3"", ""tag4"", ""tag5""]
 }}
 
-PAMIETAJ:
-- Streszczenie MINIMUM 5 zdan z faktami!
-- Kim_jest musi wyjasnic KAZDY podmiot!
-- Dzialania musza byc KONKRETNE z terminem i odpowiedzialnym!
-- ZADNYCH ogolnikow typu 'monitoruj sytuacje' - tylko konkretne kroki!";
+KRYTYCZNE WYMAGANIA:
+- Kazda sekcja tekstowa MINIMUM 10 zdan (streszczenie, kontekst, analizy)
+- Sekcja kim_jest MINIMUM 4 podmioty, kazdy opisany w 4-6 zdaniach
+- Sekcja tlumaczenie_pojec MINIMUM 5 terminow z pelnym wyjasnieniem
+- Kazda lista dzialan MINIMUM 4-6 pozycji z pelnym opisem
+- ZERO ogolnikow typu 'monitoruj sytuacje', 'badz czujny' - TYLKO KONKRETY
+- Jesli artykul jest krotki - UZUPELNIJ wlasna wiedza o branzy!
+- Pisz jak ekspert dla eksperta, ale tlumacz jak dla laika";
         }
 
         private string CreateFilterPrompt(List<(string Title, string Snippet)> articles)
@@ -399,14 +461,30 @@ PAMIETAJ:
 
                 var result = new ArticleAnalysisResult
                 {
+                    // Podstawowe pola
                     Summary = GetStringProperty(root, "streszczenie", "Brak streszczenia"),
+                    MarketContext = GetStringProperty(root, "kontekst_rynkowy", ""),
                     WhoIs = GetStringProperty(root, "kim_jest", ""),
+                    TermsExplanation = GetStringProperty(root, "tlumaczenie_pojec", ""),
+
+                    // Analizy dla rol
                     AnalysisCeo = GetStringProperty(root, "analiza_ceo", ""),
                     AnalysisSales = GetStringProperty(root, "analiza_handlowiec", ""),
                     AnalysisBuyer = GetStringProperty(root, "analiza_zakupowiec", ""),
+
+                    // Lekcja branzowa
+                    IndustryLesson = GetStringProperty(root, "lekcja_branzowa", ""),
+
+                    // Listy dzialan
                     ActionsCeo = GetStringArrayProperty(root, "dzialania_ceo"),
                     ActionsSales = GetStringArrayProperty(root, "dzialania_handlowiec"),
                     ActionsBuyer = GetStringArrayProperty(root, "dzialania_zakupowiec"),
+
+                    // Nowe listy
+                    StrategicQuestions = GetStringArrayProperty(root, "pytania_do_przemyslenia"),
+                    SourcesToMonitor = GetStringArrayProperty(root, "zrodla_do_monitorowania"),
+
+                    // Metadane
                     Category = GetStringProperty(root, "kategoria", "Info"),
                     Severity = GetStringProperty(root, "severity", "info"),
                     Tags = GetStringArrayProperty(root, "tagi")
@@ -601,13 +679,18 @@ PAMIETAJ:
             return new ArticleAnalysisResult
             {
                 Summary = message,
+                MarketContext = "Informacja niedostepna.",
                 WhoIs = "Informacja niedostepna - sprawdz konfiguracje klucza API Claude.",
+                TermsExplanation = "Informacja niedostepna.",
                 AnalysisCeo = message,
                 AnalysisSales = message,
                 AnalysisBuyer = message,
+                IndustryLesson = "Informacja niedostepna.",
                 ActionsCeo = new List<string> { "Skonfiguruj klucz API Claude w App.config lub zmiennej srodowiskowej ANTHROPIC_API_KEY" },
                 ActionsSales = new List<string>(),
                 ActionsBuyer = new List<string>(),
+                StrategicQuestions = new List<string>(),
+                SourcesToMonitor = new List<string>(),
                 Category = "Info",
                 Severity = "info",
                 Tags = new List<string>()
@@ -637,14 +720,38 @@ PAMIETAJ:
 
     public class ArticleAnalysisResult
     {
+        // Podstawowe podsumowanie
         public string Summary { get; set; }
+
+        // NOWE: Kontekst rynkowy
+        public string MarketContext { get; set; }
+
+        // Kim jest - edukacja o podmiotach
         public string WhoIs { get; set; }
+
+        // NOWE: Tlumaczenie pojec branzowych
+        public string TermsExplanation { get; set; }
+
+        // Analizy dla roznych rol
         public string AnalysisCeo { get; set; }
         public string AnalysisSales { get; set; }
         public string AnalysisBuyer { get; set; }
+
+        // NOWE: Lekcja branzowa - edukacja
+        public string IndustryLesson { get; set; }
+
+        // Listy dzialan
         public List<string> ActionsCeo { get; set; } = new List<string>();
         public List<string> ActionsSales { get; set; } = new List<string>();
         public List<string> ActionsBuyer { get; set; } = new List<string>();
+
+        // NOWE: Pytania strategiczne do przemyslenia
+        public List<string> StrategicQuestions { get; set; } = new List<string>();
+
+        // NOWE: Zrodla do monitorowania
+        public List<string> SourcesToMonitor { get; set; } = new List<string>();
+
+        // Metadane
         public string Category { get; set; }
         public string Severity { get; set; }
         public List<string> Tags { get; set; } = new List<string>();

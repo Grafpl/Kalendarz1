@@ -68,13 +68,36 @@ namespace Kalendarz1.MarketIntelligence.Models
         public string Title { get; set; }
         public string ShortPreview { get; set; }
         public string FullContent { get; set; }
+
+        // NOWE: Kontekst rynkowy
+        public string MarketContext { get; set; }
+
+        // Sekcja edukacyjna - kim jest / co to jest
         public string EducationalSection { get; set; }
+
+        // NOWE: Tlumaczenie pojec branzowych
+        public string TermsExplanation { get; set; }
+
+        // Analizy dla roznych rol
         public string AiAnalysisCeo { get; set; }
         public string AiAnalysisSales { get; set; }
         public string AiAnalysisBuyer { get; set; }
+
+        // Akcje dla roznych rol
         public string RecommendedActionsCeo { get; set; }
         public string RecommendedActionsSales { get; set; }
         public string RecommendedActionsBuyer { get; set; }
+
+        // NOWE: Lekcja branzowa - edukacja
+        public string IndustryLesson { get; set; }
+
+        // NOWE: Pytania strategiczne
+        public string StrategicQuestions { get; set; }
+
+        // NOWE: Zrodla do monitorowania
+        public string SourcesToMonitor { get; set; }
+
+        // Metadane
         public string Category { get; set; }
         public string Source { get; set; }
         public string SourceUrl { get; set; }

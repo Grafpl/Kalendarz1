@@ -738,16 +738,22 @@ SZANSE:
                     // Pokaz pelne wyniki analizy
                     logSection("WYNIKI ANALIZY AI");
 
-                    log("--- PODSUMOWANIE (5+ zdan) ---", "INFO");
+                    log("=== PODSUMOWANIE (10-15 zdan) ===", "INFO");
                     logRaw(analysisResult.Summary ?? "brak", "SUMMARY");
 
-                    log("--- KIM JEST / CO TO JEST ---", "INFO");
+                    log("=== KONTEKST RYNKOWY ===", "INFO");
+                    logRaw(analysisResult.MarketContext ?? "brak", "MARKET CONTEXT");
+
+                    log("=== KIM JEST / CO TO JEST (edukacja o podmiotach) ===", "INFO");
                     logRaw(analysisResult.WhoIs ?? "brak", "WHO IS");
 
-                    log("--- ANALIZA DLA CEO ---", "INFO");
+                    log("=== TLUMACZENIE POJEC BRANZOWYCH ===", "INFO");
+                    logRaw(analysisResult.TermsExplanation ?? "brak", "TERMS");
+
+                    log("=== ANALIZA DLA CEO (strategiczna) ===", "INFO");
                     logRaw(analysisResult.AnalysisCeo ?? "brak", "CEO ANALYSIS");
 
-                    log("--- AKCJE DLA CEO ---", "INFO");
+                    log("=== AKCJE DLA CEO ===", "INFO");
                     if (analysisResult.ActionsCeo?.Any() == true)
                     {
                         foreach (var action in analysisResult.ActionsCeo)
@@ -756,11 +762,50 @@ SZANSE:
                         }
                     }
 
-                    log("--- ANALIZA DLA HANDLOWCA ---", "INFO");
+                    log("=== ANALIZA DLA HANDLOWCA ===", "INFO");
                     logRaw(analysisResult.AnalysisSales ?? "brak", "SALES ANALYSIS");
 
-                    log("--- ANALIZA DLA ZAKUPOWCA ---", "INFO");
+                    log("=== AKCJE DLA HANDLOWCA ===", "INFO");
+                    if (analysisResult.ActionsSales?.Any() == true)
+                    {
+                        foreach (var action in analysisResult.ActionsSales)
+                        {
+                            log($"  * {action}", "INFO");
+                        }
+                    }
+
+                    log("=== ANALIZA DLA ZAKUPOWCA ===", "INFO");
                     logRaw(analysisResult.AnalysisBuyer ?? "brak", "BUYER ANALYSIS");
+
+                    log("=== AKCJE DLA ZAKUPOWCA ===", "INFO");
+                    if (analysisResult.ActionsBuyer?.Any() == true)
+                    {
+                        foreach (var action in analysisResult.ActionsBuyer)
+                        {
+                            log($"  * {action}", "INFO");
+                        }
+                    }
+
+                    log("=== LEKCJA BRANZOWA (edukacja) ===", "INFO");
+                    logRaw(analysisResult.IndustryLesson ?? "brak", "INDUSTRY LESSON");
+
+                    log("=== PYTANIA STRATEGICZNE DO PRZEMYSLENIA ===", "INFO");
+                    if (analysisResult.StrategicQuestions?.Any() == true)
+                    {
+                        foreach (var q in analysisResult.StrategicQuestions)
+                        {
+                            log($"  ? {q}", "INFO");
+                        }
+                    }
+
+                    log("=== ZRODLA DO MONITOROWANIA ===", "INFO");
+                    if (analysisResult.SourcesToMonitor?.Any() == true)
+                    {
+                        foreach (var s in analysisResult.SourcesToMonitor)
+                        {
+                            log($"  >> {s}", "INFO");
+                        }
+                    }
 
                     log($"Kategoria: {analysisResult.Category}", "INFO");
                     log($"Severity: {analysisResult.Severity}", "INFO");
@@ -787,13 +832,18 @@ SZANSE:
                     Title = testArticle.Title,
                     ShortPreview = TruncateContent(testArticle.Snippet, 150),
                     FullContent = analysisResult.Summary,
+                    MarketContext = analysisResult.MarketContext,
                     EducationalSection = analysisResult.WhoIs,
+                    TermsExplanation = analysisResult.TermsExplanation,
                     AiAnalysisCeo = analysisResult.AnalysisCeo,
                     AiAnalysisSales = analysisResult.AnalysisSales,
                     AiAnalysisBuyer = analysisResult.AnalysisBuyer,
                     RecommendedActionsCeo = string.Join("\n", analysisResult.ActionsCeo ?? new List<string>()),
                     RecommendedActionsSales = string.Join("\n", analysisResult.ActionsSales ?? new List<string>()),
                     RecommendedActionsBuyer = string.Join("\n", analysisResult.ActionsBuyer ?? new List<string>()),
+                    IndustryLesson = analysisResult.IndustryLesson,
+                    StrategicQuestions = string.Join("\n", analysisResult.StrategicQuestions ?? new List<string>()),
+                    SourcesToMonitor = string.Join("\n", analysisResult.SourcesToMonitor ?? new List<string>()),
                     Category = analysisResult.Category ?? "Info",
                     Source = GetDomain(testArticle.Url) ?? "Perplexity",
                     SourceUrl = testArticle.Url,
