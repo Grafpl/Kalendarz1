@@ -448,95 +448,186 @@ KRYTYCZNE WYMAGANIA:
 
         private ArticleAnalysisResult ParseAnalysisResponse(string response, string originalTitle)
         {
-            try
+            if (string.IsNullOrWhiteSpace(response))
             {
-                Debug.WriteLine($"[ClaudeAnalysis] Raw response length: {response?.Length ?? 0}");
-                Debug.WriteLine($"[ClaudeAnalysis] Response start: {response?.Substring(0, Math.Min(100, response?.Length ?? 0))}");
-
-                var json = ExtractJson(response);
-                Debug.WriteLine($"[ClaudeAnalysis] Extracted JSON start: {json?.Substring(0, Math.Min(100, json?.Length ?? 0))}");
-
-                using var doc = JsonDocument.Parse(json);
-                var root = doc.RootElement;
-
-                var result = new ArticleAnalysisResult
-                {
-                    // Podstawowe pola
-                    Summary = GetStringProperty(root, "streszczenie", "Brak streszczenia"),
-                    MarketContext = GetStringProperty(root, "kontekst_rynkowy", ""),
-                    WhoIs = GetStringProperty(root, "kim_jest", ""),
-                    TermsExplanation = GetStringProperty(root, "tlumaczenie_pojec", ""),
-
-                    // Analizy dla rol
-                    AnalysisCeo = GetStringProperty(root, "analiza_ceo", ""),
-                    AnalysisSales = GetStringProperty(root, "analiza_handlowiec", ""),
-                    AnalysisBuyer = GetStringProperty(root, "analiza_zakupowiec", ""),
-
-                    // Lekcja branzowa
-                    IndustryLesson = GetStringProperty(root, "lekcja_branzowa", ""),
-
-                    // Listy dzialan
-                    ActionsCeo = GetStringArrayProperty(root, "dzialania_ceo"),
-                    ActionsSales = GetStringArrayProperty(root, "dzialania_handlowiec"),
-                    ActionsBuyer = GetStringArrayProperty(root, "dzialania_zakupowiec"),
-
-                    // Nowe listy
-                    StrategicQuestions = GetStringArrayProperty(root, "pytania_do_przemyslenia"),
-                    SourcesToMonitor = GetStringArrayProperty(root, "zrodla_do_monitorowania"),
-
-                    // Metadane
-                    Category = GetStringProperty(root, "kategoria", "Info"),
-                    Severity = GetStringProperty(root, "severity", "info"),
-                    Tags = GetStringArrayProperty(root, "tagi")
-                };
-
-                return result;
+                Debug.WriteLine("[ClaudeAnalysis] Pusta odpowiedz od Claude");
+                return CreateStubAnalysis(originalTitle, "Pusta odpowiedz od Claude API");
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[ClaudeAnalysis] Blad parsowania JSON: {ex.Message}");
-                Debug.WriteLine($"[ClaudeAnalysis] Response length: {response?.Length ?? 0}");
-                Debug.WriteLine($"[ClaudeAnalysis] Response start: {response?.Substring(0, Math.Min(500, response?.Length ?? 0))}");
 
-                // Proba 2: Sprobuj naprawic typowe bledy JSON
+            Debug.WriteLine($"[ClaudeAnalysis] Raw response length: {response.Length}");
+            Debug.WriteLine($"[ClaudeAnalysis] Response first 200 chars: {response.Substring(0, Math.Min(200, response.Length))}");
+
+            // Lista prob parsowania
+            var attempts = new List<(string name, Func<string> getJson)>
+            {
+                ("Original", () => ExtractJson(response)),
+                ("After TryFix", () => ExtractJson(TryFixCommonJsonErrors(response))),
+                ("Aggressive sanitize", () => AggressiveSanitize(response))
+            };
+
+            foreach (var (name, getJson) in attempts)
+            {
                 try
                 {
-                    var fixedJson = TryFixCommonJsonErrors(response);
-                    if (fixedJson != response)
+                    var json = getJson();
+                    if (string.IsNullOrWhiteSpace(json) || json == "{}")
                     {
-                        Debug.WriteLine("[ClaudeAnalysis] Probuje naprawiony JSON...");
-                        var json = ExtractJson(fixedJson);
-                        using var doc = JsonDocument.Parse(json);
-                        var root = doc.RootElement;
+                        Debug.WriteLine($"[ClaudeAnalysis] {name}: pusty JSON, probuje nastepna metode");
+                        continue;
+                    }
 
-                        return new ArticleAnalysisResult
+                    Debug.WriteLine($"[ClaudeAnalysis] Trying {name}, JSON length: {json.Length}");
+                    Debug.WriteLine($"[ClaudeAnalysis] JSON first 100 chars: {json.Substring(0, Math.Min(100, json.Length))}");
+
+                    using var doc = JsonDocument.Parse(json);
+                    var root = doc.RootElement;
+
+                    var result = new ArticleAnalysisResult
+                    {
+                        Summary = GetStringProperty(root, "streszczenie", "Brak streszczenia"),
+                        MarketContext = GetStringProperty(root, "kontekst_rynkowy", ""),
+                        WhoIs = GetStringProperty(root, "kim_jest", ""),
+                        TermsExplanation = GetStringProperty(root, "tlumaczenie_pojec", ""),
+                        AnalysisCeo = GetStringProperty(root, "analiza_ceo", ""),
+                        AnalysisSales = GetStringProperty(root, "analiza_handlowiec", ""),
+                        AnalysisBuyer = GetStringProperty(root, "analiza_zakupowiec", ""),
+                        IndustryLesson = GetStringProperty(root, "lekcja_branzowa", ""),
+                        ActionsCeo = GetStringArrayProperty(root, "dzialania_ceo"),
+                        ActionsSales = GetStringArrayProperty(root, "dzialania_handlowiec"),
+                        ActionsBuyer = GetStringArrayProperty(root, "dzialania_zakupowiec"),
+                        StrategicQuestions = GetStringArrayProperty(root, "pytania_do_przemyslenia"),
+                        SourcesToMonitor = GetStringArrayProperty(root, "zrodla_do_monitorowania"),
+                        Category = GetStringProperty(root, "kategoria", "Info"),
+                        Severity = GetStringProperty(root, "severity", "info"),
+                        Tags = GetStringArrayProperty(root, "tagi")
+                    };
+
+                    Debug.WriteLine($"[ClaudeAnalysis] SUCCESS with {name}!");
+                    return result;
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[ClaudeAnalysis] {name} failed: {ex.Message}");
+                }
+            }
+
+            // Wszystkie proby zawiodly
+            Debug.WriteLine($"[ClaudeAnalysis] All parsing attempts failed");
+            Debug.WriteLine($"[ClaudeAnalysis] Full response: {response}");
+            return CreateStubAnalysis(originalTitle, $"Blad parsowania odpowiedzi AI: nie udalo sie sparsowac JSON");
+        }
+
+        /// <summary>
+        /// Agresywna sanityzacja - ostatnia deska ratunku
+        /// </summary>
+        private string AggressiveSanitize(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return "{}";
+
+            // Znajdz pierwszy { i ostatni }
+            var start = text.IndexOf('{');
+            var end = text.LastIndexOf('}');
+
+            if (start < 0 || end <= start)
+                return "{}";
+
+            var json = text.Substring(start, end - start + 1);
+
+            // Zamien wszystkie problematyczne znaki
+            var sb = new StringBuilder(json.Length);
+            bool inString = false;
+            bool escaped = false;
+
+            for (int i = 0; i < json.Length; i++)
+            {
+                char c = json[i];
+
+                if (escaped)
+                {
+                    // Po backslashu - zachowaj znak jesli jest poprawnym escape
+                    if ("\"\\bfnrtu".Contains(c))
+                    {
+                        sb.Append(c);
+                    }
+                    else
+                    {
+                        // Niepoprawny escape - usun backslash
+                        sb.Append(c);
+                    }
+                    escaped = false;
+                    continue;
+                }
+
+                if (c == '\\')
+                {
+                    if (inString)
+                    {
+                        escaped = true;
+                        sb.Append(c);
+                    }
+                    continue;
+                }
+
+                if (c == '"')
+                {
+                    inString = !inString;
+                    sb.Append(c);
+                    continue;
+                }
+
+                if (inString)
+                {
+                    // Wewnatrz stringa - zamieniaj problematyczne znaki
+                    if (c == '\n') { sb.Append("\\n"); continue; }
+                    if (c == '\r') { sb.Append("\\r"); continue; }
+                    if (c == '\t') { sb.Append("\\t"); continue; }
+
+                    // Polskie i specjalne znaki - zachowaj
+                    if (c >= 32 && c < 127)
+                    {
+                        sb.Append(c);
+                    }
+                    else if (c >= 127)
+                    {
+                        // Unicode - sprobuj zachowac, ale zamien niebezpieczne
+                        switch (c)
                         {
-                            Summary = GetStringProperty(root, "streszczenie", "Brak streszczenia"),
-                            MarketContext = GetStringProperty(root, "kontekst_rynkowy", ""),
-                            WhoIs = GetStringProperty(root, "kim_jest", ""),
-                            TermsExplanation = GetStringProperty(root, "tlumaczenie_pojec", ""),
-                            AnalysisCeo = GetStringProperty(root, "analiza_ceo", ""),
-                            AnalysisSales = GetStringProperty(root, "analiza_handlowiec", ""),
-                            AnalysisBuyer = GetStringProperty(root, "analiza_zakupowiec", ""),
-                            IndustryLesson = GetStringProperty(root, "lekcja_branzowa", ""),
-                            ActionsCeo = GetStringArrayProperty(root, "dzialania_ceo"),
-                            ActionsSales = GetStringArrayProperty(root, "dzialania_handlowiec"),
-                            ActionsBuyer = GetStringArrayProperty(root, "dzialania_zakupowiec"),
-                            StrategicQuestions = GetStringArrayProperty(root, "pytania_do_przemyslenia"),
-                            SourcesToMonitor = GetStringArrayProperty(root, "zrodla_do_monitorowania"),
-                            Category = GetStringProperty(root, "kategoria", "Info"),
-                            Severity = GetStringProperty(root, "severity", "info"),
-                            Tags = GetStringArrayProperty(root, "tagi")
-                        };
+                            case '\u2018': case '\u2019': sb.Append('\''); break;
+                            case '\u201C': case '\u201D': sb.Append("\\\""); break;
+                            case '\u2013': case '\u2014': sb.Append('-'); break;
+                            case '\u2026': sb.Append("..."); break;
+                            case '\u00A0': sb.Append(' '); break; // Non-breaking space
+                            default:
+                                // Polskie znaki i inne Unicode - zachowaj
+                                if (char.IsLetterOrDigit(c) || char.IsPunctuation(c) || char.IsWhiteSpace(c))
+                                {
+                                    sb.Append(c);
+                                }
+                                else
+                                {
+                                    sb.Append(' '); // Zamien nieznane na spacje
+                                }
+                                break;
+                        }
+                    }
+                    else
+                    {
+                        // Znaki kontrolne < 32 - zamien na spacje
+                        sb.Append(' ');
                     }
                 }
-                catch (Exception ex2)
+                else
                 {
-                    Debug.WriteLine($"[ClaudeAnalysis] Proba naprawy tez nie powiodla sie: {ex2.Message}");
+                    // Poza stringiem - zachowaj strukturalne znaki JSON
+                    if ("{}\[\]:,\"".Contains(c) || char.IsWhiteSpace(c) || char.IsLetterOrDigit(c) || c == '-' || c == '.' || c == '_')
+                    {
+                        sb.Append(c);
+                    }
                 }
-
-                return CreateStubAnalysis(originalTitle, $"Blad parsowania odpowiedzi AI: {ex.Message}");
             }
+
+            return sb.ToString();
         }
 
         /// <summary>
