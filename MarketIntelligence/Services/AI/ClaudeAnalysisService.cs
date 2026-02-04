@@ -21,9 +21,10 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
         private readonly HttpClient _httpClient;
         private readonly string _apiKey;
 
-        // Modele Claude - uzywamy sprawdzonych nazw
-        public const string SonnetModel = "claude-3-5-sonnet-20241022";
-        public const string HaikuModel = "claude-3-haiku-20240307";
+        // Modele Claude 4.5 - aktualne nazwy (luty 2026)
+        // Dokumentacja: https://platform.claude.com/docs/en/about-claude/models/overview
+        public const string SonnetModel = "claude-sonnet-4-5-20250929";
+        public const string HaikuModel = "claude-haiku-4-5-20250929";
 
         private const string ApiUrl = "https://api.anthropic.com/v1/messages";
         private const string ApiVersion = "2023-06-01";
