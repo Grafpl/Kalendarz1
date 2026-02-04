@@ -572,62 +572,77 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
         {
             var articles = new List<PerplexityArticle>();
 
-            // Regex do parsowania ponumerowanych sekcji typu:
-            // 1. **Farmer.pl (3 lutego 2026)**: Ceny skupu drobiu...
-            // lub: 1. Farmer.pl: Ceny skupu...
+            // Najpierw usun formatowanie markdown z tresci
+            var cleanContent = content;
+            // Usun **bold** - zamien na zwykly tekst
+            cleanContent = System.Text.RegularExpressions.Regex.Replace(cleanContent, @"\*\*([^*]+)\*\*", "$1");
+            // Usun *italic*
+            cleanContent = System.Text.RegularExpressions.Regex.Replace(cleanContent, @"\*([^*]+)\*", "$1");
+            // Usun naglowki markdown ###
+            cleanContent = System.Text.RegularExpressions.Regex.Replace(cleanContent, @"^#+\s*", "", System.Text.RegularExpressions.RegexOptions.Multiline);
+
+            // Regex do parsowania ponumerowanych sekcji:
+            // 1. Tytul lub Zrodlo: Tresc artykulu [1]
+            // lub: 1. Zrodlo (data): Tresc artykulu
             var numberedPattern = new System.Text.RegularExpressions.Regex(
-                @"^\s*(\d+)\.\s*\*{0,2}([^\*\n:]+?)(?:\s*\([^)]+\))?\*{0,2}[:\*]*\s*(.+?)(?=\n\s*\d+\.|$)",
+                @"^\s*(\d+)\.\s*(.+?)(?=\n\s*\d+\.\s|\n\s*$|$)",
                 System.Text.RegularExpressions.RegexOptions.Multiline | System.Text.RegularExpressions.RegexOptions.Singleline);
 
-            var matches = numberedPattern.Matches(content);
+            var matches = numberedPattern.Matches(cleanContent);
 
             if (matches.Count > 0)
             {
                 foreach (System.Text.RegularExpressions.Match match in matches)
                 {
-                    var sourceName = match.Groups[2].Value.Trim();
-                    var articleContent = match.Groups[3].Value.Trim();
+                    var fullText = match.Groups[2].Value.Trim();
+                    if (string.IsNullOrWhiteSpace(fullText) || fullText.Length < 20) continue;
 
                     // Usun znaczniki [1], [2] itp. z tresci
-                    articleContent = System.Text.RegularExpressions.Regex.Replace(articleContent, @"\[\d+\]", "").Trim();
+                    fullText = System.Text.RegularExpressions.Regex.Replace(fullText, @"\[\d+\]", "").Trim();
 
-                    // Wyciagnij ewentualna date z nazwy zrodla
-                    var dateMatch = System.Text.RegularExpressions.Regex.Match(sourceName, @"\(([^)]+)\)");
+                    // Sprobuj wyodrebnic zrodlo i tresc jesli jest dwukropek
+                    string sourceName = "Perplexity";
+                    string articleContent = fullText;
                     var publishDate = DateTime.Today;
-                    if (dateMatch.Success)
+
+                    // Sprawdz czy format to "Zrodlo (data): tresc" lub "Zrodlo: tresc"
+                    var sourceMatch = System.Text.RegularExpressions.Regex.Match(fullText, @"^([A-Za-z][A-Za-z0-9\.\-\s]+(?:\s*\([^)]+\))?)\s*:\s*(.+)$", System.Text.RegularExpressions.RegexOptions.Singleline);
+                    if (sourceMatch.Success && sourceMatch.Groups[1].Value.Length < 50)
                     {
-                        var dateStr = dateMatch.Groups[1].Value;
-                        sourceName = System.Text.RegularExpressions.Regex.Replace(sourceName, @"\s*\([^)]+\)", "").Trim();
-
-                        // Probuj parsowac date (np. "3 lutego 2026")
-                        var months = new Dictionary<string, int>
+                        var potentialSource = sourceMatch.Groups[1].Value.Trim();
+                        // Sprawdz czy to wyglada jak nazwa zrodla (ma kropke .pl lub jest znane zrodlo)
+                        if (potentialSource.Contains(".pl") || potentialSource.Contains(".com") ||
+                            potentialSource.ToLower().Contains("farmer") || potentialSource.ToLower().Contains("topagrar") ||
+                            potentialSource.ToLower().Contains("poultry") || potentialSource.ToLower().Contains("portal"))
                         {
-                            {"stycznia", 1}, {"lutego", 2}, {"marca", 3}, {"kwietnia", 4},
-                            {"maja", 5}, {"czerwca", 6}, {"lipca", 7}, {"sierpnia", 8},
-                            {"września", 9}, {"października", 10}, {"listopada", 11}, {"grudnia", 12}
-                        };
+                            sourceName = potentialSource;
+                            articleContent = sourceMatch.Groups[2].Value.Trim();
 
-                        var polishDateMatch = System.Text.RegularExpressions.Regex.Match(dateStr, @"(\d+)\s+(\w+)\s+(\d{4})");
-                        if (polishDateMatch.Success)
-                        {
-                            var day = int.Parse(polishDateMatch.Groups[1].Value);
-                            var monthName = polishDateMatch.Groups[2].Value.ToLower();
-                            var year = int.Parse(polishDateMatch.Groups[3].Value);
-                            if (months.TryGetValue(monthName, out var month))
+                            // Wyciagnij date z nazwy zrodla jesli jest
+                            var dateMatch = System.Text.RegularExpressions.Regex.Match(sourceName, @"\(([^)]+)\)");
+                            if (dateMatch.Success)
                             {
-                                try { publishDate = new DateTime(year, month, day); } catch { }
+                                sourceName = System.Text.RegularExpressions.Regex.Replace(sourceName, @"\s*\([^)]+\)", "").Trim();
+                                var dateStr = dateMatch.Groups[1].Value;
+                                publishDate = ParsePolishDate(dateStr);
                             }
                         }
                     }
 
-                    // Tytul to pierwszych max 150 znakow tresci
-                    var title = articleContent.Length > 150
-                        ? articleContent.Substring(0, 150).TrimEnd() + "..."
+                    // Tytul to pierwszych max 120 znakow tresci
+                    var title = articleContent.Length > 120
+                        ? articleContent.Substring(0, 120).TrimEnd() + "..."
                         : articleContent;
+
+                    // Jesli mamy zrodlo, dodaj je do tytulu
+                    if (sourceName != "Perplexity")
+                    {
+                        title = $"[{sourceName}] {title}";
+                    }
 
                     var article = new PerplexityArticle
                     {
-                        Title = $"{sourceName}: {title}",
+                        Title = title,
                         Snippet = articleContent,  // Pelna tresc!
                         Source = sourceName,
                         PublishDate = publishDate,
@@ -643,27 +658,27 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
             }
 
             // Fallback - stara logika dla innych formatow
-            var lines = content.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+            var lines = cleanContent.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
 
             PerplexityArticle current = null;
             foreach (var line in lines)
             {
                 var trimmed = line.Trim();
-                if (string.IsNullOrEmpty(trimmed)) continue;
+                if (string.IsNullOrEmpty(trimmed) || trimmed.Length < 10) continue;
 
                 // Nowy artykul (zaczyna sie od liczby lub myslnika)
-                if (trimmed.Length > 2 && (char.IsDigit(trimmed[0]) || trimmed[0] == '-' || trimmed[0] == '*'))
+                if (trimmed.Length > 2 && (char.IsDigit(trimmed[0]) || trimmed[0] == '-'))
                 {
                     if (current != null && !string.IsNullOrEmpty(current.Title))
                     {
                         articles.Add(current);
                     }
 
-                    var titleText = trimmed.TrimStart('-', '*', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', ' ');
+                    var titleText = trimmed.TrimStart('-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', ' ');
                     current = new PerplexityArticle
                     {
-                        Title = titleText,
-                        Snippet = titleText,  // Uzyj tytulu jako snippet
+                        Title = titleText.Length > 120 ? titleText.Substring(0, 120) + "..." : titleText,
+                        Snippet = titleText,
                         Source = "Perplexity",
                         PublishDate = DateTime.Today,
                         SearchQuery = query
@@ -671,7 +686,6 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                 }
                 else if (current != null)
                 {
-                    // Dodaj do snippetu
                     current.Snippet += " " + trimmed;
                 }
             }
@@ -681,7 +695,32 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                 articles.Add(current);
             }
 
+            Debug.WriteLine($"[Perplexity] Parsed {articles.Count} articles from line-based format");
             return articles;
+        }
+
+        private DateTime ParsePolishDate(string dateStr)
+        {
+            var months = new Dictionary<string, int>
+            {
+                {"stycznia", 1}, {"lutego", 2}, {"marca", 3}, {"kwietnia", 4},
+                {"maja", 5}, {"czerwca", 6}, {"lipca", 7}, {"sierpnia", 8},
+                {"września", 9}, {"października", 10}, {"listopada", 11}, {"grudnia", 12}
+            };
+
+            var polishDateMatch = System.Text.RegularExpressions.Regex.Match(dateStr, @"(\d+)\s+(\w+)\s+(\d{4})");
+            if (polishDateMatch.Success)
+            {
+                var day = int.Parse(polishDateMatch.Groups[1].Value);
+                var monthName = polishDateMatch.Groups[2].Value.ToLower();
+                var year = int.Parse(polishDateMatch.Groups[3].Value);
+                if (months.TryGetValue(monthName, out var month))
+                {
+                    try { return new DateTime(year, month, day); } catch { }
+                }
+            }
+
+            return DateTime.Today;
         }
 
         private string GetStringProp(JsonElement element, string name, string defaultValue)
