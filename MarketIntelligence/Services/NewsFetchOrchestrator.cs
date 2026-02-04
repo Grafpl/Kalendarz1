@@ -360,7 +360,7 @@ SZANSE:
                 Diagnostics.AddLog("Wysylam testowe zapytanie: 'ceny drobiu Polska luty 2026'");
 
                 var perplexityStopwatch = Stopwatch.StartNew();
-                var articles = await _perplexityService.SearchAsync("ceny drobiu Polska luty 2026", ct);
+                var (articles, debugInfo) = await _perplexityService.SearchWithDebugAsync("ceny drobiu Polska luty 2026", ct);
                 perplexityStopwatch.Stop();
 
                 Diagnostics.PerplexityTime = perplexityStopwatch.Elapsed;
@@ -368,9 +368,13 @@ SZANSE:
                 Diagnostics.AddLog($"Perplexity odpowiedzial w {perplexityStopwatch.ElapsedMilliseconds}ms");
                 Diagnostics.AddLog($"Znaleziono {articles.Count} artykulow");
 
+                // Pokaz raw response dla debugowania
+                Diagnostics.AddLog($"RAW RESPONSE: {debugInfo}");
+
                 if (articles.Count == 0)
                 {
                     Diagnostics.AddError("Perplexity nie zwrocil zadnych artykulow!");
+                    Diagnostics.AddLog("Sprawdz RAW RESPONSE powyzej - moze model zwraca tekst zamiast JSON");
                     return null;
                 }
 

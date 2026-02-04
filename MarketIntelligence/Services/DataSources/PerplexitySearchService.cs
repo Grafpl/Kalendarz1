@@ -74,9 +74,18 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
         /// </summary>
         public async Task<List<PerplexityArticle>> SearchAsync(string query, CancellationToken ct = default)
         {
+            var (articles, _) = await SearchWithDebugAsync(query, ct);
+            return articles;
+        }
+
+        /// <summary>
+        /// Wykonuje zapytanie do Perplexity i zwraca rowniez raw response dla debugowania
+        /// </summary>
+        public async Task<(List<PerplexityArticle> Articles, string DebugInfo)> SearchWithDebugAsync(string query, CancellationToken ct = default)
+        {
             if (!IsConfigured)
             {
-                return new List<PerplexityArticle>();
+                return (new List<PerplexityArticle>(), "API nie skonfigurowane");
             }
 
             try
@@ -111,15 +120,32 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                 if (!response.IsSuccessStatusCode)
                 {
                     Debug.WriteLine($"[Perplexity] Error {response.StatusCode}: {responseText}");
-                    return new List<PerplexityArticle>();
+                    return (new List<PerplexityArticle>(), $"HTTP {response.StatusCode}: {responseText.Substring(0, Math.Min(500, responseText.Length))}");
                 }
 
-                return ParseResponse(responseText, query);
+                // Wyciagnij content do debugowania
+                string debugContent = "";
+                try
+                {
+                    using var doc = JsonDocument.Parse(responseText);
+                    debugContent = doc.RootElement
+                        .GetProperty("choices")[0]
+                        .GetProperty("message")
+                        .GetProperty("content")
+                        .GetString() ?? "";
+                }
+                catch
+                {
+                    debugContent = responseText.Substring(0, Math.Min(1000, responseText.Length));
+                }
+
+                var articles = ParseResponse(responseText, query);
+                return (articles, $"Content ({debugContent.Length} chars): {debugContent.Substring(0, Math.Min(500, debugContent.Length))}...");
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"[Perplexity] Search error: {ex.Message}");
-                return new List<PerplexityArticle>();
+                return (new List<PerplexityArticle>(), $"Exception: {ex.Message}");
             }
         }
 
