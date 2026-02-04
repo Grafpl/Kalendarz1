@@ -772,7 +772,7 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
         {
             var sources = new List<NewsSource>();
             sources.AddRange(PolishScrapingSources);
-            sources.AddRange(InternationalPoultrySources.FindAll(s => s.Type == SourceType.Scraping));
+            sources.AddRange(InternationalPoultrySources.FindAll(s => s.Type == SourceType.WebScraping));
             return sources;
         }
 
