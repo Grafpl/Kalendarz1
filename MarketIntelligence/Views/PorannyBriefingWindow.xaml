@@ -389,8 +389,8 @@
                                             </TextBlock.Style>
                                         </TextBlock>
                                         <TextBlock Text="{Binding Message}" FontSize="9"
-                                                   Foreground="#D5CCC0" TextWrapping="NoWrap"
-                                                   TextTrimming="CharacterEllipsis" MaxWidth="400"/>
+                                                   Foreground="#D5CCC0" TextWrapping="Wrap"
+                                                   MaxWidth="600" ToolTip="{Binding Message}"/>
                                     </StackPanel>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
