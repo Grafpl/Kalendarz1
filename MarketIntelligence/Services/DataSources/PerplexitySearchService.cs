@@ -123,8 +123,9 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                     return (new List<PerplexityArticle>(), $"HTTP {response.StatusCode}: {responseText.Substring(0, Math.Min(500, responseText.Length))}");
                 }
 
-                // Wyciagnij content do debugowania
+                // Wyciagnij content i citations do debugowania
                 string debugContent = "";
+                int citationsCount = 0;
                 try
                 {
                     using var doc = JsonDocument.Parse(responseText);
@@ -133,6 +134,12 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                         .GetProperty("message")
                         .GetProperty("content")
                         .GetString() ?? "";
+
+                    // Sprawdz citations
+                    if (doc.RootElement.TryGetProperty("citations", out var citationsElement))
+                    {
+                        citationsCount = citationsElement.GetArrayLength();
+                    }
                 }
                 catch
                 {
@@ -140,7 +147,8 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                 }
 
                 var articles = ParseResponse(responseText, query);
-                return (articles, $"Content ({debugContent.Length} chars): {debugContent.Substring(0, Math.Min(500, debugContent.Length))}...");
+                var citationsInfo = citationsCount > 0 ? $" [CITATIONS: {citationsCount}]" : " [NO CITATIONS]";
+                return (articles, $"Content ({debugContent.Length} chars){citationsInfo}: {debugContent.Substring(0, Math.Min(400, debugContent.Length))}...");
             }
             catch (Exception ex)
             {
@@ -408,12 +416,78 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
             try
             {
                 using var doc = JsonDocument.Parse(responseText);
+
                 var content = doc.RootElement
                     .GetProperty("choices")[0]
                     .GetProperty("message")
                     .GetProperty("content")
-                    .GetString();
+                    .GetString() ?? "";
 
+                // ═══════════════════════════════════════════════════════════════
+                // NOWY FORMAT: Perplexity Sonar zwraca citations w osobnym polu
+                // ═══════════════════════════════════════════════════════════════
+                var citations = new List<string>();
+                if (doc.RootElement.TryGetProperty("citations", out var citationsElement))
+                {
+                    foreach (var citation in citationsElement.EnumerateArray())
+                    {
+                        var url = citation.GetString();
+                        if (!string.IsNullOrEmpty(url))
+                        {
+                            citations.Add(url);
+                        }
+                    }
+                    Debug.WriteLine($"[Perplexity] Found {citations.Count} citations in response");
+                }
+
+                // Jesli mamy citations, tworz artykuly z nich
+                if (citations.Count > 0)
+                {
+                    var contentLines = content.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+
+                    for (int i = 0; i < citations.Count; i++)
+                    {
+                        var url = citations[i];
+                        var article = new PerplexityArticle
+                        {
+                            Url = url,
+                            Source = ExtractDomain(url),
+                            PublishDate = DateTime.Today,
+                            SearchQuery = query,
+                            Title = $"Artykul z {ExtractDomain(url)}",
+                            Snippet = ""
+                        };
+
+                        // Sprobuj znalezc tytul w tresci (przy [1], [2] itp)
+                        var citationMarker = $"[{i + 1}]";
+                        foreach (var line in contentLines)
+                        {
+                            if (line.Contains(citationMarker) || line.Contains(url))
+                            {
+                                var cleanLine = line.Replace(citationMarker, "").Trim();
+                                if (cleanLine.Length > 10 && cleanLine.Length < 200)
+                                {
+                                    article.Title = cleanLine;
+                                    break;
+                                }
+                            }
+                        }
+
+                        // Snippet z contentu
+                        if (content.Length > 50)
+                        {
+                            article.Snippet = content.Substring(0, Math.Min(300, content.Length));
+                        }
+
+                        articles.Add(article);
+                    }
+
+                    return articles;
+                }
+
+                // ═══════════════════════════════════════════════════════════════
+                // FALLBACK: JSON array w content lub tekst
+                // ═══════════════════════════════════════════════════════════════
                 if (string.IsNullOrEmpty(content)) return articles;
 
                 // Probuj parsowac jako JSON
@@ -438,7 +512,6 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                                 SearchQuery = query
                             };
 
-                            // Parse date
                             var dateStr = GetStringProp(item, "date", "");
                             if (DateTime.TryParse(dateStr, out var date))
                             {
@@ -457,13 +530,11 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                     }
                     catch
                     {
-                        // Jesli JSON nie zadziala, parsuj tekst
                         articles.AddRange(ParseTextResponse(content, query));
                     }
                 }
                 else
                 {
-                    // Parsuj jako tekst
                     articles.AddRange(ParseTextResponse(content, query));
                 }
             }
@@ -473,6 +544,19 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
             }
 
             return articles;
+        }
+
+        private string ExtractDomain(string url)
+        {
+            try
+            {
+                var uri = new Uri(url);
+                return uri.Host.Replace("www.", "");
+            }
+            catch
+            {
+                return "Perplexity";
+            }
         }
 
         private List<PerplexityArticle> ParseTextResponse(string content, string query)
