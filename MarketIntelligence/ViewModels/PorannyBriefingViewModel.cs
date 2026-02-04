@@ -2012,6 +2012,7 @@ Plan awaryjny:
         public ICommand TestClaudeApiCommand { get; private set; }
         public ICommand TestPerplexityApiCommand { get; private set; }
         public ICommand TestPipelineCommand { get; private set; }
+        public ICommand TestDemoArticlesCommand { get; private set; }
         public ICommand OpenLogViewerCommand { get; private set; }
 
         // Okno szczegolowych logow
@@ -2037,6 +2038,7 @@ Plan awaryjny:
             TestClaudeApiCommand = new RelayCommand(async _ => await TestClaudeApiAsync());
             TestPerplexityApiCommand = new RelayCommand(async _ => await TestPerplexityApiAsync());
             TestPipelineCommand = new RelayCommand(async _ => await TestPipelineAsync(), _ => CanFetch);
+            TestDemoArticlesCommand = new RelayCommand(async _ => await TestDemoArticlesAsync(), _ => CanFetch);
             OpenLogViewerCommand = new RelayCommand(_ => OpenLogViewer());
         }
 
@@ -2208,6 +2210,86 @@ Plan awaryjny:
             finally
             {
                 LogViewer.AppendSeparator("KONIEC TESTU");
+                LogViewer.AppendLog($"Zakonczono: {DateTime.Now:HH:mm:ss}", "INFO");
+                IsFetching = false;
+            }
+        }
+
+        /// <summary>
+        /// Testuje pipeline z 5 demo artykulami (bez uzycia Perplexity API)
+        /// </summary>
+        public async Task TestDemoArticlesAsync()
+        {
+            if (IsFetching) return;
+
+            IsFetching = true;
+            IsDiagnosticsPanelVisible = true;
+            Diagnostics.Reset();
+
+            // Otworz okno logow i wyczysc
+            LogViewer.Clear();
+            LogViewer.Show();
+            LogViewer.Activate();
+
+            LogViewer.AppendSeparator("ROZPOCZYNAM TEST 5 DEMO ARTYKULOW");
+            LogViewer.AppendLog("Test pipeline z demo artykulami - bez API Perplexity", "INFO");
+            LogViewer.AppendLog($"Data: {DateTime.Now:yyyy-MM-dd HH:mm:ss}", "INFO");
+            LogViewer.AppendLog($"Model Claude: {Services.AI.ClaudeAnalysisService.SonnetModel}", "INFO");
+            LogViewer.AppendLog("", "INFO");
+            LogViewer.AppendLog("Ten test uzywa 5 predefiniowanych artykulow", "INFO");
+            LogViewer.AppendLog("- nie wymaga klucza Perplexity API", "INFO");
+            LogViewer.AppendLog("- wymaga klucza Claude API", "INFO");
+
+            Diagnostics.AddLog("=== ROZPOCZYNAM TEST DEMO ARTYKULOW ===");
+
+            try
+            {
+                // Uzyj wersji z demo artykulami
+                var articles = await Orchestrator.TestDemoArticlesPipelineAsync(
+                    (msg, level) => LogViewer.AppendLog(msg, level),
+                    (content, label) => LogViewer.AppendRawContent(content, label),
+                    (title) => LogViewer.AppendSeparator(title)
+                );
+
+                if (articles != null && articles.Any())
+                {
+                    // Dodaj artykuly do listy
+                    System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        AllArticles.Clear();
+                        foreach (var article in articles)
+                        {
+                            AllArticles.Add(article);
+                        }
+                        ApplyFilters();
+                    });
+
+                    LogViewer.AppendSeparator("SUKCES");
+                    LogViewer.AppendLog($"Dodano {articles.Count} artykulow", "SUCCESS");
+                    foreach (var article in articles)
+                    {
+                        LogViewer.AppendLog($"  - {article.Title}", "INFO");
+                    }
+
+                    Diagnostics.AddSuccess($"Dodano {articles.Count} artykulow demo");
+                }
+                else
+                {
+                    LogViewer.AppendSeparator("BLAD");
+                    LogViewer.AppendLog("Pipeline nie zwrocil artykulow", "ERROR");
+                    Diagnostics.AddWarning("Pipeline nie zwrocil artykulow - sprawdz logi powyzej");
+                }
+            }
+            catch (Exception ex)
+            {
+                LogViewer.AppendSeparator("WYJATEK");
+                LogViewer.AppendLog($"Exception: {ex.Message}", "ERROR");
+                LogViewer.AppendLog($"StackTrace: {ex.StackTrace}", "DEBUG");
+                Diagnostics.AddError($"Blad: {ex.Message}");
+            }
+            finally
+            {
+                LogViewer.AppendSeparator("KONIEC TESTU DEMO");
                 LogViewer.AppendLog($"Zakonczono: {DateTime.Now:HH:mm:ss}", "INFO");
                 IsFetching = false;
             }

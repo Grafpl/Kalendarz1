@@ -296,6 +296,10 @@
                                 FontSize="9" Padding="8,3" Margin="0,0,8,0" FontWeight="Bold"
                                 Background="#3A2520" Foreground="#C9A96E" BorderThickness="0"
                                 ToolTip="Testuj pelny pipeline dla 1 artykulu z wszystkimi logami"/>
+                        <Button Content="5 DEMO" Command="{Binding TestDemoArticlesCommand}"
+                                FontSize="9" Padding="8,3" Margin="0,0,8,0" FontWeight="Bold"
+                                Background="#352A40" Foreground="#B88FD8" BorderThickness="0"
+                                ToolTip="Testuj 5 predefiniowanych artykulow bez API Perplexity"/>
                         <Button Content="PELNE LOGI" Command="{Binding OpenLogViewerCommand}"
                                 FontSize="9" Padding="8,3" FontWeight="Bold"
                                 Background="#252A35" Foreground="#5AB8B8" BorderThickness="0"

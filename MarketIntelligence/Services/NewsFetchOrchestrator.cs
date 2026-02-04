@@ -874,6 +874,189 @@ SZANSE:
             }
         }
 
+        /// <summary>
+        /// Testowy pipeline z 5 demo artykulami - bez uzycia Perplexity API
+        /// Przydatne do testowania analizy Claude bez kosztow API
+        /// </summary>
+        public async Task<List<BriefingArticle>> TestDemoArticlesPipelineAsync(
+            Action<string, string> log,
+            Action<string, string> logRaw,
+            Action<string> logSection,
+            CancellationToken ct = default)
+        {
+            Diagnostics.Reset();
+            Diagnostics.IsRunning = true;
+            var stopwatch = Stopwatch.StartNew();
+            var results = new List<BriefingArticle>();
+
+            try
+            {
+                // ═══════════════════════════════════════════════════════════
+                // ETAP 1: Pobierz demo artykuly (bez API)
+                // ═══════════════════════════════════════════════════════════
+                logSection("ETAP 1: DEMO ARTYKULY (BEZ API)");
+                log("Laduje 5 testowych artykulow z DemoArticlesProvider...", "INFO");
+                Diagnostics.AddLog("=== ETAP 1: DEMO ARTICLES ===");
+
+                var demoArticles = DemoArticlesProvider.GetDemoArticles();
+                log($"Zaladowano {demoArticles.Count} demo artykulow:", "SUCCESS");
+
+                for (int i = 0; i < demoArticles.Count; i++)
+                {
+                    var a = demoArticles[i];
+                    log($"[{i + 1}] {TruncateTitle(a.Title, 70)}", "INFO");
+                    log($"    Zrodlo: {a.Source}", "DEBUG");
+                }
+
+                Diagnostics.PerplexityArticlesCount = demoArticles.Count;
+                Diagnostics.AddSuccess($"Zaladowano {demoArticles.Count} demo artykulow");
+
+                // ═══════════════════════════════════════════════════════════
+                // ETAP 2: Analiza kazdego artykulu przez Claude
+                // ═══════════════════════════════════════════════════════════
+                logSection("ETAP 2: ANALIZA CLAUDE AI");
+                log($"Bede analizowal {demoArticles.Count} artykulow przez Claude...", "INFO");
+                log($"Model: {ClaudeAnalysisService.SonnetModel}", "INFO");
+                Diagnostics.AddLog("=== ETAP 2: CLAUDE ANALYSIS ===");
+
+                int analyzed = 0;
+                int errors = 0;
+
+                foreach (var article in demoArticles)
+                {
+                    if (ct.IsCancellationRequested)
+                    {
+                        log("Anulowano przez uzytkownika", "WARNING");
+                        break;
+                    }
+
+                    analyzed++;
+                    log($"", "INFO");
+                    logSection($"ARTYKUL {analyzed}/{demoArticles.Count}");
+                    log($"Tytul: {article.Title}", "INFO");
+                    log($"Zrodlo: {article.Source}", "DEBUG");
+                    log($"Tresc (fragment): {TruncateContent(article.Snippet, 200)}", "DEBUG");
+
+                    string fullContent = article.Snippet ?? "";
+
+                    // Sprawdz czy mamy wystarczajaco tresci do analizy
+                    if (string.IsNullOrWhiteSpace(fullContent) || fullContent.Length < 50)
+                    {
+                        log("UWAGA: Zbyt krotka tresc - uzywam tytulu", "WARNING");
+                        fullContent = $"Tytul: {article.Title}. Zrodlo: {article.Source}. URL: {article.Url}";
+                    }
+
+                    log($"Wysylam do Claude ({fullContent.Length} znakow)...", "INFO");
+
+                    try
+                    {
+                        var analysisStopwatch = Stopwatch.StartNew();
+                        var analysisResult = await _claudeService.AnalyzeArticleAsync(
+                            article.Title,
+                            fullContent,
+                            article.Source,
+                            BusinessContext,
+                            ct);
+                        analysisStopwatch.Stop();
+
+                        if (analysisResult == null)
+                        {
+                            log($"Claude zwrocil null - blad analizy", "ERROR");
+                            errors++;
+                            continue;
+                        }
+
+                        log($"Claude odpowiedzial w {analysisStopwatch.ElapsedMilliseconds}ms", "SUCCESS");
+
+                        // Pokaz wyniki analizy
+                        log("--- WYNIK ANALIZY ---", "SUCCESS");
+                        log($"Kategoria: {analysisResult.Category}", "INFO");
+                        log($"Priorytet: {analysisResult.Severity}", "INFO");
+                        log($"Tagi: {string.Join(", ", analysisResult.Tags ?? new List<string>())}", "INFO");
+
+                        log("", "INFO");
+                        log("PODSUMOWANIE:", "INFO");
+                        log(TruncateContent(analysisResult.Summary, 500), "DEBUG");
+
+                        log("", "INFO");
+                        log("ANALIZA CEO:", "INFO");
+                        log(TruncateContent(analysisResult.AnalysisCeo, 400), "DEBUG");
+
+                        log("", "INFO");
+                        log("ANALIZA SPRZEDAZ:", "INFO");
+                        log(TruncateContent(analysisResult.AnalysisSales, 400), "DEBUG");
+
+                        log("", "INFO");
+                        log("ANALIZA ZAKUPY:", "INFO");
+                        log(TruncateContent(analysisResult.AnalysisBuyer, 400), "DEBUG");
+
+                        // Tworzymy BriefingArticle
+                        var briefingArticle = new BriefingArticle
+                        {
+                            Id = analyzed,
+                            Title = article.Title,
+                            ShortPreview = TruncateContent(article.Snippet, 150),
+                            FullContent = analysisResult.Summary,
+                            MarketContext = analysisResult.MarketContext,
+                            EducationalSection = analysisResult.WhoIs,
+                            TermsExplanation = analysisResult.TermsExplanation,
+                            AiAnalysisCeo = analysisResult.AnalysisCeo,
+                            AiAnalysisSales = analysisResult.AnalysisSales,
+                            AiAnalysisBuyer = analysisResult.AnalysisBuyer,
+                            RecommendedActionsCeo = string.Join("\n", analysisResult.ActionsCeo ?? new List<string>()),
+                            RecommendedActionsSales = string.Join("\n", analysisResult.ActionsSales ?? new List<string>()),
+                            RecommendedActionsBuyer = string.Join("\n", analysisResult.ActionsBuyer ?? new List<string>()),
+                            IndustryLesson = analysisResult.IndustryLesson,
+                            StrategicQuestions = string.Join("\n", analysisResult.StrategicQuestions ?? new List<string>()),
+                            SourcesToMonitor = string.Join("\n", analysisResult.SourcesToMonitor ?? new List<string>()),
+                            Category = analysisResult.Category ?? "Info",
+                            Source = article.Source ?? "Demo",
+                            SourceUrl = article.Url,
+                            PublishDate = DateTime.Today,
+                            Severity = ParseSeverity(analysisResult.Severity ?? "Info"),
+                            Tags = analysisResult.Tags ?? new List<string>(),
+                            IsFeatured = analyzed == 1
+                        };
+
+                        results.Add(briefingArticle);
+                        log($"Artykul {analyzed} przeanalizowany pomyslnie!", "SUCCESS");
+                    }
+                    catch (Exception ex)
+                    {
+                        log($"BLAD analizy artykulu: {ex.Message}", "ERROR");
+                        errors++;
+                    }
+                }
+
+                // ═══════════════════════════════════════════════════════════
+                // PODSUMOWANIE
+                // ═══════════════════════════════════════════════════════════
+                stopwatch.Stop();
+                logSection("PODSUMOWANIE");
+                log($"", "INFO");
+                log($"Przetworzono: {analyzed} artykulow", "INFO");
+                log($"Sukces: {results.Count}", "SUCCESS");
+                log($"Bledy: {errors}", errors > 0 ? "WARNING" : "INFO");
+                log($"Czas: {stopwatch.Elapsed.TotalSeconds:N1}s", "INFO");
+
+                Diagnostics.AddSuccess($"=== DEMO PIPELINE UKONCZONY: {results.Count}/{analyzed} w {stopwatch.Elapsed.TotalSeconds:N1}s ===");
+
+                return results;
+            }
+            catch (Exception ex)
+            {
+                log($"WYJATEK: {ex.Message}", "ERROR");
+                log($"Typ: {ex.GetType().Name}", "ERROR");
+                logRaw(ex.StackTrace ?? "brak", "STACK TRACE");
+                Diagnostics.AddError($"Exception: {ex.Message}");
+                return results;
+            }
+            finally
+            {
+                Diagnostics.IsRunning = false;
+            }
+        }
+
         #region Helper Methods
 
         private string GetDomain(string url)
