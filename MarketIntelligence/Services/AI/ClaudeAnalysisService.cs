@@ -620,7 +620,7 @@ KRYTYCZNE WYMAGANIA:
                 else
                 {
                     // Poza stringiem - zachowaj strukturalne znaki JSON
-                    if ("{}\[\]:,\"".Contains(c) || char.IsWhiteSpace(c) || char.IsLetterOrDigit(c) || c == '-' || c == '.' || c == '_')
+                    if ("{}[]:,\"".Contains(c) || char.IsWhiteSpace(c) || char.IsLetterOrDigit(c) || c == '-' || c == '.' || c == '_')
                     {
                         sb.Append(c);
                     }
