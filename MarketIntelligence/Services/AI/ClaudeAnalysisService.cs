@@ -22,7 +22,7 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
         private readonly string _apiKey;
 
         // Modele Claude
-        public const string SonnetModel = "claude-sonnet-4-20250514";
+        public const string SonnetModel = "claude-3-5-sonnet-20241022";
         public const string HaikuModel = "claude-3-5-haiku-20241022";
 
         private const string ApiUrl = "https://api.anthropic.com/v1/messages";
