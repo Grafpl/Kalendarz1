@@ -8,6 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using Microsoft.Data.SqlClient;
 using Kalendarz1.MarketIntelligence.Models;
 using Kalendarz1.MarketIntelligence.Services;
 using Kalendarz1.MarketIntelligence.Views;
@@ -180,6 +181,23 @@ namespace Kalendarz1.MarketIntelligence.ViewModels
             get => _isLoading;
             set => SetProperty(ref _isLoading, value);
         }
+
+        private string _errorMessage;
+        public string ErrorMessage
+        {
+            get => _errorMessage;
+            set
+            {
+                if (SetProperty(ref _errorMessage, value))
+                {
+                    OnPropertyChanged(nameof(HasError));
+                }
+            }
+        }
+
+        public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
+
+        public void ClearError() => ErrorMessage = null;
 
         private DateTime _currentDate;
         public DateTime CurrentDate
@@ -1947,20 +1965,39 @@ Plan awaryjny:
 
         private NewsFetchOrchestrator _orchestrator;
         private CancellationTokenSource _fetchCancellation;
+        private bool _orchestratorInitFailed;
 
         public NewsFetchOrchestrator Orchestrator
         {
             get
             {
-                if (_orchestrator == null)
+                if (_orchestrator == null && !_orchestratorInitFailed)
                 {
-                    _orchestrator = new NewsFetchOrchestrator();
+                    try
+                    {
+                        _orchestrator = new NewsFetchOrchestrator();
+                        ClearError();
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        _orchestratorInitFailed = true;
+                        ErrorMessage = $"Blad konfiguracji bazy danych: {ex.Message}";
+                        System.Diagnostics.Debug.WriteLine($"[Orchestrator] Init failed: {ex}");
+                    }
+                    catch (Exception ex)
+                    {
+                        _orchestratorInitFailed = true;
+                        ErrorMessage = $"Blad inicjalizacji: {ex.Message}";
+                        System.Diagnostics.Debug.WriteLine($"[Orchestrator] Init failed: {ex}");
+                    }
                 }
                 return _orchestrator;
             }
         }
 
-        public DiagnosticInfo Diagnostics => Orchestrator.Diagnostics;
+        public bool IsOrchestratorAvailable => Orchestrator != null;
+
+        public DiagnosticInfo Diagnostics => Orchestrator?.Diagnostics;
 
         private string _fetchProgressStage;
         public string FetchProgressStage
@@ -2055,6 +2092,14 @@ Plan awaryjny:
         {
             if (IsFetching) return;
 
+            // Sprawdz czy Orchestrator jest dostepny
+            if (!IsOrchestratorAvailable)
+            {
+                ErrorMessage = "Nie mozna pobrac danych - blad konfiguracji. Sprawdz connection string w App.config.";
+                return;
+            }
+
+            ClearError();
             IsFetching = true;
             IsLoading = true;
             _fetchCancellation = new CancellationTokenSource();
@@ -2068,7 +2113,7 @@ Plan awaryjny:
 
             try
             {
-                Diagnostics.AddLog($"Rozpoczynam {(quickMode ? "szybkie" : "pelne")} pobieranie...");
+                Diagnostics?.AddLog($"Rozpoczynam {(quickMode ? "szybkie" : "pelne")} pobieranie...");
 
                 var articles = await Orchestrator.FetchAndAnalyzeAsync(quickMode, progress, _fetchCancellation.Token);
 
@@ -2082,20 +2127,28 @@ Plan awaryjny:
                     }
                     ApplyFilters();
 
-                    Diagnostics.AddSuccess($"Pobrano i przeanalizowano {articles.Count} artykulow");
+                    Diagnostics?.AddSuccess($"Pobrano i przeanalizowano {articles.Count} artykulow");
                 }
                 else
                 {
-                    Diagnostics.AddWarning("Nie pobrano zadnych artykulow. Sprawdz konfiguracje API.");
+                    Diagnostics?.AddWarning("Nie pobrano zadnych artykulow. Sprawdz konfiguracje API.");
+                    ErrorMessage = "Nie pobrano zadnych artykulow. Sprawdz konfiguracje API w App.config.";
                 }
             }
             catch (OperationCanceledException)
             {
-                Diagnostics.AddWarning("Pobieranie anulowane");
+                Diagnostics?.AddWarning("Pobieranie anulowane");
+            }
+            catch (SqlException ex)
+            {
+                ErrorMessage = $"Blad polaczenia z baza danych: {ex.Message}";
+                Diagnostics?.AddError($"SQL Error: {ex.Message}");
+                Debug.WriteLine($"RefreshFromInternet SQL error: {ex}");
             }
             catch (Exception ex)
             {
-                Diagnostics.AddError($"Blad: {ex.Message}");
+                ErrorMessage = $"Blad podczas pobierania: {ex.Message}";
+                Diagnostics?.AddError($"Blad: {ex.Message}");
                 Debug.WriteLine($"RefreshFromInternet error: {ex}");
             }
             finally

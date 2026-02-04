@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
@@ -13,8 +14,27 @@ namespace Kalendarz1.MarketIntelligence.Services
 
         public MarketIntelligenceService(string connectionString = null)
         {
-            _connectionString = connectionString ??
-                "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+            // Priorytet: 1) parametr, 2) App.config "LibraNet", 3) rzuć wyjątek
+            if (!string.IsNullOrWhiteSpace(connectionString))
+            {
+                _connectionString = connectionString;
+            }
+            else
+            {
+                // Próba pobrania z App.config
+                var configCs = ConfigurationManager.ConnectionStrings["LibraNet"];
+                if (configCs != null && !string.IsNullOrWhiteSpace(configCs.ConnectionString))
+                {
+                    _connectionString = configCs.ConnectionString;
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        "Brak connection stringa 'LibraNet' w App.config! " +
+                        "Dodaj sekcję <connectionStrings> z connection stringiem o nazwie 'LibraNet' " +
+                        "lub przekaż connection string jako parametr konstruktora.");
+                }
+            }
         }
 
         #region Inicjalizacja i Seed Data
