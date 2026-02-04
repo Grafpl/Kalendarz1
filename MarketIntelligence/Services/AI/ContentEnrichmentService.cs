@@ -147,6 +147,14 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
         }
 
         /// <summary>
+        /// Pobiera tresc dla pojedynczego URL
+        /// </summary>
+        public async Task<EnrichmentResult> EnrichSingleAsync(string url, CancellationToken ct = default)
+        {
+            return await FetchFullContentAsync(url, ct);
+        }
+
+        /// <summary>
         /// Pobiera tresc dla wielu artykulow
         /// </summary>
         public async Task<List<EnrichmentResult>> EnrichArticlesAsync(

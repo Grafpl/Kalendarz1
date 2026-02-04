@@ -290,9 +290,12 @@
                                 FontSize="9" Padding="8,3" Margin="0,0,8,0"
                                 Background="#2A3520" Foreground="#6DAF6D" BorderThickness="0"/>
                         <Button Content="Test Perplexity" Command="{Binding TestPerplexityApiCommand}"
-                                FontSize="9" Padding="8,3"
+                                FontSize="9" Padding="8,3" Margin="0,0,8,0"
                                 Background="#2A3520" Foreground="#6DAF6D" BorderThickness="0"/>
-                    </StackPanel>
+                        <Button Content="TEST PIPELINE" Command="{Binding TestPipelineCommand}"
+                                FontSize="9" Padding="8,3" FontWeight="Bold"
+                                Background="#3A2520" Foreground="#C9A96E" BorderThickness="0"
+                                ToolTip="Testuj pelny pipeline dla 1 artykulu z wszystkimi logami"/>
                 </StackPanel>
 
                 <!-- Pipeline Stats -->

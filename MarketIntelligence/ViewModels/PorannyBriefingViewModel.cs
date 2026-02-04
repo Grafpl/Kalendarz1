@@ -2010,6 +2010,7 @@ Plan awaryjny:
         public ICommand ToggleDiagnosticsCommand { get; private set; }
         public ICommand TestClaudeApiCommand { get; private set; }
         public ICommand TestPerplexityApiCommand { get; private set; }
+        public ICommand TestPipelineCommand { get; private set; }
 
         private void InitializeInternetCommands()
         {
@@ -2019,6 +2020,7 @@ Plan awaryjny:
             ToggleDiagnosticsCommand = new RelayCommand(_ => IsDiagnosticsPanelVisible = !IsDiagnosticsPanelVisible);
             TestClaudeApiCommand = new RelayCommand(async _ => await TestClaudeApiAsync());
             TestPerplexityApiCommand = new RelayCommand(async _ => await TestPerplexityApiAsync());
+            TestPipelineCommand = new RelayCommand(async _ => await TestPipelineAsync(), _ => CanFetch);
         }
 
         /// <summary>
@@ -2114,6 +2116,49 @@ Plan awaryjny:
             else
             {
                 Diagnostics.AddError($"Perplexity API: {perplexityMsg}");
+            }
+        }
+
+        /// <summary>
+        /// Testuje pelny pipeline dla jednego artykulu
+        /// </summary>
+        public async Task TestPipelineAsync()
+        {
+            if (IsFetching) return;
+
+            IsFetching = true;
+            IsDiagnosticsPanelVisible = true;
+            Diagnostics.Reset();
+            Diagnostics.AddLog("=== ROZPOCZYNAM TEST PIPELINE ===");
+
+            try
+            {
+                var article = await Orchestrator.TestSingleArticlePipelineAsync();
+
+                if (article != null)
+                {
+                    // Dodaj artykul do listy
+                    System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        AllArticles.Clear();
+                        AllArticles.Add(article);
+                        ApplyFilters();
+                    });
+
+                    Diagnostics.AddSuccess($"Artykul dodany do listy: {article.Title}");
+                }
+                else
+                {
+                    Diagnostics.AddWarning("Pipeline nie zwrocil artykulu - sprawdz logi powyzej");
+                }
+            }
+            catch (Exception ex)
+            {
+                Diagnostics.AddError($"Blad: {ex.Message}");
+            }
+            finally
+            {
+                IsFetching = false;
             }
         }
 
