@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using Kalendarz1.MarketIntelligence.Models;
 using Kalendarz1.MarketIntelligence.Services;
+using Kalendarz1.MarketIntelligence.Views;
 
 namespace Kalendarz1.MarketIntelligence.ViewModels
 {
@@ -2011,6 +2012,21 @@ Plan awaryjny:
         public ICommand TestClaudeApiCommand { get; private set; }
         public ICommand TestPerplexityApiCommand { get; private set; }
         public ICommand TestPipelineCommand { get; private set; }
+        public ICommand OpenLogViewerCommand { get; private set; }
+
+        // Okno szczegolowych logow
+        private LogViewerWindow _logViewer;
+        public LogViewerWindow LogViewer
+        {
+            get
+            {
+                if (_logViewer == null || !_logViewer.IsLoaded)
+                {
+                    _logViewer = new LogViewerWindow();
+                }
+                return _logViewer;
+            }
+        }
 
         private void InitializeInternetCommands()
         {
@@ -2021,6 +2037,13 @@ Plan awaryjny:
             TestClaudeApiCommand = new RelayCommand(async _ => await TestClaudeApiAsync());
             TestPerplexityApiCommand = new RelayCommand(async _ => await TestPerplexityApiAsync());
             TestPipelineCommand = new RelayCommand(async _ => await TestPipelineAsync(), _ => CanFetch);
+            OpenLogViewerCommand = new RelayCommand(_ => OpenLogViewer());
+        }
+
+        private void OpenLogViewer()
+        {
+            LogViewer.Show();
+            LogViewer.Activate();
         }
 
         /// <summary>
@@ -2120,7 +2143,7 @@ Plan awaryjny:
         }
 
         /// <summary>
-        /// Testuje pelny pipeline dla jednego artykulu
+        /// Testuje pelny pipeline dla jednego artykulu ze szczegolowymi logami
         /// </summary>
         public async Task TestPipelineAsync()
         {
@@ -2129,11 +2152,27 @@ Plan awaryjny:
             IsFetching = true;
             IsDiagnosticsPanelVisible = true;
             Diagnostics.Reset();
+
+            // Otworz okno logow i wyczysc
+            LogViewer.Clear();
+            LogViewer.Show();
+            LogViewer.Activate();
+
+            LogViewer.AppendSeparator("ROZPOCZYNAM TEST PIPELINE");
+            LogViewer.AppendLog("Test pipeline - analiza pojedynczego artykulu", "INFO");
+            LogViewer.AppendLog($"Data: {DateTime.Now:yyyy-MM-dd HH:mm:ss}", "INFO");
+            LogViewer.AppendLog($"Model Claude: {Services.AI.ClaudeAnalysisService.SonnetModel}", "INFO");
+
             Diagnostics.AddLog("=== ROZPOCZYNAM TEST PIPELINE ===");
 
             try
             {
-                var article = await Orchestrator.TestSingleArticlePipelineAsync();
+                // Uzyj wersji z callbackiem do szczegolowych logow
+                var article = await Orchestrator.TestSingleArticlePipelineWithLogsAsync(
+                    (msg, level) => LogViewer.AppendLog(msg, level),
+                    (content, label) => LogViewer.AppendRawContent(content, label),
+                    (title) => LogViewer.AppendSeparator(title)
+                );
 
                 if (article != null)
                 {
@@ -2145,19 +2184,31 @@ Plan awaryjny:
                         ApplyFilters();
                     });
 
+                    LogViewer.AppendSeparator("SUKCES");
+                    LogViewer.AppendLog($"Artykul dodany: {article.Title}", "SUCCESS");
+                    LogViewer.AppendLog($"Kategoria: {article.Category}", "INFO");
+                    LogViewer.AppendLog($"Severity: {article.Severity}", "INFO");
+
                     Diagnostics.AddSuccess($"Artykul dodany do listy: {article.Title}");
                 }
                 else
                 {
+                    LogViewer.AppendSeparator("BLAD");
+                    LogViewer.AppendLog("Pipeline nie zwrocil artykulu", "ERROR");
                     Diagnostics.AddWarning("Pipeline nie zwrocil artykulu - sprawdz logi powyzej");
                 }
             }
             catch (Exception ex)
             {
+                LogViewer.AppendSeparator("WYJATEK");
+                LogViewer.AppendLog($"Exception: {ex.Message}", "ERROR");
+                LogViewer.AppendLog($"StackTrace: {ex.StackTrace}", "DEBUG");
                 Diagnostics.AddError($"Blad: {ex.Message}");
             }
             finally
             {
+                LogViewer.AppendSeparator("KONIEC TESTU");
+                LogViewer.AppendLog($"Zakonczono: {DateTime.Now:HH:mm:ss}", "INFO");
                 IsFetching = false;
             }
         }
