@@ -488,17 +488,18 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                 }
 
                 // ═══════════════════════════════════════════════════════════════
-                // FALLBACK: JSON array w content lub tekst
+                // FALLBACK: JSON array w content lub tekst naturalny
                 // ═══════════════════════════════════════════════════════════════
                 if (string.IsNullOrEmpty(content)) return articles;
 
-                // Probuj parsowac jako JSON
-                var jsonStart = content.IndexOf('[');
-                var jsonEnd = content.LastIndexOf(']');
+                // Probuj parsowac jako JSON TYLKO jesli wyglada jak prawdziwa tablica JSON
+                // (nie mylmy znacznikow [1], [2] z JSON)
+                var jsonStart = content.IndexOf("[{");  // Szukaj [{ a nie samego [
+                var jsonEnd = content.LastIndexOf("}]");
 
                 if (jsonStart >= 0 && jsonEnd > jsonStart)
                 {
-                    var jsonArray = content.Substring(jsonStart, jsonEnd - jsonStart + 1);
+                    var jsonArray = content.Substring(jsonStart, jsonEnd - jsonStart + 2);
 
                     try
                     {
@@ -529,14 +530,20 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                                 articles.Add(article);
                             }
                         }
+
+                        Debug.WriteLine($"[Perplexity] Parsed {articles.Count} articles from JSON format");
                     }
                     catch
                     {
+                        // JSON parsowanie nie powiodlo sie - uzyj parsowania tekstowego
+                        Debug.WriteLine("[Perplexity] JSON parsing failed, falling back to text parsing");
                         articles.AddRange(ParseTextResponse(content, query));
                     }
                 }
                 else
                 {
+                    // Brak JSON - parsuj tekst naturalny
+                    Debug.WriteLine("[Perplexity] No JSON found, using text parsing");
                     articles.AddRange(ParseTextResponse(content, query));
                 }
             }
@@ -565,7 +572,77 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
         {
             var articles = new List<PerplexityArticle>();
 
-            // Prosta heurystyka - szukaj linii z tytulami
+            // Regex do parsowania ponumerowanych sekcji typu:
+            // 1. **Farmer.pl (3 lutego 2026)**: Ceny skupu drobiu...
+            // lub: 1. Farmer.pl: Ceny skupu...
+            var numberedPattern = new System.Text.RegularExpressions.Regex(
+                @"^\s*(\d+)\.\s*\*{0,2}([^\*\n:]+?)(?:\s*\([^)]+\))?\*{0,2}[:\*]*\s*(.+?)(?=\n\s*\d+\.|$)",
+                System.Text.RegularExpressions.RegexOptions.Multiline | System.Text.RegularExpressions.RegexOptions.Singleline);
+
+            var matches = numberedPattern.Matches(content);
+
+            if (matches.Count > 0)
+            {
+                foreach (System.Text.RegularExpressions.Match match in matches)
+                {
+                    var sourceName = match.Groups[2].Value.Trim();
+                    var articleContent = match.Groups[3].Value.Trim();
+
+                    // Usun znaczniki [1], [2] itp. z tresci
+                    articleContent = System.Text.RegularExpressions.Regex.Replace(articleContent, @"\[\d+\]", "").Trim();
+
+                    // Wyciagnij ewentualna date z nazwy zrodla
+                    var dateMatch = System.Text.RegularExpressions.Regex.Match(sourceName, @"\(([^)]+)\)");
+                    var publishDate = DateTime.Today;
+                    if (dateMatch.Success)
+                    {
+                        var dateStr = dateMatch.Groups[1].Value;
+                        sourceName = System.Text.RegularExpressions.Regex.Replace(sourceName, @"\s*\([^)]+\)", "").Trim();
+
+                        // Probuj parsowac date (np. "3 lutego 2026")
+                        var months = new Dictionary<string, int>
+                        {
+                            {"stycznia", 1}, {"lutego", 2}, {"marca", 3}, {"kwietnia", 4},
+                            {"maja", 5}, {"czerwca", 6}, {"lipca", 7}, {"sierpnia", 8},
+                            {"września", 9}, {"października", 10}, {"listopada", 11}, {"grudnia", 12}
+                        };
+
+                        var polishDateMatch = System.Text.RegularExpressions.Regex.Match(dateStr, @"(\d+)\s+(\w+)\s+(\d{4})");
+                        if (polishDateMatch.Success)
+                        {
+                            var day = int.Parse(polishDateMatch.Groups[1].Value);
+                            var monthName = polishDateMatch.Groups[2].Value.ToLower();
+                            var year = int.Parse(polishDateMatch.Groups[3].Value);
+                            if (months.TryGetValue(monthName, out var month))
+                            {
+                                try { publishDate = new DateTime(year, month, day); } catch { }
+                            }
+                        }
+                    }
+
+                    // Tytul to pierwszych max 150 znakow tresci
+                    var title = articleContent.Length > 150
+                        ? articleContent.Substring(0, 150).TrimEnd() + "..."
+                        : articleContent;
+
+                    var article = new PerplexityArticle
+                    {
+                        Title = $"{sourceName}: {title}",
+                        Snippet = articleContent,  // Pelna tresc!
+                        Source = sourceName,
+                        PublishDate = publishDate,
+                        SearchQuery = query,
+                        Url = ""  // Brak URL - uzywamy tresci z Perplexity
+                    };
+
+                    articles.Add(article);
+                }
+
+                Debug.WriteLine($"[Perplexity] Parsed {articles.Count} articles from numbered format");
+                return articles;
+            }
+
+            // Fallback - stara logika dla innych formatow
             var lines = content.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
 
             PerplexityArticle current = null;
@@ -582,9 +659,11 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                         articles.Add(current);
                     }
 
+                    var titleText = trimmed.TrimStart('-', '*', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', ' ');
                     current = new PerplexityArticle
                     {
-                        Title = trimmed.TrimStart('-', '*', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', ' '),
+                        Title = titleText,
+                        Snippet = titleText,  // Uzyj tytulu jako snippet
                         Source = "Perplexity",
                         PublishDate = DateTime.Today,
                         SearchQuery = query

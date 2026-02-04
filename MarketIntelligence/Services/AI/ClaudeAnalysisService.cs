@@ -266,6 +266,7 @@ Wygeneruj streszczenie poranne w formacie JSON:
             {
                 model = model,
                 max_tokens = maxTokens,
+                system = "Jestes asystentem AI ktory ZAWSZE odpowiada TYLKO w formacie JSON. NIGDY nie uzywaj markdown, NIGDY nie dodawaj ``` przed ani po JSON. Odpowiadaj CZYSTYM JSON bez zadnych dodatkowych znakow.",
                 messages = new[]
                 {
                     new { role = "user", content = prompt }
@@ -387,7 +388,12 @@ PAMIETAJ:
         {
             try
             {
+                Debug.WriteLine($"[ClaudeAnalysis] Raw response length: {response?.Length ?? 0}");
+                Debug.WriteLine($"[ClaudeAnalysis] Response start: {response?.Substring(0, Math.Min(100, response?.Length ?? 0))}");
+
                 var json = ExtractJson(response);
+                Debug.WriteLine($"[ClaudeAnalysis] Extracted JSON start: {json?.Substring(0, Math.Min(100, json?.Length ?? 0))}");
+
                 using var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement;
 
@@ -484,18 +490,37 @@ PAMIETAJ:
 
         private string ExtractJson(string text)
         {
-            // Usun ewentualne markdown ```json ... ```
-            if (text.Contains("```"))
+            if (string.IsNullOrWhiteSpace(text))
+                return "{}";
+
+            // Usun wszystkie bloki markdown ``` ... ```
+            while (text.Contains("```"))
             {
                 var start = text.IndexOf("```");
-                var end = text.LastIndexOf("```");
-                if (start != end)
+                var endMarker = text.IndexOf("```", start + 3);
+
+                if (endMarker > start)
                 {
-                    text = text.Substring(start + 3, end - start - 3);
-                    if (text.StartsWith("json"))
-                        text = text.Substring(4);
+                    // Wyciagnij zawartosc bloku (bez ```)
+                    var blockContent = text.Substring(start + 3, endMarker - start - 3);
+
+                    // Usun ewentualne "json" na poczatku
+                    blockContent = blockContent.TrimStart();
+                    if (blockContent.StartsWith("json", StringComparison.OrdinalIgnoreCase))
+                        blockContent = blockContent.Substring(4);
+
+                    // Zamien caly blok na sama zawartosc
+                    text = text.Substring(0, start) + blockContent + text.Substring(endMarker + 3);
+                }
+                else
+                {
+                    // Niepelny blok - usun samo ```
+                    text = text.Remove(start, 3);
                 }
             }
+
+            // Usun pozostale pojedyncze backticki
+            text = text.Replace("`", "");
 
             // Znajdz pierwszy { lub [
             var jsonStart = text.IndexOfAny(new[] { '{', '[' });
@@ -505,17 +530,44 @@ PAMIETAJ:
                 var openChar = text[jsonStart];
                 var closeChar = openChar == '{' ? '}' : ']';
                 var depth = 0;
+                var inString = false;
+                var escaped = false;
+
                 for (int i = jsonStart; i < text.Length; i++)
                 {
-                    if (text[i] == openChar) depth++;
-                    if (text[i] == closeChar) depth--;
-                    if (depth == 0)
+                    var c = text[i];
+
+                    if (escaped)
                     {
-                        return text.Substring(jsonStart, i - jsonStart + 1);
+                        escaped = false;
+                        continue;
+                    }
+
+                    if (c == '\\' && inString)
+                    {
+                        escaped = true;
+                        continue;
+                    }
+
+                    if (c == '"')
+                    {
+                        inString = !inString;
+                        continue;
+                    }
+
+                    if (!inString)
+                    {
+                        if (c == openChar) depth++;
+                        if (c == closeChar) depth--;
+                        if (depth == 0)
+                        {
+                            return text.Substring(jsonStart, i - jsonStart + 1);
+                        }
                     }
                 }
             }
 
+            Debug.WriteLine($"[ExtractJson] Nie znaleziono JSON w: {text.Substring(0, Math.Min(200, text.Length))}...");
             return text.Trim();
         }
 
