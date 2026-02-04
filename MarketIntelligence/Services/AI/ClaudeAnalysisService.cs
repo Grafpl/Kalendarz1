@@ -954,38 +954,112 @@ Odpowiedz w formacie JSON:
         public List<CustomerInfo> TopCustomers { get; set; } = new();
         public List<PriceInfo> CurrentPrices { get; set; } = new();
         public List<string> Competitors { get; set; } = new();
+        public List<CompetitorInfo> CompetitorsDetailed { get; set; } = new();
+        public ThreatsAndOpportunities Alerts { get; set; }
     }
 
+    /// <summary>
+    /// Informacje o firmie - ROZSZERZONE o sytuację kryzysową
+    /// </summary>
     public class CompanyInfo
     {
         public string Name { get; set; }
         public string Location { get; set; }
         public string Voivodeship { get; set; }
         public int DailyCapacity { get; set; }
+        public int DailyTonnage { get; set; }
         public string Specialization { get; set; }
+
+        // SYTUACJA KRYZYSOWA
+        public string CurrentSituation { get; set; }
+        public decimal MonthlySalesTarget { get; set; }
+        public decimal CurrentMonthlySales { get; set; }
+        public decimal MonthlyLoss { get; set; }
+
+        // Zespół
+        public List<string> SalesReps { get; set; } = new();
+
+        // Hodowcy
+        public int TotalFarmers { get; set; }
+        public List<string> FarmerRegions { get; set; } = new();
+
+        // Aktualne ceny
+        public decimal LiveChickenPrice { get; set; }
+        public decimal CarcassWholesalePrice { get; set; }
+        public decimal FiletWholesalePrice { get; set; }
+        public decimal DrumstickPrice { get; set; }
+        public decimal LiveToFeedRatio { get; set; }
     }
 
+    /// <summary>
+    /// Informacje o hodowcy (dostawcy żywca)
+    /// </summary>
     public class SupplierInfo
     {
         public string Name { get; set; }
         public string Location { get; set; }
-        public string Category { get; set; }
+        public string Category { get; set; } // A/B/C
         public int DistanceKm { get; set; }
+        public int Coops { get; set; } // Liczba kurników
+        public string Notes { get; set; }
     }
 
+    /// <summary>
+    /// Informacje o kliencie
+    /// </summary>
     public class CustomerInfo
     {
         public string Name { get; set; }
         public decimal VolumePallets { get; set; }
         public string SalesRep { get; set; }
+        public string Notes { get; set; } // Uwagi, alarmy, potencjał
     }
 
+    /// <summary>
+    /// Informacje o cenie produktu
+    /// </summary>
     public class PriceInfo
     {
         public string Product { get; set; }
         public decimal Price { get; set; }
         public string Unit { get; set; }
         public DateTime Date { get; set; }
+    }
+
+    /// <summary>
+    /// Szczegółowe informacje o konkurencie
+    /// </summary>
+    public class CompetitorInfo
+    {
+        public string Name { get; set; }
+        public string Location { get; set; }
+        public string Owner { get; set; }
+        public string Status { get; set; }
+        public string Threat { get; set; } // CRITICAL, HIGH, MEDIUM, LOW
+    }
+
+    /// <summary>
+    /// Zagrożenia i szanse do monitorowania
+    /// </summary>
+    public class ThreatsAndOpportunities
+    {
+        public List<string> CriticalThreats { get; set; } = new()
+        {
+            "HPAI: 19 ognisk w PL, 2 w łódzkim (NASZ REGION!)",
+            "Mrozy: -30°C, transport +15-20% kosztów",
+            "Import: Brazylia filet 13 zł vs nasze 15-17 zł",
+            "Mercosur: 180k ton duty-free drób do UE",
+            "KSeF: obowiązkowy 01.04.2026 (integracja z Sage!)",
+            "Nadpodaż Q2: relacja żywiec/pasza 4.24 → hodowcy zwiększają stada"
+        };
+
+        public List<string> Opportunities { get; set; } = new()
+        {
+            "Dino: 300 nowych sklepów - preferuje lokalnych dostawców",
+            "Chata Polska: 210 sklepów w łódzkim - NOWY klient potencjalny",
+            "Chorten: 3000+ sklepów - dynamiczny rozwój",
+            "Spadek cen pasz → niższe koszty hodowców → argument do negocjacji cen skupu w dół"
+        };
     }
 
     #endregion

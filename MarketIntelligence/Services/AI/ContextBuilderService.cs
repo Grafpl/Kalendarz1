@@ -52,13 +52,16 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
 
         /// <summary>
         /// Zbuduj pełny kontekst biznesowy z baz danych
+        /// ROZSZERZONY: zawiera szczegóły o konkurentach, zagrożeniach i szansach
         /// </summary>
         public async Task<BusinessContext> BuildContextAsync()
         {
             var context = new BusinessContext
             {
                 Company = GetCompanyInfo(),
-                Competitors = GetCompetitors()
+                Competitors = GetCompetitors(),
+                CompetitorsDetailed = GetCompetitorsDetailed(),
+                Alerts = new ThreatsAndOpportunities()
             };
 
             // Run database queries in parallel
@@ -77,12 +80,19 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
             catch (Exception ex)
             {
                 Debug.WriteLine($"[ContextBuilder] Error building context: {ex.Message}");
+
+                // Use defaults if DB fails
+                context.TopCustomers = GetDefaultCustomers();
+                context.CurrentPrices = GetDefaultPrices();
+                context.TopSuppliers = GetDefaultSuppliers();
             }
+
+            Debug.WriteLine($"[ContextBuilder] Context built: {context.TopCustomers.Count} customers, {context.TopSuppliers.Count} suppliers, {context.CompetitorsDetailed.Count} competitors");
 
             return context;
         }
 
-        #region Company Info (static)
+        #region Company Info (static) - PEŁNY KONTEKST BIZNESOWY
 
         private CompanyInfo GetCompanyInfo()
         {
@@ -92,26 +102,142 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
                 Location = "Brzeziny",
                 Voivodeship = "łódzkie",
                 DailyCapacity = 70000,
-                Specialization = "kurczak brojler"
+                DailyTonnage = 200,
+                Specialization = "kurczak brojler",
+
+                // SYTUACJA KRYZYSOWA
+                CurrentSituation = "KRYZYS - sprzedaż spadła 40% (z 25M do 15M PLN/mies.), straty ~2M PLN/mies.",
+                MonthlySalesTarget = 25_000_000,
+                CurrentMonthlySales = 15_000_000,
+                MonthlyLoss = 2_000_000,
+
+                // Handlowcy
+                SalesReps = new List<string> { "Jola", "Ania", "Teresa", "Maja", "Radek", "Daniel" },
+
+                // Hodowcy
+                TotalFarmers = 140,
+                FarmerRegions = new List<string> { "łódzkie", "wielkopolskie", "mazowieckie" },
+
+                // Aktualne ceny (luty 2026)
+                LiveChickenPrice = 4.72m,
+                CarcassWholesalePrice = 7.33m,
+                FiletWholesalePrice = 24.50m,
+                DrumstickPrice = 8.90m,
+
+                // Relacja cen
+                LiveToFeedRatio = 4.24m // Najlepsza od 2 lat - hodowcy zarabiają
+            };
+        }
+
+        /// <summary>
+        /// Szczegółowa lista konkurentów z informacjami o właścicielach i statusie
+        /// </summary>
+        private List<CompetitorInfo> GetCompetitorsDetailed()
+        {
+            return new List<CompetitorInfo>
+            {
+                new CompetitorInfo
+                {
+                    Name = "Cedrob",
+                    Location = "Ujazdówek",
+                    Owner = "ADQ Abu Dhabi (negocjacje przejęcia za 8 mld PLN)",
+                    Status = "NAJWIĘKSZY w PL - jeśli ADQ kupi = monopol 40%+ rynku",
+                    Threat = "CRITICAL"
+                },
+                new CompetitorInfo
+                {
+                    Name = "SuperDrob / LipCo Foods",
+                    Location = "Karczew",
+                    Owner = "LipCo Foods, Zbigniew Jagiełło (ex-PKO BP) w Radzie Nadzorczej",
+                    Status = "CPF Tajlandia partner strategiczny, 180 mln inwestycji",
+                    Threat = "HIGH"
+                },
+                new CompetitorInfo
+                {
+                    Name = "Drosed",
+                    Location = "Siedlce",
+                    Owner = "LDC Group (Francja) / ADQ Abu Dhabi",
+                    Status = "ADQ kontroluje przez LDC - jeśli kupi też Cedrob = MONOPOL",
+                    Threat = "CRITICAL"
+                },
+                new CompetitorInfo
+                {
+                    Name = "Animex Foods",
+                    Location = "Warszawa",
+                    Owner = "WH Group (Chiny)",
+                    Status = "Stabilny, chiński kapitał",
+                    Threat = "MEDIUM"
+                },
+                new CompetitorInfo
+                {
+                    Name = "Drobimex",
+                    Location = "Szczecin",
+                    Owner = "PHW / Wiesenhof (Niemcy)",
+                    Status = "Grupa PHW - silny niemiecki kapitał",
+                    Threat = "MEDIUM"
+                },
+                new CompetitorInfo
+                {
+                    Name = "Wipasz",
+                    Location = "Olsztyn",
+                    Owner = "Polski kapitał",
+                    Status = "Zintegrowany pionowo pasza→ubój",
+                    Threat = "MEDIUM"
+                },
+                new CompetitorInfo
+                {
+                    Name = "Gobarto",
+                    Location = "Poznań",
+                    Owner = "Grupa Cedrob",
+                    Status = "Część grupy Cedrob",
+                    Threat = "HIGH"
+                },
+                new CompetitorInfo
+                {
+                    Name = "Indykpol",
+                    Location = "Olsztyn",
+                    Owner = "LDC Group / ADQ",
+                    Status = "Indyki - kontrolowany przez ADQ",
+                    Threat = "MEDIUM"
+                },
+                new CompetitorInfo
+                {
+                    Name = "Plukon Food Group",
+                    Location = "Holandia/Polska",
+                    Owner = "Holenderski kapitał",
+                    Status = "Europejski gigant, ekspansja w PL",
+                    Threat = "MEDIUM"
+                },
+                new CompetitorInfo
+                {
+                    Name = "Roldrob",
+                    Location = "Ostrów Wielkopolski",
+                    Owner = "Polski kapitał",
+                    Status = "Średni producent",
+                    Threat = "LOW"
+                },
+                new CompetitorInfo
+                {
+                    Name = "System-Drob",
+                    Location = "Polska",
+                    Owner = "Polski kapitał",
+                    Status = "Producent eksportowy",
+                    Threat = "LOW"
+                },
+                new CompetitorInfo
+                {
+                    Name = "Drobex",
+                    Location = "Polska",
+                    Owner = "Polski kapitał",
+                    Status = "Mniejszy producent",
+                    Threat = "LOW"
+                }
             };
         }
 
         private List<string> GetCompetitors()
         {
-            return new List<string>
-            {
-                "Cedrob",
-                "SuperDrob",
-                "Drosed",
-                "Animex",
-                "Indykpol",
-                "Drobimex",
-                "Wipasz",
-                "Konspol",
-                "Farmio",
-                "Sokołów",
-                "Morliny"
-            };
+            return GetCompetitorsDetailed().Select(c => c.Name).ToList();
         }
 
         #endregion
@@ -170,15 +296,33 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
             return customers;
         }
 
+        /// <summary>
+        /// Domyślna lista klientów z przypisanymi handlowcami
+        /// UWAGA: RADDROB to hurtownia ALE też ma własną ubojnię = konkurent!
+        /// </summary>
         private List<CustomerInfo> GetDefaultCustomers()
         {
             return new List<CustomerInfo>
             {
-                new CustomerInfo { Name = "Biedronka", VolumePallets = 150, SalesRep = "Nowak" },
-                new CustomerInfo { Name = "Lidl", VolumePallets = 120, SalesRep = "Kowalski" },
-                new CustomerInfo { Name = "Kaufland", VolumePallets = 80, SalesRep = "Nowak" },
-                new CustomerInfo { Name = "Auchan", VolumePallets = 60, SalesRep = "Wiśniewski" },
-                new CustomerInfo { Name = "Carrefour", VolumePallets = 50, SalesRep = "Wiśniewski" }
+                // TOP klienci
+                new CustomerInfo { Name = "RADDROB", VolumePallets = 540, SalesRep = "Jola", Notes = "UWAGA: Hurtownia ale też ma ubojnię = konkurent!" },
+                new CustomerInfo { Name = "Makro", VolumePallets = 480, SalesRep = "Ania", Notes = "Import brazylijski na półkach - konkurencja cenowa" },
+                new CustomerInfo { Name = "Selgros", VolumePallets = 420, SalesRep = "Ania", Notes = "SPADEK -80 palet - sprawdzić!" },
+                new CustomerInfo { Name = "Biedronka DC", VolumePallets = 380, SalesRep = "", Notes = "NIEPRZYPISANY! Potencjał ogromny" },
+                new CustomerInfo { Name = "Stokrotka", VolumePallets = 280, SalesRep = "Maja", Notes = "5 dni bez zamówienia - ALARM!" },
+                new CustomerInfo { Name = "Dino", VolumePallets = 250, SalesRep = "Jola", Notes = "ROŚNIE +40 palet, 300 nowych sklepów w 2026" },
+                new CustomerInfo { Name = "Netto", VolumePallets = 180, SalesRep = "Teresa" },
+                new CustomerInfo { Name = "Polomarket", VolumePallets = 150, SalesRep = "Maja" },
+                new CustomerInfo { Name = "E.Leclerc", VolumePallets = 140, SalesRep = "Radek" },
+                new CustomerInfo { Name = "Topaz", VolumePallets = 120, SalesRep = "Daniel" },
+                new CustomerInfo { Name = "Intermarche", VolumePallets = 100, SalesRep = "Radek" },
+                new CustomerInfo { Name = "ABC", VolumePallets = 90, SalesRep = "Daniel" },
+                new CustomerInfo { Name = "Delikatesy Centrum", VolumePallets = 85, SalesRep = "Teresa" },
+                new CustomerInfo { Name = "Carrefour", VolumePallets = 80, SalesRep = "Ania" },
+
+                // POTENCJALNI NOWI KLIENCI
+                new CustomerInfo { Name = "Chata Polska", VolumePallets = 0, SalesRep = "", Notes = "POTENCJALNY! 210 sklepów w łódzkim" },
+                new CustomerInfo { Name = "Chorten", VolumePallets = 0, SalesRep = "", Notes = "POTENCJALNY! 3000+ sklepów, dynamiczny rozwój" }
             };
         }
 
@@ -242,15 +386,32 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
             return suppliers;
         }
 
+        /// <summary>
+        /// Domyślna lista hodowców (dostawców żywca)
+        /// UWAGA: Hodowcy blisko stref HPAI są zagrożeni!
+        /// Transport >60km zimą = nieopłacalny (Avilog 116-145 zł/km)
+        /// </summary>
         private List<SupplierInfo> GetDefaultSuppliers()
         {
             return new List<SupplierInfo>
             {
-                new SupplierInfo { Name = "Ferma Kowalski", Location = "Tomaszów", Category = "A", DistanceKm = 45 },
-                new SupplierInfo { Name = "Hodowla Nowak", Location = "Rawa", Category = "A", DistanceKm = 30 },
-                new SupplierInfo { Name = "Drobex", Location = "Skierniewice", Category = "B", DistanceKm = 35 },
-                new SupplierInfo { Name = "Ferma Wiśniewski", Location = "Łódź", Category = "B", DistanceKm = 40 },
-                new SupplierInfo { Name = "Brojler Plus", Location = "Koluszki", Category = "A", DistanceKm = 20 }
+                // KATEGORIA A - utrzymać bezwzględnie
+                new SupplierInfo { Name = "Sukiennikowa", Location = "Brzeziny", Category = "A", DistanceKm = 20, Coops = 3, Notes = "Utrzymać bezwzględnie" },
+                new SupplierInfo { Name = "Kaczmarek", Location = "Brzeziny", Category = "A", DistanceKm = 20, Coops = 2 },
+                new SupplierInfo { Name = "Wojciechowski", Location = "Brzeziny", Category = "A", DistanceKm = 7, Coops = 2, Notes = "NAJBLIŻSZY hodowca" },
+                new SupplierInfo { Name = "Nowak Ferma", Location = "Koluszki", Category = "A", DistanceKm = 15, Coops = 3 },
+                new SupplierInfo { Name = "Tomaszewski", Location = "Rawa Mazowiecka", Category = "A", DistanceKm = 25, Coops = 4 },
+
+                // KATEGORIA B - do monitorowania
+                new SupplierInfo { Name = "Kowalski", Location = "Tomaszów Maz.", Category = "B", DistanceKm = 45, Notes = "BLISKO STREFY HPAI! Monitorować" },
+                new SupplierInfo { Name = "Jankowski", Location = "Skierniewice", Category = "B", DistanceKm = 35, Coops = 2 },
+                new SupplierInfo { Name = "Mazur", Location = "Łowicz", Category = "B", DistanceKm = 50, Coops = 2 },
+                new SupplierInfo { Name = "Dąbrowski", Location = "Łódź", Category = "B", DistanceKm = 30, Coops = 1 },
+
+                // KATEGORIA C - drogi transport, rozważyć rezygnację zimą
+                new SupplierInfo { Name = "Wiśniewski", Location = "Sieradz", Category = "C", DistanceKm = 95, Notes = "DROGI TRANSPORT - rozważyć rezygnację zimą" },
+                new SupplierInfo { Name = "Zieliński", Location = "Kalisz", Category = "C", DistanceKm = 110, Notes = "Zbyt daleko - tylko w sezonie" },
+                new SupplierInfo { Name = "Kamiński", Location = "Piotrków Tryb.", Category = "C", DistanceKm = 55, Coops = 2, Notes = "Na granicy opłacalności" }
             };
         }
 
