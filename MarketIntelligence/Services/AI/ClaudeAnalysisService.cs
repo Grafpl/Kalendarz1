@@ -42,7 +42,7 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
         public ClaudeAnalysisService()
         {
             _httpClient = new HttpClient();
-            _httpClient.Timeout = TimeSpan.FromMinutes(2);
+            _httpClient.Timeout = TimeSpan.FromMinutes(5); // Zwiekszone z 2 do 5 minut dla dlugich analiz
 
             // Probuj pobrac klucz API z roznych zrodel
             _apiKey = Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY")
@@ -101,7 +101,7 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
 
             try
             {
-                var response = await CallClaudeAsync(prompt, SonnetModel, 8000, ct);
+                var response = await CallClaudeAsync(prompt, SonnetModel, 4000, ct); // Zmniejszone z 8000 dla szybszej odpowiedzi
                 return ParseAnalysisResponse(response, title);
             }
             catch (Exception ex)
