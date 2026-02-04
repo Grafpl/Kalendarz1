@@ -395,5 +395,23 @@ namespace Kalendarz1.MarketIntelligence.Views
             => throw new NotImplementedException();
     }
 
+    /// <summary>
+    /// Converts boolean to green (true) or red (false) color
+    /// </summary>
+    public class BoolToGreenRedConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is bool b && b)
+            {
+                return new SolidColorBrush(Color.FromRgb(109, 175, 109)); // Green
+            }
+            return new SolidColorBrush(Color.FromRgb(192, 80, 80)); // Red
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
     #endregion
 }

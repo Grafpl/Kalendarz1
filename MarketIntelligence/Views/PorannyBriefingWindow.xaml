@@ -32,6 +32,9 @@
             <!-- Role-based Analysis Converter -->
             <local:RoleBasedAnalysisConverter x:Key="RoleAnalysisConverter"/>
 
+            <!-- Bool to Green/Red Color Converter -->
+            <local:BoolToGreenRedConverter x:Key="BoolToGreenRed"/>
+
         </ResourceDictionary>
     </Window.Resources>
 
@@ -154,20 +157,251 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
-                <!-- Tasks Button -->
-                <Button Grid.Column="1" Style="{StaticResource TasksButton}"
-                        Click="TasksButton_Click">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="⚡" FontSize="12" Margin="0,0,6,0"/>
-                        <TextBlock Text="{Binding UrgentTasksCount, StringFormat={}{0} pilnych zadan}"
-                                   FontSize="11" FontWeight="SemiBold"/>
-                    </StackPanel>
-                </Button>
+                <!-- Action Buttons -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <!-- Refresh from Internet Button -->
+                    <Button x:Name="btnRefreshInternet" Margin="0,0,8,0"
+                            Command="{Binding RefreshFromInternetCommand}"
+                            Style="{StaticResource TasksButton}"
+                            ToolTip="Pobierz artykuly z internetu i przeanalizuj przez AI (pelny skan ~3 min)">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Pobierz z internetu" FontSize="11" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Quick Refresh Button -->
+                    <Button x:Name="btnQuickRefresh" Margin="0,0,8,0"
+                            Command="{Binding QuickRefreshCommand}"
+                            Style="{StaticResource TasksButton}"
+                            ToolTip="Szybki briefing - 20 najwazniejszych zapytan (~30 sek)">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Szybki" FontSize="11" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Diagnostics Button -->
+                    <Button x:Name="btnDiagnostics" Margin="0,0,8,0"
+                            Command="{Binding ToggleDiagnosticsCommand}"
+                            Style="{StaticResource TasksButton}"
+                            ToolTip="Pokaz panel diagnostyczny API">
+                        <TextBlock Text="Diagnostyka" FontSize="11" FontWeight="SemiBold"/>
+                    </Button>
+
+                    <!-- Tasks Button -->
+                    <Button Style="{StaticResource TasksButton}"
+                            Click="TasksButton_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding UrgentTasksCount, StringFormat={}{0} pilnych}"
+                                       FontSize="11" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
             </Grid>
         </Border>
 
         <!-- ═══════════════════════════════════════════════════════════════════════ -->
-        <!-- ROW 3: TASKS PANEL (Collapsible)                                        -->
+        <!-- ROW 2.5: PROGRESS BAR (when fetching)                                   -->
+        <!-- ═══════════════════════════════════════════════════════════════════════ -->
+        <Border Grid.Row="2" Background="#1A1510" BorderBrush="#2A2520" BorderThickness="0,0,0,1"
+                Visibility="{Binding IsFetching, Converter={StaticResource BoolToVis}}"
+                VerticalAlignment="Bottom" Padding="24,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{Binding FetchProgressStage}"
+                           FontSize="11" FontWeight="SemiBold" Foreground="#C9A96E"
+                           VerticalAlignment="Center" Margin="0,0,12,0"/>
+                <ProgressBar Grid.Column="1" Value="{Binding FetchProgressPercent}"
+                             Minimum="0" Maximum="100" Height="6"
+                             Background="#2A2520" Foreground="#C9A96E"/>
+                <TextBlock Grid.Column="2" Text="{Binding FetchProgressDetail}"
+                           FontSize="10" Foreground="#7A6F63"
+                           VerticalAlignment="Center" Margin="12,0,12,0"
+                           MaxWidth="300" TextTrimming="CharacterEllipsis"/>
+                <Button Grid.Column="3" Content="Anuluj"
+                        Command="{Binding CancelFetchCommand}"
+                        FontSize="10" Padding="8,2"
+                        Background="#5A2525" Foreground="#F5EDE0"
+                        BorderThickness="0"/>
+            </Grid>
+        </Border>
+
+        <!-- ═══════════════════════════════════════════════════════════════════════ -->
+        <!-- ROW 3: DIAGNOSTICS PANEL (Collapsible)                                  -->
+        <!-- ═══════════════════════════════════════════════════════════════════════ -->
+        <Border Grid.Row="3" Background="#12150F" BorderBrush="#2A3520" BorderThickness="0,0,0,1"
+                Visibility="{Binding IsDiagnosticsPanelVisible, Converter={StaticResource BoolToVis}}"
+                Padding="24,12" MaxHeight="250">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" MinWidth="280"/>
+                    <ColumnDefinition Width="Auto" MinWidth="280"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- API Configuration -->
+                <StackPanel Grid.Column="0" Margin="0,0,24,0">
+                    <TextBlock Text="KONFIGURACJA API" FontSize="9" FontWeight="Bold"
+                               Foreground="#6DAF6D" Margin="0,0,0,8"/>
+
+                    <Grid Margin="0,0,0,4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Claude API:" FontSize="10" Foreground="#7A6F63"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <TextBlock Text="{Binding Diagnostics.ClaudeStatusIcon}" FontSize="10" FontWeight="Bold"
+                                       Foreground="{Binding Diagnostics.IsClaudeConfigured, Converter={StaticResource BoolToGreenRed}}"/>
+                            <TextBlock Text="{Binding Diagnostics.ClaudeApiKeyPreview}" FontSize="9"
+                                       Foreground="#5A5248" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid Margin="0,0,0,4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Model:" FontSize="10" Foreground="#7A6F63"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Diagnostics.ClaudeModel}" FontSize="9" Foreground="#D5CCC0"/>
+                    </Grid>
+
+                    <Grid Margin="0,0,0,4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Perplexity API:" FontSize="10" Foreground="#7A6F63"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <TextBlock Text="{Binding Diagnostics.PerplexityStatusIcon}" FontSize="10" FontWeight="Bold"
+                                       Foreground="{Binding Diagnostics.IsPerplexityConfigured, Converter={StaticResource BoolToGreenRed}}"/>
+                            <TextBlock Text="{Binding Diagnostics.PerplexityApiKeyPreview}" FontSize="9"
+                                       Foreground="#5A5248" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <Button Content="Test Claude" Command="{Binding TestClaudeApiCommand}"
+                                FontSize="9" Padding="8,3" Margin="0,0,8,0"
+                                Background="#2A3520" Foreground="#6DAF6D" BorderThickness="0"/>
+                        <Button Content="Test Perplexity" Command="{Binding TestPerplexityApiCommand}"
+                                FontSize="9" Padding="8,3"
+                                Background="#2A3520" Foreground="#6DAF6D" BorderThickness="0"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Pipeline Stats -->
+                <StackPanel Grid.Column="1" Margin="0,0,24,0">
+                    <TextBlock Text="STATYSTYKI PIPELINE" FontSize="9" FontWeight="Bold"
+                               Foreground="#C9A96E" Margin="0,0,0,8"/>
+
+                    <Grid Margin="0,0,0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="60"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Perplexity:" FontSize="10" Foreground="#7A6F63"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Diagnostics.PerplexityArticlesCount, StringFormat={}{0} art.}"
+                                   FontSize="10" Foreground="#D5CCC0"/>
+                        <TextBlock Grid.Column="2" Text="{Binding Diagnostics.PerplexityTimeDisplay}"
+                                   FontSize="9" Foreground="#5A5248"/>
+                    </Grid>
+
+                    <Grid Margin="0,0,0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Po filtrowaniu:" FontSize="10" Foreground="#7A6F63"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Diagnostics.FilteredCount}"
+                                   FontSize="10" Foreground="#D5CCC0"/>
+                    </Grid>
+
+                    <Grid Margin="0,0,0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Wzbogaconych:" FontSize="10" Foreground="#7A6F63"/>
+                        <TextBlock Grid.Column="1" FontSize="10" Foreground="#D5CCC0">
+                            <Run Text="{Binding Diagnostics.EnrichedCount, Mode=OneWay}"/>
+                            <Run Text=" ("/>
+                            <Run Text="{Binding Diagnostics.EnrichmentFailedCount, Mode=OneWay}" Foreground="#C05050"/>
+                            <Run Text=" failed)"/>
+                        </TextBlock>
+                    </Grid>
+
+                    <Grid Margin="0,0,0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Przeanalizowanych AI:" FontSize="10" Foreground="#7A6F63"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Diagnostics.AnalyzedCount}"
+                                   FontSize="10" FontWeight="Bold" Foreground="#6DAF6D"/>
+                    </Grid>
+
+                    <Grid Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Szacowany koszt:" FontSize="10" Foreground="#7A6F63"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Diagnostics.TotalCostDisplay}"
+                                   FontSize="10" FontWeight="Bold" Foreground="#C9A96E"/>
+                    </Grid>
+                </StackPanel>
+
+                <!-- Logs -->
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="LOGI" FontSize="9" FontWeight="Bold"
+                               Foreground="#8B7355" Margin="0,0,0,8"/>
+                    <ScrollViewer MaxHeight="150" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding Diagnostics.LogEntries}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                        <TextBlock Text="{Binding TimestampDisplay}" FontSize="9"
+                                                   Foreground="#5A5248" Width="50"/>
+                                        <TextBlock Text="{Binding LevelIcon}" FontSize="9" Width="20"
+                                                   FontWeight="Bold">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="#7A6F63"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Level}" Value="Error">
+                                                            <Setter Property="Foreground" Value="#C05050"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Level}" Value="Success">
+                                                            <Setter Property="Foreground" Value="#6DAF6D"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Level}" Value="Warning">
+                                                            <Setter Property="Foreground" Value="#D4A035"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                        <TextBlock Text="{Binding Message}" FontSize="9"
+                                                   Foreground="#D5CCC0" TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis" MaxWidth="400"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ═══════════════════════════════════════════════════════════════════════ -->
+        <!-- ROW 3b: TASKS PANEL (Collapsible)                                       -->
         <!-- ═══════════════════════════════════════════════════════════════════════ -->
         <Border Grid.Row="3" Background="#1C1210" BorderBrush="#5A2525" BorderThickness="0,0,0,1"
                 Visibility="{Binding IsTasksPanelVisible, Converter={StaticResource BoolToVis}}"

@@ -5,8 +5,11 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Input;
 using Kalendarz1.MarketIntelligence.Models;
+using Kalendarz1.MarketIntelligence.Services;
 
 namespace Kalendarz1.MarketIntelligence.ViewModels
 {
@@ -70,6 +73,9 @@ namespace Kalendarz1.MarketIntelligence.ViewModels
             CurrentRole = UserRole.CEO;
             SelectedCategory = "Wszystkie";
             CurrentDate = DateTime.Now;
+
+            // Initialize internet commands
+            InitializeInternetCommands();
 
             // Load data
             LoadSeedData();
@@ -1932,6 +1938,183 @@ Plan awaryjny:
                 relacjaData.DataPoints.Add(new PricePoint(today.AddDays(-i), 3.8m + (decimal)(i * 0.015)));
             }
             ChartSeries.Add(relacjaData);
+        }
+
+        #endregion
+
+        #region Internet Data Fetching
+
+        private NewsFetchOrchestrator _orchestrator;
+        private CancellationTokenSource _fetchCancellation;
+
+        public NewsFetchOrchestrator Orchestrator
+        {
+            get
+            {
+                if (_orchestrator == null)
+                {
+                    _orchestrator = new NewsFetchOrchestrator();
+                }
+                return _orchestrator;
+            }
+        }
+
+        public DiagnosticInfo Diagnostics => Orchestrator.Diagnostics;
+
+        private string _fetchProgressStage;
+        public string FetchProgressStage
+        {
+            get => _fetchProgressStage;
+            set => SetProperty(ref _fetchProgressStage, value);
+        }
+
+        private double _fetchProgressPercent;
+        public double FetchProgressPercent
+        {
+            get => _fetchProgressPercent;
+            set => SetProperty(ref _fetchProgressPercent, value);
+        }
+
+        private string _fetchProgressDetail;
+        public string FetchProgressDetail
+        {
+            get => _fetchProgressDetail;
+            set => SetProperty(ref _fetchProgressDetail, value);
+        }
+
+        private bool _isFetching;
+        public bool IsFetching
+        {
+            get => _isFetching;
+            set
+            {
+                if (SetProperty(ref _isFetching, value))
+                {
+                    OnPropertyChanged(nameof(CanFetch));
+                }
+            }
+        }
+
+        public bool CanFetch => !IsFetching;
+
+        private bool _isDiagnosticsPanelVisible;
+        public bool IsDiagnosticsPanelVisible
+        {
+            get => _isDiagnosticsPanelVisible;
+            set => SetProperty(ref _isDiagnosticsPanelVisible, value);
+        }
+
+        public ICommand RefreshFromInternetCommand { get; private set; }
+        public ICommand QuickRefreshCommand { get; private set; }
+        public ICommand CancelFetchCommand { get; private set; }
+        public ICommand ToggleDiagnosticsCommand { get; private set; }
+        public ICommand TestClaudeApiCommand { get; private set; }
+        public ICommand TestPerplexityApiCommand { get; private set; }
+
+        private void InitializeInternetCommands()
+        {
+            RefreshFromInternetCommand = new RelayCommand(async _ => await RefreshFromInternetAsync(false), _ => CanFetch);
+            QuickRefreshCommand = new RelayCommand(async _ => await RefreshFromInternetAsync(true), _ => CanFetch);
+            CancelFetchCommand = new RelayCommand(_ => CancelFetch(), _ => IsFetching);
+            ToggleDiagnosticsCommand = new RelayCommand(_ => IsDiagnosticsPanelVisible = !IsDiagnosticsPanelVisible);
+            TestClaudeApiCommand = new RelayCommand(async _ => await TestClaudeApiAsync());
+            TestPerplexityApiCommand = new RelayCommand(async _ => await TestPerplexityApiAsync());
+        }
+
+        /// <summary>
+        /// Pobiera artykuly z internetu i analizuje przez AI
+        /// </summary>
+        public async Task RefreshFromInternetAsync(bool quickMode = false)
+        {
+            if (IsFetching) return;
+
+            IsFetching = true;
+            IsLoading = true;
+            _fetchCancellation = new CancellationTokenSource();
+
+            var progress = new Progress<(string stage, double progress, string detail)>(p =>
+            {
+                FetchProgressStage = p.stage;
+                FetchProgressPercent = p.progress;
+                FetchProgressDetail = p.detail;
+            });
+
+            try
+            {
+                Diagnostics.AddLog($"Rozpoczynam {(quickMode ? "szybkie" : "pelne")} pobieranie...");
+
+                var articles = await Orchestrator.FetchAndAnalyzeAsync(quickMode, progress, _fetchCancellation.Token);
+
+                if (articles.Any())
+                {
+                    // Zastap artykuly nowymi
+                    AllArticles.Clear();
+                    foreach (var article in articles)
+                    {
+                        AllArticles.Add(article);
+                    }
+                    ApplyFilters();
+
+                    Diagnostics.AddSuccess($"Pobrano i przeanalizowano {articles.Count} artykulow");
+                }
+                else
+                {
+                    Diagnostics.AddWarning("Nie pobrano zadnych artykulow. Sprawdz konfiguracje API.");
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                Diagnostics.AddWarning("Pobieranie anulowane");
+            }
+            catch (Exception ex)
+            {
+                Diagnostics.AddError($"Blad: {ex.Message}");
+                Debug.WriteLine($"RefreshFromInternet error: {ex}");
+            }
+            finally
+            {
+                IsFetching = false;
+                IsLoading = false;
+                FetchProgressStage = "";
+                FetchProgressPercent = 0;
+                FetchProgressDetail = "";
+            }
+        }
+
+        public void CancelFetch()
+        {
+            _fetchCancellation?.Cancel();
+            Diagnostics.AddWarning("Anulowano pobieranie");
+        }
+
+        public async Task TestClaudeApiAsync()
+        {
+            Diagnostics.AddLog("Testuje polaczenie z Claude API...");
+            var (claudeOk, claudeMsg, _, _) = await Orchestrator.TestConnectionsAsync();
+
+            if (claudeOk)
+            {
+                Diagnostics.AddSuccess($"Claude API: {claudeMsg}");
+            }
+            else
+            {
+                Diagnostics.AddError($"Claude API: {claudeMsg}");
+            }
+        }
+
+        public async Task TestPerplexityApiAsync()
+        {
+            Diagnostics.AddLog("Testuje polaczenie z Perplexity API...");
+            var (_, _, perplexityOk, perplexityMsg) = await Orchestrator.TestConnectionsAsync();
+
+            if (perplexityOk)
+            {
+                Diagnostics.AddSuccess($"Perplexity API: {perplexityMsg}");
+            }
+            else
+            {
+                Diagnostics.AddError($"Perplexity API: {perplexityMsg}");
+            }
         }
 
         #endregion
