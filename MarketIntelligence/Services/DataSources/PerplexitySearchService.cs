@@ -12,8 +12,10 @@ using System.Threading.Tasks;
 namespace Kalendarz1.MarketIntelligence.Services.DataSources
 {
     /// <summary>
-    /// Serwis do wyszukiwania wiadomosci przez Perplexity AI
+    /// [PRZESTARZAŁE] Serwis do wyszukiwania wiadomości przez Perplexity AI.
+    /// Użyj BingNewsSearchService zamiast tego.
     /// </summary>
+    [Obsolete("PerplexitySearchService jest przestarzały. Użyj BingNewsSearchService zamiast tego.", false)]
     public class PerplexitySearchService
     {
         private readonly HttpClient _httpClient;

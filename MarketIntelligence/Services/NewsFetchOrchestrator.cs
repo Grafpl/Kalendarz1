@@ -11,12 +11,13 @@ using Kalendarz1.MarketIntelligence.Services.DataSources;
 namespace Kalendarz1.MarketIntelligence.Services
 {
     /// <summary>
-    /// Glowny orchestrator pipeline'u pobierania i analizy wiadomosci
+    /// Główny orchestrator pipeline'u pobierania i analizy wiadomości.
+    /// Używa Bing News Search jako źródła danych.
     /// </summary>
     public class NewsFetchOrchestrator
     {
         private readonly ClaudeAnalysisService _claudeService;
-        private readonly PerplexitySearchService _perplexityService;
+        private readonly BingNewsSearchService _newsService;
         private readonly ContentEnrichmentService _enrichmentService;
         private readonly ContentFilterService _filterService;
         private readonly MarketIntelligenceService _dbService;
@@ -65,12 +66,12 @@ SZANSE:
         public NewsFetchOrchestrator(string connectionString = null)
         {
             _claudeService = new ClaudeAnalysisService();
-            _perplexityService = new PerplexitySearchService();
+            _newsService = new BingNewsSearchService();
             _enrichmentService = new ContentEnrichmentService();
             _filterService = new ContentFilterService();
             _dbService = new MarketIntelligenceService(connectionString);
 
-            // Inicjalizuj diagnostyke
+            // Inicjalizuj diagnostykę
             RefreshApiStatus();
         }
 
@@ -83,17 +84,18 @@ SZANSE:
             Diagnostics.ClaudeApiKeyPreview = _claudeService.ApiKeyPreview;
             Diagnostics.ClaudeModel = ClaudeAnalysisService.SonnetModel;
 
-            Diagnostics.IsPerplexityConfigured = _perplexityService.IsConfigured;
-            Diagnostics.PerplexityApiKeyPreview = _perplexityService.ApiKeyPreview;
+            // Bing News Search (zamiast Perplexity)
+            Diagnostics.IsPerplexityConfigured = _newsService.IsConfigured;
+            Diagnostics.PerplexityApiKeyPreview = _newsService.ApiKeyPreview;
         }
 
         /// <summary>
-        /// Testuje polaczenie z API
+        /// Testuje połączenie z API (Claude + Bing News)
         /// </summary>
         public async Task<(bool ClaudeOk, string ClaudeMsg, bool PerplexityOk, string PerplexityMsg)> TestConnectionsAsync(CancellationToken ct = default)
         {
             var claudeTask = _claudeService.TestConnectionAsync(ct);
-            var perplexityTask = _perplexityService.TestConnectionAsync(ct);
+            var perplexityTask = _newsService.TestConnectionAsync(ct); // Bing zamiast Perplexity
 
             await Task.WhenAll(claudeTask, perplexityTask);
 
@@ -129,7 +131,7 @@ SZANSE:
                 Diagnostics.AddLog("Rozpoczynam pobieranie z Perplexity");
 
                 var perplexityStopwatch = Stopwatch.StartNew();
-                var queries = quickMode ? _perplexityService.GetQuickQueries() : _perplexityService.GetAllQueries();
+                var queries = quickMode ? _newsService.GetQuickQueries() : _newsService.GetAllQueries();
                 Diagnostics.PerplexityQueriesTotal = queries.Count;
 
                 var perplexityProgress = new Progress<(int completed, int total, string query)>(p =>
@@ -139,12 +141,12 @@ SZANSE:
                     progress?.Report(("Perplexity", pct, $"Zapytanie {p.completed}/{p.total}: {p.query}"));
                 });
 
-                var perplexityArticles = await _perplexityService.FetchAllNewsAsync(perplexityProgress, quickMode, ct);
+                var perplexityArticles = await _newsService.FetchAllNewsAsync(perplexityProgress, quickMode, ct);
                 perplexityStopwatch.Stop();
 
                 Diagnostics.PerplexityArticlesCount = perplexityArticles.Count;
                 Diagnostics.PerplexityTime = perplexityStopwatch.Elapsed;
-                Diagnostics.PerplexityCostEstimate = _perplexityService.EstimateTotalCost(queries.Count);
+                Diagnostics.PerplexityCostEstimate = _newsService.EstimateCost(queries.Count);
                 Diagnostics.AddSuccess($"Perplexity: {perplexityArticles.Count} artykulow z {queries.Count} zapytan");
 
                 if (ct.IsCancellationRequested) return allArticles;
@@ -360,7 +362,7 @@ SZANSE:
                 Diagnostics.AddLog("Wysylam testowe zapytanie: 'ceny drobiu Polska luty 2026'");
 
                 var perplexityStopwatch = Stopwatch.StartNew();
-                var (articles, debugInfo) = await _perplexityService.SearchWithDebugAsync("ceny drobiu Polska luty 2026", ct);
+                var (articles, debugInfo) = await _newsService.SearchWithDebugAsync("ceny drobiu Polska luty 2026", ct);
                 perplexityStopwatch.Stop();
 
                 Diagnostics.PerplexityTime = perplexityStopwatch.Elapsed;
@@ -582,7 +584,7 @@ SZANSE:
                 Diagnostics.AddLog("=== ETAP 1: PERPLEXITY ===");
 
                 var perplexityStopwatch = Stopwatch.StartNew();
-                var (articles, debugInfo) = await _perplexityService.SearchWithDebugAsync("ceny drobiu Polska luty 2026", ct);
+                var (articles, debugInfo) = await _newsService.SearchWithDebugAsync("ceny drobiu Polska luty 2026", ct);
                 perplexityStopwatch.Stop();
 
                 Diagnostics.PerplexityTime = perplexityStopwatch.Elapsed;

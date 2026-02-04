@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
+using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -2139,15 +2140,28 @@ Plan awaryjny:
             {
                 Diagnostics?.AddWarning("Pobieranie anulowane");
             }
+            catch (InvalidOperationException ex)
+            {
+                // Błąd konfiguracji (brak klucza API, brak connection string itp.)
+                ErrorMessage = ex.Message;
+                Diagnostics?.AddError($"Blad konfiguracji: {ex.Message}");
+                Debug.WriteLine($"RefreshFromInternet config error: {ex}");
+            }
             catch (SqlException ex)
             {
                 ErrorMessage = $"Blad polaczenia z baza danych: {ex.Message}";
                 Diagnostics?.AddError($"SQL Error: {ex.Message}");
                 Debug.WriteLine($"RefreshFromInternet SQL error: {ex}");
             }
+            catch (HttpRequestException ex)
+            {
+                ErrorMessage = $"Blad polaczenia z API: {ex.Message}";
+                Diagnostics?.AddError($"HTTP Error: {ex.Message}");
+                Debug.WriteLine($"RefreshFromInternet HTTP error: {ex}");
+            }
             catch (Exception ex)
             {
-                ErrorMessage = $"Blad podczas pobierania: {ex.Message}";
+                ErrorMessage = $"Nieoczekiwany blad: {ex.Message}";
                 Diagnostics?.AddError($"Blad: {ex.Message}");
                 Debug.WriteLine($"RefreshFromInternet error: {ex}");
             }

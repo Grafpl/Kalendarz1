@@ -85,6 +85,7 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
         /// <summary>
         /// Analizuje artykul i generuje pelna analize dla 3 rol
         /// </summary>
+        /// <exception cref="InvalidOperationException">Gdy klucz API nie jest skonfigurowany</exception>
         public async Task<ArticleAnalysisResult> AnalyzeArticleAsync(
             string title,
             string content,
@@ -94,7 +95,9 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
         {
             if (!IsConfigured)
             {
-                return CreateStubAnalysis(title, "Analiza AI niedostepna - brak klucza API Claude.");
+                throw new InvalidOperationException(
+                    "Klucz API Claude nie jest skonfigurowany. " +
+                    "Proszę uzupełnić ClaudeApiKey w App.config lub ustawić zmienną środowiskową ANTHROPIC_API_KEY.");
             }
 
             var prompt = CreateAnalysisPrompt(title, content, source, businessContext);
