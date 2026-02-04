@@ -495,9 +495,81 @@ KRYTYCZNE WYMAGANIA:
             catch (Exception ex)
             {
                 Debug.WriteLine($"[ClaudeAnalysis] Blad parsowania JSON: {ex.Message}");
-                Debug.WriteLine($"Response: {response}");
+                Debug.WriteLine($"[ClaudeAnalysis] Response length: {response?.Length ?? 0}");
+                Debug.WriteLine($"[ClaudeAnalysis] Response start: {response?.Substring(0, Math.Min(500, response?.Length ?? 0))}");
+
+                // Proba 2: Sprobuj naprawic typowe bledy JSON
+                try
+                {
+                    var fixedJson = TryFixCommonJsonErrors(response);
+                    if (fixedJson != response)
+                    {
+                        Debug.WriteLine("[ClaudeAnalysis] Probuje naprawiony JSON...");
+                        var json = ExtractJson(fixedJson);
+                        using var doc = JsonDocument.Parse(json);
+                        var root = doc.RootElement;
+
+                        return new ArticleAnalysisResult
+                        {
+                            Summary = GetStringProperty(root, "streszczenie", "Brak streszczenia"),
+                            MarketContext = GetStringProperty(root, "kontekst_rynkowy", ""),
+                            WhoIs = GetStringProperty(root, "kim_jest", ""),
+                            TermsExplanation = GetStringProperty(root, "tlumaczenie_pojec", ""),
+                            AnalysisCeo = GetStringProperty(root, "analiza_ceo", ""),
+                            AnalysisSales = GetStringProperty(root, "analiza_handlowiec", ""),
+                            AnalysisBuyer = GetStringProperty(root, "analiza_zakupowiec", ""),
+                            IndustryLesson = GetStringProperty(root, "lekcja_branzowa", ""),
+                            ActionsCeo = GetStringArrayProperty(root, "dzialania_ceo"),
+                            ActionsSales = GetStringArrayProperty(root, "dzialania_handlowiec"),
+                            ActionsBuyer = GetStringArrayProperty(root, "dzialania_zakupowiec"),
+                            StrategicQuestions = GetStringArrayProperty(root, "pytania_do_przemyslenia"),
+                            SourcesToMonitor = GetStringArrayProperty(root, "zrodla_do_monitorowania"),
+                            Category = GetStringProperty(root, "kategoria", "Info"),
+                            Severity = GetStringProperty(root, "severity", "info"),
+                            Tags = GetStringArrayProperty(root, "tagi")
+                        };
+                    }
+                }
+                catch (Exception ex2)
+                {
+                    Debug.WriteLine($"[ClaudeAnalysis] Proba naprawy tez nie powiodla sie: {ex2.Message}");
+                }
+
                 return CreateStubAnalysis(originalTitle, $"Blad parsowania odpowiedzi AI: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Proba naprawienia typowych bledow w JSON od Claude
+        /// </summary>
+        private string TryFixCommonJsonErrors(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return text;
+
+            var result = text;
+
+            // Usun tekst przed pierwszym {
+            var jsonStart = result.IndexOf('{');
+            if (jsonStart > 0)
+            {
+                result = result.Substring(jsonStart);
+            }
+
+            // Usun tekst po ostatnim }
+            var jsonEnd = result.LastIndexOf('}');
+            if (jsonEnd > 0 && jsonEnd < result.Length - 1)
+            {
+                result = result.Substring(0, jsonEnd + 1);
+            }
+
+            // Napraw brakujace przecinki przed zamykajacymi nawiasami
+            result = System.Text.RegularExpressions.Regex.Replace(result, @",(\s*[}\]])", "$1");
+
+            // Napraw podwojne przecinki
+            result = System.Text.RegularExpressions.Regex.Replace(result, @",\s*,", ",");
+
+            return result;
         }
 
         private List<QuickFilterResult> ParseFilterResponse(string response, List<(string Title, string Snippet)> articles)
@@ -571,6 +643,9 @@ KRYTYCZNE WYMAGANIA:
             if (string.IsNullOrWhiteSpace(text))
                 return "{}";
 
+            // Usun BOM i inne niewidoczne znaki na poczatku
+            text = text.TrimStart('\uFEFF', '\u200B', '\u200C', '\u200D', '\uFFFE');
+
             // Usun wszystkie bloki markdown ``` ... ```
             while (text.Contains("```"))
             {
@@ -639,14 +714,105 @@ KRYTYCZNE WYMAGANIA:
                         if (c == closeChar) depth--;
                         if (depth == 0)
                         {
-                            return text.Substring(jsonStart, i - jsonStart + 1);
+                            var jsonString = text.Substring(jsonStart, i - jsonStart + 1);
+                            return SanitizeJsonString(jsonString);
                         }
                     }
                 }
             }
 
             Debug.WriteLine($"[ExtractJson] Nie znaleziono JSON w: {text.Substring(0, Math.Min(200, text.Length))}...");
-            return text.Trim();
+            return SanitizeJsonString(text.Trim());
+        }
+
+        /// <summary>
+        /// Sanityzuje string JSON usuwajac problematyczne znaki
+        /// </summary>
+        private string SanitizeJsonString(string json)
+        {
+            if (string.IsNullOrEmpty(json))
+                return "{}";
+
+            // Zamien problematyczne znaki Unicode na ich odpowiedniki ASCII
+            var sb = new StringBuilder(json.Length);
+            bool inString = false;
+            bool escaped = false;
+
+            for (int i = 0; i < json.Length; i++)
+            {
+                var c = json[i];
+
+                if (escaped)
+                {
+                    sb.Append(c);
+                    escaped = false;
+                    continue;
+                }
+
+                if (c == '\\' && inString)
+                {
+                    sb.Append(c);
+                    escaped = true;
+                    continue;
+                }
+
+                if (c == '"')
+                {
+                    inString = !inString;
+                    sb.Append(c);
+                    continue;
+                }
+
+                if (inString)
+                {
+                    // Wewnatrz stringa - zamien problematyczne znaki
+                    switch (c)
+                    {
+                        case '\n':
+                            sb.Append("\\n");
+                            break;
+                        case '\r':
+                            sb.Append("\\r");
+                            break;
+                        case '\t':
+                            sb.Append("\\t");
+                            break;
+                        case '\u2018': // Left single quotation mark
+                        case '\u2019': // Right single quotation mark
+                            sb.Append("'");
+                            break;
+                        case '\u201C': // Left double quotation mark
+                        case '\u201D': // Right double quotation mark
+                            sb.Append("\\\"");
+                            break;
+                        case '\u2013': // En dash
+                        case '\u2014': // Em dash
+                            sb.Append("-");
+                            break;
+                        case '\u2026': // Ellipsis
+                            sb.Append("...");
+                            break;
+                        default:
+                            // Kontrolne znaki ASCII (0-31) poza \n, \r, \t
+                            if (c < 32)
+                            {
+                                sb.Append(' ');
+                            }
+                            else
+                            {
+                                sb.Append(c);
+                            }
+                            break;
+                    }
+                }
+                else
+                {
+                    // Poza stringiem - dodaj bez zmian
+                    sb.Append(c);
+                }
+            }
+
+            return sb.ToString();
         }
 
         private string GetStringProperty(JsonElement element, string propertyName, string defaultValue)
