@@ -12,17 +12,17 @@ using System.Web;
 namespace Kalendarz1.MarketIntelligence.Services.DataSources
 {
     /// <summary>
-    /// Serwis wyszukiwania wiadomości przez Bing News Search API v7.
-    /// Dokumentacja: https://docs.microsoft.com/en-us/bing/search-apis/bing-news-search/
+    /// Serwis wyszukiwania wiadomości przez Brave Search API.
+    /// Dokumentacja: https://api.search.brave.com/app/documentation/news-search
     /// </summary>
-    public class BingNewsSearchService : INewsSearchService
+    public class BraveSearchService : INewsSearchService
     {
         private readonly HttpClient _httpClient;
         private readonly string _apiKey;
 
-        private const string ApiUrl = "https://api.bing.microsoft.com/v7.0/news/search";
+        private const string ApiUrl = "https://api.search.brave.com/res/v1/news/search";
 
-        // Koszt szacunkowy za 1000 zapytań (Bing News Search S1)
+        // Koszt szacunkowy za 1000 zapytań (Brave Search - darmowe do 2000/miesiąc, potem $3/1000)
         private const decimal CostPer1000Queries = 3.00m;
 
         public bool IsConfigured => !string.IsNullOrEmpty(_apiKey);
@@ -30,30 +30,34 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
             ? _apiKey.Substring(0, Math.Min(8, _apiKey.Length)) + "..."
             : "BRAK";
 
-        public BingNewsSearchService()
+        public BraveSearchService()
         {
             _httpClient = new HttpClient();
             _httpClient.Timeout = TimeSpan.FromSeconds(30);
 
             // Priorytet: 1) zmienna środowiskowa, 2) App.config
-            _apiKey = Environment.GetEnvironmentVariable("BING_API_KEY")
-                      ?? ConfigurationManager.AppSettings["BingApiKey"]
+            _apiKey = Environment.GetEnvironmentVariable("BRAVE_API_KEY")
+                      ?? ConfigurationManager.AppSettings["BraveApiKey"]
                       ?? "";
 
             if (IsConfigured)
             {
-                _httpClient.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", _apiKey);
+                // Brave używa nagłówka X-Subscription-Token
+                _httpClient.DefaultRequestHeaders.Add("X-Subscription-Token", _apiKey);
             }
+
+            // Standardowe nagłówki
+            _httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
         }
 
         /// <summary>
-        /// Testuje połączenie z Bing News API
+        /// Testuje połączenie z Brave Search API
         /// </summary>
         public async Task<(bool Success, string Message)> TestConnectionAsync(CancellationToken ct = default)
         {
             if (!IsConfigured)
             {
-                return (false, "Brak klucza API Bing. Ustaw BING_API_KEY lub BingApiKey w App.config");
+                return (false, "Brak klucza API Brave. Ustaw BRAVE_API_KEY lub BraveApiKey w App.config");
             }
 
             try
@@ -76,7 +80,7 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
         }
 
         /// <summary>
-        /// Wyszukuje artykuły w Bing News
+        /// Wyszukuje artykuły w Brave News
         /// </summary>
         public async Task<List<NewsArticle>> SearchAsync(string query, CancellationToken ct = default)
         {
@@ -94,9 +98,9 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
             if (!IsConfigured)
             {
                 throw new InvalidOperationException(
-                    "Klucz API Bing News Search nie jest skonfigurowany. " +
-                    "Proszę uzupełnić BingApiKey w App.config lub ustawić zmienną środowiskową BING_API_KEY. " +
-                    "Klucz można uzyskać w: https://portal.azure.com -> Bing Search v7");
+                    "Klucz API Brave Search nie jest skonfigurowany. " +
+                    "Proszę uzupełnić BraveApiKey w App.config lub ustawić zmienną środowiskową BRAVE_API_KEY. " +
+                    "Klucz można uzyskać na: https://brave.com/search/api/");
             }
 
             var articles = new List<NewsArticle>();
@@ -105,10 +109,11 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
             try
             {
                 // Budowanie URL z parametrami
+                // Brave API parametry: q (query), count, freshness, country, search_lang
                 var encodedQuery = HttpUtility.UrlEncode(query);
-                var requestUrl = $"{ApiUrl}?q={encodedQuery}&count=20&mkt=pl-PL&freshness=Week&sortBy=Date";
+                var requestUrl = $"{ApiUrl}?q={encodedQuery}&count=20&freshness=pw&country=pl&search_lang=pl";
 
-                debugInfo.AppendLine($"[Bing News API Request]");
+                debugInfo.AppendLine($"[Brave Search API Request]");
                 debugInfo.AppendLine($"Query: {query}");
                 debugInfo.AppendLine($"URL: {requestUrl}");
 
@@ -121,14 +126,15 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                 if (!response.IsSuccessStatusCode)
                 {
                     debugInfo.AppendLine($"Error response: {responseContent}");
-                    throw new HttpRequestException($"Bing API zwróciło błąd {response.StatusCode}: {responseContent}");
+                    throw new HttpRequestException($"Brave API zwróciło błąd {response.StatusCode}: {responseContent}");
                 }
 
                 // Parsowanie JSON response
                 using var doc = JsonDocument.Parse(responseContent);
                 var root = doc.RootElement;
 
-                if (root.TryGetProperty("value", out var newsArray))
+                // Brave zwraca wyniki w "results" array
+                if (root.TryGetProperty("results", out var newsArray))
                 {
                     debugInfo.AppendLine($"Found {newsArray.GetArrayLength()} articles");
 
@@ -143,7 +149,7 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                 }
                 else
                 {
-                    debugInfo.AppendLine("No 'value' array in response");
+                    debugInfo.AppendLine("No 'results' array in response");
                 }
 
                 debugInfo.AppendLine($"Parsed {articles.Count} valid articles");
@@ -151,12 +157,12 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
             catch (JsonException ex)
             {
                 debugInfo.AppendLine($"JSON parse error: {ex.Message}");
-                Debug.WriteLine($"[BingNewsSearch] JSON error: {ex}");
+                Debug.WriteLine($"[BraveSearch] JSON error: {ex}");
             }
             catch (Exception ex) when (!(ex is OperationCanceledException))
             {
                 debugInfo.AppendLine($"Error: {ex.Message}");
-                Debug.WriteLine($"[BingNewsSearch] Error: {ex}");
+                Debug.WriteLine($"[BraveSearch] Error: {ex}");
                 throw;
             }
 
@@ -164,7 +170,7 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
         }
 
         /// <summary>
-        /// Parsuje pojedynczy artykuł z JSON
+        /// Parsuje pojedynczy artykuł z JSON Brave API
         /// </summary>
         private NewsArticle ParseArticle(JsonElement item)
         {
@@ -172,36 +178,46 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
             {
                 var article = new NewsArticle
                 {
-                    Title = item.TryGetProperty("name", out var name) ? name.GetString() : null,
+                    Title = item.TryGetProperty("title", out var title) ? title.GetString() : null,
                     Snippet = item.TryGetProperty("description", out var desc) ? desc.GetString() : null,
                     Url = item.TryGetProperty("url", out var url) ? url.GetString() : null,
-                    Category = item.TryGetProperty("category", out var cat) ? cat.GetString() : "News"
+                    Category = "News"
                 };
 
-                // Źródło (provider)
-                if (item.TryGetProperty("provider", out var providers) && providers.GetArrayLength() > 0)
+                // Źródło (source)
+                if (item.TryGetProperty("meta_url", out var metaUrl) &&
+                    metaUrl.TryGetProperty("hostname", out var hostname))
                 {
-                    var provider = providers[0];
-                    article.Source = provider.TryGetProperty("name", out var provName)
-                        ? provName.GetString()
-                        : "Bing News";
+                    article.Source = hostname.GetString();
+                }
+                else if (item.TryGetProperty("source", out var source))
+                {
+                    article.Source = source.GetString();
+                }
+                else
+                {
+                    article.Source = "Brave Search";
                 }
 
-                // Data publikacji
-                if (item.TryGetProperty("datePublished", out var dateStr))
+                // Data publikacji - Brave używa "age" (np. "2 hours ago") lub "page_age"
+                if (item.TryGetProperty("page_age", out var pageAge))
                 {
-                    if (DateTime.TryParse(dateStr.GetString(), out var date))
+                    if (DateTime.TryParse(pageAge.GetString(), out var date))
                     {
                         article.PublishedDate = date;
                     }
                 }
+                else if (item.TryGetProperty("age", out var age))
+                {
+                    // Parsowanie względnego czasu jak "2 hours ago", "1 day ago"
+                    article.PublishedDate = ParseRelativeTime(age.GetString());
+                }
 
                 // Miniaturka
-                if (item.TryGetProperty("image", out var image) &&
-                    image.TryGetProperty("thumbnail", out var thumb) &&
-                    thumb.TryGetProperty("contentUrl", out var thumbUrl))
+                if (item.TryGetProperty("thumbnail", out var thumb) &&
+                    thumb.TryGetProperty("src", out var thumbSrc))
                 {
-                    article.ThumbnailUrl = thumbUrl.GetString();
+                    article.ThumbnailUrl = thumbSrc.GetString();
                 }
 
                 // Walidacja - musi mieć tytuł i URL
@@ -214,9 +230,67 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[BingNewsSearch] Parse article error: {ex.Message}");
+                Debug.WriteLine($"[BraveSearch] Parse article error: {ex.Message}");
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Parsuje względny czas ("2 hours ago", "1 day ago") na DateTime
+        /// </summary>
+        private DateTime? ParseRelativeTime(string relativeTime)
+        {
+            if (string.IsNullOrEmpty(relativeTime))
+                return null;
+
+            var now = DateTime.Now;
+            var lower = relativeTime.ToLowerInvariant();
+
+            try
+            {
+                if (lower.Contains("second"))
+                {
+                    var num = ExtractNumber(lower);
+                    return now.AddSeconds(-num);
+                }
+                if (lower.Contains("minute"))
+                {
+                    var num = ExtractNumber(lower);
+                    return now.AddMinutes(-num);
+                }
+                if (lower.Contains("hour"))
+                {
+                    var num = ExtractNumber(lower);
+                    return now.AddHours(-num);
+                }
+                if (lower.Contains("day"))
+                {
+                    var num = ExtractNumber(lower);
+                    return now.AddDays(-num);
+                }
+                if (lower.Contains("week"))
+                {
+                    var num = ExtractNumber(lower);
+                    return now.AddDays(-num * 7);
+                }
+                if (lower.Contains("month"))
+                {
+                    var num = ExtractNumber(lower);
+                    return now.AddMonths(-num);
+                }
+            }
+            catch
+            {
+                // Ignoruj błędy parsowania
+            }
+
+            return null;
+        }
+
+        private int ExtractNumber(string text)
+        {
+            var digits = new string(text.Where(char.IsDigit).ToArray());
+            return string.IsNullOrEmpty(digits) ? 1 : int.Parse(digits);
         }
 
         /// <summary>
@@ -251,12 +325,12 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                         }
                     }
 
-                    // Mały delay aby nie przekroczyć rate limit
-                    await Task.Delay(200, ct);
+                    // Mały delay aby nie przekroczyć rate limit (Brave: 1 req/sec dla darmowego planu)
+                    await Task.Delay(1100, ct);
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[BingNewsSearch] Query '{query}' failed: {ex.Message}");
+                    Debug.WriteLine($"[BraveSearch] Query '{query}' failed: {ex.Message}");
                 }
 
                 completed++;
@@ -333,7 +407,8 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
         /// </summary>
         public decimal EstimateCost(int queryCount)
         {
-            // Bing News Search S1: ~$3 per 1000 transactions
+            // Brave Search: 2000 darmowych zapytań/miesiąc, potem ~$3 per 1000
+            // Zwracamy pesymistyczny koszt
             return (queryCount / 1000m) * CostPer1000Queries;
         }
     }

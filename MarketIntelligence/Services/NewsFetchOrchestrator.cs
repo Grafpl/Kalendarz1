@@ -12,12 +12,12 @@ namespace Kalendarz1.MarketIntelligence.Services
 {
     /// <summary>
     /// Główny orchestrator pipeline'u pobierania i analizy wiadomości.
-    /// Używa Bing News Search jako źródła danych.
+    /// Używa Brave Search API jako źródła danych.
     /// </summary>
     public class NewsFetchOrchestrator
     {
         private readonly ClaudeAnalysisService _claudeService;
-        private readonly BingNewsSearchService _newsService;
+        private readonly BraveSearchService _newsService;
         private readonly ContentEnrichmentService _enrichmentService;
         private readonly ContentFilterService _filterService;
         private readonly MarketIntelligenceService _dbService;
@@ -66,7 +66,7 @@ SZANSE:
         public NewsFetchOrchestrator(string connectionString = null)
         {
             _claudeService = new ClaudeAnalysisService();
-            _newsService = new BingNewsSearchService();
+            _newsService = new BraveSearchService();
             _enrichmentService = new ContentEnrichmentService();
             _filterService = new ContentFilterService();
             _dbService = new MarketIntelligenceService(connectionString);
@@ -84,18 +84,18 @@ SZANSE:
             Diagnostics.ClaudeApiKeyPreview = _claudeService.ApiKeyPreview;
             Diagnostics.ClaudeModel = ClaudeAnalysisService.SonnetModel;
 
-            // Bing News Search (zamiast Perplexity)
+            // Brave Search (zamiast Bing/Perplexity)
             Diagnostics.IsPerplexityConfigured = _newsService.IsConfigured;
             Diagnostics.PerplexityApiKeyPreview = _newsService.ApiKeyPreview;
         }
 
         /// <summary>
-        /// Testuje połączenie z API (Claude + Bing News)
+        /// Testuje połączenie z API (Claude + Brave Search)
         /// </summary>
         public async Task<(bool ClaudeOk, string ClaudeMsg, bool PerplexityOk, string PerplexityMsg)> TestConnectionsAsync(CancellationToken ct = default)
         {
             var claudeTask = _claudeService.TestConnectionAsync(ct);
-            var perplexityTask = _newsService.TestConnectionAsync(ct); // Bing zamiast Perplexity
+            var perplexityTask = _newsService.TestConnectionAsync(ct); // Brave Search
 
             await Task.WhenAll(claudeTask, perplexityTask);
 
