@@ -238,7 +238,8 @@ Odpowiedz TYLKO tablicą JSON, bez dodatkowego tekstu.";
 
             try
             {
-                var response = await CallClaudeAsync(prompt, SonnetModel, 2000, ct);
+                // ZWIĘKSZONE z 2000 na 4000 dla pełnej analizy z 3 perspektywami
+                var response = await CallClaudeAsync(prompt, SonnetModel, 4000, ct);
 
                 if (!string.IsNullOrEmpty(response))
                 {
@@ -423,6 +424,10 @@ Odpowiedz WYŁĄCZNIE poprawnym JSON-em, bez żadnego tekstu przed ani po.";
                 if (jsonStart >= 0 && jsonEnd > jsonStart)
                 {
                     var json = response.Substring(jsonStart, jsonEnd - jsonStart);
+
+                    // LOGOWANIE: pokaż surową odpowiedź (pierwsze 500 znaków)
+                    Debug.WriteLine($"[Claude] Raw JSON response (first 500 chars): {json.Substring(0, Math.Min(500, json.Length))}");
+
                     var parsed = JsonSerializer.Deserialize<AnalysisResponse>(json, new JsonSerializerOptions
                     {
                         PropertyNameCaseInsensitive = true
@@ -430,6 +435,11 @@ Odpowiedz WYŁĄCZNIE poprawnym JSON-em, bez żadnego tekstu przed ani po.";
 
                     if (parsed != null)
                     {
+                        // LOGOWANIE: pokaż które pola są wypełnione
+                        Debug.WriteLine($"[Claude] Parsed fields - Streszczenie: {(string.IsNullOrEmpty(parsed.Streszczenie) ? "EMPTY" : $"{parsed.Streszczenie.Length} chars")}");
+                        Debug.WriteLine($"[Claude] Parsed fields - KimJest: {(string.IsNullOrEmpty(parsed.KimJest) ? "EMPTY" : $"{parsed.KimJest.Length} chars")}");
+                        Debug.WriteLine($"[Claude] Parsed fields - CoToZnaczyDlaPiorkowscy: {(string.IsNullOrEmpty(parsed.CoToZnaczyDlaPiorkowscy) ? "EMPTY" : $"{parsed.CoToZnaczyDlaPiorkowscy.Length} chars")}");
+                        Debug.WriteLine($"[Claude] Parsed fields - ZalecaneDzialania: {parsed.ZalecaneDzialania?.Count ?? 0} items");
                         return new ArticleAnalysis
                         {
                             Article = article,
@@ -1144,7 +1154,12 @@ Odpowiedz w formacie JSON:
         public decimal CarcassWholesalePrice { get; set; }
         public decimal FiletWholesalePrice { get; set; }
         public decimal DrumstickPrice { get; set; }
+        public decimal WingPrice { get; set; }
         public decimal LiveToFeedRatio { get; set; }
+
+        // Zagrożenia importowe i regulacyjne
+        public decimal BrazilFiletPrice { get; set; }  // Import brazylijski - cena konkurencyjna w Makro/Selgros
+        public DateTime? KSeFDeadline { get; set; }    // Deadline obowiązkowego KSeF
     }
 
     /// <summary>
@@ -1180,6 +1195,7 @@ Odpowiedz w formacie JSON:
         public decimal Price { get; set; }
         public string Unit { get; set; }
         public DateTime Date { get; set; }
+        public string Notes { get; set; }  // Dodatkowe informacje o zmianie ceny
     }
 
     /// <summary>

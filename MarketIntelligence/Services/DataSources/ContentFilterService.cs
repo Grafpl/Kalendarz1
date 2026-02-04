@@ -101,16 +101,42 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
             { "soybean", 4 }, { "matif", 5 },
         };
 
-        // Słowa wykluczające (przepisy kulinarne, niezwiązane)
+        // Słowa wykluczające (przepisy kulinarne, niezwiązane, nieistotne gatunki)
         private static readonly string[] ExclusionPatterns = new[]
         {
+            // Przepisy kulinarne
             @"\bprzepis\b", @"\bprzepisy\b", @"\bkuchnia\b",
             @"\bgotowanie\b", @"\bugotować\b", @"\bupiec\b",
             @"\bsałatka\b", @"\bzupa\b", @"\bobiad\b",
             @"\brestauracja\b", @"\bcatering\b",
             @"\brecipe\b", @"\bcooking\b", @"\bkitchen\b",
             @"\broast\b", @"\bfried\b", @"\bgrilled\b",
-            @"\bhotel\b", @"\btouris", @"\bvacation\b"
+            @"\bhotel\b", @"\btouris", @"\bvacation\b",
+
+            // NIEISTOTNE GATUNKI DROBIU (nie dotyczy naszej ubojni kurczaków)
+            @"\bprzepiórk", @"\bprzepióreczk",  // przepiórki
+            @"\bquail\b",                        // quail (EN)
+            @"\bstruś\b", @"\bstrusi",           // strusie
+            @"\bostrich\b",                      // ostrich (EN)
+            @"\bgołąb\b", @"\bgołęb",            // gołębie
+            @"\bpigeon\b", @"\bsquab\b",         // pigeon (EN)
+            @"\bpapug",                          // papugi
+            @"\bparrot\b",                       // parrot (EN)
+            @"\bemu\b",                          // emu
+            @"\bperliczk",                       // perliczki (chyba że w kontekście Polski)
+
+            // NIEISTOTNE REGIONY (bez kontekstu eksportu do UE/Polski)
+            // Uwaga: te wzorce SĄ używane tylko gdy NIE MA słów "eksport", "import", "europa", "ue", "polska"
+        };
+
+        // Wzorce regionów nieistotnych (farmy lokalne bez eksportu do UE)
+        private static readonly string[] IrrelevantRegionPatterns = new[]
+        {
+            @"(?i)\b(usa|united states|america|american)\b.*\b(farm|poultry|chicken)\b",
+            @"(?i)\b(china|chinese|india|indian|indonesia|vietnam|philippines)\b.*\b(farm|poultry)\b",
+            @"(?i)\b(africa|african|nigeria|south africa)\b.*\b(poultry|chicken)\b",
+            @"(?i)\bmanchester farms\b",  // Konkretna farma przepiórek USA
+            @"(?i)\btyson foods\b(?!.*(polska|europe|eu|export|import))", // Tyson bez kontekstu EU
         };
 
         public ContentFilterService(string connectionString = null)
@@ -179,6 +205,21 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                 {
                     // Penalty for exclusion patterns
                     totalScore -= 20;
+                    Debug.WriteLine($"[Filter] Exclusion pattern hit: {pattern} in '{article.Title.Substring(0, Math.Min(50, article.Title.Length))}'");
+                }
+            }
+
+            // Check irrelevant regions (only if no EU/Poland context)
+            bool hasEuContext = Regex.IsMatch(textToAnalyze, @"\b(polska|poland|europe|europa|ue|eu|eksport|import)\b", RegexOptions.IgnoreCase);
+            if (!hasEuContext)
+            {
+                foreach (var pattern in IrrelevantRegionPatterns)
+                {
+                    if (Regex.IsMatch(textToAnalyze, pattern))
+                    {
+                        totalScore -= 30; // Większa kara za nieistotne regiony
+                        Debug.WriteLine($"[Filter] Irrelevant region: {article.Title.Substring(0, Math.Min(50, article.Title.Length))}");
+                    }
                 }
             }
 

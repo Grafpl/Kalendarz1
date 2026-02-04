@@ -123,9 +123,16 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
                 CarcassWholesalePrice = 7.33m,
                 FiletWholesalePrice = 24.50m,
                 DrumstickPrice = 8.90m,
+                WingPrice = 7.80m,
 
                 // Relacja cen
-                LiveToFeedRatio = 4.24m // Najlepsza od 2 lat - hodowcy zarabiają
+                LiveToFeedRatio = 4.24m, // Najlepsza od 2 lat - hodowcy zarabiają
+
+                // Zagrożenie importowe
+                BrazilFiletPrice = 13.00m, // Import w Makro - 2-4 zł taniej niż polskie!
+
+                // KSeF deadline
+                KSeFDeadline = new DateTime(2026, 4, 1) // 01.04.2026 = obowiązkowe faktury elektroniczne!
             };
         }
 
@@ -493,14 +500,21 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
 
         private List<PriceInfo> GetDefaultPrices()
         {
+            // AKTUALNE CENY LUTY 2026 (z kontekstu użytkownika)
             return new List<PriceInfo>
             {
-                new PriceInfo { Product = "Żywiec kurczak", Price = 5.85m, Unit = "kg", Date = DateTime.Today },
-                new PriceInfo { Product = "Tuszka kurczaka", Price = 12.50m, Unit = "kg", Date = DateTime.Today },
-                new PriceInfo { Product = "Filet z piersi", Price = 18.90m, Unit = "kg", Date = DateTime.Today },
-                new PriceInfo { Product = "Udko kurczaka", Price = 9.50m, Unit = "kg", Date = DateTime.Today },
-                new PriceInfo { Product = "Skrzydło", Price = 8.20m, Unit = "kg", Date = DateTime.Today },
-                new PriceInfo { Product = "Podudzie", Price = 7.80m, Unit = "kg", Date = DateTime.Today }
+                // Skup żywca
+                new PriceInfo { Product = "Żywiec kurczak (skup)", Price = 4.72m, Unit = "kg", Date = DateTime.Today, Notes = "Wolny rynek, relacja żywiec/pasza 4.24 - najlepsza od 2 lat" },
+
+                // Hurt
+                new PriceInfo { Product = "Tuszka kurczaka (hurt)", Price = 7.33m, Unit = "kg", Date = DateTime.Today, Notes = "Spadek -0.23 zł" },
+                new PriceInfo { Product = "Filet z piersi (hurt)", Price = 24.50m, Unit = "kg", Date = DateTime.Today, Notes = "Wzrost +2.1%" },
+                new PriceInfo { Product = "Udko kurczaka (hurt)", Price = 8.90m, Unit = "kg", Date = DateTime.Today, Notes = "Wzrost +2.7%" },
+                new PriceInfo { Product = "Skrzydło (hurt)", Price = 7.80m, Unit = "kg", Date = DateTime.Today, Notes = "Spadek -1.2%" },
+                new PriceInfo { Product = "Podudzie (hurt)", Price = 7.50m, Unit = "kg", Date = DateTime.Today },
+
+                // IMPORT - ZAGROŻENIE
+                new PriceInfo { Product = "Filet mrożony BRAZYLIA (Makro)", Price = 13.00m, Unit = "kg", Date = DateTime.Today, Notes = "UWAGA: 2-4 zł taniej niż polskie!" }
             };
         }
 

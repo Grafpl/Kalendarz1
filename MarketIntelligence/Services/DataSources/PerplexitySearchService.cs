@@ -296,6 +296,14 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                 ("Ranking największych producentów drobiu w Polsce 2026. Kto jest liderem rynku?", SearchPriority.Standard),
                 ("Ubojnie drobiu województwo łódzkie - lista firm, ranking, moce produkcyjne.", SearchPriority.Important),
 
+                // BRAKUJĄCY KONKURENCI (dodane)
+                ("RADDROB Chlebowski Łódź wiadomości 2026. Ubojnia, produkcja, inwestycje.", SearchPriority.Critical),  // Klient i konkurent!
+                ("System-Drob firma ubojnia 2026. Produkcja, zmiany.", SearchPriority.Important),
+                ("Drobex ubojnia wiadomości 2026. Inwestycje, produkcja.", SearchPriority.Standard),
+                ("Roldrob Ostrów Wielkopolski 2026. Ubojnia, aktualności.", SearchPriority.Standard),
+                ("Exdrob firma drobiarska 2026. Wiadomości, produkcja.", SearchPriority.Standard),
+                ("Gobarto Cedrob współpraca 2026. Spółka, strategia.", SearchPriority.Important),
+
                 // ═══════════════════════════════════════════════════════════════
                 // GRUPA 4: INWESTORZY I PRZEJĘCIA (STRATEGICZNE)
                 // ═══════════════════════════════════════════════════════════════
@@ -327,6 +335,17 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                 ("Marże sieci handlowych na mięsie drobiowym Polska. Ile zarabiają dyskonty?", SearchPriority.Standard),
                 ("Ceny detaliczne kurczaka w Polsce luty 2026 - porównanie sklepów i sieci.", SearchPriority.Important),
 
+                // BRAKUJĄCE SIECI HANDLOWE (dodane)
+                ("Selgros Polska mięso drobiowe ceny 2026. Promocje dla gastronomii.", SearchPriority.Important),
+                ("Stokrotka sklepy mięso kurczak 2026. Promocje, ceny, ekspansja.", SearchPriority.Important),
+                ("Polomarket sklepy spożywcze 2026. Mięso drobiowe, ekspansja.", SearchPriority.Standard),
+                ("E.Leclerc Polska 2026. Hipermarkety, mięso drobiowe, ceny.", SearchPriority.Standard),
+                ("Intermarche Polska 2026. Sklepy, mięso, promocje.", SearchPriority.Standard),
+                ("Topaz sieć sklepów Lublin Radom 2026. Ekspansja, mięso.", SearchPriority.Standard),
+                ("Aldi Polska ekspansja 2026. Nowe sklepy, produkty mięsne.", SearchPriority.Important),
+                ("Spar Polska 2026. Sklepy, mięso drobiowe.", SearchPriority.Standard),
+                ("Freshmarket sklepy mięso 2026. Sieć convenience.", SearchPriority.Standard),
+
                 // ═══════════════════════════════════════════════════════════════
                 // GRUPA 7: PASZE I SUROWCE
                 // ═══════════════════════════════════════════════════════════════
@@ -347,6 +366,7 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                 ("Mercosur umowa handlowa UE - zagrożenie dla polskiego drobiarstwa. Aktualizacja 2026.", SearchPriority.Critical),
                 ("Cła antydumpingowe na drób UE 2026. Brazylia, Tajlandia, Ukraina.", SearchPriority.Important),
                 ("Polska eksport mięsa drobiowego do UK po Brexicie 2026. Bariery, wolumeny.", SearchPriority.Standard),
+                ("Ceny fileta mrożonego import Brazylia 2026. Ile kosztuje w Makro Selgros?", SearchPriority.Critical),  // Konkretna cena importu!
 
                 // ═══════════════════════════════════════════════════════════════
                 // GRUPA 9: HODOWCY I FERMY
@@ -359,12 +379,19 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                 ("Dobrostan kurcząt brojlerów - nowe przepisy UE, wymogi od 2026.", SearchPriority.Important),
                 ("Integratorzy drobiu Polska 2026. Kto kontraktuje hodowców? Warunki umów.", SearchPriority.Standard),
 
+                // TRANSPORT ŻYWCA (dodane)
+                ("Avilog transport żywca drobiu Polska 2026. Ceny, usługi.", SearchPriority.Important),
+                ("Transport żywca drobiowego koszty Polska 2026. Stawki za km, firmy transportowe.", SearchPriority.Important),
+
                 // ═══════════════════════════════════════════════════════════════
                 // GRUPA 10: INSPEKCJA WETERYNARYJNA I REGULACJE
                 // ═══════════════════════════════════════════════════════════════
                 ("Inspekcja Weterynaryjna kontrole ubojni drobiu 2026. Wyniki, mandaty, zamknięcia.", SearchPriority.Important),
                 ("Przepisy weterynaryjne ubojnie drobiu 2026. Nowe wymagania, zmiany w prawie.", SearchPriority.Important),
                 ("KSeF faktury elektroniczne dla branży mięsnej spożywczej 2026. Terminy wdrożenia.", SearchPriority.Important),
+                ("KSeF Sage Symfonia integracja ERP 2026. Wdrożenie, koszty, problemy.", SearchPriority.Critical),  // Konkretnie nasz system!
+                ("PIW Brzeziny łódzkie inspekcja weterynaryjna 2026. Kontrole, decyzje.", SearchPriority.Important),
+                ("Powiatowy Inspektorat Weterynarii łódzkie kontrole ferm ubojni 2026.", SearchPriority.Important),
                 ("Znakowanie mięsa drobiowego przepisy UE 2026. Kraj pochodzenia, etykiety.", SearchPriority.Standard),
                 ("HACCP wymagania zakłady mięsne przetwórstwo 2026. Audyty, certyfikaty.", SearchPriority.Standard),
                 ("EFSA dobrostan zwierząt nowe normy drób brojlery 2026-2027.", SearchPriority.Important),
