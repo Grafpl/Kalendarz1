@@ -24,7 +24,7 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
         // Modele Claude 4.5 - aktualne nazwy (luty 2026)
         // Dokumentacja: https://platform.claude.com/docs/en/about-claude/models/overview
         public const string SonnetModel = "claude-sonnet-4-5-20250929";
-        public const string HaikuModel = "claude-haiku-4-5-20250929";
+        public const string HaikuModel = "claude-haiku-4-5-20251001";
 
         private const string ApiUrl = "https://api.anthropic.com/v1/messages";
         private const string ApiVersion = "2023-06-01";
