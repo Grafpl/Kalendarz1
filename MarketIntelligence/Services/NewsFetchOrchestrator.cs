@@ -425,7 +425,7 @@ SZANSE:
                 // ═══════════════════════════════════════════════════════════
                 Diagnostics.AddLog("=== ETAP 3: WZBOGACANIE TRESCI ===");
 
-                string fullContent = testArticle.Snippet;
+                string fullContent = testArticle.Snippet ?? "";
 
                 if (!string.IsNullOrEmpty(testArticle.Url) && testArticle.Url.StartsWith("http"))
                 {
@@ -450,6 +450,13 @@ SZANSE:
                 else
                 {
                     Diagnostics.AddLog("Brak URL - uzywam snippetu z Perplexity");
+                }
+
+                // Sprawdz czy mamy wystarczajaco tresci do analizy
+                if (string.IsNullOrWhiteSpace(fullContent) || fullContent.Length < 50)
+                {
+                    Diagnostics.AddWarning("Brak tresci lub zbyt krotka tresc - uzywam tytulu");
+                    fullContent = $"Tytul: {testArticle.Title}. Zrodlo: {testArticle.Source}. URL: {testArticle.Url}";
                 }
 
                 // ═══════════════════════════════════════════════════════════
@@ -652,7 +659,7 @@ SZANSE:
                 logSection("ETAP 3: WZBOGACANIE TRESCI (WEB SCRAPING)");
                 Diagnostics.AddLog("=== ETAP 3: ENRICHMENT ===");
 
-                string fullContent = testArticle.Snippet;
+                string fullContent = testArticle.Snippet ?? "";
 
                 if (!string.IsNullOrEmpty(testArticle.Url) && testArticle.Url.StartsWith("http"))
                 {
@@ -684,6 +691,14 @@ SZANSE:
                 }
 
                 log($"Tresc do analizy: {fullContent.Length} znakow", "INFO");
+
+                // Sprawdz czy mamy wystarczajaco tresci do analizy
+                if (string.IsNullOrWhiteSpace(fullContent) || fullContent.Length < 50)
+                {
+                    log("UWAGA: Brak tresci lub zbyt krotka tresc do analizy!", "WARNING");
+                    log("Uzywam tytulu artykulu jako tresc", "INFO");
+                    fullContent = $"Tytul: {testArticle.Title}. Zrodlo: {testArticle.Source}. URL: {testArticle.Url}";
+                }
 
                 // ═══════════════════════════════════════════════════════════
                 // ETAP 4: Analiza AI (Claude Sonnet)
