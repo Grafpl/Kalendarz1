@@ -17,6 +17,8 @@
         <local:MedalColorConverter x:Key="MedalColorConverter"/>
         <local:MedalTextConverter x:Key="MedalTextConverter"/>
         <local:NoteTypeToPathConverter x:Key="NoteTypeToPathConverter"/>
+        <local:ValidationWarningConverter x:Key="ValidationWarningConverter"/>
+        <local:ValidationWarningVisibilityConverter x:Key="ValidationWarningVisibilityConverter"/>
 
         <!-- DARK CORPORATE THEME -->
         <SolidColorBrush x:Key="BgPrimary" Color="#0F172A"/>
@@ -248,7 +250,7 @@
 
                 <!-- Logo firmowe w nagłówku -->
                 <Border Grid.Column="0" Margin="0,0,20,0" Padding="10,0" VerticalAlignment="Center">
-                    <Border x:Name="borderLogo" Width="120" Height="50" CornerRadius="6" Background="#334155"
+                    <Border x:Name="borderLogo" MinWidth="80" MinHeight="60" MaxWidth="280" MaxHeight="80" CornerRadius="6" Background="#334155"
                             BorderBrush="#475569" BorderThickness="1" ToolTip="Prawy przycisk myszy aby zmienić logo" Cursor="Hand">
                         <Border.ContextMenu>
                             <ContextMenu Background="#1E293B" BorderBrush="#475569">
@@ -267,7 +269,7 @@
                             </ContextMenu>
                         </Border.ContextMenu>
                         <Grid>
-                            <Image x:Name="imgLogo" Stretch="Uniform" Margin="8"/>
+                            <Image x:Name="imgLogo" Stretch="Uniform" Margin="6"/>
                             <TextBlock x:Name="txtLogoPlaceholder" Text="LOGO" FontSize="14" FontWeight="Bold"
                                        Foreground="#64748B" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Grid>
@@ -343,6 +345,8 @@
                     <Button x:Name="btnManager" Content="👔 Szef" Style="{StaticResource BtnIcon}" Click="BtnManager_Click" Foreground="#EF4444" FontWeight="Bold"/>
                     <Button Content="🗺️ Mapa" Style="{StaticResource BtnIcon}" Click="BtnMapa_Click"/>
                     <Button Content="📥 Import" Style="{StaticResource BtnIcon}" Click="BtnImportFirm_Click"/>
+                    <Button Content="👥 Duplikaty" Style="{StaticResource BtnIcon}" Click="BtnDuplicates_Click" ToolTip="Wykrywanie duplikatow"/>
+                    <Button Content="📧 Email" Style="{StaticResource BtnIcon}" Click="BtnEmailTemplate_Click" ToolTip="Szablony email"/>
                     <Button x:Name="btnAdmin" Content="⚙️ Admin" Style="{StaticResource BtnIcon}" Click="BtnAdmin_Click"/>
                     <Button x:Name="btnToggleTheme" Content="☀️ Jasny" Style="{StaticResource BtnIcon}" Click="BtnToggleTheme_Click" ToolTip="Przełącz tryb jasny/ciemny"/>
 
@@ -510,6 +514,31 @@
                         </DataGrid.RowStyle>
 
                         <DataGrid.Columns>
+                            <!-- Kolumna walidacji - ikona ostrzeżenia przy brakujących danych -->
+                            <DataGridTemplateColumn Header="⚠️" Width="35" CanUserResize="False">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="⚠️" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   Foreground="#F59E0B" Cursor="Help">
+                                            <TextBlock.Visibility>
+                                                <MultiBinding Converter="{StaticResource ValidationWarningVisibilityConverter}">
+                                                    <Binding Path="TELEFON_K"/>
+                                                    <Binding Path="EMAIL"/>
+                                                    <Binding Path="OstatniaZmiana"/>
+                                                </MultiBinding>
+                                            </TextBlock.Visibility>
+                                            <TextBlock.ToolTip>
+                                                <MultiBinding Converter="{StaticResource ValidationWarningConverter}">
+                                                    <Binding Path="TELEFON_K"/>
+                                                    <Binding Path="EMAIL"/>
+                                                    <Binding Path="OstatniaZmiana"/>
+                                                </MultiBinding>
+                                            </TextBlock.ToolTip>
+                                        </TextBlock>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
                             <DataGridTemplateColumn Header="Status" Width="155" SortMemberPath="Status">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
@@ -868,6 +897,57 @@
                                     </Button>
                                 </StackPanel>
                             </Grid>
+                        </Border>
+
+                        <!-- SZYBKIE PRZYCISKI STATUSU -->
+                        <Border Style="{StaticResource CardStyle}" Padding="10,8" Margin="0,0,0,10" x:Name="panelQuickStatus">
+                            <StackPanel>
+                                <TextBlock Text="SZYBKA ZMIANA STATUSU" FontSize="10" FontWeight="Bold" Foreground="#64748B" Margin="0,0,0,6"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource BtnIcon}" Padding="8,4" Margin="2" Tag="Do zadzwonienia" Click="BtnQuickStatus_Click" ToolTip="Do zadzwonienia">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Path Fill="#22C55E" Stretch="Uniform" Width="12" Height="12" Margin="0,0,4,0"
+                                                  Data="M6.62,10.79C8.06,13.62 10.38,15.94 13.21,17.38L15.41,15.18C15.69,14.9 16.08,14.82 16.43,14.93C17.55,15.3 18.75,15.5 20,15.5A1,1 0 0,1 21,16.5V20A1,1 0 0,1 20,21A17,17 0 0,1 3,4A1,1 0 0,1 4,3H7.5A1,1 0 0,1 8.5,4C8.5,5.25 8.7,6.45 9.07,7.57C9.18,7.92 9.1,8.31 8.82,8.59L6.62,10.79Z"/>
+                                            <TextBlock Text="Zadzwoń" FontSize="10" Foreground="#E2E8F0"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Style="{StaticResource BtnIcon}" Padding="8,4" Margin="2" Tag="Próba kontaktu" Click="BtnQuickStatus_Click" ToolTip="Próba kontaktu">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Path Fill="#F59E0B" Stretch="Uniform" Width="12" Height="12" Margin="0,0,4,0"
+                                                  Data="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12H12V6Z"/>
+                                            <TextBlock Text="Próba" FontSize="10" Foreground="#E2E8F0"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Style="{StaticResource BtnIcon}" Padding="8,4" Margin="2" Tag="Nawiązano kontakt" Click="BtnQuickStatus_Click" ToolTip="Nawiązano kontakt">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Path Fill="#3B82F6" Stretch="Uniform" Width="12" Height="12" Margin="0,0,4,0"
+                                                  Data="M21,19V20H3V19L5,17V11C5,7.9 7.03,5.17 10,4.29C10,4.19 10,4.1 10,4A2,2 0 0,1 12,2A2,2 0 0,1 14,4C14,4.1 14,4.19 14,4.29C16.97,5.17 19,7.9 19,11V17L21,19M14,21A2,2 0 0,1 12,23A2,2 0 0,1 10,21"/>
+                                            <TextBlock Text="Kontakt" FontSize="10" Foreground="#E2E8F0"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Style="{StaticResource BtnIcon}" Padding="8,4" Margin="2" Tag="Zgoda na dalszy kontakt" Click="BtnQuickStatus_Click" ToolTip="Zgoda na dalszy kontakt">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Path Fill="#8B5CF6" Stretch="Uniform" Width="12" Height="12" Margin="0,0,4,0"
+                                                  Data="M12 2C6.5 2 2 6.5 2 12S6.5 22 12 22 22 17.5 22 12 17.5 2 12 2M10 17L5 12L6.41 10.59L10 14.17L17.59 6.58L19 8L10 17Z"/>
+                                            <TextBlock Text="Zgoda" FontSize="10" Foreground="#E2E8F0"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Style="{StaticResource BtnIcon}" Padding="8,4" Margin="2" Tag="Do wysłania oferta" Click="BtnQuickStatus_Click" ToolTip="Do wysłania oferta">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Path Fill="#06B6D4" Stretch="Uniform" Width="12" Height="12" Margin="0,0,4,0"
+                                                  Data="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                                            <TextBlock Text="Oferta" FontSize="10" Foreground="#E2E8F0"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Style="{StaticResource BtnIcon}" Padding="8,4" Margin="2" Tag="Nie zainteresowany" Click="BtnQuickStatus_Click" ToolTip="Nie zainteresowany">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Path Fill="#EF4444" Stretch="Uniform" Width="12" Height="12" Margin="0,0,4,0"
+                                                  Data="M12,2C17.53,2 22,6.47 22,12C22,17.53 17.53,22 12,22C6.47,22 2,17.53 2,12C2,6.47 6.47,2 12,2M15.59,7L12,10.59L8.41,7L7,8.41L10.59,12L7,15.59L8.41,17L12,13.41L15.59,17L17,15.59L13.41,12L17,8.41L15.59,7Z"/>
+                                            <TextBlock Text="Nie" FontSize="10" Foreground="#E2E8F0"/>
+                                        </StackPanel>
+                                    </Button>
+                                </WrapPanel>
+                            </StackPanel>
                         </Border>
 
                         <Border Style="{StaticResource CardStyle}" Padding="12,10" Margin="0,0,0,10">
