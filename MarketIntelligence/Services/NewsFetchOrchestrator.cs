@@ -131,6 +131,24 @@ namespace Kalendarz1.MarketIntelligence.Services
 
                 stats.TotalArticlesFetched = allArticles.Count;
 
+                // 4.5 Translate English articles (Tavily often returns EN)
+                if (_claudeAnalysisService.IsConfigured)
+                {
+                    var englishArticles = allArticles.Where(a => a.Language?.ToLower() == "en").ToList();
+                    if (englishArticles.Any())
+                    {
+                        progress?.Report(new FetchProgress
+                        {
+                            Stage = "Tłumaczenie",
+                            Percent = 35,
+                            Message = $"Tłumaczę {englishArticles.Count} artykułów angielskich..."
+                        });
+
+                        allArticles = await _claudeAnalysisService.TranslateEnglishArticlesAsync(allArticles, ct);
+                        Debug.WriteLine($"[Orchestrator] Translated {englishArticles.Count} English articles");
+                    }
+                }
+
                 // 5. Content filtering (local + optionally AI)
                 progress?.Report(new FetchProgress
                 {

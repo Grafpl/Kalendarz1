@@ -37,6 +37,19 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
             _apiKey = apiKey ?? Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY")
                 ?? System.Configuration.ConfigurationManager.AppSettings["ClaudeApiKey"];
 
+            // Debug logging - help diagnose API key issues
+            if (string.IsNullOrEmpty(_apiKey))
+            {
+                Debug.WriteLine("[Claude] WARNING: No API key found! Checked:");
+                Debug.WriteLine("[Claude]   - Constructor parameter: " + (apiKey == null ? "null" : "provided"));
+                Debug.WriteLine($"[Claude]   - Environment ANTHROPIC_API_KEY: {(string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY")) ? "not set" : "set")}");
+                Debug.WriteLine($"[Claude]   - App.config ClaudeApiKey: {(string.IsNullOrEmpty(System.Configuration.ConfigurationManager.AppSettings["ClaudeApiKey"]) ? "not set" : "set")}");
+            }
+            else
+            {
+                Debug.WriteLine($"[Claude] API key configured: {_apiKey.Substring(0, Math.Min(15, _apiKey.Length))}...");
+            }
+
             _httpClient = new HttpClient
             {
                 Timeout = TimeSpan.FromSeconds(120)
@@ -482,6 +495,133 @@ Odpowiedz TYLKO JSON-em.";
 
         #endregion
 
+        #region Translation
+
+        /// <summary>
+        /// Przetłumacz tekst z angielskiego na polski używając Claude Haiku
+        /// </summary>
+        public async Task<TranslatedArticle> TranslateArticleAsync(
+            RawArticle article,
+            CancellationToken ct = default)
+        {
+            if (!IsConfigured)
+            {
+                Debug.WriteLine("[Claude] API key not configured, skipping translation");
+                return new TranslatedArticle
+                {
+                    Original = article,
+                    TranslatedTitle = article.Title,
+                    TranslatedSummary = article.Summary,
+                    WasTranslated = false
+                };
+            }
+
+            if (article.Language?.ToLower() != "en")
+            {
+                return new TranslatedArticle
+                {
+                    Original = article,
+                    TranslatedTitle = article.Title,
+                    TranslatedSummary = article.Summary,
+                    WasTranslated = false
+                };
+            }
+
+            Debug.WriteLine($"[Claude] Translating: {article.Title.Substring(0, Math.Min(50, article.Title.Length))}...");
+
+            var prompt = $@"Przetłumacz poniższy tekst z angielskiego na polski.
+Zachowaj:
+- Nazwy własne firm (np. Tyson Foods, JBS)
+- Terminy branżowe (HPAI, H5N1)
+- Liczby i jednostki
+
+Tekst do tłumaczenia:
+
+TYTUŁ: {article.Title}
+
+TREŚĆ: {article.Summary ?? ""}
+
+Odpowiedz w formacie JSON:
+{{
+  ""tytul"": ""przetłumaczony tytuł"",
+  ""tresc"": ""przetłumaczona treść""
+}}";
+
+            try
+            {
+                var response = await CallClaudeAsync(prompt, HaikuModel, 1500, ct);
+
+                if (!string.IsNullOrEmpty(response))
+                {
+                    var jsonStart = response.IndexOf('{');
+                    var jsonEnd = response.LastIndexOf('}') + 1;
+
+                    if (jsonStart >= 0 && jsonEnd > jsonStart)
+                    {
+                        var json = response.Substring(jsonStart, jsonEnd - jsonStart);
+                        var parsed = JsonSerializer.Deserialize<TranslationResponse>(json, new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true
+                        });
+
+                        if (parsed != null)
+                        {
+                            return new TranslatedArticle
+                            {
+                                Original = article,
+                                TranslatedTitle = parsed.Tytul ?? article.Title,
+                                TranslatedSummary = parsed.Tresc ?? article.Summary,
+                                WasTranslated = true
+                            };
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Claude] Translation error: {ex.Message}");
+            }
+
+            return new TranslatedArticle
+            {
+                Original = article,
+                TranslatedTitle = article.Title,
+                TranslatedSummary = article.Summary,
+                WasTranslated = false
+            };
+        }
+
+        /// <summary>
+        /// Przetłumacz batch artykułów
+        /// </summary>
+        public async Task<List<RawArticle>> TranslateEnglishArticlesAsync(
+            List<RawArticle> articles,
+            CancellationToken ct = default)
+        {
+            var result = new List<RawArticle>();
+
+            foreach (var article in articles)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                if (article.Language?.ToLower() == "en")
+                {
+                    var translated = await TranslateArticleAsync(article, ct);
+
+                    // Update article with translated content
+                    article.Title = translated.TranslatedTitle;
+                    article.Summary = translated.TranslatedSummary;
+                    article.Language = translated.WasTranslated ? "pl-translated" : article.Language;
+                }
+
+                result.Add(article);
+            }
+
+            return result;
+        }
+
+        #endregion
+
         #region API Call
 
         private async Task<string> CallClaudeAsync(string prompt, string model, int maxTokens, CancellationToken ct)
@@ -712,6 +852,12 @@ Odpowiedz TYLKO JSON-em.";
         public string WeeklyOutlook { get; set; }
     }
 
+    internal class TranslationResponse
+    {
+        public string Tytul { get; set; }
+        public string Tresc { get; set; }
+    }
+
     #endregion
 
     #region Output Models
@@ -723,6 +869,14 @@ Odpowiedz TYLKO JSON-em.";
         public string Category { get; set; }
         public int Priority { get; set; }
         public string FilterReason { get; set; }
+    }
+
+    public class TranslatedArticle
+    {
+        public RawArticle Original { get; set; }
+        public string TranslatedTitle { get; set; }
+        public string TranslatedSummary { get; set; }
+        public bool WasTranslated { get; set; }
     }
 
     public class ArticleAnalysis
