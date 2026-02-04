@@ -20,7 +20,8 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
         private readonly string _apiKey;
 
         private const string ApiUrl = "https://api.perplexity.ai/chat/completions";
-        private const string Model = "llama-3.1-sonar-small-128k-online";
+        // Model "llama-3.1-sonar-small-128k-online" wycofany 22.02.2025 - uzywamy nowego "sonar"
+        private const string Model = "sonar";
 
         // Koszt szacunkowy za zapytanie (USD)
         private const decimal CostPerQuery = 0.005m;
@@ -88,16 +89,17 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                         new
                         {
                             role = "system",
-                            content = "Jestes pomocnym asystentem wyszukujacym najnowsze wiadomosci z branzy drobiarskiej. Odpowiadaj w formacie listy artykulow z tytulem, krotkim opisem i zrodlem."
+                            content = "Jestes pomocnym asystentem wyszukujacym najnowsze wiadomosci z branzy drobiarskiej w Polsce. Odpowiadaj TYLKO w formacie JSON. Szukaj wiadomosci po polsku i z polskich zrodel."
                         },
                         new
                         {
                             role = "user",
-                            content = $"Znajdz najnowsze wiadomosci (ostatnie 7 dni) na temat: {query}. Dla kazdej wiadomosci podaj: tytul, krotki opis (2-3 zdania), zrodlo (nazwa portalu), URL jesli znany, date publikacji. Odpowiedz w formacie JSON: [{{\"title\": \"...\", \"snippet\": \"...\", \"source\": \"...\", \"url\": \"...\", \"date\": \"YYYY-MM-DD\"}}]"
+                            content = $"Znajdz najnowsze wiadomosci na temat: {query}. Dla kazdej wiadomosci podaj: tytul, krotki opis (2-3 zdania), zrodlo (nazwa portalu), URL, date publikacji. WAZNE: Odpowiedz TYLKO jako tablica JSON bez zadnego tekstu przed ani po: [{{\"title\": \"tytul\", \"snippet\": \"opis\", \"source\": \"portal.pl\", \"url\": \"https://...\", \"date\": \"2026-02-04\"}}]"
                         }
                     },
                     max_tokens = 2000,
-                    temperature = 0.2
+                    temperature = 0.2,
+                    search_recency_filter = "week"
                 };
 
                 var json = JsonSerializer.Serialize(requestBody);
