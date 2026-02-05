@@ -16,7 +16,7 @@ namespace Kalendarz1.MarketIntelligence.Services
     /// </summary>
     public class NewsFetchOrchestrator
     {
-        private readonly ClaudeAnalysisService _claudeService;
+        private readonly OpenAIAnalysisService _openAiService;
         private readonly BraveSearchService _newsService;
         private readonly ContentEnrichmentService _enrichmentService;
         private readonly ContentFilterService _filterService;
@@ -65,7 +65,7 @@ SZANSE:
 
         public NewsFetchOrchestrator(string connectionString = null)
         {
-            _claudeService = new ClaudeAnalysisService();
+            _openAiService = new OpenAIAnalysisService();
             _newsService = new BraveSearchService();
             _enrichmentService = new ContentEnrichmentService();
             _filterService = new ContentFilterService();
@@ -80,9 +80,9 @@ SZANSE:
         /// </summary>
         public void RefreshApiStatus()
         {
-            Diagnostics.IsClaudeConfigured = _claudeService.IsConfigured;
-            Diagnostics.ClaudeApiKeyPreview = _claudeService.ApiKeyPreview;
-            Diagnostics.ClaudeModel = ClaudeAnalysisService.SonnetModel;
+            Diagnostics.IsClaudeConfigured = _openAiService.IsConfigured;
+            Diagnostics.ClaudeApiKeyPreview = _openAiService.ApiKeyPreview;
+            Diagnostics.ClaudeModel = OpenAIAnalysisService.DefaultModel;
 
             // Brave Search (zamiast Bing/Perplexity)
             Diagnostics.IsPerplexityConfigured = _newsService.IsConfigured;
@@ -94,18 +94,18 @@ SZANSE:
         /// </summary>
         public async Task<(bool ClaudeOk, string ClaudeMsg, bool PerplexityOk, string PerplexityMsg)> TestConnectionsAsync(CancellationToken ct = default)
         {
-            var claudeTask = _claudeService.TestConnectionAsync(ct);
+            var openAiTask = _openAiService.TestConnectionAsync(ct);
             var perplexityTask = _newsService.TestConnectionAsync(ct); // Brave Search
 
-            await Task.WhenAll(claudeTask, perplexityTask);
+            await Task.WhenAll(openAiTask, perplexityTask);
 
-            var claudeResult = await claudeTask;
+            var openAiResult = await openAiTask;
             var perplexityResult = await perplexityTask;
 
-            Diagnostics.IsClaudeConfigured = claudeResult.Success;
+            Diagnostics.IsClaudeConfigured = openAiResult.Success; // Reusing field name for compatibility
             Diagnostics.IsPerplexityConfigured = perplexityResult.Success;
 
-            return (claudeResult.Success, claudeResult.Message, perplexityResult.Success, perplexityResult.Message);
+            return (openAiResult.Success, openAiResult.Message, perplexityResult.Success, perplexityResult.Message);
         }
 
         /// <summary>
@@ -305,11 +305,11 @@ SZANSE:
                 // KROK 2: Analiza AI (z tolerancja na bledy)
                 ArticleAnalysisResult analysisResult;
 
-                if (_claudeService.IsConfigured && !string.IsNullOrEmpty(fullContent))
+                if (_openAiService.IsConfigured && !string.IsNullOrEmpty(fullContent))
                 {
                     try
                     {
-                        analysisResult = await _claudeService.AnalyzeArticleAsync(
+                        analysisResult = await _openAiService.AnalyzeArticleAsync(
                             article.Title,
                             fullContent,
                             "Brave / " + GetDomain(article.Url),
@@ -524,16 +524,16 @@ SZANSE:
                     Diagnostics.EnrichedCount++;
 
                     // KROK 4: Analiza AI
-                    if (!_claudeService.IsConfigured)
+                    if (!_openAiService.IsConfigured)
                     {
-                        Diagnostics.AddError("Claude API nie skonfigurowane!");
+                        Diagnostics.AddError("OpenAI API nie skonfigurowane!");
                         return null;
                     }
 
-                    Diagnostics.AddLog($"  Wysylam do Claude ({fullContent.Length} znakow)...");
+                    Diagnostics.AddLog($"  Wysylam do OpenAI ({fullContent.Length} znakow)...");
 
                     var analysisStopwatch = Stopwatch.StartNew();
-                    var analysisResult = await _claudeService.AnalyzeArticleAsync(
+                    var analysisResult = await _openAiService.AnalyzeArticleAsync(
                         testArticle.Title,
                         fullContent,
                         "Brave / " + GetDomain(testArticle.Url),
@@ -541,7 +541,7 @@ SZANSE:
                         ct);
                     analysisStopwatch.Stop();
 
-                    Diagnostics.AddLog($"  Claude odpowiedzial w {analysisStopwatch.ElapsedMilliseconds}ms");
+                    Diagnostics.AddLog($"  OpenAI odpowiedzial w {analysisStopwatch.ElapsedMilliseconds}ms");
 
                     // Sprawdz czy analiza sie powiodla
                     var summaryHasError = !string.IsNullOrEmpty(analysisResult.Summary) &&
@@ -551,10 +551,10 @@ SZANSE:
 
                     if (summaryHasError)
                     {
-                        Diagnostics.AddLog($"  [SKIP] Blad parsowania odpowiedzi Claude");
-                        if (!string.IsNullOrEmpty(_claudeService.LastRawResponse))
+                        Diagnostics.AddLog($"  [SKIP] Blad parsowania odpowiedzi OpenAI");
+                        if (!string.IsNullOrEmpty(_openAiService.LastRawResponse))
                         {
-                            Diagnostics.AddLog($"  RAW (100 znakow): {TruncateContent(_claudeService.LastRawResponse, 100)}");
+                            Diagnostics.AddLog($"  RAW (100 znakow): {TruncateContent(_openAiService.LastRawResponse, 100)}");
                         }
                         continue; // RETRY - idz do nastepnego
                     }
@@ -768,20 +768,20 @@ SZANSE:
                     // ─────────────────────────────────────────────────────
                     // KROK 4: Analiza AI
                     // ─────────────────────────────────────────────────────
-                    log("Krok 4: Wysylam do Claude...", "INFO");
-                    log($"  Model: {ClaudeAnalysisService.SonnetModel}", "INFO");
+                    log("Krok 4: Wysylam do OpenAI...", "INFO");
+                    log($"  Model: {OpenAIAnalysisService.DefaultModel}", "INFO");
                     log($"  Dlugosc tresci: {fullContent.Length} znakow", "DEBUG");
 
-                    if (!_claudeService.IsConfigured)
+                    if (!_openAiService.IsConfigured)
                     {
-                        log("Claude API nie skonfigurowane!", "ERROR");
-                        log("Sprawdz klucz API w App.config lub zmiennej srodowiskowej ANTHROPIC_API_KEY", "ERROR");
-                        Diagnostics.AddError("Claude API nie skonfigurowane");
+                        log("OpenAI API nie skonfigurowane!", "ERROR");
+                        log("Sprawdz klucz API w App.config lub zmiennej srodowiskowej OPENAI_API_KEY", "ERROR");
+                        Diagnostics.AddError("OpenAI API nie skonfigurowane");
                         return null;
                     }
 
                     var analysisStopwatch = Stopwatch.StartNew();
-                    var analysisResult = await _claudeService.AnalyzeArticleAsync(
+                    var analysisResult = await _openAiService.AnalyzeArticleAsync(
                         testArticle.Title,
                         fullContent,
                         "Perplexity / " + GetDomain(testArticle.Url),
@@ -789,8 +789,8 @@ SZANSE:
                         ct);
                     analysisStopwatch.Stop();
 
-                    log($"  Claude odpowiedzial w {analysisStopwatch.ElapsedMilliseconds}ms", "SUCCESS");
-                    Diagnostics.AddLog($"  Claude: {analysisStopwatch.ElapsedMilliseconds}ms");
+                    log($"  OpenAI odpowiedzial w {analysisStopwatch.ElapsedMilliseconds}ms", "SUCCESS");
+                    Diagnostics.AddLog($"  OpenAI: {analysisStopwatch.ElapsedMilliseconds}ms");
 
                     // Sprawdz czy analiza sie powiodla
                     var summaryContainsError = !string.IsNullOrEmpty(analysisResult.Summary) &&
@@ -800,16 +800,16 @@ SZANSE:
 
                     if (summaryContainsError || string.IsNullOrEmpty(analysisResult.Summary))
                     {
-                        log($"  [SKIP] Blad parsowania odpowiedzi Claude", "WARNING");
+                        log($"  [SKIP] Blad parsowania odpowiedzi OpenAI", "WARNING");
 
                         // Szczegolowe logi bledu
-                        if (!string.IsNullOrEmpty(_claudeService.LastParsingError))
+                        if (!string.IsNullOrEmpty(_openAiService.LastParsingError))
                         {
-                            log($"  Szczegoly: {TruncateContent(_claudeService.LastParsingError, 200)}", "DEBUG");
+                            log($"  Szczegoly: {TruncateContent(_openAiService.LastParsingError, 200)}", "DEBUG");
                         }
-                        if (!string.IsNullOrEmpty(_claudeService.LastRawResponse))
+                        if (!string.IsNullOrEmpty(_openAiService.LastRawResponse))
                         {
-                            log($"  RAW (100 znakow): {TruncateContent(_claudeService.LastRawResponse, 100)}", "DEBUG");
+                            log($"  RAW (100 znakow): {TruncateContent(_openAiService.LastRawResponse, 100)}", "DEBUG");
                         }
 
                         log("  Idz do nastepnego artykulu...", "INFO");
@@ -1013,12 +1013,12 @@ SZANSE:
                 Diagnostics.AddSuccess($"Zaladowano {demoArticles.Count} demo artykulow");
 
                 // ═══════════════════════════════════════════════════════════
-                // ETAP 2: Analiza kazdego artykulu przez Claude
+                // ETAP 2: Analiza kazdego artykulu przez OpenAI
                 // ═══════════════════════════════════════════════════════════
-                logSection("ETAP 2: ANALIZA CLAUDE AI");
-                log($"Bede analizowal {demoArticles.Count} artykulow przez Claude...", "INFO");
-                log($"Model: {ClaudeAnalysisService.SonnetModel}", "INFO");
-                Diagnostics.AddLog("=== ETAP 2: CLAUDE ANALYSIS ===");
+                logSection("ETAP 2: ANALIZA OPENAI GPT-4o");
+                log($"Bede analizowal {demoArticles.Count} artykulow przez OpenAI...", "INFO");
+                log($"Model: {OpenAIAnalysisService.DefaultModel}", "INFO");
+                Diagnostics.AddLog("=== ETAP 2: OPENAI ANALYSIS ===");
 
                 int analyzed = 0;
                 int errors = 0;
@@ -1047,12 +1047,12 @@ SZANSE:
                         fullContent = $"Tytul: {article.Title}. Zrodlo: {article.Source}. URL: {article.Url}";
                     }
 
-                    log($"Wysylam do Claude ({fullContent.Length} znakow)...", "INFO");
+                    log($"Wysylam do OpenAI ({fullContent.Length} znakow)...", "INFO");
 
                     try
                     {
                         var analysisStopwatch = Stopwatch.StartNew();
-                        var analysisResult = await _claudeService.AnalyzeArticleAsync(
+                        var analysisResult = await _openAiService.AnalyzeArticleAsync(
                             article.Title,
                             fullContent,
                             article.Source,
@@ -1062,12 +1062,12 @@ SZANSE:
 
                         if (analysisResult == null)
                         {
-                            log($"Claude zwrocil null - blad analizy", "ERROR");
+                            log($"OpenAI zwrocil null - blad analizy", "ERROR");
                             errors++;
                             continue;
                         }
 
-                        log($"Claude odpowiedzial w {analysisStopwatch.ElapsedMilliseconds}ms", "SUCCESS");
+                        log($"OpenAI odpowiedzial w {analysisStopwatch.ElapsedMilliseconds}ms", "SUCCESS");
 
                         // Sprawdz czy analiza sie powiodla
                         var hasParsingError = !string.IsNullOrEmpty(analysisResult.Summary) &&
@@ -1080,12 +1080,12 @@ SZANSE:
                             log($"BLAD PARSOWANIA JSON dla artykulu {analyzed}!", "ERROR");
                             log(TruncateContent(analysisResult.Summary, 500), "ERROR");
 
-                            // Pokaz surowa odpowiedz Claude
-                            if (!string.IsNullOrEmpty(_claudeService.LastRawResponse))
+                            // Pokaz surowa odpowiedz OpenAI
+                            if (!string.IsNullOrEmpty(_openAiService.LastRawResponse))
                             {
                                 log("", "ERROR");
-                                log("=== SUROWA ODPOWIEDZ CLAUDE ===", "ERROR");
-                                logRaw(_claudeService.LastRawResponse, "CLAUDE RAW");
+                                log("=== SUROWA ODPOWIEDZ OPENAI ===", "ERROR");
+                                logRaw(_openAiService.LastRawResponse, "OPENAI RAW");
                             }
                             errors++;
                             continue;
