@@ -356,6 +356,28 @@ namespace Kalendarz1.MarketIntelligence.Views
             }
         }
 
+        private void BtnAdminPanel_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var adminPanel = new AdminPanelWindow();
+                adminPanel.Owner = this;
+                var result = adminPanel.ShowDialog();
+
+                // Jesli zapisano zmiany, odswiez konfiguracje
+                if (result == true)
+                {
+                    MarketIntelligence.Config.ConfigService.Instance.Load();
+                    // Mozna dodac odswiez danych jesli potrzeba
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd otwierania Panelu Administracyjnego:\n{ex.Message}", "Błąd",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private async void CmbCategory_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (cmbCategory?.SelectedItem is ComboBoxItem item)

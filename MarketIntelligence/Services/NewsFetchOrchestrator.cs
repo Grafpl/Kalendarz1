@@ -2,11 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Kalendarz1.MarketIntelligence.Models;
 using Kalendarz1.MarketIntelligence.Services.AI;
 using Kalendarz1.MarketIntelligence.Services.DataSources;
+using MarketIntelligence.Config;
 
 namespace Kalendarz1.MarketIntelligence.Services
 {
@@ -60,8 +62,31 @@ namespace Kalendarz1.MarketIntelligence.Services
             return path;
         }
 
-        // Kontekst biznesowy Piorkowscy
-        private const string BusinessContext = @"
+        /// <summary>
+        /// Kontekst biznesowy - pobierany z ConfigService lub domyslny
+        /// </summary>
+        private string BusinessContext
+        {
+            get
+            {
+                // Probuj pobrac z ConfigService
+                var configContext = ConfigService.Instance?.BuildBusinessContextString();
+                if (!string.IsNullOrEmpty(configContext) && configContext.Length > 100)
+                {
+                    return configContext;
+                }
+
+                // Fallback - domyslny kontekst
+                return GetDefaultBusinessContext();
+            }
+        }
+
+        /// <summary>
+        /// Domyslny kontekst biznesowy (fallback gdy ConfigService niedostepny)
+        /// </summary>
+        private string GetDefaultBusinessContext()
+        {
+            return @"
 FIRMA: Ubojnia Drobiu Piorkowscy Sp.J., Koziolek, 95-060 Brzeziny, NIP 726-162-54-06
 ZDOLNOSC: 70 000 kurcząków/dzień (~200 ton), numer weterynaryjny EU
 SYTUACJA: Sprzedaż 15M PLN/mies (spadek z 25M), strata ~2M PLN/mies
@@ -98,6 +123,7 @@ SZANSE:
 1. HPAI u konkurentów → przejęcie klientów
 2. Dino ekspansja 300 nowych sklepów
 3. Relacja żywiec/pasza 4.24 (najlepsza od 2 lat)";
+        }
 
         public NewsFetchOrchestrator(string connectionString = null)
         {

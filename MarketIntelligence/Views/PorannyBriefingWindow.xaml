@@ -101,15 +101,28 @@
                     </RadioButton>
                 </StackPanel>
 
-                <!-- RIGHT: Date -->
-                <StackPanel Grid.Column="4" VerticalAlignment="Center" HorizontalAlignment="Right">
-                    <TextBlock Text="{Binding DateDisplay}"
-                               FontFamily="Georgia" FontSize="12"
-                               Foreground="#D5CCC0"/>
-                    <TextBlock Text="{Binding WeekDisplay}"
-                               FontFamily="Segoe UI" FontSize="10"
-                               Foreground="#7A6F63" Margin="0,2,0,0"
-                               HorizontalAlignment="Right"/>
+                <!-- RIGHT: Admin + Date -->
+                <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
+                    <Button x:Name="btnAdminPanel" Content="Ustawienia"
+                            Click="BtnAdminPanel_Click"
+                            ToolTip="Panel Administracyjny"
+                            Margin="0,0,20,0"
+                            Background="Transparent"
+                            BorderBrush="#3A2520"
+                            BorderThickness="1"
+                            Foreground="#C9A96E"
+                            Padding="12,6"
+                            FontSize="11"
+                            Cursor="Hand"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="{Binding DateDisplay}"
+                                   FontFamily="Georgia" FontSize="12"
+                                   Foreground="#D5CCC0"/>
+                        <TextBlock Text="{Binding WeekDisplay}"
+                                   FontFamily="Segoe UI" FontSize="10"
+                                   Foreground="#7A6F63" Margin="0,2,0,0"
+                                   HorizontalAlignment="Right"/>
+                    </StackPanel>
                 </StackPanel>
             </Grid>
         </Border>

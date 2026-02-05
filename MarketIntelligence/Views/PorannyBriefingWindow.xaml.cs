@@ -184,6 +184,27 @@ namespace Kalendarz1.MarketIntelligence.Views
             }
         }
 
+        private void BtnAdminPanel_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var adminPanel = new AdminPanelWindow();
+                adminPanel.Owner = this;
+                var result = adminPanel.ShowDialog();
+
+                // Jesli zapisano zmiany, odswiez konfiguracje
+                if (result == true)
+                {
+                    MarketIntelligence.Config.ConfigService.Instance.Load();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad otwierania Panelu Administracyjnego:\n{ex.Message}", "Blad",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private void TasksButton_Click(object sender, RoutedEventArgs e)
         {
             _viewModel?.ToggleTasksPanelCommand.Execute(null);

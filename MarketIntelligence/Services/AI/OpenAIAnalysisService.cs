@@ -10,6 +10,7 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Kalendarz1.MarketIntelligence.Models;
+using MarketIntelligence.Config;
 
 namespace Kalendarz1.MarketIntelligence.Services.AI
 {
@@ -41,13 +42,20 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
         public OpenAIAnalysisService()
         {
             _httpClient = new HttpClient();
-            _httpClient.Timeout = TimeSpan.FromSeconds(120); // 120 sekund - OpenAI jest wolniejsze
 
-            // Probuj pobrac klucz API z roznych zrodel
-            _apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY")
-                      ?? ConfigurationManager.AppSettings["OpenAiApiKey"]
-                      ?? ConfigurationManager.AppSettings["OpenAIApiKey"]
-                      ?? "";
+            // Timeout z konfiguracji lub domyslny
+            var timeoutSeconds = ConfigService.Instance?.Current?.System?.OpenAiTimeoutSeconds ?? 120;
+            _httpClient.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+
+            // Priorytet: 1) ConfigService, 2) zmienna srodowiskowa, 3) App.config
+            _apiKey = ConfigService.Instance?.Current?.System?.OpenAiApiKey;
+            if (string.IsNullOrEmpty(_apiKey))
+            {
+                _apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY")
+                          ?? ConfigurationManager.AppSettings["OpenAiApiKey"]
+                          ?? ConfigurationManager.AppSettings["OpenAIApiKey"]
+                          ?? "";
+            }
 
             if (IsConfigured)
             {
@@ -264,14 +272,23 @@ Wygeneruj streszczenie poranne w formacie JSON:
         // Semaphore do kontroli rate limitingu - max 1 request na raz
         private static readonly SemaphoreSlim _rateLimitSemaphore = new SemaphoreSlim(1, 1);
         private static DateTime _lastRequestTime = DateTime.MinValue;
-        private const int MinDelayBetweenRequestsMs = 3000; // 3 sekundy między requestami
-        private const int MaxRetries = 3;
+
+        // Rate limiting - pobierane z ConfigService
+        private int MinDelayBetweenRequestsMs =>
+            ConfigService.Instance?.Current?.System?.MinDelayBetweenRequestsMs ?? 3000;
+        private int MaxRetries =>
+            ConfigService.Instance?.Current?.System?.MaxRetries ?? 3;
 
         private async Task<string> CallOpenAIAsync(string prompt, string model, int maxTokens, CancellationToken ct)
         {
-            var systemPrompt = @"KRYTYCZNE: Odpowiadasz WYLACZNIE czystym JSON. ZAKAZANE jest uzywanie markdown - zadnych ``` ani ```json. Pierwszym znakiem odpowiedzi MUSI byc { a ostatnim }. Zero tekstu przed ani po JSON.
+            // System prompt z ConfigService lub domyslny
+            var systemPrompt = ConfigService.Instance?.Current?.Prompts?.SystemPrompt;
+            if (string.IsNullOrEmpty(systemPrompt))
+            {
+                systemPrompt = @"KRYTYCZNE: Odpowiadasz WYLACZNIE czystym JSON. ZAKAZANE jest uzywanie markdown - zadnych ``` ani ```json. Pierwszym znakiem odpowiedzi MUSI byc { a ostatnim }. Zero tekstu przed ani po JSON.
 
 TOLERANCYJNY ANALITYK: Otrzymasz tekst artykulu LUB jego streszczenie z wyszukiwarki. Jesli tekst jest krotki lub zawiera tylko streszczenie, dokonaj NAJLEPSZEJ MOZLIWEJ analizy na podstawie tego co masz. NIGDY nie odmawiaj wykonania zadania - zawsze wyciagnij maksimum informacji biznesowych dla prezesa ubojni drobiu. Krotki tekst = krotka ale wartosciowa analiza. Twoim celem jest ZAWSZE dostarczyc uzyteczna analize.";
+            }
 
             // RATE LIMITING: Czekaj na semafor i dodaj opóźnienie między requestami
             await _rateLimitSemaphore.WaitAsync(ct);

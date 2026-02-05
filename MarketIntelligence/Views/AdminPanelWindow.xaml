@@ -1,0 +1,680 @@
+<Window x:Class="Kalendarz1.MarketIntelligence.Views.AdminPanelWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Panel Administracyjny - MarketIntelligence"
+        Height="800" Width="1000"
+        MinHeight="600" MinWidth="800"
+        WindowStartupLocation="CenterOwner"
+        FontFamily="Segoe UI"
+        Background="#0B0F19">
+
+    <Window.Resources>
+        <!-- BACKGROUNDS -->
+        <SolidColorBrush x:Key="BgDeep" Color="#0B0F19"/>
+        <SolidColorBrush x:Key="BgCard" Color="#111827"/>
+        <SolidColorBrush x:Key="BgCardHover" Color="#1A2332"/>
+        <SolidColorBrush x:Key="BgSurface" Color="#1F2937"/>
+        <SolidColorBrush x:Key="BgTertiary" Color="#334155"/>
+        <SolidColorBrush x:Key="BgElevated" Color="#374151"/>
+        <SolidColorBrush x:Key="BgBorder" Color="#2A3441"/>
+
+        <!-- TEXT -->
+        <SolidColorBrush x:Key="TextBright" Color="#F9FAFB"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#E5E7EB"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#9CA3AF"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#6B7280"/>
+
+        <!-- ACCENT -->
+        <SolidColorBrush x:Key="AccentBlue" Color="#3B82F6"/>
+        <SolidColorBrush x:Key="AccentIndigo" Color="#6366F1"/>
+        <SolidColorBrush x:Key="AccentIndigoLight" Color="#818CF8"/>
+        <SolidColorBrush x:Key="AccentGreen" Color="#10B981"/>
+        <SolidColorBrush x:Key="AccentRed" Color="#EF4444"/>
+
+        <!-- Tab Control Style -->
+        <Style TargetType="TabControl">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+
+        <Style TargetType="TabItem">
+            <Setter Property="Background" Value="{StaticResource BgCard}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
+            <Setter Property="Padding" Value="20,12"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="Border" Background="{TemplateBinding Background}"
+                                Padding="{TemplateBinding Padding}"
+                                BorderThickness="0,0,0,2" BorderBrush="Transparent"
+                                Cursor="Hand">
+                            <ContentPresenter x:Name="ContentSite"
+                                              ContentSource="Header"
+                                              HorizontalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Foreground" Value="{StaticResource TextBright}"/>
+                                <Setter TargetName="Border" Property="BorderBrush" Value="{StaticResource AccentIndigo}"/>
+                                <Setter TargetName="Border" Property="Background" Value="{StaticResource BgSurface}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="{StaticResource BgCardHover}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- TextBox Style -->
+        <Style x:Key="DarkTextBox" TargetType="TextBox">
+            <Setter Property="Background" Value="{StaticResource BgElevated}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BgBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="CaretBrush" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter Property="BorderBrush" Value="{StaticResource AccentIndigo}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Button Style -->
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource AccentIndigo}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextBright}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource AccentIndigoLight}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource AccentBlue}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryButton" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource BgElevated}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BgBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="15,8"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource BgTertiary}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DangerButton" TargetType="Button">
+            <Setter Property="Background" Value="#7F1D1D"/>
+            <Setter Property="Foreground" Value="#FCA5A5"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="15,8"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource AccentRed}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- CheckBox Style -->
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <StackPanel Orientation="Horizontal">
+                            <Border x:Name="checkBorder" Width="18" Height="18"
+                                    Background="{StaticResource BgElevated}"
+                                    BorderBrush="{StaticResource BgBorder}"
+                                    BorderThickness="1" CornerRadius="3"
+                                    VerticalAlignment="Center">
+                                <Path x:Name="checkMark" Data="M 3 9 L 7 13 L 15 5"
+                                      Stroke="{StaticResource AccentGreen}"
+                                      StrokeThickness="2" Visibility="Collapsed"
+                                      Margin="1"/>
+                            </Border>
+                            <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="checkMark" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="checkBorder" Property="BorderBrush" Value="{StaticResource AccentGreen}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="checkBorder" Property="BorderBrush" Value="{StaticResource AccentIndigo}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Label Style -->
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+        </Style>
+
+        <!-- Section Header -->
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextBright}"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,0,0,15"/>
+        </Style>
+
+        <!-- Card Border -->
+        <Style x:Key="CardBorder" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource BgCard}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BgBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="20"/>
+            <Setter Property="Margin" Value="0,0,0,15"/>
+        </Style>
+
+        <!-- DataGrid Styles -->
+        <Style TargetType="DataGrid">
+            <Setter Property="Background" Value="{StaticResource BgCard}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BgBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource BgBorder}"/>
+            <Setter Property="RowBackground" Value="Transparent"/>
+            <Setter Property="AlternatingRowBackground" Value="{StaticResource BgSurface}"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+        </Style>
+
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="{StaticResource BgSurface}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BgBorder}"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+        </Style>
+
+        <Style TargetType="DataGridCell">
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{StaticResource BgTertiary}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style TargetType="DataGridRow">
+            <Setter Property="Background" Value="Transparent"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{StaticResource BgTertiary}"/>
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource BgCardHover}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- HEADER -->
+        <Border Grid.Row="0" Background="{StaticResource BgCard}"
+                BorderBrush="{StaticResource BgBorder}" BorderThickness="0,0,0,1"
+                Padding="25,15">
+            <Grid>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="PANEL ADMINISTRACYJNY" FontSize="18" FontWeight="Bold"
+                               Foreground="{StaticResource TextBright}"/>
+                    <TextBlock Text=" - MarketIntelligence" FontSize="18"
+                               Foreground="{StaticResource TextMuted}" Margin="5,0,0,0"/>
+                </StackPanel>
+                <TextBlock x:Name="ConfigPathText" HorizontalAlignment="Right"
+                           Foreground="{StaticResource TextMuted}" FontSize="11"
+                           VerticalAlignment="Center" Cursor="Hand"
+                           MouseLeftButtonUp="ConfigPathText_Click"
+                           ToolTip="Kliknij aby otworzyc folder konfiguracji"/>
+            </Grid>
+        </Border>
+
+        <!-- MAIN CONTENT - TAB CONTROL -->
+        <TabControl Grid.Row="1" x:Name="MainTabControl" Margin="0">
+
+            <!-- TAB 1: ZWIAD (Search Queries) -->
+            <TabItem Header="ZWIAD">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="25,20">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource SectionHeader}"
+                                   Text="Frazy wyszukiwania Brave Search"/>
+                        <TextBlock Foreground="{StaticResource TextMuted}" FontSize="12" Margin="0,0,0,20"
+                                   Text="Zarzadzaj frazami uzywanymi do wyszukiwania wiadomosci. Zaznacz 'Quick' dla fraz uzywanych w trybie szybkim."/>
+
+                        <Border Style="{StaticResource CardBorder}">
+                            <StackPanel>
+                                <DataGrid x:Name="QueriesDataGrid"
+                                          AutoGenerateColumns="False"
+                                          CanUserAddRows="False"
+                                          CanUserDeleteRows="False"
+                                          Height="350">
+                                    <DataGrid.Columns>
+                                        <DataGridCheckBoxColumn Header="Aktywna" Binding="{Binding IsActive}" Width="70"/>
+                                        <DataGridTextColumn Header="Fraza wyszukiwania" Binding="{Binding Phrase}" Width="*"/>
+                                        <DataGridComboBoxColumn Header="Kategoria" Width="120"
+                                                                SelectedItemBinding="{Binding Category}">
+                                            <DataGridComboBoxColumn.ElementStyle>
+                                                <Style TargetType="ComboBox">
+                                                    <Setter Property="IsReadOnly" Value="True"/>
+                                                </Style>
+                                            </DataGridComboBoxColumn.ElementStyle>
+                                        </DataGridComboBoxColumn>
+                                        <DataGridCheckBoxColumn Header="Quick" Binding="{Binding IsQuickMode}" Width="60"/>
+                                        <DataGridTextColumn Header="Priorytet" Binding="{Binding Priority}" Width="70"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,15,0,0">
+                                    <Button Content="+ Dodaj fraze" Style="{StaticResource SecondaryButton}"
+                                            Click="AddQuery_Click"/>
+                                    <Button Content="Usun zaznaczona" Style="{StaticResource DangerButton}"
+                                            Margin="10,0,0,0" Click="RemoveQuery_Click"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- TAB 2: MOZG AI (Prompts) -->
+            <TabItem Header="MOZG AI">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="25,20">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource SectionHeader}"
+                                   Text="Konfiguracja promptow AI"/>
+
+                        <!-- Model Settings -->
+                        <Border Style="{StaticResource CardBorder}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,15,0">
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Model OpenAI"/>
+                                    <ComboBox x:Name="ModelComboBox">
+                                        <ComboBoxItem Content="gpt-4o" IsSelected="True"/>
+                                        <ComboBoxItem Content="gpt-4o-mini"/>
+                                        <ComboBoxItem Content="gpt-4-turbo"/>
+                                    </ComboBox>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Margin="0,0,15,0">
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Max Tokens"/>
+                                    <TextBox x:Name="MaxTokensTextBox" Style="{StaticResource DarkTextBox}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Temperatura (0.0-1.0)"/>
+                                    <TextBox x:Name="TemperatureTextBox" Style="{StaticResource DarkTextBox}"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- System Prompt -->
+                        <Border Style="{StaticResource CardBorder}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="System Prompt"/>
+                                <TextBlock Foreground="{StaticResource TextMuted}" FontSize="11" Margin="0,0,0,10"
+                                           Text="Instrukcje systemowe dla AI - format odpowiedzi, rola analityka"/>
+                                <TextBox x:Name="SystemPromptTextBox" Style="{StaticResource DarkTextBox}"
+                                         AcceptsReturn="True" TextWrapping="Wrap" Height="150"
+                                         VerticalScrollBarVisibility="Auto"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Analysis Prompt Template -->
+                        <Border Style="{StaticResource CardBorder}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Szablon Promptu Analizy"/>
+                                <TextBlock Foreground="{StaticResource TextMuted}" FontSize="11" Margin="0,0,0,10"
+                                           TextWrapping="Wrap"
+                                           Text="Szablon dla analizy artykulow. Dostepne zmienne: {CompanyName}, {Location}, {BusinessContext}, {Source}, {Title}, {Content}"/>
+                                <TextBox x:Name="AnalysisPromptTextBox" Style="{StaticResource DarkTextBox}"
+                                         AcceptsReturn="True" TextWrapping="Wrap" Height="250"
+                                         VerticalScrollBarVisibility="Auto"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- TAB 3: KONTEKST BIZNESOWY -->
+            <TabItem Header="KONTEKST">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="25,20">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource SectionHeader}"
+                                   Text="Kontekst biznesowy firmy"/>
+
+                        <!-- Company Info -->
+                        <Border Style="{StaticResource CardBorder}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,15,15">
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Nazwa firmy"/>
+                                    <TextBox x:Name="CompanyNameTextBox" Style="{StaticResource DarkTextBox}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,0,15">
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Dyrektor/Prezes"/>
+                                    <TextBox x:Name="DirectorTextBox" Style="{StaticResource DarkTextBox}"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,0,15">
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Lokalizacja"/>
+                                    <TextBox x:Name="LocationTextBox" Style="{StaticResource DarkTextBox}"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,15,0">
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Region (woj.)"/>
+                                    <TextBox x:Name="RegionTextBox" Style="{StaticResource DarkTextBox}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Row="2" Grid.Column="1">
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Specjalizacja"/>
+                                    <TextBox x:Name="SpecializationTextBox" Style="{StaticResource DarkTextBox}"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- Financial Context -->
+                        <Border Style="{StaticResource CardBorder}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Kontekst finansowy/operacyjny"/>
+                                <TextBlock Foreground="{StaticResource TextMuted}" FontSize="11" Margin="0,0,0,10"
+                                           Text="Informacje o sytuacji finansowej, stratach, marzy, wolumenach - uzywane w analizach AI"/>
+                                <TextBox x:Name="FinancialContextTextBox" Style="{StaticResource DarkTextBox}"
+                                         AcceptsReturn="True" TextWrapping="Wrap" Height="120"
+                                         VerticalScrollBarVisibility="Auto"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Competitors -->
+                        <Border Style="{StaticResource CardBorder}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Konkurenci (jeden na linie)"/>
+                                <TextBox x:Name="CompetitorsTextBox" Style="{StaticResource DarkTextBox}"
+                                         AcceptsReturn="True" TextWrapping="Wrap" Height="100"
+                                         VerticalScrollBarVisibility="Auto"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Main Clients -->
+                        <Border Style="{StaticResource CardBorder}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Glowni klienci (jeden na linie)"/>
+                                <TextBox x:Name="MainClientsTextBox" Style="{StaticResource DarkTextBox}"
+                                         AcceptsReturn="True" TextWrapping="Wrap" Height="100"
+                                         VerticalScrollBarVisibility="Auto"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- TAB 4: SYSTEM -->
+            <TabItem Header="SYSTEM">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="25,20">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource SectionHeader}"
+                                   Text="Ustawienia systemowe"/>
+
+                        <!-- API Keys -->
+                        <Border Style="{StaticResource CardBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Klucze API" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextBright}" Margin="0,0,0,15"/>
+
+                                <StackPanel Margin="0,0,0,15">
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="OpenAI API Key"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="OpenAiKeyTextBox" Style="{StaticResource DarkTextBox}"
+                                                 Grid.Column="0"/>
+                                        <Button Content="Test" Style="{StaticResource SecondaryButton}"
+                                                Grid.Column="1" Margin="10,0,0,0"
+                                                Click="TestOpenAiKey_Click"/>
+                                    </Grid>
+                                </StackPanel>
+
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Brave Search API Key"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="BraveKeyTextBox" Style="{StaticResource DarkTextBox}"
+                                                 Grid.Column="0"/>
+                                        <Button Content="Test" Style="{StaticResource SecondaryButton}"
+                                                Grid.Column="1" Margin="10,0,0,0"
+                                                Click="TestBraveKey_Click"/>
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Timeouts -->
+                        <Border Style="{StaticResource CardBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Timeouty (sekundy)" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextBright}" Margin="0,0,0,15"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,15,0">
+                                        <TextBlock Style="{StaticResource FieldLabel}" Text="OpenAI"/>
+                                        <TextBox x:Name="OpenAiTimeoutTextBox" Style="{StaticResource DarkTextBox}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Margin="0,0,15,0">
+                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Brave"/>
+                                        <TextBox x:Name="BraveTimeoutTextBox" Style="{StaticResource DarkTextBox}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Margin="0,0,15,0">
+                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Content Fetch"/>
+                                        <TextBox x:Name="ContentTimeoutTextBox" Style="{StaticResource DarkTextBox}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="3">
+                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Puppeteer"/>
+                                        <TextBox x:Name="PuppeteerTimeoutTextBox" Style="{StaticResource DarkTextBox}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Rate Limiting -->
+                        <Border Style="{StaticResource CardBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Rate Limiting" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextBright}" Margin="0,0,0,15"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,15,0">
+                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Delay miedzy req. (ms)"/>
+                                        <TextBox x:Name="DelayTextBox" Style="{StaticResource DarkTextBox}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Margin="0,0,15,0">
+                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Max Retries"/>
+                                        <TextBox x:Name="MaxRetriesTextBox" Style="{StaticResource DarkTextBox}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Retry Base Delay (s)"/>
+                                        <TextBox x:Name="RetryDelayTextBox" Style="{StaticResource DarkTextBox}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Article Limits -->
+                        <Border Style="{StaticResource CardBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Limity artykulow" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextBright}" Margin="0,0,0,15"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,15,0">
+                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Max artykulow (pelny)"/>
+                                        <TextBox x:Name="MaxArticlesTextBox" Style="{StaticResource DarkTextBox}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Margin="0,0,15,0">
+                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Tryb szybki"/>
+                                        <TextBox x:Name="QuickModeTextBox" Style="{StaticResource DarkTextBox}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Wynikow na query"/>
+                                        <TextBox x:Name="ResultsPerQueryTextBox" Style="{StaticResource DarkTextBox}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Features -->
+                        <Border Style="{StaticResource CardBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Funkcje" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextBright}" Margin="0,0,0,15"/>
+                                <WrapPanel>
+                                    <CheckBox x:Name="PuppeteerEnabledCheckBox" Content="Puppeteer wlaczony" Margin="0,0,30,10"/>
+                                    <CheckBox x:Name="CostTrackingCheckBox" Content="Sledzenie kosztow" Margin="0,0,30,10"/>
+                                    <CheckBox x:Name="FileLoggingCheckBox" Content="Logowanie do pliku" Margin="0,0,30,10"/>
+                                    <CheckBox x:Name="OpenLogsFolderCheckBox" Content="Otworz folder logow po sesji" Margin="0,0,0,10"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+
+        <!-- FOOTER -->
+        <Border Grid.Row="2" Background="{StaticResource BgCard}"
+                BorderBrush="{StaticResource BgBorder}" BorderThickness="0,1,0,0"
+                Padding="25,15">
+            <Grid>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                    <Button Content="Przywroc domyslne" Style="{StaticResource DangerButton}"
+                            Click="ResetToDefaults_Click"/>
+                    <Button Content="Otworz folder konfiguracji" Style="{StaticResource SecondaryButton}"
+                            Margin="10,0,0,0" Click="OpenConfigFolder_Click"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="Anuluj" Style="{StaticResource SecondaryButton}"
+                            Click="Cancel_Click"/>
+                    <Button Content="Zapisz i zastosuj" Style="{StaticResource PrimaryButton}"
+                            Margin="10,0,0,0" Click="SaveAndApply_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

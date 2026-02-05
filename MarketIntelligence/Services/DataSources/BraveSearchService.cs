@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
+using MarketIntelligence.Config;
 
 namespace Kalendarz1.MarketIntelligence.Services.DataSources
 {
@@ -33,12 +34,19 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
         public BraveSearchService()
         {
             _httpClient = new HttpClient();
-            _httpClient.Timeout = TimeSpan.FromSeconds(30);
 
-            // Priorytet: 1) zmienna środowiskowa, 2) App.config
-            _apiKey = Environment.GetEnvironmentVariable("BRAVE_API_KEY")
-                      ?? ConfigurationManager.AppSettings["BraveApiKey"]
-                      ?? "";
+            // Timeout z konfiguracji lub domyslny
+            var timeoutSeconds = ConfigService.Instance?.Current?.System?.BraveTimeoutSeconds ?? 30;
+            _httpClient.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+
+            // Priorytet: 1) ConfigService, 2) zmienna środowiskowa, 3) App.config
+            _apiKey = ConfigService.Instance?.Current?.System?.BraveApiKey;
+            if (string.IsNullOrEmpty(_apiKey))
+            {
+                _apiKey = Environment.GetEnvironmentVariable("BRAVE_API_KEY")
+                          ?? ConfigurationManager.AppSettings["BraveApiKey"]
+                          ?? "";
+            }
 
             if (IsConfigured)
             {
@@ -341,9 +349,48 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
         }
 
         /// <summary>
-        /// Zapytania dla pełnego trybu - kompleksowe pokrycie branży drobiarskiej
+        /// Zapytania dla pełnego trybu - z ConfigService lub domyslne
         /// </summary>
         public List<string> GetAllQueries()
+        {
+            // Probuj pobrac z ConfigService
+            var configQueries = ConfigService.Instance?.GetActiveQueries();
+            if (configQueries != null && configQueries.Count > 0)
+            {
+                return configQueries;
+            }
+
+            // Fallback - domyslne zapytania
+            return GetDefaultQueries();
+        }
+
+        /// <summary>
+        /// Zapytania dla trybu szybkiego - z ConfigService lub domyslne
+        /// </summary>
+        public List<string> GetQuickQueries()
+        {
+            // Probuj pobrac z ConfigService
+            var configQueries = ConfigService.Instance?.GetQuickModeQueries();
+            if (configQueries != null && configQueries.Count > 0)
+            {
+                return configQueries;
+            }
+
+            // Fallback - domyslne zapytania szybkie
+            return new List<string>
+            {
+                "ptasia grypa Polska 2026",
+                "ceny drobiu kurczak",
+                "Cedrob SuperDrob Drosed",
+                "eksport drobiu Polska",
+                "branża drobiarska news"
+            };
+        }
+
+        /// <summary>
+        /// Domyslne zapytania (fallback gdy ConfigService niedostepny)
+        /// </summary>
+        private List<string> GetDefaultQueries()
         {
             return new List<string>
             {
@@ -384,21 +431,6 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                 "branża drobiarska Polska",
                 "produkcja drobiu GUS",
                 "ubojnie drobiu inwestycje"
-            };
-        }
-
-        /// <summary>
-        /// Zapytania dla trybu szybkiego - najważniejsze tematy
-        /// </summary>
-        public List<string> GetQuickQueries()
-        {
-            return new List<string>
-            {
-                "ptasia grypa Polska 2026",
-                "ceny drobiu kurczak",
-                "Cedrob SuperDrob Drosed",
-                "eksport drobiu Polska",
-                "branża drobiarska news"
             };
         }
 

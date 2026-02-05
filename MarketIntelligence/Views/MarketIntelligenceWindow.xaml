@@ -391,8 +391,13 @@
                     </StackPanel>
                 </StackPanel>
 
-                <!-- RIGHT: DateTime + Refresh -->
+                <!-- RIGHT: Admin + DateTime + Refresh -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="btnAdminPanel" Content="Ustawienia"
+                            Style="{StaticResource GhostButton}"
+                            Click="BtnAdminPanel_Click"
+                            ToolTip="Panel Administracyjny"
+                            Margin="0,0,16,0"/>
                     <TextBlock x:Name="txtLastUpdate"
                                Text="02.02.2026 18:08"
                                Foreground="{StaticResource TextMuted}"
