@@ -42,7 +42,7 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
         public ClaudeAnalysisService()
         {
             _httpClient = new HttpClient();
-            _httpClient.Timeout = TimeSpan.FromMinutes(5); // Zwiekszone z 2 do 5 minut dla dlugich analiz
+            _httpClient.Timeout = TimeSpan.FromMinutes(8); // 8 minut dla dlugich analiz z duzym max_tokens
 
             // Probuj pobrac klucz API z roznych zrodel
             _apiKey = Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY")
