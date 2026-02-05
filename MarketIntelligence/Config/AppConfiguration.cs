@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace MarketIntelligence.Config
+namespace Kalendarz1.MarketIntelligence.Config
 {
     /// <summary>
     /// Główny model konfiguracji aplikacji MarketIntelligence.

@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using Kalendarz1.MarketIntelligence.Models;
 using Kalendarz1.MarketIntelligence.Services.AI;
 using Kalendarz1.MarketIntelligence.Services.DataSources;
-using MarketIntelligence.Config;
+using Kalendarz1.MarketIntelligence.Config;
 
 namespace Kalendarz1.MarketIntelligence.Services
 {

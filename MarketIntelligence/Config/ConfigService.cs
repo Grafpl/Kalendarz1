@@ -8,7 +8,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace MarketIntelligence.Config
+namespace Kalendarz1.MarketIntelligence.Config
 {
     /// <summary>
     /// Singleton serwis do zarzadzania konfiguracja aplikacji.

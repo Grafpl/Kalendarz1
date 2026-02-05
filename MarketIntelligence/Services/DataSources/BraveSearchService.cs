@@ -8,7 +8,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
-using MarketIntelligence.Config;
+using Kalendarz1.MarketIntelligence.Config;
 
 namespace Kalendarz1.MarketIntelligence.Services.DataSources
 {

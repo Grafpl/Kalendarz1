@@ -10,6 +10,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using Kalendarz1.MarketIntelligence.Config;
 using Kalendarz1.MarketIntelligence.Models;
 using Kalendarz1.MarketIntelligence.ViewModels;
 
@@ -195,7 +196,7 @@ namespace Kalendarz1.MarketIntelligence.Views
                 // Jesli zapisano zmiany, odswiez konfiguracje
                 if (result == true)
                 {
-                    MarketIntelligence.Config.ConfigService.Instance.Load();
+                    ConfigService.Instance.Load();
                 }
             }
             catch (Exception ex)

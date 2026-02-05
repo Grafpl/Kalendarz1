@@ -10,7 +10,7 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Kalendarz1.MarketIntelligence.Models;
-using MarketIntelligence.Config;
+using Kalendarz1.MarketIntelligence.Config;
 
 namespace Kalendarz1.MarketIntelligence.Services.AI
 {

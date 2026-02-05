@@ -9,6 +9,7 @@ using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using Kalendarz1.MarketIntelligence.Config;
 using Kalendarz1.MarketIntelligence.Models;
 using Kalendarz1.MarketIntelligence.Services;
 using LiveCharts;
@@ -367,7 +368,7 @@ namespace Kalendarz1.MarketIntelligence.Views
                 // Jesli zapisano zmiany, odswiez konfiguracje
                 if (result == true)
                 {
-                    MarketIntelligence.Config.ConfigService.Instance.Load();
+                    ConfigService.Instance.Load();
                     // Mozna dodac odswiez danych jesli potrzeba
                 }
             }
