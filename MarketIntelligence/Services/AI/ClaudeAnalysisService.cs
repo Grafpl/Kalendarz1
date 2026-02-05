@@ -104,7 +104,7 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
 
             try
             {
-                var response = await CallClaudeAsync(prompt, SonnetModel, 4000, ct); // Zmniejszone z 8000 dla szybszej odpowiedzi
+                var response = await CallClaudeAsync(prompt, SonnetModel, 8000, ct); // Zwiekszone z powrotem - 4000 powodowalo obcinanie odpowiedzi
                 return ParseAnalysisResponse(response, title);
             }
             catch (Exception ex)
@@ -269,7 +269,7 @@ Wygeneruj streszczenie poranne w formacie JSON:
             {
                 model = model,
                 max_tokens = maxTokens,
-                system = "Jestes asystentem AI ktory ZAWSZE odpowiada TYLKO w formacie JSON. NIGDY nie uzywaj markdown, NIGDY nie dodawaj ``` przed ani po JSON. Odpowiadaj CZYSTYM JSON bez zadnych dodatkowych znakow.",
+                system = "KRYTYCZNE: Odpowiadasz WYLACZNIE czystym JSON. ZAKAZANE jest uzywanie markdown - zadnych ``` ani ```json. Pierwszym znakiem odpowiedzi MUSI byc { a ostatnim }. Zero tekstu przed ani po JSON.",
                 messages = new[]
                 {
                     new { role = "user", content = prompt }
@@ -475,6 +475,8 @@ KRYTYCZNE WYMAGANIA:
             {
                 ("Original", () => ExtractJson(response)),
                 ("After TryFix", () => ExtractJson(TryFixCommonJsonErrors(response))),
+                ("Repair truncated", () => TryRepairTruncatedJson(ExtractJson(response))),
+                ("Repair+TryFix", () => TryRepairTruncatedJson(ExtractJson(TryFixCommonJsonErrors(response)))),
                 ("Aggressive sanitize", () => AggressiveSanitize(response))
             };
 
@@ -792,7 +794,7 @@ KRYTYCZNE WYMAGANIA:
             // Usun BOM i inne niewidoczne znaki na poczatku
             text = text.TrimStart('\uFEFF', '\u200B', '\u200C', '\u200D', '\uFFFE');
 
-            // Usun wszystkie bloki markdown ``` ... ```
+            // Usun bloki markdown ``` ... ``` (lub obciete ```)
             while (text.Contains("```"))
             {
                 var start = text.IndexOf("```");
@@ -800,21 +802,17 @@ KRYTYCZNE WYMAGANIA:
 
                 if (endMarker > start)
                 {
-                    // Wyciagnij zawartosc bloku (bez ```)
+                    // Pelny blok - wyciagnij zawartosc
                     var blockContent = text.Substring(start + 3, endMarker - start - 3);
-
-                    // Usun ewentualne "json" na poczatku
-                    blockContent = blockContent.TrimStart();
-                    if (blockContent.StartsWith("json", StringComparison.OrdinalIgnoreCase))
-                        blockContent = blockContent.Substring(4);
-
-                    // Zamien caly blok na sama zawartosc
+                    blockContent = StripMarkdownLanguageTag(blockContent);
                     text = text.Substring(0, start) + blockContent + text.Substring(endMarker + 3);
                 }
                 else
                 {
-                    // Niepelny blok - usun samo ```
-                    text = text.Remove(start, 3);
+                    // Niepelny blok (obciety) - wyciagnij wszystko po ```
+                    var blockContent = text.Substring(start + 3);
+                    blockContent = StripMarkdownLanguageTag(blockContent);
+                    text = text.Substring(0, start) + blockContent;
                 }
             }
 
@@ -957,6 +955,101 @@ KRYTYCZNE WYMAGANIA:
                     sb.Append(c);
                 }
             }
+
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Usuwa tag jezyka markdown (np. "json", "javascript") z poczatku bloku
+        /// </summary>
+        private string StripMarkdownLanguageTag(string blockContent)
+        {
+            if (string.IsNullOrEmpty(blockContent))
+                return blockContent;
+
+            blockContent = blockContent.TrimStart();
+
+            // Lista typowych tagow jezykowych
+            var languageTags = new[] { "json", "javascript", "js", "python", "py", "csharp", "cs", "xml", "html" };
+            foreach (var tag in languageTags)
+            {
+                if (blockContent.StartsWith(tag, StringComparison.OrdinalIgnoreCase))
+                {
+                    blockContent = blockContent.Substring(tag.Length).TrimStart();
+                    break;
+                }
+            }
+
+            return blockContent;
+        }
+
+        /// <summary>
+        /// Probuje naprawic obciety JSON przez zamkniecie otwartych nawiasow
+        /// </summary>
+        private string TryRepairTruncatedJson(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+                return "{}";
+
+            // Policz otwarte nawiasy
+            int braceCount = 0;   // { }
+            int bracketCount = 0; // [ ]
+            bool inString = false;
+            bool escaped = false;
+
+            for (int i = 0; i < json.Length; i++)
+            {
+                char c = json[i];
+
+                if (escaped)
+                {
+                    escaped = false;
+                    continue;
+                }
+
+                if (c == '\\' && inString)
+                {
+                    escaped = true;
+                    continue;
+                }
+
+                if (c == '"')
+                {
+                    inString = !inString;
+                    continue;
+                }
+
+                if (!inString)
+                {
+                    if (c == '{') braceCount++;
+                    else if (c == '}') braceCount--;
+                    else if (c == '[') bracketCount++;
+                    else if (c == ']') bracketCount--;
+                }
+            }
+
+            // Jesli jestesmy w srodku stringa, zamknij go
+            if (inString)
+            {
+                json += "\"";
+            }
+
+            // Dodaj brakujace zamkniecia
+            var sb = new StringBuilder(json);
+
+            // Usun niepelne elementy na koncu (np. ostatni klucz bez wartosci)
+            var trimmed = json.TrimEnd();
+            if (trimmed.EndsWith(":") || trimmed.EndsWith(","))
+            {
+                // Usun trailing : lub ,
+                sb = new StringBuilder(trimmed.TrimEnd(':', ','));
+            }
+
+            // Zamknij tablice i obiekty
+            for (int i = 0; i < bracketCount; i++)
+                sb.Append(']');
+            for (int i = 0; i < braceCount; i++)
+                sb.Append('}');
 
             return sb.ToString();
         }
