@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using PuppeteerSharp;
@@ -45,9 +48,10 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
 
         public ContentEnrichmentService()
         {
-            // HTTP Client z kamuflażem
+            // HTTP Client z kamuflażem i PEŁNĄ obsługą kompresji
             var handler = new HttpClientHandler
             {
+                // WAŻNE: AutomaticDecompression dla GZip, Deflate i Brotli (jeśli dostępne)
                 AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
                 AllowAutoRedirect = true,
                 MaxAutomaticRedirections = 10,
@@ -55,8 +59,15 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
                 CookieContainer = new CookieContainer()
             };
 
+            // Próba włączenia Brotli (dostępne od .NET Core 2.1+)
+            try
+            {
+                handler.AutomaticDecompression |= (DecompressionMethods)4; // Brotli = 4
+            }
+            catch { /* Brotli niedostępne w tej wersji .NET */ }
+
             _httpClient = new HttpClient(handler);
-            _httpClient.Timeout = TimeSpan.FromSeconds(15);
+            _httpClient.Timeout = TimeSpan.FromSeconds(20); // Zwiększony timeout
 
             ConfigureChromeHeaders();
         }
@@ -69,7 +80,8 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
             _httpClient.DefaultRequestHeaders.Add("Accept",
                 "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8");
             _httpClient.DefaultRequestHeaders.Add("Accept-Language", "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7");
-            _httpClient.DefaultRequestHeaders.Add("Accept-Encoding", "gzip, deflate, br");
+            // WAŻNE: Usunięto 'br' (Brotli) - powoduje krzaczki gdy nie można zdekompresować
+            _httpClient.DefaultRequestHeaders.Add("Accept-Encoding", "gzip, deflate");
             _httpClient.DefaultRequestHeaders.Add("Sec-Ch-Ua",
                 "\"Not A(Brand\";v=\"99\", \"Google Chrome\";v=\"121\", \"Chromium\";v=\"121\"");
             _httpClient.DefaultRequestHeaders.Add("Sec-Ch-Ua-Mobile", "?0");
@@ -152,9 +164,13 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
 
         #region Main Enrichment Methods
 
+        // Retry configuration
+        private const int MaxHttpRetries = 2;
+        private const int RetryDelayMs = 1000;
+
         /// <summary>
         /// ENTERPRISE: Pobiera treść artykułu z trzema poziomami fallback:
-        /// 1. HTTP (szybki)
+        /// 1. HTTP (szybki) - z retry
         /// 2. Puppeteer (omija Cloudflare)
         /// 3. Snippet z wyszukiwarki (zawsze działa)
         /// </summary>
@@ -176,28 +192,53 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
             try
             {
                 // ═══════════════════════════════════════════════════════════
-                // POZIOM 1: Próba HTTP (szybkie)
+                // POZIOM 1: Próba HTTP (szybkie) z RETRY
                 // ═══════════════════════════════════════════════════════════
-                Log("POZIOM 1: Próba HTTP...");
-                var httpResult = await TryHttpFetchAsync(url, ct);
+                EnrichmentResult httpResult = null;
 
-                if (httpResult.Success && httpResult.Content.Length >= MinContentLengthFull)
+                for (int attempt = 1; attempt <= MaxHttpRetries; attempt++)
                 {
-                    Log($"HTTP SUKCES: {httpResult.Content.Length} znaków", "SUCCESS");
-                    return httpResult;
+                    Log($"POZIOM 1: Próba HTTP ({attempt}/{MaxHttpRetries})...");
+                    httpResult = await TryHttpFetchAsync(url, ct);
+
+                    if (httpResult.Success && httpResult.Content.Length >= MinContentLengthFull)
+                    {
+                        Log($"HTTP SUKCES: {httpResult.Content.Length} znaków", "SUCCESS");
+                        return httpResult;
+                    }
+
+                    // Jeśli to garbage lub Cloudflare - nie retry, idź do Puppeteer
+                    if (httpResult.Error?.Contains("garbage") == true ||
+                        httpResult.Error?.Contains("Brotli") == true ||
+                        httpResult.Error?.Contains("403") == true ||
+                        httpResult.Error?.Contains("Cloudflare") == true)
+                    {
+                        break;
+                    }
+
+                    // Retry dla timeout lub innych błędów
+                    if (attempt < MaxHttpRetries)
+                    {
+                        Log($"HTTP retry za {RetryDelayMs}ms...", "INFO");
+                        await Task.Delay(RetryDelayMs, ct);
+                    }
                 }
 
                 // HTTP nie dało pełnej treści - sprawdź czy Cloudflare
-                bool isCloudflareBlock = httpResult.Error?.Contains("403") == true ||
-                                         httpResult.Error?.Contains("Cloudflare") == true ||
-                                         IsBlockedPage(httpResult.Content ?? "");
+                bool isCloudflareBlock = httpResult?.Error?.Contains("403") == true ||
+                                         httpResult?.Error?.Contains("Cloudflare") == true ||
+                                         IsBlockedPage(httpResult?.Content ?? "");
+
+                // Sprawdź czy to problem z encoding
+                bool isEncodingIssue = httpResult?.Error?.Contains("garbage") == true ||
+                                       httpResult?.Error?.Contains("Brotli") == true;
 
                 // ═══════════════════════════════════════════════════════════
-                // POZIOM 2: Puppeteer (jeśli wykryto blokadę)
+                // POZIOM 2: Puppeteer (dla blokad i problemów z encoding)
                 // ═══════════════════════════════════════════════════════════
-                if (isCloudflareBlock)
+                if (isCloudflareBlock || isEncodingIssue)
                 {
-                    Log("POZIOM 2: Wykryto blokadę - próba Puppeteer...", "WARNING");
+                    Log("POZIOM 2: Wykryto blokadę/encoding - próba Puppeteer...", "WARNING");
                     try
                     {
                         var puppeteerResult = await TryPuppeteerFetchAsync(url, ct);
@@ -219,7 +260,7 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
                 // ═══════════════════════════════════════════════════════════
                 Log("POZIOM 3: Używam snippetu z wyszukiwarki", "WARNING");
                 return CreateFallbackResult(url, fallbackTitle, fallbackSnippet,
-                    httpResult.Error ?? "Brak pełnej treści");
+                    httpResult?.Error ?? "Brak pełnej treści");
             }
             catch (Exception ex)
             {
@@ -251,8 +292,33 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
                     };
                 }
 
+                // Sprawdź Content-Encoding - jeśli Brotli i nie obsługujemy, użyj fallback
+                var contentEncoding = response.Content.Headers.ContentEncoding.FirstOrDefault()?.ToLower();
+                if (contentEncoding == "br")
+                {
+                    Log("Serwer zwraca Brotli mimo braku wsparcia - fallback", "WARNING");
+                    return new EnrichmentResult
+                    {
+                        Success = false,
+                        Url = url,
+                        Error = "Brotli encoding not supported - fallback to snippet"
+                    };
+                }
+
                 var html = await response.Content.ReadAsStringAsync();
                 Log($"HTML: {html.Length} znaków");
+
+                // Sprawdź czy to binarne śmieci
+                if (IsGarbageContent(html))
+                {
+                    Log("Wykryto binarne śmieci w odpowiedzi HTTP!", "WARNING");
+                    return new EnrichmentResult
+                    {
+                        Success = false,
+                        Url = url,
+                        Error = "Binary/compressed garbage detected"
+                    };
+                }
 
                 // Sprawdź blokadę
                 if (IsBlockedPage(html))
@@ -270,6 +336,18 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
                 // Wyodrębnij tekst (prosty parser - usuń HTML)
                 var textContent = ExtractTextFromHtml(html);
                 Log($"Wyodrębniono tekst: {textContent.Length} znaków");
+
+                // Dodatkowa walidacja - sprawdź czy tekst nie jest śmieciami
+                if (IsGarbageContent(textContent))
+                {
+                    Log("Wyodrębniony tekst zawiera śmieci!", "WARNING");
+                    return new EnrichmentResult
+                    {
+                        Success = false,
+                        Url = url,
+                        Error = "Extracted text contains garbage"
+                    };
+                }
 
                 return new EnrichmentResult
                 {
@@ -407,16 +485,97 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
         {
             if (string.IsNullOrEmpty(html)) return "";
 
+            // Sprawdź czy to binarne śmieci (Brotli, itp.)
+            if (IsGarbageContent(html))
+            {
+                Log("Wykryto binarne/skompresowane śmieci w treści", "WARNING");
+                return ""; // Zwróć pusty string - wymusi fallback na snippet
+            }
+
             // Prosty ekstraktor - usuwa tagi HTML
-            var text = System.Text.RegularExpressions.Regex.Replace(html, "<script[^>]*>.*?</script>", "",
-                System.Text.RegularExpressions.RegexOptions.Singleline | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-            text = System.Text.RegularExpressions.Regex.Replace(text, "<style[^>]*>.*?</style>", "",
-                System.Text.RegularExpressions.RegexOptions.Singleline | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-            text = System.Text.RegularExpressions.Regex.Replace(text, "<[^>]+>", " ");
-            text = System.Text.RegularExpressions.Regex.Replace(text, @"\s+", " ");
-            text = System.Net.WebUtility.HtmlDecode(text);
+            var text = Regex.Replace(html, "<script[^>]*>.*?</script>", "",
+                RegexOptions.Singleline | RegexOptions.IgnoreCase);
+            text = Regex.Replace(text, "<style[^>]*>.*?</style>", "",
+                RegexOptions.Singleline | RegexOptions.IgnoreCase);
+            text = Regex.Replace(text, "<noscript[^>]*>.*?</noscript>", "",
+                RegexOptions.Singleline | RegexOptions.IgnoreCase);
+            text = Regex.Replace(text, "<!--.*?-->", "",
+                RegexOptions.Singleline);
+            text = Regex.Replace(text, "<[^>]+>", " ");
+            text = Regex.Replace(text, @"\s+", " ");
+            text = WebUtility.HtmlDecode(text);
+
+            // Usuń pozostałe znaki kontrolne i binarne śmieci
+            text = CleanGarbageCharacters(text);
 
             return text.Trim();
+        }
+
+        /// <summary>
+        /// Wykrywa czy treść zawiera binarne śmieci (niezdekompresowany Brotli, itp.)
+        /// </summary>
+        private bool IsGarbageContent(string content)
+        {
+            if (string.IsNullOrEmpty(content)) return false;
+
+            // Policz znaki nie-ASCII i znaki kontrolne
+            int garbageCount = 0;
+            int totalChecked = Math.Min(content.Length, 1000); // Sprawdź pierwsze 1000 znaków
+
+            for (int i = 0; i < totalChecked; i++)
+            {
+                char c = content[i];
+                // Znaki kontrolne (0-31, 127-159) lub wysokie Unicode (>65000)
+                if ((c < 32 && c != '\n' && c != '\r' && c != '\t') ||
+                    (c >= 127 && c <= 159) ||
+                    c > 65000 ||
+                    // Typowe bajty Brotli/GZip
+                    c == '\uFFFD' || c == '\u0000')
+                {
+                    garbageCount++;
+                }
+            }
+
+            // Jeśli więcej niż 10% to śmieci - odrzuć
+            double garbageRatio = (double)garbageCount / totalChecked;
+            if (garbageRatio > 0.10)
+            {
+                Log($"Garbage ratio: {garbageRatio:P1} ({garbageCount}/{totalChecked} znaków)", "DEBUG");
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Czyści znaki binarne i kontrolne z tekstu
+        /// </summary>
+        private string CleanGarbageCharacters(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return "";
+
+            var sb = new StringBuilder(text.Length);
+            foreach (char c in text)
+            {
+                // Akceptuj tylko czytelne znaki
+                if ((c >= 32 && c < 127) ||  // Basic ASCII
+                    (c >= 160 && c < 8192) || // Extended Latin, Greek, Cyrillic, itp.
+                    (c >= 8192 && c < 8304) || // Punctuation
+                    c == '\n' || c == '\r' || c == '\t' ||
+                    // Polskie znaki
+                    "ąćęłńóśźżĄĆĘŁŃÓŚŹŻ".Contains(c))
+                {
+                    sb.Append(c);
+                }
+                else
+                {
+                    // Zamień na spację
+                    sb.Append(' ');
+                }
+            }
+
+            // Usuń wielokrotne spacje
+            return Regex.Replace(sb.ToString(), @"\s+", " ").Trim();
         }
 
         private string ExtractTitle(string html)

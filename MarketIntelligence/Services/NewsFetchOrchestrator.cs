@@ -387,11 +387,12 @@ SZANSE:
                     IndustryLesson = analysisResult?.IndustryLesson,
                     StrategicQuestions = string.Join("\n", analysisResult?.StrategicQuestions ?? new List<string>()),
                     SourcesToMonitor = string.Join("\n", analysisResult?.SourcesToMonitor ?? new List<string>()),
-                    Category = analysisResult?.Category ?? "Info",
+                    Category = NormalizeCategory(analysisResult?.Category, article.Title, fullContent),
                     Source = GetDomain(article.Url) ?? "Brave",
                     SourceUrl = article.Url,
                     PublishDate = enrichResult.PublishDate ?? DateTime.Today,
-                    Severity = ParseSeverity(analysisResult?.Severity ?? "info"),
+                    Severity = ParseSeverity(analysisResult?.Severity ?? DetectSeverityFromCategory(
+                        NormalizeCategory(analysisResult?.Category, article.Title, fullContent), article.Title, fullContent)),
                     Tags = analysisResult?.Tags ?? new List<string>(),
                     IsFeatured = false
                 };
@@ -622,11 +623,12 @@ SZANSE:
                         RecommendedActionsCeo = string.Join("\n", analysisResult.ActionsCeo),
                         RecommendedActionsSales = string.Join("\n", analysisResult.ActionsSales),
                         RecommendedActionsBuyer = string.Join("\n", analysisResult.ActionsBuyer),
-                        Category = analysisResult.Category ?? "Info",
+                        Category = NormalizeCategory(analysisResult.Category, testArticle.Title, fullContent),
                         Source = GetDomain(testArticle.Url) ?? "Brave",
                         SourceUrl = testArticle.Url,
                         PublishDate = DateTime.Today,
-                        Severity = ParseSeverity(analysisResult.Severity ?? "Info"),
+                        Severity = ParseSeverity(analysisResult.Severity ?? DetectSeverityFromCategory(
+                            NormalizeCategory(analysisResult.Category, testArticle.Title, fullContent), testArticle.Title, fullContent)),
                         Tags = analysisResult.Tags ?? new List<string>(),
                         IsFeatured = true
                     };
@@ -967,11 +969,12 @@ SZANSE:
                         IndustryLesson = analysisResult.IndustryLesson,
                         StrategicQuestions = string.Join("\n", analysisResult.StrategicQuestions ?? new List<string>()),
                         SourcesToMonitor = string.Join("\n", analysisResult.SourcesToMonitor ?? new List<string>()),
-                        Category = analysisResult.Category ?? "Info",
+                        Category = NormalizeCategory(analysisResult.Category, testArticle.Title, fullContent),
                         Source = GetDomain(testArticle.Url) ?? "Perplexity",
                         SourceUrl = testArticle.Url,
                         PublishDate = DateTime.Today,
-                        Severity = ParseSeverity(analysisResult.Severity ?? "Info"),
+                        Severity = ParseSeverity(analysisResult.Severity ?? DetectSeverityFromCategory(
+                            NormalizeCategory(analysisResult.Category, testArticle.Title, fullContent), testArticle.Title, fullContent)),
                         Tags = analysisResult.Tags ?? new List<string>(),
                         IsFeatured = true
                     };
@@ -1171,11 +1174,12 @@ SZANSE:
                             IndustryLesson = analysisResult.IndustryLesson,
                             StrategicQuestions = string.Join("\n", analysisResult.StrategicQuestions ?? new List<string>()),
                             SourcesToMonitor = string.Join("\n", analysisResult.SourcesToMonitor ?? new List<string>()),
-                            Category = analysisResult.Category ?? "Info",
+                            Category = NormalizeCategory(analysisResult.Category, article.Title, fullContent),
                             Source = article.Source ?? "Demo",
                             SourceUrl = article.Url,
                             PublishDate = DateTime.Today,
-                            Severity = ParseSeverity(analysisResult.Severity ?? "Info"),
+                            Severity = ParseSeverity(analysisResult.Severity ?? DetectSeverityFromCategory(
+                                NormalizeCategory(analysisResult.Category, article.Title, fullContent), article.Title, fullContent)),
                             Tags = analysisResult.Tags ?? new List<string>(),
                             IsFeatured = analyzed == 1
                         };
@@ -1268,6 +1272,212 @@ SZANSE:
                 "low" => ImpactLevel.Low,
                 _ => ImpactLevel.Medium
             };
+        }
+
+        /// <summary>
+        /// Normalizuje kategorię do jednej ze standardowych wartości używanych w zakładkach UI.
+        /// Dostępne kategorie: HPAI, Ceny, Konkurencja, Regulacje, Eksport, Import, Klienci, Koszty, Pogoda, Logistyka, Inwestycje, Info
+        /// </summary>
+        private string NormalizeCategory(string category, string title, string content)
+        {
+            if (string.IsNullOrEmpty(category))
+            {
+                return DetectCategoryFromContent(title, content);
+            }
+
+            // Normalizuj case i usuń spacje
+            var normalized = category.Trim().ToUpperInvariant();
+
+            // Mapowanie na standardowe kategorie
+            return normalized switch
+            {
+                // HPAI - Ptasia grypa
+                "HPAI" or "PTASIA GRYPA" or "AVIAN FLU" or "BIRD FLU" or "CHOROBY" or "EPIDEMIA"
+                    => "HPAI",
+
+                // Ceny
+                "CENY" or "PRICES" or "CENNIK" or "CENY DROBIU" or "CENY RYNKOWE" or "CENY SKUPU"
+                    => "Ceny",
+
+                // Konkurencja
+                "KONKURENCJA" or "COMPETITION" or "RYNEK" or "PRZEJĘCIA" or "FUZJE" or "M&A"
+                or "CEDROB" or "SUPERDROB" or "DROSED" or "ANIMEX" or "DROBIMEX" or "PLUKON"
+                    => "Konkurencja",
+
+                // Regulacje
+                "REGULACJE" or "REGULATIONS" or "PRAWO" or "PRZEPISY" or "KSEF" or "WETERYNARYJNE"
+                or "DOBROSTAN" or "WELFARE" or "COMPLIANCE" or "USTAWA" or "ROZPORZĄDZENIE"
+                    => "Regulacje",
+
+                // Eksport
+                "EKSPORT" or "EXPORT" or "EKSPORTOWY" or "HANDEL ZAGRANICZNY"
+                    => "Eksport",
+
+                // Import
+                "IMPORT" or "IMPORTOWY" or "BRAZYLIA" or "MERCOSUR" or "UKRAINE" or "UKRAINA"
+                    => "Import",
+
+                // Klienci - sieci handlowe
+                "KLIENCI" or "CLIENTS" or "SIECI" or "RETAIL" or "HANDEL" or "DETALICZNY"
+                or "BIEDRONKA" or "LIDL" or "DINO" or "MAKRO" or "CARREFOUR" or "KAUFLAND"
+                    => "Klienci",
+
+                // Koszty
+                "KOSZTY" or "COSTS" or "PASZE" or "ZBOŻA" or "KUKURYDZA" or "SOJA" or "ENERGIA"
+                or "PALIWO" or "TRANSPORT" or "INFLACJA"
+                    => "Koszty",
+
+                // Pogoda
+                "POGODA" or "WEATHER" or "KLIMAT" or "MRÓZ" or "SUSZA" or "POWÓDŹ"
+                    => "Pogoda",
+
+                // Logistyka
+                "LOGISTYKA" or "LOGISTICS" or "TRANSPORT" or "DOSTAWY" or "ŁAŃCUCH DOSTAW"
+                    => "Logistyka",
+
+                // Inwestycje
+                "INWESTYCJE" or "INVESTMENTS" or "ROZBUDOWA" or "MODERNIZACJA" or "DOTACJE" or "FUNDUSZE"
+                    => "Inwestycje",
+
+                // Fallback - spróbuj wykryć z treści
+                "INFO" or "INFORMACJE" or "INNE" or "OTHER" or "GENERAL"
+                    => DetectCategoryFromContent(title, content),
+
+                // Jeśli już jest poprawna kategoria, użyj jej
+                _ when IsValidCategory(normalized)
+                    => normalized,
+
+                // Fallback na detekcję z treści
+                _ => DetectCategoryFromContent(title, content)
+            };
+        }
+
+        /// <summary>
+        /// Sprawdza czy kategoria jest jedną ze standardowych
+        /// </summary>
+        private bool IsValidCategory(string category)
+        {
+            var validCategories = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "HPAI", "Ceny", "Konkurencja", "Regulacje", "Eksport", "Import",
+                "Klienci", "Koszty", "Pogoda", "Logistyka", "Inwestycje", "Info"
+            };
+            return validCategories.Contains(category);
+        }
+
+        /// <summary>
+        /// Wykrywa kategorię na podstawie treści artykułu
+        /// </summary>
+        private string DetectCategoryFromContent(string title, string content)
+        {
+            var text = ((title ?? "") + " " + (content ?? "")).ToUpperInvariant();
+
+            // HPAI - najwyższy priorytet
+            if (text.Contains("HPAI") || text.Contains("PTASIA GRYPA") || text.Contains("BIRD FLU") ||
+                text.Contains("AVIAN") || text.Contains("OGNISKO") || text.Contains("WYBICIE"))
+                return "HPAI";
+
+            // Konkurencja - firmy drobiarskie
+            if (text.Contains("CEDROB") || text.Contains("SUPERDROB") || text.Contains("DROSED") ||
+                text.Contains("ANIMEX") || text.Contains("DROBIMEX") || text.Contains("PLUKON") ||
+                text.Contains("PRZEJĘCIE") || text.Contains("FUZJA") || text.Contains("ADQ"))
+                return "Konkurencja";
+
+            // Klienci - sieci handlowe
+            if (text.Contains("BIEDRONKA") || text.Contains("LIDL") || text.Contains("DINO") ||
+                text.Contains("MAKRO") || text.Contains("CARREFOUR") || text.Contains("KAUFLAND") ||
+                text.Contains("TESCO") || text.Contains("AUCHAN") || text.Contains("SELGROS"))
+                return "Klienci";
+
+            // Import
+            if (text.Contains("IMPORT") || text.Contains("BRAZYLIA") || text.Contains("MERCOSUR") ||
+                text.Contains("UKRAINA") || text.Contains("UKRAINE") || text.Contains("BEZCŁOW"))
+                return "Import";
+
+            // Eksport
+            if (text.Contains("EKSPORT") || text.Contains("EXPORT"))
+                return "Eksport";
+
+            // Regulacje
+            if (text.Contains("KSEF") || text.Contains("REGULAC") || text.Contains("USTAWA") ||
+                text.Contains("ROZPORZĄ") || text.Contains("WETERYN") || text.Contains("DOBROSTAN"))
+                return "Regulacje";
+
+            // Koszty - pasze i energia
+            if (text.Contains("PASZA") || text.Contains("KUKURYDZ") || text.Contains("SOJA") ||
+                text.Contains("PSZENICA") || text.Contains("ENERGIA") || text.Contains("PALIW") ||
+                text.Contains("KOSZT"))
+                return "Koszty";
+
+            // Ceny
+            if (text.Contains("CENA") || text.Contains("CEN ") || text.Contains("CENOW") ||
+                text.Contains("PRICE") || text.Contains("ZŁ/KG") || text.Contains("PLN"))
+                return "Ceny";
+
+            // Pogoda
+            if (text.Contains("POGODA") || text.Contains("MRÓZ") || text.Contains("SUSZA") ||
+                text.Contains("TEMPERATURA") || text.Contains("KLIMAT"))
+                return "Pogoda";
+
+            // Inwestycje
+            if (text.Contains("INWESTYC") || text.Contains("DOTACJ") || text.Contains("FUNDUSZ") ||
+                text.Contains("MODERNIZ") || text.Contains("ROZBUDOW"))
+                return "Inwestycje";
+
+            // Logistyka
+            if (text.Contains("LOGISTYK") || text.Contains("TRANSPORT") || text.Contains("DOSTAW"))
+                return "Logistyka";
+
+            // Default
+            return "Info";
+        }
+
+        /// <summary>
+        /// Określa severity na podstawie kategorii i treści gdy AI nie określiło
+        /// </summary>
+        private string DetectSeverityFromCategory(string category, string title, string content)
+        {
+            var text = ((title ?? "") + " " + (content ?? "")).ToUpperInvariant();
+
+            // HPAI zawsze critical jeśli w regionie łódzkim lub blisko
+            if (category == "HPAI")
+            {
+                if (text.Contains("ŁÓDZKI") || text.Contains("LODZKI") || text.Contains("BRZEZIN") ||
+                    text.Contains("ŁÓDŹ") || text.Contains("LODZ") || text.Contains("PIOTRKÓW"))
+                    return "critical";
+                return "warning";
+            }
+
+            // Konkurencja - przejęcia i fuzje są ważne
+            if (category == "Konkurencja")
+            {
+                if (text.Contains("PRZEJĘCIE") || text.Contains("FUZJA") || text.Contains("ADQ") ||
+                    text.Contains("BANKRUT") || text.Contains("UPADŁOŚ"))
+                    return "warning";
+                return "info";
+            }
+
+            // Import - tani import to zagrożenie
+            if (category == "Import")
+            {
+                if (text.Contains("BRAZYLIA") || text.Contains("MERCOSUR") || text.Contains("BEZCŁOW"))
+                    return "warning";
+                return "info";
+            }
+
+            // Regulacje - KSeF jest pilne
+            if (category == "Regulacje" && text.Contains("KSEF"))
+                return "warning";
+
+            // Klienci - nowi klienci to pozytywne
+            if (category == "Klienci")
+            {
+                if (text.Contains("EKSPANSJ") || text.Contains("NOWY") || text.Contains("OTWARCI"))
+                    return "positive";
+                return "info";
+            }
+
+            return "info";
         }
 
         #endregion

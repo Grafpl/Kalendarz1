@@ -101,7 +101,8 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
 
             try
             {
-                var response = await CallOpenAIAsync(prompt, DefaultModel, 4000, ct);
+                // ZWIĘKSZONO max_tokens do 8000 aby uniknąć obcięcia JSON
+                var response = await CallOpenAIAsync(prompt, DefaultModel, 8000, ct);
                 return ParseAnalysisResponse(response, title);
             }
             catch (Exception ex)
@@ -260,52 +261,147 @@ Wygeneruj streszczenie poranne w formacie JSON:
 
         #region Private Methods
 
+        // Semaphore do kontroli rate limitingu - max 1 request na raz
+        private static readonly SemaphoreSlim _rateLimitSemaphore = new SemaphoreSlim(1, 1);
+        private static DateTime _lastRequestTime = DateTime.MinValue;
+        private const int MinDelayBetweenRequestsMs = 3000; // 3 sekundy między requestami
+        private const int MaxRetries = 3;
+
         private async Task<string> CallOpenAIAsync(string prompt, string model, int maxTokens, CancellationToken ct)
         {
             var systemPrompt = @"KRYTYCZNE: Odpowiadasz WYLACZNIE czystym JSON. ZAKAZANE jest uzywanie markdown - zadnych ``` ani ```json. Pierwszym znakiem odpowiedzi MUSI byc { a ostatnim }. Zero tekstu przed ani po JSON.
 
 TOLERANCYJNY ANALITYK: Otrzymasz tekst artykulu LUB jego streszczenie z wyszukiwarki. Jesli tekst jest krotki lub zawiera tylko streszczenie, dokonaj NAJLEPSZEJ MOZLIWEJ analizy na podstawie tego co masz. NIGDY nie odmawiaj wykonania zadania - zawsze wyciagnij maksimum informacji biznesowych dla prezesa ubojni drobiu. Krotki tekst = krotka ale wartosciowa analiza. Twoim celem jest ZAWSZE dostarczyc uzyteczna analize.";
 
-            var requestBody = new
+            // RATE LIMITING: Czekaj na semafor i dodaj opóźnienie między requestami
+            await _rateLimitSemaphore.WaitAsync(ct);
+            try
             {
-                model = model,
-                max_tokens = maxTokens,
-                temperature = 0.7,
-                response_format = new { type = "json_object" }, // WYMUSZA JSON!
-                messages = new object[]
+                // Oblicz ile trzeba poczekać od ostatniego requestu
+                var timeSinceLastRequest = DateTime.Now - _lastRequestTime;
+                var delayNeeded = MinDelayBetweenRequestsMs - (int)timeSinceLastRequest.TotalMilliseconds;
+                if (delayNeeded > 0)
                 {
-                    new { role = "system", content = systemPrompt },
-                    new { role = "user", content = prompt }
+                    Debug.WriteLine($"[OpenAI] Rate limiting: czekam {delayNeeded}ms przed kolejnym requestem");
+                    await Task.Delay(delayNeeded, ct);
                 }
-            };
 
-            var json = JsonSerializer.Serialize(requestBody);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            Debug.WriteLine($"[OpenAI] Wysylam request do {model}, prompt length: {prompt.Length}");
-
-            var response = await _httpClient.PostAsync(ApiUrl, content, ct);
-            var responseText = await response.Content.ReadAsStringAsync();
-
-            if (!response.IsSuccessStatusCode)
+                return await CallOpenAIWithRetryAsync(prompt, model, maxTokens, systemPrompt, ct);
+            }
+            finally
             {
-                Debug.WriteLine($"[OpenAI] Error response: {responseText}");
-                throw new Exception($"OpenAI API error {response.StatusCode}: {responseText}");
+                _lastRequestTime = DateTime.Now;
+                _rateLimitSemaphore.Release();
+            }
+        }
+
+        private async Task<string> CallOpenAIWithRetryAsync(string prompt, string model, int maxTokens, string systemPrompt, CancellationToken ct)
+        {
+            Exception lastException = null;
+
+            for (int attempt = 1; attempt <= MaxRetries; attempt++)
+            {
+                try
+                {
+                    var requestBody = new
+                    {
+                        model = model,
+                        max_tokens = maxTokens,
+                        temperature = 0.7,
+                        response_format = new { type = "json_object" }, // WYMUSZA JSON!
+                        messages = new object[]
+                        {
+                            new { role = "system", content = systemPrompt },
+                            new { role = "user", content = prompt }
+                        }
+                    };
+
+                    var json = JsonSerializer.Serialize(requestBody);
+                    var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                    Debug.WriteLine($"[OpenAI] Wysylam request do {model}, prompt length: {prompt.Length}, proba {attempt}/{MaxRetries}");
+
+                    var response = await _httpClient.PostAsync(ApiUrl, content, ct);
+                    var responseText = await response.Content.ReadAsStringAsync();
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        Debug.WriteLine($"[OpenAI] Error response: {responseText}");
+
+                        // Sprawdź czy to rate limit error
+                        if (responseText.Contains("rate_limit") || responseText.Contains("Rate limit") ||
+                            responseText.Contains("429") || responseText.Contains("TooManyRequests"))
+                        {
+                            // Parsuj sugerowany czas oczekiwania
+                            var waitSeconds = ExtractRetryAfterSeconds(responseText);
+                            var waitMs = Math.Max(waitSeconds * 1000, 5000); // Minimum 5 sekund
+
+                            Debug.WriteLine($"[OpenAI] Rate limit hit! Czekam {waitMs}ms przed retry...");
+                            await Task.Delay(waitMs, ct);
+                            continue; // Retry
+                        }
+
+                        throw new Exception($"OpenAI API error {response.StatusCode}: {responseText}");
+                    }
+
+                    using var doc = JsonDocument.Parse(responseText);
+                    var root = doc.RootElement;
+
+                    // OpenAI response format: { choices: [{ message: { content: "..." } }] }
+                    var textContent = root
+                        .GetProperty("choices")[0]
+                        .GetProperty("message")
+                        .GetProperty("content")
+                        .GetString();
+
+                    Debug.WriteLine($"[OpenAI] Otrzymano odpowiedz, length: {textContent?.Length ?? 0}");
+
+                    return textContent ?? "";
+                }
+                catch (OperationCanceledException)
+                {
+                    throw; // Don't retry on cancellation
+                }
+                catch (Exception ex)
+                {
+                    lastException = ex;
+                    Debug.WriteLine($"[OpenAI] Blad przy probie {attempt}: {ex.Message}");
+
+                    if (attempt < MaxRetries)
+                    {
+                        var retryDelay = attempt * 2000; // 2s, 4s, 6s
+                        Debug.WriteLine($"[OpenAI] Retry za {retryDelay}ms...");
+                        await Task.Delay(retryDelay, ct);
+                    }
+                }
             }
 
-            using var doc = JsonDocument.Parse(responseText);
-            var root = doc.RootElement;
+            throw lastException ?? new Exception("OpenAI request failed after all retries");
+        }
 
-            // OpenAI response format: { choices: [{ message: { content: "..." } }] }
-            var textContent = root
-                .GetProperty("choices")[0]
-                .GetProperty("message")
-                .GetProperty("content")
-                .GetString();
+        /// <summary>
+        /// Wyciąga sugerowany czas oczekiwania z błędu rate limit
+        /// </summary>
+        private int ExtractRetryAfterSeconds(string errorResponse)
+        {
+            try
+            {
+                // Szukamy wzorca "Please try again in X.XXXs" lub "Please retry after X seconds"
+                var match = System.Text.RegularExpressions.Regex.Match(errorResponse, @"try again in (\d+\.?\d*)s");
+                if (match.Success && double.TryParse(match.Groups[1].Value, out var seconds))
+                {
+                    return (int)Math.Ceiling(seconds) + 1; // +1 dla pewności
+                }
 
-            Debug.WriteLine($"[OpenAI] Otrzymano odpowiedz, length: {textContent?.Length ?? 0}");
+                match = System.Text.RegularExpressions.Regex.Match(errorResponse, @"retry after (\d+)");
+                if (match.Success && int.TryParse(match.Groups[1].Value, out var secs))
+                {
+                    return secs + 1;
+                }
+            }
+            catch { }
 
-            return textContent ?? "";
+            return 10; // Domyślnie 10 sekund
         }
 
         private string CreateAnalysisPrompt(string title, string content, string source, string businessContext)
@@ -760,6 +856,14 @@ KRYTYCZNE WYMAGANIA:
             if (string.IsNullOrWhiteSpace(json))
                 return "{}";
 
+            // Krok 1: Znajdź ostatnią kompletną właściwość
+            var lastCompletePropertyIndex = FindLastCompleteProperty(json);
+            if (lastCompletePropertyIndex > 0 && lastCompletePropertyIndex < json.Length - 10)
+            {
+                json = json.Substring(0, lastCompletePropertyIndex);
+                Debug.WriteLine($"[JSON Repair] Obcięto do ostatniej kompletnej właściwości na pozycji {lastCompletePropertyIndex}");
+            }
+
             int braceCount = 0;
             int bracketCount = 0;
             bool inString = false;
@@ -796,25 +900,92 @@ KRYTYCZNE WYMAGANIA:
                 }
             }
 
-            if (inString)
-            {
-                json += "\"";
-            }
-
             var sb = new StringBuilder(json);
 
-            var trimmed = json.TrimEnd();
-            if (trimmed.EndsWith(":") || trimmed.EndsWith(","))
+            // Zamknij otwarty string
+            if (inString)
             {
-                sb = new StringBuilder(trimmed.TrimEnd(':', ','));
+                sb.Append("\"");
             }
 
+            // Usuń trailing garbage
+            var trimmed = sb.ToString().TrimEnd();
+            while (trimmed.EndsWith(":") || trimmed.EndsWith(",") || trimmed.EndsWith("\"\""))
+            {
+                if (trimmed.EndsWith("\"\""))
+                {
+                    trimmed = trimmed.Substring(0, trimmed.Length - 2);
+                }
+                else
+                {
+                    trimmed = trimmed.TrimEnd(':', ',');
+                }
+            }
+            sb = new StringBuilder(trimmed);
+
+            // Przelicz nawiasy po cleanup
+            braceCount = 0;
+            bracketCount = 0;
+            inString = false;
+            escaped = false;
+
+            for (int i = 0; i < sb.Length; i++)
+            {
+                char c = sb[i];
+                if (escaped) { escaped = false; continue; }
+                if (c == '\\' && inString) { escaped = true; continue; }
+                if (c == '"') { inString = !inString; continue; }
+                if (!inString)
+                {
+                    if (c == '{') braceCount++;
+                    else if (c == '}') braceCount--;
+                    else if (c == '[') bracketCount++;
+                    else if (c == ']') bracketCount--;
+                }
+            }
+
+            // Dodaj brakujące zamknięcia
             for (int i = 0; i < bracketCount; i++)
                 sb.Append(']');
             for (int i = 0; i < braceCount; i++)
                 sb.Append('}');
 
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// Znajduje pozycję końca ostatniej kompletnej właściwości JSON
+        /// </summary>
+        private int FindLastCompleteProperty(string json)
+        {
+            // Szukamy wzorca: "property": value (gdzie value kończy się przecinkiem lub jest ostatnia)
+            // Szukamy od końca ostatniego przecinka przed obciętym tekstem
+
+            int lastCommaPos = -1;
+            bool inString = false;
+            bool escaped = false;
+            int depth = 0;
+
+            for (int i = 0; i < json.Length; i++)
+            {
+                char c = json[i];
+
+                if (escaped) { escaped = false; continue; }
+                if (c == '\\' && inString) { escaped = true; continue; }
+                if (c == '"') { inString = !inString; continue; }
+
+                if (!inString)
+                {
+                    if (c == '{' || c == '[') depth++;
+                    else if (c == '}' || c == ']') depth--;
+                    else if (c == ',' && depth == 1) // Przecinek na głównym poziomie
+                    {
+                        lastCommaPos = i + 1;
+                    }
+                }
+            }
+
+            return lastCommaPos;
         }
 
         private string GetStringProperty(JsonElement element, string propertyName, string defaultValue)
