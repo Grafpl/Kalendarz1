@@ -273,17 +273,30 @@
         <Setter Property="Padding" Value="16"/>
     </Style>
 
+    <!-- Premium Article Card with Shadow -->
     <Style x:Key="ArticleCard" TargetType="Border">
-        <Setter Property="Background" Value="{StaticResource BgCard}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource BgBorder}"/>
+        <Setter Property="Background" Value="#1A1714"/>
+        <Setter Property="BorderBrush" Value="#2D2925"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="CornerRadius" Value="6"/>
-        <Setter Property="Margin" Value="0,0,0,8"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Margin" Value="0,0,0,12"/>
         <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Effect">
+            <Setter.Value>
+                <DropShadowEffect Color="Black" BlurRadius="12" ShadowDepth="2"
+                                  Opacity="0.3" Direction="270"/>
+            </Setter.Value>
+        </Setter>
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
-                <Setter Property="Background" Value="{StaticResource BgSurface}"/>
-                <Setter Property="BorderBrush" Value="{StaticResource BgBorderLight}"/>
+                <Setter Property="Background" Value="#1E1B18"/>
+                <Setter Property="BorderBrush" Value="#3D3935"/>
+                <Setter Property="Effect">
+                    <Setter.Value>
+                        <DropShadowEffect Color="Black" BlurRadius="16" ShadowDepth="4"
+                                          Opacity="0.4" Direction="270"/>
+                    </Setter.Value>
+                </Setter>
             </Trigger>
         </Style.Triggers>
     </Style>

@@ -231,6 +231,17 @@ namespace Kalendarz1.MarketIntelligence.ViewModels
 
         public int ArticleCount => FilteredArticles.Count;
 
+        /// <summary>
+        /// Artykuły o krytycznym lub wysokim wpływie (do Ticker Tape)
+        /// </summary>
+        public IEnumerable<BriefingArticle> CriticalArticles =>
+            AllArticles.Where(a => a.Impact == Models.ImpactLevel.Critical || a.Impact == Models.ImpactLevel.High);
+
+        /// <summary>
+        /// Czy są artykuły krytyczne do wyświetlenia w Ticker Tape
+        /// </summary>
+        public bool HasCriticalArticles => CriticalArticles.Any();
+
         public int UrgentTasksCount => Tasks.Count(t => !t.IsCompleted && t.DaysUntil <= 3);
 
         #endregion
@@ -2128,6 +2139,10 @@ Plan awaryjny:
                     }
                     ApplyFilters();
 
+                    // Odśwież właściwości dla Ticker Tape
+                    OnPropertyChanged(nameof(CriticalArticles));
+                    OnPropertyChanged(nameof(HasCriticalArticles));
+
                     Diagnostics?.AddSuccess($"Pobrano i przeanalizowano {articles.Count} artykulow");
                 }
                 else
@@ -2251,12 +2266,16 @@ Plan awaryjny:
                         AllArticles.Clear();
                         AllArticles.Add(article);
                         ApplyFilters();
+                        OnPropertyChanged(nameof(CriticalArticles));
+                        OnPropertyChanged(nameof(HasCriticalArticles));
                     });
 
                     LogViewer.AppendSeparator("SUKCES");
                     LogViewer.AppendLog($"Artykul dodany: {article.Title}", "SUCCESS");
                     LogViewer.AppendLog($"Kategoria: {article.Category}", "INFO");
                     LogViewer.AppendLog($"Severity: {article.Severity}", "INFO");
+                    LogViewer.AppendLog($"Impact: {article.Impact}", "INFO");
+                    LogViewer.AppendLog($"Sentiment: {article.SentimentScore:F2}", "INFO");
 
                     Diagnostics.AddSuccess($"Artykul dodany do listy: {article.Title}");
                 }
@@ -2329,13 +2348,15 @@ Plan awaryjny:
                             AllArticles.Add(article);
                         }
                         ApplyFilters();
+                        OnPropertyChanged(nameof(CriticalArticles));
+                        OnPropertyChanged(nameof(HasCriticalArticles));
                     });
 
                     LogViewer.AppendSeparator("SUKCES");
                     LogViewer.AppendLog($"Dodano {articles.Count} artykulow", "SUCCESS");
                     foreach (var article in articles)
                     {
-                        LogViewer.AppendLog($"  - {article.Title}", "INFO");
+                        LogViewer.AppendLog($"  - [{article.Impact}] {article.Title}", "INFO");
                     }
 
                     Diagnostics.AddSuccess($"Dodano {articles.Count} artykulow demo");

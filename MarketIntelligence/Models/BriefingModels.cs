@@ -36,6 +36,17 @@ namespace Kalendarz1.MarketIntelligence.Models
         C
     }
 
+    /// <summary>
+    /// Poziom wpływu wiadomości na biznes
+    /// </summary>
+    public enum ImpactLevel
+    {
+        Low,        // Informacyjny, mały wpływ
+        Medium,     // Umiarkowany wpływ, warto obserwować
+        High,       // Wysoki wpływ, wymaga uwagi
+        Critical    // Krytyczny - natychmiastowa reakcja
+    }
+
     #endregion
 
     #region Base Class
@@ -106,6 +117,22 @@ namespace Kalendarz1.MarketIntelligence.Models
         public List<string> Tags { get; set; } = new List<string>();
         public bool IsFeatured { get; set; }
 
+        // NOWE: Executive Dashboard fields
+        /// <summary>
+        /// Krótki, biznesowy nagłówek generowany przez AI (max 80 znaków)
+        /// </summary>
+        public string SmartTitle { get; set; }
+
+        /// <summary>
+        /// Wynik sentymentu: -1 (bardzo negatywny dla ubojni) do +1 (bardzo pozytywny)
+        /// </summary>
+        public double SentimentScore { get; set; }
+
+        /// <summary>
+        /// Poziom wpływu na biznes
+        /// </summary>
+        public ImpactLevel Impact { get; set; } = ImpactLevel.Medium;
+
         private bool _isExpanded;
         public bool IsExpanded
         {
@@ -122,6 +149,76 @@ namespace Kalendarz1.MarketIntelligence.Models
             SeverityLevel.Positive => "POZYTYWNE",
             SeverityLevel.Info => "INFO",
             _ => "INFO"
+        };
+
+        /// <summary>
+        /// Kolor paska bocznego na podstawie ImpactLevel
+        /// </summary>
+        public string ImpactColor => Impact switch
+        {
+            ImpactLevel.Critical => "#E53935",   // Czerwony
+            ImpactLevel.High => "#FB8C00",       // Pomarańczowy
+            ImpactLevel.Medium => "#FDD835",     // Żółty
+            ImpactLevel.Low => "#43A047",        // Zielony
+            _ => "#78909C"                       // Szary
+        };
+
+        /// <summary>
+        /// Tekst wpływu po polsku
+        /// </summary>
+        public string ImpactText => Impact switch
+        {
+            ImpactLevel.Critical => "KRYTYCZNY",
+            ImpactLevel.High => "WYSOKI",
+            ImpactLevel.Medium => "ŚREDNI",
+            ImpactLevel.Low => "NISKI",
+            _ => "NIEZNANY"
+        };
+
+        /// <summary>
+        /// Ikona sentymentu (Unicode)
+        /// </summary>
+        public string SentimentIcon => SentimentScore switch
+        {
+            >= 0.5 => "▲",    // Bardzo pozytywny
+            >= 0.1 => "↗",    // Pozytywny
+            <= -0.5 => "▼",   // Bardzo negatywny
+            <= -0.1 => "↘",   // Negatywny
+            _ => "━"          // Neutralny
+        };
+
+        /// <summary>
+        /// Kolor sentymentu
+        /// </summary>
+        public string SentimentColor => SentimentScore switch
+        {
+            >= 0.3 => "#4CAF50",   // Zielony
+            >= 0 => "#8BC34A",     // Jasnozielony
+            <= -0.3 => "#F44336", // Czerwony
+            _ => "#FF9800"        // Pomarańczowy
+        };
+
+        /// <summary>
+        /// Wyświetlany tytuł - SmartTitle lub skrócony Title
+        /// </summary>
+        public string DisplayTitle => !string.IsNullOrEmpty(SmartTitle)
+            ? SmartTitle
+            : (Title?.Length > 80 ? Title.Substring(0, 77) + "..." : Title);
+
+        /// <summary>
+        /// Kolor kategorii dla badge
+        /// </summary>
+        public string CategoryColor => Category?.ToUpperInvariant() switch
+        {
+            "HPAI" => "#D32F2F",
+            "CENY" => "#1976D2",
+            "KONKURENCJA" => "#7B1FA2",
+            "REGULACJE" => "#455A64",
+            "KLIENCI" => "#00796B",
+            "EKSPORT" => "#0288D1",
+            "IMPORT" => "#F57C00",
+            "KOSZTY" => "#C2185B",
+            _ => "#616161"
         };
 
         public string GetAiAnalysis(UserRole role) => role switch

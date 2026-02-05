@@ -313,6 +313,14 @@ Tresc: {content}
 
 Odpowiedz TYLKO w formacie JSON (bez markdown, bez ```):
 {{
+  ""smart_title"": ""Krotki biznesowy naglowek (max 60 znakow) - esencja newsa dla prezesa, np. 'HPAI: 2 nowe ogniska w lodzkim' lub 'Cedrob podnosi ceny o 8%'"",
+
+  ""sentiment_score"": 0.0,
+  ""_sentiment_comment"": ""Liczba od -1.0 do +1.0. Negatywne dla ubojni Piorkowscy: HPAI w regionie (-0.8), wzrost cen pasz (-0.5), import brazylijski (-0.7). Pozytywne: wzrost cen sprzedazy (+0.6), HPAI u konkurencji (+0.3), nowy klient (+0.5). Neutralne: 0.0"",
+
+  ""impact"": ""Medium"",
+  ""_impact_comment"": ""Low=informacyjny, Medium=warto obserwowac, High=wymaga uwagi, Critical=natychmiastowa reakcja (HPAI w promieniu 50km, utrata kluczowego klienta, awaria)"",
+
   ""streszczenie"": ""NAPISZ MINIMUM 10-15 ZDAN szczegolowego streszczenia. Podaj WSZYSTKIE fakty, liczby, daty, nazwy z artykulu. UZUPELNIJ wlasnymi informacjami o temacie bazujac na wiedzy o branzy drobiarskiej - kontekst historyczny, trendy, porownania z innymi rynkami. Wyjasni CO, GDZIE, KIEDY, DLACZEGO, JAKIE KONSEKWENCJE. Napisz tak, jakbys tlumaczyl temat osobie spoza branzy."",
 
   ""kontekst_rynkowy"": ""NAPISZ 8-10 ZDAN o szerszym kontekscie rynkowym. Jak ta informacja wpisuje sie w obecna sytuacje na rynku drobiarskim? Jakie sa trendy cenowe ostatnich miesiecy? Jak wyglada sytuacja w Polsce vs UE vs swiat? Jakie czynniki makroekonomiczne wplywaja na rynek (inflacja, kursy walut, ceny energii, ceny zboz)?"",
@@ -487,6 +495,11 @@ KRYTYCZNE WYMAGANIA:
 
                     var result = new ArticleAnalysisResult
                     {
+                        // Executive Dashboard fields
+                        SmartTitle = GetStringProperty(root, "smart_title", ""),
+                        SentimentScore = GetDoubleProperty(root, "sentiment_score", 0.0),
+                        Impact = GetStringProperty(root, "impact", "Medium"),
+
                         Summary = GetStringProperty(root, "streszczenie", "Brak streszczenia"),
                         MarketContext = GetStringProperty(root, "kontekst_rynkowy", ""),
                         WhoIs = GetStringProperty(root, "kim_jest", ""),
@@ -934,10 +947,35 @@ KRYTYCZNE WYMAGANIA:
             return result;
         }
 
+        private double GetDoubleProperty(JsonElement element, string propertyName, double defaultValue)
+        {
+            if (element.TryGetProperty(propertyName, out var prop))
+            {
+                if (prop.ValueKind == JsonValueKind.Number)
+                {
+                    return prop.GetDouble();
+                }
+                // Czasami Claude zwraca liczbe jako string
+                if (prop.ValueKind == JsonValueKind.String)
+                {
+                    if (double.TryParse(prop.GetString(), out var result))
+                    {
+                        return result;
+                    }
+                }
+            }
+            return defaultValue;
+        }
+
         private ArticleAnalysisResult CreateStubAnalysis(string title, string message)
         {
             return new ArticleAnalysisResult
             {
+                // Executive Dashboard fields
+                SmartTitle = title?.Length > 60 ? title.Substring(0, 57) + "..." : title ?? "Brak tytułu",
+                SentimentScore = 0.0,
+                Impact = "Medium",
+
                 Summary = message,
                 MarketContext = "Informacja niedostepna.",
                 WhoIs = "Informacja niedostepna - sprawdz konfiguracje klucza API Claude.",
@@ -982,6 +1020,22 @@ KRYTYCZNE WYMAGANIA:
     {
         // Podstawowe podsumowanie
         public string Summary { get; set; }
+
+        // NOWE: Executive Dashboard fields
+        /// <summary>
+        /// Krótki, biznesowy nagłówek (max 80 znaków)
+        /// </summary>
+        public string SmartTitle { get; set; }
+
+        /// <summary>
+        /// Sentyment: -1 (bardzo negatywny) do +1 (bardzo pozytywny) dla ubojni
+        /// </summary>
+        public double SentimentScore { get; set; }
+
+        /// <summary>
+        /// Poziom wpływu na biznes: Low, Medium, High, Critical
+        /// </summary>
+        public string Impact { get; set; }
 
         // NOWE: Kontekst rynkowy
         public string MarketContext { get; set; }

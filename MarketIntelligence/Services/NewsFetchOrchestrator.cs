@@ -272,6 +272,9 @@ SZANSE:
                     {
                         Id = analyzed + 1,
                         Title = article.Title,
+                        SmartTitle = analysisResult.SmartTitle,
+                        SentimentScore = analysisResult.SentimentScore,
+                        Impact = ParseImpactLevel(analysisResult.Impact),
                         ShortPreview = TruncateContent(article.Content, 150),
                         FullContent = analysisResult.Summary,
                         EducationalSection = analysisResult.WhoIs,
@@ -524,6 +527,9 @@ SZANSE:
                 {
                     Id = 1,
                     Title = testArticle.Title,
+                    SmartTitle = analysisResult.SmartTitle,
+                    SentimentScore = analysisResult.SentimentScore,
+                    Impact = ParseImpactLevel(analysisResult.Impact),
                     ShortPreview = TruncateContent(testArticle.Snippet, 150),
                     FullContent = analysisResult.Summary,
                     EducationalSection = analysisResult.WhoIs,
@@ -832,6 +838,9 @@ SZANSE:
                 {
                     Id = 1,
                     Title = testArticle.Title,
+                    SmartTitle = analysisResult.SmartTitle,
+                    SentimentScore = analysisResult.SentimentScore,
+                    Impact = ParseImpactLevel(analysisResult.Impact),
                     ShortPreview = TruncateContent(testArticle.Snippet, 150),
                     FullContent = analysisResult.Summary,
                     MarketContext = analysisResult.MarketContext,
@@ -997,6 +1006,9 @@ SZANSE:
                         {
                             Id = analyzed,
                             Title = article.Title,
+                            SmartTitle = analysisResult.SmartTitle,
+                            SentimentScore = analysisResult.SentimentScore,
+                            Impact = ParseImpactLevel(analysisResult.Impact),
                             ShortPreview = TruncateContent(article.Snippet, 150),
                             FullContent = analysisResult.Summary,
                             MarketContext = analysisResult.MarketContext,
@@ -1095,6 +1107,18 @@ SZANSE:
                 "warning" => SeverityLevel.Warning,
                 "positive" => SeverityLevel.Positive,
                 _ => SeverityLevel.Info
+            };
+        }
+
+        private ImpactLevel ParseImpactLevel(string impact)
+        {
+            return impact?.ToLowerInvariant() switch
+            {
+                "critical" => ImpactLevel.Critical,
+                "high" => ImpactLevel.High,
+                "medium" => ImpactLevel.Medium,
+                "low" => ImpactLevel.Low,
+                _ => ImpactLevel.Medium
             };
         }
 
