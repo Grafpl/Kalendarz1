@@ -250,13 +250,22 @@ SZANSE:
                     string fullContent = article.Content;
                     if (enrichmentMap.TryGetValue(article.Url, out var enriched))
                     {
+                        // Sprawdz czy enrichment zwrocil dobra tresc
+                        if (enriched.IsLowQuality || string.IsNullOrEmpty(enriched.Content))
+                        {
+                            Diagnostics.AddLog($"Pomijam (niska jakosc): {TruncateTitle(article.Title, 50)}");
+                            analyzed++;
+                            continue;
+                        }
                         fullContent = enriched.Content;
                     }
 
-                    // Jesli tresc za krotka, dodaj instrukcje dla Claude
-                    if (string.IsNullOrEmpty(fullContent) || fullContent.Length < 200)
+                    // Jesli tresc za krotka (min 500 znakow) - pomijamy zamiast wysylac do Claude
+                    if (string.IsNullOrEmpty(fullContent) || fullContent.Length < 500)
                     {
-                        fullContent = $"{article.Title}\n\n{article.Content}\n\n[Artykul krotki - uzupelnij analiza wlasna wiedza o temacie]";
+                        Diagnostics.AddLog($"Pomijam (tresc <500 znakow): {TruncateTitle(article.Title, 50)}");
+                        analyzed++;
+                        continue;
                     }
 
                     // Analiza AI
@@ -478,11 +487,12 @@ SZANSE:
                     Diagnostics.AddLog("Brak URL - uzywam snippetu z Perplexity");
                 }
 
-                // Sprawdz czy mamy wystarczajaco tresci do analizy
-                if (string.IsNullOrWhiteSpace(fullContent) || fullContent.Length < 50)
+                // Sprawdz czy mamy wystarczajaco tresci do analizy (min 500 znakow)
+                if (string.IsNullOrWhiteSpace(fullContent) || fullContent.Length < 500)
                 {
-                    Diagnostics.AddWarning("Brak tresci lub zbyt krotka tresc - uzywam tytulu");
-                    fullContent = $"Tytul: {testArticle.Title}. Zrodlo: {testArticle.Source}. URL: {testArticle.Url}";
+                    Diagnostics.AddError($"Tresc zbyt krotka ({fullContent?.Length ?? 0} znakow, wymagane min. 500)");
+                    Diagnostics.AddLog("Pomijam artykul - nie wysylam do Claude krotkich tekstow (oszczednosc API)");
+                    return null;
                 }
 
                 // ═══════════════════════════════════════════════════════════
@@ -748,12 +758,13 @@ SZANSE:
 
                 log($"Tresc do analizy: {fullContent.Length} znakow", "INFO");
 
-                // Sprawdz czy mamy wystarczajaco tresci do analizy
-                if (string.IsNullOrWhiteSpace(fullContent) || fullContent.Length < 50)
+                // Sprawdz czy mamy wystarczajaco tresci do analizy (min 500 znakow)
+                if (string.IsNullOrWhiteSpace(fullContent) || fullContent.Length < 500)
                 {
-                    log("UWAGA: Brak tresci lub zbyt krotka tresc do analizy!", "WARNING");
-                    log("Uzywam tytulu artykulu jako tresc", "INFO");
-                    fullContent = $"Tytul: {testArticle.Title}. Zrodlo: {testArticle.Source}. URL: {testArticle.Url}";
+                    log($"BLAD: Tresc zbyt krotka ({fullContent?.Length ?? 0} znakow, wymagane min. 500)", "ERROR");
+                    log("Pomijam artykul - nie wysylam do Claude krotkich tekstow (oszczednosc API)", "WARNING");
+                    Diagnostics.AddError("Tresc zbyt krotka - pomijam");
+                    return null;
                 }
 
                 // ═══════════════════════════════════════════════════════════

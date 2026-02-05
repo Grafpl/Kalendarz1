@@ -73,14 +73,16 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
                 // Pobierz czysty tekst (bez HTML)
                 var textContent = article.TextContent?.Trim();
 
-                if (string.IsNullOrEmpty(textContent) || textContent.Length < 100)
+                // Minimum 500 znaków dla wartościowej analizy AI
+                if (string.IsNullOrEmpty(textContent) || textContent.Length < 500)
                 {
                     return new EnrichmentResult
                     {
                         Success = false,
-                        Error = "Wyodrębniona treść jest zbyt krótka",
+                        Error = $"Treść zbyt krótka ({textContent?.Length ?? 0} znaków, wymagane min. 500). Pomijam artykuł.",
                         Url = url,
-                        RawLength = html.Length
+                        RawLength = html.Length,
+                        IsLowQuality = true
                     };
                 }
 
@@ -276,5 +278,8 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
 
         /// <summary>Długość surowego HTML</summary>
         public int RawLength { get; set; }
+
+        /// <summary>Czy artykuł oznaczony jako niska jakość (za krótki)</summary>
+        public bool IsLowQuality { get; set; }
     }
 }
