@@ -492,38 +492,32 @@ SZANSE:
                     Diagnostics.AddLog($"");
                     Diagnostics.AddLog($"--- PROBA {attemptCount}/{candidateArticles.Count}: {GetDomain(testArticle.Url)} ---");
 
-                    // KROK 2: Filtrowanie lokalne
-                    var filterInput = new List<(string title, string content, string url)>
-                    {
-                        (testArticle.Title, testArticle.Snippet, testArticle.Url)
-                    };
-                    var filtered = _filterService.FilterArticles(filterInput);
-                    if (filtered.Count == 0)
-                    {
-                        Diagnostics.AddLog($"  [SKIP] Odfiltrowany przez blacklist");
-                        continue;
-                    }
+                    // KROK 2: Filtrowanie lokalne (WYŁĄCZONE - akceptujemy wszystko)
+                    // Nie odrzucamy już artykułów przez blacklist
+                    Diagnostics.AddLog($"  [OK] Filtr wylaczony - akceptuje artykul");
 
-                    // KROK 3: Wzbogacanie tresci
-                    string fullContent = testArticle.Snippet ?? "";
+                    // KROK 3: Wzbogacanie tresci z FALLBACK
+                    string fullContent = testArticle.Snippet ?? testArticle.Title ?? "";
 
-                    var enrichResult = await _enrichmentService.EnrichSingleAsync(testArticle.Url, ct);
-                    if (enrichResult.Success)
+                    var enrichResult = await _enrichmentService.EnrichWithFallbackAsync(
+                        testArticle.Url, testArticle.Title, testArticle.Snippet, ct);
+
+                    // EnrichWithFallback ZAWSZE zwraca Success=true (fallback na snippet)
+                    fullContent = enrichResult.Content ?? testArticle.Snippet ?? testArticle.Title ?? "";
+
+                    if (enrichResult.IsFallback)
                     {
-                        fullContent = enrichResult.Content;
-                        Diagnostics.AddLog($"  [OK] Pobrano tresc: {fullContent.Length} znakow");
+                        Diagnostics.AddLog($"  [FALLBACK] Uzyto snippetu: {fullContent.Length} znakow");
                     }
                     else
                     {
-                        Diagnostics.AddLog($"  [SKIP] Enrichment failed: {enrichResult.Error}");
-                        Diagnostics.EnrichmentFailedCount++;
-                        continue; // RETRY - idz do nastepnego
+                        Diagnostics.AddLog($"  [OK] Pobrano pelna tresc: {fullContent.Length} znakow");
                     }
 
-                    // Sprawdz dlugosc tresci
-                    if (fullContent.Length < 500)
+                    // Sprawdz dlugosc tresci - OBNIZONE MINIMUM do 50 znakow!
+                    if (fullContent.Length < 50)
                     {
-                        Diagnostics.AddLog($"  [SKIP] Tresc za krotka ({fullContent.Length} < 500 znakow)");
+                        Diagnostics.AddLog($"  [SKIP] Tresc za krotka ({fullContent.Length} < 50 znakow)");
                         continue; // RETRY - idz do nastepnego
                     }
 
@@ -728,49 +722,41 @@ SZANSE:
                     // ─────────────────────────────────────────────────────
                     log("Krok 2: Sprawdzam blacklist...", "INFO");
 
-                    var filterInput = new List<(string title, string content, string url)>
-                    {
-                        (testArticle.Title, testArticle.Snippet, testArticle.Url)
-                    };
-
-                    var filtered = _filterService.FilterArticles(filterInput);
-
-                    if (filtered.Count == 0)
-                    {
-                        log("  [SKIP] Odfiltrowany przez blacklist - idz do nastepnego", "WARNING");
-                        Diagnostics.AddLog($"  [SKIP] Blacklist");
-                        continue; // RETRY
-                    }
-                    log("  [OK] Przeszedl filtr", "SUCCESS");
+                    // KROK 2: Filtrowanie - WYŁĄCZONE (akceptujemy wszystko)
+                    log("  [OK] Filtr wylaczony - akceptuje wszystkie artykuly", "SUCCESS");
+                    Diagnostics.AddLog($"  [OK] Filtr wylaczony");
 
                     // ─────────────────────────────────────────────────────
-                    // KROK 3: Wzbogacanie tresci
+                    // KROK 3: Wzbogacanie tresci z FALLBACK
                     // ─────────────────────────────────────────────────────
-                    log("Krok 3: Pobieram pelna tresc (SmartReader)...", "INFO");
+                    log("Krok 3: Pobieram pelna tresc (Puppeteer/HTTP)...", "INFO");
                     log($"  URL: {testArticle.Url}", "DEBUG");
 
-                    var enrichResult = await _enrichmentService.EnrichSingleAsync(testArticle.Url, ct);
+                    var enrichResult = await _enrichmentService.EnrichWithFallbackAsync(
+                        testArticle.Url, testArticle.Title, testArticle.Snippet, ct);
 
-                    if (!enrichResult.Success)
+                    // EnrichWithFallback ZAWSZE zwraca Success=true (fallback na snippet)
+                    string fullContent = enrichResult.Content ?? testArticle.Snippet ?? testArticle.Title ?? "";
+
+                    if (enrichResult.IsFallback)
                     {
-                        log($"  [SKIP] Enrichment failed: {enrichResult.Error}", "WARNING");
-                        log("  Idz do nastepnego artykulu...", "INFO");
-                        Diagnostics.EnrichmentFailedCount++;
-                        Diagnostics.AddLog($"  [SKIP] Enrichment: {TruncateContent(enrichResult.Error, 50)}");
-                        continue; // RETRY
+                        log($"  [FALLBACK] Uzyto snippetu: {fullContent.Length} znakow", "WARNING");
+                        Diagnostics.AddLog($"  [FALLBACK] Snippet: {fullContent.Length} znakow");
+                    }
+                    else
+                    {
+                        log($"  [OK] Pobrano pelna tresc: {fullContent.Length} znakow", "SUCCESS");
+                        Diagnostics.AddLog($"  [OK] Tresc: {fullContent.Length} znakow");
                     }
 
-                    string fullContent = enrichResult.Content;
-                    log($"  [OK] Pobrano tresc: {fullContent.Length} znakow", "SUCCESS");
-
                     // Pokaz poczatek tresci
-                    var preview = fullContent.Length > 500 ? fullContent.Substring(0, 500) + "..." : fullContent;
-                    logRaw(preview, "POBRANA TRESC (pierwsze 500 znakow)");
+                    var preview = fullContent.Length > 300 ? fullContent.Substring(0, 300) + "..." : fullContent;
+                    logRaw(preview, "POBRANA TRESC (pierwsze 300 znakow)");
 
-                    // Sprawdz dlugosc tresci
-                    if (fullContent.Length < 500)
+                    // Sprawdz dlugosc tresci - OBNIZONE MINIMUM do 50 znakow!
+                    if (fullContent.Length < 50)
                     {
-                        log($"  [SKIP] Tresc za krotka ({fullContent.Length} < 500 znakow)", "WARNING");
+                        log($"  [SKIP] Tresc za krotka ({fullContent.Length} < 50 znakow)", "WARNING");
                         log("  Idz do nastepnego artykulu...", "INFO");
                         Diagnostics.AddLog($"  [SKIP] Za krotka ({fullContent.Length} znakow)");
                         continue; // RETRY

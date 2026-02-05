@@ -58,6 +58,14 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
             "piorkowscy", "piórkowscy"
         };
 
+        // Polskie portale rolnicze - ZAWSZE dopuszczamy (nie blacklistujemy!)
+        private static readonly string[] WhitelistPolishAgriSites = new[]
+        {
+            "wiescirolnicze", "wiesci rolnicze", "tygodnik-rolniczy", "tygodnik rolniczy",
+            "farmer.pl", "topagrar", "agrofakt", "portalspozywczy", "portal spozywczy",
+            "sadyogrody", "gospodarz.pl", "agropolska", "agronews", "rolniczeabc"
+        };
+
         // Sieci handlowe - zawsze istotne
         private static readonly string[] WhitelistRetailChains = new[]
         {
@@ -105,7 +113,9 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
         private const int BlacklistGeographyScore = -30;
         private const int BlacklistTopicScore = -50;
 
-        private const int MinimumScoreThreshold = 10;
+        // ENTERPRISE: Obniżony próg - akceptujemy prawie wszystko
+        // Lepiej pokazać więcej newsów niż pustą listę
+        private const int MinimumScoreThreshold = -100;
 
         #endregion
 
@@ -147,6 +157,17 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
             var textToAnalyze = $"{title} {content}".ToLowerInvariant();
 
             // === WHITELIST - dodaj punkty ===
+
+            // Polskie portale rolnicze (zawsze akceptuj)
+            foreach (var site in WhitelistPolishAgriSites)
+            {
+                if (textToAnalyze.Contains(site.ToLowerInvariant()))
+                {
+                    result.Score += 100; // Wysokie punkty - zawsze akceptuj
+                    result.Reasons.Add($"+100 portal rolniczy: {site}");
+                    break;
+                }
+            }
 
             // Polskie firmy
             foreach (var company in WhitelistPolishCompanies)
