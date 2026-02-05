@@ -124,27 +124,27 @@ namespace Kalendarz1.MarketIntelligence.Config
         /// </summary>
         public string BraveApiKey { get; set; } = string.Empty;
 
-        // === TIMEOUTY (sekundy) ===
+        // === TIMEOUTY (sekundy) - ZWIĘKSZONE dla zapewnienia pełnych analiz ===
 
         /// <summary>
-        /// Timeout dla zapytań OpenAI (sekundy)
+        /// Timeout dla zapytań OpenAI (sekundy) - 5 minut na długie analizy
         /// </summary>
-        public int OpenAiTimeoutSeconds { get; set; } = 120;
+        public int OpenAiTimeoutSeconds { get; set; } = 300;
 
         /// <summary>
         /// Timeout dla zapytań Brave Search (sekundy)
         /// </summary>
-        public int BraveTimeoutSeconds { get; set; } = 30;
+        public int BraveTimeoutSeconds { get; set; } = 60;
 
         /// <summary>
         /// Timeout dla pobierania treści artykułu HTTP (sekundy)
         /// </summary>
-        public int ContentFetchTimeoutSeconds { get; set; } = 30;
+        public int ContentFetchTimeoutSeconds { get; set; } = 60;
 
         /// <summary>
         /// Timeout dla Puppeteer (sekundy)
         /// </summary>
-        public int PuppeteerTimeoutSeconds { get; set; } = 60;
+        public int PuppeteerTimeoutSeconds { get; set; } = 90;
 
         // === RATE LIMITING ===
 
@@ -154,9 +154,9 @@ namespace Kalendarz1.MarketIntelligence.Config
         public int MinDelayBetweenRequestsMs { get; set; } = 3000;
 
         /// <summary>
-        /// Maksymalna liczba prób (retry) przy błędach
+        /// Maksymalna liczba prób (retry) przy błędach i timeoutach
         /// </summary>
-        public int MaxRetries { get; set; } = 3;
+        public int MaxRetries { get; set; } = 5;
 
         /// <summary>
         /// Bazowy czas oczekiwania przy retry (sekundy) - podwajany przy każdej próbie

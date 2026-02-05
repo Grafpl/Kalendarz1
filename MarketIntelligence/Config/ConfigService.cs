@@ -345,15 +345,15 @@ Odpowiedz TYLKO w JSON:
                 OpenAiApiKey = "",
                 BraveApiKey = "",
 
-                // Timeouty
-                OpenAiTimeoutSeconds = 120,
-                BraveTimeoutSeconds = 30,
-                ContentFetchTimeoutSeconds = 30,
-                PuppeteerTimeoutSeconds = 60,
+                // Timeouty - ZWIĘKSZONE dla zapewnienia pełnych analiz
+                OpenAiTimeoutSeconds = 300,     // 5 minut - wystarczająco na długie analizy
+                BraveTimeoutSeconds = 60,       // 1 minuta na wyszukiwanie
+                ContentFetchTimeoutSeconds = 60, // 1 minuta na pobieranie artykułu
+                PuppeteerTimeoutSeconds = 90,   // 1.5 minuty na rendering
 
-                // Rate limiting
+                // Rate limiting - zwiększone retries dla pewności
                 MinDelayBetweenRequestsMs = 3000,
-                MaxRetries = 3,
+                MaxRetries = 5,                 // 5 prób zamiast 3
                 RetryBaseDelaySeconds = 5,
 
                 // Limity artykułów

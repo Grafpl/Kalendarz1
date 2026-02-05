@@ -43,9 +43,10 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
         {
             _httpClient = new HttpClient();
 
-            // Timeout z konfiguracji lub domyslny
-            var timeoutSeconds = ConfigService.Instance?.Current?.System?.OpenAiTimeoutSeconds ?? 120;
-            _httpClient.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+            // WAŻNE: Ustawiamy bardzo długi timeout na HttpClient (10 minut)
+            // Faktyczny timeout będzie kontrolowany per-request przez CancellationToken
+            // z wartością z ConfigService (dynamicznie, nie tylko przy starcie)
+            _httpClient.Timeout = TimeSpan.FromMinutes(10);
 
             // Priorytet: 1) ConfigService, 2) zmienna srodowiskowa, 3) App.config
             _apiKey = ConfigService.Instance?.Current?.System?.OpenAiApiKey;
@@ -62,6 +63,12 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
                 _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
             }
         }
+
+        /// <summary>
+        /// Pobiera aktualny timeout z konfiguracji (dynamicznie)
+        /// </summary>
+        private int OpenAiTimeoutSeconds =>
+            ConfigService.Instance?.Current?.System?.OpenAiTimeoutSeconds ?? 300;
 
         /// <summary>
         /// Testuje polaczenie z OpenAI API
@@ -334,9 +341,13 @@ Wygeneruj streszczenie poranne w formacie JSON:
                     var json = JsonSerializer.Serialize(requestBody);
                     var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                    Debug.WriteLine($"[OpenAI] Wysylam request do {model}, prompt length: {prompt.Length}, proba {attempt}/{MaxRetries}");
+                    Debug.WriteLine($"[OpenAI] Wysylam request do {model}, prompt length: {prompt.Length}, proba {attempt}/{MaxRetries}, timeout: {OpenAiTimeoutSeconds}s");
 
-                    var response = await _httpClient.PostAsync(ApiUrl, content, ct);
+                    // Użyj per-request timeout z konfiguracji (dynamicznie)
+                    using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(OpenAiTimeoutSeconds));
+                    using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
+
+                    var response = await _httpClient.PostAsync(ApiUrl, content, linkedCts.Token);
                     var responseText = await response.Content.ReadAsStringAsync();
 
                     if (!response.IsSuccessStatusCode)
@@ -373,9 +384,25 @@ Wygeneruj streszczenie poranne w formacie JSON:
 
                     return textContent ?? "";
                 }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                {
+                    // To jest TIMEOUT HttpClient, a NIE user cancellation - PONÓW PRÓBĘ!
+                    lastException = new TimeoutException($"OpenAI request timeout (próba {attempt}/{MaxRetries})");
+                    Debug.WriteLine($"[OpenAI] TIMEOUT przy próbie {attempt}/{MaxRetries} - request trwał za długo");
+
+                    if (attempt < MaxRetries)
+                    {
+                        // Przy timeout czekamy dłużej przed kolejną próbą (15s, 30s, 45s, 60s)
+                        var retryDelay = attempt * 15000;
+                        Debug.WriteLine($"[OpenAI] Retry za {retryDelay / 1000}s po timeout...");
+                        await Task.Delay(retryDelay, ct);
+                    }
+                }
                 catch (OperationCanceledException)
                 {
-                    throw; // Don't retry on cancellation
+                    // User-requested cancellation - nie ponawiaj
+                    Debug.WriteLine($"[OpenAI] Operacja anulowana przez użytkownika");
+                    throw;
                 }
                 catch (Exception ex)
                 {
