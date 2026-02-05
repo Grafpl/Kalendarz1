@@ -104,7 +104,7 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
 
             try
             {
-                var response = await CallClaudeAsync(prompt, SonnetModel, 8000, ct); // Zwiekszone z powrotem - 4000 powodowalo obcinanie odpowiedzi
+                var response = await CallClaudeAsync(prompt, SonnetModel, 14000, ct); // Max tokeny dla pelnej analizy
                 return ParseAnalysisResponse(response, title);
             }
             catch (Exception ex)
