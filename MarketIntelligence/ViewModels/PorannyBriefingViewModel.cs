@@ -2125,9 +2125,23 @@ Plan awaryjny:
 
             try
             {
+                // === ROZPOCZNIJ LOGOWANIE DO PLIKU ===
+                var mode = quickMode ? "Szybki" : "Pelny (Pobierz z internetu)";
+                Orchestrator.StartFileLogging(mode);
+                Orchestrator.FileLogger?.Log($"Rozpoczynam {mode} pobieranie...");
+
                 Diagnostics?.AddLog($"Rozpoczynam {(quickMode ? "szybkie" : "pelne")} pobieranie...");
 
                 var articles = await Orchestrator.FetchAndAnalyzeAsync(quickMode, progress, _fetchCancellation.Token);
+
+                // Loguj kazdy artykul do pliku
+                if (Orchestrator.FileLogger != null)
+                {
+                    for (int i = 0; i < articles.Count; i++)
+                    {
+                        Orchestrator.FileLogger.LogArticleResult(articles[i], i + 1);
+                    }
+                }
 
                 if (articles.Any())
                 {
@@ -2144,11 +2158,27 @@ Plan awaryjny:
                     OnPropertyChanged(nameof(HasCriticalArticles));
 
                     Diagnostics?.AddSuccess($"Pobrano i przeanalizowano {articles.Count} artykulow");
+
+                    // === ZAKONCZ LOGOWANIE ===
+                    var withAi = articles.Count(a => a.FullContent?.Contains("[ARTYKUL BEZ ANALIZY AI") != true);
+                    var withoutAi = articles.Count - withAi;
+                    var logPath = Orchestrator.EndFileLogging(articles.Count, articles.Count, 0, withAi, withoutAi);
+                    if (!string.IsNullOrEmpty(logPath))
+                    {
+                        Diagnostics?.AddSuccess($"Logi zapisane: {logPath}");
+                    }
                 }
                 else
                 {
                     Diagnostics?.AddWarning("Nie pobrano zadnych artykulow. Sprawdz konfiguracje API.");
                     ErrorMessage = "Nie pobrano zadnych artykulow. Sprawdz konfiguracje API w App.config.";
+
+                    // Zakoncz logowanie nawet bez artykulow
+                    var logPath = Orchestrator.EndFileLogging(0, 0, 0, 0, 0);
+                    if (!string.IsNullOrEmpty(logPath))
+                    {
+                        Diagnostics?.AddLog($"Logi zapisane: {logPath}");
+                    }
                 }
             }
             catch (OperationCanceledException)
@@ -2242,10 +2272,13 @@ Plan awaryjny:
             LogViewer.Show();
             LogViewer.Activate();
 
+            // === ROZPOCZNIJ LOGOWANIE DO PLIKU ===
+            Orchestrator.StartFileLogging("Test 1 artykul");
+
             LogViewer.AppendSeparator("ROZPOCZYNAM TEST PIPELINE");
             LogViewer.AppendLog("Test pipeline - analiza pojedynczego artykulu", "INFO");
             LogViewer.AppendLog($"Data: {DateTime.Now:yyyy-MM-dd HH:mm:ss}", "INFO");
-            LogViewer.AppendLog($"Model Claude: {Services.AI.ClaudeAnalysisService.SonnetModel}", "INFO");
+            LogViewer.AppendLog($"Model: {Services.AI.OpenAIAnalysisService.DefaultModel}", "INFO");
 
             Diagnostics.AddLog("=== ROZPOCZYNAM TEST PIPELINE ===");
 
@@ -2253,13 +2286,28 @@ Plan awaryjny:
             {
                 // Uzyj wersji z callbackiem do szczegolowych logow
                 var article = await Orchestrator.TestSingleArticlePipelineWithLogsAsync(
-                    (msg, level) => LogViewer.AppendLog(msg, level),
-                    (content, label) => LogViewer.AppendRawContent(content, label),
-                    (title) => LogViewer.AppendSeparator(title)
+                    (msg, level) =>
+                    {
+                        LogViewer.AppendLog(msg, level);
+                        Orchestrator.FileLogger?.Log(msg, level); // Loguj tez do pliku
+                    },
+                    (content, label) =>
+                    {
+                        LogViewer.AppendRawContent(content, label);
+                        Orchestrator.FileLogger?.LogRaw(label, content); // Loguj tez do pliku
+                    },
+                    (title) =>
+                    {
+                        LogViewer.AppendSeparator(title);
+                        Orchestrator.FileLogger?.LogSection(title); // Loguj tez do pliku
+                    }
                 );
 
                 if (article != null)
                 {
+                    // Loguj wynik do pliku
+                    Orchestrator.FileLogger?.LogArticleResult(article, 1);
+
                     // Dodaj artykul do listy
                     System.Windows.Application.Current.Dispatcher.Invoke(() =>
                     {
@@ -2278,20 +2326,43 @@ Plan awaryjny:
                     LogViewer.AppendLog($"Sentiment: {article.SentimentScore:F2}", "INFO");
 
                     Diagnostics.AddSuccess($"Artykul dodany do listy: {article.Title}");
+
+                    // === ZAKONCZ LOGOWANIE ===
+                    var hasAi = article.FullContent?.Contains("[ARTYKUL BEZ ANALIZY AI") != true;
+                    var logPath = Orchestrator.EndFileLogging(1, 1, 0, hasAi ? 1 : 0, hasAi ? 0 : 1);
+                    if (!string.IsNullOrEmpty(logPath))
+                    {
+                        LogViewer.AppendLog($"Logi zapisane do: {logPath}", "SUCCESS");
+                        Diagnostics.AddSuccess($"Logi: {logPath}");
+                    }
                 }
                 else
                 {
                     LogViewer.AppendSeparator("BLAD");
                     LogViewer.AppendLog("Pipeline nie zwrocil artykulu", "ERROR");
                     Diagnostics.AddWarning("Pipeline nie zwrocil artykulu - sprawdz logi powyzej");
+
+                    var logPath = Orchestrator.EndFileLogging(0, 0, 1, 0, 0);
+                    if (!string.IsNullOrEmpty(logPath))
+                    {
+                        LogViewer.AppendLog($"Logi zapisane do: {logPath}", "INFO");
+                    }
                 }
             }
             catch (Exception ex)
             {
+                Orchestrator.FileLogger?.LogError("Wyjatek w pipeline", ex);
+
                 LogViewer.AppendSeparator("WYJATEK");
                 LogViewer.AppendLog($"Exception: {ex.Message}", "ERROR");
                 LogViewer.AppendLog($"StackTrace: {ex.StackTrace}", "DEBUG");
                 Diagnostics.AddError($"Blad: {ex.Message}");
+
+                var logPath = Orchestrator.EndFileLogging(0, 0, 1, 0, 0);
+                if (!string.IsNullOrEmpty(logPath))
+                {
+                    LogViewer.AppendLog($"Logi zapisane do: {logPath}", "INFO");
+                }
             }
             finally
             {
@@ -2317,28 +2388,49 @@ Plan awaryjny:
             LogViewer.Show();
             LogViewer.Activate();
 
+            // === ROZPOCZNIJ LOGOWANIE DO PLIKU ===
+            Orchestrator.StartFileLogging("Test Demo (5 artykulow)");
+
             LogViewer.AppendSeparator("ROZPOCZYNAM TEST 5 DEMO ARTYKULOW");
-            LogViewer.AppendLog("Test pipeline z demo artykulami - bez API Perplexity", "INFO");
+            LogViewer.AppendLog("Test pipeline z demo artykulami - bez API Brave Search", "INFO");
             LogViewer.AppendLog($"Data: {DateTime.Now:yyyy-MM-dd HH:mm:ss}", "INFO");
-            LogViewer.AppendLog($"Model Claude: {Services.AI.ClaudeAnalysisService.SonnetModel}", "INFO");
+            LogViewer.AppendLog($"Model: {Services.AI.OpenAIAnalysisService.DefaultModel}", "INFO");
             LogViewer.AppendLog("", "INFO");
             LogViewer.AppendLog("Ten test uzywa 5 predefiniowanych artykulow", "INFO");
-            LogViewer.AppendLog("- nie wymaga klucza Perplexity API", "INFO");
-            LogViewer.AppendLog("- wymaga klucza Claude API", "INFO");
+            LogViewer.AppendLog("- nie wymaga klucza Brave Search API", "INFO");
+            LogViewer.AppendLog("- wymaga klucza OpenAI API", "INFO");
 
             Diagnostics.AddLog("=== ROZPOCZYNAM TEST DEMO ARTYKULOW ===");
 
             try
             {
-                // Uzyj wersji z demo artykulami
+                // Uzyj wersji z demo artykulami - z logowaniem do pliku
                 var articles = await Orchestrator.TestDemoArticlesPipelineAsync(
-                    (msg, level) => LogViewer.AppendLog(msg, level),
-                    (content, label) => LogViewer.AppendRawContent(content, label),
-                    (title) => LogViewer.AppendSeparator(title)
+                    (msg, level) =>
+                    {
+                        LogViewer.AppendLog(msg, level);
+                        Orchestrator.FileLogger?.Log(msg, level);
+                    },
+                    (content, label) =>
+                    {
+                        LogViewer.AppendRawContent(content, label);
+                        Orchestrator.FileLogger?.LogRaw(label, content);
+                    },
+                    (title) =>
+                    {
+                        LogViewer.AppendSeparator(title);
+                        Orchestrator.FileLogger?.LogSection(title);
+                    }
                 );
 
                 if (articles != null && articles.Any())
                 {
+                    // Loguj kazdy artykul do pliku
+                    for (int i = 0; i < articles.Count; i++)
+                    {
+                        Orchestrator.FileLogger?.LogArticleResult(articles[i], i + 1);
+                    }
+
                     // Dodaj artykuly do listy
                     System.Windows.Application.Current.Dispatcher.Invoke(() =>
                     {
@@ -2360,20 +2452,44 @@ Plan awaryjny:
                     }
 
                     Diagnostics.AddSuccess($"Dodano {articles.Count} artykulow demo");
+
+                    // === ZAKONCZ LOGOWANIE ===
+                    var withAi = articles.Count(a => a.FullContent?.Contains("[ARTYKUL BEZ ANALIZY AI") != true);
+                    var withoutAi = articles.Count - withAi;
+                    var logPath = Orchestrator.EndFileLogging(articles.Count, articles.Count, 0, withAi, withoutAi);
+                    if (!string.IsNullOrEmpty(logPath))
+                    {
+                        LogViewer.AppendLog($"Logi zapisane do: {logPath}", "SUCCESS");
+                        Diagnostics.AddSuccess($"Logi: {logPath}");
+                    }
                 }
                 else
                 {
                     LogViewer.AppendSeparator("BLAD");
                     LogViewer.AppendLog("Pipeline nie zwrocil artykulow", "ERROR");
                     Diagnostics.AddWarning("Pipeline nie zwrocil artykulow - sprawdz logi powyzej");
+
+                    var logPath = Orchestrator.EndFileLogging(0, 0, 0, 0, 0);
+                    if (!string.IsNullOrEmpty(logPath))
+                    {
+                        LogViewer.AppendLog($"Logi zapisane do: {logPath}", "INFO");
+                    }
                 }
             }
             catch (Exception ex)
             {
+                Orchestrator.FileLogger?.LogError("Wyjatek w pipeline demo", ex);
+
                 LogViewer.AppendSeparator("WYJATEK");
                 LogViewer.AppendLog($"Exception: {ex.Message}", "ERROR");
                 LogViewer.AppendLog($"StackTrace: {ex.StackTrace}", "DEBUG");
                 Diagnostics.AddError($"Blad: {ex.Message}");
+
+                var logPath = Orchestrator.EndFileLogging(0, 0, 1, 0, 0);
+                if (!string.IsNullOrEmpty(logPath))
+                {
+                    LogViewer.AppendLog($"Logi zapisane do: {logPath}", "INFO");
+                }
             }
             finally
             {

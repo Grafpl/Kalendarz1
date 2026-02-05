@@ -24,6 +24,42 @@ namespace Kalendarz1.MarketIntelligence.Services
 
         public DiagnosticInfo Diagnostics { get; } = new DiagnosticInfo();
 
+        /// <summary>
+        /// Logger do pliku TXT - tworzony na poczatku kazdej sesji
+        /// </summary>
+        public BriefingFileLogger FileLogger { get; private set; }
+
+        /// <summary>
+        /// Rozpoczyna logowanie do pliku
+        /// </summary>
+        public void StartFileLogging(string mode)
+        {
+            FileLogger = new BriefingFileLogger();
+            FileLogger.Mode = mode;
+            FileLogger.LogApiConfig(
+                _openAiService.ApiKeyPreview,
+                _openAiService.IsConfigured,
+                _newsService.ApiKeyPreview,
+                _newsService.IsConfigured,
+                OpenAIAnalysisService.DefaultModel
+            );
+        }
+
+        /// <summary>
+        /// Konczy logowanie i zapisuje plik
+        /// </summary>
+        public string EndFileLogging(int totalArticles, int successCount, int failedCount, int withAi, int withoutAi)
+        {
+            if (FileLogger == null) return null;
+
+            FileLogger.LogSummary(totalArticles, successCount, failedCount, withAi, withoutAi);
+            FileLogger.SaveToFile();
+
+            var path = FileLogger.LogFilePath;
+            FileLogger = null;
+            return path;
+        }
+
         // Kontekst biznesowy Piorkowscy
         private const string BusinessContext = @"
 FIRMA: Ubojnia Drobiu Piorkowscy Sp.J., Koziolek, 95-060 Brzeziny, NIP 726-162-54-06
