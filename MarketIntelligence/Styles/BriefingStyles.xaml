@@ -129,136 +129,136 @@
     </LinearGradientBrush>
 
     <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <!-- TEXT STYLES - SERIF (NAGLOWKI)                                          -->
+    <!-- TEXT STYLES - SERIF (NAGLOWKI) - DUZE CZCIONKI DLA CZYTELNOSCI          -->
     <!-- ═══════════════════════════════════════════════════════════════════════ -->
     <Style x:Key="SerifMainTitle" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="Georgia"/>
-        <Setter Property="FontSize" Value="22"/>
+        <Setter Property="FontSize" Value="28"/>
         <Setter Property="FontWeight" Value="Bold"/>
         <Setter Property="Foreground" Value="{StaticResource WarmWhite}"/>
     </Style>
 
     <Style x:Key="SerifArticleTitleFeatured" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="Georgia"/>
-        <Setter Property="FontSize" Value="17"/>
+        <Setter Property="FontSize" Value="24"/>
         <Setter Property="FontWeight" Value="Bold"/>
         <Setter Property="Foreground" Value="{StaticResource WarmWhite}"/>
         <Setter Property="TextWrapping" Value="Wrap"/>
-        <Setter Property="LineHeight" Value="24"/>
+        <Setter Property="LineHeight" Value="32"/>
     </Style>
 
     <Style x:Key="SerifArticleTitle" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="Georgia"/>
-        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontSize" Value="20"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="Foreground" Value="{StaticResource WarmWhite}"/>
         <Setter Property="TextWrapping" Value="Wrap"/>
-        <Setter Property="LineHeight" Value="20"/>
+        <Setter Property="LineHeight" Value="28"/>
     </Style>
 
     <Style x:Key="SerifSummary" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="Georgia"/>
-        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontSize" Value="17"/>
         <Setter Property="Foreground" Value="{StaticResource WarmWhite}"/>
         <Setter Property="TextWrapping" Value="Wrap"/>
-        <Setter Property="LineHeight" Value="22"/>
+        <Setter Property="LineHeight" Value="28"/>
     </Style>
 
     <Style x:Key="SerifDate" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="Georgia"/>
-        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontSize" Value="14"/>
         <Setter Property="Foreground" Value="{StaticResource TextNormal}"/>
     </Style>
 
     <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <!-- TEXT STYLES - SANS-SERIF (TRESC)                                        -->
+    <!-- TEXT STYLES - SANS-SERIF (TRESC) - DUZE CZCIONKI DLA CZYTELNOSCI        -->
     <!-- ═══════════════════════════════════════════════════════════════════════ -->
     <Style x:Key="BodyText" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="Segoe UI"/>
-        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontSize" Value="16"/>
         <Setter Property="Foreground" Value="{StaticResource TextNormal}"/>
         <Setter Property="TextWrapping" Value="Wrap"/>
-        <Setter Property="LineHeight" Value="20"/>
+        <Setter Property="LineHeight" Value="26"/>
     </Style>
 
     <Style x:Key="BodyTextSmall" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="Segoe UI"/>
-        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontSize" Value="15"/>
         <Setter Property="Foreground" Value="{StaticResource TextNormal}"/>
         <Setter Property="TextWrapping" Value="Wrap"/>
-        <Setter Property="LineHeight" Value="18"/>
+        <Setter Property="LineHeight" Value="24"/>
     </Style>
 
     <Style x:Key="PreviewText" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="Segoe UI"/>
-        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontSize" Value="15"/>
         <Setter Property="Foreground" Value="{StaticResource TextDim}"/>
         <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-        <Setter Property="MaxHeight" Value="18"/>
+        <Setter Property="MaxHeight" Value="48"/>
     </Style>
 
     <Style x:Key="DimText" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="Segoe UI"/>
-        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontSize" Value="14"/>
         <Setter Property="Foreground" Value="{StaticResource TextDim}"/>
     </Style>
 
     <Style x:Key="MutedText" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="Segoe UI"/>
-        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="FontSize" Value="13"/>
         <Setter Property="Foreground" Value="{StaticResource TextMuted}"/>
     </Style>
 
     <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <!-- TEXT STYLES - LABELS (UPPERCASE)                                        -->
+    <!-- TEXT STYLES - LABELS (UPPERCASE) - DUZE CZCIONKI DLA CZYTELNOSCI        -->
     <!-- ═══════════════════════════════════════════════════════════════════════ -->
     <Style x:Key="SectionLabel" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="Segoe UI"/>
-        <Setter Property="FontSize" Value="9"/>
+        <Setter Property="FontSize" Value="13"/>
         <Setter Property="FontWeight" Value="Bold"/>
         <Setter Property="Foreground" Value="{StaticResource GoldDim}"/>
     </Style>
 
     <Style x:Key="SeverityLabel" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="Segoe UI"/>
-        <Setter Property="FontSize" Value="9"/>
+        <Setter Property="FontSize" Value="12"/>
         <Setter Property="FontWeight" Value="Bold"/>
     </Style>
 
     <Style x:Key="CategoryLabel" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="Segoe UI"/>
-        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="FontSize" Value="13"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="Foreground" Value="{StaticResource Gold}"/>
     </Style>
 
     <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <!-- TEXT STYLES - MONOSPACE (LICZBY)                                        -->
+    <!-- TEXT STYLES - MONOSPACE (LICZBY) - DUZE CZCIONKI DLA CZYTELNOSCI        -->
     <!-- ═══════════════════════════════════════════════════════════════════════ -->
     <Style x:Key="MonoValue" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="Consolas"/>
-        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontSize" Value="18"/>
         <Setter Property="FontWeight" Value="Bold"/>
         <Setter Property="Foreground" Value="{StaticResource WarmWhite}"/>
     </Style>
 
     <Style x:Key="MonoValueLarge" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="Consolas"/>
-        <Setter Property="FontSize" Value="22"/>
+        <Setter Property="FontSize" Value="28"/>
         <Setter Property="FontWeight" Value="Bold"/>
         <Setter Property="Foreground" Value="{StaticResource WarmWhite}"/>
     </Style>
 
     <Style x:Key="MonoValueSmall" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="Consolas"/>
-        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontSize" Value="15"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="Foreground" Value="{StaticResource WarmWhite}"/>
     </Style>
 
     <Style x:Key="MonoChange" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="Consolas"/>
-        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontSize" Value="14"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
     </Style>
 
@@ -495,7 +495,7 @@
         <Setter Property="Foreground" Value="{StaticResource TextDim}"/>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="FontFamily" Value="Segoe UI"/>
-        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontSize" Value="14"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Template">
             <Setter.Value>
@@ -531,9 +531,9 @@
         <Setter Property="Foreground" Value="{StaticResource TextNormal}"/>
         <Setter Property="BorderBrush" Value="{StaticResource BgBorder}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="Padding" Value="10,6"/>
+        <Setter Property="Padding" Value="12,8"/>
         <Setter Property="FontFamily" Value="Segoe UI"/>
-        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontSize" Value="15"/>
         <Setter Property="CaretBrush" Value="{StaticResource WarmWhite}"/>
         <Setter Property="Template">
             <Setter.Value>
@@ -581,15 +581,15 @@
     </Style>
 
     <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <!-- TAG PILL STYLE                                                           -->
+    <!-- TAG PILL STYLE - WIEKSZY DLA CZYTELNOSCI                                -->
     <!-- ═══════════════════════════════════════════════════════════════════════ -->
     <Style x:Key="TagPill" TargetType="Border">
         <Setter Property="Background" Value="{StaticResource BgSurface}"/>
         <Setter Property="BorderBrush" Value="{StaticResource BgBorderLight}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="CornerRadius" Value="3"/>
-        <Setter Property="Padding" Value="6,2"/>
-        <Setter Property="Margin" Value="0,0,4,0"/>
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="Padding" Value="10,5"/>
+        <Setter Property="Margin" Value="0,0,6,4"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">

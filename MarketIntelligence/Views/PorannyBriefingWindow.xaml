@@ -72,36 +72,36 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- LEFT: Title -->
+                <!-- LEFT: Title - DUZE CZCIONKI -->
                 <StackPanel Grid.Column="0" VerticalAlignment="Center">
                     <TextBlock Text="Poranny Briefing"
-                               FontFamily="Georgia" FontSize="22" FontWeight="Bold"
+                               FontFamily="Georgia" FontSize="26" FontWeight="Bold"
                                Foreground="#F5EDE0"/>
                     <TextBlock Text="Piorkowscy  •  Ubojnia Drobiu  •  Brzeziny"
-                               FontFamily="Segoe UI" FontSize="10"
-                               Foreground="#7A6F63" Margin="0,2,0,0"/>
+                               FontFamily="Segoe UI" FontSize="13"
+                               Foreground="#7A6F63" Margin="0,4,0,0"/>
                 </StackPanel>
 
-                <!-- CENTER: Role Switcher -->
+                <!-- CENTER: Role Switcher - DUZE CZCIONKI -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                     <RadioButton x:Name="rbCeo" GroupName="Role" IsChecked="True"
                                  Style="{StaticResource RoleButton}"
                                  Checked="RoleButton_Checked" Tag="CEO">
-                        <TextBlock Text="CEO / Strategia" FontSize="11" Foreground="#C9A96E"/>
+                        <TextBlock Text="CEO / Strategia" FontSize="14" Foreground="#C9A96E"/>
                     </RadioButton>
-                    <RadioButton x:Name="rbSales" GroupName="Role" Margin="8,0,0,0"
+                    <RadioButton x:Name="rbSales" GroupName="Role" Margin="10,0,0,0"
                                  Style="{StaticResource RoleButton}"
                                  Checked="RoleButton_Checked" Tag="Sales">
-                        <TextBlock Text="Handlowiec" FontSize="11" Foreground="#6DAF6D"/>
+                        <TextBlock Text="Handlowiec" FontSize="14" Foreground="#6DAF6D"/>
                     </RadioButton>
-                    <RadioButton x:Name="rbBuyer" GroupName="Role" Margin="8,0,0,0"
+                    <RadioButton x:Name="rbBuyer" GroupName="Role" Margin="10,0,0,0"
                                  Style="{StaticResource RoleButton}"
                                  Checked="RoleButton_Checked" Tag="Buyer">
-                        <TextBlock Text="Zakupowiec" FontSize="11" Foreground="#5AB8B8"/>
+                        <TextBlock Text="Zakupowiec" FontSize="14" Foreground="#5AB8B8"/>
                     </RadioButton>
                 </StackPanel>
 
-                <!-- RIGHT: Admin + Date -->
+                <!-- RIGHT: Admin + Date - DUZE CZCIONKI -->
                 <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <Button x:Name="btnAdminPanel" Content="Ustawienia"
                             Click="BtnAdminPanel_Click"
@@ -111,16 +111,16 @@
                             BorderBrush="#3A2520"
                             BorderThickness="1"
                             Foreground="#C9A96E"
-                            Padding="12,6"
-                            FontSize="11"
+                            Padding="14,8"
+                            FontSize="14"
                             Cursor="Hand"/>
                     <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="{Binding DateDisplay}"
-                                   FontFamily="Georgia" FontSize="12"
+                                   FontFamily="Georgia" FontSize="15"
                                    Foreground="#D5CCC0"/>
                         <TextBlock Text="{Binding WeekDisplay}"
-                                   FontFamily="Segoe UI" FontSize="10"
-                                   Foreground="#7A6F63" Margin="0,2,0,0"
+                                   FontFamily="Segoe UI" FontSize="13"
+                                   Foreground="#7A6F63" Margin="0,3,0,0"
                                    HorizontalAlignment="Right"/>
                     </StackPanel>
                 </StackPanel>
@@ -128,29 +128,29 @@
         </Border>
 
         <!-- ═══════════════════════════════════════════════════════════════════════ -->
-        <!-- ROW 1: TICKER TAPE - Critical Headlines                                  -->
+        <!-- ROW 1: TICKER TAPE - Critical Headlines - DUZE CZCIONKI                  -->
         <!-- ═══════════════════════════════════════════════════════════════════════ -->
         <Border Grid.Row="1" Background="#1C1210" BorderBrush="#3A2520" BorderThickness="0,0,0,1"
                 Visibility="{Binding HasCriticalArticles, Converter={StaticResource BoolToVis}}">
-            <Grid Height="32">
+            <Grid Height="44">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- Alert Icon -->
-                <Border Grid.Column="0" Background="#E53935" Padding="12,0">
+                <Border Grid.Column="0" Background="#E53935" Padding="16,0">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="⚠" FontSize="14" Foreground="White" FontWeight="Bold"
+                        <TextBlock Text="⚠" FontSize="18" Foreground="White" FontWeight="Bold"
                                    VerticalAlignment="Center"/>
-                        <TextBlock Text=" ALERT" FontSize="10" Foreground="White" FontWeight="Bold"
-                                   VerticalAlignment="Center" Margin="4,0,0,0"/>
+                        <TextBlock Text=" ALERT" FontSize="14" Foreground="White" FontWeight="Bold"
+                                   VerticalAlignment="Center" Margin="6,0,0,0"/>
                     </StackPanel>
                 </Border>
 
                 <!-- Scrolling Headlines -->
                 <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Hidden"
-                              VerticalScrollBarVisibility="Disabled" Padding="12,0">
+                              VerticalScrollBarVisibility="Disabled" Padding="16,0">
                     <ItemsControl ItemsSource="{Binding CriticalArticles}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -159,11 +159,11 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <StackPanel Orientation="Horizontal" Margin="0,0,24,0">
-                                    <TextBlock Text="{Binding DisplayTitle}" FontSize="12"
+                                <StackPanel Orientation="Horizontal" Margin="0,0,28,0">
+                                    <TextBlock Text="{Binding DisplayTitle}" FontSize="16"
                                                Foreground="#F5B7B1" FontWeight="SemiBold"
                                                VerticalAlignment="Center"/>
-                                    <TextBlock Text=" • " Foreground="#5A3535" VerticalAlignment="Center"/>
+                                    <TextBlock Text=" • " Foreground="#5A3535" VerticalAlignment="Center" FontSize="16"/>
                                 </StackPanel>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
@@ -173,15 +173,15 @@
         </Border>
 
         <!-- ═══════════════════════════════════════════════════════════════════════ -->
-        <!-- ROW 2: AI SUMMARY                                                        -->
+        <!-- ROW 2: AI SUMMARY - DUZE CZCIONKI DLA CZYTELNOSCI                       -->
         <!-- ═══════════════════════════════════════════════════════════════════════ -->
-        <Border Grid.Row="2" Background="#0C0A07" Padding="24,16">
+        <Border Grid.Row="2" Background="#0C0A07" Padding="28,20">
             <StackPanel>
                 <TextBlock Text="STRESZCZENIE PORANNE"
-                           FontFamily="Segoe UI" FontSize="9" FontWeight="Bold"
-                           Foreground="#8B7355" Margin="0,0,0,10"/>
+                           FontFamily="Segoe UI" FontSize="14" FontWeight="Bold"
+                           Foreground="#8B7355" Margin="0,0,0,14"/>
                 <TextBlock x:Name="txtSummary" TextWrapping="Wrap"
-                           FontFamily="Georgia" FontSize="13" LineHeight="22"
+                           FontFamily="Georgia" FontSize="18" LineHeight="30"
                            Foreground="#F5EDE0"/>
             </StackPanel>
         </Border>
@@ -227,44 +227,44 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
-                <!-- Action Buttons -->
+                <!-- Action Buttons - DUZE CZCIONKI -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
                     <!-- Refresh from Internet Button -->
-                    <Button x:Name="btnRefreshInternet" Margin="0,0,8,0"
+                    <Button x:Name="btnRefreshInternet" Margin="0,0,10,0"
                             Command="{Binding RefreshFromInternetCommand}"
                             Style="{StaticResource TasksButton}"
                             ToolTip="Pobierz artykuly z internetu i przeanalizuj przez AI (pelny skan ~3 min)">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Pobierz z internetu" FontSize="11" FontWeight="SemiBold"/>
+                            <TextBlock Text="Pobierz z internetu" FontSize="14" FontWeight="SemiBold"/>
                         </StackPanel>
                     </Button>
 
                     <!-- Quick Refresh Button -->
-                    <Button x:Name="btnQuickRefresh" Margin="0,0,8,0"
+                    <Button x:Name="btnQuickRefresh" Margin="0,0,10,0"
                             Command="{Binding QuickRefreshCommand}"
                             Style="{StaticResource TasksButton}"
                             ToolTip="Szybki briefing - 5 najwazniejszych zapytan (~30 sek)">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Szybki" FontSize="11" FontWeight="SemiBold"/>
+                            <TextBlock Text="Szybki" FontSize="14" FontWeight="SemiBold"/>
                         </StackPanel>
                     </Button>
 
                     <!-- Single Article Test Button -->
-                    <Button x:Name="btnSingleArticle" Margin="0,0,8,0"
+                    <Button x:Name="btnSingleArticle" Margin="0,0,10,0"
                             Command="{Binding TestPipelineCommand}"
                             Style="{StaticResource TasksButton}"
                             ToolTip="Pobierz i przeanalizuj 1 artykul - podglad jak wyglada analiza">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="1 Artykuł" FontSize="11" FontWeight="SemiBold"/>
+                            <TextBlock Text="1 Artykuł" FontSize="14" FontWeight="SemiBold"/>
                         </StackPanel>
                     </Button>
 
                     <!-- Diagnostics Button -->
-                    <Button x:Name="btnDiagnostics" Margin="0,0,8,0"
+                    <Button x:Name="btnDiagnostics" Margin="0,0,10,0"
                             Command="{Binding ToggleDiagnosticsCommand}"
                             Style="{StaticResource TasksButton}"
                             ToolTip="Pokaz panel diagnostyczny API">
-                        <TextBlock Text="Diagnostyka" FontSize="11" FontWeight="SemiBold"/>
+                        <TextBlock Text="Diagnostyka" FontSize="14" FontWeight="SemiBold"/>
                     </Button>
 
                     <!-- Tasks Button -->
@@ -272,7 +272,7 @@
                             Click="TasksButton_Click">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="{Binding UrgentTasksCount, StringFormat={}{0} pilnych}"
-                                       FontSize="11" FontWeight="SemiBold"/>
+                                       FontSize="14" FontWeight="SemiBold"/>
                         </StackPanel>
                     </Button>
                 </StackPanel>
@@ -280,11 +280,11 @@
         </Border>
 
         <!-- ═══════════════════════════════════════════════════════════════════════ -->
-        <!-- ROW 3.5: PROGRESS BAR (when fetching)                                   -->
+        <!-- ROW 3.5: PROGRESS BAR (when fetching) - DUZE CZCIONKI                   -->
         <!-- ═══════════════════════════════════════════════════════════════════════ -->
         <Border Grid.Row="3" Background="#1A1510" BorderBrush="#2A2520" BorderThickness="0,0,0,1"
                 Visibility="{Binding IsFetching, Converter={StaticResource BoolToVis}}"
-                VerticalAlignment="Bottom" Padding="24,8">
+                VerticalAlignment="Bottom" Padding="28,12">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -293,18 +293,18 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0" Text="{Binding FetchProgressStage}"
-                           FontSize="11" FontWeight="SemiBold" Foreground="#C9A96E"
-                           VerticalAlignment="Center" Margin="0,0,12,0"/>
+                           FontSize="15" FontWeight="SemiBold" Foreground="#C9A96E"
+                           VerticalAlignment="Center" Margin="0,0,16,0"/>
                 <ProgressBar Grid.Column="1" Value="{Binding FetchProgressPercent}"
-                             Minimum="0" Maximum="100" Height="6"
+                             Minimum="0" Maximum="100" Height="10"
                              Background="#2A2520" Foreground="#C9A96E"/>
                 <TextBlock Grid.Column="2" Text="{Binding FetchProgressDetail}"
-                           FontSize="10" Foreground="#7A6F63"
-                           VerticalAlignment="Center" Margin="12,0,12,0"
-                           MaxWidth="300" TextTrimming="CharacterEllipsis"/>
+                           FontSize="14" Foreground="#7A6F63"
+                           VerticalAlignment="Center" Margin="16,0,16,0"
+                           MaxWidth="400" TextTrimming="CharacterEllipsis"/>
                 <Button Grid.Column="3" Content="Anuluj"
                         Command="{Binding CancelFetchCommand}"
-                        FontSize="10" Padding="8,2"
+                        FontSize="14" Padding="12,6"
                         Background="#5A2525" Foreground="#F5EDE0"
                         BorderThickness="0"/>
             </Grid>
@@ -588,14 +588,14 @@
                                           Click="FilterButton_Click" Tag="Pogoda"/>
                         </StackPanel>
 
-                        <!-- Search + Count -->
+                        <!-- Search + Count - DUZE CZCIONKI -->
                         <StackPanel Grid.Column="2" Orientation="Horizontal">
-                            <Grid Width="180">
+                            <Grid Width="220">
                                 <TextBox x:Name="txtSearch" Style="{StaticResource SearchTextBox}"
                                          TextChanged="SearchBox_TextChanged"/>
                                 <TextBlock Text="Szukaj..." IsHitTestVisible="False"
-                                           Foreground="#5A5248" FontSize="11"
-                                           Margin="12,0,0,0" VerticalAlignment="Center">
+                                           Foreground="#5A5248" FontSize="15"
+                                           Margin="14,0,0,0" VerticalAlignment="Center">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Visibility" Value="Collapsed"/>
@@ -609,8 +609,8 @@
                                 </TextBlock>
                             </Grid>
                             <TextBlock Text="{Binding ArticleCount, StringFormat={}{0} artykulow}"
-                                       Foreground="#7A6F63" FontSize="10"
-                                       VerticalAlignment="Center" Margin="12,0,0,0"/>
+                                       Foreground="#7A6F63" FontSize="14"
+                                       VerticalAlignment="Center" Margin="14,0,0,0"/>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -648,59 +648,59 @@
                                                             <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
 
-                                                        <!-- Category Badge -->
-                                                        <Border Grid.Column="0" CornerRadius="4" Padding="10,4"
+                                                        <!-- Category Badge - DUZA CZCIONKA -->
+                                                        <Border Grid.Column="0" CornerRadius="5" Padding="12,6"
                                                                 Background="{Binding CategoryColor, Converter={StaticResource StringToColor}}">
-                                                            <TextBlock Text="{Binding Category}" FontSize="10"
+                                                            <TextBlock Text="{Binding Category}" FontSize="13"
                                                                        FontWeight="Bold" Foreground="White"/>
                                                         </Border>
 
-                                                        <!-- Impact Badge (only for High/Critical) -->
-                                                        <Border Grid.Column="1" CornerRadius="4" Padding="8,4" Margin="8,0,0,0"
+                                                        <!-- Impact Badge (only for High/Critical) - DUZA CZCIONKA -->
+                                                        <Border Grid.Column="1" CornerRadius="5" Padding="10,6" Margin="10,0,0,0"
                                                                 Background="#2A2520"
                                                                 Visibility="{Binding Impact, Converter={StaticResource ImpactToVisibility}}">
                                                             <StackPanel Orientation="Horizontal">
-                                                                <TextBlock Text="⚠" FontSize="10"
+                                                                <TextBlock Text="⚠" FontSize="14"
                                                                            Foreground="{Binding Impact, Converter={StaticResource ImpactToColor}}"
                                                                            VerticalAlignment="Center"/>
                                                                 <TextBlock Text="{Binding Impact, Converter={StaticResource ImpactToText}}"
-                                                                           FontSize="9" FontWeight="Bold" Margin="4,0,0,0"
+                                                                           FontSize="12" FontWeight="Bold" Margin="5,0,0,0"
                                                                            Foreground="{Binding Impact, Converter={StaticResource ImpactToColor}}"
                                                                            VerticalAlignment="Center"/>
                                                             </StackPanel>
                                                         </Border>
 
-                                                        <!-- Sentiment Indicator -->
-                                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="12,0,0,0"
+                                                        <!-- Sentiment Indicator - DUZA CZCIONKA -->
+                                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="14,0,0,0"
                                                                     VerticalAlignment="Center">
-                                                            <TextBlock Text="{Binding SentimentIcon}" FontSize="12" FontWeight="Bold"
+                                                            <TextBlock Text="{Binding SentimentIcon}" FontSize="16" FontWeight="Bold"
                                                                        Foreground="{Binding SentimentColor, Converter={StaticResource StringToColor}}"
                                                                        VerticalAlignment="Center"/>
                                                         </StackPanel>
 
-                                                        <!-- Source + Date -->
+                                                        <!-- Source + Date - DUZA CZCIONKA -->
                                                         <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
-                                                            <TextBlock Text="{Binding Source}" FontSize="10" Foreground="#8B8178"/>
-                                                            <TextBlock Text=" • " Foreground="#5A5248"/>
-                                                            <TextBlock Text="{Binding FormattedDate}" FontSize="10" Foreground="#6A6058"/>
+                                                            <TextBlock Text="{Binding Source}" FontSize="14" Foreground="#8B8178"/>
+                                                            <TextBlock Text=" • " Foreground="#5A5248" FontSize="14"/>
+                                                            <TextBlock Text="{Binding FormattedDate}" FontSize="14" Foreground="#6A6058"/>
                                                         </StackPanel>
                                                     </Grid>
 
-                                                    <!-- Smart Title (large, bold) -->
+                                                    <!-- Smart Title (large, bold) - DUZA CZCIONKA -->
                                                     <TextBlock Text="{Binding DisplayTitle}"
-                                                               FontFamily="Segoe UI" FontSize="16" FontWeight="SemiBold"
+                                                               FontFamily="Segoe UI" FontSize="22" FontWeight="SemiBold"
                                                                Foreground="#F5EDE0" TextWrapping="Wrap"
-                                                               LineHeight="22" Margin="0,0,0,8"/>
+                                                               LineHeight="30" Margin="0,0,0,10"/>
 
-                                                    <!-- Preview Text -->
+                                                    <!-- Preview Text - DUZA CZCIONKA -->
                                                     <TextBlock Text="{Binding ShortPreview}"
-                                                               FontFamily="Segoe UI" FontSize="13"
+                                                               FontFamily="Segoe UI" FontSize="16"
                                                                Foreground="#9B9188" TextWrapping="Wrap"
-                                                               LineHeight="20" MaxHeight="60"
+                                                               LineHeight="26" MaxHeight="80"
                                                                TextTrimming="CharacterEllipsis"/>
 
-                                                    <!-- Tags Row -->
-                                                    <ItemsControl ItemsSource="{Binding Tags}" Margin="0,10,0,0">
+                                                    <!-- Tags Row - DUZA CZCIONKA -->
+                                                    <ItemsControl ItemsSource="{Binding Tags}" Margin="0,12,0,0">
                                                         <ItemsControl.ItemsPanel>
                                                             <ItemsPanelTemplate>
                                                                 <WrapPanel/>
@@ -708,9 +708,9 @@
                                                         </ItemsControl.ItemsPanel>
                                                         <ItemsControl.ItemTemplate>
                                                             <DataTemplate>
-                                                                <Border Background="#252220" CornerRadius="3"
-                                                                        Padding="8,3" Margin="0,0,6,0">
-                                                                    <TextBlock Text="{Binding}" FontSize="9"
+                                                                <Border Background="#252220" CornerRadius="4"
+                                                                        Padding="10,5" Margin="0,0,8,4">
+                                                                    <TextBlock Text="{Binding}" FontSize="13"
                                                                                Foreground="#8B8178"/>
                                                                 </Border>
                                                             </DataTemplate>
@@ -718,26 +718,26 @@
                                                     </ItemsControl>
                                                 </StackPanel>
 
-                                                <!-- Expanded View -->
+                                                <!-- Expanded View - DUZE CZCIONKI -->
                                                 <StackPanel Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVis}}">
                                                     <!-- Severity Badge + Meta -->
-                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
                                                         <Border Background="{Binding Severity, Converter={StaticResource SeverityToBg}}"
-                                                                CornerRadius="3" Padding="8,3">
+                                                                CornerRadius="4" Padding="12,6">
                                                             <TextBlock Text="{Binding SeverityText}"
-                                                                       FontSize="9" FontWeight="Bold"
+                                                                       FontSize="13" FontWeight="Bold"
                                                                        Foreground="{Binding Severity, Converter={StaticResource SeverityToColor}}"/>
                                                         </Border>
                                                         <TextBlock Text="{Binding Category}"
-                                                                   FontSize="10" FontWeight="SemiBold"
-                                                                   Foreground="#C9A96E" Margin="12,0,0,0"
+                                                                   FontSize="14" FontWeight="SemiBold"
+                                                                   Foreground="#C9A96E" Margin="14,0,0,0"
                                                                    VerticalAlignment="Center"/>
-                                                        <TextBlock Text=" • " Foreground="#5A5248" VerticalAlignment="Center"/>
+                                                        <TextBlock Text=" • " Foreground="#5A5248" VerticalAlignment="Center" FontSize="14"/>
                                                         <TextBlock Text="{Binding Source}"
-                                                                   FontSize="10" Foreground="#7A6F63"
+                                                                   FontSize="14" Foreground="#7A6F63"
                                                                    VerticalAlignment="Center"/>
                                                         <TextBlock Text="{Binding FormattedDate}"
-                                                                   FontSize="10" Foreground="#5A5248"
+                                                                   FontSize="14" Foreground="#5A5248"
                                                                    HorizontalAlignment="Right" Margin="20,0,0,0"
                                                                    VerticalAlignment="Center"/>
                                                     </StackPanel>
@@ -752,30 +752,30 @@
                                                                Style="{StaticResource BodyText}"
                                                                Margin="0,0,0,16"/>
 
-                                                    <!-- Educational Section -->
-                                                    <Border Background="#1E1A14" CornerRadius="6"
-                                                            Padding="14" Margin="0,0,0,16"
+                                                    <!-- Educational Section - DUZE CZCIONKI -->
+                                                    <Border Background="#1E1A14" CornerRadius="8"
+                                                            Padding="18" Margin="0,0,0,18"
                                                             BorderBrush="#2A2520" BorderThickness="1">
                                                         <StackPanel>
                                                             <TextBlock Text="KIM JEST / CO TO JEST"
-                                                                       FontSize="9" FontWeight="Bold"
-                                                                       Foreground="#8B7355" Margin="0,0,0,8"/>
+                                                                       FontSize="13" FontWeight="Bold"
+                                                                       Foreground="#8B7355" Margin="0,0,0,10"/>
                                                             <TextBlock Text="{Binding EducationalSection}"
                                                                        Style="{StaticResource BodyTextSmall}"
                                                                        Foreground="#D5CCC0"/>
                                                         </StackPanel>
                                                     </Border>
 
-                                                    <!-- AI Analysis Section -->
-                                                    <Border Background="#1E1A14" CornerRadius="6"
-                                                            Padding="14" Margin="0,0,0,16"
-                                                            BorderBrush="#C9A96E" BorderThickness="0,0,0,2">
+                                                    <!-- AI Analysis Section - DUZE CZCIONKI -->
+                                                    <Border Background="#1E1A14" CornerRadius="8"
+                                                            Padding="18" Margin="0,0,0,18"
+                                                            BorderBrush="#C9A96E" BorderThickness="0,0,0,3">
                                                         <StackPanel>
-                                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
                                                                 <TextBlock Text="CO TO ZNACZY DLA PIORKOWSCY"
-                                                                           FontSize="9" FontWeight="Bold"
+                                                                           FontSize="14" FontWeight="Bold"
                                                                            Foreground="#C9A96E"/>
-                                                                <TextBlock FontSize="9" FontWeight="Bold" Foreground="#C9A96E">
+                                                                <TextBlock FontSize="14" FontWeight="Bold" Foreground="#C9A96E">
                                                                     <TextBlock.Text>
                                                                         <MultiBinding Converter="{StaticResource RoleAnalysisConverter}" ConverterParameter="Label">
                                                                             <Binding/>
@@ -795,8 +795,8 @@
                                                                 </TextBlock.Text>
                                                             </TextBlock>
                                                             <TextBlock Text="ZALECANE DZIALANIA:"
-                                                                       FontSize="9" FontWeight="Bold"
-                                                                       Foreground="#8B7355" Margin="0,12,0,6"/>
+                                                                       FontSize="13" FontWeight="Bold"
+                                                                       Foreground="#8B7355" Margin="0,16,0,8"/>
                                                             <TextBlock Style="{StaticResource BodyTextSmall}"
                                                                        Foreground="#D5CCC0" TextWrapping="Wrap">
                                                                 <TextBlock.Text>
@@ -809,9 +809,9 @@
                                                         </StackPanel>
                                                     </Border>
 
-                                                    <!-- Source Link -->
-                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                                                        <TextBlock Text="🔗 Zrodlo: " Foreground="#7A6F63" FontSize="11"/>
+                                                    <!-- Source Link - DUZA CZCIONKA -->
+                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                                        <TextBlock Text="🔗 Zrodlo: " Foreground="#7A6F63" FontSize="14"/>
                                                         <TextBlock>
                                                             <Hyperlink Style="{StaticResource SourceLink}"
                                                                        NavigateUri="{Binding SourceUrl}"
@@ -821,7 +821,7 @@
                                                         </TextBlock>
                                                     </StackPanel>
 
-                                                    <!-- Tags -->
+                                                    <!-- Tags - DUZA CZCIONKA -->
                                                     <ItemsControl ItemsSource="{Binding Tags}">
                                                         <ItemsControl.ItemsPanel>
                                                             <ItemsPanelTemplate>
@@ -831,7 +831,7 @@
                                                         <ItemsControl.ItemTemplate>
                                                             <DataTemplate>
                                                                 <Border Style="{StaticResource TagPill}">
-                                                                    <TextBlock Text="{Binding}" FontSize="9"
+                                                                    <TextBlock Text="{Binding}" FontSize="13"
                                                                                Foreground="#7A6F63"/>
                                                                 </Border>
                                                             </DataTemplate>
