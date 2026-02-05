@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,8 +10,10 @@ using SmartReader;
 namespace Kalendarz1.MarketIntelligence.Services.AI
 {
     /// <summary>
+    /// BATTLE-TESTED Content Enrichment Service
+    ///
     /// Serwis do pobierania pełnej treści artykułów ze stron internetowych.
-    /// Używa biblioteki SmartReader (Readability algorithm) do ekstrakcji czystej treści.
+    /// FAIL-SAFE: Jeśli scraping się nie uda, zwraca dane z wyszukiwarki jako fallback.
     ///
     /// NuGet: Install-Package SmartReader
     /// </summary>
@@ -18,27 +21,134 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
     {
         private readonly HttpClient _httpClient;
 
+        // Minimum 300 znaków dla analizy (obniżone z 500 dla większej tolerancji)
+        private const int MinContentLength = 300;
+
         public ContentEnrichmentService()
         {
-            _httpClient = new HttpClient();
-            _httpClient.Timeout = TimeSpan.FromSeconds(30);
+            // BATTLE-TESTED: Tworzymy HttpClient bez automatycznej dekompresji
+            // aby uniknąć problemów z niektórymi serwerami
+            var handler = new HttpClientHandler
+            {
+                AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate,
+                AllowAutoRedirect = true,
+                MaxAutomaticRedirections = 5
+            };
+
+            _httpClient = new HttpClient(handler);
+            _httpClient.Timeout = TimeSpan.FromSeconds(15); // Krótszy timeout dla szybszego failover
+
+            // BATTLE-TESTED: Nagłówki idealnie udające Chrome na Windows
+            _httpClient.DefaultRequestHeaders.Clear();
             _httpClient.DefaultRequestHeaders.Add("User-Agent",
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36");
             _httpClient.DefaultRequestHeaders.Add("Accept",
-                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-            _httpClient.DefaultRequestHeaders.Add("Accept-Language", "pl-PL,pl;q=0.9,en;q=0.8");
+                "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
+            _httpClient.DefaultRequestHeaders.Add("Accept-Language",
+                "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7");
+            _httpClient.DefaultRequestHeaders.Add("Accept-Encoding", "gzip, deflate");
+            _httpClient.DefaultRequestHeaders.Add("Referer", "https://www.google.com/");
+            _httpClient.DefaultRequestHeaders.Add("Cache-Control", "no-cache");
+            _httpClient.DefaultRequestHeaders.Add("Upgrade-Insecure-Requests", "1");
+            _httpClient.DefaultRequestHeaders.Add("Sec-Fetch-Dest", "document");
+            _httpClient.DefaultRequestHeaders.Add("Sec-Fetch-Mode", "navigate");
+            _httpClient.DefaultRequestHeaders.Add("Sec-Fetch-Site", "cross-site");
+            _httpClient.DefaultRequestHeaders.Add("Sec-Fetch-User", "?1");
         }
 
         /// <summary>
-        /// Pobiera pełną treść artykułu z URL używając SmartReader
+        /// FAIL-SAFE: Pobiera pełną treść artykułu.
+        /// Jeśli scraping się nie uda - zwraca fallback z danymi z wyszukiwarki.
+        /// NIGDY nie zwraca Success=false - zawsze jest jakiś content.
         /// </summary>
-        public async Task<EnrichmentResult> FetchFullContentAsync(string url, CancellationToken ct = default)
+        /// <param name="url">URL artykułu</param>
+        /// <param name="fallbackTitle">Tytuł z wyszukiwarki (fallback)</param>
+        /// <param name="fallbackSnippet">Opis/snippet z wyszukiwarki (fallback)</param>
+        /// <param name="ct">Token anulowania</param>
+        /// <returns>EnrichmentResult - ZAWSZE z Success=true i jakimś contentem</returns>
+        public async Task<EnrichmentResult> EnrichWithFallbackAsync(
+            string url,
+            string fallbackTitle,
+            string fallbackSnippet,
+            CancellationToken ct = default)
         {
             if (string.IsNullOrEmpty(url))
             {
-                return new EnrichmentResult { Success = false, Error = "Brak URL" };
+                // Nawet bez URL - zwracamy fallback
+                return CreateFallbackResult(url, fallbackTitle, fallbackSnippet, "Brak URL");
             }
 
+            try
+            {
+                // Próba pobrania pełnej treści
+                var result = await FetchFullContentInternalAsync(url, ct);
+
+                // Sprawdź czy mamy wystarczająco treści
+                if (result.Success && !string.IsNullOrEmpty(result.Content) && result.Content.Length >= MinContentLength)
+                {
+                    Debug.WriteLine($"[ContentEnrichment] SUCCESS: {url} - {result.Content.Length} znaków");
+                    return result;
+                }
+
+                // Scraping nie dał wystarczająco treści - fallback
+                Debug.WriteLine($"[ContentEnrichment] FALLBACK (za krótka treść): {url}");
+                return CreateFallbackResult(url, fallbackTitle, fallbackSnippet,
+                    result.Error ?? $"Treść za krótka ({result.Content?.Length ?? 0} znaków)");
+            }
+            catch (Exception ex)
+            {
+                // Każdy błąd = fallback
+                Debug.WriteLine($"[ContentEnrichment] FALLBACK (exception): {url} - {ex.Message}");
+                return CreateFallbackResult(url, fallbackTitle, fallbackSnippet, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Tworzy fallback result z danymi z wyszukiwarki
+        /// </summary>
+        private EnrichmentResult CreateFallbackResult(string url, string title, string snippet, string reason)
+        {
+            // Buduj treść fallback
+            var contentBuilder = new System.Text.StringBuilder();
+            contentBuilder.AppendLine("[TREŚĆ NA PODSTAWIE STRESZCZENIA Z WYSZUKIWARKI]");
+            contentBuilder.AppendLine();
+
+            if (!string.IsNullOrEmpty(title))
+            {
+                contentBuilder.AppendLine($"TYTUŁ: {title}");
+                contentBuilder.AppendLine();
+            }
+
+            if (!string.IsNullOrEmpty(snippet))
+            {
+                contentBuilder.AppendLine("STRESZCZENIE:");
+                contentBuilder.AppendLine(snippet);
+                contentBuilder.AppendLine();
+            }
+
+            contentBuilder.AppendLine($"[Powód użycia streszczenia: {reason}]");
+
+            var content = contentBuilder.ToString();
+
+            return new EnrichmentResult
+            {
+                Success = true, // ZAWSZE sukces - mamy przynajmniej fallback
+                Url = url,
+                Content = content,
+                Title = title,
+                SiteName = GetDomain(url),
+                ContentLength = content.Length,
+                IsFallback = true, // Nowe pole - oznacza że to fallback
+                FallbackReason = reason,
+                Excerpt = snippet
+            };
+        }
+
+        /// <summary>
+        /// Wewnętrzna metoda pobierania treści - może zwrócić błąd
+        /// </summary>
+        private async Task<EnrichmentResult> FetchFullContentInternalAsync(string url, CancellationToken ct)
+        {
             try
             {
                 // Pobierz HTML
@@ -56,6 +166,16 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
 
                 var html = await response.Content.ReadAsStringAsync();
 
+                if (string.IsNullOrWhiteSpace(html) || html.Length < 500)
+                {
+                    return new EnrichmentResult
+                    {
+                        Success = false,
+                        Error = $"Zbyt krótka odpowiedź HTML ({html?.Length ?? 0} znaków)",
+                        Url = url
+                    };
+                }
+
                 // Użyj SmartReader do ekstrakcji treści
                 var article = Reader.ParseArticle(url, html);
 
@@ -64,7 +184,7 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
                     return new EnrichmentResult
                     {
                         Success = false,
-                        Error = "SmartReader nie mógł wyodrębnić treści (strona może być za dynamiczna lub zablokowana)",
+                        Error = "SmartReader nie mógł wyodrębnić treści",
                         Url = url,
                         RawLength = html.Length
                     };
@@ -73,16 +193,14 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
                 // Pobierz czysty tekst (bez HTML)
                 var textContent = article.TextContent?.Trim();
 
-                // Minimum 500 znaków dla wartościowej analizy AI
-                if (string.IsNullOrEmpty(textContent) || textContent.Length < 500)
+                if (string.IsNullOrEmpty(textContent))
                 {
                     return new EnrichmentResult
                     {
                         Success = false,
-                        Error = $"Treść zbyt krótka ({textContent?.Length ?? 0} znaków, wymagane min. 500). Pomijam artykuł.",
+                        Error = "Wyodrębniona treść jest pusta",
                         Url = url,
-                        RawLength = html.Length,
-                        IsLowQuality = true
+                        RawLength = html.Length
                     };
                 }
 
@@ -91,7 +209,7 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
                     Success = true,
                     Url = url,
                     Content = textContent,
-                    HtmlContent = article.Content, // HTML content jeśli potrzebny
+                    HtmlContent = article.Content,
                     Title = article.Title,
                     PublishDate = article.PublicationDate,
                     Author = article.Author,
@@ -100,7 +218,8 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
                     Language = article.Language,
                     ContentLength = textContent.Length,
                     RawLength = html.Length,
-                    Excerpt = article.Excerpt
+                    Excerpt = article.Excerpt,
+                    IsFallback = false
                 };
             }
             catch (TaskCanceledException)
@@ -108,7 +227,7 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
                 return new EnrichmentResult
                 {
                     Success = false,
-                    Error = "Timeout - strona nie odpowiedziała w wyznaczonym czasie",
+                    Error = "Timeout - strona nie odpowiedziała w czasie",
                     Url = url
                 };
             }
@@ -117,13 +236,12 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
                 return new EnrichmentResult
                 {
                     Success = false,
-                    Error = $"Błąd połączenia HTTP: {ex.Message}",
+                    Error = $"Błąd HTTP: {ex.Message}",
                     Url = url
                 };
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[ContentEnrichment] Error for {url}: {ex}");
                 return new EnrichmentResult
                 {
                     Success = false,
@@ -134,7 +252,15 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
         }
 
         /// <summary>
-        /// Alias dla FetchFullContentAsync (zachowanie kompatybilności wstecznej)
+        /// Pobiera pełną treść artykułu z URL (stara metoda - zachowana dla kompatybilności)
+        /// </summary>
+        public async Task<EnrichmentResult> FetchFullContentAsync(string url, CancellationToken ct = default)
+        {
+            return await FetchFullContentInternalAsync(url, ct);
+        }
+
+        /// <summary>
+        /// Alias dla kompatybilności wstecznej
         /// </summary>
         public async Task<EnrichmentResult> EnrichSingleAsync(string url, CancellationToken ct = default)
         {
@@ -142,22 +268,21 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
         }
 
         /// <summary>
-        /// Pobiera treść dla wielu artykułów równolegle (z ograniczeniem)
+        /// BATTLE-TESTED: Wzbogaca listę artykułów równolegle z fallback
         /// </summary>
-        public async Task<List<EnrichmentResult>> EnrichArticlesAsync(
-            List<string> urls,
+        public async Task<List<EnrichmentResult>> EnrichArticlesWithFallbackAsync(
+            List<(string Url, string Title, string Snippet)> articles,
             IProgress<(int completed, int total, string currentUrl)> progress = null,
             CancellationToken ct = default,
-            int maxConcurrency = 3)
+            int maxConcurrency = 5)
         {
             var results = new List<EnrichmentResult>();
             var completed = 0;
 
-            // Przetwarzaj z ograniczeniem równoległości
             using var semaphore = new SemaphoreSlim(maxConcurrency);
             var tasks = new List<Task<EnrichmentResult>>();
 
-            foreach (var url in urls)
+            foreach (var article in articles)
             {
                 if (ct.IsCancellationRequested) break;
 
@@ -167,14 +292,15 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
                 {
                     try
                     {
-                        progress?.Report((completed, urls.Count, url));
-                        var result = await FetchFullContentAsync(url, ct);
+                        progress?.Report((completed, articles.Count, article.Url));
+
+                        var result = await EnrichWithFallbackAsync(article.Url, article.Title, article.Snippet, ct);
 
                         Interlocked.Increment(ref completed);
-                        progress?.Report((completed, urls.Count, url));
+                        progress?.Report((completed, articles.Count, article.Url));
 
-                        // Mały delay aby nie przeciążyć serwerów
-                        await Task.Delay(200, ct);
+                        // Mały delay dla rate limiting
+                        await Task.Delay(100, ct);
 
                         return result;
                     }
@@ -190,42 +316,36 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
             var taskResults = await Task.WhenAll(tasks);
             results.AddRange(taskResults);
 
-            progress?.Report((urls.Count, urls.Count, "Zakończono"));
+            progress?.Report((articles.Count, articles.Count, "Zakończono"));
 
             return results;
         }
 
         /// <summary>
-        /// Próbuje pobrać treść z kilku alternatywnych źródeł (np. archive.org)
+        /// Stara metoda - zachowana dla kompatybilności
         /// </summary>
-        public async Task<EnrichmentResult> FetchWithFallbackAsync(string url, CancellationToken ct = default)
+        public async Task<List<EnrichmentResult>> EnrichArticlesAsync(
+            List<string> urls,
+            IProgress<(int completed, int total, string currentUrl)> progress = null,
+            CancellationToken ct = default,
+            int maxConcurrency = 3)
         {
-            // Najpierw próba bezpośrednia
-            var result = await FetchFullContentAsync(url, ct);
-            if (result.Success)
-            {
-                return result;
-            }
+            var articles = urls.Select(u => (u, "", "")).ToList();
+            return await EnrichArticlesWithFallbackAsync(articles, progress, ct, maxConcurrency);
+        }
 
-            // Fallback: Google Cache (jeśli dostępny)
+        private string GetDomain(string url)
+        {
+            if (string.IsNullOrEmpty(url)) return null;
             try
             {
-                var cacheUrl = $"https://webcache.googleusercontent.com/search?q=cache:{Uri.EscapeDataString(url)}";
-                var cacheResult = await FetchFullContentAsync(cacheUrl, ct);
-                if (cacheResult.Success)
-                {
-                    cacheResult.Url = url; // Przywróć oryginalny URL
-                    cacheResult.Source = "Google Cache";
-                    return cacheResult;
-                }
+                var uri = new Uri(url);
+                return uri.Host.Replace("www.", "");
             }
             catch
             {
-                // Ignoruj błędy cache
+                return null;
             }
-
-            // Zwróć oryginalny błąd
-            return result;
         }
     }
 
@@ -279,7 +399,13 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
         /// <summary>Długość surowego HTML</summary>
         public int RawLength { get; set; }
 
-        /// <summary>Czy artykuł oznaczony jako niska jakość (za krótki)</summary>
+        /// <summary>Czy artykuł oznaczony jako niska jakość (za krótki) - DEPRECATED</summary>
         public bool IsLowQuality { get; set; }
+
+        /// <summary>Czy to fallback z danych wyszukiwarki (nie scraping)</summary>
+        public bool IsFallback { get; set; }
+
+        /// <summary>Powód użycia fallbacku</summary>
+        public string FallbackReason { get; set; }
     }
 }

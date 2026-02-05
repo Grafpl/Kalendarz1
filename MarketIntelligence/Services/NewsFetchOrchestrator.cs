@@ -109,7 +109,8 @@ SZANSE:
         }
 
         /// <summary>
-        /// Glowna metoda - pobiera i analizuje wszystkie wiadomosci
+        /// BATTLE-TESTED: Glowna metoda - pobiera i analizuje WSZYSTKIE wiadomosci rownolegle
+        /// FAIL-SAFE: Zawsze zwraca liste artykulow, nawet jesli scraping/AI zawiedzie
         /// </summary>
         public async Task<List<BriefingArticle>> FetchAndAnalyzeAsync(
             bool quickMode = false,
@@ -124,214 +125,118 @@ SZANSE:
             try
             {
                 // ═══════════════════════════════════════════════════════════
-                // ETAP 1: Pobieranie z Perplexity
+                // ETAP 1: Pobieranie z Brave Search (20 wyników)
                 // ═══════════════════════════════════════════════════════════
-                progress?.Report(("Perplexity", 0, "Rozpoczynam wyszukiwanie..."));
-                Diagnostics.CurrentStage = "Pobieranie z Perplexity";
-                Diagnostics.AddLog("Rozpoczynam pobieranie z Perplexity");
+                progress?.Report(("Brave Search", 0, "Rozpoczynam wyszukiwanie..."));
+                Diagnostics.CurrentStage = "Pobieranie z Brave Search";
+                Diagnostics.AddLog("BATTLE-TESTED: Rozpoczynam pobieranie 20 artykulow");
 
-                var perplexityStopwatch = Stopwatch.StartNew();
+                var searchStopwatch = Stopwatch.StartNew();
                 var queries = quickMode ? _newsService.GetQuickQueries() : _newsService.GetAllQueries();
                 Diagnostics.PerplexityQueriesTotal = queries.Count;
 
-                var perplexityProgress = new Progress<(int completed, int total, string query)>(p =>
+                var searchProgress = new Progress<(int completed, int total, string query)>(p =>
                 {
                     Diagnostics.PerplexityQueriesCompleted = p.completed;
-                    var pct = (double)p.completed / p.total * 30; // 0-30%
-                    progress?.Report(("Perplexity", pct, $"Zapytanie {p.completed}/{p.total}: {p.query}"));
+                    var pct = (double)p.completed / p.total * 20; // 0-20%
+                    progress?.Report(("Brave Search", pct, $"Zapytanie {p.completed}/{p.total}: {p.query}"));
                 });
 
-                var perplexityArticles = await _newsService.FetchAllNewsAsync(perplexityProgress, quickMode, ct);
-                perplexityStopwatch.Stop();
+                var searchArticles = await _newsService.FetchAllNewsAsync(searchProgress, quickMode, ct);
+                searchStopwatch.Stop();
 
-                Diagnostics.PerplexityArticlesCount = perplexityArticles.Count;
-                Diagnostics.PerplexityTime = perplexityStopwatch.Elapsed;
-                Diagnostics.PerplexityCostEstimate = _newsService.EstimateCost(queries.Count);
-                Diagnostics.AddSuccess($"Perplexity: {perplexityArticles.Count} artykulow z {queries.Count} zapytan");
+                Diagnostics.PerplexityArticlesCount = searchArticles.Count;
+                Diagnostics.PerplexityTime = searchStopwatch.Elapsed;
+                Diagnostics.AddSuccess($"Brave Search: {searchArticles.Count} artykulow");
+
+                if (searchArticles.Count == 0)
+                {
+                    Diagnostics.AddError("Brak artykulow z wyszukiwarki!");
+                    return allArticles;
+                }
 
                 if (ct.IsCancellationRequested) return allArticles;
 
                 // ═══════════════════════════════════════════════════════════
-                // ETAP 2: Filtrowanie lokalne (blacklist/whitelist)
+                // ETAP 2: Filtrowanie lokalne (lekkie, szybkie)
                 // ═══════════════════════════════════════════════════════════
-                progress?.Report(("Filtrowanie", 35, "Filtrowanie artykulow..."));
+                progress?.Report(("Filtrowanie", 25, "Filtrowanie artykulow..."));
                 Diagnostics.CurrentStage = "Filtrowanie lokalne";
-                Diagnostics.AddLog("Filtrowanie lokalne (blacklist/whitelist)");
 
-                var articlesToFilter = perplexityArticles
+                var articlesToFilter = searchArticles
                     .Select(a => (a.Title, a.Snippet, a.Url))
                     .ToList();
 
                 var filteredArticles = _filterService.FilterArticles(articlesToFilter);
                 Diagnostics.FilteredCount = filteredArticles.Count;
-                Diagnostics.AddLog($"Po filtrowaniu: {filteredArticles.Count}/{perplexityArticles.Count} artykulow");
+                Diagnostics.AddLog($"Po filtrowaniu: {filteredArticles.Count}/{searchArticles.Count} artykulow");
 
-                if (ct.IsCancellationRequested) return allArticles;
-
-                // ═══════════════════════════════════════════════════════════
-                // ETAP 3: Filtrowanie AI (Haiku)
-                // ═══════════════════════════════════════════════════════════
-                if (_claudeService.IsConfigured && filteredArticles.Count > 0)
-                {
-                    progress?.Report(("Filtrowanie AI", 40, "Filtrowanie przez Claude Haiku..."));
-                    Diagnostics.CurrentStage = "Filtrowanie AI (Haiku)";
-                    Diagnostics.AddLog("Filtrowanie przez Claude Haiku");
-
-                    var articlesForAiFilter = filteredArticles
-                        .Take(50) // Max 50 do filtrowania AI
-                        .Select(a => (a.Title, a.Content))
-                        .ToList();
-
-                    var aiFilterResults = await _claudeService.QuickFilterArticlesAsync(articlesForAiFilter, ct);
-                    var relevantTitles = aiFilterResults.Where(r => r.IsRelevant).Select(r => r.Title).ToHashSet();
-
-                    filteredArticles = filteredArticles.Where(a => relevantTitles.Contains(a.Title)).ToList();
-                    Diagnostics.AiFilteredCount = filteredArticles.Count;
-                    Diagnostics.ClaudeHaikuCostEstimate = _claudeService.EstimateCost(5000, 1000, false);
-                    Diagnostics.AddLog($"Po filtrowaniu AI: {filteredArticles.Count} artykulow");
-                }
-
-                if (ct.IsCancellationRequested) return allArticles;
-
-                // ═══════════════════════════════════════════════════════════
-                // ETAP 4: Wzbogacanie tresci (Content Enrichment)
-                // ═══════════════════════════════════════════════════════════
-                progress?.Report(("Wzbogacanie", 50, "Pobieranie pelnej tresci artykulow..."));
-                Diagnostics.CurrentStage = "Wzbogacanie tresci";
-                Diagnostics.AddLog("Pobieranie pelnej tresci artykulow");
-
-                var urlsToEnrich = filteredArticles
-                    .Where(a => !string.IsNullOrEmpty(a.Url) && a.Url.StartsWith("http"))
-                    .Select(a => a.Url)
-                    .Distinct()
-                    .Take(30) // Max 30 URL do enrichmentu
+                // Mapuj z powrotem do oryginalnych artykulow
+                var filteredUrls = new HashSet<string>(filteredArticles.Select(a => a.Url));
+                var articlesToProcess = searchArticles
+                    .Where(a => !string.IsNullOrEmpty(a.Url) && filteredUrls.Contains(a.Url))
+                    .Take(20) // BATTLE-TESTED: Przetwarzaj do 20 artykulow
                     .ToList();
 
-                var enrichmentProgress = new Progress<(int completed, int total, string url)>(p =>
-                {
-                    var pct = 50 + (double)p.completed / p.total * 15; // 50-65%
-                    progress?.Report(("Wzbogacanie", pct, $"Pobieranie {p.completed}/{p.total}"));
-                });
-
-                var enrichmentResults = await _enrichmentService.EnrichArticlesAsync(urlsToEnrich, enrichmentProgress, ct);
-                var enrichmentMap = enrichmentResults.Where(r => r.Success).ToDictionary(r => r.Url, r => r);
-
-                Diagnostics.EnrichedCount = enrichmentResults.Count(r => r.Success);
-                Diagnostics.EnrichmentFailedCount = enrichmentResults.Count(r => !r.Success);
-
-                foreach (var failed in enrichmentResults.Where(r => !r.Success))
-                {
-                    Diagnostics.AddWarning($"Enrichment failed: {GetDomain(failed.Url)} - {failed.Error}");
-                }
-
-                Diagnostics.AddLog($"Wzbogacono {Diagnostics.EnrichedCount}/{urlsToEnrich.Count} artykulow");
+                Diagnostics.AddLog($"Do przetworzenia: {articlesToProcess.Count} artykulow");
 
                 if (ct.IsCancellationRequested) return allArticles;
 
                 // ═══════════════════════════════════════════════════════════
-                // ETAP 5: Analiza AI (Claude Sonnet)
+                // ETAP 3-4: ROWNOLEGLE przetwarzanie (Enrichment + AI Analysis)
                 // ═══════════════════════════════════════════════════════════
-                progress?.Report(("Analiza AI", 65, "Analiza przez Claude Sonnet..."));
-                Diagnostics.CurrentStage = "Analiza AI (Sonnet)";
-                Diagnostics.AddLog("Analiza artykulow przez Claude Sonnet");
+                progress?.Report(("Przetwarzanie", 30, "Rownoległe przetwarzanie artykulow..."));
+                Diagnostics.CurrentStage = "Rownoległe przetwarzanie";
+                Diagnostics.AddLog("BATTLE-TESTED: Uruchamiam rownolegne przetwarzanie wszystkich artykulow");
 
-                int analyzed = 0;
-                int maxToAnalyze = quickMode ? 10 : 25;
-                var articlesToAnalyze = filteredArticles.Take(maxToAnalyze).ToList();
+                int completed = 0;
+                int total = articlesToProcess.Count;
+                var lockObj = new object();
 
-                foreach (var article in articlesToAnalyze)
+                // BATTLE-TESTED: Ograniczenie do 5 rownoczesnych zadan
+                using var semaphore = new SemaphoreSlim(5);
+
+                var tasks = articlesToProcess.Select(async article =>
                 {
-                    if (ct.IsCancellationRequested) break;
-
-                    var pct = 65 + (double)analyzed / articlesToAnalyze.Count * 30; // 65-95%
-                    progress?.Report(("Analiza AI", pct, $"Analizuje {analyzed + 1}/{articlesToAnalyze.Count}: {TruncateTitle(article.Title)}"));
-
-                    // Pobierz pelna tresc jesli dostepna
-                    string fullContent = article.Content;
-                    if (enrichmentMap.TryGetValue(article.Url, out var enriched))
+                    await semaphore.WaitAsync(ct);
+                    try
                     {
-                        // Sprawdz czy enrichment zwrocil dobra tresc
-                        if (enriched.IsLowQuality || string.IsNullOrEmpty(enriched.Content))
+                        return await ProcessSingleArticleAsync(article, ct);
+                    }
+                    finally
+                    {
+                        semaphore.Release();
+                        lock (lockObj)
                         {
-                            Diagnostics.AddLog($"Pomijam (niska jakosc): {TruncateTitle(article.Title, 50)}");
-                            analyzed++;
-                            continue;
+                            completed++;
+                            var pct = 30 + (double)completed / total * 60; // 30-90%
+                            progress?.Report(("Przetwarzanie", pct, $"Przetworzono {completed}/{total}"));
                         }
-                        fullContent = enriched.Content;
                     }
+                }).ToList();
 
-                    // Jesli tresc za krotka (min 500 znakow) - pomijamy zamiast wysylac do Claude
-                    if (string.IsNullOrEmpty(fullContent) || fullContent.Length < 500)
-                    {
-                        Diagnostics.AddLog($"Pomijam (tresc <500 znakow): {TruncateTitle(article.Title, 50)}");
-                        analyzed++;
-                        continue;
-                    }
+                var results = await Task.WhenAll(tasks);
 
-                    // Analiza AI
-                    var analysisResult = await _claudeService.AnalyzeArticleAsync(
-                        article.Title,
-                        fullContent,
-                        "Perplexity / " + GetDomain(article.Url),
-                        BusinessContext,
-                        ct);
+                // Zbierz wszystkie NIE-NULLOWE wyniki
+                allArticles = results
+                    .Where(r => r != null)
+                    .OrderByDescending(a => a.PublishDate)
+                    .ThenByDescending(a => a.Severity == SeverityLevel.Critical ? 3 :
+                                           a.Severity == SeverityLevel.Warning ? 2 :
+                                           a.Severity == SeverityLevel.Positive ? 1 : 0)
+                    .ToList();
 
-                    // Sprawdz czy analiza sie powiodla
-                    var hasParsingError = !string.IsNullOrEmpty(analysisResult.Summary) &&
-                        (analysisResult.Summary.StartsWith("Blad") ||
-                         analysisResult.Summary.StartsWith("BLAD") ||
-                         analysisResult.Summary.Contains("BLAD PARSOWANIA"));
-
-                    if (hasParsingError)
-                    {
-                        Diagnostics.AddWarning($"Blad parsowania dla: {TruncateTitle(article.Title, 50)}");
-                        // Dodaj szczegoly bledu do logow
-                        if (!string.IsNullOrEmpty(_claudeService.LastRawResponse))
-                        {
-                            var rawPreview = _claudeService.LastRawResponse.Length > 500
-                                ? _claudeService.LastRawResponse.Substring(0, 500) + "..."
-                                : _claudeService.LastRawResponse;
-                            Diagnostics.AddLog($"RAW Response (500 znakow): {rawPreview}");
-                        }
-                        analyzed++;
-                        continue; // Pomin artykul z bledem parsowania
-                    }
-
-                    // Konwertuj na BriefingArticle
-                    var briefingArticle = new BriefingArticle
-                    {
-                        Id = analyzed + 1,
-                        Title = article.Title,
-                        SmartTitle = analysisResult.SmartTitle,
-                        SentimentScore = analysisResult.SentimentScore,
-                        Impact = ParseImpactLevel(analysisResult.Impact),
-                        ShortPreview = TruncateContent(article.Content, 150),
-                        FullContent = analysisResult.Summary,
-                        EducationalSection = analysisResult.WhoIs,
-                        AiAnalysisCeo = analysisResult.AnalysisCeo,
-                        AiAnalysisSales = analysisResult.AnalysisSales,
-                        AiAnalysisBuyer = analysisResult.AnalysisBuyer,
-                        RecommendedActionsCeo = string.Join("\n", analysisResult.ActionsCeo),
-                        RecommendedActionsSales = string.Join("\n", analysisResult.ActionsSales),
-                        RecommendedActionsBuyer = string.Join("\n", analysisResult.ActionsBuyer),
-                        Category = analysisResult.Category ?? _filterService.CategorizeArticle(article.Title, fullContent),
-                        Source = GetDomain(article.Url) ?? "Perplexity",
-                        SourceUrl = article.Url,
-                        PublishDate = DateTime.Today,
-                        Severity = ParseSeverity(analysisResult.Severity ?? _filterService.DetermineSeverity(article.Title, fullContent, article.Score)),
-                        Tags = analysisResult.Tags ?? new List<string>()
-                    };
-
-                    allArticles.Add(briefingArticle);
-                    analyzed++;
+                // Przenumeruj ID
+                for (int i = 0; i < allArticles.Count; i++)
+                {
+                    allArticles[i].Id = i + 1;
                 }
 
-                Diagnostics.AnalyzedCount = analyzed;
-                Diagnostics.ClaudeSonnetCostEstimate = _claudeService.EstimateCost(analyzed * 3000, analyzed * 2000, true);
-                Diagnostics.AddSuccess($"Przeanalizowano {analyzed} artykulow");
+                Diagnostics.AnalyzedCount = allArticles.Count;
+                Diagnostics.AddSuccess($"Przetworzono {allArticles.Count}/{total} artykulow");
 
                 // ═══════════════════════════════════════════════════════════
-                // ETAP 6: Finalizacja
+                // ETAP 5: Finalizacja
                 // ═══════════════════════════════════════════════════════════
                 progress?.Report(("Finalizacja", 95, "Finalizacja..."));
                 Diagnostics.CurrentStage = "Finalizacja";
@@ -355,7 +260,7 @@ SZANSE:
 
                 stopwatch.Stop();
                 Diagnostics.LastRunTime = DateTime.Now;
-                Diagnostics.AddSuccess($"Zakonczono w {stopwatch.Elapsed.TotalSeconds:N1}s. Koszt: ~${Diagnostics.TotalCostEstimate:N2}");
+                Diagnostics.AddSuccess($"BATTLE-TESTED: Zakonczono w {stopwatch.Elapsed.TotalSeconds:N1}s - {allArticles.Count} artykulow");
 
                 progress?.Report(("Zakończono", 100, $"Gotowe: {allArticles.Count} artykulow"));
             }
@@ -375,6 +280,152 @@ SZANSE:
             }
 
             return allArticles;
+        }
+
+        /// <summary>
+        /// BATTLE-TESTED: Przetwarza pojedynczy artykul (enrichment + AI) z pelnym fallback
+        /// NIGDY nie zwraca null jesli mamy jakiekolwiek dane - zawsze tworzy BriefingArticle
+        /// </summary>
+        private async Task<BriefingArticle> ProcessSingleArticleAsync(
+            DataSources.NewsArticle article,
+            CancellationToken ct)
+        {
+            try
+            {
+                // KROK 1: Enrichment z fallback
+                var enrichResult = await _enrichmentService.EnrichWithFallbackAsync(
+                    article.Url,
+                    article.Title,
+                    article.Snippet,
+                    ct);
+
+                // enrichResult.Success jest ZAWSZE true dzieki fallback
+                var fullContent = enrichResult.Content ?? article.Snippet ?? article.Title;
+
+                // KROK 2: Analiza AI (z tolerancja na bledy)
+                ArticleAnalysisResult analysisResult;
+
+                if (_claudeService.IsConfigured && !string.IsNullOrEmpty(fullContent))
+                {
+                    try
+                    {
+                        analysisResult = await _claudeService.AnalyzeArticleAsync(
+                            article.Title,
+                            fullContent,
+                            "Brave / " + GetDomain(article.Url),
+                            BusinessContext,
+                            ct);
+                    }
+                    catch (Exception ex)
+                    {
+                        // AI zawiodlo - tworzymy podstawowy wynik
+                        Debug.WriteLine($"[ProcessArticle] AI failed for {article.Url}: {ex.Message}");
+                        analysisResult = CreateFallbackAnalysis(article.Title, fullContent, enrichResult.IsFallback);
+                    }
+                }
+                else
+                {
+                    // Brak API - tworzymy podstawowy wynik
+                    analysisResult = CreateFallbackAnalysis(article.Title, fullContent, enrichResult.IsFallback);
+                }
+
+                // KROK 3: Buduj BriefingArticle - ZAWSZE
+                var briefingArticle = new BriefingArticle
+                {
+                    Id = 0, // Zostanie ustawione pozniej
+                    Title = article.Title,
+                    SmartTitle = analysisResult?.SmartTitle ?? TruncateTitle(article.Title, 60),
+                    SentimentScore = analysisResult?.SentimentScore ?? 0.0,
+                    Impact = ParseImpactLevel(analysisResult?.Impact ?? "Medium"),
+                    ShortPreview = TruncateContent(article.Snippet ?? article.Title, 150),
+                    FullContent = analysisResult?.Summary ?? fullContent,
+                    MarketContext = analysisResult?.MarketContext,
+                    EducationalSection = analysisResult?.WhoIs,
+                    TermsExplanation = analysisResult?.TermsExplanation,
+                    AiAnalysisCeo = analysisResult?.AnalysisCeo ?? "[Analiza niedostepna]",
+                    AiAnalysisSales = analysisResult?.AnalysisSales ?? "[Analiza niedostepna]",
+                    AiAnalysisBuyer = analysisResult?.AnalysisBuyer ?? "[Analiza niedostepna]",
+                    RecommendedActionsCeo = string.Join("\n", analysisResult?.ActionsCeo ?? new List<string>()),
+                    RecommendedActionsSales = string.Join("\n", analysisResult?.ActionsSales ?? new List<string>()),
+                    RecommendedActionsBuyer = string.Join("\n", analysisResult?.ActionsBuyer ?? new List<string>()),
+                    IndustryLesson = analysisResult?.IndustryLesson,
+                    StrategicQuestions = string.Join("\n", analysisResult?.StrategicQuestions ?? new List<string>()),
+                    SourcesToMonitor = string.Join("\n", analysisResult?.SourcesToMonitor ?? new List<string>()),
+                    Category = analysisResult?.Category ?? "Info",
+                    Source = GetDomain(article.Url) ?? "Brave",
+                    SourceUrl = article.Url,
+                    PublishDate = enrichResult.PublishDate ?? DateTime.Today,
+                    Severity = ParseSeverity(analysisResult?.Severity ?? "info"),
+                    Tags = analysisResult?.Tags ?? new List<string>(),
+                    IsFeatured = false
+                };
+
+                // Dodaj tag jesli to fallback
+                if (enrichResult.IsFallback)
+                {
+                    briefingArticle.Tags = new List<string>(briefingArticle.Tags) { "fallback" };
+                }
+
+                return briefingArticle;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[ProcessArticle] Error for {article?.Url}: {ex.Message}");
+                // Nawet przy bledzie - sprobuj zwrocic cos
+                if (article != null && !string.IsNullOrEmpty(article.Title))
+                {
+                    return new BriefingArticle
+                    {
+                        Title = article.Title,
+                        SmartTitle = TruncateTitle(article.Title, 60),
+                        ShortPreview = article.Snippet ?? "",
+                        FullContent = $"[Blad przetwarzania: {ex.Message}]\n\n{article.Snippet ?? article.Title}",
+                        Source = GetDomain(article.Url) ?? "Unknown",
+                        SourceUrl = article.Url,
+                        PublishDate = DateTime.Today,
+                        Category = "Info",
+                        Severity = SeverityLevel.Info,
+                        Tags = new List<string> { "error" }
+                    };
+                }
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Tworzy podstawowa analize gdy AI jest niedostepne
+        /// </summary>
+        private ArticleAnalysisResult CreateFallbackAnalysis(string title, string content, bool isFallbackContent)
+        {
+            var prefix = isFallbackContent ? "[NA PODSTAWIE STRESZCZENIA] " : "";
+            var truncatedContent = content?.Length > 800 ? content.Substring(0, 800) + "..." : content;
+
+            return new ArticleAnalysisResult
+            {
+                SmartTitle = title?.Length > 60 ? title.Substring(0, 57) + "..." : title ?? "News",
+                SentimentScore = 0.0,
+                Impact = "Medium",
+                Summary = $"{prefix}{truncatedContent}",
+                MarketContext = isFallbackContent
+                    ? "Kontekst niedostepny - artykul oparty na streszczeniu z wyszukiwarki."
+                    : "Kontekst niedostepny - analiza AI niedostepna.",
+                WhoIs = "Informacje o podmiotach niedostepne.",
+                TermsExplanation = "Tlumaczenie terminow niedostepne.",
+                AnalysisCeo = "Analiza dla CEO niedostepna. Przeczytaj artykul i wyciagnij wnioski.",
+                AnalysisSales = "Analiza dla Handlowca niedostepna.",
+                AnalysisBuyer = "Analiza dla Zakupowca niedostepna.",
+                IndustryLesson = "Lekcja branzowa niedostepna.",
+                ActionsCeo = new List<string>(),
+                ActionsSales = new List<string>(),
+                ActionsBuyer = new List<string>(),
+                StrategicQuestions = new List<string>(),
+                SourcesToMonitor = new List<string>(),
+                Category = "Info",
+                Severity = "info",
+                Tags = isFallbackContent
+                    ? new List<string> { "fallback", "no-ai" }
+                    : new List<string> { "no-ai" }
+            };
         }
 
         /// <summary>

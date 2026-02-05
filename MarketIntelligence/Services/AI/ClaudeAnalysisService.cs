@@ -42,7 +42,7 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
         public ClaudeAnalysisService()
         {
             _httpClient = new HttpClient();
-            _httpClient.Timeout = TimeSpan.FromSeconds(120); // 2 minuty - kompromis miedzy szybkoscia a jakoscia
+            _httpClient.Timeout = TimeSpan.FromSeconds(25); // BATTLE-TESTED: 25 sekund - szybkie failover
 
             // Probuj pobrac klucz API z roznych zrodel
             _apiKey = Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY")
@@ -104,13 +104,15 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
 
             try
             {
-                var response = await CallClaudeAsync(prompt, SonnetModel, 6000, ct); // Zbalansowane: pelna analiza w 2 min
+                var response = await CallClaudeAsync(prompt, SonnetModel, 4000, ct); // BATTLE-TESTED: 4000 tokenow dla szybszych odpowiedzi
                 return ParseAnalysisResponse(response, title);
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"[ClaudeAnalysis] Blad analizy: {ex.Message}");
-                return CreateStubAnalysis(title, $"Blad analizy AI: {ex.Message}");
+                // BATTLE-TESTED: Zamiast zwracac blad, zwracamy "surowy" artykul
+                // Lepiej pokazac news bez analizy niz nic
+                return CreateRawArticleResult(title, content, source, ex.Message);
             }
         }
 
@@ -269,7 +271,9 @@ Wygeneruj streszczenie poranne w formacie JSON:
             {
                 model = model,
                 max_tokens = maxTokens,
-                system = "KRYTYCZNE: Odpowiadasz WYLACZNIE czystym JSON. ZAKAZANE jest uzywanie markdown - zadnych ``` ani ```json. Pierwszym znakiem odpowiedzi MUSI byc { a ostatnim }. Zero tekstu przed ani po JSON.",
+                system = @"KRYTYCZNE: Odpowiadasz WYLACZNIE czystym JSON. ZAKAZANE jest uzywanie markdown - zadnych ``` ani ```json. Pierwszym znakiem odpowiedzi MUSI byc { a ostatnim }. Zero tekstu przed ani po JSON.
+
+TOLERANCYJNY ANALITYK: Otrzymasz tekst artykulu LUB jego streszczenie z wyszukiwarki. Jesli tekst jest krotki lub zawiera tylko streszczenie, dokonaj NAJLEPSZEJ MOZLIWEJ analizy na podstawie tego co masz. NIGDY nie odmawiaj wykonania zadania - zawsze wyciagnij maksimum informacji biznesowych dla prezesa ubojni drobiu. Krotki tekst = krotka ale wartosciowa analiza. Twoim celem jest ZAWSZE dostarczyc uzyteczna analize.",
                 messages = new[]
                 {
                     new { role = "user", content = prompt }
@@ -1127,6 +1131,52 @@ KRYTYCZNE WYMAGANIA:
             };
         }
 
+        /// <summary>
+        /// BATTLE-TESTED: Tworzy wynik z surowym artykulem gdy analiza AI sie nie uda
+        /// Lepiej pokazac news bez analizy AI niz ukrywac go przed uzytkownikiem
+        /// </summary>
+        private ArticleAnalysisResult CreateRawArticleResult(string title, string content, string source, string errorMessage)
+        {
+            // Skroc tresc do rozsadnej dlugosci
+            var truncatedContent = content?.Length > 1000
+                ? content.Substring(0, 1000) + "..."
+                : content ?? "";
+
+            return new ArticleAnalysisResult
+            {
+                // Executive Dashboard fields
+                SmartTitle = title?.Length > 60 ? title.Substring(0, 57) + "..." : title ?? "News",
+                SentimentScore = 0.0,
+                Impact = "Medium",
+
+                // Surowa tresc z oznaczeniem
+                Summary = $"[ARTYKUL BEZ ANALIZY AI - timeout/blad]\n\n{truncatedContent}",
+                MarketContext = $"Analiza niedostepna (blad: {errorMessage}). Przeczytaj artykul zrodlowy.",
+                WhoIs = "Analiza podmiotow niedostepna.",
+                TermsExplanation = "Tlumaczenie terminow niedostepne.",
+                AnalysisCeo = "Analiza dla CEO niedostepna - przeczytaj tresc artykulu powyzej i wyciagnij wnioski samodzielnie.",
+                AnalysisSales = "Analiza dla Handlowca niedostepna.",
+                AnalysisBuyer = "Analiza dla Zakupowca niedostepna.",
+                IndustryLesson = "Lekcja branzowa niedostepna.",
+
+                // Puste listy
+                ActionsCeo = new List<string> { "[Przeczytaj artykul i okreslic akcje samodzielnie]" },
+                ActionsSales = new List<string>(),
+                ActionsBuyer = new List<string>(),
+                StrategicQuestions = new List<string> { "Czy ten news wymaga natychmiastowej reakcji?" },
+                SourcesToMonitor = new List<string> { source ?? "Zrodlo nieznane" },
+
+                // Metadane
+                Category = "Info",
+                Severity = "info",
+                Tags = new List<string> { "raw", "no-ai-analysis" },
+
+                // Dodatkowe pole informujace o bledzie
+                IsRawArticle = true,
+                RawArticleError = errorMessage
+            };
+        }
+
         #endregion
 
         #region Cost Estimation
@@ -1201,6 +1251,17 @@ KRYTYCZNE WYMAGANIA:
         public string Category { get; set; }
         public string Severity { get; set; }
         public List<string> Tags { get; set; } = new List<string>();
+
+        // BATTLE-TESTED: Pola dla surowych artykulow (bez analizy AI)
+        /// <summary>
+        /// Czy to surowy artykul bez analizy AI (blad/timeout)
+        /// </summary>
+        public bool IsRawArticle { get; set; }
+
+        /// <summary>
+        /// Komunikat bledu jesli IsRawArticle = true
+        /// </summary>
+        public string RawArticleError { get; set; }
 
         public string ActionsToString(List<string> actions) => string.Join("\n", actions);
     }
