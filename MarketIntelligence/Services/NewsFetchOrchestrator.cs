@@ -379,6 +379,7 @@ SZANSE:
 
         /// <summary>
         /// Testowy pipeline dla jednego artykulu - pokazuje wszystkie logi
+        /// Z RETRY/FALLBACK: probuje kolejne artykuly az znajdzie dzialajacy
         /// </summary>
         public async Task<BriefingArticle> TestSingleArticlePipelineAsync(CancellationToken ct = default)
         {
@@ -389,227 +390,176 @@ SZANSE:
             try
             {
                 // ═══════════════════════════════════════════════════════════
-                // ETAP 1: Pojedyncze zapytanie Perplexity
+                // ETAP 1: Pobranie listy artykulow z Brave Search
                 // ═══════════════════════════════════════════════════════════
-                Diagnostics.AddLog("=== ETAP 1: PERPLEXITY ===");
-                Diagnostics.AddLog("Wysylam testowe zapytanie: 'ceny drobiu Polska luty 2026'");
+                Diagnostics.AddLog("=== ETAP 1: BRAVE SEARCH ===");
+                Diagnostics.AddLog("Wysylam zapytanie: 'ceny drobiu Polska luty 2026'");
 
-                var perplexityStopwatch = Stopwatch.StartNew();
+                var searchStopwatch = Stopwatch.StartNew();
                 var (articles, debugInfo) = await _newsService.SearchWithDebugAsync("ceny drobiu Polska luty 2026", ct);
-                perplexityStopwatch.Stop();
+                searchStopwatch.Stop();
 
-                Diagnostics.PerplexityTime = perplexityStopwatch.Elapsed;
+                Diagnostics.PerplexityTime = searchStopwatch.Elapsed;
                 Diagnostics.PerplexityArticlesCount = articles.Count;
-                Diagnostics.AddLog($"Perplexity odpowiedzial w {perplexityStopwatch.ElapsedMilliseconds}ms");
-                Diagnostics.AddLog($"Znaleziono {articles.Count} artykulow");
-
-                // Pokaz raw response dla debugowania
-                Diagnostics.AddLog($"RAW RESPONSE: {debugInfo}");
+                Diagnostics.AddLog($"Brave odpowiedzial w {searchStopwatch.ElapsedMilliseconds}ms");
+                Diagnostics.AddLog($"Znaleziono {articles.Count} kandydatow");
 
                 if (articles.Count == 0)
                 {
-                    Diagnostics.AddError("Perplexity nie zwrocil zadnych artykulow!");
-                    Diagnostics.AddLog("Sprawdz RAW RESPONSE powyzej - moze model zwraca tekst zamiast JSON");
+                    Diagnostics.AddError("Brave nie zwrocil zadnych artykulow!");
                     return null;
                 }
 
-                // Pokaz wszystkie znalezione artykuly
-                for (int i = 0; i < Math.Min(articles.Count, 5); i++)
+                // Pokaz liste kandydatow
+                Diagnostics.AddLog("--- LISTA KANDYDATOW ---");
+                for (int i = 0; i < Math.Min(articles.Count, 10); i++)
                 {
                     var a = articles[i];
-                    Diagnostics.AddLog($"  [{i + 1}] {TruncateTitle(a.Title, 60)}");
-                    Diagnostics.AddLog($"      URL: {a.Url ?? "brak"}");
-                    Diagnostics.AddLog($"      Zrodlo: {a.Source}");
-                }
-
-                // Wybierz pierwszy artykul z URL
-                var testArticle = articles.FirstOrDefault(a => !string.IsNullOrEmpty(a.Url) && a.Url.StartsWith("http"));
-                if (testArticle == null)
-                {
-                    testArticle = articles.First();
-                    Diagnostics.AddWarning("Brak artykulu z URL - uzywam pierwszego");
-                }
-
-                Diagnostics.AddSuccess($"Wybralem artykul: {TruncateTitle(testArticle.Title, 80)}");
-
-                // ═══════════════════════════════════════════════════════════
-                // ETAP 2: Filtrowanie lokalne
-                // ═══════════════════════════════════════════════════════════
-                Diagnostics.AddLog("=== ETAP 2: FILTROWANIE LOKALNE ===");
-
-                var filterInput = new List<(string title, string content, string url)>
-                {
-                    (testArticle.Title, testArticle.Snippet, testArticle.Url)
-                };
-
-                var filtered = _filterService.FilterArticles(filterInput);
-                Diagnostics.FilteredCount = filtered.Count;
-
-                if (filtered.Count == 0)
-                {
-                    Diagnostics.AddWarning("Artykul zostal odfiltrowany przez blacklist!");
-                    Diagnostics.AddLog("Pomijam filtr i kontynuuje...");
-                }
-                else
-                {
-                    Diagnostics.AddSuccess("Artykul przeszedl filtrowanie lokalne");
+                    Diagnostics.AddLog($"  [{i + 1}] {TruncateTitle(a.Title, 50)} ({GetDomain(a.Url)})");
                 }
 
                 // ═══════════════════════════════════════════════════════════
-                // ETAP 3: Wzbogacanie tresci (Content Enrichment)
+                // ETAP 2-4: PETLA RETRY - probuj kolejne artykuly
                 // ═══════════════════════════════════════════════════════════
-                Diagnostics.AddLog("=== ETAP 3: WZBOGACANIE TRESCI ===");
+                Diagnostics.AddLog("=== ETAP 2-4: PETLA RETRY ===");
+                Diagnostics.AddLog("Probuje kolejne artykuly az znajde dzialajacy...");
 
-                string fullContent = testArticle.Snippet ?? "";
+                int attemptCount = 0;
+                int maxAttempts = Math.Min(articles.Count, 15); // Max 15 prob
 
-                if (!string.IsNullOrEmpty(testArticle.Url) && testArticle.Url.StartsWith("http"))
+                // Filtruj artykuly z URL
+                var candidateArticles = articles
+                    .Where(a => !string.IsNullOrEmpty(a.Url) && a.Url.StartsWith("http"))
+                    .Take(maxAttempts)
+                    .ToList();
+
+                foreach (var testArticle in candidateArticles)
                 {
-                    Diagnostics.AddLog($"Pobieram pelna tresc z: {testArticle.Url}");
+                    if (ct.IsCancellationRequested) break;
+
+                    attemptCount++;
+                    Diagnostics.AddLog($"");
+                    Diagnostics.AddLog($"--- PROBA {attemptCount}/{candidateArticles.Count}: {GetDomain(testArticle.Url)} ---");
+
+                    // KROK 2: Filtrowanie lokalne
+                    var filterInput = new List<(string title, string content, string url)>
+                    {
+                        (testArticle.Title, testArticle.Snippet, testArticle.Url)
+                    };
+                    var filtered = _filterService.FilterArticles(filterInput);
+                    if (filtered.Count == 0)
+                    {
+                        Diagnostics.AddLog($"  [SKIP] Odfiltrowany przez blacklist");
+                        continue;
+                    }
+
+                    // KROK 3: Wzbogacanie tresci
+                    string fullContent = testArticle.Snippet ?? "";
 
                     var enrichResult = await _enrichmentService.EnrichSingleAsync(testArticle.Url, ct);
-
                     if (enrichResult.Success)
                     {
                         fullContent = enrichResult.Content;
-                        Diagnostics.EnrichedCount = 1;
-                        Diagnostics.AddSuccess($"Pobrano tresc: {fullContent.Length} znakow");
-                        Diagnostics.AddLog($"Pierwsze 300 znakow: {TruncateContent(fullContent, 300)}");
+                        Diagnostics.AddLog($"  [OK] Pobrano tresc: {fullContent.Length} znakow");
                     }
                     else
                     {
-                        Diagnostics.EnrichmentFailedCount = 1;
-                        Diagnostics.AddWarning($"Nie udalo sie pobrac tresci: {enrichResult.Error}");
-                        Diagnostics.AddLog("Uzywam snippetu z Perplexity jako tresc");
+                        Diagnostics.AddLog($"  [SKIP] Enrichment failed: {enrichResult.Error}");
+                        Diagnostics.EnrichmentFailedCount++;
+                        continue; // RETRY - idz do nastepnego
                     }
-                }
-                else
-                {
-                    Diagnostics.AddLog("Brak URL - uzywam snippetu z Perplexity");
-                }
 
-                // Sprawdz czy mamy wystarczajaco tresci do analizy (min 500 znakow)
-                if (string.IsNullOrWhiteSpace(fullContent) || fullContent.Length < 500)
-                {
-                    Diagnostics.AddError($"Tresc zbyt krotka ({fullContent?.Length ?? 0} znakow, wymagane min. 500)");
-                    Diagnostics.AddLog("Pomijam artykul - nie wysylam do Claude krotkich tekstow (oszczednosc API)");
-                    return null;
-                }
+                    // Sprawdz dlugosc tresci
+                    if (fullContent.Length < 500)
+                    {
+                        Diagnostics.AddLog($"  [SKIP] Tresc za krotka ({fullContent.Length} < 500 znakow)");
+                        continue; // RETRY - idz do nastepnego
+                    }
 
-                // ═══════════════════════════════════════════════════════════
-                // ETAP 4: Analiza AI (Claude Sonnet)
-                // ═══════════════════════════════════════════════════════════
-                Diagnostics.AddLog("=== ETAP 4: ANALIZA CLAUDE SONNET ===");
-                Diagnostics.AddLog($"Model: {ClaudeAnalysisService.SonnetModel}");
-                Diagnostics.AddLog($"Wysylam do analizy {fullContent.Length} znakow tresci");
+                    Diagnostics.EnrichedCount++;
 
-                if (!_claudeService.IsConfigured)
-                {
-                    Diagnostics.AddError("Claude API nie skonfigurowane!");
-                    return null;
-                }
+                    // KROK 4: Analiza AI
+                    if (!_claudeService.IsConfigured)
+                    {
+                        Diagnostics.AddError("Claude API nie skonfigurowane!");
+                        return null;
+                    }
 
-                var analysisStopwatch = Stopwatch.StartNew();
-                var analysisResult = await _claudeService.AnalyzeArticleAsync(
-                    testArticle.Title,
-                    fullContent,
-                    "Perplexity / " + GetDomain(testArticle.Url),
-                    BusinessContext,
-                    ct);
-                analysisStopwatch.Stop();
+                    Diagnostics.AddLog($"  Wysylam do Claude ({fullContent.Length} znakow)...");
 
-                Diagnostics.AddLog($"Claude odpowiedzial w {analysisStopwatch.ElapsedMilliseconds}ms");
+                    var analysisStopwatch = Stopwatch.StartNew();
+                    var analysisResult = await _claudeService.AnalyzeArticleAsync(
+                        testArticle.Title,
+                        fullContent,
+                        "Brave / " + GetDomain(testArticle.Url),
+                        BusinessContext,
+                        ct);
+                    analysisStopwatch.Stop();
 
-                // Sprawdz czy analiza sie powiodla
-                var summaryHasError = !string.IsNullOrEmpty(analysisResult.Summary) &&
-                    (analysisResult.Summary.StartsWith("Blad") ||
-                     analysisResult.Summary.StartsWith("BLAD") ||
-                     analysisResult.Summary.Contains("BLAD PARSOWANIA"));
+                    Diagnostics.AddLog($"  Claude odpowiedzial w {analysisStopwatch.ElapsedMilliseconds}ms");
 
-                if (!string.IsNullOrEmpty(analysisResult.Summary) && !summaryHasError)
-                {
+                    // Sprawdz czy analiza sie powiodla
+                    var summaryHasError = !string.IsNullOrEmpty(analysisResult.Summary) &&
+                        (analysisResult.Summary.StartsWith("Blad") ||
+                         analysisResult.Summary.StartsWith("BLAD") ||
+                         analysisResult.Summary.Contains("BLAD PARSOWANIA"));
+
+                    if (summaryHasError)
+                    {
+                        Diagnostics.AddLog($"  [SKIP] Blad parsowania odpowiedzi Claude");
+                        if (!string.IsNullOrEmpty(_claudeService.LastRawResponse))
+                        {
+                            Diagnostics.AddLog($"  RAW (100 znakow): {TruncateContent(_claudeService.LastRawResponse, 100)}");
+                        }
+                        continue; // RETRY - idz do nastepnego
+                    }
+
+                    // SUKCES! Mamy dzialajacy artykul
+                    Diagnostics.AddSuccess($"  [SUKCES] Artykul przeanalizowany pomyslnie!");
                     Diagnostics.AnalyzedCount = 1;
-                    Diagnostics.AddSuccess("Analiza zakonczona sukcesem!");
 
-                    // Pokaz wyniki analizy
+                    // Pokaz wyniki
                     Diagnostics.AddLog("--- PODSUMOWANIE ---");
                     Diagnostics.AddLog(TruncateContent(analysisResult.Summary, 200));
-
-                    Diagnostics.AddLog("--- KIM JEST ---");
-                    Diagnostics.AddLog(TruncateContent(analysisResult.WhoIs, 150));
-
-                    Diagnostics.AddLog("--- ANALIZA CEO ---");
-                    Diagnostics.AddLog(TruncateContent(analysisResult.AnalysisCeo, 150));
-
-                    Diagnostics.AddLog("--- AKCJE CEO ---");
-                    foreach (var action in analysisResult.ActionsCeo.Take(3))
-                    {
-                        Diagnostics.AddLog($"  • {action}");
-                    }
-
                     Diagnostics.AddLog($"--- KATEGORIA: {analysisResult.Category} ---");
                     Diagnostics.AddLog($"--- SEVERITY: {analysisResult.Severity} ---");
-                }
-                else
-                {
-                    // Blad analizy - dodaj szczegolowe logi
-                    Diagnostics.AddError($"Blad analizy Claude");
-                    Diagnostics.AddLog("=== SZCZEGOLY BLEDU ===");
 
-                    // Pokaz opis bledu
-                    if (!string.IsNullOrEmpty(analysisResult.Summary))
+                    // ETAP 5: Tworzenie BriefingArticle
+                    var briefingArticle = new BriefingArticle
                     {
-                        Diagnostics.AddLog(analysisResult.Summary);
-                    }
+                        Id = 1,
+                        Title = testArticle.Title,
+                        SmartTitle = analysisResult.SmartTitle,
+                        SentimentScore = analysisResult.SentimentScore,
+                        Impact = ParseImpactLevel(analysisResult.Impact),
+                        ShortPreview = TruncateContent(testArticle.Snippet, 150),
+                        FullContent = analysisResult.Summary,
+                        EducationalSection = analysisResult.WhoIs,
+                        AiAnalysisCeo = analysisResult.AnalysisCeo,
+                        AiAnalysisSales = analysisResult.AnalysisSales,
+                        AiAnalysisBuyer = analysisResult.AnalysisBuyer,
+                        RecommendedActionsCeo = string.Join("\n", analysisResult.ActionsCeo),
+                        RecommendedActionsSales = string.Join("\n", analysisResult.ActionsSales),
+                        RecommendedActionsBuyer = string.Join("\n", analysisResult.ActionsBuyer),
+                        Category = analysisResult.Category ?? "Info",
+                        Source = GetDomain(testArticle.Url) ?? "Brave",
+                        SourceUrl = testArticle.Url,
+                        PublishDate = DateTime.Today,
+                        Severity = ParseSeverity(analysisResult.Severity ?? "Info"),
+                        Tags = analysisResult.Tags ?? new List<string>(),
+                        IsFeatured = true
+                    };
 
-                    // Pokaz surowa odpowiedz Claude (jesli dostepna)
-                    if (!string.IsNullOrEmpty(_claudeService.LastRawResponse))
-                    {
-                        Diagnostics.AddLog("=== SUROWA ODPOWIEDZ CLAUDE ===");
-                        Diagnostics.AddLog($"Dlugosc: {_claudeService.LastRawResponse.Length} znakow");
-                        // Ogranicz do 2000 znakow w logu
-                        var preview = _claudeService.LastRawResponse.Length > 2000
-                            ? _claudeService.LastRawResponse.Substring(0, 2000) + "\n... [OBCIETE]"
-                            : _claudeService.LastRawResponse;
-                        Diagnostics.AddLog(preview);
-                    }
+                    stopwatch.Stop();
+                    Diagnostics.AddSuccess($"=== PIPELINE UKONCZONY w {stopwatch.Elapsed.TotalSeconds:N1}s (proba {attemptCount}/{candidateArticles.Count}) ===");
 
-                    return null;
+                    return briefingArticle;
                 }
 
-                // ═══════════════════════════════════════════════════════════
-                // ETAP 5: Tworzenie BriefingArticle
-                // ═══════════════════════════════════════════════════════════
-                Diagnostics.AddLog("=== ETAP 5: TWORZENIE ARTYKULU ===");
-
-                var briefingArticle = new BriefingArticle
-                {
-                    Id = 1,
-                    Title = testArticle.Title,
-                    SmartTitle = analysisResult.SmartTitle,
-                    SentimentScore = analysisResult.SentimentScore,
-                    Impact = ParseImpactLevel(analysisResult.Impact),
-                    ShortPreview = TruncateContent(testArticle.Snippet, 150),
-                    FullContent = analysisResult.Summary,
-                    EducationalSection = analysisResult.WhoIs,
-                    AiAnalysisCeo = analysisResult.AnalysisCeo,
-                    AiAnalysisSales = analysisResult.AnalysisSales,
-                    AiAnalysisBuyer = analysisResult.AnalysisBuyer,
-                    RecommendedActionsCeo = string.Join("\n", analysisResult.ActionsCeo),
-                    RecommendedActionsSales = string.Join("\n", analysisResult.ActionsSales),
-                    RecommendedActionsBuyer = string.Join("\n", analysisResult.ActionsBuyer),
-                    Category = analysisResult.Category ?? "Info",
-                    Source = GetDomain(testArticle.Url) ?? "Perplexity",
-                    SourceUrl = testArticle.Url,
-                    PublishDate = DateTime.Today,
-                    Severity = ParseSeverity(analysisResult.Severity ?? "Info"),
-                    Tags = analysisResult.Tags ?? new List<string>(),
-                    IsFeatured = true
-                };
-
-                stopwatch.Stop();
-                Diagnostics.AddSuccess($"=== PIPELINE UKONCZONY w {stopwatch.Elapsed.TotalSeconds:N1}s ===");
-
-                return briefingArticle;
+                // Wszystkie proby sie nie powiodly
+                Diagnostics.AddError($"Wszystkie {attemptCount} prob zakonczonych niepowodzeniem!");
+                Diagnostics.AddLog("Zadna strona nie zwrocila wystarczajacej tresci do analizy.");
+                return null;
             }
             catch (Exception ex)
             {
@@ -625,6 +575,7 @@ SZANSE:
 
         /// <summary>
         /// Testowy pipeline ze szczegolowymi logami do okna logow
+        /// Z RETRY/FALLBACK: probuje kolejne artykuly az znajdzie dzialajacy
         /// </summary>
         public async Task<BriefingArticle> TestSingleArticlePipelineWithLogsAsync(
             Action<string, string> log,
@@ -639,7 +590,7 @@ SZANSE:
             try
             {
                 // ═══════════════════════════════════════════════════════════
-                // ETAP 1: Pojedyncze zapytanie Perplexity
+                // ETAP 1: Pobranie listy artykulow z Perplexity
                 // ═══════════════════════════════════════════════════════════
                 logSection("ETAP 1: PERPLEXITY SEARCH");
                 log("Wysylam testowe zapytanie: 'ceny drobiu Polska luty 2026'", "INFO");
@@ -655,7 +606,7 @@ SZANSE:
                 Diagnostics.PerplexityArticlesCount = articles.Count;
 
                 log($"Perplexity odpowiedzial w {perplexityStopwatch.ElapsedMilliseconds}ms", "SUCCESS");
-                log($"Znaleziono {articles.Count} artykulow", articles.Count > 0 ? "SUCCESS" : "WARNING");
+                log($"Znaleziono {articles.Count} artykulow-kandydatow", articles.Count > 0 ? "SUCCESS" : "WARNING");
 
                 // Pokaz pelna odpowiedz API
                 logRaw(debugInfo, "PERPLEXITY RAW RESPONSE");
@@ -672,7 +623,7 @@ SZANSE:
                 }
 
                 // Lista wszystkich znalezionych artykulow
-                log("--- ZNALEZIONE ARTYKULY ---", "INFO");
+                log("--- ZNALEZIONE ARTYKULY (KANDYDACI) ---", "INFO");
                 for (int i = 0; i < articles.Count; i++)
                 {
                     var a = articles[i];
@@ -681,132 +632,164 @@ SZANSE:
                     log($"    Zrodlo: {a.Source}", "DEBUG");
                 }
 
-                // Wybierz pierwszy artykul z URL
-                var testArticle = articles.FirstOrDefault(a => !string.IsNullOrEmpty(a.Url) && a.Url.StartsWith("http"));
-                if (testArticle == null)
+                // Filtruj artykuly z URL
+                var candidateArticles = articles
+                    .Where(a => !string.IsNullOrEmpty(a.Url) && a.Url.StartsWith("http"))
+                    .Take(15) // Max 15 prob
+                    .ToList();
+
+                if (candidateArticles.Count == 0)
                 {
-                    testArticle = articles.First();
-                    log("Brak artykulu z URL - uzywam pierwszego", "WARNING");
+                    log("Brak artykulow z poprawnymi URL!", "ERROR");
+                    Diagnostics.AddError("Brak artykulow z URL");
+                    return null;
                 }
 
-                log($"Wybralem artykul do testu: {testArticle.Title}", "SUCCESS");
-                Diagnostics.AddSuccess($"Wybralem: {TruncateTitle(testArticle.Title, 60)}");
+                log($"Bede probowal {candidateArticles.Count} artykulow az znajde dzialajacy...", "INFO");
+                Diagnostics.AddLog($"Kandydatow z URL: {candidateArticles.Count}");
 
                 // ═══════════════════════════════════════════════════════════
-                // ETAP 2: Filtrowanie lokalne
+                // ETAP 2-4: PETLA RETRY - probuj kolejne artykuly
                 // ═══════════════════════════════════════════════════════════
-                logSection("ETAP 2: FILTROWANIE LOKALNE");
-                log("Sprawdzam blacklist i whitelist...", "INFO");
-                Diagnostics.AddLog("=== ETAP 2: FILTROWANIE ===");
+                logSection("ETAP 2-4: PETLA RETRY");
+                log("Probuje kolejne artykuly az znajde dzialajacy...", "INFO");
+                Diagnostics.AddLog("=== ETAP 2-4: PETLA RETRY ===");
 
-                var filterInput = new List<(string title, string content, string url)>
+                int attemptCount = 0;
+
+                foreach (var testArticle in candidateArticles)
                 {
-                    (testArticle.Title, testArticle.Snippet, testArticle.Url)
-                };
+                    if (ct.IsCancellationRequested)
+                    {
+                        log("Anulowano przez uzytkownika", "WARNING");
+                        break;
+                    }
 
-                var filtered = _filterService.FilterArticles(filterInput);
-                Diagnostics.FilteredCount = filtered.Count;
+                    attemptCount++;
+                    log("", "INFO");
+                    log($"══════════════════════════════════════════════════════════", "INFO");
+                    log($"PROBA {attemptCount}/{candidateArticles.Count}: {TruncateTitle(testArticle.Title, 50)}", "INFO");
+                    log($"Domena: {GetDomain(testArticle.Url)}", "DEBUG");
+                    Diagnostics.AddLog($"--- PROBA {attemptCount}: {GetDomain(testArticle.Url)} ---");
 
-                if (filtered.Count == 0)
-                {
-                    log("Artykul zostal odfiltrowany przez blacklist!", "WARNING");
-                    log("Kontynuuje mimo to dla celow testowych...", "INFO");
-                    Diagnostics.AddWarning("Odfiltrowany - kontynuuje");
-                }
-                else
-                {
-                    log("Artykul przeszedl filtrowanie", "SUCCESS");
-                    Diagnostics.AddSuccess("Przeszedl filtr");
-                }
+                    // ─────────────────────────────────────────────────────
+                    // KROK 2: Filtrowanie lokalne
+                    // ─────────────────────────────────────────────────────
+                    log("Krok 2: Sprawdzam blacklist...", "INFO");
 
-                // ═══════════════════════════════════════════════════════════
-                // ETAP 3: Wzbogacanie tresci (Content Enrichment)
-                // ═══════════════════════════════════════════════════════════
-                logSection("ETAP 3: WZBOGACANIE TRESCI (WEB SCRAPING)");
-                Diagnostics.AddLog("=== ETAP 3: ENRICHMENT ===");
+                    var filterInput = new List<(string title, string content, string url)>
+                    {
+                        (testArticle.Title, testArticle.Snippet, testArticle.Url)
+                    };
 
-                string fullContent = testArticle.Snippet ?? "";
+                    var filtered = _filterService.FilterArticles(filterInput);
 
-                if (!string.IsNullOrEmpty(testArticle.Url) && testArticle.Url.StartsWith("http"))
-                {
-                    log($"Pobieram pelna tresc z URL: {testArticle.Url}", "INFO");
+                    if (filtered.Count == 0)
+                    {
+                        log("  [SKIP] Odfiltrowany przez blacklist - idz do nastepnego", "WARNING");
+                        Diagnostics.AddLog($"  [SKIP] Blacklist");
+                        continue; // RETRY
+                    }
+                    log("  [OK] Przeszedl filtr", "SUCCESS");
+
+                    // ─────────────────────────────────────────────────────
+                    // KROK 3: Wzbogacanie tresci
+                    // ─────────────────────────────────────────────────────
+                    log("Krok 3: Pobieram pelna tresc (SmartReader)...", "INFO");
+                    log($"  URL: {testArticle.Url}", "DEBUG");
 
                     var enrichResult = await _enrichmentService.EnrichSingleAsync(testArticle.Url, ct);
 
-                    if (enrichResult.Success)
+                    if (!enrichResult.Success)
                     {
-                        fullContent = enrichResult.Content;
-                        Diagnostics.EnrichedCount = 1;
-                        log($"Pobrano tresc: {fullContent.Length} znakow", "SUCCESS");
-
-                        // Pokaz poczatek tresci
-                        var preview = fullContent.Length > 500 ? fullContent.Substring(0, 500) + "..." : fullContent;
-                        logRaw(preview, "POBRANA TRESC (pierwsze 500 znakow)");
+                        log($"  [SKIP] Enrichment failed: {enrichResult.Error}", "WARNING");
+                        log("  Idz do nastepnego artykulu...", "INFO");
+                        Diagnostics.EnrichmentFailedCount++;
+                        Diagnostics.AddLog($"  [SKIP] Enrichment: {TruncateContent(enrichResult.Error, 50)}");
+                        continue; // RETRY
                     }
-                    else
+
+                    string fullContent = enrichResult.Content;
+                    log($"  [OK] Pobrano tresc: {fullContent.Length} znakow", "SUCCESS");
+
+                    // Pokaz poczatek tresci
+                    var preview = fullContent.Length > 500 ? fullContent.Substring(0, 500) + "..." : fullContent;
+                    logRaw(preview, "POBRANA TRESC (pierwsze 500 znakow)");
+
+                    // Sprawdz dlugosc tresci
+                    if (fullContent.Length < 500)
                     {
-                        Diagnostics.EnrichmentFailedCount = 1;
-                        log($"Nie udalo sie pobrac tresci: {enrichResult.Error}", "WARNING");
-                        log("Uzywam snippetu z Perplexity jako tresc", "INFO");
-                        Diagnostics.AddWarning($"Enrichment failed: {enrichResult.Error}");
+                        log($"  [SKIP] Tresc za krotka ({fullContent.Length} < 500 znakow)", "WARNING");
+                        log("  Idz do nastepnego artykulu...", "INFO");
+                        Diagnostics.AddLog($"  [SKIP] Za krotka ({fullContent.Length} znakow)");
+                        continue; // RETRY
                     }
-                }
-                else
-                {
-                    log("Brak URL - uzywam snippetu z Perplexity", "INFO");
-                }
 
-                log($"Tresc do analizy: {fullContent.Length} znakow", "INFO");
+                    Diagnostics.EnrichedCount++;
+                    Diagnostics.FilteredCount++;
 
-                // Sprawdz czy mamy wystarczajaco tresci do analizy (min 500 znakow)
-                if (string.IsNullOrWhiteSpace(fullContent) || fullContent.Length < 500)
-                {
-                    log($"BLAD: Tresc zbyt krotka ({fullContent?.Length ?? 0} znakow, wymagane min. 500)", "ERROR");
-                    log("Pomijam artykul - nie wysylam do Claude krotkich tekstow (oszczednosc API)", "WARNING");
-                    Diagnostics.AddError("Tresc zbyt krotka - pomijam");
-                    return null;
-                }
+                    // ─────────────────────────────────────────────────────
+                    // KROK 4: Analiza AI
+                    // ─────────────────────────────────────────────────────
+                    log("Krok 4: Wysylam do Claude...", "INFO");
+                    log($"  Model: {ClaudeAnalysisService.SonnetModel}", "INFO");
+                    log($"  Dlugosc tresci: {fullContent.Length} znakow", "DEBUG");
 
-                // ═══════════════════════════════════════════════════════════
-                // ETAP 4: Analiza AI (Claude Sonnet)
-                // ═══════════════════════════════════════════════════════════
-                logSection("ETAP 4: ANALIZA CLAUDE SONNET");
-                log($"Model: {ClaudeAnalysisService.SonnetModel}", "INFO");
-                log($"Wysylam do analizy {fullContent.Length} znakow tresci", "INFO");
-                Diagnostics.AddLog("=== ETAP 4: ANALIZA CLAUDE ===");
+                    if (!_claudeService.IsConfigured)
+                    {
+                        log("Claude API nie skonfigurowane!", "ERROR");
+                        log("Sprawdz klucz API w App.config lub zmiennej srodowiskowej ANTHROPIC_API_KEY", "ERROR");
+                        Diagnostics.AddError("Claude API nie skonfigurowane");
+                        return null;
+                    }
 
-                if (!_claudeService.IsConfigured)
-                {
-                    log("Claude API nie skonfigurowane!", "ERROR");
-                    log("Sprawdz klucz API w App.config lub zmiennej srodowiskowej ANTHROPIC_API_KEY", "ERROR");
-                    Diagnostics.AddError("Claude API nie skonfigurowane");
-                    return null;
-                }
+                    var analysisStopwatch = Stopwatch.StartNew();
+                    var analysisResult = await _claudeService.AnalyzeArticleAsync(
+                        testArticle.Title,
+                        fullContent,
+                        "Perplexity / " + GetDomain(testArticle.Url),
+                        BusinessContext,
+                        ct);
+                    analysisStopwatch.Stop();
 
-                log("Wysylam request do Claude API...", "INFO");
+                    log($"  Claude odpowiedzial w {analysisStopwatch.ElapsedMilliseconds}ms", "SUCCESS");
+                    Diagnostics.AddLog($"  Claude: {analysisStopwatch.ElapsedMilliseconds}ms");
 
-                var analysisStopwatch = Stopwatch.StartNew();
-                var analysisResult = await _claudeService.AnalyzeArticleAsync(
-                    testArticle.Title,
-                    fullContent,
-                    "Perplexity / " + GetDomain(testArticle.Url),
-                    BusinessContext,
-                    ct);
-                analysisStopwatch.Stop();
+                    // Sprawdz czy analiza sie powiodla
+                    var summaryContainsError = !string.IsNullOrEmpty(analysisResult.Summary) &&
+                        (analysisResult.Summary.StartsWith("Blad") ||
+                         analysisResult.Summary.StartsWith("BLAD") ||
+                         analysisResult.Summary.Contains("BLAD PARSOWANIA"));
 
-                log($"Claude odpowiedzial w {analysisStopwatch.ElapsedMilliseconds}ms", "SUCCESS");
-                Diagnostics.AddLog($"Claude: {analysisStopwatch.ElapsedMilliseconds}ms");
+                    if (summaryContainsError || string.IsNullOrEmpty(analysisResult.Summary))
+                    {
+                        log($"  [SKIP] Blad parsowania odpowiedzi Claude", "WARNING");
 
-                // Sprawdz czy analiza sie powiodla
-                var summaryContainsError = !string.IsNullOrEmpty(analysisResult.Summary) &&
-                    (analysisResult.Summary.StartsWith("Blad") ||
-                     analysisResult.Summary.StartsWith("BLAD") ||
-                     analysisResult.Summary.Contains("BLAD PARSOWANIA"));
+                        // Szczegolowe logi bledu
+                        if (!string.IsNullOrEmpty(_claudeService.LastParsingError))
+                        {
+                            log($"  Szczegoly: {TruncateContent(_claudeService.LastParsingError, 200)}", "DEBUG");
+                        }
+                        if (!string.IsNullOrEmpty(_claudeService.LastRawResponse))
+                        {
+                            log($"  RAW (100 znakow): {TruncateContent(_claudeService.LastRawResponse, 100)}", "DEBUG");
+                        }
 
-                if (!string.IsNullOrEmpty(analysisResult.Summary) && !summaryContainsError)
-                {
+                        log("  Idz do nastepnego artykulu...", "INFO");
+                        Diagnostics.AddLog($"  [SKIP] Blad parsowania JSON");
+                        continue; // RETRY
+                    }
+
+                    // ═══════════════════════════════════════════════════════════
+                    // SUKCES! Mamy dzialajacy artykul
+                    // ═══════════════════════════════════════════════════════════
+                    log("", "SUCCESS");
+                    log("══════════════════════════════════════════════════════════", "SUCCESS");
+                    log($"SUKCES! Artykul przeanalizowany przy probie {attemptCount}/{candidateArticles.Count}", "SUCCESS");
+                    log("══════════════════════════════════════════════════════════", "SUCCESS");
+
                     Diagnostics.AnalyzedCount = 1;
-                    log("Analiza zakonczona sukcesem!", "SUCCESS");
+                    Diagnostics.AddSuccess($"SUKCES przy probie {attemptCount}");
 
                     // Pokaz pelne wyniki analizy
                     logSection("WYNIKI ANALIZY AI");
@@ -884,77 +867,62 @@ SZANSE:
                     log($"Severity: {analysisResult.Severity}", "INFO");
                     log($"Tagi: {string.Join(", ", analysisResult.Tags ?? new List<string>())}", "INFO");
 
-                    Diagnostics.AddSuccess("Analiza OK");
-                }
-                else
-                {
-                    // Blad analizy - wyswietl szczegolowe logi
-                    logSection("BLAD ANALIZY CLAUDE");
-                    log($"Streszczenie bledu: {TruncateContent(analysisResult.Summary, 300)}", "ERROR");
+                    // ═══════════════════════════════════════════════════════════
+                    // ETAP 5: Tworzenie BriefingArticle
+                    // ═══════════════════════════════════════════════════════════
+                    logSection("ETAP 5: TWORZENIE ARTYKULU BRIEFINGOWEGO");
+                    Diagnostics.AddLog("=== ETAP 5: TWORZENIE ===");
 
-                    // Sprawdz czy mamy szczegolowe informacje o bledzie parsowania
-                    if (!string.IsNullOrEmpty(_claudeService.LastParsingError))
+                    var briefingArticle = new BriefingArticle
                     {
-                        log("", "ERROR");
-                        log("=== SZCZEGOLY BLEDU PARSOWANIA ===", "ERROR");
-                        logRaw(_claudeService.LastParsingError, "PARSING ERROR DETAILS");
-                    }
+                        Id = 1,
+                        Title = testArticle.Title,
+                        SmartTitle = analysisResult.SmartTitle,
+                        SentimentScore = analysisResult.SentimentScore,
+                        Impact = ParseImpactLevel(analysisResult.Impact),
+                        ShortPreview = TruncateContent(testArticle.Snippet, 150),
+                        FullContent = analysisResult.Summary,
+                        MarketContext = analysisResult.MarketContext,
+                        EducationalSection = analysisResult.WhoIs,
+                        TermsExplanation = analysisResult.TermsExplanation,
+                        AiAnalysisCeo = analysisResult.AnalysisCeo,
+                        AiAnalysisSales = analysisResult.AnalysisSales,
+                        AiAnalysisBuyer = analysisResult.AnalysisBuyer,
+                        RecommendedActionsCeo = string.Join("\n", analysisResult.ActionsCeo ?? new List<string>()),
+                        RecommendedActionsSales = string.Join("\n", analysisResult.ActionsSales ?? new List<string>()),
+                        RecommendedActionsBuyer = string.Join("\n", analysisResult.ActionsBuyer ?? new List<string>()),
+                        IndustryLesson = analysisResult.IndustryLesson,
+                        StrategicQuestions = string.Join("\n", analysisResult.StrategicQuestions ?? new List<string>()),
+                        SourcesToMonitor = string.Join("\n", analysisResult.SourcesToMonitor ?? new List<string>()),
+                        Category = analysisResult.Category ?? "Info",
+                        Source = GetDomain(testArticle.Url) ?? "Perplexity",
+                        SourceUrl = testArticle.Url,
+                        PublishDate = DateTime.Today,
+                        Severity = ParseSeverity(analysisResult.Severity ?? "Info"),
+                        Tags = analysisResult.Tags ?? new List<string>(),
+                        IsFeatured = true
+                    };
 
-                    // Pokaz surowa odpowiedz Claude (jesli dostepna)
-                    if (!string.IsNullOrEmpty(_claudeService.LastRawResponse))
-                    {
-                        log("", "ERROR");
-                        log("=== SUROWA ODPOWIEDZ CLAUDE (cala) ===", "ERROR");
-                        log($"Dlugosc odpowiedzi: {_claudeService.LastRawResponse.Length} znakow", "ERROR");
-                        logRaw(_claudeService.LastRawResponse, "CLAUDE RAW RESPONSE");
-                    }
+                    stopwatch.Stop();
+                    log($"Artykul utworzony pomyslnie!", "SUCCESS");
+                    log($"Calkowity czas pipeline: {stopwatch.Elapsed.TotalSeconds:N1} sekund", "SUCCESS");
+                    log($"Wykorzystano probe {attemptCount} z {candidateArticles.Count}", "INFO");
+                    Diagnostics.AddSuccess($"Pipeline OK: {stopwatch.Elapsed.TotalSeconds:N1}s (proba {attemptCount})");
 
-                    Diagnostics.AddError($"Analiza: blad parsowania JSON");
-                    return null;
+                    return briefingArticle;
                 }
 
                 // ═══════════════════════════════════════════════════════════
-                // ETAP 5: Tworzenie BriefingArticle
+                // Wszystkie proby sie nie powiodly
                 // ═══════════════════════════════════════════════════════════
-                logSection("ETAP 5: TWORZENIE ARTYKULU BRIEFINGOWEGO");
-                Diagnostics.AddLog("=== ETAP 5: TWORZENIE ===");
-
-                var briefingArticle = new BriefingArticle
-                {
-                    Id = 1,
-                    Title = testArticle.Title,
-                    SmartTitle = analysisResult.SmartTitle,
-                    SentimentScore = analysisResult.SentimentScore,
-                    Impact = ParseImpactLevel(analysisResult.Impact),
-                    ShortPreview = TruncateContent(testArticle.Snippet, 150),
-                    FullContent = analysisResult.Summary,
-                    MarketContext = analysisResult.MarketContext,
-                    EducationalSection = analysisResult.WhoIs,
-                    TermsExplanation = analysisResult.TermsExplanation,
-                    AiAnalysisCeo = analysisResult.AnalysisCeo,
-                    AiAnalysisSales = analysisResult.AnalysisSales,
-                    AiAnalysisBuyer = analysisResult.AnalysisBuyer,
-                    RecommendedActionsCeo = string.Join("\n", analysisResult.ActionsCeo ?? new List<string>()),
-                    RecommendedActionsSales = string.Join("\n", analysisResult.ActionsSales ?? new List<string>()),
-                    RecommendedActionsBuyer = string.Join("\n", analysisResult.ActionsBuyer ?? new List<string>()),
-                    IndustryLesson = analysisResult.IndustryLesson,
-                    StrategicQuestions = string.Join("\n", analysisResult.StrategicQuestions ?? new List<string>()),
-                    SourcesToMonitor = string.Join("\n", analysisResult.SourcesToMonitor ?? new List<string>()),
-                    Category = analysisResult.Category ?? "Info",
-                    Source = GetDomain(testArticle.Url) ?? "Perplexity",
-                    SourceUrl = testArticle.Url,
-                    PublishDate = DateTime.Today,
-                    Severity = ParseSeverity(analysisResult.Severity ?? "Info"),
-                    Tags = analysisResult.Tags ?? new List<string>(),
-                    IsFeatured = true
-                };
-
-                stopwatch.Stop();
-                log($"Artykul utworzony pomyslnie!", "SUCCESS");
-                log($"Calkowity czas pipeline: {stopwatch.Elapsed.TotalSeconds:N1} sekund", "SUCCESS");
-                Diagnostics.AddSuccess($"Pipeline OK: {stopwatch.Elapsed.TotalSeconds:N1}s");
-
-                return briefingArticle;
+                logSection("WSZYSTKIE PROBY SIE NIE POWIODLY");
+                log($"Przetestowano {attemptCount} artykulow, zaden nie zwrocil wystarczajacej tresci.", "ERROR");
+                log("Mozliwe przyczyny:", "WARNING");
+                log("  1. Strony blokuja pobieranie tresci (paywall, anti-bot)", "WARNING");
+                log("  2. Tresci sa zbyt krotkie (< 500 znakow)", "WARNING");
+                log("  3. Bledy parsowania odpowiedzi Claude", "WARNING");
+                Diagnostics.AddError($"Wszystkie {attemptCount} prob zakonczonych niepowodzeniem");
+                return null;
             }
             catch (Exception ex)
             {
