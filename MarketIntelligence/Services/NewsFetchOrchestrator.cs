@@ -267,6 +267,27 @@ SZANSE:
                         BusinessContext,
                         ct);
 
+                    // Sprawdz czy analiza sie powiodla
+                    var hasParsingError = !string.IsNullOrEmpty(analysisResult.Summary) &&
+                        (analysisResult.Summary.StartsWith("Blad") ||
+                         analysisResult.Summary.StartsWith("BLAD") ||
+                         analysisResult.Summary.Contains("BLAD PARSOWANIA"));
+
+                    if (hasParsingError)
+                    {
+                        Diagnostics.AddWarning($"Blad parsowania dla: {TruncateTitle(article.Title, 50)}");
+                        // Dodaj szczegoly bledu do logow
+                        if (!string.IsNullOrEmpty(_claudeService.LastRawResponse))
+                        {
+                            var rawPreview = _claudeService.LastRawResponse.Length > 500
+                                ? _claudeService.LastRawResponse.Substring(0, 500) + "..."
+                                : _claudeService.LastRawResponse;
+                            Diagnostics.AddLog($"RAW Response (500 znakow): {rawPreview}");
+                        }
+                        analyzed++;
+                        continue; // Pomin artykul z bledem parsowania
+                    }
+
                     // Konwertuj na BriefingArticle
                     var briefingArticle = new BriefingArticle
                     {
@@ -488,7 +509,13 @@ SZANSE:
 
                 Diagnostics.AddLog($"Claude odpowiedzial w {analysisStopwatch.ElapsedMilliseconds}ms");
 
-                if (!string.IsNullOrEmpty(analysisResult.Summary) && !analysisResult.Summary.StartsWith("Blad"))
+                // Sprawdz czy analiza sie powiodla
+                var summaryHasError = !string.IsNullOrEmpty(analysisResult.Summary) &&
+                    (analysisResult.Summary.StartsWith("Blad") ||
+                     analysisResult.Summary.StartsWith("BLAD") ||
+                     analysisResult.Summary.Contains("BLAD PARSOWANIA"));
+
+                if (!string.IsNullOrEmpty(analysisResult.Summary) && !summaryHasError)
                 {
                     Diagnostics.AnalyzedCount = 1;
                     Diagnostics.AddSuccess("Analiza zakonczona sukcesem!");
@@ -514,7 +541,28 @@ SZANSE:
                 }
                 else
                 {
-                    Diagnostics.AddError($"Blad analizy: {analysisResult.Summary}");
+                    // Blad analizy - dodaj szczegolowe logi
+                    Diagnostics.AddError($"Blad analizy Claude");
+                    Diagnostics.AddLog("=== SZCZEGOLY BLEDU ===");
+
+                    // Pokaz opis bledu
+                    if (!string.IsNullOrEmpty(analysisResult.Summary))
+                    {
+                        Diagnostics.AddLog(analysisResult.Summary);
+                    }
+
+                    // Pokaz surowa odpowiedz Claude (jesli dostepna)
+                    if (!string.IsNullOrEmpty(_claudeService.LastRawResponse))
+                    {
+                        Diagnostics.AddLog("=== SUROWA ODPOWIEDZ CLAUDE ===");
+                        Diagnostics.AddLog($"Dlugosc: {_claudeService.LastRawResponse.Length} znakow");
+                        // Ogranicz do 2000 znakow w logu
+                        var preview = _claudeService.LastRawResponse.Length > 2000
+                            ? _claudeService.LastRawResponse.Substring(0, 2000) + "\n... [OBCIETE]"
+                            : _claudeService.LastRawResponse;
+                        Diagnostics.AddLog(preview);
+                    }
+
                     return null;
                 }
 
@@ -738,7 +786,13 @@ SZANSE:
                 log($"Claude odpowiedzial w {analysisStopwatch.ElapsedMilliseconds}ms", "SUCCESS");
                 Diagnostics.AddLog($"Claude: {analysisStopwatch.ElapsedMilliseconds}ms");
 
-                if (!string.IsNullOrEmpty(analysisResult.Summary) && !analysisResult.Summary.StartsWith("Blad"))
+                // Sprawdz czy analiza sie powiodla
+                var summaryContainsError = !string.IsNullOrEmpty(analysisResult.Summary) &&
+                    (analysisResult.Summary.StartsWith("Blad") ||
+                     analysisResult.Summary.StartsWith("BLAD") ||
+                     analysisResult.Summary.Contains("BLAD PARSOWANIA"));
+
+                if (!string.IsNullOrEmpty(analysisResult.Summary) && !summaryContainsError)
                 {
                     Diagnostics.AnalyzedCount = 1;
                     log("Analiza zakonczona sukcesem!", "SUCCESS");
@@ -823,8 +877,28 @@ SZANSE:
                 }
                 else
                 {
-                    log($"Blad analizy Claude: {analysisResult.Summary}", "ERROR");
-                    Diagnostics.AddError($"Analiza: {analysisResult.Summary}");
+                    // Blad analizy - wyswietl szczegolowe logi
+                    logSection("BLAD ANALIZY CLAUDE");
+                    log($"Streszczenie bledu: {TruncateContent(analysisResult.Summary, 300)}", "ERROR");
+
+                    // Sprawdz czy mamy szczegolowe informacje o bledzie parsowania
+                    if (!string.IsNullOrEmpty(_claudeService.LastParsingError))
+                    {
+                        log("", "ERROR");
+                        log("=== SZCZEGOLY BLEDU PARSOWANIA ===", "ERROR");
+                        logRaw(_claudeService.LastParsingError, "PARSING ERROR DETAILS");
+                    }
+
+                    // Pokaz surowa odpowiedz Claude (jesli dostepna)
+                    if (!string.IsNullOrEmpty(_claudeService.LastRawResponse))
+                    {
+                        log("", "ERROR");
+                        log("=== SUROWA ODPOWIEDZ CLAUDE (cala) ===", "ERROR");
+                        log($"Dlugosc odpowiedzi: {_claudeService.LastRawResponse.Length} znakow", "ERROR");
+                        logRaw(_claudeService.LastRawResponse, "CLAUDE RAW RESPONSE");
+                    }
+
+                    Diagnostics.AddError($"Analiza: blad parsowania JSON");
                     return null;
                 }
 
@@ -978,6 +1052,28 @@ SZANSE:
                         }
 
                         log($"Claude odpowiedzial w {analysisStopwatch.ElapsedMilliseconds}ms", "SUCCESS");
+
+                        // Sprawdz czy analiza sie powiodla
+                        var hasParsingError = !string.IsNullOrEmpty(analysisResult.Summary) &&
+                            (analysisResult.Summary.StartsWith("Blad") ||
+                             analysisResult.Summary.StartsWith("BLAD") ||
+                             analysisResult.Summary.Contains("BLAD PARSOWANIA"));
+
+                        if (hasParsingError)
+                        {
+                            log($"BLAD PARSOWANIA JSON dla artykulu {analyzed}!", "ERROR");
+                            log(TruncateContent(analysisResult.Summary, 500), "ERROR");
+
+                            // Pokaz surowa odpowiedz Claude
+                            if (!string.IsNullOrEmpty(_claudeService.LastRawResponse))
+                            {
+                                log("", "ERROR");
+                                log("=== SUROWA ODPOWIEDZ CLAUDE ===", "ERROR");
+                                logRaw(_claudeService.LastRawResponse, "CLAUDE RAW");
+                            }
+                            errors++;
+                            continue;
+                        }
 
                         // Pokaz wyniki analizy
                         log("--- WYNIK ANALIZY ---", "SUCCESS");

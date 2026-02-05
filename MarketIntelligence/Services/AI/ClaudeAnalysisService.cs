@@ -468,7 +468,9 @@ KRYTYCZNE WYMAGANIA:
             Debug.WriteLine($"[ClaudeAnalysis] Raw response length: {response.Length}");
             Debug.WriteLine($"[ClaudeAnalysis] Response first 200 chars: {response.Substring(0, Math.Min(200, response.Length))}");
 
-            // Lista prob parsowania
+            // Lista prob parsowania z logami bledow
+            var parsingErrors = new List<string>();
+
             var attempts = new List<(string name, Func<string> getJson)>
             {
                 ("Original", () => ExtractJson(response)),
@@ -483,6 +485,7 @@ KRYTYCZNE WYMAGANIA:
                     var json = getJson();
                     if (string.IsNullOrWhiteSpace(json) || json == "{}")
                     {
+                        parsingErrors.Add($"[{name}] Pusty JSON");
                         Debug.WriteLine($"[ClaudeAnalysis] {name}: pusty JSON, probuje nastepna metode");
                         continue;
                     }
@@ -523,15 +526,51 @@ KRYTYCZNE WYMAGANIA:
                 }
                 catch (Exception ex)
                 {
+                    parsingErrors.Add($"[{name}] {ex.Message}");
                     Debug.WriteLine($"[ClaudeAnalysis] {name} failed: {ex.Message}");
                 }
             }
 
-            // Wszystkie proby zawiodly
+            // Wszystkie proby zawiodly - zbuduj szczegolowy komunikat bledu
             Debug.WriteLine($"[ClaudeAnalysis] All parsing attempts failed");
             Debug.WriteLine($"[ClaudeAnalysis] Full response: {response}");
-            return CreateStubAnalysis(originalTitle, $"Blad parsowania odpowiedzi AI: nie udalo sie sparsowac JSON");
+
+            // Przygotuj fragment odpowiedzi do wyswietlenia (pierwsze 500 znakow)
+            var responsePreview = response.Length > 500
+                ? response.Substring(0, 500) + "... [OBCIETE]"
+                : response;
+
+            var errorDetails = new StringBuilder();
+            errorDetails.AppendLine("BLAD PARSOWANIA JSON - szczegoly:");
+            errorDetails.AppendLine($"Dlugosc odpowiedzi: {response.Length} znakow");
+            errorDetails.AppendLine();
+            errorDetails.AppendLine("Proby parsowania:");
+            foreach (var err in parsingErrors)
+            {
+                errorDetails.AppendLine($"  - {err}");
+            }
+            errorDetails.AppendLine();
+            errorDetails.AppendLine("Poczatek odpowiedzi Claude:");
+            errorDetails.AppendLine("---");
+            errorDetails.AppendLine(responsePreview);
+            errorDetails.AppendLine("---");
+
+            // Zapisz pelna odpowiedz do LastRawResponse dla debugging
+            LastRawResponse = response;
+            LastParsingError = errorDetails.ToString();
+
+            return CreateStubAnalysis(originalTitle, errorDetails.ToString());
         }
+
+        /// <summary>
+        /// Ostatnia surowa odpowiedz Claude (do debugowania)
+        /// </summary>
+        public string LastRawResponse { get; private set; }
+
+        /// <summary>
+        /// Ostatni blad parsowania (do debugowania)
+        /// </summary>
+        public string LastParsingError { get; private set; }
 
         /// <summary>
         /// Agresywna sanityzacja - ostatnia deska ratunku
