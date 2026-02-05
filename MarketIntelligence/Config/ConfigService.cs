@@ -272,9 +272,9 @@ namespace MarketIntelligence.Config
                 MaxTokens = 8000,
                 Temperature = 0.3,
 
-                SystemPrompt = @"KRYTYCZNE: Odpowiadasz WYŁĄCZNIE czystym JSON. ZAKAZANE jest używanie markdown - żadnych ``` ani ```json. Pierwszym znakiem odpowiedzi MUSI być { a ostatnim }. Zero tekstu przed ani po JSON.
-
-TOLERANCYJNY ANALITYK: Otrzymasz tekst artykułu LUB jego streszczenie z wyszukiwarki. Jeśli tekst jest krótki lub zawiera tylko streszczenie, dokonaj NAJLEPSZEJ MOŻLIWEJ analizy na podstawie tego co masz. NIGDY nie odmawiaj wykonania zadania - zawsze wyciągnij maksimum informacji biznesowych dla prezesa ubojni drobiu. Krótki tekst = krótka ale wartościowa analiza. Twoim celem jest ZAWSZE dostarczyć użyteczną analizę.",
+                // SystemPrompt - PUSTY oznacza uzycie nowego SUPER-PROMPT z OpenAIAnalysisService
+                // Uzytkownik moze nadpisac w Panelu Admina
+                SystemPrompt = "",
 
                 AnalysisPromptTemplate = @"Jesteś STARSZYM ANALITYKIEM RYNKU DROBIARSKIEGO z 20-letnim doświadczeniem, pracującym dla {CompanyName} w {Location}.
 Twoja rola to dostarczanie KOMPLEKSOWEJ, EDUKACYJNEJ i STRATEGICZNEJ analizy - tak jakbyś pisał raport dla zarządu.

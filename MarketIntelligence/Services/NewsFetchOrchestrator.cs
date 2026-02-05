@@ -247,37 +247,45 @@ SZANSE:
                 // ═══════════════════════════════════════════════════════════
                 // ETAP 3-4: ROWNOLEGLE przetwarzanie (Enrichment + AI Analysis)
                 // ═══════════════════════════════════════════════════════════
-                progress?.Report(("Przetwarzanie", 30, "Rownoległe przetwarzanie artykulow..."));
-                Diagnostics.CurrentStage = "Rownoległe przetwarzanie";
-                Diagnostics.AddLog("BATTLE-TESTED: Uruchamiam rownolegne przetwarzanie wszystkich artykulow");
+                progress?.Report(("Przetwarzanie", 30, "Sekwencyjne przetwarzanie artykulow (anty-429)..."));
+                Diagnostics.CurrentStage = "Sekwencyjne przetwarzanie";
+                Diagnostics.AddLog("THROTTLING: Przetwarzam artykuly SEKWENCYJNIE z 3s przerwa - eliminacja bledow 429");
 
                 int completed = 0;
                 int total = articlesToProcess.Count;
-                var lockObj = new object();
+                var resultsList = new List<BriefingArticle>();
 
-                // BATTLE-TESTED: Ograniczenie do 5 rownoczesnych zadan
-                using var semaphore = new SemaphoreSlim(5);
-
-                var tasks = articlesToProcess.Select(async article =>
+                // THROTTLING: Przetwarzanie SEKWENCYJNE (1 na raz) z opoznieniem
+                // To CALKOWICIE eliminuje bledy 429 Rate Limit
+                foreach (var article in articlesToProcess)
                 {
-                    await semaphore.WaitAsync(ct);
+                    if (ct.IsCancellationRequested) break;
+
                     try
                     {
-                        return await ProcessSingleArticleAsync(article, ct);
-                    }
-                    finally
-                    {
-                        semaphore.Release();
-                        lock (lockObj)
+                        var result = await ProcessSingleArticleAsync(article, ct);
+                        if (result != null)
                         {
-                            completed++;
-                            var pct = 30 + (double)completed / total * 60; // 30-90%
-                            progress?.Report(("Przetwarzanie", pct, $"Przetworzono {completed}/{total}"));
+                            resultsList.Add(result);
                         }
                     }
-                }).ToList();
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[Throttling] Blad przetwarzania: {ex.Message}");
+                    }
 
-                var results = await Task.WhenAll(tasks);
+                    completed++;
+                    var pct = 30 + (double)completed / total * 60; // 30-90%
+                    progress?.Report(("Przetwarzanie", pct, $"Przetworzono {completed}/{total} (throttling)"));
+
+                    // KLUCZOWE: 3 sekundy przerwy po kazdym artykule - zapobiega 429
+                    if (completed < total)
+                    {
+                        await Task.Delay(3000, ct);
+                    }
+                }
+
+                var results = resultsList.ToArray();
 
                 // Zbierz wszystkie NIE-NULLOWE wyniki
                 allArticles = results
