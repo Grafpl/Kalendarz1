@@ -552,7 +552,6 @@ namespace Kalendarz1
                 {
                     dgvMroznieZewnetrzne.ClearSelection();
                     row.Selected = true;
-                    dgvMroznieZewnetrzne.FirstDisplayedScrollingRowIndex = row.Index;
                     break;
                 }
             }
