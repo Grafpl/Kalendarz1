@@ -150,5 +150,37 @@ namespace Kalendarz1.Kartoteka.Features.Mapa
             klienci.AddRange(kontrahenci.Values);
             return klienci;
         }
+
+        /// <summary>
+        /// Pobiera listę wszystkich handlowców z bazy Handel
+        /// </summary>
+        public async Task<List<string>> PobierzWszystkichHandlowcowAsync()
+        {
+            var handlowcy = new List<string>();
+            const string sql = @"
+                SELECT DISTINCT CDim_Handlowiec_Val
+                FROM [SSCommon].[ContractorClassification]
+                WHERE CDim_Handlowiec_Val IS NOT NULL
+                  AND CDim_Handlowiec_Val <> ''
+                ORDER BY CDim_Handlowiec_Val";
+
+            try
+            {
+                await using var cn = new SqlConnection(_connHandel);
+                await cn.OpenAsync();
+                await using var cmd = new SqlCommand(sql, cn);
+                await using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                {
+                    handlowcy.Add(rd.GetString(0));
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"MapaKlientow Handlowcy error: {ex.Message}");
+            }
+
+            return handlowcy;
+        }
     }
 }

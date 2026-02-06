@@ -66,20 +66,16 @@ namespace Kalendarz1.Kartoteka.Features.Mapa
                 await _geoService.EnsureColumnsExistAsync();
 
                 var service = new MapaKlientowService(_connLibra, _connHandel);
-                _wszyscyKlienci = await service.PobierzKlientowDoMapyAsync();
 
-                // Wypełnij listę handlowców
-                var handlowcy = _wszyscyKlienci
-                    .Select(k => k.Handlowiec)
-                    .Where(h => !string.IsNullOrEmpty(h))
-                    .Distinct()
-                    .OrderBy(h => h)
-                    .ToList();
-
+                // Pobierz WSZYSTKICH handlowców z bazy (nie tylko tych z klientami)
+                var handlowcy = await service.PobierzWszystkichHandlowcowAsync();
                 cmbHandlowiec.Items.Clear();
                 cmbHandlowiec.Items.Add(new ComboBoxItem { Content = "Wszyscy", IsSelected = true });
                 foreach (var h in handlowcy)
                     cmbHandlowiec.Items.Add(new ComboBoxItem { Content = h });
+
+                // Pobierz klientów
+                _wszyscyKlienci = await service.PobierzKlientowDoMapyAsync();
 
                 ApplyFilters();
                 UpdateStatistics();
