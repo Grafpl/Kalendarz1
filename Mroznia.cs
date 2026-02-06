@@ -47,6 +47,27 @@ namespace Kalendarz1
         private ToolTip toolTip;
         private CheckBox chkPokazWydane, chkPokazPrzyjete, chkGrupowanie;
 
+        // === STAŁE BIZNESOWE ===
+        private const int MagazynMroznia = 65552;
+        internal const string KatalogSwiezy = "67095";
+        internal const string KatalogMrozony = "67153";
+        private const string DataStartowa = "2020-01-07";
+
+        private static readonly string SQL_FILTR_SERII =
+            "(mg.seria = 'sMM+' OR mg.seria = 'sMM-' OR mg.seria = 'sMK-' OR mg.seria = 'sMK+')";
+
+        private static readonly string SQL_GRUPOWANIE_PRODUKTU = @"CASE
+                        WHEN MZ.kod LIKE 'Kurczak A%' THEN 'Kurczak A'
+                        WHEN MZ.kod LIKE 'Korpus%' THEN 'Korpus'
+                        WHEN MZ.kod LIKE 'Ćwiartka%' THEN 'Ćwiartka'
+                        WHEN MZ.kod LIKE 'Filet II%' THEN 'Filet II'
+                        WHEN MZ.kod LIKE 'Filet %' THEN 'Filet A'
+                        WHEN MZ.kod LIKE 'Skrzydło I%' THEN 'Skrzydło I'
+                        WHEN MZ.kod LIKE 'Trybowane bez skóry%' THEN 'Trybowane bez skóry'
+                        WHEN MZ.kod LIKE 'Trybowane ze skórą%' THEN 'Trybowane ze skórą'
+                        ELSE MZ.kod
+                    END";
+
         // === DANE CACHE ===
         private DataTable cachedDzienneData;
         private DateTime lastAnalysisDate = DateTime.MinValue;
@@ -1290,27 +1311,39 @@ namespace Kalendarz1
 
             try
             {
+                progressBar.Value = 10;
+
+                // Pobierz wszystkie dane w tle (nie blokuje UI)
+                DataTable dtDzienne = null, dtAnaliza = null, dtTrendy = null, dtTopProdukty = null;
+                decimal wydanoSuma = 0, przyjetoSuma = 0;
+                int dniSuma = 0;
+
                 await Task.Run(() =>
                 {
-                    this.Invoke((Action)(() =>
-                    {
-                        progressBar.Value = 20;
-                        LoadDzienneZestawienie(od, doDaty);
-
-                        progressBar.Value = 40;
-                        LoadAnalizaProduktu(od, doDaty);
-
-                        progressBar.Value = 60;
-                        LoadTrendy(od, doDaty);
-
-                        progressBar.Value = 80;
-                        LoadTopProdukty(od, doDaty);
-
-                        progressBar.Value = 100;
-                        UpdateKartyStatystyk(od, doDaty);
-                    }));
+                    dtDzienne = FetchDzienneZestawienie(od, doDaty);
+                    dtAnaliza = FetchAnalizaProduktu(od, doDaty);
+                    dtTrendy = FetchTrendyData(od, doDaty);
+                    dtTopProdukty = FetchTopProdukty(od, doDaty);
+                    FetchKartyStatystyk(od, doDaty, out wydanoSuma, out przyjetoSuma, out dniSuma);
                 });
 
+                // Wyświetl dane na wątku UI (po await jesteśmy z powrotem na UI thread)
+                progressBar.Value = 50;
+                DisplayDzienneZestawienie(dtDzienne);
+
+                progressBar.Value = 60;
+                DisplayAnalizaProduktu(dtAnaliza);
+
+                progressBar.Value = 70;
+                DisplayTrendy(dtTrendy);
+
+                progressBar.Value = 80;
+                DisplayTopProdukty(dtTopProdukty);
+
+                progressBar.Value = 90;
+                DisplayKartyStatystyk(wydanoSuma, przyjetoSuma, dniSuma);
+
+                progressBar.Value = 100;
                 lastAnalysisDate = DateTime.Now;
                 statusLabel.Text = $"Dane załadowane pomyślnie | {DateTime.Now:HH:mm:ss}";
             }
@@ -1328,21 +1361,21 @@ namespace Kalendarz1
             }
         }
 
-        private void LoadDzienneZestawienie(DateTime od, DateTime doDaty)
+        private DataTable FetchDzienneZestawienie(DateTime od, DateTime doDaty)
         {
-            string query = @"
+            string query = $@"
                 SELECT
                     MG.[Data] AS Data,
                     DATENAME(dw, MG.[Data]) AS DzienTygodnia,
                     ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) AS Wydano,
                     SUM(CASE WHEN MZ.ilosc > 0 THEN MZ.ilosc ELSE 0 END) AS Przyjeto,
-                    ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) - 
+                    ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) -
                     SUM(CASE WHEN MZ.ilosc > 0 THEN MZ.ilosc ELSE 0 END) AS Bilans,
                     COUNT(DISTINCT MZ.kod) AS Pozycje
                 FROM [HANDEL].[HM].[MG]
                 JOIN [HANDEL].[HM].[MZ] ON MG.ID = MZ.super
-                WHERE MG.magazyn = 65552
-                AND (mg.seria = 'sMM+' OR mg.seria = 'sMM-' OR mg.seria = 'sMK-' OR mg.seria = 'sMK+')
+                WHERE MG.magazyn = {MagazynMroznia}
+                AND {SQL_FILTR_SERII}
                 AND MG.[Data] BETWEEN @Od AND @Do
                 GROUP BY MG.[Data]
                 ORDER BY MG.[Data] DESC";
@@ -1355,27 +1388,31 @@ namespace Kalendarz1
 
                 DataTable dt = new DataTable();
                 adapter.Fill(dt);
+                return dt;
+            }
+        }
 
-                cachedDzienneData = dt;
-                dgvDzienne.DataSource = dt;
+        private void DisplayDzienneZestawienie(DataTable dt)
+        {
+            cachedDzienneData = dt;
+            dgvDzienne.DataSource = dt;
 
-                FormatujKolumne(dgvDzienne, "Data", "Data", "yyyy-MM-dd");
-                FormatujKolumne(dgvDzienne, "DzienTygodnia", "Dzień");
-                FormatujKolumne(dgvDzienne, "Wydano", "Wydano (kg)", "N0");
-                FormatujKolumne(dgvDzienne, "Przyjeto", "Przyjęto (kg)", "N0");
-                FormatujKolumne(dgvDzienne, "Bilans", "Bilans (kg)", "N0");
-                FormatujKolumne(dgvDzienne, "Pozycje", "Pozycje");
+            FormatujKolumne(dgvDzienne, "Data", "Data", "yyyy-MM-dd");
+            FormatujKolumne(dgvDzienne, "DzienTygodnia", "Dzień");
+            FormatujKolumne(dgvDzienne, "Wydano", "Wydano (kg)", "N0");
+            FormatujKolumne(dgvDzienne, "Przyjeto", "Przyjęto (kg)", "N0");
+            FormatujKolumne(dgvDzienne, "Bilans", "Bilans (kg)", "N0");
+            FormatujKolumne(dgvDzienne, "Pozycje", "Pozycje");
 
-                foreach (DataGridViewRow row in dgvDzienne.Rows)
+            foreach (DataGridViewRow row in dgvDzienne.Rows)
+            {
+                if (row.Cells["Bilans"].Value != null)
                 {
-                    if (row.Cells["Bilans"].Value != null)
-                    {
-                        decimal bilans = Convert.ToDecimal(row.Cells["Bilans"].Value);
-                        if (bilans < 0)
-                            row.Cells["Bilans"].Style.ForeColor = SuccessColor;
-                        else if (bilans > 0)
-                            row.Cells["Bilans"].Style.ForeColor = DangerColor;
-                    }
+                    decimal bilans = Convert.ToDecimal(row.Cells["Bilans"].Value);
+                    if (bilans < 0)
+                        row.Cells["Bilans"].Style.ForeColor = SuccessColor;
+                    else if (bilans > 0)
+                        row.Cells["Bilans"].Style.ForeColor = DangerColor;
                 }
             }
         }
@@ -1498,41 +1535,20 @@ namespace Kalendarz1
 
         private void LoadSzczegolyDniaDoGrid(DateTime data, DataGridView dgv)
         {
-            string query = @"
+            string query = $@"
                 SELECT
-                    CASE 
-                        WHEN MZ.kod LIKE 'Kurczak A%' THEN 'Kurczak A'
-                        WHEN MZ.kod LIKE 'Korpus%' THEN 'Korpus'
-                        WHEN MZ.kod LIKE 'Ćwiartka%' THEN 'Ćwiartka'
-                        WHEN MZ.kod LIKE 'Filet II%' THEN 'Filet II'
-                        WHEN MZ.kod LIKE 'Filet %' THEN 'Filet A'
-                        WHEN MZ.kod LIKE 'Skrzydło I%' THEN 'Skrzydło I'
-                        WHEN MZ.kod LIKE 'Trybowane bez skóry%' THEN 'Trybowane bez skóry'
-                        WHEN MZ.kod LIKE 'Trybowane ze skórą%' THEN 'Trybowane ze skórą'
-                        ELSE MZ.kod
-                    END AS Produkt,
+                    {SQL_GRUPOWANIE_PRODUKTU} AS Produkt,
                     ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) AS Wydano,
                     SUM(CASE WHEN MZ.ilosc > 0 THEN MZ.ilosc ELSE 0 END) AS Przyjeto,
-                    ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) - 
+                    ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) -
                     SUM(CASE WHEN MZ.ilosc > 0 THEN MZ.ilosc ELSE 0 END) AS Roznica,
                     COUNT(*) AS Operacje
                 FROM [HANDEL].[HM].[MG]
                 JOIN [HANDEL].[HM].[MZ] ON MG.ID = MZ.super
-                WHERE MG.magazyn = 65552
-                AND (mg.seria = 'sMM+' OR mg.seria = 'sMM-' OR mg.seria = 'sMK-' OR mg.seria = 'sMK+')
+                WHERE MG.magazyn = {MagazynMroznia}
+                AND {SQL_FILTR_SERII}
                 AND CAST(MG.[Data] AS DATE) = @Data
-                GROUP BY 
-                    CASE 
-                        WHEN MZ.kod LIKE 'Kurczak A%' THEN 'Kurczak A'
-                        WHEN MZ.kod LIKE 'Korpus%' THEN 'Korpus'
-                        WHEN MZ.kod LIKE 'Ćwiartka%' THEN 'Ćwiartka'
-                        WHEN MZ.kod LIKE 'Filet II%' THEN 'Filet II'
-                        WHEN MZ.kod LIKE 'Filet %' THEN 'Filet A'
-                        WHEN MZ.kod LIKE 'Skrzydło I%' THEN 'Skrzydło I'
-                        WHEN MZ.kod LIKE 'Trybowane bez skóry%' THEN 'Trybowane bez skóry'
-                        WHEN MZ.kod LIKE 'Trybowane ze skórą%' THEN 'Trybowane ze skórą'
-                        ELSE MZ.kod
-                    END
+                GROUP BY {SQL_GRUPOWANIE_PRODUKTU}
                 ORDER BY Wydano DESC";
 
             using (SqlConnection conn = new SqlConnection(connectionString))
@@ -1712,7 +1728,7 @@ namespace Kalendarz1
 
         private void LoadHistoriaProduktuDoGrid(string produkt, DateTime dataDo, DataGridView dgv)
         {
-            string query = @"
+            string query = $@"
                 WITH HistoriaOperacji AS (
                     SELECT
                         MZ.[Data] AS Data,
@@ -1725,7 +1741,7 @@ namespace Kalendarz1
                             ELSE 'Wydanie'
                         END AS Typ
                     FROM [HANDEL].[HM].[MZ]
-                    WHERE MZ.magazyn = 65552
+                    WHERE MZ.magazyn = {MagazynMroznia}
                     AND MZ.[Data] <= @DataDo
                     AND MZ.typ = '0'
                     AND (
@@ -1787,12 +1803,12 @@ namespace Kalendarz1
 
             Chart chart = CreateInteractiveChart($"Trend stanu magazynowego: {produkt}");
 
-            string query = @"
-                SELECT 
+            string query = $@"
+                SELECT
                     MZ.[Data] AS Data,
                     MZ.iloscwp AS Stan
                 FROM [HANDEL].[HM].[MZ]
-                WHERE MZ.magazyn = 65552
+                WHERE MZ.magazyn = {MagazynMroznia}
                 AND MZ.[Data] <= @DataDo
                 AND MZ.typ = '0'
                 AND (
@@ -1805,52 +1821,54 @@ namespace Kalendarz1
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
                 conn.Open();
-                SqlCommand cmd = new SqlCommand(query, conn);
-                cmd.Parameters.AddWithValue("@DataDo", dataDo);
-                cmd.Parameters.AddWithValue("@Produkt", produkt);
-                cmd.Parameters.AddWithValue("@ProduktPattern", produkt + "%");
-
-                Series seriesStan = new Series("Stan magazynowy")
+                using (SqlCommand cmd = new SqlCommand(query, conn))
                 {
-                    ChartType = SeriesChartType.Line,
-                    BorderWidth = 3,
-                    Color = Color.FromArgb(41, 128, 185),
-                    MarkerStyle = MarkerStyle.Circle,
-                    MarkerSize = 6,
-                    MarkerColor = Color.FromArgb(41, 128, 185)
-                };
+                    cmd.Parameters.AddWithValue("@DataDo", dataDo);
+                    cmd.Parameters.AddWithValue("@Produkt", produkt);
+                    cmd.Parameters.AddWithValue("@ProduktPattern", produkt + "%");
 
-                using (SqlDataReader reader = cmd.ExecuteReader())
-                {
-                    while (reader.Read())
+                    Series seriesStan = new Series("Stan magazynowy")
                     {
-                        DateTime data = reader.GetDateTime(0);
-                        double stan = Convert.ToDouble(reader[1]);
+                        ChartType = SeriesChartType.Line,
+                        BorderWidth = 3,
+                        Color = Color.FromArgb(41, 128, 185),
+                        MarkerStyle = MarkerStyle.Circle,
+                        MarkerSize = 6,
+                        MarkerColor = Color.FromArgb(41, 128, 185)
+                    };
 
-                        seriesStan.Points.AddXY(data, stan);
-                        seriesStan.Points[seriesStan.Points.Count - 1].ToolTip =
-                            $"{data:dd MMM yyyy}\nStan: {stan:N2} kg";
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            DateTime data = reader.GetDateTime(0);
+                            double stan = Convert.ToDouble(reader[1]);
+
+                            seriesStan.Points.AddXY(data, stan);
+                            seriesStan.Points[seriesStan.Points.Count - 1].ToolTip =
+                                $"{data:dd MMM yyyy}\nStan: {stan:N2} kg";
+                        }
                     }
-                }
 
-                chart.Series.Add(seriesStan);
-                chart.ChartAreas[0].AxisX.LabelStyle.Format = "dd-MM";
-                chart.ChartAreas[0].AxisY.LabelStyle.Format = "N0";
-                chart.ChartAreas[0].AxisX.Title = "Data";
-                chart.ChartAreas[0].AxisY.Title = "Stan (kg)";
+                    chart.Series.Add(seriesStan);
+                    chart.ChartAreas[0].AxisX.LabelStyle.Format = "dd-MM";
+                    chart.ChartAreas[0].AxisY.LabelStyle.Format = "N0";
+                    chart.ChartAreas[0].AxisX.Title = "Data";
+                    chart.ChartAreas[0].AxisY.Title = "Stan (kg)";
 
-                Series seriesZero = new Series("Poziom zerowy")
-                {
-                    ChartType = SeriesChartType.Line,
-                    BorderWidth = 2,
-                    Color = Color.Red,
-                    BorderDashStyle = ChartDashStyle.Dash
-                };
-                if (seriesStan.Points.Count > 0)
-                {
-                    seriesZero.Points.AddXY(seriesStan.Points[0].XValue, 0);
-                    seriesZero.Points.AddXY(seriesStan.Points[seriesStan.Points.Count - 1].XValue, 0);
-                    chart.Series.Add(seriesZero);
+                    Series seriesZero = new Series("Poziom zerowy")
+                    {
+                        ChartType = SeriesChartType.Line,
+                        BorderWidth = 2,
+                        Color = Color.Red,
+                        BorderDashStyle = ChartDashStyle.Dash
+                    };
+                    if (seriesStan.Points.Count > 0)
+                    {
+                        seriesZero.Points.AddXY(seriesStan.Points[0].XValue, 0);
+                        seriesZero.Points.AddXY(seriesStan.Points[seriesStan.Points.Count - 1].XValue, 0);
+                        chart.Series.Add(seriesZero);
+                    }
                 }
             }
 
@@ -1858,44 +1876,23 @@ namespace Kalendarz1
             chartForm.ShowDialog();
         }
 
-        private void LoadAnalizaProduktu(DateTime od, DateTime doDaty)
+        private DataTable FetchAnalizaProduktu(DateTime od, DateTime doDaty)
         {
-            string query = @"
+            string query = $@"
                 WITH Dane AS (
                     SELECT
-                        CASE 
-                            WHEN MZ.kod LIKE 'Kurczak A%' THEN 'Kurczak A'
-                            WHEN MZ.kod LIKE 'Korpus%' THEN 'Korpus'
-                            WHEN MZ.kod LIKE 'Ćwiartka%' THEN 'Ćwiartka'
-                            WHEN MZ.kod LIKE 'Filet II%' THEN 'Filet II'
-                            WHEN MZ.kod LIKE 'Filet %' THEN 'Filet A'
-                            WHEN MZ.kod LIKE 'Skrzydło I%' THEN 'Skrzydło I'
-                            WHEN MZ.kod LIKE 'Trybowane bez skóry%' THEN 'Trybowane bez skóry'
-                            WHEN MZ.kod LIKE 'Trybowane ze skórą%' THEN 'Trybowane ze skórą'
-                            ELSE MZ.kod
-                        END AS Produkt,
+                        {SQL_GRUPOWANIE_PRODUKTU} AS Produkt,
                         ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) AS Wydano,
                         SUM(CASE WHEN MZ.ilosc > 0 THEN MZ.ilosc ELSE 0 END) AS Przyjeto,
                         COUNT(DISTINCT MG.[Data]) AS DniAktywnosci
                     FROM [HANDEL].[HM].[MG]
                     JOIN [HANDEL].[HM].[MZ] ON MG.ID = MZ.super
-                    WHERE MG.magazyn = 65552
-                    AND (mg.seria = 'sMM+' OR mg.seria = 'sMM-' OR mg.seria = 'sMK-' OR mg.seria = 'sMK+')
+                    WHERE MG.magazyn = {MagazynMroznia}
+                    AND {SQL_FILTR_SERII}
                     AND MG.[Data] BETWEEN @Od AND @Do
-                    GROUP BY 
-                        CASE 
-                            WHEN MZ.kod LIKE 'Kurczak A%' THEN 'Kurczak A'
-                            WHEN MZ.kod LIKE 'Korpus%' THEN 'Korpus'
-                            WHEN MZ.kod LIKE 'Ćwiartka%' THEN 'Ćwiartka'
-                            WHEN MZ.kod LIKE 'Filet II%' THEN 'Filet II'
-                            WHEN MZ.kod LIKE 'Filet %' THEN 'Filet A'
-                            WHEN MZ.kod LIKE 'Skrzydło I%' THEN 'Skrzydło I'
-                            WHEN MZ.kod LIKE 'Trybowane bez skóry%' THEN 'Trybowane bez skóry'
-                            WHEN MZ.kod LIKE 'Trybowane ze skórą%' THEN 'Trybowane ze skórą'
-                            ELSE MZ.kod
-                        END
+                    GROUP BY {SQL_GRUPOWANIE_PRODUKTU}
                 )
-                SELECT 
+                SELECT
                     Produkt,
                     Wydano,
                     Przyjeto,
@@ -1914,105 +1911,122 @@ namespace Kalendarz1
 
                 DataTable dt = new DataTable();
                 adapter.Fill(dt);
+                return dt;
+            }
+        }
 
-                dgvAnaliza.DataSource = dt;
+        private void DisplayAnalizaProduktu(DataTable dt)
+        {
+            dgvAnaliza.DataSource = dt;
 
-                FormatujKolumne(dgvAnaliza, "Wydano", "Wydano (kg)", "N0");
-                FormatujKolumne(dgvAnaliza, "Przyjeto", "Przyjęto (kg)", "N0");
-                FormatujKolumne(dgvAnaliza, "Roznica", "Różnica (kg)", "N0");
-                FormatujKolumne(dgvAnaliza, "Śr/dzień", "Średnio/dzień", "N1");
+            FormatujKolumne(dgvAnaliza, "Wydano", "Wydano (kg)", "N0");
+            FormatujKolumne(dgvAnaliza, "Przyjeto", "Przyjęto (kg)", "N0");
+            FormatujKolumne(dgvAnaliza, "Roznica", "Różnica (kg)", "N0");
+            FormatujKolumne(dgvAnaliza, "Śr/dzień", "Średnio/dzień", "N1");
 
-                foreach (DataGridViewRow row in dgvAnaliza.Rows)
+            foreach (DataGridViewRow row in dgvAnaliza.Rows)
+            {
+                if (row.Cells["Roznica"].Value != null)
                 {
-                    if (row.Cells["Roznica"].Value != null)
-                    {
-                        decimal roznica = Convert.ToDecimal(row.Cells["Roznica"].Value);
-                        row.Cells["Roznica"].Style.ForeColor = roznica < 0 ? SuccessColor : DangerColor;
-                    }
+                    decimal roznica = Convert.ToDecimal(row.Cells["Roznica"].Value);
+                    row.Cells["Roznica"].Style.ForeColor = roznica < 0 ? SuccessColor : DangerColor;
                 }
             }
         }
 
-        private void LoadTrendy(DateTime od, DateTime doDaty)
+        private DataTable FetchTrendyData(DateTime od, DateTime doDaty)
         {
-            chartTrend.Series.Clear();
-
-            string query = @"
+            string query = $@"
                 SELECT
                     MG.[Data] AS Data,
                     ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) AS Wydano,
                     SUM(CASE WHEN MZ.ilosc > 0 THEN MZ.ilosc ELSE 0 END) AS Przyjeto
                 FROM [HANDEL].[HM].[MG]
                 JOIN [HANDEL].[HM].[MZ] ON MG.ID = MZ.super
-                WHERE MG.magazyn = 65552
-                AND (mg.seria = 'sMM+' OR mg.seria = 'sMM-' OR mg.seria = 'sMK-' OR mg.seria = 'sMK+')
+                WHERE MG.magazyn = {MagazynMroznia}
+                AND {SQL_FILTR_SERII}
                 AND MG.[Data] BETWEEN @Od AND @Do
                 GROUP BY MG.[Data]
                 ORDER BY MG.[Data]";
 
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
-                conn.Open();
-                SqlCommand cmd = new SqlCommand(query, conn);
-                cmd.Parameters.AddWithValue("@Od", od);
-                cmd.Parameters.AddWithValue("@Do", doDaty);
-
-                Series seriesWydano = new Series("Wydane")
+                using (SqlDataAdapter adapter = new SqlDataAdapter(query, conn))
                 {
-                    ChartType = GetChartTypeFromComboBox(),
-                    BorderWidth = 3,
-                    Color = Color.FromArgb(150, 41, 128, 185),
-                    BorderColor = Color.FromArgb(41, 128, 185),
-                    MarkerStyle = MarkerStyle.Circle,
-                    MarkerSize = 6,
-                    MarkerColor = Color.FromArgb(41, 128, 185)
-                };
+                    adapter.SelectCommand.Parameters.AddWithValue("@Od", od);
+                    adapter.SelectCommand.Parameters.AddWithValue("@Do", doDaty);
 
-                Series seriesPrzyjeto = new Series("Przyjęte")
-                {
-                    ChartType = GetChartTypeFromComboBox(),
-                    BorderWidth = 3,
-                    Color = Color.FromArgb(150, 16, 124, 16),
-                    BorderColor = Color.FromArgb(16, 124, 16),
-                    MarkerStyle = MarkerStyle.Circle,
-                    MarkerSize = 6,
-                    MarkerColor = Color.FromArgb(16, 124, 16)
-                };
-
-                using (SqlDataReader reader = cmd.ExecuteReader())
-                {
-                    while (reader.Read())
-                    {
-                        DateTime data = reader.GetDateTime(0);
-                        double wydano = Convert.ToDouble(reader[1]);
-                        double przyjeto = Convert.ToDouble(reader[2]);
-
-                        if (chkPokazWydane.Checked)
-                        {
-                            seriesWydano.Points.AddXY(data, wydano);
-                            seriesWydano.Points[seriesWydano.Points.Count - 1].ToolTip =
-                                $"Wydano\n{data:dd MMM yyyy}\n{wydano:N0} kg";
-                        }
-
-                        if (chkPokazPrzyjete.Checked)
-                        {
-                            seriesPrzyjeto.Points.AddXY(data, przyjeto);
-                            seriesPrzyjeto.Points[seriesPrzyjeto.Points.Count - 1].ToolTip =
-                                $"Przyjęto\n{data:dd MMM yyyy}\n{przyjeto:N0} kg";
-                        }
-                    }
+                    DataTable dt = new DataTable();
+                    adapter.Fill(dt);
+                    return dt;
                 }
+            }
+        }
+
+        private void DisplayTrendy(DataTable dt)
+        {
+            chartTrend.Series.Clear();
+
+            Series seriesWydano = new Series("Wydane")
+            {
+                ChartType = GetChartTypeFromComboBox(),
+                BorderWidth = 3,
+                Color = Color.FromArgb(150, 41, 128, 185),
+                BorderColor = Color.FromArgb(41, 128, 185),
+                MarkerStyle = MarkerStyle.Circle,
+                MarkerSize = 6,
+                MarkerColor = Color.FromArgb(41, 128, 185)
+            };
+
+            Series seriesPrzyjeto = new Series("Przyjęte")
+            {
+                ChartType = GetChartTypeFromComboBox(),
+                BorderWidth = 3,
+                Color = Color.FromArgb(150, 16, 124, 16),
+                BorderColor = Color.FromArgb(16, 124, 16),
+                MarkerStyle = MarkerStyle.Circle,
+                MarkerSize = 6,
+                MarkerColor = Color.FromArgb(16, 124, 16)
+            };
+
+            foreach (DataRow row in dt.Rows)
+            {
+                DateTime data = Convert.ToDateTime(row["Data"]);
+                double wydano = Convert.ToDouble(row["Wydano"]);
+                double przyjeto = Convert.ToDouble(row["Przyjeto"]);
 
                 if (chkPokazWydane.Checked)
-                    chartTrend.Series.Add(seriesWydano);
-                if (chkPokazPrzyjete.Checked)
-                    chartTrend.Series.Add(seriesPrzyjeto);
+                {
+                    seriesWydano.Points.AddXY(data, wydano);
+                    seriesWydano.Points[seriesWydano.Points.Count - 1].ToolTip =
+                        $"Wydano\n{data:dd MMM yyyy}\n{wydano:N0} kg";
+                }
 
-                chartTrend.ChartAreas[0].AxisX.LabelStyle.Format = "dd-MM";
-                chartTrend.ChartAreas[0].AxisY.LabelStyle.Format = "N0";
-                chartTrend.ChartAreas[0].AxisX.Title = "Data";
-                chartTrend.ChartAreas[0].AxisY.Title = "Ilość (kg)";
+                if (chkPokazPrzyjete.Checked)
+                {
+                    seriesPrzyjeto.Points.AddXY(data, przyjeto);
+                    seriesPrzyjeto.Points[seriesPrzyjeto.Points.Count - 1].ToolTip =
+                        $"Przyjęto\n{data:dd MMM yyyy}\n{przyjeto:N0} kg";
+                }
             }
+
+            if (chkPokazWydane.Checked)
+                chartTrend.Series.Add(seriesWydano);
+            if (chkPokazPrzyjete.Checked)
+                chartTrend.Series.Add(seriesPrzyjeto);
+
+            chartTrend.ChartAreas[0].AxisX.LabelStyle.Format = "dd-MM";
+            chartTrend.ChartAreas[0].AxisY.LabelStyle.Format = "N0";
+            chartTrend.ChartAreas[0].AxisX.Title = "Data";
+            chartTrend.ChartAreas[0].AxisY.Title = "Ilość (kg)";
+        }
+
+        /// <summary>
+        /// Synchroniczna wersja (używana przez UpdateWykres)
+        /// </summary>
+        private void LoadTrendy(DateTime od, DateTime doDaty)
+        {
+            DisplayTrendy(FetchTrendyData(od, doDaty));
         }
 
         private SeriesChartType GetChartTypeFromComboBox()
@@ -2044,110 +2058,106 @@ namespace Kalendarz1
             chartTrend.ChartAreas[0].AxisY.ScaleView.ZoomReset();
         }
 
-        private void LoadTopProdukty(DateTime od, DateTime doDaty)
+        private DataTable FetchTopProdukty(DateTime od, DateTime doDaty)
         {
-            chartProdukty.Series.Clear();
-
-            string query = @"
+            string query = $@"
                 SELECT TOP 10
-                    CASE 
-                        WHEN MZ.kod LIKE 'Kurczak A%' THEN 'Kurczak A'
-                        WHEN MZ.kod LIKE 'Korpus%' THEN 'Korpus'
-                        WHEN MZ.kod LIKE 'Ćwiartka%' THEN 'Ćwiartka'
-                        WHEN MZ.kod LIKE 'Filet II%' THEN 'Filet II'
-                        WHEN MZ.kod LIKE 'Filet %' THEN 'Filet A'
-                        WHEN MZ.kod LIKE 'Skrzydło I%' THEN 'Skrzydło I'
-                        WHEN MZ.kod LIKE 'Trybowane bez skóry%' THEN 'Trybowane bez skóry'
-                        WHEN MZ.kod LIKE 'Trybowane ze skórą%' THEN 'Trybowane ze skórą'
-                        ELSE MZ.kod
-                    END AS Produkt,
+                    {SQL_GRUPOWANIE_PRODUKTU} AS Produkt,
                     ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) AS Wydano
                 FROM [HANDEL].[HM].[MG]
                 JOIN [HANDEL].[HM].[MZ] ON MG.ID = MZ.super
-                WHERE MG.magazyn = 65552
-                AND (mg.seria = 'sMM+' OR mg.seria = 'sMM-' OR mg.seria = 'sMK-' OR mg.seria = 'sMK+')
+                WHERE MG.magazyn = {MagazynMroznia}
+                AND {SQL_FILTR_SERII}
                 AND MG.[Data] BETWEEN @Od AND @Do
-                GROUP BY 
-                    CASE 
-                        WHEN MZ.kod LIKE 'Kurczak A%' THEN 'Kurczak A'
-                        WHEN MZ.kod LIKE 'Korpus%' THEN 'Korpus'
-                        WHEN MZ.kod LIKE 'Ćwiartka%' THEN 'Ćwiartka'
-                        WHEN MZ.kod LIKE 'Filet II%' THEN 'Filet II'
-                        WHEN MZ.kod LIKE 'Filet %' THEN 'Filet A'
-                        WHEN MZ.kod LIKE 'Skrzydło I%' THEN 'Skrzydło I'
-                        WHEN MZ.kod LIKE 'Trybowane bez skóry%' THEN 'Trybowane bez skóry'
-                        WHEN MZ.kod LIKE 'Trybowane ze skórą%' THEN 'Trybowane ze skórą'
-                        ELSE MZ.kod
-                    END
+                GROUP BY {SQL_GRUPOWANIE_PRODUKTU}
                 ORDER BY Wydano DESC";
 
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
-                conn.Open();
-                SqlCommand cmd = new SqlCommand(query, conn);
-                cmd.Parameters.AddWithValue("@Od", od);
-                cmd.Parameters.AddWithValue("@Do", doDaty);
-
-                Series series = new Series("Produkty")
+                using (SqlDataAdapter adapter = new SqlDataAdapter(query, conn))
                 {
-                    ChartType = SeriesChartType.Bar,
-                    Palette = ChartColorPalette.BrightPastel
-                };
+                    adapter.SelectCommand.Parameters.AddWithValue("@Od", od);
+                    adapter.SelectCommand.Parameters.AddWithValue("@Do", doDaty);
 
-                using (SqlDataReader reader = cmd.ExecuteReader())
-                {
-                    while (reader.Read())
-                    {
-                        string produkt = reader.GetString(0);
-                        double wydano = Convert.ToDouble(reader[1]);
-                        var point = series.Points.AddXY(produkt, wydano);
-                        series.Points[series.Points.Count - 1].ToolTip = $"{produkt}\n{wydano:N0} kg";
-                        series.Points[series.Points.Count - 1].Label = $"{wydano:N0}";
-                    }
+                    DataTable dt = new DataTable();
+                    adapter.Fill(dt);
+                    return dt;
                 }
-
-                chartProdukty.Series.Add(series);
-                chartProdukty.ChartAreas[0].AxisX.Interval = 1;
-                chartProdukty.ChartAreas[0].AxisY.LabelStyle.Format = "N0";
             }
         }
 
-        private void UpdateKartyStatystyk(DateTime od, DateTime doDaty)
+        private void DisplayTopProdukty(DataTable dt)
         {
-            string query = @"
+            chartProdukty.Series.Clear();
+
+            Series series = new Series("Produkty")
+            {
+                ChartType = SeriesChartType.Bar,
+                Palette = ChartColorPalette.BrightPastel
+            };
+
+            foreach (DataRow row in dt.Rows)
+            {
+                string produkt = row["Produkt"].ToString();
+                double wydano = Convert.ToDouble(row["Wydano"]);
+                series.Points.AddXY(produkt, wydano);
+                series.Points[series.Points.Count - 1].ToolTip = $"{produkt}\n{wydano:N0} kg";
+                series.Points[series.Points.Count - 1].Label = $"{wydano:N0}";
+            }
+
+            chartProdukty.Series.Add(series);
+            chartProdukty.ChartAreas[0].AxisX.Interval = 1;
+            chartProdukty.ChartAreas[0].AxisY.LabelStyle.Format = "N0";
+        }
+
+        private void FetchKartyStatystyk(DateTime od, DateTime doDaty, out decimal wydano, out decimal przyjeto, out int dni)
+        {
+            string query = $@"
                 SELECT
                     ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) AS Wydano,
                     SUM(CASE WHEN MZ.ilosc > 0 THEN MZ.ilosc ELSE 0 END) AS Przyjeto,
                     COUNT(DISTINCT MG.[Data]) AS Dni
                 FROM [HANDEL].[HM].[MG]
                 JOIN [HANDEL].[HM].[MZ] ON MG.ID = MZ.super
-                WHERE MG.magazyn = 65552
-                AND (mg.seria = 'sMM+' OR mg.seria = 'sMM-' OR mg.seria = 'sMK-' OR mg.seria = 'sMK+')
+                WHERE MG.magazyn = {MagazynMroznia}
+                AND {SQL_FILTR_SERII}
                 AND MG.[Data] BETWEEN @Od AND @Do";
 
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
                 conn.Open();
-                SqlCommand cmd = new SqlCommand(query, conn);
-                cmd.Parameters.AddWithValue("@Od", od);
-                cmd.Parameters.AddWithValue("@Do", doDaty);
-
-                using (SqlDataReader reader = cmd.ExecuteReader())
+                using (SqlCommand cmd = new SqlCommand(query, conn))
                 {
-                    if (reader.Read())
-                    {
-                        decimal wydano = Convert.ToDecimal(reader[0]);
-                        decimal przyjeto = Convert.ToDecimal(reader[1]);
-                        int dni = Convert.ToInt32(reader[2]);
-                        decimal srednia = dni > 0 ? wydano / dni : 0;
+                    cmd.Parameters.AddWithValue("@Od", od);
+                    cmd.Parameters.AddWithValue("@Do", doDaty);
 
-                        lblWydano.Text = $"{wydano:N0} kg";
-                        lblPrzyjeto.Text = $"{przyjeto:N0} kg";
-                        lblSrednia.Text = $"{srednia:N0} kg";
-                        lblPodsumowanie.Text = $"{dni} dni analizy";
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            wydano = Convert.ToDecimal(reader[0]);
+                            przyjeto = Convert.ToDecimal(reader[1]);
+                            dni = Convert.ToInt32(reader[2]);
+                        }
+                        else
+                        {
+                            wydano = 0;
+                            przyjeto = 0;
+                            dni = 0;
+                        }
                     }
                 }
             }
+        }
+
+        private void DisplayKartyStatystyk(decimal wydano, decimal przyjeto, int dni)
+        {
+            decimal srednia = dni > 0 ? wydano / dni : 0;
+
+            lblWydano.Text = $"{wydano:N0} kg";
+            lblPrzyjeto.Text = $"{przyjeto:N0} kg";
+            lblSrednia.Text = $"{srednia:N0} kg";
+            lblPodsumowanie.Text = $"{dni} dni analizy";
         }
 
         private void BtnStanMagazynu_Click(object sender, EventArgs e)
@@ -2162,29 +2172,29 @@ namespace Kalendarz1
             try
             {
                 // Zapytanie dla aktualnego stanu - CAST na DECIMAL zamiast ROUND (który zwraca FLOAT)
-                string query = @"
-                    SELECT kod, 
-                           CAST(ABS(SUM([iloscwp])) AS DECIMAL(18,3)) AS SumaIlosc, 
-                           CAST(ABS(SUM([wartNetto])) AS DECIMAL(18,2)) AS SumaWartosc 
-                    FROM [HANDEL].[HM].[MZ] 
-                    WHERE [data] >= '2020-01-07' 
+                string query = $@"
+                    SELECT kod,
+                           CAST(ABS(SUM([iloscwp])) AS DECIMAL(18,3)) AS SumaIlosc,
+                           CAST(ABS(SUM([wartNetto])) AS DECIMAL(18,2)) AS SumaWartosc
+                    FROM [HANDEL].[HM].[MZ]
+                    WHERE [data] >= '{DataStartowa}'
                       AND [data] <= @EndDate
-                      AND [magazyn] = @Magazyn 
-                      AND typ = '0' 
-                    GROUP BY kod 
-                    HAVING ABS(SUM([iloscwp])) <> 0 
+                      AND [magazyn] = {MagazynMroznia}
+                      AND typ = '0'
+                    GROUP BY kod
+                    HAVING ABS(SUM([iloscwp])) <> 0
                     ORDER BY SumaIlosc DESC";
 
                 // Zapytanie dla stanu tydzień wcześniej
-                string queryPoprzedni = @"
-                    SELECT kod, 
+                string queryPoprzedni = $@"
+                    SELECT kod,
                            CAST(ABS(SUM([iloscwp])) AS DECIMAL(18,3)) AS SumaIlosc
-                    FROM [HANDEL].[HM].[MZ] 
-                    WHERE [data] >= '2020-01-07' 
+                    FROM [HANDEL].[HM].[MZ]
+                    WHERE [data] >= '{DataStartowa}'
                       AND [data] <= @EndDate
-                      AND [magazyn] = @Magazyn 
-                      AND typ = '0' 
-                    GROUP BY kod 
+                      AND [magazyn] = {MagazynMroznia}
+                      AND typ = '0'
+                    GROUP BY kod
                     HAVING ABS(SUM([iloscwp])) <> 0";
 
                 using (SqlConnection conn = new SqlConnection(connectionString))
@@ -2194,7 +2204,6 @@ namespace Kalendarz1
                     // Pobierz aktualny stan
                     SqlCommand cmd = new SqlCommand(query, conn);
                     cmd.Parameters.AddWithValue("@EndDate", dataStan);
-                    cmd.Parameters.AddWithValue("@Magazyn", "65552");
 
                     DataTable dtRaw = new DataTable();
                     using (SqlDataAdapter adapter = new SqlDataAdapter(cmd))
@@ -2205,7 +2214,6 @@ namespace Kalendarz1
                     // Pobierz stan z tygodnia wcześniej
                     SqlCommand cmdPoprzedni = new SqlCommand(queryPoprzedni, conn);
                     cmdPoprzedni.Parameters.AddWithValue("@EndDate", dataPoprzedni);
-                    cmdPoprzedni.Parameters.AddWithValue("@Magazyn", "65552");
 
                     DataTable dtPoprzedni = new DataTable();
                     using (SqlDataAdapter adapter = new SqlDataAdapter(cmdPoprzedni))
@@ -2711,19 +2719,38 @@ namespace Kalendarz1
 
             if (cmbFiltrProduktu.SelectedIndex > 0)
             {
-                string wybranyProdukt = cmbFiltrProduktu.SelectedItem.ToString().Replace("Wszystkie produkty", "");
+                string wybranyProdukt = EscapeDataViewFilter(cmbFiltrProduktu.SelectedItem.ToString().Replace("Wszystkie produkty", ""));
                 if (!string.IsNullOrEmpty(wybranyProdukt))
                     filtr = $"Produkt LIKE '%{wybranyProdukt}%'";
             }
 
             if (!string.IsNullOrWhiteSpace(txtSzukaj.Text))
             {
-                string szukaj = txtSzukaj.Text.Replace("'", "''");
+                string szukaj = EscapeDataViewFilter(txtSzukaj.Text);
                 string filterSzukaj = $"Produkt LIKE '%{szukaj}%'";
                 filtr = string.IsNullOrEmpty(filtr) ? filterSzukaj : $"{filtr} AND {filterSzukaj}";
             }
 
-            dt.DefaultView.RowFilter = filtr;
+            try
+            {
+                dt.DefaultView.RowFilter = filtr;
+            }
+            catch (Exception ex)
+            {
+                statusLabel.Text = $"Błąd filtra: {ex.Message}";
+                dt.DefaultView.RowFilter = "";
+            }
+        }
+
+        private static string EscapeDataViewFilter(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return value;
+            return value
+                .Replace("'", "''")
+                .Replace("[", "[[]")
+                .Replace("]", "[]]")
+                .Replace("*", "[*]")
+                .Replace("%", "[%]");
         }
 
         private void ResetujFiltry()
@@ -2838,9 +2865,9 @@ namespace Kalendarz1
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-                    string query = @"SELECT Id, Kod, Nazwa, katalog
+                    string query = $@"SELECT Id, Kod, Nazwa, katalog
                                     FROM [HANDEL].[HM].[TW]
-                                    WHERE katalog IN ('67095', '67153')
+                                    WHERE katalog IN ('{KatalogSwiezy}', '{KatalogMrozony}')
                                     ORDER BY Kod ASC";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
@@ -2856,9 +2883,9 @@ namespace Kalendarz1
                                 Katalog = rd["katalog"]?.ToString() ?? ""
                             };
 
-                            if (towar.Katalog == "67095")
+                            if (towar.Katalog == KatalogSwiezy)
                                 towarySwiezy.Add(towar);
-                            else if (towar.Katalog == "67153")
+                            else if (towar.Katalog == KatalogMrozony)
                                 towaryMrozone.Add(towar);
                         }
                     }
@@ -2898,7 +2925,10 @@ namespace Kalendarz1
                     return lista?.Where(r => r.DataWaznosci >= DateTime.Today).ToList() ?? new List<RezerwacjaItem>();
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd wczytywania rezerwacji: {ex.Message}");
+            }
             return new List<RezerwacjaItem>();
         }
 
@@ -2912,9 +2942,18 @@ namespace Kalendarz1
                     Directory.CreateDirectory(folder);
 
                 var options = new JsonSerializerOptions { WriteIndented = true };
-                File.WriteAllText(path, JsonSerializer.Serialize(rezerwacje, options));
+                string json = JsonSerializer.Serialize(rezerwacje, options);
+
+                // Atomowy zapis - najpierw do pliku tymczasowego, potem zamiana
+                string tempPath = path + ".tmp";
+                File.WriteAllText(tempPath, json);
+                File.Move(tempPath, path, true);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd zapisu rezerwacji: {ex.Message}\n\nDane mogły nie zostać zapisane.",
+                    "Błąd zapisu", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private string GetCurrentHandlowiec()
@@ -3046,6 +3085,28 @@ namespace Kalendarz1
             {
                 if (dlg.ShowDialog() == DialogResult.OK)
                 {
+                    // Walidacja danych rezerwacji
+                    if (dlg.Ilosc <= 0)
+                    {
+                        MessageBox.Show("Ilość musi być większa od zera.", "Błąd walidacji",
+                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+
+                    if (dlg.Ilosc > dostepne)
+                    {
+                        MessageBox.Show($"Ilość ({dlg.Ilosc:N0} kg) przekracza dostępne ({dostepne:N0} kg).",
+                            "Przekroczenie limitu", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+
+                    if (dlg.DataWaznosci < DateTime.Today)
+                    {
+                        MessageBox.Show("Data ważności nie może być w przeszłości.", "Błąd walidacji",
+                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+
                     var nowaRezerwacja = new RezerwacjaItem
                     {
                         Id = Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper(),
@@ -4824,13 +4885,16 @@ namespace Kalendarz1
                 using (var conn = new Microsoft.Data.SqlClient.SqlConnection(connStr))
                 {
                     conn.Open();
-                    using (var cmd = new Microsoft.Data.SqlClient.SqlCommand("SELECT Id, Kod, Nazwa FROM [HANDEL].[HM].[TW] WHERE katalog = '67153' ORDER BY Nazwa ASC", conn))
+                    using (var cmd = new Microsoft.Data.SqlClient.SqlCommand($"SELECT Id, Kod, Nazwa FROM [HANDEL].[HM].[TW] WHERE katalog = '{Mroznia.KatalogMrozony}' ORDER BY Nazwa ASC", conn))
                     using (var rd = cmd.ExecuteReader())
                         while (rd.Read())
                             produkty.Add(new ProduktMrozony { Id = rd.GetInt32(0), Kod = rd["Kod"]?.ToString() ?? "", Nazwa = rd["Nazwa"]?.ToString() ?? "" });
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd ładowania produktów: {ex.Message}");
+            }
         }
 
         private void LoadKlienci(string connStr)
@@ -4846,21 +4910,28 @@ namespace Kalendarz1
                             klienci.Add(new KlientSymfonia { Id = rd.GetInt32(0), Kod = rd["Kod"]?.ToString() ?? "", Nazwa = rd["Nazwa"]?.ToString() ?? "" });
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd ładowania klientów: {ex.Message}");
+            }
         }
 
         private void LoadMroznieZewnetrzne()
         {
             try
             {
-                string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "mroznieZewnetrzne.json");
+                string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                string path = Path.Combine(appData, "OfertaHandlowa", "mroznie_zewnetrzne.json");
                 if (File.Exists(path))
                 {
                     string json = File.ReadAllText(path);
                     mroznieZewnetrzne = System.Text.Json.JsonSerializer.Deserialize<List<MrozniaZewnetrzna>>(json) ?? new List<MrozniaZewnetrzna>();
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd wczytywania mroźni zewnętrznych: {ex.Message}");
+            }
         }
 
         private void BtnZapisz_Click(object sender, EventArgs e)
