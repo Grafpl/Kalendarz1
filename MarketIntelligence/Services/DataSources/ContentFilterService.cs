@@ -24,6 +24,44 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
             "kuropatwa", "partridge"
         };
 
+        // NOWE: Inne zwierzęta - NIE DRÓB (chyba że w kontekście porównawczym)
+        private static readonly string[] BlacklistOtherAnimals = new[]
+        {
+            "tucznik", "tuczniki", "świnia", "świnie", "wieprzowina", "wieprz",
+            "trzoda chlewna", "trzody chlewnej", "prosię", "prosiak", "prosiąt",
+            "bydło", "bydła", "krowa", "wołowina", "cielę", "cielęta", "cielak",
+            "owca", "owce", "baran", "jagnię", "baranina",
+            "koza", "kozy", "kozina", "koźlę",
+            "koń", "konie", "konina",
+            "królik", "króliki"
+        };
+
+        // NOWE: Tematy NIE związane z drobiem - BEZWZGLĘDNIE odrzuć
+        private static readonly string[] BlacklistNonPoultryTopics = new[]
+        {
+            // Opał i ogrzewanie
+            "opał", "opału", "pellet", "pelletu", "brykiet", "brykietu",
+            "węgiel", "węgla", "drewno opałowe", "drewna opałowego",
+            "kotły", "kotłów", "piec", "pieca", "ogrzewanie", "ogrzewania",
+            "kaloryczność", "spalanie", "kominek",
+
+            // Nieruchomości
+            "nieruchomości", "mieszkanie", "mieszkań", "dom jednorodzinny",
+            "działka", "działki budowlane", "deweloper", "hipoteka",
+
+            // Finanse nie-rolnicze
+            "bitcoin", "kryptowalut", "giełda papierów", "gpw indeks",
+            "obligacje", "forex", "etf", "fundusz inwestycyjny",
+
+            // Polityka ogólna
+            "wybory", "partia", "sejm głosowanie", "senat ustawa",
+            "prezydent podpisał", "rząd koalicja",
+
+            // Motoryzacja
+            "samochód", "samochody", "motoryzacja", "ev electric vehicle",
+            "benzyna pb95", "diesel", "stacja paliw"
+        };
+
         // Geografie do odrzucenia (chyba ze eksport do UE lub globalne ceny)
         private static readonly string[] BlacklistGeographies = new[]
         {
@@ -112,10 +150,12 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
         private const int BlacklistSpeciesScore = -40;
         private const int BlacklistGeographyScore = -30;
         private const int BlacklistTopicScore = -50;
+        private const int BlacklistOtherAnimalsScore = -60;      // NOWE: Świnie, bydło, etc.
+        private const int BlacklistNonPoultryTopicsScore = -80;  // NOWE: Opał, węgiel, nieruchomości
 
-        // ENTERPRISE: Obniżony próg - akceptujemy prawie wszystko
-        // Lepiej pokazać więcej newsów niż pustą listę
-        private const int MinimumScoreThreshold = -100;
+        // POPRAWIONE: Próg podniesiony - odrzucamy nierelewantne artykuły
+        // Artykuł musi mieć POZYTYWNY score aby być zaakceptowany
+        private const int MinimumScoreThreshold = 0;
 
         #endregion
 
@@ -222,8 +262,45 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
 
             // === BLACKLIST - odejmij punkty ===
 
-            // Gatunki do odrzucenia
+            // NOWE: Sprawdź czy artykuł ma JAKIEKOLWIEK słowo kluczowe o drobiu
+            bool hasPoultryContext = WhitelistIndustryKeywords.Any(k => textToAnalyze.Contains(k.ToLowerInvariant())) ||
+                                     textToAnalyze.Contains("drób") || textToAnalyze.Contains("drob") ||
+                                     textToAnalyze.Contains("kurczak") || textToAnalyze.Contains("kurczaka") ||
+                                     textToAnalyze.Contains("chicken") || textToAnalyze.Contains("poultry") ||
+                                     textToAnalyze.Contains("ubojnia") || textToAnalyze.Contains("filet");
+
             bool hasHpaiContext = textToAnalyze.Contains("hpai") || textToAnalyze.Contains("ptasia grypa") || textToAnalyze.Contains("avian");
+
+            // NOWE: Tematy NIE związane z drobiem - SUROWE ODRZUCENIE
+            // Jeśli artykuł NIE ma kontekstu drobiowego, odrzuć jeśli dotyczy innych tematów
+            if (!hasPoultryContext && !hasHpaiContext)
+            {
+                foreach (var topic in BlacklistNonPoultryTopics)
+                {
+                    if (textToAnalyze.Contains(topic.ToLowerInvariant()))
+                    {
+                        result.Score += BlacklistNonPoultryTopicsScore;
+                        result.Reasons.Add($"{BlacklistNonPoultryTopicsScore} NIE-DRÓB: {topic}");
+                        break;
+                    }
+                }
+            }
+
+            // NOWE: Inne zwierzęta (świnie, bydło) - odrzuć jeśli NIE ma kontekstu drobiowego
+            if (!hasPoultryContext && !hasHpaiContext)
+            {
+                foreach (var animal in BlacklistOtherAnimals)
+                {
+                    if (textToAnalyze.Contains(animal.ToLowerInvariant()))
+                    {
+                        result.Score += BlacklistOtherAnimalsScore;
+                        result.Reasons.Add($"{BlacklistOtherAnimalsScore} inne-zwierzę: {animal}");
+                        break;
+                    }
+                }
+            }
+
+            // Gatunki do odrzucenia (przepiórki, strusie, etc.)
             if (!hasHpaiContext) // Nie odrzucaj jesli kontekst HPAI
             {
                 foreach (var species in BlacklistSpecies)

@@ -233,14 +233,15 @@ SZANSE:
                 Diagnostics.FilteredCount = filteredArticles.Count;
                 Diagnostics.AddLog($"Po filtrowaniu: {filteredArticles.Count}/{searchArticles.Count} artykulow");
 
-                // Mapuj z powrotem do oryginalnych artykulow
-                var filteredUrls = new HashSet<string>(filteredArticles.Select(a => a.Url));
+                // PRIORITY SORTING: Mapuj z powrotem zachowujac score i sortujac najwyzsze pierwsze
+                var urlToScore = filteredArticles.ToDictionary(a => a.Url, a => a.Score);
                 var articlesToProcess = searchArticles
-                    .Where(a => !string.IsNullOrEmpty(a.Url) && filteredUrls.Contains(a.Url))
+                    .Where(a => !string.IsNullOrEmpty(a.Url) && urlToScore.ContainsKey(a.Url))
+                    .OrderByDescending(a => urlToScore[a.Url]) // KLUCZOWE: Najlepsze artykuły pierwsze!
                     .Take(20) // BATTLE-TESTED: Przetwarzaj do 20 artykulow
                     .ToList();
 
-                Diagnostics.AddLog($"Do przetworzenia: {articlesToProcess.Count} artykulow");
+                Diagnostics.AddLog($"Do przetworzenia: {articlesToProcess.Count} artykulow (posortowane wg. score)");
 
                 if (ct.IsCancellationRequested) return allArticles;
 
@@ -532,28 +533,33 @@ SZANSE:
                     return null;
                 }
 
-                // Pokaz liste kandydatow
-                Diagnostics.AddLog("--- LISTA KANDYDATOW ---");
-                for (int i = 0; i < Math.Min(articles.Count, 10); i++)
+                // PRIORITY SORTING: Ocen wszystkie artykuly i posortuj wg score
+                Diagnostics.AddLog("--- OCENA I SORTOWANIE KANDYDATOW ---");
+                var scoredArticles = articles
+                    .Where(a => !string.IsNullOrEmpty(a.Url) && a.Url.StartsWith("http"))
+                    .Select(a => new { Article = a, Filter = _filterService.EvaluateArticle(a.Title, a.Snippet ?? "") })
+                    .OrderByDescending(x => x.Filter.Score) // Najlepsze pierwsze!
+                    .Take(15) // Max 15 prob
+                    .ToList();
+
+                // Pokaz posortowana liste kandydatow ze score
+                Diagnostics.AddLog("--- LISTA KANDYDATOW (posortowana wg score) ---");
+                for (int i = 0; i < Math.Min(scoredArticles.Count, 10); i++)
                 {
-                    var a = articles[i];
-                    Diagnostics.AddLog($"  [{i + 1}] {TruncateTitle(a.Title, 50)} ({GetDomain(a.Url)})");
+                    var x = scoredArticles[i];
+                    Diagnostics.AddLog($"  [{i + 1}] Score={x.Filter.Score,3} | {TruncateTitle(x.Article.Title, 40)} ({GetDomain(x.Article.Url)})");
                 }
 
                 // ═══════════════════════════════════════════════════════════
                 // ETAP 2-4: PETLA RETRY - probuj kolejne artykuly
                 // ═══════════════════════════════════════════════════════════
                 Diagnostics.AddLog("=== ETAP 2-4: PETLA RETRY ===");
-                Diagnostics.AddLog("Probuje kolejne artykuly az znajde dzialajacy...");
+                Diagnostics.AddLog("Probuje artykuly od najwyzszego score...");
 
                 int attemptCount = 0;
-                int maxAttempts = Math.Min(articles.Count, 15); // Max 15 prob
 
-                // Filtruj artykuly z URL
-                var candidateArticles = articles
-                    .Where(a => !string.IsNullOrEmpty(a.Url) && a.Url.StartsWith("http"))
-                    .Take(maxAttempts)
-                    .ToList();
+                // Wyciagnij posortowane artykuly
+                var candidateArticles = scoredArticles.Select(x => x.Article).ToList();
 
                 foreach (var testArticle in candidateArticles)
                 {
@@ -563,9 +569,17 @@ SZANSE:
                     Diagnostics.AddLog($"");
                     Diagnostics.AddLog($"--- PROBA {attemptCount}/{candidateArticles.Count}: {GetDomain(testArticle.Url)} ---");
 
-                    // KROK 2: Filtrowanie lokalne (WYŁĄCZONE - akceptujemy wszystko)
-                    // Nie odrzucamy już artykułów przez blacklist
-                    Diagnostics.AddLog($"  [OK] Filtr wylaczony - akceptuje artykul");
+                    // KROK 2: Filtrowanie lokalne - WŁĄCZONE
+                    var filterResult = _filterService.EvaluateArticle(testArticle.Title, testArticle.Snippet ?? "");
+                    Diagnostics.AddLog($"  Filtr: score={filterResult.Score}, relevant={filterResult.IsRelevant}");
+
+                    if (!filterResult.IsRelevant)
+                    {
+                        Diagnostics.AddLog($"  [SKIP] Odrzucony (score: {filterResult.Score})");
+                        continue; // RETRY
+                    }
+
+                    Diagnostics.AddLog($"  [OK] Zaakceptowany przez filtr");
 
                     // KROK 3: Wzbogacanie tresci z FALLBACK
                     string fullContent = testArticle.Snippet ?? testArticle.Title ?? "";
@@ -739,21 +753,28 @@ SZANSE:
                     return null;
                 }
 
-                // Lista wszystkich znalezionych artykulow
-                log("--- ZNALEZIONE ARTYKULY (KANDYDACI) ---", "INFO");
-                for (int i = 0; i < articles.Count; i++)
-                {
-                    var a = articles[i];
-                    log($"[{i + 1}] {a.Title}", "INFO");
-                    log($"    URL: {a.Url ?? "brak"}", "DEBUG");
-                    log($"    Zrodlo: {a.Source}", "DEBUG");
-                }
-
-                // Filtruj artykuly z URL
-                var candidateArticles = articles
+                // PRIORITY SORTING: Ocen wszystkie artykuly i posortuj wg score
+                log("--- OCENA I SORTOWANIE KANDYDATOW ---", "INFO");
+                var scoredArticles = articles
                     .Where(a => !string.IsNullOrEmpty(a.Url) && a.Url.StartsWith("http"))
+                    .Select(a => new { Article = a, Filter = _filterService.EvaluateArticle(a.Title, a.Snippet ?? "") })
+                    .OrderByDescending(x => x.Filter.Score) // Najlepsze artykuly pierwsze!
                     .Take(15) // Max 15 prob
                     .ToList();
+
+                // Pokaz posortowana liste ze score
+                log("--- POSORTOWANI KANDYDACI (najlepsze pierwsze) ---", "INFO");
+                for (int i = 0; i < scoredArticles.Count; i++)
+                {
+                    var x = scoredArticles[i];
+                    var icon = x.Filter.IsRelevant ? "✓" : "✗";
+                    log($"[{i + 1}] {icon} Score={x.Filter.Score,3} | {x.Article.Title}", "INFO");
+                    log($"    URL: {x.Article.Url ?? "brak"}", "DEBUG");
+                    log($"    Powody: {string.Join(", ", x.Filter.Reasons.Take(2))}", "DEBUG");
+                }
+
+                // Wyciagnij posortowane artykuly
+                var candidateArticles = scoredArticles.Select(x => x.Article).ToList();
 
                 if (candidateArticles.Count == 0)
                 {
@@ -762,8 +783,8 @@ SZANSE:
                     return null;
                 }
 
-                log($"Bede probowal {candidateArticles.Count} artykulow az znajde dzialajacy...", "INFO");
-                Diagnostics.AddLog($"Kandydatow z URL: {candidateArticles.Count}");
+                log($"Bede probowal {candidateArticles.Count} artykulow od najwyzszego score...", "INFO");
+                Diagnostics.AddLog($"Kandydatow z URL: {candidateArticles.Count} (posortowane)");
 
                 // ═══════════════════════════════════════════════════════════
                 // ETAP 2-4: PETLA RETRY - probuj kolejne artykuly
@@ -790,13 +811,29 @@ SZANSE:
                     Diagnostics.AddLog($"--- PROBA {attemptCount}: {GetDomain(testArticle.Url)} ---");
 
                     // ─────────────────────────────────────────────────────
-                    // KROK 2: Filtrowanie lokalne
+                    // KROK 2: Filtrowanie lokalne - WŁĄCZONE!
                     // ─────────────────────────────────────────────────────
-                    log("Krok 2: Sprawdzam blacklist...", "INFO");
+                    log("Krok 2: Sprawdzam filtr (blacklist/whitelist)...", "INFO");
 
-                    // KROK 2: Filtrowanie - WYŁĄCZONE (akceptujemy wszystko)
-                    log("  [OK] Filtr wylaczony - akceptuje wszystkie artykuly", "SUCCESS");
-                    Diagnostics.AddLog($"  [OK] Filtr wylaczony");
+                    // KROK 2: Filtrowanie - WŁĄCZONE
+                    var filterResult = _filterService.EvaluateArticle(testArticle.Title, testArticle.Snippet ?? "");
+                    log($"  Score: {filterResult.Score}, Relevant: {filterResult.IsRelevant}", filterResult.IsRelevant ? "SUCCESS" : "WARNING");
+
+                    foreach (var reason in filterResult.Reasons.Take(3)) // Max 3 powodów
+                    {
+                        log($"    {reason}", "DEBUG");
+                    }
+
+                    Diagnostics.AddLog($"  Filtr: score={filterResult.Score}, relevant={filterResult.IsRelevant}");
+
+                    if (!filterResult.IsRelevant)
+                    {
+                        log($"  [SKIP] Artykuł odrzucony przez filtr (score: {filterResult.Score} < 0)", "WARNING");
+                        log("  Idz do nastepnego artykulu...", "INFO");
+                        continue; // RETRY - idź do następnego artykułu
+                    }
+
+                    log($"  [OK] Artykuł zaakceptowany przez filtr", "SUCCESS");
 
                     // ─────────────────────────────────────────────────────
                     // KROK 3: Wzbogacanie tresci z FALLBACK
