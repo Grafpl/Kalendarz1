@@ -220,6 +220,22 @@
             <Setter Property="Margin" Value="0,0,0,6"/>
         </Style>
 
+        <!-- Field Description Style - stały opis pod polem -->
+        <Style x:Key="FieldDescription" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextMuted}"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="0,6,0,0"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="LineHeight" Value="16"/>
+        </Style>
+
+        <!-- Field Hint Style - krótka podpowiedź -->
+        <Style x:Key="FieldHint" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#6B7280"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Margin" Value="0,4,0,0"/>
+        </Style>
+
         <!-- Section Header -->
         <Style x:Key="SectionHeader" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource TextBright}"/>
@@ -403,28 +419,38 @@
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0" Margin="0,0,15,0">
                                         <TextBlock Style="{StaticResource FieldLabel}" Text="Model OpenAI"/>
-                                        <ComboBox x:Name="ModelComboBox"
-                                                  ToolTip="gpt-4o = najlepszy i najszybszy (~$2.50/1M tokenow)&#x0a;gpt-4o-mini = tanszy ale slabszy (~$0.15/1M tokenow)&#x0a;gpt-4-turbo = starszy, wolniejszy">
+                                        <ComboBox x:Name="ModelComboBox">
                                             <ComboBoxItem Content="gpt-4o" IsSelected="True"/>
                                             <ComboBoxItem Content="gpt-4o-mini"/>
                                             <ComboBoxItem Content="gpt-4-turbo"/>
                                         </ComboBox>
-                                        <TextBlock Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,4,0,0"
-                                                   Text="Zalecany: gpt-4o (najlepsza jakosc)"/>
+                                        <TextBlock Style="{StaticResource FieldDescription}">
+                                            <Run FontWeight="SemiBold" Foreground="#10B981">gpt-4o</Run><Run> = najlepszy (~$2.50/1M tok)</Run><LineBreak/>
+                                            <Run FontWeight="SemiBold">gpt-4o-mini</Run><Run> = tanszy (~$0.15/1M tok)</Run><LineBreak/>
+                                            <Run FontWeight="SemiBold">gpt-4-turbo</Run><Run> = starszy, wolniejszy</Run>
+                                        </TextBlock>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Margin="0,0,15,0">
                                         <TextBlock Style="{StaticResource FieldLabel}" Text="Max Tokens"/>
-                                        <TextBox x:Name="MaxTokensTextBox" Style="{StaticResource DarkTextBox}"
-                                                 ToolTip="Maksymalna dlugosc odpowiedzi AI w tokenach.&#x0a;1 token = ~4 znaki polskiego tekstu.&#x0a;8000 tokenow = ~6000 slow = pelna analiza.&#x0a;Zbyt malo = AI obetnie odpowiedz w polowie!"/>
-                                        <TextBlock Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,4,0,0"
-                                                   Text="Zalecane: 8000 (pelne analizy)"/>
+                                        <TextBox x:Name="MaxTokensTextBox" Style="{StaticResource DarkTextBox}"/>
+                                        <TextBlock Style="{StaticResource FieldDescription}">
+                                            <Run>Max dlugosc odpowiedzi AI.</Run><LineBreak/>
+                                            <Run>1 token = ~4 znaki polskie</Run><LineBreak/>
+                                            <Run>8000 tok = ~6000 slow</Run><LineBreak/>
+                                            <Run Foreground="#10B981" FontWeight="SemiBold">Zalecane: 8000</Run><LineBreak/>
+                                            <Run Foreground="#EF4444">Zbyt malo = obcieta analiza!</Run>
+                                        </TextBlock>
                                     </StackPanel>
                                     <StackPanel Grid.Column="2">
                                         <TextBlock Style="{StaticResource FieldLabel}" Text="Temperatura (0.0-1.0)"/>
-                                        <TextBox x:Name="TemperatureTextBox" Style="{StaticResource DarkTextBox}"
-                                                 ToolTip="Kontroluje 'kreatywnosc' AI:&#x0a;0.0-0.3 = konkretny, powtarzalny, faktograficzny&#x0a;0.4-0.6 = zbalansowany&#x0a;0.7-1.0 = kreatywny, mniej przewidywalny&#x0a;Dla analiz biznesowych zalecane: 0.3"/>
-                                        <TextBlock Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,4,0,0"
-                                                   Text="Zalecane: 0.3 (konkretny)"/>
+                                        <TextBox x:Name="TemperatureTextBox" Style="{StaticResource DarkTextBox}"/>
+                                        <TextBlock Style="{StaticResource FieldDescription}">
+                                            <Run>Kontroluje 'kreatywnosc' AI:</Run><LineBreak/>
+                                            <Run Foreground="#10B981" FontWeight="SemiBold">0.0-0.3 = konkretny, faktograficzny</Run><LineBreak/>
+                                            <Run>0.4-0.6 = zbalansowany</Run><LineBreak/>
+                                            <Run>0.7-1.0 = kreatywny, zmienny</Run><LineBreak/>
+                                            <Run Foreground="#10B981" FontWeight="SemiBold">Zalecane: 0.3</Run>
+                                        </TextBlock>
                                     </StackPanel>
                                 </Grid>
                             </StackPanel>
@@ -489,40 +515,51 @@
 
                                     <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,15,15">
                                         <TextBlock Style="{StaticResource FieldLabel}" Text="Nazwa firmy"/>
-                                        <TextBox x:Name="CompanyNameTextBox" Style="{StaticResource DarkTextBox}"
-                                                 ToolTip="Pelna nazwa firmy uzywana w analizach AI.&#x0a;Np. 'Ubojnia Drobiu Piorkowscy' lub 'Zaklady Miesne XYZ'.&#x0a;AI bedzie pisac 'dla firmy [nazwa]...'"/>
-                                        <TextBlock Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,4,0,0"
-                                                   Text="Nazwa uzywana w raportach AI"/>
+                                        <TextBox x:Name="CompanyNameTextBox" Style="{StaticResource DarkTextBox}"/>
+                                        <TextBlock Style="{StaticResource FieldDescription}">
+                                            <Run>Pelna nazwa firmy uzywana w analizach AI.</Run><LineBreak/>
+                                            <Run>Np. 'Ubojnia Drobiu Piorkowscy'</Run><LineBreak/>
+                                            <Run>AI pisze: 'dla firmy [nazwa]...'</Run>
+                                        </TextBlock>
                                     </StackPanel>
                                     <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,0,15">
                                         <TextBlock Style="{StaticResource FieldLabel}" Text="Dyrektor/Prezes"/>
-                                        <TextBox x:Name="DirectorTextBox" Style="{StaticResource DarkTextBox}"
-                                                 ToolTip="Imie i nazwisko osoby podejmujacej decyzje.&#x0a;AI bedzie adresowac rekomendacje do tej osoby.&#x0a;Np. 'Pani Dyrektor powinien rozwazyc...'"/>
-                                        <TextBlock Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,4,0,0"
-                                                   Text="Osoba do ktorej AI kieruje rekomendacje"/>
+                                        <TextBox x:Name="DirectorTextBox" Style="{StaticResource DarkTextBox}"/>
+                                        <TextBlock Style="{StaticResource FieldDescription}">
+                                            <Run>Imie i nazwisko decydenta.</Run><LineBreak/>
+                                            <Run>AI adresuje rekomendacje do tej osoby.</Run><LineBreak/>
+                                            <Run>Np. 'Pani Dyrektor powinna...'</Run>
+                                        </TextBlock>
                                     </StackPanel>
 
                                     <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,0,15">
                                         <TextBlock Style="{StaticResource FieldLabel}" Text="Lokalizacja"/>
-                                        <TextBox x:Name="LocationTextBox" Style="{StaticResource DarkTextBox}"
-                                                 ToolTip="Pelny adres lub miejscowosc z kodem pocztowym.&#x0a;Np. 'Koziolek, 95-060 Brzeziny, woj. lodzkie'&#x0a;&#x0a;Wazne dla:&#x0a;- Alertow HPAI (ogniska w poblizu)&#x0a;- Kosztow logistyki&#x0a;- Regionalnych regulacji"/>
-                                        <TextBlock Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,4,0,0"
-                                                   Text="Wazne dla alertow HPAI i analizy logistyki"/>
+                                        <TextBox x:Name="LocationTextBox" Style="{StaticResource DarkTextBox}"/>
+                                        <TextBlock Style="{StaticResource FieldDescription}">
+                                            <Run>Pelny adres lub miejscowosc z kodem. Np. 'Koziolek, 95-060 Brzeziny, woj. lodzkie'</Run><LineBreak/>
+                                            <Run FontWeight="SemiBold">Wazne dla:</Run><Run> alertow HPAI (ogniska w poblizu), kosztow logistyki, regionalnych regulacji</Run>
+                                        </TextBlock>
                                     </StackPanel>
 
                                     <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,15,0">
                                         <TextBlock Style="{StaticResource FieldLabel}" Text="Region (woj.)"/>
-                                        <TextBox x:Name="RegionTextBox" Style="{StaticResource DarkTextBox}"
-                                                 ToolTip="Wojewodztwo (bez 'woj.').&#x0a;Np. 'lodzkie', 'mazowieckie', 'wielkopolskie'&#x0a;&#x0a;KRYTYCZNE dla alertow HPAI!&#x0a;AI priorytetowo traktuje ogniska w Twoim regionie."/>
-                                        <TextBlock Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,4,0,0"
-                                                   Text="Krytyczne dla alertow HPAI"/>
+                                        <TextBox x:Name="RegionTextBox" Style="{StaticResource DarkTextBox}"/>
+                                        <TextBlock Style="{StaticResource FieldDescription}">
+                                            <Run>Wojewodztwo (bez 'woj.').</Run><LineBreak/>
+                                            <Run>Np. 'lodzkie', 'mazowieckie'</Run><LineBreak/>
+                                            <Run Foreground="#EF4444" FontWeight="SemiBold">KRYTYCZNE dla alertow HPAI!</Run><LineBreak/>
+                                            <Run>AI priorytetowo traktuje ogniska w Twoim regionie.</Run>
+                                        </TextBlock>
                                     </StackPanel>
                                     <StackPanel Grid.Row="2" Grid.Column="1">
                                         <TextBlock Style="{StaticResource FieldLabel}" Text="Specjalizacja"/>
-                                        <TextBox x:Name="SpecializationTextBox" Style="{StaticResource DarkTextBox}"
-                                                 ToolTip="Glowny profil dzialalnosci.&#x0a;Np. 'uboj i przetworstwo drobiu', 'produkcja wedlin',&#x0a;'hodowla brojlerow', 'przetwory drobiowe'&#x0a;&#x0a;Pomaga AI filtrowac nieistotne artykuly."/>
-                                        <TextBlock Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,4,0,0"
-                                                   Text="Profil dzialalnosci"/>
+                                        <TextBox x:Name="SpecializationTextBox" Style="{StaticResource DarkTextBox}"/>
+                                        <TextBlock Style="{StaticResource FieldDescription}">
+                                            <Run>Glowny profil dzialalnosci.</Run><LineBreak/>
+                                            <Run>Np. 'uboj i przetworstwo drobiu',</Run><LineBreak/>
+                                            <Run>'hodowla brojlerow', 'przetwory'</Run><LineBreak/>
+                                            <Run>Pomaga AI filtrowac nieistotne artykuly.</Run>
+                                        </TextBlock>
                                     </StackPanel>
                                 </Grid>
                             </StackPanel>
@@ -532,14 +569,19 @@
                         <Border Style="{StaticResource CardBorder}">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource FieldLabel}" Text="Kontekst finansowy/operacyjny"/>
-                                <TextBlock Foreground="{StaticResource TextMuted}" FontSize="11" Margin="0,0,0,10" TextWrapping="Wrap"
-                                           Text="Opisz sytuacje finansowa firmy - AI uzyje tego do konkretnych rekomendacji. Im wiecej szczegolow, tym lepsze analizy."/>
                                 <TextBox x:Name="FinancialContextTextBox" Style="{StaticResource DarkTextBox}"
                                          AcceptsReturn="True" TextWrapping="Wrap" Height="120"
-                                         VerticalScrollBarVisibility="Auto"
-                                         ToolTip="Wpisz informacje o:&#x0a;&#x0a;- Wolumenach: np. '50 ton tygodniowo'&#x0a;- Marzy: np. 'marza 8-12%'&#x0a;- Problemach: np. 'strata 200k na HPAI w 2025'&#x0a;- Planach: np. 'planowana modernizacja linii'&#x0a;- Ograniczeniach: np. 'kredyt 2M do splaty'&#x0a;&#x0a;Przyklad:&#x0a;'Sredni wolumen 45 ton/tydzien. Marza netto 9%.&#x0a;W 2025 strata 180k przez HPAI. Planujemy&#x0a;rozbudowe chlodni w Q3 2026.'"/>
-                                <TextBlock Foreground="#10B981" FontSize="10" Margin="0,4,0,0"
-                                           Text="Im wiecej szczegolow, tym konkretniejsze rekomendacje AI"/>
+                                         VerticalScrollBarVisibility="Auto"/>
+                                <TextBlock Style="{StaticResource FieldDescription}">
+                                    <Run FontWeight="SemiBold">Opisz sytuacje finansowa firmy - AI uzyje tego do konkretnych rekomendacji.</Run><LineBreak/>
+                                    <Run FontWeight="SemiBold">Co wpisac:</Run><LineBreak/>
+                                    <Run>• Wolumeny: np. '50 ton tygodniowo'</Run><LineBreak/>
+                                    <Run>• Marze: np. 'marza 8-12%'</Run><LineBreak/>
+                                    <Run>• Problemy: np. 'strata 200k na HPAI w 2025'</Run><LineBreak/>
+                                    <Run>• Plany: np. 'planowana modernizacja linii'</Run><LineBreak/>
+                                    <Run>• Ograniczenia: np. 'kredyt 2M do splaty'</Run><LineBreak/>
+                                    <Run Foreground="#10B981" FontWeight="SemiBold">Im wiecej szczegolow, tym konkretniejsze rekomendacje AI!</Run>
+                                </TextBlock>
                             </StackPanel>
                         </Border>
 
@@ -547,14 +589,17 @@
                         <Border Style="{StaticResource CardBorder}">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource FieldLabel}" Text="Konkurenci (jeden na linie)"/>
-                                <TextBlock Foreground="{StaticResource TextMuted}" FontSize="11" Margin="0,0,0,10" TextWrapping="Wrap"
-                                           Text="Lista firm konkurencyjnych - AI bedzie sledził newsy o nich i porownywał z Twoja sytuacja."/>
                                 <TextBox x:Name="CompetitorsTextBox" Style="{StaticResource DarkTextBox}"
                                          AcceptsReturn="True" TextWrapping="Wrap" Height="100"
-                                         VerticalScrollBarVisibility="Auto"
-                                         ToolTip="Wpisz nazwy konkurentow, jeden na linie:&#x0a;&#x0a;SuperDrob&#x0a;Cedrob&#x0a;Indykpol&#x0a;Animex&#x0a;&#x0a;AI bedzie:&#x0a;- Informowac o akwizycjach konkurentow&#x0a;- Porownywac ich ruchy z Twoja strategia&#x0a;- Ostrzegac o zagrozeniach"/>
-                                <TextBlock Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,4,0,0"
-                                           Text="AI sledzi newsy o tych firmach"/>
+                                         VerticalScrollBarVisibility="Auto"/>
+                                <TextBlock Style="{StaticResource FieldDescription}">
+                                    <Run>Lista firm konkurencyjnych - AI sledzi newsy o nich.</Run><LineBreak/>
+                                    <Run FontWeight="SemiBold">Wpisz jeden na linie:</Run><Run> SuperDrob, Cedrob, Indykpol, Animex...</Run><LineBreak/>
+                                    <Run FontWeight="SemiBold">AI bedzie:</Run><LineBreak/>
+                                    <Run>• Informowac o akwizycjach konkurentow</Run><LineBreak/>
+                                    <Run>• Porownywac ich ruchy z Twoja strategia</Run><LineBreak/>
+                                    <Run>• Ostrzegac o zagrozeniach</Run>
+                                </TextBlock>
                             </StackPanel>
                         </Border>
 
@@ -562,14 +607,17 @@
                         <Border Style="{StaticResource CardBorder}">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource FieldLabel}" Text="Glowni klienci (jeden na linie)"/>
-                                <TextBlock Foreground="{StaticResource TextMuted}" FontSize="11" Margin="0,0,0,10" TextWrapping="Wrap"
-                                           Text="Lista glownych odbiorcow - AI bedzie sledził ich sytuacje i informowal o zmianach."/>
                                 <TextBox x:Name="MainClientsTextBox" Style="{StaticResource DarkTextBox}"
                                          AcceptsReturn="True" TextWrapping="Wrap" Height="100"
-                                         VerticalScrollBarVisibility="Auto"
-                                         ToolTip="Wpisz nazwy klientow, jeden na linie:&#x0a;&#x0a;Biedronka&#x0a;Dino&#x0a;Lidl&#x0a;Makro&#x0a;Selgros&#x0a;&#x0a;AI bedzie:&#x0a;- Informowac o zmianach polityki sieci&#x0a;- Sledic fuzje i przejecia&#x0a;- Analizowac szanse na nowe kontrakty"/>
-                                <TextBlock Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,4,0,0"
-                                           Text="AI analizuje newsy o Twoich klientach"/>
+                                         VerticalScrollBarVisibility="Auto"/>
+                                <TextBlock Style="{StaticResource FieldDescription}">
+                                    <Run>Lista glownych odbiorcow - AI sledzi ich sytuacje.</Run><LineBreak/>
+                                    <Run FontWeight="SemiBold">Wpisz jeden na linie:</Run><Run> Biedronka, Dino, Lidl, Makro, Selgros...</Run><LineBreak/>
+                                    <Run FontWeight="SemiBold">AI bedzie:</Run><LineBreak/>
+                                    <Run>• Informowac o zmianach polityki sieci</Run><LineBreak/>
+                                    <Run>• Sledic fuzje i przejecia</Run><LineBreak/>
+                                    <Run>• Analizowac szanse na nowe kontrakty</Run>
+                                </TextBlock>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -601,15 +649,17 @@
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBox x:Name="OpenAiKeyTextBox" Style="{StaticResource DarkTextBox}"
-                                                 Grid.Column="0"
-                                                 ToolTip="Klucz API z platform.openai.com&#x0a;Zaczyna sie od 'sk-proj-...'&#x0a;&#x0a;Jak uzyskac:&#x0a;1. Zaloguj sie na platform.openai.com&#x0a;2. Idz do API Keys&#x0a;3. Utworz nowy klucz&#x0a;&#x0a;UWAGA: Klucz = Twoje pieniadze!&#x0a;Nie udostepniaj nikomu."/>
+                                                 Grid.Column="0"/>
                                         <Button Content="Test" Style="{StaticResource SecondaryButton}"
                                                 Grid.Column="1" Margin="10,0,0,0"
-                                                Click="TestOpenAiKey_Click"
-                                                ToolTip="Sprawdza czy klucz jest poprawny i dziala"/>
+                                                Click="TestOpenAiKey_Click"/>
                                     </Grid>
-                                    <TextBlock Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,4,0,0"
-                                               Text="Uzyskaj na: platform.openai.com -> API Keys"/>
+                                    <TextBlock Style="{StaticResource FieldDescription}">
+                                        <Run FontWeight="SemiBold">Klucz API z platform.openai.com</Run><LineBreak/>
+                                        <Run>Zaczyna sie od 'sk-proj-...'</Run><LineBreak/>
+                                        <Run FontWeight="SemiBold">Jak uzyskac:</Run><Run> 1) Zaloguj sie na platform.openai.com 2) Idz do API Keys 3) Utworz nowy klucz</Run><LineBreak/>
+                                        <Run Foreground="#EF4444" FontWeight="SemiBold">UWAGA: Klucz = Twoje pieniadze! Nie udostepniaj nikomu.</Run>
+                                    </TextBlock>
                                 </StackPanel>
 
                                 <StackPanel>
@@ -620,15 +670,17 @@
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBox x:Name="BraveKeyTextBox" Style="{StaticResource DarkTextBox}"
-                                                 Grid.Column="0"
-                                                 ToolTip="Klucz API z brave.com/search/api&#x0a;Zaczyna sie od 'BSA...'&#x0a;&#x0a;Jak uzyskac:&#x0a;1. Zaloz konto na brave.com/search/api&#x0a;2. Wybierz plan (darmowy = 2000 zapytan/mies)&#x0a;3. Skopiuj klucz API&#x0a;&#x0a;Plan darmowy wystarcza na ~10 sesji dziennie."/>
+                                                 Grid.Column="0"/>
                                         <Button Content="Test" Style="{StaticResource SecondaryButton}"
                                                 Grid.Column="1" Margin="10,0,0,0"
-                                                Click="TestBraveKey_Click"
-                                                ToolTip="Sprawdza czy klucz jest poprawny i dziala"/>
+                                                Click="TestBraveKey_Click"/>
                                     </Grid>
-                                    <TextBlock Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,4,0,0"
-                                               Text="Uzyskaj na: brave.com/search/api (2000 zapytan/mies za darmo)"/>
+                                    <TextBlock Style="{StaticResource FieldDescription}">
+                                        <Run FontWeight="SemiBold">Klucz API z brave.com/search/api</Run><LineBreak/>
+                                        <Run>Zaczyna sie od 'BSA...'</Run><LineBreak/>
+                                        <Run FontWeight="SemiBold">Jak uzyskac:</Run><Run> 1) Zaloz konto na brave.com/search/api 2) Wybierz plan (darmowy = 2000 zapytan/mies) 3) Skopiuj klucz API</Run><LineBreak/>
+                                        <Run Foreground="#10B981">Plan darmowy wystarcza na ~10 sesji dziennie.</Run>
+                                    </TextBlock>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
@@ -648,32 +700,41 @@
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0" Margin="0,0,15,0">
-                                        <TextBlock Style="{StaticResource FieldLabel}" Text="OpenAI"/>
-                                        <TextBox x:Name="OpenAiTimeoutTextBox" Style="{StaticResource DarkTextBox}"
-                                                 ToolTip="Czas oczekiwania na odpowiedz AI.&#x0a;AI analizuje artykul 30-90 sekund.&#x0a;&#x0a;Zalecane: 120 sekund&#x0a;Minimum: 60 sekund&#x0a;&#x0a;Zbyt krotki = przerwane analizy"/>
-                                        <TextBlock Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,4,0,0"
-                                                   Text="Zalecane: 120"/>
+                                        <TextBlock Style="{StaticResource FieldLabel}" Text="OpenAI (sekundy)"/>
+                                        <TextBox x:Name="OpenAiTimeoutTextBox" Style="{StaticResource DarkTextBox}"/>
+                                        <TextBlock Style="{StaticResource FieldDescription}">
+                                            <Run>Czas oczekiwania na odpowiedz AI.</Run><LineBreak/>
+                                            <Run>AI analizuje artykul 30-90 sek.</Run><LineBreak/>
+                                            <Run Foreground="#10B981" FontWeight="SemiBold">Zalecane: 120-300 sek</Run><LineBreak/>
+                                            <Run Foreground="#EF4444">Zbyt krotki = przerwane analizy!</Run>
+                                        </TextBlock>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Margin="0,0,15,0">
-                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Brave"/>
-                                        <TextBox x:Name="BraveTimeoutTextBox" Style="{StaticResource DarkTextBox}"
-                                                 ToolTip="Czas oczekiwania na wyniki wyszukiwania.&#x0a;Brave odpowiada w 1-5 sekund.&#x0a;&#x0a;Zalecane: 30 sekund&#x0a;&#x0a;Zbyt krotki = brak wynikow wyszukiwania"/>
-                                        <TextBlock Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,4,0,0"
-                                                   Text="Zalecane: 30"/>
+                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Brave (sekundy)"/>
+                                        <TextBox x:Name="BraveTimeoutTextBox" Style="{StaticResource DarkTextBox}"/>
+                                        <TextBlock Style="{StaticResource FieldDescription}">
+                                            <Run>Czas na wyniki wyszukiwania.</Run><LineBreak/>
+                                            <Run>Brave odpowiada w 1-5 sek.</Run><LineBreak/>
+                                            <Run Foreground="#10B981" FontWeight="SemiBold">Zalecane: 30-60 sek</Run>
+                                        </TextBlock>
                                     </StackPanel>
                                     <StackPanel Grid.Column="2" Margin="0,0,15,0">
-                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Content Fetch"/>
-                                        <TextBox x:Name="ContentTimeoutTextBox" Style="{StaticResource DarkTextBox}"
-                                                 ToolTip="Czas na pobranie tresci artykulu ze strony.&#x0a;Wiekszość stron laduje sie w 2-10 sekund.&#x0a;&#x0a;Zalecane: 30 sekund&#x0a;&#x0a;Zbyt krotki = puste artykuly"/>
-                                        <TextBlock Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,4,0,0"
-                                                   Text="Zalecane: 30"/>
+                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Content Fetch (sek)"/>
+                                        <TextBox x:Name="ContentTimeoutTextBox" Style="{StaticResource DarkTextBox}"/>
+                                        <TextBlock Style="{StaticResource FieldDescription}">
+                                            <Run>Czas na pobranie artykulu.</Run><LineBreak/>
+                                            <Run>Strony laduja sie 2-10 sek.</Run><LineBreak/>
+                                            <Run Foreground="#10B981" FontWeight="SemiBold">Zalecane: 30-60 sek</Run>
+                                        </TextBlock>
                                     </StackPanel>
                                     <StackPanel Grid.Column="3">
-                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Puppeteer"/>
-                                        <TextBox x:Name="PuppeteerTimeoutTextBox" Style="{StaticResource DarkTextBox}"
-                                                 ToolTip="Czas na Puppeteer (przeglądarka dla trudnych stron).&#x0a;Uzywany gdy normalny HTTP nie dziala.&#x0a;&#x0a;Zalecane: 60 sekund&#x0a;&#x0a;Puppeteer jest wolniejszy niz HTTP."/>
-                                        <TextBlock Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,4,0,0"
-                                                   Text="Zalecane: 60"/>
+                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Puppeteer (sek)"/>
+                                        <TextBox x:Name="PuppeteerTimeoutTextBox" Style="{StaticResource DarkTextBox}"/>
+                                        <TextBlock Style="{StaticResource FieldDescription}">
+                                            <Run>Przegladarka dla trudnych stron.</Run><LineBreak/>
+                                            <Run>Wolniejszy niz HTTP.</Run><LineBreak/>
+                                            <Run Foreground="#10B981" FontWeight="SemiBold">Zalecane: 60-90 sek</Run>
+                                        </TextBlock>
                                     </StackPanel>
                                 </Grid>
                             </StackPanel>
@@ -694,24 +755,34 @@
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0" Margin="0,0,15,0">
                                         <TextBlock Style="{StaticResource FieldLabel}" Text="Delay miedzy req. (ms)"/>
-                                        <TextBox x:Name="DelayTextBox" Style="{StaticResource DarkTextBox}"
-                                                 ToolTip="Przerwa miedzy zapytaniami do AI (milisekundy).&#x0a;1000ms = 1 sekunda&#x0a;&#x0a;WAZNE: OpenAI ma limit 30,000 tokenow/min.&#x0a;&#x0a;Zalecane: 3000ms (3 sekundy)&#x0a;Minimum bezpieczne: 2000ms&#x0a;&#x0a;Zbyt krotki = bledy 429 Rate Limit!"/>
-                                        <TextBlock Foreground="#EF4444" FontSize="10" Margin="0,4,0,0" FontWeight="SemiBold"
-                                                   Text="Min. 2000ms! Inaczej bledy 429"/>
+                                        <TextBox x:Name="DelayTextBox" Style="{StaticResource DarkTextBox}"/>
+                                        <TextBlock Style="{StaticResource FieldDescription}">
+                                            <Run>Przerwa miedzy zapytaniami AI.</Run><LineBreak/>
+                                            <Run>1000ms = 1 sekunda</Run><LineBreak/>
+                                            <Run FontWeight="SemiBold">OpenAI limit: 30,000 tok/min</Run><LineBreak/>
+                                            <Run Foreground="#10B981" FontWeight="SemiBold">Zalecane: 3000ms (3 sek)</Run><LineBreak/>
+                                            <Run Foreground="#EF4444" FontWeight="SemiBold">Min. 2000ms! Inaczej bledy 429!</Run>
+                                        </TextBlock>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Margin="0,0,15,0">
-                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Max Retries"/>
-                                        <TextBox x:Name="MaxRetriesTextBox" Style="{StaticResource DarkTextBox}"
-                                                 ToolTip="Ile razy ponowic zapytanie przy bledzie.&#x0a;&#x0a;Zalecane: 3&#x0a;Wiecej = dluzsza sesja przy problemach&#x0a;Mniej = szybsze porzucanie artykulow"/>
-                                        <TextBlock Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,4,0,0"
-                                                   Text="Zalecane: 3"/>
+                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Max Retries (prob)"/>
+                                        <TextBox x:Name="MaxRetriesTextBox" Style="{StaticResource DarkTextBox}"/>
+                                        <TextBlock Style="{StaticResource FieldDescription}">
+                                            <Run>Ile razy ponowic przy bledzie.</Run><LineBreak/>
+                                            <Run Foreground="#10B981" FontWeight="SemiBold">Zalecane: 3-5</Run><LineBreak/>
+                                            <Run>Wiecej = dluzsza sesja</Run><LineBreak/>
+                                            <Run>Mniej = szybsze porzucanie</Run>
+                                        </TextBlock>
                                     </StackPanel>
                                     <StackPanel Grid.Column="2">
-                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Retry Base Delay (s)"/>
-                                        <TextBox x:Name="RetryDelayTextBox" Style="{StaticResource DarkTextBox}"
-                                                 ToolTip="Bazowy czas oczekiwania przed ponowna proba.&#x0a;Podwajany przy kazdej probie (5s, 10s, 20s).&#x0a;&#x0a;Zalecane: 5 sekund&#x0a;&#x0a;Przy bledach 429 system czeka dluzej."/>
-                                        <TextBlock Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,4,0,0"
-                                                   Text="Zalecane: 5 (5s, 10s, 20s...)"/>
+                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Retry Base Delay (sek)"/>
+                                        <TextBox x:Name="RetryDelayTextBox" Style="{StaticResource DarkTextBox}"/>
+                                        <TextBlock Style="{StaticResource FieldDescription}">
+                                            <Run>Bazowy czas przed ponowna proba.</Run><LineBreak/>
+                                            <Run>Podwajany: 5s, 10s, 20s...</Run><LineBreak/>
+                                            <Run Foreground="#10B981" FontWeight="SemiBold">Zalecane: 5 sekund</Run><LineBreak/>
+                                            <Run>Przy 429 system czeka dluzej.</Run>
+                                        </TextBlock>
                                     </StackPanel>
                                 </Grid>
                             </StackPanel>
@@ -732,24 +803,35 @@
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0" Margin="0,0,15,0">
                                         <TextBlock Style="{StaticResource FieldLabel}" Text="Max artykulow (pelny)"/>
-                                        <TextBox x:Name="MaxArticlesTextBox" Style="{StaticResource DarkTextBox}"
-                                                 ToolTip="Limit dla przycisku 'Pobierz z internetu'.&#x0a;&#x0a;Zalecane: 25 artykulow&#x0a;&#x0a;25 artykulow = ~15-20 min pracy&#x0a;Koszt: ~$0.50-1.00 za sesje&#x0a;&#x0a;Wiecej = dluzej, drozej, pelniejszy briefing"/>
-                                        <TextBlock Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,4,0,0"
-                                                   Text="Zalecane: 25 (~$0.50-1.00)"/>
+                                        <TextBox x:Name="MaxArticlesTextBox" Style="{StaticResource DarkTextBox}"/>
+                                        <TextBlock Style="{StaticResource FieldDescription}">
+                                            <Run>Limit dla 'Pobierz z internetu'.</Run><LineBreak/>
+                                            <Run Foreground="#10B981" FontWeight="SemiBold">Zalecane: 25-35 artykulow</Run><LineBreak/>
+                                            <Run>25 art. = ~15-20 min pracy</Run><LineBreak/>
+                                            <Run>Koszt: ~$0.50-1.00 za sesje</Run><LineBreak/>
+                                            <Run>Wiecej = pelniejszy briefing</Run>
+                                        </TextBlock>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Margin="0,0,15,0">
-                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Tryb szybki"/>
-                                        <TextBox x:Name="QuickModeTextBox" Style="{StaticResource DarkTextBox}"
-                                                 ToolTip="Limit dla przycisku 'Szybki'.&#x0a;&#x0a;Zalecane: 10 artykulow&#x0a;&#x0a;10 artykulow = ~5-7 min pracy&#x0a;Koszt: ~$0.20-0.30 za sesje&#x0a;&#x0a;Uzywa tylko fraz z 'Quick' w zakladce ZWIAD."/>
-                                        <TextBlock Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,4,0,0"
-                                                   Text="Zalecane: 10 (~$0.20-0.30)"/>
+                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Tryb szybki (art.)"/>
+                                        <TextBox x:Name="QuickModeTextBox" Style="{StaticResource DarkTextBox}"/>
+                                        <TextBlock Style="{StaticResource FieldDescription}">
+                                            <Run>Limit dla przycisku 'Szybki'.</Run><LineBreak/>
+                                            <Run Foreground="#10B981" FontWeight="SemiBold">Zalecane: 10 artykulow</Run><LineBreak/>
+                                            <Run>10 art. = ~5-7 min pracy</Run><LineBreak/>
+                                            <Run>Koszt: ~$0.20-0.30 za sesje</Run><LineBreak/>
+                                            <Run>Uzywa fraz z 'Quick' w ZWIAD</Run>
+                                        </TextBlock>
                                     </StackPanel>
                                     <StackPanel Grid.Column="2">
                                         <TextBlock Style="{StaticResource FieldLabel}" Text="Wynikow na query"/>
-                                        <TextBox x:Name="ResultsPerQueryTextBox" Style="{StaticResource DarkTextBox}"
-                                                 ToolTip="Ile wynikow pobierac z jednego wyszukiwania Brave.&#x0a;&#x0a;Zalecane: 10&#x0a;Maximum: 20&#x0a;&#x0a;Wiecej = wiecej zrodel, ale duplikaty.&#x0a;System i tak deduplikuje po URL."/>
-                                        <TextBlock Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,4,0,0"
-                                                   Text="Zalecane: 10"/>
+                                        <TextBox x:Name="ResultsPerQueryTextBox" Style="{StaticResource DarkTextBox}"/>
+                                        <TextBlock Style="{StaticResource FieldDescription}">
+                                            <Run>Ile wynikow z jednego Brave.</Run><LineBreak/>
+                                            <Run Foreground="#10B981" FontWeight="SemiBold">Zalecane: 10 (max 20)</Run><LineBreak/>
+                                            <Run>Wiecej = wiecej zrodel</Run><LineBreak/>
+                                            <Run>System deduplikuje po URL.</Run>
+                                        </TextBlock>
                                     </StackPanel>
                                 </Grid>
                             </StackPanel>
@@ -762,16 +844,52 @@
                                            Foreground="{StaticResource TextBright}" Margin="0,0,0,5"/>
                                 <TextBlock Foreground="{StaticResource TextMuted}" FontSize="11" Margin="0,0,0,15" TextWrapping="Wrap"
                                            Text="Wlacz lub wylacz dodatkowe funkcje systemu."/>
-                                <WrapPanel>
-                                    <CheckBox x:Name="PuppeteerEnabledCheckBox" Content="Puppeteer wlaczony" Margin="0,0,30,10"
-                                              ToolTip="Puppeteer = przeglądarka bez interfejsu.&#x0a;Uzywany gdy zwykly HTTP nie dziala&#x0a;(strony z JavaScript, blokady).&#x0a;&#x0a;WLACZ jesli widoczne 'brak tresci'.&#x0a;WYLACZ jesli problemy z pamiecia."/>
-                                    <CheckBox x:Name="CostTrackingCheckBox" Content="Sledzenie kosztow" Margin="0,0,30,10"
-                                              ToolTip="Liczy tokeny i szacuje koszty API.&#x0a;Wyswietlane w podsumowaniu sesji.&#x0a;&#x0a;WLACZ - zalecane&#x0a;WYLACZ - jesli spowalnia"/>
-                                    <CheckBox x:Name="FileLoggingCheckBox" Content="Logowanie do pliku" Margin="0,0,30,10"
-                                              ToolTip="Zapisuje szczegolowe logi do pliku TXT.&#x0a;Folder: Documents\PiorkaBriefing\Logs\&#x0a;&#x0a;WLACZ - do debugowania problemow&#x0a;WYLACZ - oszczedza miejsce na dysku"/>
-                                    <CheckBox x:Name="OpenLogsFolderCheckBox" Content="Otworz folder logow po sesji" Margin="0,0,0,10"
-                                              ToolTip="Automatycznie otwiera folder z logami&#x0a;po zakonczeniu sesji briefingu.&#x0a;&#x0a;WLACZ - jesli analizujesz logi&#x0a;WYLACZ - normalnie"/>
-                                </WrapPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,20,15">
+                                        <CheckBox x:Name="PuppeteerEnabledCheckBox" Content="Puppeteer wlaczony"/>
+                                        <TextBlock Style="{StaticResource FieldDescription}" Margin="26,4,0,0">
+                                            <Run>Przegladarka bez interfejsu dla trudnych stron (JavaScript, blokady).</Run><LineBreak/>
+                                            <Run Foreground="#10B981">WLACZ jesli widac 'brak tresci'</Run><LineBreak/>
+                                            <Run Foreground="#EF4444">WYLACZ jesli problemy z pamiecia</Run>
+                                        </TextBlock>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,0,15">
+                                        <CheckBox x:Name="CostTrackingCheckBox" Content="Sledzenie kosztow"/>
+                                        <TextBlock Style="{StaticResource FieldDescription}" Margin="26,4,0,0">
+                                            <Run>Liczy tokeny i szacuje koszty API.</Run><LineBreak/>
+                                            <Run>Wyswietlane w podsumowaniu sesji.</Run><LineBreak/>
+                                            <Run Foreground="#10B981">Zalecane: WLACZ</Run>
+                                        </TextBlock>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,20,0">
+                                        <CheckBox x:Name="FileLoggingCheckBox" Content="Logowanie do pliku"/>
+                                        <TextBlock Style="{StaticResource FieldDescription}" Margin="26,4,0,0">
+                                            <Run>Zapisuje logi do: Documents\PiorkaBriefing\Logs\</Run><LineBreak/>
+                                            <Run Foreground="#10B981">WLACZ do debugowania problemow</Run><LineBreak/>
+                                            <Run>WYLACZ aby oszczedzic miejsce</Run>
+                                        </TextBlock>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Row="1" Grid.Column="1">
+                                        <CheckBox x:Name="OpenLogsFolderCheckBox" Content="Otworz folder logow po sesji"/>
+                                        <TextBlock Style="{StaticResource FieldDescription}" Margin="26,4,0,0">
+                                            <Run>Automatycznie otwiera folder z logami po briefingu.</Run><LineBreak/>
+                                            <Run>WLACZ jesli analizujesz logi</Run><LineBreak/>
+                                            <Run>WYLACZ normalnie</Run>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Grid>
                             </StackPanel>
                         </Border>
                     </StackPanel>
