@@ -1107,6 +1107,8 @@ namespace Kalendarz1.CRM
                     cmd.Parameters.AddWithValue("@op", operatorID);
                     cmd.ExecuteNonQuery();
                 }
+                // Rejestruj dodanie notatki do licznika połączeń
+                CallReminderService.Instance.LogCrmAction(operatorID, aktualnyOdbiorcaID, wasCalled: false, noteAdded: true, statusChanged: false);
                 txtNowaNotatka.Text = "";
                 WczytajNotatki(aktualnyOdbiorcaID);
                 ShowToast("Notatka dodana! 📝");
@@ -1344,7 +1346,13 @@ namespace Kalendarz1.CRM
         {
             if (txtHeaderTelefon == null) return;
             string tel = txtHeaderTelefon.Text.Replace(" ", "").Replace("-", "");
-            if (tel.Length > 0 && tel != "-") Process.Start(new ProcessStartInfo($"tel:{tel}") { UseShellExecute = true });
+            if (tel.Length > 0 && tel != "-")
+            {
+                Process.Start(new ProcessStartInfo($"tel:{tel}") { UseShellExecute = true });
+                // Rejestruj połączenie do licznika
+                if (aktualnyOdbiorcaID > 0)
+                    CallReminderService.Instance.LogCrmAction(operatorID, aktualnyOdbiorcaID, wasCalled: true, noteAdded: false, statusChanged: false);
+            }
         }
 
         private void BtnKlientEdytuj_Click(object sender, RoutedEventArgs e)
@@ -1393,6 +1401,8 @@ namespace Kalendarz1.CRM
                         cmdLog.Parameters.AddWithValue("@op", operatorID);
                         cmdLog.ExecuteNonQuery();
                     }
+                    // Rejestruj zmianę statusu do licznika połączeń
+                    CallReminderService.Instance.LogCrmAction(operatorID, id, wasCalled: false, noteAdded: false, statusChanged: true, nowyStatus);
                     WczytajDane(zachowajFiltry: true);
                     ShowToast("Zmieniono status na: " + nowyStatus);
                 }
@@ -1422,6 +1432,8 @@ namespace Kalendarz1.CRM
                         cmdLog.Parameters.AddWithValue("@op", operatorID);
                         cmdLog.ExecuteNonQuery();
                     }
+                    // Rejestruj zmianę statusu do licznika połączeń
+                    CallReminderService.Instance.LogCrmAction(operatorID, id, wasCalled: false, noteAdded: false, statusChanged: true, nowyStatus);
                     WczytajDane(zachowajFiltry: true);
                     ShowToast($"Status zmieniony na: {nowyStatus}");
                 }
@@ -1927,6 +1939,8 @@ namespace Kalendarz1.CRM
                         cmdLog.Parameters.AddWithValue("@op", operatorID);
                         cmdLog.ExecuteNonQuery();
                     }
+                    // Rejestruj zmianę statusu do licznika połączeń
+                    CallReminderService.Instance.LogCrmAction(operatorID, aktualnyOdbiorcaID, wasCalled: false, noteAdded: false, statusChanged: true, nowyStatus);
                     WczytajDane(zachowajFiltry: true);
                     ShowToast($"Status: {nowyStatus}");
                 }
