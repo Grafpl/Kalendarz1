@@ -105,7 +105,8 @@ namespace Kalendarz1.Kartoteka.Features.Mapa
                     int id = rd.GetInt32(0);
                     if (kontrahenci.TryGetValue(id, out var k))
                     {
-                        k.Kategoria = rd.IsDBNull(1) ? "C" : rd.GetString(1).Trim();
+                        var kat = rd.IsDBNull(1) ? null : rd.GetString(1).Trim();
+                        k.Kategoria = string.IsNullOrEmpty(kat) ? null : kat;
                         k.Latitude = rd.IsDBNull(2) ? null : (double)rd.GetDecimal(2);
                         k.Longitude = rd.IsDBNull(3) ? null : (double)rd.GetDecimal(3);
                     }
