@@ -31,20 +31,19 @@ namespace Kalendarz1
 
         // === KONTROLKI UI ===
         private DateTimePicker dtpOd, dtpDo, dtpStanMagazynu;
-        private Button btnAnalizuj, btnEksport, btnResetFiltr, btnSzybkiRaport, btnMapowanie;
-        private DataGridView dgvDzienne, dgvAnaliza, dgvStanMagazynu, dgvZamowienia;
+        private Button btnEksport, btnSzybkiRaport, btnMapowanie;
+        private DataGridView dgvDzienne, dgvStanMagazynu, dgvZamowienia;
         private DataGridView dgvMroznieZewnetrzne, dgvWydaniaZewnetrzne, dgvStanMrozniZewnetrznych;
         private TabControl tabControl;
-        private ComboBox cmbFiltrProduktu, cmbPredkosc, cmbWykresTyp, cmbFiltrMroznia;
-        private TextBox txtSzukaj;
-        private Label lblTrendInfo;
+        private ComboBox cmbPredkosc, cmbFiltrMroznia;
         private Label lblStanSuma, lblStanWartosc, lblStanProdukty, lblStanRezerwacje;
         private StatusStrip statusStrip;
         private ToolStripStatusLabel statusLabel;
         private ToolStripProgressBar progressBar;
-        private Chart chartTrend, chartProdukty;
+        private Chart chartTrend;
         private ToolTip toolTip;
-        private CheckBox chkPokazWydane, chkPokazPrzyjete, chkGrupowanie;
+        private CheckBox chkGrupowanie;
+        private Timer autoLoadTimer;
 
         // === UX: Toast + kolorowy pasek zakładek ===
         private Panel toastPanel;
@@ -63,7 +62,6 @@ namespace Kalendarz1
             Color.FromArgb(0, 120, 212),   // Stan mroźni - niebieski
             Color.FromArgb(16, 124, 16),   // Mroźnie zewnętrzne - zielony
             Color.FromArgb(255, 140, 0),   // Przegląd dzienny - pomarańczowy
-            Color.FromArgb(142, 68, 173),  // Analiza produktów - fioletowy
             Color.FromArgb(232, 17, 35)    // Wykresy - czerwony
         };
 
@@ -155,23 +153,27 @@ namespace Kalendarz1
             Panel toolbar = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 45,
+                Height = 40,
                 BackColor = CardColor,
-                Padding = new Padding(10, 5, 10, 5)
+                Padding = new Padding(10, 4, 10, 4)
             };
-            toolbar.Paint += (s, e) => DrawCardBorder(e.Graphics, toolbar);
+            toolbar.Paint += (s, e) =>
+            {
+                using (var pen = new Pen(Color.FromArgb(230, 230, 230), 1))
+                    e.Graphics.DrawLine(pen, 0, toolbar.Height - 1, toolbar.Width, toolbar.Height - 1);
+            };
 
             Label lblOd = new Label
             {
                 Text = "Od:",
-                Location = new Point(10, 14),
+                Location = new Point(10, 11),
                 AutoSize = true,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 ForeColor = SecondaryTextColor
             };
             dtpOd = new DateTimePicker
             {
-                Location = new Point(35, 10),
+                Location = new Point(35, 7),
                 Width = 115,
                 Format = DateTimePickerFormat.Short,
                 Value = DateTime.Now.AddDays(-30),
@@ -181,14 +183,14 @@ namespace Kalendarz1
             Label lblDo = new Label
             {
                 Text = "Do:",
-                Location = new Point(160, 14),
+                Location = new Point(160, 11),
                 AutoSize = true,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 ForeColor = SecondaryTextColor
             };
             dtpDo = new DateTimePicker
             {
-                Location = new Point(185, 10),
+                Location = new Point(185, 7),
                 Width = 115,
                 Format = DateTimePickerFormat.Short,
                 Value = DateTime.Now,
@@ -197,7 +199,7 @@ namespace Kalendarz1
 
             cmbPredkosc = new ComboBox
             {
-                Location = new Point(315, 10),
+                Location = new Point(315, 7),
                 Width = 150,
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Font = new Font("Segoe UI", 9F),
@@ -210,17 +212,22 @@ namespace Kalendarz1
             cmbPredkosc.SelectedIndex = 0;
             cmbPredkosc.SelectedIndexChanged += CmbPredkosc_SelectedIndexChanged;
 
-            btnAnalizuj = CreateModernButton("Analizuj", 480, 8, 90, PrimaryColor);
-            btnSzybkiRaport = CreateModernButton("Raport", 580, 8, 80, InfoColor);
-            btnEksport = CreateModernButton("Eksport", 670, 8, 80, DangerColor);
+            btnSzybkiRaport = CreateModernButton("Raport", 490, 5, 80, InfoColor);
+            btnEksport = CreateModernButton("Eksport", 580, 5, 80, DangerColor);
 
-            toolTip.SetToolTip(btnAnalizuj, "Załaduj i analizuj dane dla wybranego okresu (F5)");
             toolTip.SetToolTip(btnSzybkiRaport, "Generuj szybki raport PDF");
             toolTip.SetToolTip(btnEksport, "Eksportuj dane do pliku Excel");
 
+            // Auto-load: przeładuj dane po zmianie daty (z debounce 500ms)
+            autoLoadTimer = new Timer { Interval = 500 };
+            autoLoadTimer.Tick += (s, e) => { autoLoadTimer.Stop(); AutoLoadData(); };
+
+            dtpOd.ValueChanged += (s, e) => { autoLoadTimer.Stop(); autoLoadTimer.Start(); };
+            dtpDo.ValueChanged += (s, e) => { autoLoadTimer.Stop(); autoLoadTimer.Start(); };
+
             toolbar.Controls.AddRange(new Control[] {
                 lblOd, dtpOd, lblDo, dtpDo, cmbPredkosc,
-                btnAnalizuj, btnSzybkiRaport, btnEksport
+                btnSzybkiRaport, btnEksport
             });
 
             return toolbar;
@@ -271,13 +278,7 @@ namespace Kalendarz1
                 else
                     tabControl.TabPages[2].Text = "  Przegląd dzienny  ";
 
-                // Tab 4 (index 3): Analiza - liczba produktów
-                if (dgvAnaliza?.DataSource is DataTable dtAn && dtAn.Rows.Count > 0)
-                    tabControl.TabPages[3].Text = $"  Analiza produktów ({dtAn.Rows.Count})  ";
-                else
-                    tabControl.TabPages[3].Text = "  Analiza produktów  ";
-
-                // Tab 3 (index 4) - Wykresy: bez badge'a
+                // Tab 3 - Wykresy: bez badge'a
             }
             catch { }
         }
@@ -743,136 +744,22 @@ namespace Kalendarz1
             dziennyPanel.Controls.Add(analysisToolbar);
             tab1.Controls.Add(dziennyPanel);
 
-            // === ZAKŁADKA 2: ANALIZA PRODUKTÓW ===
-            TabPage tab2 = new TabPage("  Analiza produktów  ");
-            tab2.BackColor = BackgroundColor;
-            tab2.Padding = new Padding(10);
-
-            Panel analizaPanel = new Panel { Dock = DockStyle.Fill };
-
-            // Panel filtrowania
-            Panel filterPanel = new Panel { Dock = DockStyle.Top, Height = 50, BackColor = CardColor };
-            filterPanel.Paint += (s, e) => DrawCardBorder(e.Graphics, filterPanel);
-
-            Label lblFiltr = CreateLabel("Filtruj:", 15, 16, true);
-            cmbFiltrProduktu = new ComboBox
-            {
-                Location = new Point(80, 13),
-                Width = 200,
-                DropDownStyle = ComboBoxStyle.DropDownList
-            };
-            cmbFiltrProduktu.Items.AddRange(new object[] {
-                "Wszystkie produkty", "Kurczak A", "Korpus", "Ćwiartka", "Filet A",
-                "Filet II", "Skrzydło I", "Trybowane bez skóry", "Trybowane ze skórą"
-            });
-            cmbFiltrProduktu.SelectedIndex = 0;
-
-            Label lblSzukaj = CreateLabel("Szukaj:", 300, 16, true);
-            txtSzukaj = new TextBox
-            {
-                Location = new Point(355, 13),
-                Width = 200,
-                Font = new Font("Segoe UI", 9F)
-            };
-
-            btnResetFiltr = CreateModernButton("Reset", 570, 11, 80, SecondaryTextColor);
-
-            filterPanel.Controls.AddRange(new Control[] { lblFiltr, cmbFiltrProduktu, lblSzukaj, txtSzukaj, btnResetFiltr });
-
-            dgvAnaliza = CreateStyledDataGridView();
-            Panel gridPanel2 = new Panel { Dock = DockStyle.Fill, Padding = new Padding(0, 5, 0, 0) };
-            gridPanel2.Controls.Add(dgvAnaliza);
-
-            analizaPanel.Controls.Add(gridPanel2);
-            analizaPanel.Controls.Add(filterPanel);
-            tab2.Controls.Add(analizaPanel);
-
-            // === ZAKŁADKA 3: WYKRESY INTERAKTYWNE ===
-            TabPage tab3 = new TabPage("  Wykresy interaktywne  ");
+            // === ZAKŁADKA 3: WYKRESY ===
+            TabPage tab3 = new TabPage("  Wykresy  ");
             tab3.BackColor = BackgroundColor;
-            tab3.Padding = new Padding(10);
+            tab3.Padding = new Padding(5);
 
-            Panel chartsMainPanel = new Panel { Dock = DockStyle.Fill };
-
-            // Panel kontroli wykresu
-            Panel chartControlPanel = new Panel { Dock = DockStyle.Top, Height = 60, BackColor = CardColor };
-            chartControlPanel.Paint += (s, e) => DrawCardBorder(e.Graphics, chartControlPanel);
-
-            Label lblWykresOpcje = CreateLabel("Pokaż na wykresie:", 15, 10, true);
-
-            chkPokazWydane = new CheckBox
-            {
-                Text = "Wydane",
-                Location = new Point(15, 32),
-                AutoSize = true,
-                Checked = true,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = PrimaryColor
-            };
-            chkPokazWydane.CheckedChanged += UpdateWykres;
-
-            chkPokazPrzyjete = new CheckBox
-            {
-                Text = "Przyjęte",
-                Location = new Point(130, 32),
-                AutoSize = true,
-                Checked = true,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = SuccessColor
-            };
-            chkPokazPrzyjete.CheckedChanged += UpdateWykres;
-
-            Label lblTypWykresu = CreateLabel("Typ wykresu:", 260, 10, true);
-            cmbWykresTyp = new ComboBox
-            {
-                Location = new Point(260, 30),
-                Width = 150,
-                DropDownStyle = ComboBoxStyle.DropDownList
-            };
-            cmbWykresTyp.Items.AddRange(new object[] { "Liniowy", "Obszarowy", "Słupkowy", "Punktowy" });
-            cmbWykresTyp.SelectedIndex = 0;
-            cmbWykresTyp.SelectedIndexChanged += UpdateWykres;
-
-            Button btnResetZoom = CreateModernButton("Reset Zoom", 430, 26, 120, InfoColor);
-            btnResetZoom.Click += (s, e) => ResetChartZoom();
-
-            chartControlPanel.Controls.AddRange(new Control[] {
-                lblWykresOpcje, chkPokazWydane, chkPokazPrzyjete,
-                lblTypWykresu, cmbWykresTyp, btnResetZoom
-            });
-
-            // WAŻNE: Dodawanie w odwrotnej kolejności - Top, Bottom, Fill
-            chartsMainPanel.Controls.Add(chartControlPanel); // Najpierw Top
-
-            // Dolny panel - Top produkty
-            Panel bottomChartPanel = new Panel
-            {
-                Dock = DockStyle.Bottom,
-                Height = 300,
-                BackColor = CardColor,
-                Padding = new Padding(5, 10, 5, 5)
-            };
-            bottomChartPanel.Paint += (s, e) => DrawCardBorder(e.Graphics, bottomChartPanel);
-
-            chartProdukty = CreateStyledChart("Top 10 produktów");
-            bottomChartPanel.Controls.Add(chartProdukty);
-            chartsMainPanel.Controls.Add(bottomChartPanel); // Potem Bottom
-
-            // Wykres trend z scroll
+            // Pełnoekranowy wykres trendu
             Panel chartPanel1 = new Panel
             {
                 Dock = DockStyle.Fill,
                 BackColor = CardColor,
-                Padding = new Padding(5, 10, 5, 10),
-                MinimumSize = new Size(0, 200) // Minimalna wysokość
+                Padding = new Padding(10)
             };
-            chartPanel1.Paint += (s, e) => DrawCardBorder(e.Graphics, chartPanel1);
 
-            chartTrend = CreateInteractiveChart("Trend wydań i przyjęć w czasie");
+            chartTrend = CreateInteractiveChart("Wydania i przyjęcia w czasie");
             chartPanel1.Controls.Add(chartTrend);
-            chartsMainPanel.Controls.Add(chartPanel1); // Na końcu Fill
-
-            tab3.Controls.Add(chartsMainPanel);
+            tab3.Controls.Add(chartPanel1);
 
             // === ZAKŁADKA 4: STAN MAGAZYNU (KOMPAKTOWY LAYOUT) ===
             TabPage tab4 = new TabPage("  Stan mroźni  ");
@@ -1189,7 +1076,7 @@ namespace Kalendarz1
             tab5.Controls.Add(zewnMainPanel);
 
             // Stan magazynu jako pierwsza zakładka
-            tc.TabPages.AddRange(new TabPage[] { tab4, tab5, tab1, tab2, tab3 });
+            tc.TabPages.AddRange(new TabPage[] { tab4, tab5, tab1, tab3 });
             return tc;
         }
 
@@ -1239,15 +1126,17 @@ namespace Kalendarz1
             {
                 Dock = DockStyle.Fill,
                 BackColor = Color.White,
-                Padding = new Padding(10)
+                Padding = new Padding(10),
+                AntiAliasing = AntiAliasingStyles.All
             };
 
             Title chartTitle = new Title
             {
                 Text = title,
-                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
-                ForeColor = PrimaryColor,
-                Docking = Docking.Top
+                Font = new Font("Segoe UI", 13F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(50, 50, 50),
+                Docking = Docking.Top,
+                Alignment = ContentAlignment.MiddleLeft
             };
             chart.Titles.Add(chartTitle);
 
@@ -1257,31 +1146,44 @@ namespace Kalendarz1
                 BorderWidth = 0
             };
 
-            // Włącz scrollowanie i zoom
+            // Zoom i scroll
             area.CursorX.IsUserEnabled = true;
             area.CursorX.IsUserSelectionEnabled = true;
             area.CursorX.AutoScroll = true;
             area.AxisX.ScaleView.Zoomable = true;
             area.AxisX.ScrollBar.IsPositionedInside = true;
             area.AxisX.ScrollBar.ButtonStyle = ScrollBarButtonStyles.SmallScroll;
-            area.AxisX.ScrollBar.Size = 15;
+            area.AxisX.ScrollBar.Size = 14;
 
             area.CursorY.IsUserEnabled = true;
             area.CursorY.IsUserSelectionEnabled = true;
             area.AxisY.ScaleView.Zoomable = true;
 
-            area.AxisX.MajorGrid.LineColor = Color.FromArgb(230, 230, 230);
-            area.AxisY.MajorGrid.LineColor = Color.FromArgb(230, 230, 230);
-            area.AxisX.LabelStyle.Font = new Font("Segoe UI", 9F);
+            // Siatka - delikatna, przerywana
+            area.AxisX.MajorGrid.LineColor = Color.FromArgb(235, 237, 240);
+            area.AxisX.MajorGrid.LineDashStyle = ChartDashStyle.Dot;
+            area.AxisY.MajorGrid.LineColor = Color.FromArgb(235, 237, 240);
+            area.AxisY.MajorGrid.LineDashStyle = ChartDashStyle.Dash;
+
+            // Osie
+            area.AxisX.LineColor = Color.FromArgb(200, 200, 200);
+            area.AxisY.LineColor = Color.FromArgb(200, 200, 200);
+            area.AxisX.LabelStyle.Font = new Font("Segoe UI", 8.5F);
             area.AxisY.LabelStyle.Font = new Font("Segoe UI", 9F);
+            area.AxisX.LabelStyle.ForeColor = Color.FromArgb(100, 100, 100);
+            area.AxisY.LabelStyle.ForeColor = Color.FromArgb(100, 100, 100);
+
+            // Margines
+            area.InnerPlotPosition = new ElementPosition(6, 5, 92, 82);
 
             chart.ChartAreas.Add(area);
 
             Legend legend = new Legend
             {
                 Docking = Docking.Bottom,
-                Font = new Font("Segoe UI", 9F),
-                BackColor = Color.Transparent
+                Font = new Font("Segoe UI", 10F),
+                BackColor = Color.Transparent,
+                Alignment = StringAlignment.Center
             };
             chart.Legends.Add(legend);
 
@@ -1399,13 +1301,8 @@ namespace Kalendarz1
 
         private void SetupEvents()
         {
-            btnAnalizuj.Click += BtnAnalizuj_Click;
             btnSzybkiRaport.Click += BtnSzybkiRaport_Click;
             btnEksport.Click += BtnEksport_Click;
-            btnResetFiltr.Click += (s, e) => ResetujFiltry();
-
-            cmbFiltrProduktu.SelectedIndexChanged += (s, e) => AplikujFiltr();
-            txtSzukaj.TextChanged += (s, e) => AplikujFiltr();
 
             this.Load += Mroznia_Load;
         }
@@ -1420,25 +1317,22 @@ namespace Kalendarz1
 
             // Załaduj mroźnie zewnętrzne
             LoadMroznieZewnetrzneDoTabeli();
+
+            // Automatycznie załaduj przegląd dzienny i wykresy
+            AutoLoadData();
         }
 
         private void LoadInitialData()
         {
-            // Można tu załadować dane wstępne
         }
 
         // ============================================
         // GŁÓWNE FUNKCJE ANALITYCZNE
         // ============================================
 
-        private async void BtnAnalizuj_Click(object sender, EventArgs e)
+        private async void AutoLoadData()
         {
-            if (dtpOd.Value > dtpDo.Value)
-            {
-                MessageBox.Show("Data początkowa nie może być późniejsza niż data końcowa!",
-                    "Błąd dat", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
+            if (dtpOd.Value > dtpDo.Value) return;
 
             statusLabel.Text = "Ładowanie danych...";
             progressBar.Visible = true;
@@ -1453,51 +1347,36 @@ namespace Kalendarz1
             {
                 progressBar.Value = 10;
 
-                // Pobierz wszystkie dane w tle (nie blokuje UI)
-                DataTable dtDzienne = null, dtAnaliza = null, dtTrendy = null, dtTopProdukty = null;
+                DataTable dtDzienne = null, dtTrendy = null;
                 decimal wydanoSuma = 0, przyjetoSuma = 0;
                 int dniSuma = 0;
 
                 await Task.Run(() =>
                 {
                     dtDzienne = FetchDzienneZestawienie(od, doDaty);
-                    dtAnaliza = FetchAnalizaProduktu(od, doDaty);
                     dtTrendy = FetchTrendyData(od, doDaty);
-                    dtTopProdukty = FetchTopProdukty(od, doDaty);
                     FetchKartyStatystyk(od, doDaty, out wydanoSuma, out przyjetoSuma, out dniSuma);
                 });
 
-                // Wyświetl dane na wątku UI (po await jesteśmy z powrotem na UI thread)
                 progressBar.Value = 50;
                 DisplayDzienneZestawienie(dtDzienne);
 
-                progressBar.Value = 60;
-                DisplayAnalizaProduktu(dtAnaliza);
-
                 progressBar.Value = 70;
                 DisplayTrendy(dtTrendy);
-
-                progressBar.Value = 80;
-                DisplayTopProdukty(dtTopProdukty);
 
                 progressBar.Value = 90;
                 DisplayKartyStatystyk(wydanoSuma, przyjetoSuma, dniSuma);
 
                 progressBar.Value = 100;
                 lastAnalysisDate = DateTime.Now;
-                statusLabel.Text = $"Dane załadowane pomyślnie | {DateTime.Now:HH:mm:ss}";
+                statusLabel.Text = $"Dane za {od:dd.MM} - {doDaty:dd.MM.yyyy} | {DateTime.Now:HH:mm:ss}";
 
-                // 7bb: Toast zamiast MessageBox
-                ShowToast($"Dane załadowane ({DateTime.Now:HH:mm:ss})", SuccessColor);
-
-                // 1d: Aktualizuj badge'e
+                ShowToast($"Załadowano dane ({dtDzienne?.Rows.Count ?? 0} dni)", SuccessColor);
                 UpdateTabBadges();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Wystąpił błąd podczas ładowania danych:\n{ex.Message}",
-                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                statusLabel.Text = "Błąd ładowania danych";
+                statusLabel.Text = $"Błąd: {ex.Message}";
             }
             finally
             {
@@ -2021,64 +1900,6 @@ namespace Kalendarz1
             chartForm.ShowDialog();
         }
 
-        private DataTable FetchAnalizaProduktu(DateTime od, DateTime doDaty)
-        {
-            string query = $@"
-                WITH Dane AS (
-                    SELECT
-                        {SQL_GRUPOWANIE_PRODUKTU} AS Produkt,
-                        ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) AS Wydano,
-                        SUM(CASE WHEN MZ.ilosc > 0 THEN MZ.ilosc ELSE 0 END) AS Przyjeto,
-                        COUNT(DISTINCT MG.[Data]) AS DniAktywnosci
-                    FROM [HANDEL].[HM].[MG]
-                    JOIN [HANDEL].[HM].[MZ] ON MG.ID = MZ.super
-                    WHERE MG.magazyn = {MagazynMroznia}
-                    AND {SQL_FILTR_SERII}
-                    AND MG.[Data] BETWEEN @Od AND @Do
-                    GROUP BY {SQL_GRUPOWANIE_PRODUKTU}
-                )
-                SELECT
-                    Produkt,
-                    Wydano,
-                    Przyjeto,
-                    (Wydano - Przyjeto) AS Roznica,
-                    DniAktywnosci AS [Dni],
-                    CASE WHEN DniAktywnosci > 0 THEN Wydano / DniAktywnosci ELSE 0 END AS [Śr/dzień]
-                FROM Dane
-                WHERE Wydano > 0 OR Przyjeto > 0
-                ORDER BY Wydano DESC";
-
-            using (SqlConnection conn = new SqlConnection(connectionString))
-            {
-                SqlDataAdapter adapter = new SqlDataAdapter(query, conn);
-                adapter.SelectCommand.Parameters.AddWithValue("@Od", od);
-                adapter.SelectCommand.Parameters.AddWithValue("@Do", doDaty);
-
-                DataTable dt = new DataTable();
-                adapter.Fill(dt);
-                return dt;
-            }
-        }
-
-        private void DisplayAnalizaProduktu(DataTable dt)
-        {
-            dgvAnaliza.DataSource = dt;
-
-            FormatujKolumne(dgvAnaliza, "Wydano", "Wydano (kg)", "N0");
-            FormatujKolumne(dgvAnaliza, "Przyjeto", "Przyjęto (kg)", "N0");
-            FormatujKolumne(dgvAnaliza, "Roznica", "Różnica (kg)", "N0");
-            FormatujKolumne(dgvAnaliza, "Śr/dzień", "Średnio/dzień", "N1");
-
-            foreach (DataGridViewRow row in dgvAnaliza.Rows)
-            {
-                if (row.Cells["Roznica"].Value != null)
-                {
-                    decimal roznica = Convert.ToDecimal(row.Cells["Roznica"].Value);
-                    row.Cells["Roznica"].Style.ForeColor = roznica < 0 ? SuccessColor : DangerColor;
-                }
-            }
-        }
-
         private DataTable FetchTrendyData(DateTime od, DateTime doDaty)
         {
             string query = $@"
@@ -2112,147 +1933,95 @@ namespace Kalendarz1
         {
             chartTrend.Series.Clear();
 
-            Series seriesWydano = new Series("Wydane")
-            {
-                ChartType = GetChartTypeFromComboBox(),
-                BorderWidth = 3,
-                Color = Color.FromArgb(150, 41, 128, 185),
-                BorderColor = Color.FromArgb(41, 128, 185),
-                MarkerStyle = MarkerStyle.Circle,
-                MarkerSize = 6,
-                MarkerColor = Color.FromArgb(41, 128, 185)
-            };
+            if (dt == null || dt.Rows.Count == 0) return;
 
-            Series seriesPrzyjeto = new Series("Przyjęte")
-            {
-                ChartType = GetChartTypeFromComboBox(),
-                BorderWidth = 3,
-                Color = Color.FromArgb(150, 16, 124, 16),
-                BorderColor = Color.FromArgb(16, 124, 16),
-                MarkerStyle = MarkerStyle.Circle,
-                MarkerSize = 6,
-                MarkerColor = Color.FromArgb(16, 124, 16)
-            };
+            // Zbierz dane z bazy do słownika (dzień -> wartości)
+            var dataMap = new Dictionary<DateTime, (double wydano, double przyjeto)>();
+            DateTime minDate = DateTime.MaxValue, maxDate = DateTime.MinValue;
 
             foreach (DataRow row in dt.Rows)
             {
-                DateTime data = Convert.ToDateTime(row["Data"]);
+                DateTime data = Convert.ToDateTime(row["Data"]).Date;
                 double wydano = Convert.ToDouble(row["Wydano"]);
                 double przyjeto = Convert.ToDouble(row["Przyjeto"]);
+                dataMap[data] = (wydano, przyjeto);
 
-                if (chkPokazWydane.Checked)
-                {
-                    seriesWydano.Points.AddXY(data, wydano);
-                    seriesWydano.Points[seriesWydano.Points.Count - 1].ToolTip =
-                        $"Wydano\n{data:dd MMM yyyy}\n{wydano:N0} kg";
-                }
-
-                if (chkPokazPrzyjete.Checked)
-                {
-                    seriesPrzyjeto.Points.AddXY(data, przyjeto);
-                    seriesPrzyjeto.Points[seriesPrzyjeto.Points.Count - 1].ToolTip =
-                        $"Przyjęto\n{data:dd MMM yyyy}\n{przyjeto:N0} kg";
-                }
+                if (data < minDate) minDate = data;
+                if (data > maxDate) maxDate = data;
             }
 
-            if (chkPokazWydane.Checked)
-                chartTrend.Series.Add(seriesWydano);
-            if (chkPokazPrzyjete.Checked)
-                chartTrend.Series.Add(seriesPrzyjeto);
-
-            chartTrend.ChartAreas[0].AxisX.LabelStyle.Format = "dd-MM";
-            chartTrend.ChartAreas[0].AxisY.LabelStyle.Format = "N0";
-            chartTrend.ChartAreas[0].AxisX.Title = "Data";
-            chartTrend.ChartAreas[0].AxisY.Title = "Ilość (kg)";
-        }
-
-        /// <summary>
-        /// Synchroniczna wersja (używana przez UpdateWykres)
-        /// </summary>
-        private void LoadTrendy(DateTime od, DateTime doDaty)
-        {
-            DisplayTrendy(FetchTrendyData(od, doDaty));
-        }
-
-        private SeriesChartType GetChartTypeFromComboBox()
-        {
-            if (cmbWykresTyp == null) return SeriesChartType.Spline;
-
-            switch (cmbWykresTyp.SelectedIndex)
+            // Seria Wydane - SplineArea z wypełnieniem
+            Series seriesWydano = new Series("Wydane (kg)")
             {
-                case 0: return SeriesChartType.Spline;
-                case 1: return SeriesChartType.SplineArea;
-                case 2: return SeriesChartType.Column;
-                case 3: return SeriesChartType.Point;
-                default: return SeriesChartType.Spline;
+                ChartType = SeriesChartType.SplineArea,
+                BorderWidth = 3,
+                Color = Color.FromArgb(60, 41, 128, 185),
+                BorderColor = Color.FromArgb(41, 128, 185),
+                MarkerStyle = MarkerStyle.Circle,
+                MarkerSize = 5,
+                MarkerColor = Color.FromArgb(41, 128, 185),
+                MarkerBorderColor = Color.White,
+                MarkerBorderWidth = 1
+            };
+
+            // Seria Przyjęte - SplineArea z wypełnieniem
+            Series seriesPrzyjeto = new Series("Przyjęte (kg)")
+            {
+                ChartType = SeriesChartType.SplineArea,
+                BorderWidth = 3,
+                Color = Color.FromArgb(50, 46, 204, 113),
+                BorderColor = Color.FromArgb(46, 204, 113),
+                MarkerStyle = MarkerStyle.Circle,
+                MarkerSize = 5,
+                MarkerColor = Color.FromArgb(46, 204, 113),
+                MarkerBorderColor = Color.White,
+                MarkerBorderWidth = 1
+            };
+
+            // Wypełnij KAŻDY dzień (bez przerw na weekendy)
+            for (DateTime d = minDate; d <= maxDate; d = d.AddDays(1))
+            {
+                double wydano = 0, przyjeto = 0;
+                if (dataMap.ContainsKey(d))
+                {
+                    wydano = dataMap[d].wydano;
+                    przyjeto = dataMap[d].przyjeto;
+                }
+
+                seriesWydano.Points.AddXY(d, wydano);
+                seriesWydano.Points[seriesWydano.Points.Count - 1].ToolTip =
+                    $"{d:dd MMM yyyy}\nWydano: {wydano:N0} kg";
+
+                seriesPrzyjeto.Points.AddXY(d, przyjeto);
+                seriesPrzyjeto.Points[seriesPrzyjeto.Points.Count - 1].ToolTip =
+                    $"{d:dd MMM yyyy}\nPrzyjęto: {przyjeto:N0} kg";
+
+                // Oznacz weekendy (brak markera, przezroczysty punkt)
+                if (wydano == 0 && przyjeto == 0)
+                {
+                    seriesWydano.Points[seriesWydano.Points.Count - 1].MarkerSize = 0;
+                    seriesPrzyjeto.Points[seriesPrzyjeto.Points.Count - 1].MarkerSize = 0;
+                }
             }
-        }
 
-        private void UpdateWykres(object sender, EventArgs e)
-        {
-            if (cachedDzienneData == null || cachedDzienneData.Rows.Count == 0) return;
+            chartTrend.Series.Add(seriesWydano);
+            chartTrend.Series.Add(seriesPrzyjeto);
 
-            DateTime od = dtpOd.Value.Date;
-            DateTime doDaty = dtpDo.Value.Date;
-            LoadTrendy(od, doDaty);
+            var area = chartTrend.ChartAreas[0];
+            area.AxisX.LabelStyle.Format = "dd.MM";
+            area.AxisX.LabelStyle.Angle = -45;
+            area.AxisX.IntervalType = DateTimeIntervalType.Days;
+            area.AxisX.Interval = Math.Max(1, (maxDate - minDate).Days / 15);
+            area.AxisY.LabelStyle.Format = "N0";
+            area.AxisX.Title = "";
+            area.AxisY.Title = "kg";
+            area.AxisY.TitleFont = new Font("Segoe UI", 9F, FontStyle.Bold);
         }
 
         private void ResetChartZoom()
         {
             chartTrend.ChartAreas[0].AxisX.ScaleView.ZoomReset();
             chartTrend.ChartAreas[0].AxisY.ScaleView.ZoomReset();
-        }
-
-        private DataTable FetchTopProdukty(DateTime od, DateTime doDaty)
-        {
-            string query = $@"
-                SELECT TOP 10
-                    {SQL_GRUPOWANIE_PRODUKTU} AS Produkt,
-                    ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) AS Wydano
-                FROM [HANDEL].[HM].[MG]
-                JOIN [HANDEL].[HM].[MZ] ON MG.ID = MZ.super
-                WHERE MG.magazyn = {MagazynMroznia}
-                AND {SQL_FILTR_SERII}
-                AND MG.[Data] BETWEEN @Od AND @Do
-                GROUP BY {SQL_GRUPOWANIE_PRODUKTU}
-                ORDER BY Wydano DESC";
-
-            using (SqlConnection conn = new SqlConnection(connectionString))
-            {
-                using (SqlDataAdapter adapter = new SqlDataAdapter(query, conn))
-                {
-                    adapter.SelectCommand.Parameters.AddWithValue("@Od", od);
-                    adapter.SelectCommand.Parameters.AddWithValue("@Do", doDaty);
-
-                    DataTable dt = new DataTable();
-                    adapter.Fill(dt);
-                    return dt;
-                }
-            }
-        }
-
-        private void DisplayTopProdukty(DataTable dt)
-        {
-            chartProdukty.Series.Clear();
-
-            Series series = new Series("Produkty")
-            {
-                ChartType = SeriesChartType.Bar,
-                Palette = ChartColorPalette.BrightPastel
-            };
-
-            foreach (DataRow row in dt.Rows)
-            {
-                string produkt = row["Produkt"].ToString();
-                double wydano = Convert.ToDouble(row["Wydano"]);
-                series.Points.AddXY(produkt, wydano);
-                series.Points[series.Points.Count - 1].ToolTip = $"{produkt}\n{wydano:N0} kg";
-                series.Points[series.Points.Count - 1].Label = $"{wydano:N0}";
-            }
-
-            chartProdukty.Series.Add(series);
-            chartProdukty.ChartAreas[0].AxisX.Interval = 1;
-            chartProdukty.ChartAreas[0].AxisY.LabelStyle.Format = "N0";
         }
 
         private void FetchKartyStatystyk(DateTime od, DateTime doDaty, out decimal wydano, out decimal przyjeto, out int dni)
@@ -2801,9 +2570,9 @@ namespace Kalendarz1
 
         private void BtnEksport_Click(object sender, EventArgs e)
         {
-            if (dgvAnaliza.Rows.Count == 0)
+            if (dgvDzienne.Rows.Count == 0)
             {
-                MessageBox.Show("Brak danych do eksportu. Najpierw kliknij 'Analizuj'.",
+                MessageBox.Show("Brak danych do eksportu.",
                     "Brak danych", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
@@ -2817,7 +2586,7 @@ namespace Kalendarz1
                 {
                     try
                     {
-                        ExportToCSV(dgvAnaliza, sfd.FileName);
+                        ExportToCSV(dgvDzienne, sfd.FileName);
 
                         ShowToast($"Wyeksportowano: {Path.GetFileName(sfd.FileName)}", SuccessColor);
                         statusLabel.Text = $"Wyeksportowano do: {Path.GetFileName(sfd.FileName)}";
@@ -2867,55 +2636,6 @@ namespace Kalendarz1
             }
         }
 
-        private void AplikujFiltr()
-        {
-            if (dgvAnaliza.DataSource == null) return;
-
-            DataTable dt = (DataTable)dgvAnaliza.DataSource;
-            string filtr = "";
-
-            if (cmbFiltrProduktu.SelectedIndex > 0)
-            {
-                string wybranyProdukt = EscapeDataViewFilter(cmbFiltrProduktu.SelectedItem.ToString().Replace("Wszystkie produkty", ""));
-                if (!string.IsNullOrEmpty(wybranyProdukt))
-                    filtr = $"Produkt LIKE '%{wybranyProdukt}%'";
-            }
-
-            if (!string.IsNullOrWhiteSpace(txtSzukaj.Text))
-            {
-                string szukaj = EscapeDataViewFilter(txtSzukaj.Text);
-                string filterSzukaj = $"Produkt LIKE '%{szukaj}%'";
-                filtr = string.IsNullOrEmpty(filtr) ? filterSzukaj : $"{filtr} AND {filterSzukaj}";
-            }
-
-            try
-            {
-                dt.DefaultView.RowFilter = filtr;
-            }
-            catch (Exception ex)
-            {
-                statusLabel.Text = $"Błąd filtra: {ex.Message}";
-                dt.DefaultView.RowFilter = "";
-            }
-        }
-
-        private static string EscapeDataViewFilter(string value)
-        {
-            if (string.IsNullOrEmpty(value)) return value;
-            return value
-                .Replace("'", "''")
-                .Replace("[", "[[]")
-                .Replace("]", "[]]")
-                .Replace("*", "[*]")
-                .Replace("%", "[%]");
-        }
-
-        private void ResetujFiltry()
-        {
-            cmbFiltrProduktu.SelectedIndex = 0;
-            txtSzukaj.Clear();
-        }
-
         private void CmbPredkosc_SelectedIndexChanged(object sender, EventArgs e)
         {
             DateTime teraz = DateTime.Now;
@@ -2957,14 +2677,12 @@ namespace Kalendarz1
 
         private void DisableButtons()
         {
-            btnAnalizuj.Enabled = false;
             btnSzybkiRaport.Enabled = false;
             btnEksport.Enabled = false;
         }
 
         private void EnableButtons()
         {
-            btnAnalizuj.Enabled = true;
             btnSzybkiRaport.Enabled = true;
             btnEksport.Enabled = true;
         }
