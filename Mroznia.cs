@@ -31,23 +31,24 @@ namespace Kalendarz1
 
         // === KONTROLKI UI ===
         private DateTimePicker dtpOd, dtpDo, dtpStanMagazynu;
-        private Button btnAnalizuj, btnWykres, btnStanMagazynu, btnEksport, btnResetFiltr, btnSzybkiRaport, btnMapowanie;
+        private Button btnAnalizuj, btnEksport, btnResetFiltr, btnSzybkiRaport, btnMapowanie;
         private DataGridView dgvDzienne, dgvAnaliza, dgvStanMagazynu, dgvZamowienia;
         private DataGridView dgvMroznieZewnetrzne, dgvWydaniaZewnetrzne, dgvStanMrozniZewnetrznych;
         private TabControl tabControl;
         private ComboBox cmbFiltrProduktu, cmbPredkosc, cmbWykresTyp, cmbFiltrMroznia;
         private TextBox txtSzukaj;
-        private Label lblPodsumowanie, lblWydano, lblPrzyjeto, lblSrednia, lblTrendInfo;
+        private Label lblTrendInfo;
         private Label lblStanSuma, lblStanWartosc, lblStanProdukty, lblStanRezerwacje;
         private StatusStrip statusStrip;
         private ToolStripStatusLabel statusLabel;
         private ToolStripProgressBar progressBar;
         private Chart chartTrend, chartProdukty;
-        private Panel panelKarty;
-        private Panel topPanel;
-        private TableLayoutPanel mainLayout;
         private ToolTip toolTip;
         private CheckBox chkPokazWydane, chkPokazPrzyjete, chkGrupowanie;
+
+        // === CACHE STATYSTYK (zastępują usunięte karty) ===
+        private decimal lastWydano, lastPrzyjeto;
+        private int lastDni;
 
         // === STAŁE BIZNESOWE ===
         private const int MagazynMroznia = 65552;
@@ -96,19 +97,15 @@ namespace Kalendarz1
             toolTip = new ToolTip { AutoPopDelay = 5000, InitialDelay = 500 };
 
             // === GŁÓWNY LAYOUT ===
-            mainLayout = new TableLayoutPanel
+            var mainLayout = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
-                RowCount = 3,
+                RowCount = 2,
                 Padding = new Padding(0)
             };
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 175F));
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28F));
-
-            // === GÓRNY PANEL Z KARTAMI ===
-            topPanel = CreateTopPanel();
 
             // === GŁÓWNA ZAWARTOŚĆ ===
             tabControl = CreateTabControl();
@@ -116,127 +113,34 @@ namespace Kalendarz1
             // === STATUS BAR ===
             CreateStatusBar();
 
-            mainLayout.Controls.Add(topPanel, 0, 0);
-            mainLayout.Controls.Add(tabControl, 0, 1);
-            mainLayout.Controls.Add(statusStrip, 0, 2);
+            mainLayout.Controls.Add(tabControl, 0, 0);
+            mainLayout.Controls.Add(statusStrip, 0, 1);
 
             this.Controls.Add(mainLayout);
-
-            // Ukryj górny panel na zakładkach Stan/Mroźnie (index 0,1)
-            tabControl.SelectedIndexChanged += OnTabChanged;
-            OnTabChanged(null, EventArgs.Empty);
         }
 
-        private Panel CreateTopPanel()
+        private Panel CreateAnalysisToolbar()
         {
-            Panel mainPanel = new Panel
+            Panel toolbar = new Panel
             {
-                Dock = DockStyle.Fill,
-                BackColor = BackgroundColor,
-                Padding = new Padding(0)
-            };
-
-            // === NAGŁÓWEK Z LOGO I TYTUŁEM ===
-            Panel headerPanel = new Panel
-            {
-                Height = 100,
                 Dock = DockStyle.Top,
-                BackColor = Color.White
+                Height = 45,
+                BackColor = CardColor,
+                Padding = new Padding(10, 5, 10, 5)
             };
-            headerPanel.Paint += (s, e) =>
-            {
-                var g = e.Graphics;
-                g.SmoothingMode = SmoothingMode.AntiAlias;
-
-                // Gradient tła nagłówka
-                using (var brush = new LinearGradientBrush(
-                    headerPanel.ClientRectangle,
-                    Color.FromArgb(255, 255, 255),
-                    Color.FromArgb(248, 250, 252),
-                    LinearGradientMode.Vertical))
-                {
-                    g.FillRectangle(brush, headerPanel.ClientRectangle);
-                }
-
-                // Dolna linia gradientowa
-                using (var brush = new LinearGradientBrush(
-                    new Rectangle(0, headerPanel.Height - 3, headerPanel.Width, 3),
-                    Color.FromArgb(0, 120, 212),
-                    Color.FromArgb(16, 124, 16),
-                    LinearGradientMode.Horizontal))
-                {
-                    g.FillRectangle(brush, 0, headerPanel.Height - 3, headerPanel.Width, 3);
-                }
-            };
-
-            // Logo - duże i wyraźne
-            PictureBox logoBox = new PictureBox
-            {
-                Location = new Point(20, 10),
-                Size = new Size(80, 80),
-                SizeMode = PictureBoxSizeMode.Zoom,
-                BackColor = Color.Transparent,
-                Cursor = Cursors.Hand
-            };
-            try
-            {
-                string logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logo-2-green.png");
-                if (File.Exists(logoPath))
-                    logoBox.Image = Image.FromFile(logoPath);
-            }
-            catch { }
-            toolTip.SetToolTip(logoBox, "Mroźnia - System Analityczny PRO");
-
-            // Tytuł aplikacji
-            Label lblAppTitle = new Label
-            {
-                Text = "MROŹNIA",
-                Location = new Point(110, 18),
-                AutoSize = true,
-                Font = new Font("Segoe UI", 24F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(0, 120, 212),
-                BackColor = Color.Transparent
-            };
-
-            Label lblAppSubtitle = new Label
-            {
-                Text = "System Analityczny PRO",
-                Location = new Point(112, 55),
-                AutoSize = true,
-                Font = new Font("Segoe UI", 10F, FontStyle.Italic),
-                ForeColor = Color.FromArgb(100, 100, 100),
-                BackColor = Color.Transparent
-            };
-
-            // Panel dat i okresu
-            Panel datePanel = new Panel
-            {
-                Location = new Point(320, 15),
-                Size = new Size(380, 70),
-                BackColor = Color.FromArgb(248, 250, 252)
-            };
-            datePanel.Paint += (s, e) =>
-            {
-                using (var path = GetRoundedRectangle(new Rectangle(0, 0, datePanel.Width - 1, datePanel.Height - 1), 8))
-                using (var pen = new Pen(Color.FromArgb(220, 225, 230), 1))
-                {
-                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                    e.Graphics.DrawPath(pen, path);
-                }
-            };
+            toolbar.Paint += (s, e) => DrawCardBorder(e.Graphics, toolbar);
 
             Label lblOd = new Label
             {
                 Text = "Od:",
-                Location = new Point(15, 12),
+                Location = new Point(10, 14),
                 AutoSize = true,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = SecondaryTextColor,
-                BackColor = Color.Transparent
+                ForeColor = SecondaryTextColor
             };
             dtpOd = new DateTimePicker
             {
-                Location = new Point(45, 8),
+                Location = new Point(35, 10),
                 Width = 115,
                 Format = DateTimePickerFormat.Short,
                 Value = DateTime.Now.AddDays(-30),
@@ -246,34 +150,24 @@ namespace Kalendarz1
             Label lblDo = new Label
             {
                 Text = "Do:",
-                Location = new Point(170, 12),
+                Location = new Point(160, 14),
                 AutoSize = true,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = SecondaryTextColor,
-                BackColor = Color.Transparent
+                ForeColor = SecondaryTextColor
             };
             dtpDo = new DateTimePicker
             {
-                Location = new Point(200, 8),
+                Location = new Point(185, 10),
                 Width = 115,
                 Format = DateTimePickerFormat.Short,
                 Value = DateTime.Now,
                 Font = new Font("Segoe UI", 9F)
             };
 
-            Label lblOkres = new Label
-            {
-                Text = "Szybki wybór:",
-                Location = new Point(15, 42),
-                AutoSize = true,
-                Font = new Font("Segoe UI", 8F),
-                ForeColor = SecondaryTextColor,
-                BackColor = Color.Transparent
-            };
             cmbPredkosc = new ComboBox
             {
-                Location = new Point(95, 38),
-                Width = 160,
+                Location = new Point(315, 10),
+                Width = 150,
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Font = new Font("Segoe UI", 9F),
                 FlatStyle = FlatStyle.Flat
@@ -285,179 +179,20 @@ namespace Kalendarz1
             cmbPredkosc.SelectedIndex = 0;
             cmbPredkosc.SelectedIndexChanged += CmbPredkosc_SelectedIndexChanged;
 
-            datePanel.Controls.AddRange(new Control[] { lblOd, dtpOd, lblDo, dtpDo, lblOkres, cmbPredkosc });
-
-            // Panel przycisków akcji
-            FlowLayoutPanel buttonPanel = new FlowLayoutPanel
-            {
-                Location = new Point(720, 12),
-                Size = new Size(600, 76),
-                FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = true,
-                BackColor = Color.Transparent,
-                Padding = new Padding(0)
-            };
-
-            btnAnalizuj = CreateModernButtonNew("⚡ Analizuj", PrimaryColor, 110);
-            btnWykres = CreateModernButtonNew("📊 Wykresy", SuccessColor, 100);
-            btnStanMagazynu = CreateModernButtonNew("📦 Stan", WarningColor, 90);
-            btnSzybkiRaport = CreateModernButtonNew("📄 Raport", InfoColor, 100);
-            btnEksport = CreateModernButtonNew("💾 Eksport", DangerColor, 100);
+            btnAnalizuj = CreateModernButton("Analizuj", 480, 8, 90, PrimaryColor);
+            btnSzybkiRaport = CreateModernButton("Raport", 580, 8, 80, InfoColor);
+            btnEksport = CreateModernButton("Eksport", 670, 8, 80, DangerColor);
 
             toolTip.SetToolTip(btnAnalizuj, "Załaduj i analizuj dane dla wybranego okresu (F5)");
-            toolTip.SetToolTip(btnWykres, "Otwórz zaawansowane wykresy analityczne");
-            toolTip.SetToolTip(btnStanMagazynu, "Zobacz aktualny stan magazynu mroźni");
             toolTip.SetToolTip(btnSzybkiRaport, "Generuj szybki raport PDF");
             toolTip.SetToolTip(btnEksport, "Eksportuj dane do pliku Excel");
 
-            buttonPanel.Controls.AddRange(new Control[] {
-                btnAnalizuj, btnWykres, btnStanMagazynu, btnSzybkiRaport, btnEksport
+            toolbar.Controls.AddRange(new Control[] {
+                lblOd, dtpOd, lblDo, dtpDo, cmbPredkosc,
+                btnAnalizuj, btnSzybkiRaport, btnEksport
             });
 
-            headerPanel.Controls.AddRange(new Control[] { logoBox, lblAppTitle, lblAppSubtitle, datePanel, buttonPanel });
-
-            // === PANEL KART STATYSTYK ===
-            panelKarty = CreateKartyStatystyk();
-            panelKarty.Location = new Point(0, 100);
-
-            mainPanel.Controls.Add(panelKarty);
-            mainPanel.Controls.Add(headerPanel);
-
-            return mainPanel;
-        }
-
-        private Button CreateModernButtonNew(string text, Color color, int width)
-        {
-            Button btn = new Button
-            {
-                Text = text,
-                Size = new Size(width, 34),
-                Margin = new Padding(3),
-                FlatStyle = FlatStyle.Flat,
-                BackColor = color,
-                ForeColor = Color.White,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                Cursor = Cursors.Hand,
-                TabStop = false
-            };
-
-            btn.FlatAppearance.BorderSize = 0;
-            btn.FlatAppearance.MouseOverBackColor = ControlPaint.Light(color, 0.15f);
-            btn.FlatAppearance.MouseDownBackColor = ControlPaint.Dark(color, 0.1f);
-
-            // Zaokrąglone rogi
-            btn.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, btn.Width, btn.Height, 8, 8));
-
-            // Efekt hover
-            btn.MouseEnter += (s, e) => {
-                btn.BackColor = ControlPaint.Light(color, 0.15f);
-            };
-            btn.MouseLeave += (s, e) => {
-                btn.BackColor = color;
-            };
-
-            return btn;
-        }
-
-        private Panel CreateKartyStatystyk()
-        {
-            Panel panel = new Panel
-            {
-                Height = 75,
-                Dock = DockStyle.Top,
-                BackColor = BackgroundColor,
-                Padding = new Padding(15, 5, 15, 5)
-            };
-
-            // Karta 1 - Wydano
-            Panel card1 = CreateStatCard("📤 WYDANO", "0 kg", PrimaryColor, 0);
-            lblWydano = (Label)card1.Controls[1];
-
-            // Karta 2 - Przyjęto
-            Panel card2 = CreateStatCard("📥 PRZYJĘTO", "0 kg", SuccessColor, 1);
-            lblPrzyjeto = (Label)card2.Controls[1];
-
-            // Karta 3 - Średnia dzienna
-            Panel card3 = CreateStatCard("📈 ŚREDNIO/DZIEŃ", "0 kg", WarningColor, 2);
-            lblSrednia = (Label)card3.Controls[1];
-
-            // Karta 4 - Podsumowanie
-            Panel card4 = CreateStatCard("ℹ️ STATUS", "Wybierz okres", InfoColor, 3);
-            lblPodsumowanie = (Label)card4.Controls[1];
-            lblPodsumowanie.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-
-            panel.Controls.AddRange(new Control[] { card1, card2, card3, card4 });
-
-            return panel;
-        }
-
-        private Panel CreateStatCard(string title, string value, Color accentColor, int position)
-        {
-            int cardWidth = 300;
-            int margin = 15;
-
-            Panel card = new Panel
-            {
-                Location = new Point(15 + position * (cardWidth + margin), 5),
-                Size = new Size(cardWidth, 62),
-                BackColor = CardColor,
-                Cursor = Cursors.Hand
-            };
-            card.Paint += (s, e) =>
-            {
-                var g = e.Graphics;
-                g.SmoothingMode = SmoothingMode.AntiAlias;
-
-                // Tło z gradientem
-                using (var brush = new LinearGradientBrush(
-                    card.ClientRectangle,
-                    Color.White,
-                    Color.FromArgb(252, 253, 255),
-                    LinearGradientMode.Vertical))
-                {
-                    using (var path = GetRoundedRectangle(card.ClientRectangle, 10))
-                    {
-                        g.FillPath(brush, path);
-                    }
-                }
-
-                // Lewa krawędź kolorowa
-                using (var brush = new SolidBrush(accentColor))
-                {
-                    g.FillRectangle(brush, 0, 10, 4, card.Height - 20);
-                }
-
-                // Cień/border
-                using (var path = GetRoundedRectangle(new Rectangle(0, 0, card.Width - 1, card.Height - 1), 10))
-                using (var pen = new Pen(Color.FromArgb(230, 232, 235), 1))
-                {
-                    g.DrawPath(pen, path);
-                }
-            };
-
-            Label lblTitle = new Label
-            {
-                Text = title,
-                Location = new Point(15, 8),
-                AutoSize = true,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = SecondaryTextColor,
-                BackColor = Color.Transparent
-            };
-
-            Label lblValue = new Label
-            {
-                Text = value,
-                Location = new Point(15, 30),
-                AutoSize = true,
-                Font = new Font("Segoe UI", 15F, FontStyle.Bold),
-                ForeColor = accentColor,
-                BackColor = Color.Transparent
-            };
-
-            card.Controls.AddRange(new Control[] { lblTitle, lblValue });
-
-            return card;
+            return toolbar;
         }
 
         private Panel CreateStanStatCard(string title, string value, Color accentColor, int position)
@@ -588,16 +323,19 @@ namespace Kalendarz1
 
             Panel dziennyPanel = new Panel { Dock = DockStyle.Fill };
 
+            // Pasek narzędzi analizy (daty, przyciski)
+            Panel analysisToolbar = CreateAnalysisToolbar();
+
             // Górny panel z informacją
-            Panel infoPanel = new Panel { Dock = DockStyle.Top, Height = 50, BackColor = CardColor };
+            Panel infoPanel = new Panel { Dock = DockStyle.Top, Height = 40, BackColor = CardColor };
             infoPanel.Paint += (s, e) => DrawCardBorder(e.Graphics, infoPanel);
 
             Label lblInfo = new Label
             {
-                Text = "Kliknij dwukrotnie na wiersz aby zobaczyć szczegółowe pozycje dnia w nowym oknie",
+                Text = "Kliknij dwukrotnie na wiersz aby zobaczyć szczegółowe pozycje dnia",
                 Dock = DockStyle.Fill,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                ForeColor = PrimaryColor,
+                Font = new Font("Segoe UI", 9F, FontStyle.Italic),
+                ForeColor = SecondaryTextColor,
                 TextAlign = ContentAlignment.MiddleLeft,
                 Padding = new Padding(15, 0, 0, 0)
             };
@@ -611,6 +349,7 @@ namespace Kalendarz1
 
             dziennyPanel.Controls.Add(gridPanel);
             dziennyPanel.Controls.Add(infoPanel);
+            dziennyPanel.Controls.Add(analysisToolbar);
             tab1.Controls.Add(dziennyPanel);
 
             // === ZAKŁADKA 2: ANALIZA PRODUKTÓW ===
@@ -1264,8 +1003,6 @@ namespace Kalendarz1
         private void SetupEvents()
         {
             btnAnalizuj.Click += BtnAnalizuj_Click;
-            btnWykres.Click += (s, e) => tabControl.SelectedIndex = 3;
-            btnStanMagazynu.Click += (s, e) => tabControl.SelectedIndex = 0;
             btnSzybkiRaport.Click += BtnSzybkiRaport_Click;
             btnEksport.Click += BtnEksport_Click;
             btnResetFiltr.Click += (s, e) => ResetujFiltry();
@@ -1291,17 +1028,6 @@ namespace Kalendarz1
         private void LoadInitialData()
         {
             // Można tu załadować dane wstępne
-        }
-
-        /// <summary>
-        /// Ukrywa górny panel (nagłówek + karty) na zakładkach Stan/Mroźnie,
-        /// pokazuje go na zakładkach analizy
-        /// </summary>
-        private void OnTabChanged(object sender, EventArgs e)
-        {
-            bool showTop = tabControl.SelectedIndex >= 2; // index 0,1 = Stan/Mroźnie, 2+ = analiza
-            topPanel.Visible = showTop;
-            mainLayout.RowStyles[0].Height = showTop ? 175F : 0F;
         }
 
         // ============================================
@@ -2169,12 +1895,9 @@ namespace Kalendarz1
 
         private void DisplayKartyStatystyk(decimal wydano, decimal przyjeto, int dni)
         {
-            decimal srednia = dni > 0 ? wydano / dni : 0;
-
-            lblWydano.Text = $"{wydano:N0} kg";
-            lblPrzyjeto.Text = $"{przyjeto:N0} kg";
-            lblSrednia.Text = $"{srednia:N0} kg";
-            lblPodsumowanie.Text = $"{dni} dni analizy";
+            lastWydano = wydano;
+            lastPrzyjeto = przyjeto;
+            lastDni = dni;
         }
 
         private void BtnStanMagazynu_Click(object sender, EventArgs e)
@@ -2616,10 +2339,11 @@ namespace Kalendarz1
             raport.AppendLine($"Okres analizy: {dtpOd.Value:yyyy-MM-dd} - {dtpDo.Value:yyyy-MM-dd}");
             raport.AppendLine();
             raport.AppendLine("-----------------------------------");
-            raport.AppendLine($"Wydano:          {lblWydano.Text}");
-            raport.AppendLine($"Przyjęto:        {lblPrzyjeto.Text}");
-            raport.AppendLine($"Średnio/dzień:   {lblSrednia.Text}");
-            raport.AppendLine($"Status:          {lblPodsumowanie.Text}");
+            decimal srednia = lastDni > 0 ? lastWydano / lastDni : 0;
+            raport.AppendLine($"Wydano:          {lastWydano:N0} kg");
+            raport.AppendLine($"Przyjęto:        {lastPrzyjeto:N0} kg");
+            raport.AppendLine($"Średnio/dzień:   {srednia:N0} kg");
+            raport.AppendLine($"Status:          {lastDni} dni analizy");
             raport.AppendLine("-----------------------------------");
 
             Form raportForm = new Form
@@ -2818,8 +2542,6 @@ namespace Kalendarz1
         private void DisableButtons()
         {
             btnAnalizuj.Enabled = false;
-            btnWykres.Enabled = false;
-            btnStanMagazynu.Enabled = false;
             btnSzybkiRaport.Enabled = false;
             btnEksport.Enabled = false;
         }
@@ -2827,8 +2549,6 @@ namespace Kalendarz1
         private void EnableButtons()
         {
             btnAnalizuj.Enabled = true;
-            btnWykres.Enabled = true;
-            btnStanMagazynu.Enabled = true;
             btnSzybkiRaport.Enabled = true;
             btnEksport.Enabled = true;
         }
