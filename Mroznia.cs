@@ -856,19 +856,37 @@ namespace Kalendarz1
                     e.Graphics.DrawLine(pen, 0, rezToolbar.Height - 1, rezToolbar.Width, rezToolbar.Height - 1);
             };
 
+            Button btnDodajRez = CreateModernButton("+ Dodaj", 15, 7, 90, SuccessColor);
+            btnDodajRez.Click += (s, e) => DodajRezerwacjeZKarty();
+
+            Button btnEdytujRez = CreateModernButton("Edytuj", 115, 7, 80, InfoColor);
+            btnEdytujRez.Click += (s, e) => EdytujWybranaRezerwacje();
+
+            Button btnUsunRez = CreateModernButton("Usuń", 205, 7, 80, DangerColor);
+            btnUsunRez.Click += (s, e) => UsunWybranaRezerwacje();
+
             Label lblRezInfo = new Label
             {
-                Text = "Kliknij 2x na wiersz aby anulować rezerwację",
-                Location = new Point(15, 15),
+                Text = "2x klik = anuluj",
+                Location = new Point(300, 15),
                 AutoSize = true,
-                Font = new Font("Segoe UI", 10F, FontStyle.Italic),
-                ForeColor = Color.FromArgb(120, 120, 120)
+                Font = new Font("Segoe UI", 9F, FontStyle.Italic),
+                ForeColor = Color.FromArgb(160, 160, 160)
             };
-            rezToolbar.Controls.Add(lblRezInfo);
+
+            rezToolbar.Controls.AddRange(new Control[] { btnDodajRez, btnEdytujRez, btnUsunRez, lblRezInfo });
 
             dgvZamowienia = CreateStyledDataGridView();
             dgvZamowienia.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(220, 53, 69);
             dgvZamowienia.CellDoubleClick += DgvRezerwacje_CellDoubleClick;
+
+            // Menu kontekstowe rezerwacji
+            ContextMenuStrip ctxMenuRez = new ContextMenuStrip();
+            ctxMenuRez.Items.Add("Dodaj rezerwację", null, (s, e) => DodajRezerwacjeZKarty());
+            ctxMenuRez.Items.Add("Edytuj rezerwację", null, (s, e) => EdytujWybranaRezerwacje());
+            ctxMenuRez.Items.Add(new ToolStripSeparator());
+            ctxMenuRez.Items.Add("Usuń rezerwację", null, (s, e) => UsunWybranaRezerwacje());
+            dgvZamowienia.ContextMenuStrip = ctxMenuRez;
 
             rezMainPanel.Controls.Add(dgvZamowienia);
             rezMainPanel.Controls.Add(rezToolbar);
@@ -2893,6 +2911,103 @@ namespace Kalendarz1
             }
         }
 
+        /// <summary>
+        /// Dodaje nową rezerwację z zakładki Rezerwacje (wpisanie kodu produktu ręcznie)
+        /// </summary>
+        private void DodajRezerwacjeZKarty()
+        {
+            using (var dlg = new RezerwacjaEditorDialog(null, GetCurrentHandlowiec()))
+            {
+                if (dlg.ShowDialog() == DialogResult.OK)
+                {
+                    var rezerwacje = WczytajRezerwacje();
+                    var nowa = new RezerwacjaItem
+                    {
+                        Id = Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper(),
+                        KodProduktu = dlg.KodProduktu,
+                        Ilosc = dlg.Ilosc,
+                        Handlowiec = dlg.Handlowiec,
+                        DataRezerwacji = DateTime.Now,
+                        DataWaznosci = dlg.DataWaznosci,
+                        Uwagi = dlg.Uwagi
+                    };
+                    rezerwacje.Add(nowa);
+                    ZapiszRezerwacje(rezerwacje);
+
+                    BtnStanMagazynu_Click(null, null);
+                    ShowToast($"Dodano rezerwację: {dlg.KodProduktu} ({dlg.Ilosc:N0} kg)", SuccessColor);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Edytuje wybraną rezerwację z tabeli
+        /// </summary>
+        private void EdytujWybranaRezerwacje()
+        {
+            if (dgvZamowienia.SelectedRows.Count == 0)
+            {
+                ShowToast("Zaznacz rezerwację do edycji", WarningColor);
+                return;
+            }
+
+            var row = dgvZamowienia.SelectedRows[0];
+            string id = row.Cells["ID"].Value?.ToString() ?? "";
+
+            var rezerwacje = WczytajRezerwacje();
+            var rez = rezerwacje.FirstOrDefault(r => r.Id == id);
+            if (rez == null) return;
+
+            using (var dlg = new RezerwacjaEditorDialog(rez, GetCurrentHandlowiec()))
+            {
+                if (dlg.ShowDialog() == DialogResult.OK)
+                {
+                    rez.KodProduktu = dlg.KodProduktu;
+                    rez.Ilosc = dlg.Ilosc;
+                    rez.Handlowiec = dlg.Handlowiec;
+                    rez.DataWaznosci = dlg.DataWaznosci;
+                    rez.Uwagi = dlg.Uwagi;
+                    ZapiszRezerwacje(rezerwacje);
+
+                    BtnStanMagazynu_Click(null, null);
+                    ShowToast($"Zaktualizowano rezerwację: {dlg.KodProduktu}", InfoColor);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Usuwa wybraną rezerwację z tabeli
+        /// </summary>
+        private void UsunWybranaRezerwacje()
+        {
+            if (dgvZamowienia.SelectedRows.Count == 0)
+            {
+                ShowToast("Zaznacz rezerwację do usunięcia", WarningColor);
+                return;
+            }
+
+            var row = dgvZamowienia.SelectedRows[0];
+            string id = row.Cells["ID"].Value?.ToString() ?? "";
+            string produkt = row.Cells["Produkt"].Value?.ToString() ?? "";
+            decimal ilosc = Convert.ToDecimal(row.Cells["Ilość kg"].Value ?? 0);
+
+            var result = MessageBox.Show(
+                $"Usunąć rezerwację?\n\nProdukt: {produkt}\nIlość: {ilosc:N0} kg",
+                "Potwierdź usunięcie",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (result == DialogResult.Yes)
+            {
+                var rezerwacje = WczytajRezerwacje();
+                rezerwacje.RemoveAll(r => r.Id == id);
+                ZapiszRezerwacje(rezerwacje);
+
+                BtnStanMagazynu_Click(null, null);
+                ShowToast($"Usunięto rezerwację: {produkt}", DangerColor);
+            }
+        }
+
         private void DgvStanMagazynu_CellClick(object sender, DataGridViewCellEventArgs e)
         {
             // Pozwól na zaznaczenie wiersza
@@ -3586,6 +3701,149 @@ namespace Kalendarz1
             };
 
             this.Controls.AddRange(new Control[] { lblInfo, lblIlosc, nudIlosc, lblWaznosc, dtpWaznosc, btnOK, btnCancel });
+            this.AcceptButton = btnOK;
+            this.CancelButton = btnCancel;
+        }
+    }
+
+    /// <summary>
+    /// Dialog dodawania/edycji rezerwacji z pełnym formularzem
+    /// </summary>
+    public class RezerwacjaEditorDialog : Form
+    {
+        public string KodProduktu { get; private set; } = "";
+        public decimal Ilosc { get; private set; }
+        public string Handlowiec { get; private set; } = "";
+        public DateTime DataWaznosci { get; private set; }
+        public string Uwagi { get; private set; } = "";
+
+        public RezerwacjaEditorDialog(RezerwacjaItem existing, string defaultHandlowiec)
+        {
+            bool isEdit = existing != null;
+            this.Text = isEdit ? "Edytuj rezerwację" : "Nowa rezerwacja";
+            this.Size = new Size(420, 340);
+            this.StartPosition = FormStartPosition.CenterParent;
+            this.FormBorderStyle = FormBorderStyle.FixedDialog;
+            this.MaximizeBox = false;
+            this.MinimizeBox = false;
+            this.BackColor = Color.White;
+            this.Font = new Font("Segoe UI", 10F);
+
+            int y = 15;
+            int labelX = 15;
+            int inputX = 140;
+            int inputW = 240;
+
+            // Kod produktu
+            Label lblKod = new Label { Text = "Kod produktu:", Location = new Point(labelX, y + 3), AutoSize = true };
+            TextBox txtKod = new TextBox
+            {
+                Location = new Point(inputX, y),
+                Size = new Size(inputW, 28),
+                Text = existing?.KodProduktu ?? "",
+                Font = new Font("Segoe UI", 10F)
+            };
+            y += 38;
+
+            // Ilość
+            Label lblIlosc = new Label { Text = "Ilość (kg):", Location = new Point(labelX, y + 3), AutoSize = true };
+            NumericUpDown nudIlosc = new NumericUpDown
+            {
+                Location = new Point(inputX, y),
+                Size = new Size(120, 28),
+                Minimum = 1,
+                Maximum = 999999,
+                Value = Math.Max(1, existing?.Ilosc ?? 100),
+                DecimalPlaces = 0,
+                Font = new Font("Segoe UI", 10F)
+            };
+            y += 38;
+
+            // Handlowiec
+            Label lblHandlowiec = new Label { Text = "Handlowiec:", Location = new Point(labelX, y + 3), AutoSize = true };
+            TextBox txtHandlowiec = new TextBox
+            {
+                Location = new Point(inputX, y),
+                Size = new Size(inputW, 28),
+                Text = existing?.Handlowiec ?? defaultHandlowiec,
+                Font = new Font("Segoe UI", 10F)
+            };
+            y += 38;
+
+            // Data ważności
+            Label lblWaznosc = new Label { Text = "Ważna do:", Location = new Point(labelX, y + 3), AutoSize = true };
+            DateTimePicker dtpWaznosc = new DateTimePicker
+            {
+                Location = new Point(inputX, y),
+                Size = new Size(140, 28),
+                Format = DateTimePickerFormat.Short,
+                Value = existing?.DataWaznosci ?? DateTime.Today.AddDays(7),
+                MinDate = DateTime.Today,
+                Font = new Font("Segoe UI", 10F)
+            };
+            y += 38;
+
+            // Uwagi
+            Label lblUwagi = new Label { Text = "Uwagi:", Location = new Point(labelX, y + 3), AutoSize = true };
+            TextBox txtUwagi = new TextBox
+            {
+                Location = new Point(inputX, y),
+                Size = new Size(inputW, 28),
+                Text = existing?.Uwagi ?? "",
+                Font = new Font("Segoe UI", 10F)
+            };
+            y += 50;
+
+            // Przyciski
+            Button btnOK = new Button
+            {
+                Text = isEdit ? "Zapisz" : "Dodaj rezerwację",
+                Location = new Point(inputX, y),
+                Size = new Size(120, 36),
+                DialogResult = DialogResult.OK,
+                BackColor = isEdit ? Color.FromArgb(0, 120, 212) : Color.FromArgb(16, 124, 16),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold)
+            };
+            btnOK.FlatAppearance.BorderSize = 0;
+
+            Button btnCancel = new Button
+            {
+                Text = "Anuluj",
+                Location = new Point(inputX + 130, y),
+                Size = new Size(80, 36),
+                DialogResult = DialogResult.Cancel,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9.5F)
+            };
+
+            // Walidacja
+            btnOK.Click += (s, e) =>
+            {
+                if (string.IsNullOrWhiteSpace(txtKod.Text))
+                {
+                    MessageBox.Show("Wpisz kod produktu.", "Brak kodu", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    this.DialogResult = DialogResult.None;
+                    return;
+                }
+                if (string.IsNullOrWhiteSpace(txtHandlowiec.Text))
+                {
+                    MessageBox.Show("Wpisz handlowca.", "Brak handlowca", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    this.DialogResult = DialogResult.None;
+                    return;
+                }
+                KodProduktu = txtKod.Text.Trim();
+                Ilosc = nudIlosc.Value;
+                Handlowiec = txtHandlowiec.Text.Trim();
+                DataWaznosci = dtpWaznosc.Value.Date;
+                Uwagi = txtUwagi.Text.Trim();
+            };
+
+            this.Controls.AddRange(new Control[] {
+                lblKod, txtKod, lblIlosc, nudIlosc, lblHandlowiec, txtHandlowiec,
+                lblWaznosc, dtpWaznosc, lblUwagi, txtUwagi, btnOK, btnCancel
+            });
             this.AcceptButton = btnOK;
             this.CancelButton = btnCancel;
         }
