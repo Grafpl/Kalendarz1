@@ -44,6 +44,8 @@ namespace Kalendarz1
         private ToolStripProgressBar progressBar;
         private Chart chartTrend, chartProdukty;
         private Panel panelKarty;
+        private Panel topPanel;
+        private TableLayoutPanel mainLayout;
         private ToolTip toolTip;
         private CheckBox chkPokazWydane, chkPokazPrzyjete, chkGrupowanie;
 
@@ -94,7 +96,7 @@ namespace Kalendarz1
             toolTip = new ToolTip { AutoPopDelay = 5000, InitialDelay = 500 };
 
             // === GŁÓWNY LAYOUT ===
-            TableLayoutPanel mainLayout = new TableLayoutPanel
+            mainLayout = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
@@ -106,7 +108,7 @@ namespace Kalendarz1
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28F));
 
             // === GÓRNY PANEL Z KARTAMI ===
-            Panel topPanel = CreateTopPanel();
+            topPanel = CreateTopPanel();
 
             // === GŁÓWNA ZAWARTOŚĆ ===
             tabControl = CreateTabControl();
@@ -119,6 +121,10 @@ namespace Kalendarz1
             mainLayout.Controls.Add(statusStrip, 0, 2);
 
             this.Controls.Add(mainLayout);
+
+            // Ukryj górny panel na zakładkach Stan/Mroźnie (index 0,1)
+            tabControl.SelectedIndexChanged += OnTabChanged;
+            OnTabChanged(null, EventArgs.Empty);
         }
 
         private Panel CreateTopPanel()
@@ -1285,6 +1291,17 @@ namespace Kalendarz1
         private void LoadInitialData()
         {
             // Można tu załadować dane wstępne
+        }
+
+        /// <summary>
+        /// Ukrywa górny panel (nagłówek + karty) na zakładkach Stan/Mroźnie,
+        /// pokazuje go na zakładkach analizy
+        /// </summary>
+        private void OnTabChanged(object sender, EventArgs e)
+        {
+            bool showTop = tabControl.SelectedIndex >= 2; // index 0,1 = Stan/Mroźnie, 2+ = analiza
+            topPanel.Visible = showTop;
+            mainLayout.RowStyles[0].Height = showTop ? 175F : 0F;
         }
 
         // ============================================
