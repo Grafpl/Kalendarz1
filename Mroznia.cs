@@ -46,9 +46,26 @@ namespace Kalendarz1
         private ToolTip toolTip;
         private CheckBox chkPokazWydane, chkPokazPrzyjete, chkGrupowanie;
 
+        // === UX: Toast + kolorowy pasek zakładek ===
+        private Panel toastPanel;
+        private Label toastLabel;
+        private Timer toastTimer;
+        private Panel tabIndicatorPanel;
+        private FlowLayoutPanel mroznieCardsPanel;
+
         // === CACHE STATYSTYK (zastępują usunięte karty) ===
         private decimal lastWydano, lastPrzyjeto;
         private int lastDni;
+
+        // Kolory zakładek (1a - kolorowy wskaźnik)
+        private readonly Color[] TabColors = new Color[]
+        {
+            Color.FromArgb(0, 120, 212),   // Stan mroźni - niebieski
+            Color.FromArgb(16, 124, 16),   // Mroźnie zewnętrzne - zielony
+            Color.FromArgb(255, 140, 0),   // Przegląd dzienny - pomarańczowy
+            Color.FromArgb(142, 68, 173),  // Analiza produktów - fioletowy
+            Color.FromArgb(232, 17, 35)    // Wykresy - czerwony
+        };
 
         // === STAŁE BIZNESOWE ===
         private const int MagazynMroznia = 65552;
@@ -101,22 +118,36 @@ namespace Kalendarz1
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
-                RowCount = 2,
+                RowCount = 3,
                 Padding = new Padding(0)
             };
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28F));
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 4F));   // kolorowy wskaźnik
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));  // zakładki
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28F));  // status bar
+
+            // === 1a: KOLOROWY PASEK WSKAŹNIKA ZAKŁADKI ===
+            tabIndicatorPanel = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = TabColors[0],
+                Margin = new Padding(0)
+            };
 
             // === GŁÓWNA ZAWARTOŚĆ ===
             tabControl = CreateTabControl();
+            tabControl.SelectedIndexChanged += TabControl_SelectedIndexChanged;
 
             // === STATUS BAR ===
             CreateStatusBar();
 
-            mainLayout.Controls.Add(tabControl, 0, 0);
-            mainLayout.Controls.Add(statusStrip, 0, 1);
+            mainLayout.Controls.Add(tabIndicatorPanel, 0, 0);
+            mainLayout.Controls.Add(tabControl, 0, 1);
+            mainLayout.Controls.Add(statusStrip, 0, 2);
 
             this.Controls.Add(mainLayout);
+
+            // === 7bb: TOAST NOTIFICATION SYSTEM ===
+            InitializeToastSystem();
         }
 
         private Panel CreateAnalysisToolbar()
@@ -193,6 +224,367 @@ namespace Kalendarz1
             });
 
             return toolbar;
+        }
+
+        // ============================================
+        // 1a: KOLOROWY PASEK WSKAŹNIKA ZAKŁADKI
+        // ============================================
+
+        private void TabControl_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            int idx = tabControl.SelectedIndex;
+            if (idx >= 0 && idx < TabColors.Length)
+            {
+                Color target = TabColors[idx];
+                tabIndicatorPanel.BackColor = target;
+            }
+
+            // 1d: Aktualizuj badge'e na zakładkach
+            UpdateTabBadges();
+        }
+
+        // ============================================
+        // 1d: BADGE'E NA ZAKŁADKACH
+        // ============================================
+
+        private void UpdateTabBadges()
+        {
+            try
+            {
+                // Tab 0 - Stan mroźni: liczba produktów
+                if (dgvStanMagazynu?.DataSource is DataTable dtStan && dtStan.Rows.Count > 0)
+                {
+                    int count = dtStan.Rows.Count;
+                    // Odejmij wiersz SUMA jeśli jest
+                    if (dtStan.Rows.Count > 0 && dtStan.Rows[0]["Kod/Produkt"]?.ToString() == "SUMA")
+                        count--;
+                    tabControl.TabPages[0].Text = $"  Stan mroźni ({count})  ";
+                }
+
+                // Tab 1 - Mroźnie zewnętrzne: liczba mroźni
+                if (dgvMroznieZewnetrzne?.DataSource is DataTable dtMr)
+                    tabControl.TabPages[1].Text = $"  Mroźnie zewnętrzne ({dtMr.Rows.Count})  ";
+
+                // Tab 2 - Przegląd dzienny: liczba dni
+                if (dgvDzienne?.DataSource is DataTable dtDz && dtDz.Rows.Count > 0)
+                    tabControl.TabPages[2].Text = $"  Przegląd dzienny ({dtDz.Rows.Count})  ";
+                else
+                    tabControl.TabPages[2].Text = "  Przegląd dzienny  ";
+
+                // Tab 4 (index 3): Analiza - liczba produktów
+                if (dgvAnaliza?.DataSource is DataTable dtAn && dtAn.Rows.Count > 0)
+                    tabControl.TabPages[3].Text = $"  Analiza produktów ({dtAn.Rows.Count})  ";
+                else
+                    tabControl.TabPages[3].Text = "  Analiza produktów  ";
+
+                // Tab 3 (index 4) - Wykresy: bez badge'a
+            }
+            catch { }
+        }
+
+        // ============================================
+        // 7bb: TOAST NOTIFICATION SYSTEM
+        // ============================================
+
+        private void InitializeToastSystem()
+        {
+            toastPanel = new Panel
+            {
+                Size = new Size(380, 44),
+                BackColor = SuccessColor,
+                Visible = false,
+                Anchor = AnchorStyles.Bottom | AnchorStyles.Right
+            };
+            toastPanel.Paint += (s, e) =>
+            {
+                using (var path = GetRoundedRectangle(new Rectangle(0, 0, toastPanel.Width - 1, toastPanel.Height - 1), 8))
+                {
+                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    using (var brush = new SolidBrush(toastPanel.BackColor))
+                        e.Graphics.FillPath(brush, path);
+                }
+            };
+
+            toastLabel = new Label
+            {
+                Dock = DockStyle.Fill,
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleCenter,
+                BackColor = Color.Transparent
+            };
+            toastPanel.Controls.Add(toastLabel);
+
+            toastTimer = new Timer { Interval = 3000 };
+            toastTimer.Tick += (s, e) =>
+            {
+                toastTimer.Stop();
+                toastPanel.Visible = false;
+            };
+
+            this.Controls.Add(toastPanel);
+            toastPanel.BringToFront();
+        }
+
+        private void ShowToast(string message, Color? color = null)
+        {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action(() => ShowToast(message, color)));
+                return;
+            }
+
+            toastPanel.BackColor = color ?? SuccessColor;
+            toastLabel.Text = message;
+            toastPanel.Location = new Point(
+                this.ClientSize.Width - toastPanel.Width - 20,
+                this.ClientSize.Height - toastPanel.Height - 40);
+            toastPanel.Visible = true;
+            toastPanel.BringToFront();
+            toastTimer.Stop();
+            toastTimer.Start();
+        }
+
+        // ============================================
+        // 7cc: PODŚWIETLENIE ZMIENIONEGO WIERSZA
+        // ============================================
+
+        private void HighlightChangedRows(DataGridView dgv, HashSet<int> changedRowIndices)
+        {
+            if (changedRowIndices == null || changedRowIndices.Count == 0) return;
+
+            Color highlightColor = Color.FromArgb(255, 255, 200); // jasny żółty
+
+            foreach (int idx in changedRowIndices)
+            {
+                if (idx >= 0 && idx < dgv.Rows.Count)
+                    dgv.Rows[idx].DefaultCellStyle.BackColor = highlightColor;
+            }
+
+            // Timer do wygaszenia po 2.5s
+            Timer fadeTimer = new Timer { Interval = 2500 };
+            fadeTimer.Tick += (s, e) =>
+            {
+                fadeTimer.Stop();
+                fadeTimer.Dispose();
+
+                try
+                {
+                    foreach (int idx in changedRowIndices)
+                    {
+                        if (idx >= 0 && idx < dgv.Rows.Count)
+                        {
+                            dgv.Rows[idx].DefaultCellStyle.BackColor = Color.Empty;
+                        }
+                    }
+                    dgv.Invalidate();
+                }
+                catch { }
+            };
+            fadeTimer.Start();
+        }
+
+        // ============================================
+        // 6z: KARTY MROŹNI ZEWNĘTRZNYCH
+        // ============================================
+
+        private FlowLayoutPanel CreateMroznieCardsPanel()
+        {
+            mroznieCardsPanel = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                AutoScroll = true,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = true,
+                BackColor = BackgroundColor,
+                Padding = new Padding(5)
+            };
+            return mroznieCardsPanel;
+        }
+
+        private Panel CreateMrozniaCard(string id, string nazwa, string adres, string kontakty, decimal stan)
+        {
+            Panel card = new Panel
+            {
+                Size = new Size(260, 140),
+                Margin = new Padding(8),
+                BackColor = CardColor,
+                Cursor = Cursors.Hand,
+                Tag = id
+            };
+
+            // Kolor lewej krawędzi w zależności od stanu
+            Color accentColor = stan > 500 ? SuccessColor : stan > 0 ? WarningColor : SecondaryTextColor;
+
+            card.Paint += (s, e) =>
+            {
+                var g = e.Graphics;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+
+                // Tło z zaokrąglonymi rogami
+                using (var path = GetRoundedRectangle(card.ClientRectangle, 10))
+                {
+                    using (var brush = new LinearGradientBrush(
+                        card.ClientRectangle, Color.White, Color.FromArgb(250, 252, 255),
+                        LinearGradientMode.Vertical))
+                        g.FillPath(brush, path);
+
+                    // Border
+                    using (var pen = new Pen(Color.FromArgb(225, 228, 232), 1))
+                        g.DrawPath(pen, path);
+                }
+
+                // Lewa krawędź kolorowa
+                using (var brush = new SolidBrush(accentColor))
+                    g.FillRectangle(brush, 0, 12, 4, card.Height - 24);
+            };
+
+            // Ikona + nazwa
+            Label lblNazwa = new Label
+            {
+                Text = $"\u2744 {nazwa}",
+                Location = new Point(14, 10),
+                Size = new Size(230, 24),
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                ForeColor = TextColor,
+                BackColor = Color.Transparent
+            };
+
+            // Adres
+            Label lblAdres = new Label
+            {
+                Text = adres,
+                Location = new Point(14, 36),
+                Size = new Size(230, 18),
+                Font = new Font("Segoe UI", 8.5F),
+                ForeColor = SecondaryTextColor,
+                BackColor = Color.Transparent
+            };
+
+            // Kontakt
+            Label lblKontakt = new Label
+            {
+                Text = kontakty,
+                Location = new Point(14, 56),
+                Size = new Size(230, 18),
+                Font = new Font("Segoe UI", 8.5F),
+                ForeColor = SecondaryTextColor,
+                BackColor = Color.Transparent
+            };
+
+            // Separator
+            Panel separator = new Panel
+            {
+                Location = new Point(14, 80),
+                Size = new Size(232, 1),
+                BackColor = Color.FromArgb(230, 232, 235)
+            };
+
+            // Stan - duży, wyraźny
+            Label lblStan = new Label
+            {
+                Text = $"{stan:N0} kg",
+                Location = new Point(14, 88),
+                Size = new Size(150, 30),
+                Font = new Font("Segoe UI", 16F, FontStyle.Bold),
+                ForeColor = accentColor,
+                BackColor = Color.Transparent
+            };
+
+            // Status badge
+            string statusText = stan > 500 ? "AKTYWNA" : stan > 0 ? "NISKA" : "PUSTA";
+            Color badgeBg = stan > 500 ? Color.FromArgb(220, 245, 220) :
+                            stan > 0 ? Color.FromArgb(255, 245, 220) :
+                            Color.FromArgb(240, 240, 240);
+            Color badgeFg = stan > 500 ? SuccessColor : stan > 0 ? WarningColor : SecondaryTextColor;
+
+            Label lblStatus = new Label
+            {
+                Text = statusText,
+                Location = new Point(170, 96),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                ForeColor = badgeFg,
+                BackColor = badgeBg,
+                Padding = new Padding(6, 2, 6, 2)
+            };
+
+            card.Controls.AddRange(new Control[] { lblNazwa, lblAdres, lblKontakt, separator, lblStan, lblStatus });
+
+            // Hover effect
+            Action<Control, bool> setHover = null;
+            setHover = (ctrl, hover) =>
+            {
+                card.BackColor = hover ? Color.FromArgb(245, 248, 255) : CardColor;
+            };
+
+            foreach (Control c in card.Controls)
+            {
+                c.MouseEnter += (s, e) => setHover(card, true);
+                c.MouseLeave += (s, e) => setHover(card, false);
+                c.Click += (s, e) => SelectMrozniaCard(card);
+            }
+            card.MouseEnter += (s, e) => setHover(card, true);
+            card.MouseLeave += (s, e) => setHover(card, false);
+            card.Click += (s, e) => SelectMrozniaCard(card);
+
+            return card;
+        }
+
+        private Panel selectedMrozniaCard;
+
+        private void SelectMrozniaCard(Panel card)
+        {
+            // Odznacz poprzednio wybraną
+            if (selectedMrozniaCard != null)
+                selectedMrozniaCard.BackColor = CardColor;
+
+            selectedMrozniaCard = card;
+            card.BackColor = Color.FromArgb(230, 240, 255);
+
+            // Znajdź odpowiadający wiersz w dgvMroznieZewnetrzne i zaznacz go
+            string id = card.Tag?.ToString();
+            if (string.IsNullOrEmpty(id) || dgvMroznieZewnetrzne?.DataSource == null) return;
+
+            foreach (DataGridViewRow row in dgvMroznieZewnetrzne.Rows)
+            {
+                if (row.Cells["ID"].Value?.ToString() == id)
+                {
+                    dgvMroznieZewnetrzne.ClearSelection();
+                    row.Selected = true;
+                    dgvMroznieZewnetrzne.FirstDisplayedScrollingRowIndex = row.Index;
+                    break;
+                }
+            }
+        }
+
+        private void RefreshMroznieCards()
+        {
+            if (mroznieCardsPanel == null) return;
+
+            mroznieCardsPanel.SuspendLayout();
+            mroznieCardsPanel.Controls.Clear();
+
+            var mroznie = WczytajMroznieZewnetrzne();
+            foreach (var m in mroznie)
+            {
+                decimal stan = m.Wydania?.Where(w => w.Typ == "Przyjęcie").Sum(w => w.Ilosc) ?? 0;
+                stan -= m.Wydania?.Where(w => w.Typ == "Wydanie").Sum(w => w.Ilosc) ?? 0;
+
+                string kontaktyStr = "";
+                if (m.Kontakty != null && m.Kontakty.Count > 0)
+                {
+                    var pierwszy = m.Kontakty[0];
+                    kontaktyStr = $"{pierwszy.Imie}: {pierwszy.Telefon}";
+                    if (m.Kontakty.Count > 1)
+                        kontaktyStr += $" (+{m.Kontakty.Count - 1})";
+                }
+
+                Panel card = CreateMrozniaCard(m.Id, m.Nazwa, m.Adres, kontaktyStr, stan);
+                mroznieCardsPanel.Controls.Add(card);
+            }
+
+            mroznieCardsPanel.ResumeLayout();
         }
 
         private Panel CreateStanStatCard(string title, string value, Color accentColor, int position)
@@ -684,12 +1076,12 @@ namespace Kalendarz1
                     splitLeftMroznia.SplitterDistance = (int)(splitLeftMroznia.Height * 0.35);
             };
 
-            // Górna część: Lista mroźni
+            // Górna część: Lista mroźni (6z - karty zamiast tabeli)
             Panel panelListaMrozni = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             Panel zewnLeftHeader = new Panel { Dock = DockStyle.Top, Height = 35, BackColor = SuccessColor };
             Label lblZewnLeft = new Label
             {
-                Text = "📋 LISTA MROŹNI ZEWNĘTRZNYCH",
+                Text = "\u2744 MROŹNIE ZEWNĘTRZNE",
                 Dock = DockStyle.Fill,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 ForeColor = Color.White,
@@ -697,13 +1089,19 @@ namespace Kalendarz1
             };
             zewnLeftHeader.Controls.Add(lblZewnLeft);
 
+            // Ukryty grid (dane wewnętrzne - używany do selekcji i wyszukiwania ID)
             dgvMroznieZewnetrzne = CreateStyledDataGridView();
             dgvMroznieZewnetrzne.ColumnHeadersDefaultCellStyle.BackColor = SuccessColor;
             dgvMroznieZewnetrzne.SelectionChanged += DgvMroznieZewnetrzne_SelectionChanged;
+            dgvMroznieZewnetrzne.Visible = false;
+            dgvMroznieZewnetrzne.Dock = DockStyle.None;
+            dgvMroznieZewnetrzne.Size = new Size(0, 0);
 
-            Panel zewnLeftGrid = new Panel { Dock = DockStyle.Fill };
-            zewnLeftGrid.Controls.Add(dgvMroznieZewnetrzne);
-            panelListaMrozni.Controls.Add(zewnLeftGrid);
+            // Panel kart mroźni (6z)
+            FlowLayoutPanel cardsPanel = CreateMroznieCardsPanel();
+
+            panelListaMrozni.Controls.Add(cardsPanel);
+            panelListaMrozni.Controls.Add(dgvMroznieZewnetrzne);
             panelListaMrozni.Controls.Add(zewnLeftHeader);
 
             // Dolna część: Stan zbiorczy wszystkich mroźni
@@ -1089,6 +1487,12 @@ namespace Kalendarz1
                 progressBar.Value = 100;
                 lastAnalysisDate = DateTime.Now;
                 statusLabel.Text = $"Dane załadowane pomyślnie | {DateTime.Now:HH:mm:ss}";
+
+                // 7bb: Toast zamiast MessageBox
+                ShowToast($"Dane załadowane ({DateTime.Now:HH:mm:ss})", SuccessColor);
+
+                // 1d: Aktualizuj badge'e
+                UpdateTabBadges();
             }
             catch (Exception ex)
             {
@@ -1332,8 +1736,7 @@ namespace Kalendarz1
                     try
                     {
                         ExportToCSV(dgv, sfd.FileName);
-                        MessageBox.Show("Dane wyeksportowane pomyślnie!", "Sukces",
-                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        ShowToast("Dane wyeksportowane pomyślnie!", SuccessColor);
                     }
                     catch (Exception ex)
                     {
@@ -2260,9 +2663,23 @@ namespace Kalendarz1
 
                     // Załaduj rezerwacje w prawym panelu
                     LoadRezerwacjeDoTabeli();
+
+                    // 7cc: Podświetl wiersze ze zmianami
+                    var changedRows = new HashSet<int>();
+                    for (int i = 1; i < dgvStanMagazynu.Rows.Count; i++)
+                    {
+                        string zmiana = dgvStanMagazynu.Rows[i].Cells["Zmiana"].Value?.ToString();
+                        if (!string.IsNullOrEmpty(zmiana) && !zmiana.Contains("bez zmian"))
+                            changedRows.Add(i);
+                    }
+                    if (changedRows.Count > 0)
+                        HighlightChangedRows(dgvStanMagazynu, changedRows);
                 }
 
                 statusLabel.Text = $"Stan magazynu na {dataStan:yyyy-MM-dd} (porównanie z {dataPoprzedni:yyyy-MM-dd})";
+
+                // 1d: Aktualizuj badge'e
+                UpdateTabBadges();
             }
             catch (Exception ex)
             {
@@ -2373,8 +2790,7 @@ namespace Kalendarz1
             Button btnKopiuj = CreateModernButton("Kopiuj", 140, 15, 120, PrimaryColor);
             btnKopiuj.Click += (s, ev) => {
                 Clipboard.SetText(txtRaport.Text);
-                MessageBox.Show("Raport skopiowany do schowka!", "Sukces",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                ShowToast("Raport skopiowany do schowka!", PrimaryColor);
             };
 
             btnPanel.Controls.AddRange(new Control[] { btnZamknij, btnKopiuj });
@@ -2404,13 +2820,14 @@ namespace Kalendarz1
                     {
                         ExportToCSV(dgvAnaliza, sfd.FileName);
 
-                        if (MessageBox.Show($"Dane zostały wyeksportowane!\n\nCzy otworzyć plik?",
-                            "Eksport zakończony", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+                        ShowToast($"Wyeksportowano: {Path.GetFileName(sfd.FileName)}", SuccessColor);
+                        statusLabel.Text = $"Wyeksportowano do: {Path.GetFileName(sfd.FileName)}";
+
+                        if (MessageBox.Show($"Czy otworzyć plik?",
+                            "Eksport zakończony", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
                         {
                             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(sfd.FileName) { UseShellExecute = true });
                         }
-
-                        statusLabel.Text = $"Wyeksportowano do: {Path.GetFileName(sfd.FileName)}";
                     }
                     catch (Exception ex)
                     {
@@ -2785,6 +3202,7 @@ namespace Kalendarz1
                 // Odśwież widok
                 BtnStanMagazynu_Click(null, null);
                 statusLabel.Text = $"Anulowano rezerwację {produkt} ({ilosc:N0} kg)";
+                ShowToast($"Anulowano rezerwację: {produkt}", WarningColor);
             }
         }
 
@@ -2862,6 +3280,7 @@ namespace Kalendarz1
                     BtnStanMagazynu_Click(null, null);
 
                     statusLabel.Text = $"Zarezerwowano {dlg.Ilosc:N0} kg {kodProduktu} dla {handlowiec} (ważne do {dlg.DataWaznosci:dd.MM.yyyy})";
+                    ShowToast($"Zarezerwowano {dlg.Ilosc:N0} kg {kodProduktu}", SuccessColor);
                 }
             }
         }
@@ -2882,6 +3301,7 @@ namespace Kalendarz1
                 ZapiszRezerwacje(rezerwacje);
                 BtnStanMagazynu_Click(null, null);
                 statusLabel.Text = $"Usunięto {usuniete} rezerwacji dla {kodProduktu}";
+                ShowToast($"Usunięto rezerwacje: {kodProduktu}", DangerColor);
             }
         }
 
@@ -2990,8 +3410,14 @@ namespace Kalendarz1
             dgvMroznieZewnetrzne.Columns["ID"].Visible = false;
             dgvMroznieZewnetrzne.Columns["Stan (kg)"].DefaultCellStyle.Format = "N0";
 
+            // 6z: Odśwież karty mroźni
+            RefreshMroznieCards();
+
             // Załaduj stan zbiorczy wszystkich mroźni
             LoadStanZbiorczyMrozniZewnetrznych(mroznie);
+
+            // 1d: Aktualizuj badge'e
+            UpdateTabBadges();
         }
 
         private void LoadStanZbiorczyMrozniZewnetrznych(List<MrozniaZewnetrzna> mroznie)
@@ -3248,6 +3674,7 @@ namespace Kalendarz1
                     ZapiszMroznieZewnetrzne(mroznie);
                     LoadMroznieZewnetrzneDoTabeli();
                     statusLabel.Text = $"Dodano mroźnię: {dlg.NazwaMrozni}";
+                    ShowToast($"Dodano mroźnię: {dlg.NazwaMrozni}", SuccessColor);
                 }
             }
         }
@@ -3277,6 +3704,7 @@ namespace Kalendarz1
                     ZapiszMroznieZewnetrzne(mroznie);
                     LoadMroznieZewnetrzneDoTabeli();
                     statusLabel.Text = $"Zaktualizowano mroźnię: {dlg.NazwaMrozni}";
+                    ShowToast($"Zaktualizowano: {dlg.NazwaMrozni}", PrimaryColor);
                 }
             }
         }
@@ -3301,6 +3729,7 @@ namespace Kalendarz1
                 ZapiszMroznieZewnetrzne(mroznie);
                 LoadMroznieZewnetrzneDoTabeli();
                 statusLabel.Text = $"Usunięto mroźnię: {nazwa}";
+                ShowToast($"Usunięto mroźnię: {nazwa}", DangerColor);
             }
         }
 
@@ -3353,6 +3782,8 @@ namespace Kalendarz1
                         LoadMroznieZewnetrzneDoTabeli();
                         DgvMroznieZewnetrzne_SelectionChanged(null, null);
                         statusLabel.Text = $"{dlg.Typ}: {dlg.Pozycje.Count} pozycji, razem {sumaIlosc:N0} kg ({nazwa})";
+                        Color toastColor = dlg.Typ == "Przyjęcie" ? SuccessColor : WarningColor;
+                        ShowToast($"{dlg.Typ}: {sumaIlosc:N0} kg ({nazwa})", toastColor);
                     }
                 }
             }
