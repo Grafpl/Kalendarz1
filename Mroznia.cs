@@ -60,9 +60,10 @@ namespace Kalendarz1
         private readonly Color[] TabColors = new Color[]
         {
             Color.FromArgb(0, 120, 212),   // Stan mroźni - niebieski
+            Color.FromArgb(220, 53, 69),   // Rezerwacje - czerwony
             Color.FromArgb(16, 124, 16),   // Mroźnie zewnętrzne - zielony
             Color.FromArgb(255, 140, 0),   // Przegląd dzienny - pomarańczowy
-            Color.FromArgb(232, 17, 35)    // Wykresy - czerwony
+            Color.FromArgb(140, 20, 252)   // Wykresy - fioletowy
         };
 
         // === STAŁE BIZNESOWE ===
@@ -262,23 +263,28 @@ namespace Kalendarz1
                 if (dgvStanMagazynu?.DataSource is DataTable dtStan && dtStan.Rows.Count > 0)
                 {
                     int count = dtStan.Rows.Count;
-                    // Odejmij wiersz SUMA jeśli jest
-                    if (dtStan.Rows.Count > 0 && dtStan.Rows[0]["Kod/Produkt"]?.ToString() == "SUMA")
+                    if (dtStan.Rows[0]["Kod/Produkt"]?.ToString() == "SUMA")
                         count--;
                     tabControl.TabPages[0].Text = $"  Stan mroźni ({count})  ";
                 }
 
-                // Tab 1 - Mroźnie zewnętrzne: liczba mroźni
-                if (dgvMroznieZewnetrzne?.DataSource is DataTable dtMr)
-                    tabControl.TabPages[1].Text = $"  Mroźnie zewnętrzne ({dtMr.Rows.Count})  ";
-
-                // Tab 2 - Przegląd dzienny: liczba dni
-                if (dgvDzienne?.DataSource is DataTable dtDz && dtDz.Rows.Count > 0)
-                    tabControl.TabPages[2].Text = $"  Przegląd dzienny ({dtDz.Rows.Count})  ";
+                // Tab 1 - Rezerwacje: liczba rezerwacji
+                if (dgvZamowienia?.DataSource is DataTable dtRez && dtRez.Rows.Count > 0)
+                    tabControl.TabPages[1].Text = $"  Rezerwacje ({dtRez.Rows.Count})  ";
                 else
-                    tabControl.TabPages[2].Text = "  Przegląd dzienny  ";
+                    tabControl.TabPages[1].Text = "  Rezerwacje  ";
 
-                // Tab 3 - Wykresy: bez badge'a
+                // Tab 2 - Mroźnie zewnętrzne: liczba mroźni
+                if (dgvMroznieZewnetrzne?.DataSource is DataTable dtMr)
+                    tabControl.TabPages[2].Text = $"  Mroźnie zewnętrzne ({dtMr.Rows.Count})  ";
+
+                // Tab 3 - Przegląd dzienny: liczba dni
+                if (dgvDzienne?.DataSource is DataTable dtDz && dtDz.Rows.Count > 0)
+                    tabControl.TabPages[3].Text = $"  Przegląd dzienny ({dtDz.Rows.Count})  ";
+                else
+                    tabControl.TabPages[3].Text = "  Przegląd dzienny  ";
+
+                // Tab 4 - Wykresy: bez badge'a
             }
             catch { }
         }
@@ -817,39 +823,7 @@ namespace Kalendarz1
                 lblStanSuma, lblStanRezerwacje, lblStanWartosc, lblStanProdukty, chkGrupowanie
             });
 
-            // === SPLITCONTAINER: LEWA (Stan) + PRAWA (Rezerwacje) ===
-            SplitContainer splitStan = new SplitContainer
-            {
-                Dock = DockStyle.Fill,
-                Orientation = Orientation.Vertical,
-                SplitterWidth = 5,
-                BackColor = BackgroundColor
-            };
-            // Ustaw podział 50/50 po załadowaniu
-            splitStan.SizeChanged += (s, e) => {
-                if (splitStan.Width > 0)
-                    splitStan.SplitterDistance = splitStan.Width / 2;
-            };
-
-            // --- LEWA STRONA: STAN MAGAZYNU ---
-            Panel leftPanel = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(0) };
-
-            Panel lblLeftHeader = new Panel
-            {
-                Dock = DockStyle.Top,
-                Height = 35,
-                BackColor = PrimaryColor
-            };
-            Label lblLeftTitle = new Label
-            {
-                Text = "STAN MAGAZYNU",
-                Dock = DockStyle.Fill,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                ForeColor = Color.White,
-                TextAlign = ContentAlignment.MiddleCenter
-            };
-            lblLeftHeader.Controls.Add(lblLeftTitle);
-
+            // === STAN MAGAZYNU - pełnoekranowa tabela ===
             dgvStanMagazynu = CreateStyledDataGridView();
             dgvStanMagazynu.DoubleClick += DgvStanMagazynu_DoubleClick;
             dgvStanMagazynu.MouseClick += DgvStanMagazynu_MouseClick;
@@ -863,48 +837,43 @@ namespace Kalendarz1
             ctxMenuStan.Items.Add("Historia", null, (s, e) => PokazHistorieWybranegoProduktu());
             dgvStanMagazynu.ContextMenuStrip = ctxMenuStan;
 
-            Panel leftGridPanel = new Panel { Dock = DockStyle.Fill };
-            leftGridPanel.Controls.Add(dgvStanMagazynu);
+            stanMainPanel.Controls.Add(dgvStanMagazynu);
+            stanMainPanel.Controls.Add(stanToolbar);
 
-            leftPanel.Controls.Add(leftGridPanel);
-            leftPanel.Controls.Add(lblLeftHeader);
+            tab4.Controls.Add(stanMainPanel);
 
-            // --- PRAWA STRONA: REZERWACJE ---
-            Panel rightPanel = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(0) };
+            // === ZAKŁADKA REZERWACJE ===
+            TabPage tabRez = new TabPage("  Rezerwacje  ");
+            tabRez.BackColor = BackgroundColor;
+            tabRez.Padding = new Padding(8);
 
-            Panel lblRightHeader = new Panel
-            {
-                Dock = DockStyle.Top,
-                Height = 35,
-                BackColor = DangerColor
+            Panel rezMainPanel = new Panel { Dock = DockStyle.Fill };
+
+            // Toolbar rezerwacji
+            Panel rezToolbar = new Panel { Dock = DockStyle.Top, Height = 50, BackColor = Color.White };
+            rezToolbar.Paint += (s, e) => {
+                using (var pen = new Pen(Color.FromArgb(230, 230, 230), 1))
+                    e.Graphics.DrawLine(pen, 0, rezToolbar.Height - 1, rezToolbar.Width, rezToolbar.Height - 1);
             };
-            Label lblRightTitle = new Label
+
+            Label lblRezInfo = new Label
             {
-                Text = "REZERWACJE (2x klik = anuluj)",
-                Dock = DockStyle.Fill,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                ForeColor = Color.White,
-                TextAlign = ContentAlignment.MiddleCenter
+                Text = "Kliknij 2x na wiersz aby anulować rezerwację",
+                Location = new Point(15, 15),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 10F, FontStyle.Italic),
+                ForeColor = Color.FromArgb(120, 120, 120)
             };
-            lblRightHeader.Controls.Add(lblRightTitle);
+            rezToolbar.Controls.Add(lblRezInfo);
 
             dgvZamowienia = CreateStyledDataGridView();
             dgvZamowienia.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(220, 53, 69);
             dgvZamowienia.CellDoubleClick += DgvRezerwacje_CellDoubleClick;
 
-            Panel rightGridPanel = new Panel { Dock = DockStyle.Fill };
-            rightGridPanel.Controls.Add(dgvZamowienia);
+            rezMainPanel.Controls.Add(dgvZamowienia);
+            rezMainPanel.Controls.Add(rezToolbar);
 
-            rightPanel.Controls.Add(rightGridPanel);
-            rightPanel.Controls.Add(lblRightHeader);
-
-            splitStan.Panel1.Controls.Add(leftPanel);
-            splitStan.Panel2.Controls.Add(rightPanel);
-
-            stanMainPanel.Controls.Add(splitStan);
-            stanMainPanel.Controls.Add(stanToolbar);
-
-            tab4.Controls.Add(stanMainPanel);
+            tabRez.Controls.Add(rezMainPanel);
 
             // === ZAKŁADKA 5: MROŹNIE ZEWNĘTRZNE ===
             TabPage tab5 = new TabPage("  Mroźnie zewnętrzne  ");
@@ -1076,7 +1045,7 @@ namespace Kalendarz1
             tab5.Controls.Add(zewnMainPanel);
 
             // Stan magazynu jako pierwsza zakładka
-            tc.TabPages.AddRange(new TabPage[] { tab4, tab5, tab1, tab3 });
+            tc.TabPages.AddRange(new TabPage[] { tab4, tabRez, tab5, tab1, tab3 });
             return tc;
         }
 
@@ -1091,6 +1060,7 @@ namespace Kalendarz1
                 ReadOnly = true,
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
+                AllowUserToResizeRows = false,
                 BackgroundColor = Color.White,
                 BorderStyle = BorderStyle.None,
                 ColumnHeadersHeight = 45,
@@ -4437,6 +4407,7 @@ namespace Kalendarz1
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
+                AllowUserToResizeRows = false,
                 ReadOnly = true,
                 Font = new Font("Segoe UI", 10F),
                 RowTemplate = { Height = 35 }
