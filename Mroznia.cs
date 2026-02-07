@@ -787,7 +787,7 @@ namespace Kalendarz1
                 Font = new Font("Segoe UI", 7F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(130, 130, 130)
             };
-            Panel cardDzWydano = new Panel { Location = new Point(10, 4), Size = new Size(180, 44), BackColor = Color.White };
+            Panel cardDzWydano = new Panel { Location = new Point(10, 4), Size = new Size(220, 44), BackColor = Color.White };
             cardDzWydano.Paint += (s, e) =>
             {
                 using (var pen = new Pen(DangerColor, 2)) e.Graphics.DrawLine(pen, 0, 0, 0, cardDzWydano.Height);
@@ -813,7 +813,7 @@ namespace Kalendarz1
                 Font = new Font("Segoe UI", 7F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(130, 130, 130)
             };
-            Panel cardDzPrzyjeto = new Panel { Location = new Point(200, 4), Size = new Size(180, 44), BackColor = Color.White };
+            Panel cardDzPrzyjeto = new Panel { Location = new Point(245, 4), Size = new Size(220, 44), BackColor = Color.White };
             cardDzPrzyjeto.Paint += (s, e) =>
             {
                 using (var pen = new Pen(SuccessColor, 2)) e.Graphics.DrawLine(pen, 0, 0, 0, cardDzPrzyjeto.Height);
@@ -837,7 +837,7 @@ namespace Kalendarz1
                 Font = new Font("Segoe UI", 7F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(130, 130, 130)
             };
-            Panel cardDzBilans = new Panel { Location = new Point(390, 4), Size = new Size(180, 44), BackColor = Color.White };
+            Panel cardDzBilans = new Panel { Location = new Point(480, 4), Size = new Size(220, 44), BackColor = Color.White };
             cardDzBilans.Paint += (s, e) =>
             {
                 using (var pen = new Pen(PrimaryColor, 2)) e.Graphics.DrawLine(pen, 0, 0, 0, cardDzBilans.Height);
@@ -926,7 +926,7 @@ namespace Kalendarz1
             Panel cardStan = new Panel
             {
                 Location = new Point(255, 6),
-                Size = new Size(180, 44),
+                Size = new Size(220, 44),
                 BackColor = Color.White
             };
             cardStan.Paint += (s, e) => {
@@ -956,8 +956,8 @@ namespace Kalendarz1
             // Karta statystyk: Rezerwacje
             Panel cardRez = new Panel
             {
-                Location = new Point(450, 6),
-                Size = new Size(180, 44),
+                Location = new Point(490, 6),
+                Size = new Size(220, 44),
                 BackColor = Color.White
             };
             cardRez.Paint += (s, e) => {
@@ -991,7 +991,7 @@ namespace Kalendarz1
             chkUkryjZewnetrzne = new CheckBox
             {
                 Text = "Ukryj mroźnie zewnętrzne",
-                Location = new Point(650, 18),
+                Location = new Point(730, 18),
                 AutoSize = true,
                 Font = new Font("Segoe UI", 9F),
                 ForeColor = Color.FromArgb(80, 80, 80),
