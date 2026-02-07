@@ -281,7 +281,7 @@
                           MouseDoubleClick="TabelaDane_MouseDoubleClick"
                           AlternationCount="2">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="HANDLOWIEC" Binding="{Binding Nazwa}" Width="200">
+                        <DataGridTextColumn Header="HANDLOWIEC" Binding="{Binding Nazwa}" Width="*">
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="VerticalAlignment" Value="Center"/>

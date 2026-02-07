@@ -500,7 +500,7 @@
                                     </Style>
                                 </DataGrid.CellStyle>
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="HANDLOWIEC" Binding="{Binding Handlowiec}" Width="180">
+                                    <DataGridTextColumn Header="HANDLOWIEC" Binding="{Binding Handlowiec}" Width="2*">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
@@ -510,7 +510,7 @@
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="SUMA KG" Binding="{Binding SumaKgTekst}" Width="120">
+                                    <DataGridTextColumn Header="SUMA KG" Binding="{Binding SumaKgTekst}" Width="1.2*">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -521,7 +521,7 @@
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="SR. CENA" Binding="{Binding SredniaCenaTekst}" Width="110">
+                                    <DataGridTextColumn Header="SR. CENA" Binding="{Binding SredniaCenaTekst}" Width="1*">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -532,7 +532,7 @@
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="MIN" Binding="{Binding MinCenaTekst}" Width="100">
+                                    <DataGridTextColumn Header="MIN" Binding="{Binding MinCenaTekst}" Width="0.8*">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -543,7 +543,7 @@
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="MAX" Binding="{Binding MaxCenaTekst}" Width="100">
+                                    <DataGridTextColumn Header="MAX" Binding="{Binding MaxCenaTekst}" Width="0.8*">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -554,7 +554,7 @@
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="WARTOSC" Binding="{Binding SumaWartoscTekst}" Width="140">
+                                    <DataGridTextColumn Header="WARTOSC" Binding="{Binding SumaWartoscTekst}" Width="1.5*">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -565,7 +565,7 @@
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="TRANSAKCJI" Binding="{Binding LiczbaTransakcji}" Width="110">
+                                    <DataGridTextColumn Header="TRANSAKCJI" Binding="{Binding LiczbaTransakcji}" Width="1*">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Center"/>
@@ -575,7 +575,7 @@
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="KLIENTOW" Binding="{Binding LiczbaKontrahentow}" Width="100">
+                                    <DataGridTextColumn Header="KLIENTOW" Binding="{Binding LiczbaKontrahentow}" Width="1*">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Center"/>
@@ -1401,7 +1401,7 @@
                                 </DataGrid.CellStyle>
                                 <DataGrid.Columns>
                                     <!-- Kontrahent -->
-                                    <DataGridTextColumn Header="KONTRAHENT" Binding="{Binding Kontrahent}" Width="220">
+                                    <DataGridTextColumn Header="KONTRAHENT" Binding="{Binding Kontrahent}" Width="2*">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="FontWeight" Value="Bold"/>
@@ -1413,7 +1413,7 @@
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
                                     <!-- Limit -->
-                                    <DataGridTextColumn Header="LIMIT" Binding="{Binding LimitKredytuTekst}" Width="130">
+                                    <DataGridTextColumn Header="LIMIT" Binding="{Binding LimitKredytuTekst}" Width="1*">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -1425,7 +1425,7 @@
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
                                     <!-- Do zaplacenia -->
-                                    <DataGridTextColumn Header="DO ZAPLATY" Binding="{Binding DoZaplatyTekst}" Width="140">
+                                    <DataGridTextColumn Header="DO ZAPLATY" Binding="{Binding DoZaplatyTekst}" Width="1.2*">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -1438,7 +1438,7 @@
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
                                     <!-- Przekroczony limit -->
-                                    <DataGridTextColumn Header="PRZEKR. LIMIT" Binding="{Binding PrzekroczonyLimitTekst}" Width="140">
+                                    <DataGridTextColumn Header="PRZEKR. LIMIT" Binding="{Binding PrzekroczonyLimitTekst}" Width="1.2*">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -1456,7 +1456,7 @@
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
                                     <!-- Terminowe -->
-                                    <DataGridTextColumn Header="TERMINOWE" Binding="{Binding TerminoweTekst}" Width="130">
+                                    <DataGridTextColumn Header="TERMINOWE" Binding="{Binding TerminoweTekst}" Width="1*">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -1469,7 +1469,7 @@
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
                                     <!-- Przeterminowane -->
-                                    <DataGridTextColumn Header="PRZETERMIN." Binding="{Binding PrzeterminowaneTekst}" Width="140">
+                                    <DataGridTextColumn Header="PRZETERMIN." Binding="{Binding PrzeterminowaneTekst}" Width="1.2*">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -1487,7 +1487,7 @@
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
                                     <!-- Najpozniejsza platnosc - z ikona ostrzezenia -->
-                                    <DataGridTemplateColumn Header="NAJSTARSZA" Width="180">
+                                    <DataGridTemplateColumn Header="NAJSTARSZA" Width="1.5*">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
