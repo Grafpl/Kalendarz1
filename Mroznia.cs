@@ -443,23 +443,29 @@ namespace Kalendarz1
             {
                 var g = e.Graphics;
                 g.SmoothingMode = SmoothingMode.AntiAlias;
+                bool isSelected = (card == selectedMrozniaCard);
 
                 // Tło z zaokrąglonymi rogami
                 using (var path = GetRoundedRectangle(card.ClientRectangle, 10))
                 {
+                    Color bgTop = isSelected ? Color.FromArgb(220, 235, 255) : Color.White;
+                    Color bgBottom = isSelected ? Color.FromArgb(235, 245, 255) : Color.FromArgb(250, 252, 255);
                     using (var brush = new LinearGradientBrush(
-                        card.ClientRectangle, Color.White, Color.FromArgb(250, 252, 255),
+                        card.ClientRectangle, bgTop, bgBottom,
                         LinearGradientMode.Vertical))
                         g.FillPath(brush, path);
 
-                    // Border
-                    using (var pen = new Pen(Color.FromArgb(225, 228, 232), 1))
+                    // Border - grubszy i niebieski gdy zaznaczony
+                    Color borderColor = isSelected ? PrimaryColor : Color.FromArgb(225, 228, 232);
+                    float borderWidth = isSelected ? 2.5f : 1f;
+                    using (var pen = new Pen(borderColor, borderWidth))
                         g.DrawPath(pen, path);
                 }
 
                 // Lewa krawędź kolorowa
-                using (var brush = new SolidBrush(accentColor))
-                    g.FillRectangle(brush, 0, 12, 4, card.Height - 24);
+                Color leftEdge = isSelected ? PrimaryColor : accentColor;
+                using (var brush = new SolidBrush(leftEdge))
+                    g.FillRectangle(brush, 0, 12, isSelected ? 5 : 4, card.Height - 24);
             };
 
             // Ikona + nazwa
@@ -534,49 +540,55 @@ namespace Kalendarz1
 
             card.Controls.AddRange(new Control[] { lblNazwa, lblAdres, lblKontakt, separator, lblStan, lblStatus });
 
-            // Hover effect
-            Action<Control, bool> setHover = null;
-            setHover = (ctrl, hover) =>
-            {
-                card.BackColor = hover ? Color.FromArgb(245, 248, 255) : CardColor;
-            };
-
+            // Hover effect - repaint only, respects selection
             foreach (Control c in card.Controls)
             {
-                c.MouseEnter += (s, e) => setHover(card, true);
-                c.MouseLeave += (s, e) => setHover(card, false);
+                c.MouseEnter += (s, e) => { card.Cursor = Cursors.Hand; card.Invalidate(); };
+                c.MouseLeave += (s, e) => card.Invalidate();
                 c.Click += (s, e) => SelectMrozniaCard(card);
             }
-            card.MouseEnter += (s, e) => setHover(card, true);
-            card.MouseLeave += (s, e) => setHover(card, false);
+            card.MouseEnter += (s, e) => card.Invalidate();
+            card.MouseLeave += (s, e) => card.Invalidate();
             card.Click += (s, e) => SelectMrozniaCard(card);
 
             return card;
         }
 
         private Panel selectedMrozniaCard;
+        private Label lblWydaniaHeaderNazwa;
 
         private void SelectMrozniaCard(Panel card)
         {
-            // Odznacz poprzednio wybraną
-            if (selectedMrozniaCard != null)
-                selectedMrozniaCard.BackColor = CardColor;
-
+            // Odznacz poprzednio wybraną - wymuś odświeżenie
+            Panel prevCard = selectedMrozniaCard;
             selectedMrozniaCard = card;
-            card.BackColor = Color.FromArgb(230, 240, 255);
+
+            if (prevCard != null && prevCard != card)
+                prevCard.Invalidate();
+            card.Invalidate();
 
             // Znajdź odpowiadający wiersz w dgvMroznieZewnetrzne i zaznacz go
             string id = card.Tag?.ToString();
             if (string.IsNullOrEmpty(id) || dgvMroznieZewnetrzne?.DataSource == null) return;
 
+            // Aktualizuj nagłówek "Stan i wydania" z nazwą mroźni
+            string nazwa = null;
             foreach (DataGridViewRow row in dgvMroznieZewnetrzne.Rows)
             {
                 if (row.Cells["ID"].Value?.ToString() == id)
                 {
+                    nazwa = row.Cells["Nazwa"].Value?.ToString();
                     dgvMroznieZewnetrzne.ClearSelection();
                     row.Selected = true;
                     break;
                 }
+            }
+
+            if (lblWydaniaHeaderNazwa != null)
+            {
+                lblWydaniaHeaderNazwa.Text = string.IsNullOrEmpty(nazwa)
+                    ? "STAN I WYDANIA MROŹNI"
+                    : $"STAN I WYDANIA MROŹNI: {nazwa.ToUpper()}";
             }
         }
 
@@ -1063,7 +1075,7 @@ namespace Kalendarz1
             // Prawa: Szczegóły i wydania
             Panel zewnRightPanel = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             Panel zewnRightHeader = new Panel { Dock = DockStyle.Top, Height = 35, BackColor = PrimaryColor };
-            Label lblZewnRight = new Label
+            lblWydaniaHeaderNazwa = new Label
             {
                 Text = "STAN I WYDANIA MROŹNI",
                 Dock = DockStyle.Fill,
@@ -1071,7 +1083,7 @@ namespace Kalendarz1
                 ForeColor = Color.White,
                 TextAlign = ContentAlignment.MiddleCenter
             };
-            zewnRightHeader.Controls.Add(lblZewnRight);
+            zewnRightHeader.Controls.Add(lblWydaniaHeaderNazwa);
 
             // Panel filtra mroźni
             Panel filterPanelMroznia = new Panel { Dock = DockStyle.Top, Height = 45, BackColor = Color.FromArgb(245, 247, 250), Padding = new Padding(10, 8, 10, 8) };
@@ -3522,6 +3534,8 @@ namespace Kalendarz1
             {
                 dgvWydaniaZewnetrzne.DataSource = null;
                 UpdateFiltrMrozniComboBox();
+                if (lblWydaniaHeaderNazwa != null)
+                    lblWydaniaHeaderNazwa.Text = "STAN I WYDANIA MROŹNI";
                 return;
             }
 
@@ -3531,6 +3545,10 @@ namespace Kalendarz1
             var mroznie = WczytajMroznieZewnetrzne();
             var mroznia = mroznie.FirstOrDefault(m => m.Id == id);
             if (mroznia == null) return;
+
+            // Aktualizuj nagłówek z nazwą wybranej mroźni
+            if (lblWydaniaHeaderNazwa != null)
+                lblWydaniaHeaderNazwa.Text = $"STAN I WYDANIA MROŹNI: {mroznia.Nazwa.ToUpper()}";
 
             // Aktualizuj ComboBox filtra
             UpdateFiltrMrozniComboBox();
