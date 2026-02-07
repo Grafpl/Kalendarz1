@@ -268,11 +268,6 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             cmbMiesiacUdzialDo.DisplayMemberPath = "Text";
             cmbMiesiacUdzialDo.SelectedValuePath = "Value";
             UstawUdzialDaty5MiesiecyWstecz();
-            // Zablokuj edycje dat - zawsze auto 5 miesiecy
-            cmbRokUdzialOd.IsEnabled = false;
-            cmbMiesiacUdzialOd.IsEnabled = false;
-            cmbRokUdzialDo.IsEnabled = false;
-            cmbMiesiacUdzialDo.IsEnabled = false;
 
             // Analiza cen
             cmbRokCeny.ItemsSource = lata;
@@ -873,8 +868,6 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
         private async System.Threading.Tasks.Task OdswiezUdzialHandlowcowAsync()
         {
-            // Zawsze odswiez daty na 5 miesiecy wstecz
-            UstawUdzialDaty5MiesiecyWstecz();
             if (cmbRokUdzialOd.SelectedItem == null || cmbMiesiacUdzialOd.SelectedValue == null ||
                 cmbRokUdzialDo.SelectedItem == null || cmbMiesiacUdzialDo.SelectedValue == null) return;
 
