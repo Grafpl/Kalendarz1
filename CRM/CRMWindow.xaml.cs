@@ -1235,6 +1235,15 @@ namespace Kalendarz1.CRM
             }
         }
 
+        private void TxtNowaNotatka_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == System.Windows.Input.Key.Enter)
+            {
+                e.Handled = true;
+                BtnDodajNotatke_Click(btnDodajNotatke, new RoutedEventArgs());
+            }
+        }
+
         private void ZapiszEdycjeNotatki(int id, string nowyTekst)
         {
             try
