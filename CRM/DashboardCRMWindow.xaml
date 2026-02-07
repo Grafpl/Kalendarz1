@@ -47,70 +47,62 @@
             </Setter>
         </Style>
 
-        <!-- Style dla DataGrid - DUŻE CZCIONKI DLA HANDLOWCÓW -->
+        <!-- Style dla DataGrid - nowoczesny design -->
         <Style x:Key="DarkDataGrid" TargetType="DataGrid">
-            <Setter Property="Background" Value="#1E293B"/>
-            <Setter Property="Foreground" Value="#F1F5F9"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="RowBackground" Value="#1E293B"/>
-            <Setter Property="AlternatingRowBackground" Value="#252F3F"/>
-            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
-            <Setter Property="HorizontalGridLinesBrush" Value="#3D4A5C"/>
+            <Setter Property="RowBackground" Value="#1E2530"/>
+            <Setter Property="AlternatingRowBackground" Value="#242C3A"/>
+            <Setter Property="GridLinesVisibility" Value="None"/>
             <Setter Property="HeadersVisibility" Value="Column"/>
             <Setter Property="CanUserAddRows" Value="False"/>
             <Setter Property="CanUserDeleteRows" Value="False"/>
             <Setter Property="IsReadOnly" Value="True"/>
             <Setter Property="AutoGenerateColumns" Value="False"/>
-            <Setter Property="RowHeight" Value="56"/>
-            <Setter Property="FontSize" Value="18"/>
-            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="RowHeight" Value="58"/>
+            <Setter Property="FontSize" Value="16"/>
         </Style>
 
         <Style x:Key="DarkColumnHeader" TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="#0F172A"/>
-            <Setter Property="Foreground" Value="#A0AEC0"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="FontSize" Value="15"/>
-            <Setter Property="Padding" Value="16,14"/>
-            <Setter Property="BorderBrush" Value="#10B981"/>
-            <Setter Property="BorderThickness" Value="0,0,0,3"/>
+            <Setter Property="Background" Value="#2A3444"/>
+            <Setter Property="Foreground" Value="#94A3B8"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="18,14"/>
+            <Setter Property="BorderBrush" Value="#3B4A5F"/>
+            <Setter Property="BorderThickness" Value="0,0,0,2"/>
             <Setter Property="Height" Value="52"/>
         </Style>
 
         <Style x:Key="DarkDataGridCell" TargetType="DataGridCell">
-            <Setter Property="Padding" Value="16,12"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Foreground" Value="#F1F5F9"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Padding" Value="18,10"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="DataGridCell">
-                        <Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}">
+                        <Border Padding="{TemplateBinding Padding}" Background="Transparent">
                             <ContentPresenter VerticalAlignment="Center"/>
                         </Border>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#2A5A4A"/>
-                    <Setter Property="Foreground" Value="#4ADE80"/>
-                </Trigger>
-            </Style.Triggers>
         </Style>
 
         <Style x:Key="DarkDataGridRow" TargetType="DataGridRow">
-            <Setter Property="Background" Value="#1E293B"/>
+            <Setter Property="Background" Value="#1E2530"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="8,2"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#2D4A5F"/>
+                    <Setter Property="Background" Value="#2D3A4F"/>
                 </Trigger>
                 <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#1E4A3F"/>
+                    <Setter Property="Background" Value="#2A4A5F"/>
                 </Trigger>
                 <Trigger Property="AlternationIndex" Value="1">
-                    <Setter Property="Background" Value="#252F3F"/>
+                    <Setter Property="Background" Value="#242C3A"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -260,18 +252,34 @@
             </Grid>
         </Border>
 
-        <!-- TABELA DANYCH -->
-        <Border Grid.Row="2" Style="{StaticResource CardStyle}">
+        <!-- TABELA DANYCH - nowoczesny design -->
+        <Border Grid.Row="2" Background="#1E2530" CornerRadius="12" BorderBrush="#3D4A5C" BorderThickness="1">
+            <Border.Effect>
+                <DropShadowEffect ShadowDepth="4" BlurRadius="12" Opacity="0.25" Direction="270" Color="Black"/>
+            </Border.Effect>
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
-                    <TextBlock x:Name="txtTabelaTytul" Text="SZCZEGOLOWE DANE" FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextLight}"/>
-                    <TextBlock Text=" (kliknij 2x na wiersz aby zobaczyc wykres)" FontSize="11" Foreground="{StaticResource TextGray}" VerticalAlignment="Bottom" Margin="8,0,0,2"/>
-                </StackPanel>
+                <!-- Naglowek tabeli -->
+                <Border Grid.Row="0" CornerRadius="12,12,0,0" Padding="18,14">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                            <GradientStop Color="#1A4A3F" Offset="0"/>
+                            <GradientStop Color="#1E3A35" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Grid>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="txtTabelaTytul" Text="LISTA HANDLOWCOW" FontSize="14" FontWeight="Bold" Foreground="#10B981" VerticalAlignment="Center"/>
+                            <Border Background="#10B981" CornerRadius="4" Padding="8,3" Margin="14,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="Kliknij 2x = wykres" FontSize="10" Foreground="#FFFFFF" FontWeight="SemiBold"/>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+                </Border>
 
                 <DataGrid x:Name="tabelaDane" Grid.Row="1"
                           Style="{StaticResource DarkDataGrid}"
@@ -285,9 +293,10 @@
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="VerticalAlignment" Value="Center"/>
-                                    <Setter Property="FontWeight" Value="Bold"/>
-                                    <Setter Property="FontSize" Value="17"/>
-                                    <Setter Property="Foreground" Value="#4ADE80"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="FontSize" Value="16"/>
+                                    <Setter Property="Foreground" Value="#34D399"/>
+                                    <Setter Property="Padding" Value="6,0,0,0"/>
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
