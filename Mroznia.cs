@@ -1998,7 +1998,7 @@ namespace Kalendarz1
             liveChart.Series.Add(colPrzyjete);
 
             // Oś X - każdy dzień
-            liveChart.AxisX.Add(new Axis
+            liveChart.AxisX.Add(new LiveCharts.Wpf.Axis
             {
                 Labels = labels,
                 LabelsRotation = -45,
@@ -2009,7 +2009,7 @@ namespace Kalendarz1
             });
 
             // Oś Y - skrócone etykiety (10k, 50k)
-            liveChart.AxisY.Add(new Axis
+            liveChart.AxisY.Add(new LiveCharts.Wpf.Axis
             {
                 Title = "kg",
                 LabelFormatter = val => val >= 1000 ? (val / 1000).ToString("0.#") + "k" : val.ToString("N0"),
