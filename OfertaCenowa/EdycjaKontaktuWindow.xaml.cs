@@ -32,6 +32,7 @@ namespace Kalendarz1.OfertaCenowa
 
         private void EdycjaKontaktuWindow_Loaded(object sender, RoutedEventArgs e)
         {
+            SprawdzIUtworzKolumny(); // Upewnij się, że wszystkie kolumny istnieją przed wczytaniem
             WczytajWojewodztwa();
             WczytajPKD();
             WczytajDaneKontaktowe();
