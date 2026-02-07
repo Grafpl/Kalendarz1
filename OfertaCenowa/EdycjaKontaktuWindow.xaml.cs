@@ -244,54 +244,40 @@ namespace Kalendarz1.OfertaCenowa
         {
             try
             {
-                // Używamy API rejestr.io (darmowe do 100 zapytań dziennie)
                 using var client = new HttpClient();
-                client.Timeout = TimeSpan.FromSeconds(10);
+                client.Timeout = TimeSpan.FromSeconds(15);
 
-                var response = await client.GetAsync($"https://rejestr.io/api/v2/org?nip={nip}");
+                // Oficjalne API Ministerstwa Finansów - Biała Lista VAT
+                string today = DateTime.Now.ToString("yyyy-MM-dd");
+                var response = await client.GetAsync($"https://wl-api.mf.gov.pl/api/search/nip/{nip}?date={today}");
+
                 if (response.IsSuccessStatusCode)
                 {
                     var json = await response.Content.ReadAsStringAsync();
                     using var doc = JsonDocument.Parse(json);
                     var root = doc.RootElement;
 
-                    if (root.TryGetProperty("items", out var items) && items.GetArrayLength() > 0)
+                    if (root.TryGetProperty("result", out var result) &&
+                        result.TryGetProperty("subject", out var subject))
                     {
-                        var item = items[0];
-                        return new DaneFirmy
+                        var dane = new DaneFirmy
                         {
-                            Nazwa = GetJsonString(item, "name"),
-                            Regon = GetJsonString(item, "regon"),
-                            KodPocztowy = GetJsonString(item, "postalCode"),
-                            Miasto = GetJsonString(item, "city"),
-                            Ulica = GetJsonString(item, "street"),
-                            Wojewodztwo = GetJsonString(item, "voivodeship"),
-                            Powiat = GetJsonString(item, "county"),
-                            Gmina = GetJsonString(item, "community"),
-                            PKD = GetJsonString(item, "mainPkd")
+                            Nazwa = GetJsonString(subject, "name"),
+                            Regon = GetJsonString(subject, "regon")
                         };
+
+                        // Parsuj adres z workingAddress lub residenceAddress
+                        string adres = GetJsonString(subject, "workingAddress");
+                        if (string.IsNullOrEmpty(adres))
+                            adres = GetJsonString(subject, "residenceAddress");
+
+                        if (!string.IsNullOrEmpty(adres))
+                        {
+                            ParseAdres(adres, dane);
+                        }
+
+                        return dane;
                     }
-                }
-
-                // Fallback - API KRS
-                response = await client.GetAsync($"https://api-krs.pl/api/nip/{nip}");
-                if (response.IsSuccessStatusCode)
-                {
-                    var json = await response.Content.ReadAsStringAsync();
-                    using var doc = JsonDocument.Parse(json);
-                    var root = doc.RootElement;
-
-                    return new DaneFirmy
-                    {
-                        Nazwa = GetJsonString(root, "nazwa"),
-                        Regon = GetJsonString(root, "regon"),
-                        KodPocztowy = GetJsonString(root, "kod_pocztowy"),
-                        Miasto = GetJsonString(root, "miejscowosc"),
-                        Ulica = GetJsonString(root, "ulica") + " " + GetJsonString(root, "nr_domu"),
-                        Wojewodztwo = GetJsonString(root, "wojewodztwo"),
-                        Powiat = GetJsonString(root, "powiat"),
-                        Gmina = GetJsonString(root, "gmina")
-                    };
                 }
 
                 return null;
@@ -299,6 +285,44 @@ namespace Kalendarz1.OfertaCenowa
             catch
             {
                 return null;
+            }
+        }
+
+        private void ParseAdres(string adres, DaneFirmy dane)
+        {
+            // Format: "ul. Nazwa 123, 00-000 Miasto" lub "Miejscowość, ul. Nazwa 123, 00-000 Miasto"
+            try
+            {
+                // Szukaj kodu pocztowego (XX-XXX)
+                var kodMatch = System.Text.RegularExpressions.Regex.Match(adres, @"(\d{2}-\d{3})");
+                if (kodMatch.Success)
+                {
+                    dane.KodPocztowy = kodMatch.Groups[1].Value;
+
+                    // Miasto jest po kodzie pocztowym
+                    int kodIndex = adres.IndexOf(dane.KodPocztowy);
+                    if (kodIndex >= 0)
+                    {
+                        string poKodzie = adres.Substring(kodIndex + dane.KodPocztowy.Length).Trim();
+                        // Usuń przecinek na początku jeśli jest
+                        if (poKodzie.StartsWith(",")) poKodzie = poKodzie.Substring(1).Trim();
+                        dane.Miasto = poKodzie;
+                    }
+
+                    // Ulica jest przed kodem pocztowym
+                    string przedKodem = adres.Substring(0, kodIndex).Trim();
+                    if (przedKodem.EndsWith(",")) przedKodem = przedKodem.Substring(0, przedKodem.Length - 1).Trim();
+                    dane.Ulica = przedKodem;
+                }
+                else
+                {
+                    // Brak kodu - cały adres to ulica
+                    dane.Ulica = adres;
+                }
+            }
+            catch
+            {
+                dane.Ulica = adres;
             }
         }
 
