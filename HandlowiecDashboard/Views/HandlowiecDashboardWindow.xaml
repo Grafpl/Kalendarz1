@@ -442,28 +442,32 @@
                                 </lvc:CartesianChart>
                                 <Canvas x:Name="canvasCenyKgAvatary" IsHitTestVisible="False" Margin="10,0,0,0"/>
                             </Grid>
-                            <!-- Tabela handlowcow z mozliwoscia klikniecia -->
+                            <!-- Tabela handlowcow z mozliwoscia klikniecia - DUZE CZCIONKI DLA HANDLOWCOW -->
                             <DataGrid Grid.Row="1" Grid.ColumnSpan="2" x:Name="gridAnalizaCeny" AutoGenerateColumns="False" IsReadOnly="True"
                                       Background="Transparent" BorderThickness="0" Margin="0,10,0,0"
                                       RowBackground="#252A31" AlternatingRowBackground="#2D333B"
-                                      Foreground="#FFFFFF" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#30363D"
+                                      Foreground="#FFFFFF" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#3D4650"
                                       HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False"
-                                      MaxHeight="200" MouseDoubleClick="GridAnalizaCeny_MouseDoubleClick"
+                                      MaxHeight="280" MouseDoubleClick="GridAnalizaCeny_MouseDoubleClick"
                                       VirtualizingPanel.IsVirtualizing="True"
                                       VirtualizingPanel.VirtualizationMode="Recycling"
                                       VirtualizingPanel.ScrollUnit="Item"
                                       EnableRowVirtualization="True"
                                       EnableColumnVirtualization="True"
-                                      ScrollViewer.IsDeferredScrollingEnabled="True">
+                                      ScrollViewer.IsDeferredScrollingEnabled="True"
+                                      RowHeight="52"
+                                      FontSize="16"
+                                      AlternationCount="2">
                                 <DataGrid.ColumnHeaderStyle>
                                     <Style TargetType="DataGridColumnHeader">
                                         <Setter Property="Background" Value="#1A1D21"/>
-                                        <Setter Property="Foreground" Value="#C0392B"/>
-                                        <Setter Property="Padding" Value="8,6"/>
+                                        <Setter Property="Foreground" Value="#F59E0B"/>
+                                        <Setter Property="Padding" Value="14,12"/>
                                         <Setter Property="FontWeight" Value="Bold"/>
-                                        <Setter Property="FontSize" Value="11"/>
-                                        <Setter Property="BorderThickness" Value="0,0,0,2"/>
-                                        <Setter Property="BorderBrush" Value="#30363D"/>
+                                        <Setter Property="FontSize" Value="14"/>
+                                        <Setter Property="BorderThickness" Value="0,0,0,3"/>
+                                        <Setter Property="BorderBrush" Value="#C0392B"/>
+                                        <Setter Property="Height" Value="48"/>
                                     </Style>
                                 </DataGrid.ColumnHeaderStyle>
                                 <DataGrid.RowStyle>
@@ -471,65 +475,113 @@
                                         <Setter Property="Cursor" Value="Hand"/>
                                         <Style.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Background" Value="#3D434B"/>
+                                                <Setter Property="Background" Value="#3D5060"/>
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter Property="Background" Value="#4A3030"/>
                                             </Trigger>
                                         </Style.Triggers>
                                     </Style>
                                 </DataGrid.RowStyle>
+                                <DataGrid.CellStyle>
+                                    <Style TargetType="DataGridCell">
+                                        <Setter Property="Padding" Value="14,10"/>
+                                        <Setter Property="BorderThickness" Value="0"/>
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="DataGridCell">
+                                                    <Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}">
+                                                        <ContentPresenter VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </DataGrid.CellStyle>
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="150"/>
-                                    <DataGridTextColumn Header="Suma kg" Binding="{Binding SumaKgTekst}" Width="100">
+                                    <DataGridTextColumn Header="HANDLOWIEC" Binding="{Binding Handlowiec}" Width="180">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                                <Setter Property="Foreground" Value="#17A589"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Srednia cena" Binding="{Binding SredniaCenaTekst}" Width="100">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
                                                 <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="FontSize" Value="16"/>
+                                                <Setter Property="Foreground" Value="#F59E0B"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Min cena" Binding="{Binding MinCenaTekst}" Width="90">
+                                    <DataGridTextColumn Header="SUMA KG" Binding="{Binding SumaKgTekst}" Width="120">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
-                                                <Setter Property="Foreground" Value="#FF6B6B"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="Foreground" Value="#4ADE80"/>
+                                                <Setter Property="FontSize" Value="16"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Max cena" Binding="{Binding MaxCenaTekst}" Width="90">
+                                    <DataGridTextColumn Header="SR. CENA" Binding="{Binding SredniaCenaTekst}" Width="110">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
-                                                <Setter Property="Foreground" Value="#17A589"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Suma wartosc" Binding="{Binding SumaWartoscTekst}" Width="110">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                                <Setter Property="Foreground" Value="#C0392B"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
                                                 <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="FontSize" Value="17"/>
+                                                <Setter Property="Foreground" Value="#FFFFFF"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Transakcji" Binding="{Binding LiczbaTransakcji}" Width="80">
+                                    <DataGridTextColumn Header="MIN" Binding="{Binding MinCenaTekst}" Width="100">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="Foreground" Value="#F87171"/>
+                                                <Setter Property="FontSize" Value="15"/>
+                                                <Setter Property="FontWeight" Value="Medium"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="MAX" Binding="{Binding MaxCenaTekst}" Width="100">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="Foreground" Value="#4ADE80"/>
+                                                <Setter Property="FontSize" Value="15"/>
+                                                <Setter Property="FontWeight" Value="Medium"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="WARTOSC" Binding="{Binding SumaWartoscTekst}" Width="140">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="Foreground" Value="#F97316"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="FontSize" Value="17"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="TRANSAKCJI" Binding="{Binding LiczbaTransakcji}" Width="110">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Center"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="FontSize" Value="15"/>
+                                                <Setter Property="Foreground" Value="#A78BFA"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Kontrahentow" Binding="{Binding LiczbaKontrahentow}" Width="90">
+                                    <DataGridTextColumn Header="KLIENTOW" Binding="{Binding LiczbaKontrahentow}" Width="100">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Center"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="FontSize" Value="15"/>
+                                                <Setter Property="Foreground" Value="#38BDF8"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
@@ -1268,12 +1320,12 @@
                         <TextBlock x:Name="txtWskaznikLiczbaKlientow" Visibility="Collapsed"/>
                         <TextBlock x:Name="txtWskaznikPrzekroczonyLimit" Visibility="Collapsed"/>
 
-                        <!-- ROW 2: Tabela ze szczegolami - styl Excel -->
+                        <!-- ROW 2: Tabela ze szczegolami - DUZE CZCIONKI DLA HANDLOWCOW -->
                         <DataGrid Grid.Row="2" x:Name="gridPlatnosci" AutoGenerateColumns="False" IsReadOnly="True"
-                                      Background="Transparent" BorderThickness="1" BorderBrush="#444444"
+                                      Background="Transparent" BorderThickness="1" BorderBrush="#4A5568"
                                       RowBackground="#252A31" AlternatingRowBackground="#2D333B"
                                       Foreground="#FFFFFF" GridLinesVisibility="All"
-                                      HorizontalGridLinesBrush="#444444" VerticalGridLinesBrush="#444444"
+                                      HorizontalGridLinesBrush="#4A5568" VerticalGridLinesBrush="#4A5568"
                                       HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False"
                                       CanUserSortColumns="True" Sorting="GridPlatnosci_Sorting"
                                       MouseDoubleClick="GridPlatnosci_MouseDoubleClick"
@@ -1282,7 +1334,10 @@
                                       VirtualizingPanel.ScrollUnit="Item"
                                       EnableRowVirtualization="True"
                                       EnableColumnVirtualization="True"
-                                      ScrollViewer.IsDeferredScrollingEnabled="True">
+                                      ScrollViewer.IsDeferredScrollingEnabled="True"
+                                      RowHeight="50"
+                                      FontSize="15"
+                                      AlternationCount="2">
                                 <DataGrid.RowStyle>
                                     <Style TargetType="DataGridRow">
                                         <Setter Property="Cursor" Value="Hand"/>
@@ -1290,41 +1345,55 @@
                                         <Style.Triggers>
                                             <!-- Zielone tlo dla wierszy bez przeterminowanych -->
                                             <DataTrigger Binding="{Binding IsGreenRow}" Value="True">
-                                                <Setter Property="Background" Value="#1B3D2E"/>
+                                                <Setter Property="Background" Value="#1B4D3E"/>
                                             </DataTrigger>
                                             <!-- Pomaranczowe tlo dla sredniich przeterminowan 1-30 dni -->
                                             <DataTrigger Binding="{Binding IsOrangeRow}" Value="True">
-                                                <Setter Property="Background" Value="#3D3520"/>
+                                                <Setter Property="Background" Value="#4D4530"/>
                                             </DataTrigger>
                                             <!-- Czerwone tlo dla duzych przeterminowan >30 dni -->
                                             <DataTrigger Binding="{Binding IsRedRow}" Value="True">
-                                                <Setter Property="Background" Value="#3D1F1F"/>
+                                                <Setter Property="Background" Value="#4D2525"/>
                                             </DataTrigger>
                                             <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Background" Value="#4D535B"/>
+                                                <Setter Property="Background" Value="#5D6570"/>
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter Property="Background" Value="#3A5065"/>
                                             </Trigger>
                                         </Style.Triggers>
                                     </Style>
                                 </DataGrid.RowStyle>
                                 <DataGrid.ColumnHeaderStyle>
                                     <Style TargetType="DataGridColumnHeader">
-                                        <Setter Property="Background" Value="#3A5F4A"/>
+                                        <Setter Property="Background" Value="#2A6F4A"/>
                                         <Setter Property="Foreground" Value="#FFFFFF"/>
-                                        <Setter Property="Padding" Value="10,8"/>
+                                        <Setter Property="Padding" Value="12,12"/>
                                         <Setter Property="FontWeight" Value="Bold"/>
-                                        <Setter Property="FontSize" Value="11"/>
-                                        <Setter Property="BorderThickness" Value="0,0,1,2"/>
-                                        <Setter Property="BorderBrush" Value="#2A4A3A"/>
+                                        <Setter Property="FontSize" Value="14"/>
+                                        <Setter Property="BorderThickness" Value="0,0,1,3"/>
+                                        <Setter Property="BorderBrush" Value="#1A4A3A"/>
                                         <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                        <Setter Property="Height" Value="48"/>
                                     </Style>
                                 </DataGrid.ColumnHeaderStyle>
                                 <DataGrid.CellStyle>
                                     <Style TargetType="DataGridCell">
-                                        <Setter Property="Padding" Value="5,3"/>
+                                        <Setter Property="Padding" Value="10,8"/>
                                         <Setter Property="BorderThickness" Value="0"/>
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="DataGridCell">
+                                                    <Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}">
+                                                        <ContentPresenter VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
                                         <Style.Triggers>
                                             <Trigger Property="IsSelected" Value="True">
-                                                <Setter Property="Background" Value="#5A6068"/>
+                                                <Setter Property="Background" Value="#3A6578"/>
                                                 <Setter Property="Foreground" Value="#FFFFFF"/>
                                             </Trigger>
                                         </Style.Triggers>
@@ -1332,88 +1401,100 @@
                                 </DataGrid.CellStyle>
                                 <DataGrid.Columns>
                                     <!-- Kontrahent -->
-                                    <DataGridTextColumn Header="Kontrahent" Binding="{Binding Kontrahent}" Width="180">
+                                    <DataGridTextColumn Header="KONTRAHENT" Binding="{Binding Kontrahent}" Width="220">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
-                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="FontSize" Value="15"/>
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
-                                                <Setter Property="Padding" Value="5,0"/>
+                                                <Setter Property="Foreground" Value="#4ADE80"/>
+                                                <Setter Property="Padding" Value="8,0"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
                                     <!-- Limit -->
-                                    <DataGridTextColumn Header="Limit" Binding="{Binding LimitKredytuTekst}" Width="120">
+                                    <DataGridTextColumn Header="LIMIT" Binding="{Binding LimitKredytuTekst}" Width="130">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
-                                                <Setter Property="Padding" Value="5,0"/>
+                                                <Setter Property="FontSize" Value="15"/>
+                                                <Setter Property="Foreground" Value="#A78BFA"/>
+                                                <Setter Property="Padding" Value="8,0"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
                                     <!-- Do zaplacenia -->
-                                    <DataGridTextColumn Header="Do zaplacenia" Binding="{Binding DoZaplatyTekst}" Width="120">
+                                    <DataGridTextColumn Header="DO ZAPLATY" Binding="{Binding DoZaplatyTekst}" Width="140">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
                                                 <Setter Property="FontWeight" Value="Bold"/>
-                                                <Setter Property="Padding" Value="5,0"/>
+                                                <Setter Property="FontSize" Value="16"/>
+                                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                                                <Setter Property="Padding" Value="8,0"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
                                     <!-- Przekroczony limit -->
-                                    <DataGridTextColumn Header="Przekroczony limit" Binding="{Binding PrzekroczonyLimitTekst}" Width="130">
+                                    <DataGridTextColumn Header="PRZEKR. LIMIT" Binding="{Binding PrzekroczonyLimitTekst}" Width="140">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
-                                                <Setter Property="Padding" Value="5,0"/>
+                                                <Setter Property="FontSize" Value="15"/>
+                                                <Setter Property="Padding" Value="8,0"/>
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding PrzekroczonyLimitAlert}" Value="True">
-                                                        <Setter Property="Foreground" Value="#FF6B6B"/>
+                                                        <Setter Property="Foreground" Value="#F87171"/>
                                                         <Setter Property="FontWeight" Value="Bold"/>
+                                                        <Setter Property="FontSize" Value="16"/>
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
                                     <!-- Terminowe -->
-                                    <DataGridTextColumn Header="Terminowe" Binding="{Binding TerminoweTekst}" Width="110">
+                                    <DataGridTextColumn Header="TERMINOWE" Binding="{Binding TerminoweTekst}" Width="130">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
-                                                <Setter Property="Foreground" Value="#17A589"/>
-                                                <Setter Property="Padding" Value="5,0"/>
+                                                <Setter Property="Foreground" Value="#4ADE80"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                <Setter Property="FontSize" Value="15"/>
+                                                <Setter Property="Padding" Value="8,0"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
                                     <!-- Przeterminowane -->
-                                    <DataGridTextColumn Header="Przeterminowane" Binding="{Binding PrzeterminowaneTekst}" Width="130">
+                                    <DataGridTextColumn Header="PRZETERMIN." Binding="{Binding PrzeterminowaneTekst}" Width="140">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
-                                                <Setter Property="Padding" Value="5,0"/>
+                                                <Setter Property="FontSize" Value="15"/>
+                                                <Setter Property="Padding" Value="8,0"/>
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding PrzeterminowaneAlert}" Value="True">
-                                                        <Setter Property="Foreground" Value="#FF6B6B"/>
+                                                        <Setter Property="Foreground" Value="#F87171"/>
                                                         <Setter Property="FontWeight" Value="Bold"/>
+                                                        <Setter Property="FontSize" Value="16"/>
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
                                     <!-- Najpozniejsza platnosc - z ikona ostrzezenia -->
-                                    <DataGridTemplateColumn Header="Najpozniejsza platnosc" Width="160">
+                                    <DataGridTemplateColumn Header="NAJSTARSZA" Width="180">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                    <TextBlock Text="⚠" Foreground="#C0392B" FontSize="12" Margin="0,0,5,0" VerticalAlignment="Center"
+                                                    <TextBlock Text="⚠" Foreground="#F87171" FontSize="18" Margin="0,0,8,0" VerticalAlignment="Center"
                                                                Visibility="{Binding PrzeterminowaneAlert, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                                     <TextBlock Text="{Binding NajpozniejszaPlatnoscTekst}"
-                                                               Foreground="#C0392B" VerticalAlignment="Center"/>
+                                                               Foreground="#F97316" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                                 </StackPanel>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>

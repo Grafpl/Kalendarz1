@@ -47,55 +47,70 @@
             </Setter>
         </Style>
 
-        <!-- Style dla DataGrid -->
+        <!-- Style dla DataGrid - DUŻE CZCIONKI DLA HANDLOWCÓW -->
         <Style x:Key="DarkDataGrid" TargetType="DataGrid">
             <Setter Property="Background" Value="#1E293B"/>
             <Setter Property="Foreground" Value="#F1F5F9"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="RowBackground" Value="#1E293B"/>
-            <Setter Property="AlternatingRowBackground" Value="#273548"/>
+            <Setter Property="AlternatingRowBackground" Value="#252F3F"/>
             <Setter Property="GridLinesVisibility" Value="Horizontal"/>
-            <Setter Property="HorizontalGridLinesBrush" Value="#334155"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#3D4A5C"/>
             <Setter Property="HeadersVisibility" Value="Column"/>
             <Setter Property="CanUserAddRows" Value="False"/>
             <Setter Property="CanUserDeleteRows" Value="False"/>
             <Setter Property="IsReadOnly" Value="True"/>
             <Setter Property="AutoGenerateColumns" Value="False"/>
-            <Setter Property="RowHeight" Value="36"/>
-            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="RowHeight" Value="56"/>
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontWeight" Value="Medium"/>
         </Style>
 
         <Style x:Key="DarkColumnHeader" TargetType="DataGridColumnHeader">
             <Setter Property="Background" Value="#0F172A"/>
-            <Setter Property="Foreground" Value="#94A3B8"/>
+            <Setter Property="Foreground" Value="#A0AEC0"/>
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Padding" Value="10,8"/>
-            <Setter Property="BorderBrush" Value="#334155"/>
-            <Setter Property="BorderThickness" Value="0,0,0,2"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="Padding" Value="16,14"/>
+            <Setter Property="BorderBrush" Value="#10B981"/>
+            <Setter Property="BorderThickness" Value="0,0,0,3"/>
+            <Setter Property="Height" Value="52"/>
         </Style>
 
         <Style x:Key="DarkDataGridCell" TargetType="DataGridCell">
-            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Padding" Value="16,12"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Foreground" Value="#F1F5F9"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
             <Style.Triggers>
                 <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#334155"/>
-                    <Setter Property="Foreground" Value="#10B981"/>
+                    <Setter Property="Background" Value="#2A5A4A"/>
+                    <Setter Property="Foreground" Value="#4ADE80"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
 
         <Style x:Key="DarkDataGridRow" TargetType="DataGridRow">
             <Setter Property="Background" Value="#1E293B"/>
+            <Setter Property="Cursor" Value="Hand"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#2D3A4F"/>
+                    <Setter Property="Background" Value="#2D4A5F"/>
                 </Trigger>
                 <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#334155"/>
+                    <Setter Property="Background" Value="#1E4A3F"/>
+                </Trigger>
+                <Trigger Property="AlternationIndex" Value="1">
+                    <Setter Property="Background" Value="#252F3F"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -263,13 +278,16 @@
                           ColumnHeaderStyle="{StaticResource DarkColumnHeader}"
                           CellStyle="{StaticResource DarkDataGridCell}"
                           RowStyle="{StaticResource DarkDataGridRow}"
-                          MouseDoubleClick="TabelaDane_MouseDoubleClick">
+                          MouseDoubleClick="TabelaDane_MouseDoubleClick"
+                          AlternationCount="2">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="Handlowiec" Binding="{Binding Nazwa}" Width="140">
+                        <DataGridTextColumn Header="HANDLOWIEC" Binding="{Binding Nazwa}" Width="200">
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="VerticalAlignment" Value="Center"/>
-                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                    <Setter Property="FontSize" Value="17"/>
+                                    <Setter Property="Foreground" Value="#4ADE80"/>
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
