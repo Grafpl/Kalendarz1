@@ -1284,6 +1284,24 @@ namespace Kalendarz1.CRM
             }
         }
 
+        private void NotatkaText_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (sender is StackPanel panel && panel.Tag is NotatkaCRM notatka)
+            {
+                // Toggle rozwinięcia
+                notatka.Rozwiniety = !notatka.Rozwiniety;
+                notatka.MaxHeight = notatka.Rozwiniety ? double.PositiveInfinity : 40;
+
+                // Odśwież listę
+                var notatki = listaNotatek.ItemsSource as System.Collections.Generic.List<NotatkaCRM>;
+                if (notatki != null)
+                {
+                    listaNotatek.ItemsSource = null;
+                    listaNotatek.ItemsSource = notatki;
+                }
+            }
+        }
+
         private void MenuTag_Click(object sender, RoutedEventArgs e)
         {
             if (dgKontakty.SelectedItem is DataRowView row && sender is MenuItem mi)
@@ -2073,6 +2091,8 @@ namespace Kalendarz1.CRM
         public string Operator { get; set; }
         public string Typ { get; set; } = "📝";
         public bool CzyNotatka { get; set; } = true;
+        public double MaxHeight { get; set; } = 40; // Domyślnie zwinięta
+        public bool Rozwiniety { get; set; } = false;
     }
 
     public class PhoneFormatConverter : System.Windows.Data.IValueConverter
