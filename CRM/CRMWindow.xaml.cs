@@ -1295,11 +1295,10 @@ namespace Kalendarz1.CRM
 
         private void NotatkaText_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
-            if (sender is StackPanel panel && panel.Tag is NotatkaCRM notatka)
+            if (sender is Grid grid && grid.Tag is NotatkaCRM notatka)
             {
                 // Toggle rozwinięcia
                 notatka.Rozwiniety = !notatka.Rozwiniety;
-                notatka.MaxHeight = notatka.Rozwiniety ? double.PositiveInfinity : 40;
 
                 // Odśwież listę
                 var notatki = listaNotatek.ItemsSource as System.Collections.Generic.List<NotatkaCRM>;
