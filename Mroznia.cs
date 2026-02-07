@@ -7,10 +7,14 @@ using System.Drawing.Drawing2D;
 using System.Linq;
 using System.Windows.Forms;
 using System.Windows.Forms.DataVisualization.Charting;
+using ChartSeries = System.Windows.Forms.DataVisualization.Charting.Series;
+using System.Windows.Forms.Integration;
 using System.Threading.Tasks;
 using System.IO;
 using System.Text;
 using System.Text.Json;
+using LiveCharts;
+using LiveCharts.Wpf;
 
 namespace Kalendarz1
 {
@@ -40,7 +44,8 @@ namespace Kalendarz1
         private StatusStrip statusStrip;
         private ToolStripStatusLabel statusLabel;
         private ToolStripProgressBar progressBar;
-        private Chart chartTrend;
+        private ElementHost chartHost;
+        private CartesianChart liveChart;
         private ToolTip toolTip;
         private CheckBox chkGrupowanie;
         private Timer autoLoadTimer;
@@ -755,8 +760,26 @@ namespace Kalendarz1
                 Padding = new Padding(5)
             };
 
-            chartTrend = CreateInteractiveChart("Wydania i przyjęcia - dziennie");
-            chartPanel1.Controls.Add(chartTrend);
+            liveChart = new CartesianChart
+            {
+                DisableAnimations = false,
+                Hoverable = true,
+                DataTooltip = new DefaultTooltip
+                {
+                    SelectionMode = TooltipSelectionMode.SharedXValues
+                },
+                LegendLocation = LegendLocation.Bottom,
+                Background = System.Windows.Media.Brushes.White,
+                FontFamily = new System.Windows.Media.FontFamily("Segoe UI")
+            };
+
+            chartHost = new ElementHost
+            {
+                Dock = DockStyle.Fill,
+                Child = liveChart
+            };
+
+            chartPanel1.Controls.Add(chartHost);
             tab3.Controls.Add(chartPanel1);
 
             // === ZAKŁADKA 4: STAN MAGAZYNU (KOMPAKTOWY LAYOUT) ===
@@ -966,7 +989,7 @@ namespace Kalendarz1
             };
             splitZewn.SizeChanged += (s, e) => {
                 if (splitZewn.Width > 0)
-                    splitZewn.SplitterDistance = (int)(splitZewn.Width * 0.55);
+                    splitZewn.SplitterDistance = (int)(splitZewn.Width * 0.40);
             };
 
             // Lewa: Split - Lista mroźni górna / Stan zbiorczy dolny
@@ -1141,78 +1164,6 @@ namespace Kalendarz1
             dgv.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 250, 252);
 
             return dgv;
-        }
-
-        private Chart CreateInteractiveChart(string title)
-        {
-            Chart chart = new Chart
-            {
-                Dock = DockStyle.Fill,
-                BackColor = Color.White,
-                Padding = new Padding(5),
-                AntiAliasing = AntiAliasingStyles.All
-            };
-
-            Title chartTitle = new Title
-            {
-                Text = title,
-                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(40, 40, 40),
-                Docking = Docking.Top,
-                Alignment = ContentAlignment.MiddleLeft
-            };
-            chart.Titles.Add(chartTitle);
-
-            ChartArea area = new ChartArea
-            {
-                BackColor = Color.White,
-                BorderWidth = 0
-            };
-
-            // Zoom i scroll
-            area.CursorX.IsUserEnabled = true;
-            area.CursorX.IsUserSelectionEnabled = true;
-            area.CursorX.AutoScroll = true;
-            area.AxisX.ScaleView.Zoomable = true;
-            area.AxisX.ScrollBar.IsPositionedInside = true;
-            area.AxisX.ScrollBar.ButtonStyle = ScrollBarButtonStyles.SmallScroll;
-            area.AxisX.ScrollBar.Size = 14;
-
-            area.CursorY.IsUserEnabled = true;
-            area.CursorY.IsUserSelectionEnabled = true;
-            area.AxisY.ScaleView.Zoomable = true;
-
-            // Siatka - delikatna, tylko Y
-            area.AxisX.MajorGrid.Enabled = false;
-            area.AxisY.MajorGrid.LineColor = Color.FromArgb(240, 240, 240);
-            area.AxisY.MajorGrid.LineDashStyle = ChartDashStyle.Dash;
-
-            // Osie
-            area.AxisX.LineColor = Color.FromArgb(210, 210, 210);
-            area.AxisY.LineColor = Color.FromArgb(210, 210, 210);
-            area.AxisX.LabelStyle.Font = new Font("Segoe UI", 8F);
-            area.AxisY.LabelStyle.Font = new Font("Segoe UI", 8.5F);
-            area.AxisX.LabelStyle.ForeColor = Color.FromArgb(90, 90, 90);
-            area.AxisY.LabelStyle.ForeColor = Color.FromArgb(90, 90, 90);
-            area.AxisX.MajorTickMark.LineColor = Color.FromArgb(210, 210, 210);
-            area.AxisY.MajorTickMark.LineColor = Color.FromArgb(210, 210, 210);
-
-            // Margines - dużo miejsca na wykres
-            area.InnerPlotPosition = new ElementPosition(5, 3, 94, 85);
-
-            chart.ChartAreas.Add(area);
-
-            Legend legend = new Legend
-            {
-                Docking = Docking.Bottom,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                BackColor = Color.Transparent,
-                Alignment = StringAlignment.Center,
-                IsDockedInsideChartArea = false
-            };
-            chart.Legends.Add(legend);
-
-            return chart;
         }
 
         private Chart CreateStyledChart(string title)
@@ -1678,7 +1629,7 @@ namespace Kalendarz1
 
             Chart chart = CreateStyledChart($"Produkty z dnia {data:yyyy-MM-dd}");
 
-            Series series = new Series("Wydano")
+            ChartSeries series = new ChartSeries("Wydano")
             {
                 ChartType = SeriesChartType.Column,
                 Palette = ChartColorPalette.BrightPastel
@@ -1864,7 +1815,7 @@ namespace Kalendarz1
                 BackColor = BackgroundColor
             };
 
-            Chart chart = CreateInteractiveChart($"Trend stanu magazynowego: {produkt}");
+            Chart chart = CreateStyledChart($"Trend stanu magazynowego: {produkt}");
 
             string query = $@"
                 SELECT
@@ -1890,7 +1841,7 @@ namespace Kalendarz1
                     cmd.Parameters.AddWithValue("@Produkt", produkt);
                     cmd.Parameters.AddWithValue("@ProduktPattern", produkt + "%");
 
-                    Series seriesStan = new Series("Stan magazynowy")
+                    ChartSeries seriesStan = new ChartSeries("Stan magazynowy")
                     {
                         ChartType = SeriesChartType.Line,
                         BorderWidth = 3,
@@ -1919,7 +1870,7 @@ namespace Kalendarz1
                     chart.ChartAreas[0].AxisX.Title = "Data";
                     chart.ChartAreas[0].AxisY.Title = "Stan (kg)";
 
-                    Series seriesZero = new Series("Poziom zerowy")
+                    ChartSeries seriesZero = new ChartSeries("Poziom zerowy")
                     {
                         ChartType = SeriesChartType.Line,
                         BorderWidth = 2,
@@ -1970,7 +1921,11 @@ namespace Kalendarz1
 
         private void DisplayTrendy(DataTable dt)
         {
-            chartTrend.Series.Clear();
+            if (liveChart == null) return;
+
+            liveChart.Series.Clear();
+            liveChart.AxisX.Clear();
+            liveChart.AxisY.Clear();
 
             if (dt == null || dt.Rows.Count == 0) return;
 
@@ -1989,27 +1944,9 @@ namespace Kalendarz1
                 if (data > maxDate) maxDate = data;
             }
 
-            int totalDays = (maxDate - minDate).Days + 1;
-
-            // Seria Wydane - Column
-            Series seriesWydano = new Series("Wydane (kg)")
-            {
-                ChartType = SeriesChartType.Column,
-                Color = Color.FromArgb(41, 128, 185),
-                BorderWidth = 0,
-                IsValueShownAsLabel = totalDays <= 35
-            };
-            seriesWydano["PointWidth"] = "0.7";
-
-            // Seria Przyjęte - Column
-            Series seriesPrzyjeto = new Series("Przyjęte (kg)")
-            {
-                ChartType = SeriesChartType.Column,
-                Color = Color.FromArgb(46, 204, 113),
-                BorderWidth = 0,
-                IsValueShownAsLabel = totalDays <= 35
-            };
-            seriesPrzyjeto["PointWidth"] = "0.7";
+            var wydaneValues = new ChartValues<double>();
+            var przyjeciaValues = new ChartValues<double>();
+            var labels = new List<string>();
 
             // Wypełnij KAŻDY dzień
             for (DateTime d = minDate; d <= maxDate; d = d.AddDays(1))
@@ -2020,67 +1957,77 @@ namespace Kalendarz1
                     wydano = dataMap[d].wydano;
                     przyjeto = dataMap[d].przyjeto;
                 }
-
-                int idxW = seriesWydano.Points.AddXY(d, wydano);
-                seriesWydano.Points[idxW].ToolTip = $"{d:dd.MM.yyyy (dddd)}\nWydano: {wydano:N0} kg";
-                if (wydano > 0)
-                    seriesWydano.Points[idxW].Label = FormatShortValue(wydano);
-                else
-                    seriesWydano.Points[idxW].IsValueShownAsLabel = false;
-
-                int idxP = seriesPrzyjeto.Points.AddXY(d, przyjeto);
-                seriesPrzyjeto.Points[idxP].ToolTip = $"{d:dd.MM.yyyy (dddd)}\nPrzyjęto: {przyjeto:N0} kg";
-                if (przyjeto > 0)
-                    seriesPrzyjeto.Points[idxP].Label = FormatShortValue(przyjeto);
-                else
-                    seriesPrzyjeto.Points[idxP].IsValueShownAsLabel = false;
-
-                // Delikatne tło weekendów
-                if (d.DayOfWeek == DayOfWeek.Saturday || d.DayOfWeek == DayOfWeek.Sunday)
-                {
-                    seriesWydano.Points[idxW].Color = Color.FromArgb(150, 41, 128, 185);
-                    seriesPrzyjeto.Points[idxP].Color = Color.FromArgb(150, 46, 204, 113);
-                }
+                wydaneValues.Add(wydano);
+                przyjeciaValues.Add(przyjeto);
+                labels.Add(d.ToString("dd.MM"));
             }
 
-            // Style etykiet
-            seriesWydano.LabelForeColor = Color.FromArgb(41, 128, 185);
-            seriesWydano.Font = new Font("Segoe UI", 7F, FontStyle.Bold);
-            seriesPrzyjeto.LabelForeColor = Color.FromArgb(46, 204, 113);
-            seriesPrzyjeto.Font = new Font("Segoe UI", 7F, FontStyle.Bold);
-
-            chartTrend.Series.Add(seriesWydano);
-            chartTrend.Series.Add(seriesPrzyjeto);
-
-            var area = chartTrend.ChartAreas[0];
-            area.AxisX.LabelStyle.Format = "dd.MM";
-            area.AxisX.LabelStyle.Angle = -45;
-            area.AxisX.IntervalType = DateTimeIntervalType.Days;
-            area.AxisX.Interval = 1;
-            // Skrócone etykiety osi Y (np. 10k, 50k)
-            area.AxisY.LabelStyle.Format = "N0";
-            area.AxisY.LabelStyle.IsStaggered = false;
-            area.AxisX.Title = "";
-            area.AxisY.Title = "kg";
-            area.AxisY.TitleFont = new Font("Segoe UI", 9F, FontStyle.Bold);
-
-            // Customowe formatowanie osi Y
-            chartTrend.FormatNumber += (s, e) => {
-                if (e.ElementType == ChartElementType.AxisLabels && e.Value >= 1000)
-                    e.LocalizedValue = (e.Value / 1000).ToString("0.#") + "k";
+            // Seria Wydane - kolumny niebieskie
+            var colWydane = new ColumnSeries
+            {
+                Title = "Wydane (kg)",
+                Values = wydaneValues,
+                Fill = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromArgb(220, 41, 128, 185)),
+                MaxColumnWidth = 30,
+                ColumnPadding = 2,
+                LabelPoint = p => p.Y >= 1000 ? (p.Y / 1000).ToString("0.#") + "k" : p.Y > 0 ? p.Y.ToString("N0") : "",
+                DataLabels = true,
+                FontSize = 9,
+                Foreground = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(41, 128, 185))
             };
-        }
 
-        private string FormatShortValue(double value)
-        {
-            if (value >= 1000) return (value / 1000).ToString("0.#") + "k";
-            return value.ToString("N0");
+            // Seria Przyjęte - kolumny zielone
+            var colPrzyjete = new ColumnSeries
+            {
+                Title = "Przyjęte (kg)",
+                Values = przyjeciaValues,
+                Fill = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromArgb(200, 46, 204, 113)),
+                MaxColumnWidth = 30,
+                ColumnPadding = 2,
+                LabelPoint = p => p.Y >= 1000 ? (p.Y / 1000).ToString("0.#") + "k" : p.Y > 0 ? p.Y.ToString("N0") : "",
+                DataLabels = true,
+                FontSize = 9,
+                Foreground = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(46, 204, 113))
+            };
+
+            liveChart.Series.Add(colWydane);
+            liveChart.Series.Add(colPrzyjete);
+
+            // Oś X - każdy dzień
+            liveChart.AxisX.Add(new Axis
+            {
+                Labels = labels,
+                LabelsRotation = -45,
+                FontSize = 9,
+                Separator = new Separator { Step = 1, IsEnabled = false },
+                Foreground = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(100, 100, 100))
+            });
+
+            // Oś Y - skrócone etykiety (10k, 50k)
+            liveChart.AxisY.Add(new Axis
+            {
+                Title = "kg",
+                LabelFormatter = val => val >= 1000 ? (val / 1000).ToString("0.#") + "k" : val.ToString("N0"),
+                FontSize = 10,
+                Separator = new Separator
+                {
+                    Stroke = new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(235, 237, 240)),
+                    StrokeThickness = 1
+                },
+                Foreground = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(100, 100, 100))
+            });
         }
 
         private void ResetChartZoom()
         {
-            chartTrend.ChartAreas[0].AxisX.ScaleView.ZoomReset();
-            chartTrend.ChartAreas[0].AxisY.ScaleView.ZoomReset();
+            // LiveCharts nie wymaga ręcznego resetu zoom
         }
 
         private void FetchKartyStatystyk(DateTime od, DateTime doDaty, out decimal wydano, out decimal przyjeto, out int dni)
@@ -3324,31 +3271,29 @@ namespace Kalendarz1
             // Utwórz DataTable z kolumnami dla każdej mroźni
             DataTable dt = new DataTable();
             dt.Columns.Add("Kod", typeof(string));
-            dt.Columns.Add("Produkt", typeof(string));
 
-            // Dodaj kolumny dla każdej mroźni
+            // Dodaj kolumny dla każdej mroźni (z sufiksem kg)
             var nazwyMrozni = mroznie.Select(m => m.Nazwa).OrderBy(n => n).ToList();
             foreach (var nazwa in nazwyMrozni)
             {
-                dt.Columns.Add(nazwa, typeof(decimal));
+                dt.Columns.Add(nazwa + " (kg)", typeof(decimal));
             }
-            dt.Columns.Add("SUMA", typeof(decimal));
+            dt.Columns.Add("SUMA (kg)", typeof(decimal));
 
             // Wypełnij danymi
             foreach (var kvp in stanPerProdukt.OrderByDescending(x => x.Value.StanyPerMroznia.Values.Sum()))
             {
                 var row = dt.NewRow();
                 row["Kod"] = kvp.Key;
-                row["Produkt"] = kvp.Value.Nazwa;
 
                 decimal suma = 0;
                 foreach (var nazwa in nazwyMrozni)
                 {
                     decimal stanMrozni = kvp.Value.StanyPerMroznia.ContainsKey(nazwa) ? kvp.Value.StanyPerMroznia[nazwa] : 0;
-                    row[nazwa] = stanMrozni;
+                    row[nazwa + " (kg)"] = stanMrozni;
                     suma += stanMrozni;
                 }
-                row["SUMA"] = suma;
+                row["SUMA (kg)"] = suma;
 
                 // Dodaj tylko jeśli jest jakiś stan
                 if (suma != 0)
@@ -3371,11 +3316,11 @@ namespace Kalendarz1
                         }
                     }
 
-                    // Wyróżnij kolumnę SUMA
-                    if (dgvStanMrozniZewnetrznych.Columns["SUMA"] != null)
+                    // Wyróżnij kolumnę SUMA (kg)
+                    if (dgvStanMrozniZewnetrznych.Columns["SUMA (kg)"] != null)
                     {
-                        dgvStanMrozniZewnetrznych.Columns["SUMA"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-                        dgvStanMrozniZewnetrznych.Columns["SUMA"].DefaultCellStyle.BackColor = Color.FromArgb(240, 248, 255);
+                        dgvStanMrozniZewnetrznych.Columns["SUMA (kg)"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                        dgvStanMrozniZewnetrznych.Columns["SUMA (kg)"].DefaultCellStyle.BackColor = Color.FromArgb(240, 248, 255);
                     }
                 }
                 catch { }
