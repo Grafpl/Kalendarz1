@@ -367,7 +367,7 @@
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Kod pocztowy" Style="{StaticResource LabelStyle}"/>
-                                <TextBox x:Name="txtKod" Style="{StaticResource TextBoxStyle}"/>
+                                <TextBox x:Name="txtKod" Style="{StaticResource TextBoxStyle}" TextChanged="TxtKod_TextChanged"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="Miasto" Style="{StaticResource LabelStyle}"/>

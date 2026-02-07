@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Net.Http;
 using System.Text.Json;
@@ -12,6 +13,31 @@ namespace Kalendarz1.OfertaCenowa
     {
         private readonly string _connectionString =
             "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True;";
+
+        // Mapowanie prefiksu kodu pocztowego na województwo
+        private static readonly Dictionary<string, string> kodDoWojewodztwa = new Dictionary<string, string>
+        {
+            {"00", "mazowieckie"}, {"01", "mazowieckie"}, {"02", "mazowieckie"}, {"03", "mazowieckie"}, {"04", "mazowieckie"}, {"05", "mazowieckie"},
+            {"06", "mazowieckie"}, {"07", "mazowieckie"}, {"08", "mazowieckie"}, {"09", "mazowieckie"},
+            {"10", "warmińsko-mazurskie"}, {"11", "warmińsko-mazurskie"}, {"12", "warmińsko-mazurskie"}, {"13", "warmińsko-mazurskie"}, {"14", "warmińsko-mazurskie"},
+            {"15", "podlaskie"}, {"16", "podlaskie"}, {"17", "podlaskie"}, {"18", "podlaskie"}, {"19", "podlaskie"},
+            {"20", "lubelskie"}, {"21", "lubelskie"}, {"22", "lubelskie"}, {"23", "lubelskie"}, {"24", "lubelskie"},
+            {"25", "świętokrzyskie"}, {"26", "świętokrzyskie"}, {"27", "świętokrzyskie"}, {"28", "świętokrzyskie"}, {"29", "świętokrzyskie"},
+            {"30", "małopolskie"}, {"31", "małopolskie"}, {"32", "małopolskie"}, {"33", "małopolskie"}, {"34", "małopolskie"},
+            {"35", "podkarpackie"}, {"36", "podkarpackie"}, {"37", "podkarpackie"}, {"38", "podkarpackie"}, {"39", "podkarpackie"},
+            {"40", "śląskie"}, {"41", "śląskie"}, {"42", "śląskie"}, {"43", "śląskie"}, {"44", "śląskie"},
+            {"45", "opolskie"}, {"46", "opolskie"}, {"47", "opolskie"}, {"48", "opolskie"}, {"49", "opolskie"},
+            {"50", "dolnośląskie"}, {"51", "dolnośląskie"}, {"52", "dolnośląskie"}, {"53", "dolnośląskie"}, {"54", "dolnośląskie"},
+            {"55", "dolnośląskie"}, {"56", "dolnośląskie"}, {"57", "dolnośląskie"}, {"58", "dolnośląskie"}, {"59", "dolnośląskie"},
+            {"60", "wielkopolskie"}, {"61", "wielkopolskie"}, {"62", "wielkopolskie"}, {"63", "wielkopolskie"}, {"64", "wielkopolskie"},
+            {"65", "lubuskie"}, {"66", "lubuskie"}, {"67", "lubuskie"}, {"68", "lubuskie"}, {"69", "lubuskie"},
+            {"70", "zachodniopomorskie"}, {"71", "zachodniopomorskie"}, {"72", "zachodniopomorskie"}, {"73", "zachodniopomorskie"}, {"74", "zachodniopomorskie"},
+            {"75", "zachodniopomorskie"}, {"76", "zachodniopomorskie"}, {"77", "pomorskie"}, {"78", "zachodniopomorskie"},
+            {"80", "pomorskie"}, {"81", "pomorskie"}, {"82", "pomorskie"}, {"83", "pomorskie"}, {"84", "pomorskie"},
+            {"85", "kujawsko-pomorskie"}, {"86", "kujawsko-pomorskie"}, {"87", "kujawsko-pomorskie"}, {"88", "kujawsko-pomorskie"}, {"89", "kujawsko-pomorskie"},
+            {"90", "łódzkie"}, {"91", "łódzkie"}, {"92", "łódzkie"}, {"93", "łódzkie"}, {"94", "łódzkie"},
+            {"95", "łódzkie"}, {"96", "łódzkie"}, {"97", "łódzkie"}, {"98", "łódzkie"}, {"99", "łódzkie"}
+        };
 
         public int KlientID { get; set; }
         public string KlientNazwa { get; set; }
@@ -335,6 +361,82 @@ namespace Kalendarz1.OfertaCenowa
                 return "";
             }
             catch { return ""; }
+        }
+
+        private void TxtKod_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            string kod = txtKod.Text.Replace("-", "").Trim();
+
+            if (kod.Length >= 2)
+            {
+                string prefix = kod.Substring(0, 2);
+
+                // Auto-wypełnianie województwa na podstawie prefiksu kodu
+                if (kodDoWojewodztwa.TryGetValue(prefix, out string woj))
+                {
+                    int index = cmbWojewodztwo.Items.IndexOf(woj);
+                    if (index >= 0)
+                        cmbWojewodztwo.SelectedIndex = index;
+                }
+
+                // Gdy mamy pełny kod (5 cyfr), szukaj miasta, powiatu i gminy w bazie
+                if (kod.Length >= 5)
+                {
+                    try
+                    {
+                        using (var conn = new SqlConnection(_connectionString))
+                        {
+                            conn.Open();
+
+                            // Szukaj w tabeli KodyPocztowe
+                            var cmd = new SqlCommand(@"
+                                SELECT TOP 1 miej FROM KodyPocztowe
+                                WHERE REPLACE(Kod, '-', '') = @kod", conn);
+                            cmd.Parameters.AddWithValue("@kod", kod);
+                            var miasto = cmd.ExecuteScalar() as string;
+
+                            if (!string.IsNullOrEmpty(miasto) && string.IsNullOrEmpty(txtMiasto.Text))
+                            {
+                                txtMiasto.Text = miasto;
+                            }
+
+                            // Szukaj w OdbiorcyCRM dla powiatu i gminy
+                            var cmd2 = new SqlCommand(@"
+                                SELECT TOP 1 MIASTO, Wojewodztwo, Powiat, Gmina
+                                FROM OdbiorcyCRM
+                                WHERE REPLACE(KOD, '-', '') = @kod
+                                  AND (Powiat IS NOT NULL OR Gmina IS NOT NULL)", conn);
+                            cmd2.Parameters.AddWithValue("@kod", kod);
+                            using (var reader = cmd2.ExecuteReader())
+                            {
+                                if (reader.Read())
+                                {
+                                    if (string.IsNullOrEmpty(txtMiasto.Text) && !reader.IsDBNull(0))
+                                        txtMiasto.Text = reader.GetString(0);
+
+                                    if (!reader.IsDBNull(1))
+                                    {
+                                        string wojDB = reader.GetString(1)?.ToLower();
+                                        if (!string.IsNullOrEmpty(wojDB))
+                                        {
+                                            int idx = cmbWojewodztwo.Items.IndexOf(wojDB);
+                                            if (idx >= 0)
+                                                cmbWojewodztwo.SelectedIndex = idx;
+                                        }
+                                    }
+
+                                    if (string.IsNullOrEmpty(txtPowiat.Text) && !reader.IsDBNull(2))
+                                        txtPowiat.Text = reader.GetString(2);
+
+                                    if (string.IsNullOrEmpty(txtGmina.Text) && !reader.IsDBNull(3))
+                                        txtGmina.Text = reader.GetString(3);
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+                }
+            }
         }
 
         private void BtnZapisz_Click(object sender, RoutedEventArgs e)
