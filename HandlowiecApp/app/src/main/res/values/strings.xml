@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Handlowiec ProNova</string>
+
+    <!-- Login -->
+    <string name="login_title">Logowanie</string>
+    <string name="login_subtitle">Panel Handlowca</string>
+    <string name="login_username">Nazwa uzytkownika</string>
+    <string name="login_password">Haslo</string>
+    <string name="login_button">Zaloguj sie</string>
+    <string name="login_logging_in">Logowanie...</string>
+    <string name="login_error_empty">Wypelnij wszystkie pola</string>
+    <string name="login_error_invalid">Nieprawidlowa nazwa uzytkownika lub haslo</string>
+    <string name="login_error_network">Blad polaczenia z serwerem</string>
+    <string name="login_company_name">ProNova - Przetworstwo Drobiu</string>
+
+    <!-- Navigation -->
+    <string name="nav_dashboard">Pulpit</string>
+    <string name="nav_orders">Zamowienia</string>
+    <string name="nav_customers">Klienci</string>
+    <string name="nav_products">Produkty</string>
+
+    <!-- Dashboard -->
+    <string name="dashboard_title">Pulpit</string>
+    <string name="dashboard_total_orders">Suma zamowien</string>
+    <string name="dashboard_order_count">Liczba zamowien</string>
+    <string name="dashboard_customer_count">Liczba klientow</string>
+    <string name="dashboard_pallet_count">Liczba palet</string>
+    <string name="dashboard_cancelled_count">Anulowane</string>
+    <string name="dashboard_kg">kg</string>
+    <string name="dashboard_szt">szt.</string>
+    <string name="dashboard_refresh">Odswiez</string>
+    <string name="dashboard_select_date">Wybierz date</string>
+    <string name="dashboard_no_data">Brak danych dla wybranej daty</string>
+
+    <!-- Orders -->
+    <string name="orders_title">Zamowienia</string>
+    <string name="orders_empty">Brak zamowien dla wybranej daty</string>
+    <string name="orders_search">Szukaj zamowien...</string>
+    <string name="orders_new">Nowe zamowienie</string>
+    <string name="orders_kg">kg</string>
+    <string name="orders_containers">Pojemniki</string>
+    <string name="orders_pallets">Palety</string>
+    <string name="orders_arrival">Przyjecie</string>
+
+    <!-- Order Detail -->
+    <string name="order_detail_title">Szczegoly zamowienia</string>
+    <string name="order_detail_customer">Klient</string>
+    <string name="order_detail_receiver">Odbiorca</string>
+    <string name="order_detail_salesperson">Handlowiec</string>
+    <string name="order_detail_ordered">Zamowione</string>
+    <string name="order_detail_actual">Faktyczne</string>
+    <string name="order_detail_difference">Roznica</string>
+    <string name="order_detail_containers">Pojemniki</string>
+    <string name="order_detail_pallets">Palety</string>
+    <string name="order_detail_e2">Tryb E2</string>
+    <string name="order_detail_acceptance_date">Data przyjecia</string>
+    <string name="order_detail_acceptance_time">Godzina przyjecia</string>
+    <string name="order_detail_slaughter_date">Data uboju</string>
+    <string name="order_detail_status">Status</string>
+    <string name="order_detail_notes">Uwagi</string>
+    <string name="order_detail_currency">Waluta</string>
+    <string name="order_detail_avg_price">Srednia cena</string>
+    <string name="order_detail_has_foil">Folia</string>
+    <string name="order_detail_has_hallal">Hallal</string>
+    <string name="order_detail_has_prices">Ceny</string>
+    <string name="order_detail_items">Pozycje zamowienia</string>
+    <string name="order_detail_edit">Edytuj</string>
+    <string name="order_detail_cancel">Anuluj zamowienie</string>
+    <string name="order_detail_cancel_confirm">Czy na pewno chcesz anulowac to zamowienie?</string>
+    <string name="order_detail_cancel_yes">Tak, anuluj</string>
+    <string name="order_detail_cancel_no">Nie</string>
+    <string name="order_detail_transport">Transport</string>
+    <string name="order_detail_completed">Zrealizowane</string>
+
+    <!-- Order Create -->
+    <string name="order_create_title">Nowe zamowienie</string>
+    <string name="order_create_customer">Wybierz klienta</string>
+    <string name="order_create_customer_search">Szukaj klienta...</string>
+    <string name="order_create_slaughter_date">Data uboju</string>
+    <string name="order_create_acceptance_date">Data przyjecia</string>
+    <string name="order_create_notes">Uwagi</string>
+    <string name="order_create_currency">Waluta</string>
+    <string name="order_create_items">Pozycje</string>
+    <string name="order_create_add_item">Dodaj pozycje</string>
+    <string name="order_create_product">Produkt</string>
+    <string name="order_create_product_search">Szukaj produktu...</string>
+    <string name="order_create_quantity">Ilosc (kg)</string>
+    <string name="order_create_price">Cena</string>
+    <string name="order_create_foil">Folia</string>
+    <string name="order_create_hallal">Hallal</string>
+    <string name="order_create_save">Zapisz zamowienie</string>
+    <string name="order_create_saving">Zapisywanie...</string>
+    <string name="order_create_success">Zamowienie zostalo utworzone</string>
+    <string name="order_create_error">Blad podczas tworzenia zamowienia</string>
+    <string name="order_create_remove_item">Usun pozycje</string>
+    <string name="order_create_validation_customer">Wybierz klienta</string>
+    <string name="order_create_validation_items">Dodaj przynajmniej jedna pozycje</string>
+
+    <!-- Customers -->
+    <string name="customers_title">Klienci</string>
+    <string name="customers_search">Szukaj klientow...</string>
+    <string name="customers_empty">Brak klientow</string>
+
+    <!-- Customer Detail -->
+    <string name="customer_detail_title">Szczegoly klienta</string>
+    <string name="customer_detail_name">Nazwa</string>
+    <string name="customer_detail_shortcut">Skrot</string>
+    <string name="customer_detail_nip">NIP</string>
+    <string name="customer_detail_address">Adres</string>
+    <string name="customer_detail_city">Miasto</string>
+    <string name="customer_detail_postal">Kod pocztowy</string>
+    <string name="customer_detail_phone">Telefon</string>
+    <string name="customer_detail_email">Email</string>
+    <string name="customer_detail_payment_terms">Termin platnosci</string>
+    <string name="customer_detail_credit_limit">Limit kredytowy</string>
+    <string name="customer_detail_balance">Saldo naleznosci</string>
+    <string name="customer_detail_credit_usage">Wykorzystanie kredytu</string>
+    <string name="customer_detail_active">Aktywny</string>
+    <string name="customer_detail_inactive">Nieaktywny</string>
+    <string name="customer_detail_create_order">Zloz zamowienie</string>
+    <string name="customer_detail_days">dni</string>
+    <string name="customer_detail_salesperson">Handlowiec</string>
+
+    <!-- Products -->
+    <string name="products_title">Produkty</string>
+    <string name="products_search">Szukaj produktow...</string>
+    <string name="products_empty">Brak produktow</string>
+    <string name="products_code">Kod</string>
+    <string name="products_price">Cena</string>
+    <string name="products_unit">Jm</string>
+
+    <!-- Order Status -->
+    <string name="status_new">Nowe</string>
+    <string name="status_completed">Zrealizowane</string>
+    <string name="status_cancelled">Anulowane</string>
+    <string name="status_in_progress">W realizacji</string>
+
+    <!-- Common -->
+    <string name="common_loading">Ladowanie...</string>
+    <string name="common_error">Wystapil blad</string>
+    <string name="common_retry">Ponow</string>
+    <string name="common_ok">OK</string>
+    <string name="common_cancel">Anuluj</string>
+    <string name="common_save">Zapisz</string>
+    <string name="common_delete">Usun</string>
+    <string name="common_yes">Tak</string>
+    <string name="common_no">Nie</string>
+    <string name="common_back">Wstecz</string>
+    <string name="common_logout">Wyloguj</string>
+    <string name="common_logout_confirm">Czy na pewno chcesz sie wylogowac?</string>
+    <string name="common_no_data">Brak danych</string>
+    <string name="common_pull_to_refresh">Pociagnij aby odsiezyc</string>
+</resources>
