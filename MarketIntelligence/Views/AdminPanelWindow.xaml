@@ -837,6 +837,27 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- Test "1 artykuł" -->
+                        <Border Style="{StaticResource CardBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Zapytanie testowe (1 artykul)" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextBright}" Margin="0,0,0,5"/>
+                                <TextBlock Foreground="{StaticResource TextMuted}" FontSize="11" Margin="0,0,0,15" TextWrapping="Wrap"
+                                           Text="Zapytanie uzywane w trybie '1 artykul'. Zmien aby przetestowac inne tematy."/>
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Zapytanie testowe"/>
+                                <TextBox x:Name="TestSearchQueryTextBox" Style="{StaticResource DarkTextBox}"/>
+                                <TextBlock Style="{StaticResource FieldDescription}">
+                                    <Run FontWeight="SemiBold">Wpisz dowolne zapytanie do Brave Search.</Run><LineBreak/>
+                                    <Run>Przyklady:</Run><LineBreak/>
+                                    <Run>• "HPAI Polska luty 2026"</Run><LineBreak/>
+                                    <Run>• "Cedrob przejecie ADQ"</Run><LineBreak/>
+                                    <Run>• "ceny kurczaka hurt Polska"</Run><LineBreak/>
+                                    <Run>• "import drobiu Brazylia Mercosur"</Run><LineBreak/>
+                                    <Run Foreground="#10B981">Zmiana dziala natychmiast po zapisaniu.</Run>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
                         <!-- Features -->
                         <Border Style="{StaticResource CardBorder}">
                             <StackPanel>

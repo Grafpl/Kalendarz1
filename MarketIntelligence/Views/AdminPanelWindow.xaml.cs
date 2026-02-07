@@ -91,6 +91,9 @@ namespace Kalendarz1.MarketIntelligence.Views
             QuickModeTextBox.Text = config.System.QuickModeArticles.ToString();
             ResultsPerQueryTextBox.Text = config.System.MaxResultsPerQuery.ToString();
 
+            // Zapytanie testowe "1 artykuł"
+            TestSearchQueryTextBox.Text = config.System.TestSearchQuery ?? "ceny drobiu Polska 2026";
+
             PuppeteerEnabledCheckBox.IsChecked = config.System.PuppeteerEnabled;
             CostTrackingCheckBox.IsChecked = config.System.CostTrackingEnabled;
             FileLoggingCheckBox.IsChecked = config.System.FileLoggingEnabled;
@@ -167,6 +170,10 @@ namespace Kalendarz1.MarketIntelligence.Views
                 config.System.QuickModeArticles = quickMode;
             if (int.TryParse(ResultsPerQueryTextBox.Text, out var resultsPerQuery))
                 config.System.MaxResultsPerQuery = resultsPerQuery;
+
+            // Zapytanie testowe "1 artykuł"
+            if (!string.IsNullOrWhiteSpace(TestSearchQueryTextBox.Text))
+                config.System.TestSearchQuery = TestSearchQueryTextBox.Text.Trim();
 
             config.System.PuppeteerEnabled = PuppeteerEnabledCheckBox.IsChecked ?? true;
             config.System.CostTrackingEnabled = CostTrackingCheckBox.IsChecked ?? true;

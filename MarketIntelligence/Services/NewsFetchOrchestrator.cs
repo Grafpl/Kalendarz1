@@ -516,10 +516,13 @@ SZANSE:
                 // ETAP 1: Pobranie listy artykulow z Brave Search
                 // ═══════════════════════════════════════════════════════════
                 Diagnostics.AddLog("=== ETAP 1: BRAVE SEARCH ===");
-                Diagnostics.AddLog("Wysylam zapytanie: 'ceny drobiu Polska luty 2026'");
+
+                // Zapytanie testowe z konfiguracji (można ręcznie zmienić w Panelu Admina -> SYSTEM)
+                var testQuery = ConfigService.Instance?.Current?.System?.TestSearchQuery ?? "ceny drobiu Polska 2026";
+                Diagnostics.AddLog($"Wysylam zapytanie: '{testQuery}'");
 
                 var searchStopwatch = Stopwatch.StartNew();
-                var (articles, debugInfo) = await _newsService.SearchWithDebugAsync("ceny drobiu Polska luty 2026", ct);
+                var (articles, debugInfo) = await _newsService.SearchWithDebugAsync(testQuery, ct);
                 searchStopwatch.Stop();
 
                 Diagnostics.PerplexityTime = searchStopwatch.Elapsed;
@@ -723,14 +726,16 @@ SZANSE:
                 // ═══════════════════════════════════════════════════════════
                 // ETAP 1: Pobranie listy artykulow z Perplexity
                 // ═══════════════════════════════════════════════════════════
-                logSection("ETAP 1: PERPLEXITY SEARCH");
-                log("Wysylam testowe zapytanie: 'ceny drobiu Polska luty 2026'", "INFO");
-                log($"Model: sonar", "INFO");
-                log($"API URL: https://api.perplexity.ai/chat/completions", "DEBUG");
-                Diagnostics.AddLog("=== ETAP 1: PERPLEXITY ===");
+                logSection("ETAP 1: BRAVE SEARCH");
+
+                // Zapytanie testowe z konfiguracji (można ręcznie zmienić w Panelu Admina -> SYSTEM)
+                var testQuery = ConfigService.Instance?.Current?.System?.TestSearchQuery ?? "ceny drobiu Polska 2026";
+                log($"Wysylam testowe zapytanie: '{testQuery}'", "INFO");
+                log($"(Zmien w: Panel Admina -> SYSTEM -> Zapytanie testowe)", "DEBUG");
+                Diagnostics.AddLog("=== ETAP 1: BRAVE SEARCH ===");
 
                 var perplexityStopwatch = Stopwatch.StartNew();
-                var (articles, debugInfo) = await _newsService.SearchWithDebugAsync("ceny drobiu Polska luty 2026", ct);
+                var (articles, debugInfo) = await _newsService.SearchWithDebugAsync(testQuery, ct);
                 perplexityStopwatch.Stop();
 
                 Diagnostics.PerplexityTime = perplexityStopwatch.Elapsed;

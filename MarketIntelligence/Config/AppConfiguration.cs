@@ -207,6 +207,13 @@ namespace Kalendarz1.MarketIntelligence.Config
         /// </summary>
         public bool OpenLogsFolderAfterSession { get; set; } = false;
 
+        // === TEST "1 ARTYKUŁ" ===
+
+        /// <summary>
+        /// Zapytanie testowe dla trybu "1 artykuł" (można ręcznie zmienić)
+        /// </summary>
+        public string TestSearchQuery { get; set; } = "ceny drobiu Polska 2026";
+
         // === CACHE ===
 
         /// <summary>
