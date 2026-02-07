@@ -154,56 +154,56 @@ namespace Kalendarz1
             Panel toolbar = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 40,
-                BackColor = CardColor,
-                Padding = new Padding(10, 4, 10, 4)
+                Height = 55,
+                BackColor = Color.FromArgb(250, 251, 253),
+                Padding = new Padding(0)
             };
             toolbar.Paint += (s, e) =>
             {
-                using (var pen = new Pen(Color.FromArgb(230, 230, 230), 1))
+                using (var pen = new Pen(Color.FromArgb(220, 220, 220), 1))
                     e.Graphics.DrawLine(pen, 0, toolbar.Height - 1, toolbar.Width, toolbar.Height - 1);
             };
 
             Label lblOd = new Label
             {
                 Text = "Od:",
-                Location = new Point(10, 11),
+                Location = new Point(15, 18),
                 AutoSize = true,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = SecondaryTextColor
+                ForeColor = Color.FromArgb(80, 80, 80)
             };
             dtpOd = new DateTimePicker
             {
-                Location = new Point(35, 7),
+                Location = new Point(42, 14),
                 Width = 115,
                 Format = DateTimePickerFormat.Short,
                 Value = DateTime.Now.AddDays(-30),
-                Font = new Font("Segoe UI", 9F)
+                Font = new Font("Segoe UI", 9.5F)
             };
 
             Label lblDo = new Label
             {
                 Text = "Do:",
-                Location = new Point(160, 11),
+                Location = new Point(168, 18),
                 AutoSize = true,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = SecondaryTextColor
+                ForeColor = Color.FromArgb(80, 80, 80)
             };
             dtpDo = new DateTimePicker
             {
-                Location = new Point(185, 7),
+                Location = new Point(195, 14),
                 Width = 115,
                 Format = DateTimePickerFormat.Short,
                 Value = DateTime.Now,
-                Font = new Font("Segoe UI", 9F)
+                Font = new Font("Segoe UI", 9.5F)
             };
 
             cmbPredkosc = new ComboBox
             {
-                Location = new Point(315, 7),
-                Width = 150,
+                Location = new Point(325, 14),
+                Width = 155,
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Font = new Font("Segoe UI", 9F),
+                Font = new Font("Segoe UI", 9.5F),
                 FlatStyle = FlatStyle.Flat
             };
             cmbPredkosc.Items.AddRange(new object[] {
@@ -213,11 +213,13 @@ namespace Kalendarz1
             cmbPredkosc.SelectedIndex = 0;
             cmbPredkosc.SelectedIndexChanged += CmbPredkosc_SelectedIndexChanged;
 
-            btnSzybkiRaport = CreateModernButton("Raport", 490, 5, 80, InfoColor);
-            btnEksport = CreateModernButton("Eksport", 580, 5, 80, DangerColor);
+            btnSzybkiRaport = CreateModernButton("Raport", 500, 10, 85, InfoColor);
+            btnEksport = CreateModernButton("Eksport", 595, 10, 85, DangerColor);
 
             toolTip.SetToolTip(btnSzybkiRaport, "Generuj szybki raport PDF");
             toolTip.SetToolTip(btnEksport, "Eksportuj dane do pliku Excel");
+            toolTip.SetToolTip(dtpOd, "Data początkowa zakresu");
+            toolTip.SetToolTip(dtpDo, "Data końcowa zakresu");
 
             // Auto-load: przeładuj dane po zmianie daty (z debounce 500ms)
             autoLoadTimer = new Timer { Interval = 500 };
@@ -226,9 +228,18 @@ namespace Kalendarz1
             dtpOd.ValueChanged += (s, e) => { autoLoadTimer.Stop(); autoLoadTimer.Start(); };
             dtpDo.ValueChanged += (s, e) => { autoLoadTimer.Stop(); autoLoadTimer.Start(); };
 
+            Label lblHint = new Label
+            {
+                Text = "2x klik na wiersz = szczegóły dnia",
+                Location = new Point(695, 18),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Italic),
+                ForeColor = Color.FromArgb(150, 150, 150)
+            };
+
             toolbar.Controls.AddRange(new Control[] {
                 lblOd, dtpOd, lblDo, dtpDo, cmbPredkosc,
-                btnSzybkiRaport, btnEksport
+                btnSzybkiRaport, btnEksport, lblHint
             });
 
             return toolbar;
@@ -717,102 +728,126 @@ namespace Kalendarz1
             // === ZAKŁADKA 1: DZIENNE PRZEGLĄD (PEŁNA TABELA) ===
             TabPage tab1 = new TabPage("  Przegląd dzienny  ");
             tab1.BackColor = BackgroundColor;
-            tab1.Padding = new Padding(10);
+            tab1.Padding = new Padding(0);
 
             Panel dziennyPanel = new Panel { Dock = DockStyle.Fill };
 
             // Pasek narzędzi analizy (daty, przyciski)
             Panel analysisToolbar = CreateAnalysisToolbar();
 
-            // Górny panel z informacją
-            Panel infoPanel = new Panel { Dock = DockStyle.Top, Height = 40, BackColor = CardColor };
-            infoPanel.Paint += (s, e) => DrawCardBorder(e.Graphics, infoPanel);
-
-            Label lblInfo = new Label
-            {
-                Text = "Kliknij dwukrotnie na wiersz aby zobaczyć szczegółowe pozycje dnia",
-                Dock = DockStyle.Fill,
-                Font = new Font("Segoe UI", 9F, FontStyle.Italic),
-                ForeColor = SecondaryTextColor,
-                TextAlign = ContentAlignment.MiddleLeft,
-                Padding = new Padding(15, 0, 0, 0)
-            };
-            infoPanel.Controls.Add(lblInfo);
-
             dgvDzienne = CreateStyledDataGridView();
             dgvDzienne.DoubleClick += DgvDzienne_DoubleClick;
 
-            Panel gridPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(0, 5, 0, 0) };
-            gridPanel.Controls.Add(dgvDzienne);
-
-            dziennyPanel.Controls.Add(gridPanel);
-            dziennyPanel.Controls.Add(infoPanel);
+            dziennyPanel.Controls.Add(dgvDzienne);
             dziennyPanel.Controls.Add(analysisToolbar);
             tab1.Controls.Add(dziennyPanel);
 
             // === ZAKŁADKA 3: WYKRESY ===
             TabPage tab3 = new TabPage("  Wykresy  ");
             tab3.BackColor = BackgroundColor;
-            tab3.Padding = new Padding(5);
+            tab3.Padding = new Padding(0);
 
             // Pełnoekranowy wykres trendu
             Panel chartPanel1 = new Panel
             {
                 Dock = DockStyle.Fill,
-                BackColor = CardColor,
-                Padding = new Padding(10)
+                BackColor = Color.White,
+                Padding = new Padding(5)
             };
 
-            chartTrend = CreateInteractiveChart("Wydania i przyjęcia w czasie");
+            chartTrend = CreateInteractiveChart("Wydania i przyjęcia - dziennie");
             chartPanel1.Controls.Add(chartTrend);
             tab3.Controls.Add(chartPanel1);
 
             // === ZAKŁADKA 4: STAN MAGAZYNU (KOMPAKTOWY LAYOUT) ===
             TabPage tab4 = new TabPage("  Stan mroźni  ");
             tab4.BackColor = BackgroundColor;
-            tab4.Padding = new Padding(8);
+            tab4.Padding = new Padding(0);
 
             // Główny layout: Toolbar + SplitContainer
             Panel stanMainPanel = new Panel { Dock = DockStyle.Fill };
 
-            // === TOOLBAR (nowoczesny) ===
-            Panel stanToolbar = new Panel { Dock = DockStyle.Top, Height = 50, BackColor = Color.White };
+            // === TOOLBAR (nowoczesny z kartami statystyk) ===
+            Panel stanToolbar = new Panel { Dock = DockStyle.Top, Height = 60, BackColor = Color.FromArgb(250, 251, 253) };
             stanToolbar.Paint += (s, e) => {
-                using (var pen = new Pen(Color.FromArgb(230, 230, 230), 1))
+                using (var pen = new Pen(Color.FromArgb(220, 220, 220), 1))
                     e.Graphics.DrawLine(pen, 0, stanToolbar.Height - 1, stanToolbar.Width, stanToolbar.Height - 1);
             };
 
             dtpStanMagazynu = new DateTimePicker
             {
-                Location = new Point(15, 12),
-                Width = 110,
+                Location = new Point(15, 17),
+                Width = 115,
                 Format = DateTimePickerFormat.Short,
                 Value = DateTime.Now,
-                Font = new Font("Segoe UI", 9F)
+                Font = new Font("Segoe UI", 9.5F)
             };
             dtpStanMagazynu.ValueChanged += (s, e) => BtnStanMagazynu_Click(null, null);
 
-            btnMapowanie = CreateModernButton("Mapowanie", 135, 10, 85, InfoColor);
+            btnMapowanie = CreateModernButton("Mapowanie", 140, 14, 95, InfoColor);
             btnMapowanie.Click += BtnMapowanie_Click;
 
-            // Statystyki inline - bardziej widoczne
+            // Karta statystyk: Stan
+            Panel cardStan = new Panel
+            {
+                Location = new Point(255, 6),
+                Size = new Size(180, 44),
+                BackColor = Color.White
+            };
+            cardStan.Paint += (s, e) => {
+                using (var pen = new Pen(PrimaryColor, 2))
+                    e.Graphics.DrawLine(pen, 0, 0, 0, cardStan.Height);
+                using (var pen = new Pen(Color.FromArgb(230, 230, 230)))
+                    e.Graphics.DrawRectangle(pen, 0, 0, cardStan.Width - 1, cardStan.Height - 1);
+            };
+            Label lblStanLabel = new Label
+            {
+                Text = "STAN MAGAZYNU",
+                Location = new Point(10, 3),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 7F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(130, 130, 130)
+            };
             lblStanSuma = new Label
             {
-                Text = "Stan: 0 kg",
-                Location = new Point(240, 15),
+                Text = "0 kg",
+                Location = new Point(10, 19),
                 AutoSize = true,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 13F, FontStyle.Bold),
                 ForeColor = PrimaryColor
             };
+            cardStan.Controls.AddRange(new Control[] { lblStanLabel, lblStanSuma });
 
+            // Karta statystyk: Rezerwacje
+            Panel cardRez = new Panel
+            {
+                Location = new Point(450, 6),
+                Size = new Size(180, 44),
+                BackColor = Color.White
+            };
+            cardRez.Paint += (s, e) => {
+                using (var pen = new Pen(DangerColor, 2))
+                    e.Graphics.DrawLine(pen, 0, 0, 0, cardRez.Height);
+                using (var pen = new Pen(Color.FromArgb(230, 230, 230)))
+                    e.Graphics.DrawRectangle(pen, 0, 0, cardRez.Width - 1, cardRez.Height - 1);
+            };
+            Label lblRezLabel = new Label
+            {
+                Text = "ZAREZERWOWANO",
+                Location = new Point(10, 3),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 7F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(130, 130, 130)
+            };
             lblStanRezerwacje = new Label
             {
-                Text = "Zarezerwowano: 0 kg",
-                Location = new Point(380, 15),
+                Text = "0 kg",
+                Location = new Point(10, 19),
                 AutoSize = true,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 13F, FontStyle.Bold),
                 ForeColor = DangerColor
             };
+            cardRez.Controls.AddRange(new Control[] { lblRezLabel, lblStanRezerwacje });
 
             lblStanWartosc = new Label { Visible = false };
             lblStanProdukty = new Label { Visible = false };
@@ -820,7 +855,7 @@ namespace Kalendarz1
 
             stanToolbar.Controls.AddRange(new Control[] {
                 dtpStanMagazynu, btnMapowanie,
-                lblStanSuma, lblStanRezerwacje, lblStanWartosc, lblStanProdukty, chkGrupowanie
+                cardStan, cardRez, lblStanWartosc, lblStanProdukty, chkGrupowanie
             });
 
             // === STAN MAGAZYNU - pełnoekranowa tabela ===
@@ -845,39 +880,39 @@ namespace Kalendarz1
             // === ZAKŁADKA REZERWACJE ===
             TabPage tabRez = new TabPage("  Rezerwacje  ");
             tabRez.BackColor = BackgroundColor;
-            tabRez.Padding = new Padding(8);
+            tabRez.Padding = new Padding(0);
 
             Panel rezMainPanel = new Panel { Dock = DockStyle.Fill };
 
             // Toolbar rezerwacji
-            Panel rezToolbar = new Panel { Dock = DockStyle.Top, Height = 50, BackColor = Color.White };
+            Panel rezToolbar = new Panel { Dock = DockStyle.Top, Height = 55, BackColor = Color.FromArgb(250, 251, 253) };
             rezToolbar.Paint += (s, e) => {
-                using (var pen = new Pen(Color.FromArgb(230, 230, 230), 1))
+                using (var pen = new Pen(Color.FromArgb(220, 220, 220), 1))
                     e.Graphics.DrawLine(pen, 0, rezToolbar.Height - 1, rezToolbar.Width, rezToolbar.Height - 1);
             };
 
-            Button btnDodajRez = CreateModernButton("+ Dodaj", 15, 7, 90, SuccessColor);
+            Button btnDodajRez = CreateModernButton("+ Dodaj rezerwację", 15, 10, 145, SuccessColor);
             btnDodajRez.Click += (s, e) => DodajRezerwacjeZKarty();
 
-            Button btnEdytujRez = CreateModernButton("Edytuj", 115, 7, 80, InfoColor);
+            Button btnEdytujRez = CreateModernButton("Edytuj", 170, 10, 80, InfoColor);
             btnEdytujRez.Click += (s, e) => EdytujWybranaRezerwacje();
 
-            Button btnUsunRez = CreateModernButton("Usuń", 205, 7, 80, DangerColor);
+            Button btnUsunRez = CreateModernButton("Usuń", 260, 10, 80, DangerColor);
             btnUsunRez.Click += (s, e) => UsunWybranaRezerwacje();
 
             Label lblRezInfo = new Label
             {
-                Text = "2x klik = anuluj",
-                Location = new Point(300, 15),
+                Text = "Kliknij dwukrotnie wiersz aby anulować  |  PPM = menu kontekstowe",
+                Location = new Point(360, 18),
                 AutoSize = true,
-                Font = new Font("Segoe UI", 9F, FontStyle.Italic),
-                ForeColor = Color.FromArgb(160, 160, 160)
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Italic),
+                ForeColor = Color.FromArgb(140, 140, 140)
             };
 
             rezToolbar.Controls.AddRange(new Control[] { btnDodajRez, btnEdytujRez, btnUsunRez, lblRezInfo });
 
             dgvZamowienia = CreateStyledDataGridView();
-            dgvZamowienia.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(220, 53, 69);
+            dgvZamowienia.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(192, 40, 55);
             dgvZamowienia.CellDoubleClick += DgvRezerwacje_CellDoubleClick;
 
             // Menu kontekstowe rezerwacji
@@ -896,7 +931,7 @@ namespace Kalendarz1
             // === ZAKŁADKA 5: MROŹNIE ZEWNĘTRZNE ===
             TabPage tab5 = new TabPage("  Mroźnie zewnętrzne  ");
             tab5.BackColor = BackgroundColor;
-            tab5.Padding = new Padding(8);
+            tab5.Padding = new Padding(0);
 
             Panel zewnMainPanel = new Panel { Dock = DockStyle.Fill };
 
@@ -931,7 +966,7 @@ namespace Kalendarz1
             };
             splitZewn.SizeChanged += (s, e) => {
                 if (splitZewn.Width > 0)
-                    splitZewn.SplitterDistance = splitZewn.Width / 3;
+                    splitZewn.SplitterDistance = (int)(splitZewn.Width * 0.55);
             };
 
             // Lewa: Split - Lista mroźni górna / Stan zbiorczy dolny
@@ -946,7 +981,7 @@ namespace Kalendarz1
             };
             splitLeftMroznia.SizeChanged += (s, e) => {
                 if (splitLeftMroznia.Height > 0)
-                    splitLeftMroznia.SplitterDistance = (int)(splitLeftMroznia.Height * 0.35);
+                    splitLeftMroznia.SplitterDistance = (int)(splitLeftMroznia.Height * 0.40);
             };
 
             // Górna część: Lista mroźni (6z - karty zamiast tabeli)
@@ -1114,15 +1149,15 @@ namespace Kalendarz1
             {
                 Dock = DockStyle.Fill,
                 BackColor = Color.White,
-                Padding = new Padding(10),
+                Padding = new Padding(5),
                 AntiAliasing = AntiAliasingStyles.All
             };
 
             Title chartTitle = new Title
             {
                 Text = title,
-                Font = new Font("Segoe UI", 13F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(50, 50, 50),
+                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(40, 40, 40),
                 Docking = Docking.Top,
                 Alignment = ContentAlignment.MiddleLeft
             };
@@ -1147,31 +1182,33 @@ namespace Kalendarz1
             area.CursorY.IsUserSelectionEnabled = true;
             area.AxisY.ScaleView.Zoomable = true;
 
-            // Siatka - delikatna, przerywana
-            area.AxisX.MajorGrid.LineColor = Color.FromArgb(235, 237, 240);
-            area.AxisX.MajorGrid.LineDashStyle = ChartDashStyle.Dot;
-            area.AxisY.MajorGrid.LineColor = Color.FromArgb(235, 237, 240);
+            // Siatka - delikatna, tylko Y
+            area.AxisX.MajorGrid.Enabled = false;
+            area.AxisY.MajorGrid.LineColor = Color.FromArgb(240, 240, 240);
             area.AxisY.MajorGrid.LineDashStyle = ChartDashStyle.Dash;
 
             // Osie
-            area.AxisX.LineColor = Color.FromArgb(200, 200, 200);
-            area.AxisY.LineColor = Color.FromArgb(200, 200, 200);
-            area.AxisX.LabelStyle.Font = new Font("Segoe UI", 8.5F);
-            area.AxisY.LabelStyle.Font = new Font("Segoe UI", 9F);
-            area.AxisX.LabelStyle.ForeColor = Color.FromArgb(100, 100, 100);
-            area.AxisY.LabelStyle.ForeColor = Color.FromArgb(100, 100, 100);
+            area.AxisX.LineColor = Color.FromArgb(210, 210, 210);
+            area.AxisY.LineColor = Color.FromArgb(210, 210, 210);
+            area.AxisX.LabelStyle.Font = new Font("Segoe UI", 8F);
+            area.AxisY.LabelStyle.Font = new Font("Segoe UI", 8.5F);
+            area.AxisX.LabelStyle.ForeColor = Color.FromArgb(90, 90, 90);
+            area.AxisY.LabelStyle.ForeColor = Color.FromArgb(90, 90, 90);
+            area.AxisX.MajorTickMark.LineColor = Color.FromArgb(210, 210, 210);
+            area.AxisY.MajorTickMark.LineColor = Color.FromArgb(210, 210, 210);
 
-            // Margines
-            area.InnerPlotPosition = new ElementPosition(6, 5, 92, 82);
+            // Margines - dużo miejsca na wykres
+            area.InnerPlotPosition = new ElementPosition(5, 3, 94, 85);
 
             chart.ChartAreas.Add(area);
 
             Legend legend = new Legend
             {
                 Docking = Docking.Bottom,
-                Font = new Font("Segoe UI", 10F),
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 BackColor = Color.Transparent,
-                Alignment = StringAlignment.Center
+                Alignment = StringAlignment.Center,
+                IsDockedInsideChartArea = false
             };
             chart.Legends.Add(legend);
 
@@ -1419,13 +1456,27 @@ namespace Kalendarz1
 
             foreach (DataGridViewRow row in dgvDzienne.Rows)
             {
+                // Koloruj bilans
                 if (row.Cells["Bilans"].Value != null)
                 {
                     decimal bilans = Convert.ToDecimal(row.Cells["Bilans"].Value);
                     if (bilans < 0)
+                    {
                         row.Cells["Bilans"].Style.ForeColor = SuccessColor;
+                        row.Cells["Bilans"].Style.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+                    }
                     else if (bilans > 0)
+                    {
                         row.Cells["Bilans"].Style.ForeColor = DangerColor;
+                        row.Cells["Bilans"].Style.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+                    }
+                }
+
+                // Delikatne tło weekendów
+                string dzien = row.Cells["DzienTygodnia"].Value?.ToString() ?? "";
+                if (dzien == "Saturday" || dzien == "Sunday")
+                {
+                    row.DefaultCellStyle.BackColor = Color.FromArgb(255, 252, 240);
                 }
             }
         }
@@ -1938,35 +1989,29 @@ namespace Kalendarz1
                 if (data > maxDate) maxDate = data;
             }
 
-            // Seria Wydane - SplineArea z wypełnieniem
+            int totalDays = (maxDate - minDate).Days + 1;
+
+            // Seria Wydane - Column
             Series seriesWydano = new Series("Wydane (kg)")
             {
-                ChartType = SeriesChartType.SplineArea,
-                BorderWidth = 3,
-                Color = Color.FromArgb(60, 41, 128, 185),
-                BorderColor = Color.FromArgb(41, 128, 185),
-                MarkerStyle = MarkerStyle.Circle,
-                MarkerSize = 5,
-                MarkerColor = Color.FromArgb(41, 128, 185),
-                MarkerBorderColor = Color.White,
-                MarkerBorderWidth = 1
+                ChartType = SeriesChartType.Column,
+                Color = Color.FromArgb(41, 128, 185),
+                BorderWidth = 0,
+                IsValueShownAsLabel = totalDays <= 35
             };
+            seriesWydano["PointWidth"] = "0.7";
 
-            // Seria Przyjęte - SplineArea z wypełnieniem
+            // Seria Przyjęte - Column
             Series seriesPrzyjeto = new Series("Przyjęte (kg)")
             {
-                ChartType = SeriesChartType.SplineArea,
-                BorderWidth = 3,
-                Color = Color.FromArgb(50, 46, 204, 113),
-                BorderColor = Color.FromArgb(46, 204, 113),
-                MarkerStyle = MarkerStyle.Circle,
-                MarkerSize = 5,
-                MarkerColor = Color.FromArgb(46, 204, 113),
-                MarkerBorderColor = Color.White,
-                MarkerBorderWidth = 1
+                ChartType = SeriesChartType.Column,
+                Color = Color.FromArgb(46, 204, 113),
+                BorderWidth = 0,
+                IsValueShownAsLabel = totalDays <= 35
             };
+            seriesPrzyjeto["PointWidth"] = "0.7";
 
-            // Wypełnij KAŻDY dzień (bez przerw na weekendy)
+            // Wypełnij KAŻDY dzień
             for (DateTime d = minDate; d <= maxDate; d = d.AddDays(1))
             {
                 double wydano = 0, przyjeto = 0;
@@ -1976,21 +2021,33 @@ namespace Kalendarz1
                     przyjeto = dataMap[d].przyjeto;
                 }
 
-                seriesWydano.Points.AddXY(d, wydano);
-                seriesWydano.Points[seriesWydano.Points.Count - 1].ToolTip =
-                    $"{d:dd MMM yyyy}\nWydano: {wydano:N0} kg";
+                int idxW = seriesWydano.Points.AddXY(d, wydano);
+                seriesWydano.Points[idxW].ToolTip = $"{d:dd.MM.yyyy (dddd)}\nWydano: {wydano:N0} kg";
+                if (wydano > 0)
+                    seriesWydano.Points[idxW].Label = FormatShortValue(wydano);
+                else
+                    seriesWydano.Points[idxW].IsValueShownAsLabel = false;
 
-                seriesPrzyjeto.Points.AddXY(d, przyjeto);
-                seriesPrzyjeto.Points[seriesPrzyjeto.Points.Count - 1].ToolTip =
-                    $"{d:dd MMM yyyy}\nPrzyjęto: {przyjeto:N0} kg";
+                int idxP = seriesPrzyjeto.Points.AddXY(d, przyjeto);
+                seriesPrzyjeto.Points[idxP].ToolTip = $"{d:dd.MM.yyyy (dddd)}\nPrzyjęto: {przyjeto:N0} kg";
+                if (przyjeto > 0)
+                    seriesPrzyjeto.Points[idxP].Label = FormatShortValue(przyjeto);
+                else
+                    seriesPrzyjeto.Points[idxP].IsValueShownAsLabel = false;
 
-                // Oznacz weekendy (brak markera, przezroczysty punkt)
-                if (wydano == 0 && przyjeto == 0)
+                // Delikatne tło weekendów
+                if (d.DayOfWeek == DayOfWeek.Saturday || d.DayOfWeek == DayOfWeek.Sunday)
                 {
-                    seriesWydano.Points[seriesWydano.Points.Count - 1].MarkerSize = 0;
-                    seriesPrzyjeto.Points[seriesPrzyjeto.Points.Count - 1].MarkerSize = 0;
+                    seriesWydano.Points[idxW].Color = Color.FromArgb(150, 41, 128, 185);
+                    seriesPrzyjeto.Points[idxP].Color = Color.FromArgb(150, 46, 204, 113);
                 }
             }
+
+            // Style etykiet
+            seriesWydano.LabelForeColor = Color.FromArgb(41, 128, 185);
+            seriesWydano.Font = new Font("Segoe UI", 7F, FontStyle.Bold);
+            seriesPrzyjeto.LabelForeColor = Color.FromArgb(46, 204, 113);
+            seriesPrzyjeto.Font = new Font("Segoe UI", 7F, FontStyle.Bold);
 
             chartTrend.Series.Add(seriesWydano);
             chartTrend.Series.Add(seriesPrzyjeto);
@@ -1999,11 +2056,25 @@ namespace Kalendarz1
             area.AxisX.LabelStyle.Format = "dd.MM";
             area.AxisX.LabelStyle.Angle = -45;
             area.AxisX.IntervalType = DateTimeIntervalType.Days;
-            area.AxisX.Interval = Math.Max(1, (maxDate - minDate).Days / 15);
+            area.AxisX.Interval = 1;
+            // Skrócone etykiety osi Y (np. 10k, 50k)
             area.AxisY.LabelStyle.Format = "N0";
+            area.AxisY.LabelStyle.IsStaggered = false;
             area.AxisX.Title = "";
             area.AxisY.Title = "kg";
             area.AxisY.TitleFont = new Font("Segoe UI", 9F, FontStyle.Bold);
+
+            // Customowe formatowanie osi Y
+            chartTrend.FormatNumber += (s, e) => {
+                if (e.ElementType == ChartElementType.AxisLabels && e.Value >= 1000)
+                    e.LocalizedValue = (e.Value / 1000).ToString("0.#") + "k";
+            };
+        }
+
+        private string FormatShortValue(double value)
+        {
+            if (value >= 1000) return (value / 1000).ToString("0.#") + "k";
+            return value.ToString("N0");
         }
 
         private void ResetChartZoom()
@@ -2874,7 +2945,7 @@ namespace Kalendarz1
 
                 // Aktualizuj etykietę rezerwacji
                 decimal sumaRez = aktywne.Sum(r => r.Ilosc);
-                lblStanRezerwacje.Text = $"Zarezerwowano: {sumaRez:N0} kg";
+                lblStanRezerwacje.Text = $"{sumaRez:N0} kg";
             }
             catch (Exception ex)
             {
@@ -3138,10 +3209,10 @@ namespace Kalendarz1
 
         private void UpdateStanStatystyki(decimal sumaStan, decimal sumaWartosc, int liczbaProdukow)
         {
-            lblStanSuma.Text = $"Stan: {sumaStan:N0} kg";
+            lblStanSuma.Text = $"{sumaStan:N0} kg";
             var rezerwacje = WczytajRezerwacje();
             decimal sumaRezerwacji = rezerwacje.Sum(r => r.Ilosc);
-            lblStanRezerwacje.Text = $"Zarezerwowano: {sumaRezerwacji:N0} kg";
+            lblStanRezerwacje.Text = $"{sumaRezerwacji:N0} kg";
         }
 
         private Dictionary<string, decimal> GetRezerwacjePoProduktach()
