@@ -2916,7 +2916,7 @@ namespace Kalendarz1
         /// </summary>
         private void DodajRezerwacjeZKarty()
         {
-            using (var dlg = new RezerwacjaEditorDialog(null, GetCurrentHandlowiec()))
+            using (var dlg = new RezerwacjaEditorDialog(null, GetCurrentHandlowiec(), connectionString))
             {
                 if (dlg.ShowDialog() == DialogResult.OK)
                 {
@@ -2958,7 +2958,7 @@ namespace Kalendarz1
             var rez = rezerwacje.FirstOrDefault(r => r.Id == id);
             if (rez == null) return;
 
-            using (var dlg = new RezerwacjaEditorDialog(rez, GetCurrentHandlowiec()))
+            using (var dlg = new RezerwacjaEditorDialog(rez, GetCurrentHandlowiec(), connectionString))
             {
                 if (dlg.ShowDialog() == DialogResult.OK)
                 {
@@ -3707,7 +3707,7 @@ namespace Kalendarz1
     }
 
     /// <summary>
-    /// Dialog dodawania/edycji rezerwacji z pełnym formularzem
+    /// Dialog dodawania/edycji rezerwacji z ComboBox produktów z bazy
     /// </summary>
     public class RezerwacjaEditorDialog : Form
     {
@@ -3717,11 +3717,14 @@ namespace Kalendarz1
         public DateTime DataWaznosci { get; private set; }
         public string Uwagi { get; private set; } = "";
 
-        public RezerwacjaEditorDialog(RezerwacjaItem existing, string defaultHandlowiec)
+        private ComboBox cmbProdukt;
+        private List<ProduktMrozony> produkty = new List<ProduktMrozony>();
+
+        public RezerwacjaEditorDialog(RezerwacjaItem existing, string defaultHandlowiec, string connectionString)
         {
             bool isEdit = existing != null;
             this.Text = isEdit ? "Edytuj rezerwację" : "Nowa rezerwacja";
-            this.Size = new Size(420, 340);
+            this.Size = new Size(480, 370);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -3729,21 +3732,40 @@ namespace Kalendarz1
             this.BackColor = Color.White;
             this.Font = new Font("Segoe UI", 10F);
 
+            // Załaduj produkty z bazy
+            LoadProduktyZBazy(connectionString);
+
             int y = 15;
             int labelX = 15;
             int inputX = 140;
-            int inputW = 240;
+            int inputW = 300;
 
-            // Kod produktu
-            Label lblKod = new Label { Text = "Kod produktu:", Location = new Point(labelX, y + 3), AutoSize = true };
-            TextBox txtKod = new TextBox
+            // Produkt (ComboBox z wyszukiwaniem)
+            Label lblKod = new Label { Text = "Produkt:", Location = new Point(labelX, y + 3), AutoSize = true };
+            cmbProdukt = new ComboBox
             {
                 Location = new Point(inputX, y),
                 Size = new Size(inputW, 28),
-                Text = existing?.KodProduktu ?? "",
+                DropDownStyle = ComboBoxStyle.DropDown,
+                AutoCompleteMode = AutoCompleteMode.SuggestAppend,
+                AutoCompleteSource = AutoCompleteSource.ListItems,
                 Font = new Font("Segoe UI", 10F)
             };
-            y += 38;
+            cmbProdukt.DropDownWidth = 450;
+
+            foreach (var p in produkty)
+                cmbProdukt.Items.Add($"{p.Kod} - {p.Nazwa}");
+
+            // Ustaw wybraną wartość przy edycji
+            if (isEdit && !string.IsNullOrEmpty(existing.KodProduktu))
+            {
+                var match = produkty.FindIndex(p => p.Kod == existing.KodProduktu);
+                if (match >= 0)
+                    cmbProdukt.SelectedIndex = match;
+                else
+                    cmbProdukt.Text = existing.KodProduktu;
+            }
+            y += 40;
 
             // Ilość
             Label lblIlosc = new Label { Text = "Ilość (kg):", Location = new Point(labelX, y + 3), AutoSize = true };
@@ -3757,7 +3779,7 @@ namespace Kalendarz1
                 DecimalPlaces = 0,
                 Font = new Font("Segoe UI", 10F)
             };
-            y += 38;
+            y += 40;
 
             // Handlowiec
             Label lblHandlowiec = new Label { Text = "Handlowiec:", Location = new Point(labelX, y + 3), AutoSize = true };
@@ -3768,7 +3790,7 @@ namespace Kalendarz1
                 Text = existing?.Handlowiec ?? defaultHandlowiec,
                 Font = new Font("Segoe UI", 10F)
             };
-            y += 38;
+            y += 40;
 
             // Data ważności
             Label lblWaznosc = new Label { Text = "Ważna do:", Location = new Point(labelX, y + 3), AutoSize = true };
@@ -3781,7 +3803,7 @@ namespace Kalendarz1
                 MinDate = DateTime.Today,
                 Font = new Font("Segoe UI", 10F)
             };
-            y += 38;
+            y += 40;
 
             // Uwagi
             Label lblUwagi = new Label { Text = "Uwagi:", Location = new Point(labelX, y + 3), AutoSize = true };
@@ -3799,7 +3821,7 @@ namespace Kalendarz1
             {
                 Text = isEdit ? "Zapisz" : "Dodaj rezerwację",
                 Location = new Point(inputX, y),
-                Size = new Size(120, 36),
+                Size = new Size(130, 36),
                 DialogResult = DialogResult.OK,
                 BackColor = isEdit ? Color.FromArgb(0, 120, 212) : Color.FromArgb(16, 124, 16),
                 ForeColor = Color.White,
@@ -3811,7 +3833,7 @@ namespace Kalendarz1
             Button btnCancel = new Button
             {
                 Text = "Anuluj",
-                Location = new Point(inputX + 130, y),
+                Location = new Point(inputX + 140, y),
                 Size = new Size(80, 36),
                 DialogResult = DialogResult.Cancel,
                 FlatStyle = FlatStyle.Flat,
@@ -3821,9 +3843,10 @@ namespace Kalendarz1
             // Walidacja
             btnOK.Click += (s, e) =>
             {
-                if (string.IsNullOrWhiteSpace(txtKod.Text))
+                string wybranyKod = GetSelectedKod();
+                if (string.IsNullOrWhiteSpace(wybranyKod))
                 {
-                    MessageBox.Show("Wpisz kod produktu.", "Brak kodu", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show("Wybierz produkt z listy.", "Brak produktu", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     this.DialogResult = DialogResult.None;
                     return;
                 }
@@ -3833,7 +3856,7 @@ namespace Kalendarz1
                     this.DialogResult = DialogResult.None;
                     return;
                 }
-                KodProduktu = txtKod.Text.Trim();
+                KodProduktu = wybranyKod;
                 Ilosc = nudIlosc.Value;
                 Handlowiec = txtHandlowiec.Text.Trim();
                 DataWaznosci = dtpWaznosc.Value.Date;
@@ -3841,11 +3864,49 @@ namespace Kalendarz1
             };
 
             this.Controls.AddRange(new Control[] {
-                lblKod, txtKod, lblIlosc, nudIlosc, lblHandlowiec, txtHandlowiec,
+                lblKod, cmbProdukt, lblIlosc, nudIlosc, lblHandlowiec, txtHandlowiec,
                 lblWaznosc, dtpWaznosc, lblUwagi, txtUwagi, btnOK, btnCancel
             });
             this.AcceptButton = btnOK;
             this.CancelButton = btnCancel;
+        }
+
+        private string GetSelectedKod()
+        {
+            if (cmbProdukt.SelectedIndex >= 0 && cmbProdukt.SelectedIndex < produkty.Count)
+                return produkty[cmbProdukt.SelectedIndex].Kod;
+
+            // Spróbuj dopasować wpisany tekst
+            string text = cmbProdukt.Text.Trim();
+            var match = produkty.FirstOrDefault(p =>
+                text.StartsWith(p.Kod, StringComparison.OrdinalIgnoreCase) ||
+                text.Equals($"{p.Kod} - {p.Nazwa}", StringComparison.OrdinalIgnoreCase));
+            return match?.Kod ?? "";
+        }
+
+        private void LoadProduktyZBazy(string connectionString)
+        {
+            try
+            {
+                using (var conn = new Microsoft.Data.SqlClient.SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(
+                        $"SELECT Id, Kod, Nazwa FROM [HANDEL].[HM].[TW] WHERE katalog IN ('{Mroznia.KatalogSwiezy}', '{Mroznia.KatalogMrozony}') ORDER BY Nazwa ASC", conn))
+                    using (var rd = cmd.ExecuteReader())
+                        while (rd.Read())
+                            produkty.Add(new ProduktMrozony
+                            {
+                                Id = rd.GetInt32(0),
+                                Kod = rd["Kod"]?.ToString() ?? "",
+                                Nazwa = rd["Nazwa"]?.ToString() ?? ""
+                            });
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd ładowania produktów: {ex.Message}");
+            }
         }
     }
 
