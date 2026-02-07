@@ -277,7 +277,7 @@
                               FontSize="9" 
                               Foreground="{StaticResource TextGrayBrush}"
                               Margin="20,5"
-                              Text="Wersja: 2.0.1"/>
+                              Text="Wersja: 2.0.2"/>
 
                     <TextBlock x:Name="DateLabel"
                               FontSize="9" 

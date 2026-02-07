@@ -584,7 +584,7 @@
                                  Style="{StaticResource FloatingLabelPasswordBoxStyle}"
                                  KeyDown="PasswordBox_KeyDown" PasswordChanged="PasswordBox_PasswordChanged"/>
 
-                    <Button x:Name="LoginButton" Content="ZALOGUJ SIE" Height="50" Click="LoginButton_Click"
+                    <Button x:Name="LoginButton" Content="ZALOGUJ SIĘ" Height="50" Click="LoginButton_Click"
                             FontWeight="Bold" FontFamily="Segoe UI" FontSize="14" Margin="0,40,0,0"
                             Foreground="White" Background="#5C8A3A">
                         <Button.Style>
@@ -644,14 +644,14 @@
 
                                 <!-- Rząd 4: Backspace 0 -->
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                    <Button Content="←" Style="{StaticResource TouchKeyBackspaceStyle}" Click="TouchKey_Backspace" ToolTip="Usun ostatni znak"/>
+                                    <Button Content="←" Style="{StaticResource TouchKeyBackspaceStyle}" Click="TouchKey_Backspace" ToolTip="Usuń ostatni znak"/>
                                     <Button Content="0" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
-                                    <Button Content="←" Style="{StaticResource TouchKeyBackspaceStyle}" Click="TouchKey_Backspace" ToolTip="Usun ostatni znak" Visibility="Hidden"/>
+                                    <Button Content="←" Style="{StaticResource TouchKeyBackspaceStyle}" Click="TouchKey_Backspace" ToolTip="Usuń ostatni znak" Visibility="Hidden"/>
                                 </StackPanel>
 
                                 <!-- Rząd 5: WYCZYSC OK -->
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
-                                    <Button Content="WYCZYSC" Style="{StaticResource TouchKeyClearStyle}" Click="TouchKey_Clear" ToolTip="Wyczysc cale pole"/>
+                                    <Button Content="WYCZYSC" Style="{StaticResource TouchKeyClearStyle}" Click="TouchKey_Clear" ToolTip="Wyczyść całe pole"/>
                                     <Button Content="OK" Style="{StaticResource TouchKeyEnterStyle}" Click="TouchKey_Enter" ToolTip="Zaloguj"/>
                                 </StackPanel>
                             </StackPanel>
@@ -668,7 +668,7 @@
                         </Border>
                     </StackPanel>
                 </StackPanel>
-                <TextBlock x:Name="FooterText" Text="© 2025 Piórkowscy - Sergiusz Piórkowski"
+                <TextBlock x:Name="FooterText" Text="© 2026 Piórkowscy - Sergiusz Piórkowski"
                            HorizontalAlignment="Center" VerticalAlignment="Bottom"
                            Foreground="#CFD8DC" FontSize="12" Margin="20"/>
             </Grid>
