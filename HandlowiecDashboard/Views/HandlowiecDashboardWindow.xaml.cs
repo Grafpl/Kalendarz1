@@ -2535,16 +2535,16 @@ FROM FakturyPrzeterminowane;";
                 var maxDniKlient = dane.FirstOrDefault(d => d.DniPrzeterminowania == maxDni)?.Kontrahent ?? "";
 
                 // Aktualizuj karty
-                txtPlatSumaDoZaplaty.Text = $"{sumaDoZaplaty:N0} zl";
-                txtPlatIloscKlientow.Text = $"{iloscKlientow} klientow";
-                txtPlatTerminowe.Text = $"{sumaTerminowe:N0} zl";
+                txtPlatSumaDoZaplaty.Text = $"{sumaDoZaplaty:N0} zł";
+                txtPlatIloscKlientow.Text = $"{iloscKlientow} klientów";
+                txtPlatTerminowe.Text = $"{sumaTerminowe:N0} zł";
                 txtPlatTerminoweProcent.Text = sumaDoZaplaty > 0 ? $"{sumaTerminowe / sumaDoZaplaty * 100:F1}%" : "0%";
-                txtPlatPrzeterminowane.Text = $"{sumaPrzeterminowane:N0} zl";
+                txtPlatPrzeterminowane.Text = $"{sumaPrzeterminowane:N0} zł";
                 txtPlatPrzeterminowaneProcent.Text = $"{(sumaDoZaplaty > 0 ? sumaPrzeterminowane / sumaDoZaplaty * 100 : 0):F1}%";
                 txtPlatLiczbaFakturPrzet.Text = $"{sumaFakturPrzeterminowanych}";
-                txtPlatLiczbaKlientowPrzet.Text = $"u {iloscZPrzeterminowanymi} klientow";
-                txtPlatPrzekroczony.Text = $"{sumaPrzekroczony:N0} zl";
-                txtPlatPrzekroczonyIlosc.Text = $"{iloscZPrzekroczonym} klientow";
+                txtPlatLiczbaKlientowPrzet.Text = $"u {iloscZPrzeterminowanymi} klientów";
+                txtPlatPrzekroczony.Text = $"{sumaPrzekroczony:N0} zł";
+                txtPlatPrzekroczonyIlosc.Text = $"{iloscZPrzekroczonym} klientów";
                 txtPlatMaxDni.Text = $"{maxDni} dni";
                 txtPlatMaxDniKlient.Text = maxDniKlient;
 
@@ -2552,13 +2552,13 @@ FROM FakturyPrzeterminowane;";
                 var agingTotal = agingData.Kwota17 + agingData.Kwota814 + agingData.Kwota1521 + agingData.Kwota21Plus;
 
                 // Aktualizuj teksty
-                txtAging17.Text = $"{agingData.Kwota17:N0} zl";
+                txtAging17.Text = $"{agingData.Kwota17:N0} zł";
                 txtAging17Procent.Text = $"{(agingTotal > 0 ? agingData.Kwota17 / agingTotal * 100 : 0):F0}%";
-                txtAging814.Text = $"{agingData.Kwota814:N0} zl";
+                txtAging814.Text = $"{agingData.Kwota814:N0} zł";
                 txtAging814Procent.Text = $"{(agingTotal > 0 ? agingData.Kwota814 / agingTotal * 100 : 0):F0}%";
-                txtAging1521.Text = $"{agingData.Kwota1521:N0} zl";
+                txtAging1521.Text = $"{agingData.Kwota1521:N0} zł";
                 txtAging1521Procent.Text = $"{(agingTotal > 0 ? agingData.Kwota1521 / agingTotal * 100 : 0):F0}%";
-                txtAging21Plus.Text = $"{agingData.Kwota21Plus:N0} zl";
+                txtAging21Plus.Text = $"{agingData.Kwota21Plus:N0} zł";
                 txtAging21PlusProcent.Text = $"{(agingTotal > 0 ? agingData.Kwota21Plus / agingTotal * 100 : 0):F0}%";
 
                 // Aktualizuj slupki aging (szerokosci proporcjonalne)
@@ -2592,13 +2592,13 @@ FROM FakturyPrzeterminowane;";
                 var limit500kPlusKlientow = klienciZPrzekroczonymLimitem.Count(d => d.PrzekroczonyLimit > 500000);
 
                 // Aktualizuj UI przekroczonych limitow
-                txtLimit100k.Text = $"{limit100kKwota:N0} zl";
+                txtLimit100k.Text = $"{limit100kKwota:N0} zł";
                 txtLimit100kKlientow.Text = $"{limit100kKlientow} kl.";
-                txtLimit300k.Text = $"{limit300kKwota:N0} zl";
+                txtLimit300k.Text = $"{limit300kKwota:N0} zł";
                 txtLimit300kKlientow.Text = $"{limit300kKlientow} kl.";
-                txtLimit500k.Text = $"{limit500kKwota:N0} zl";
+                txtLimit500k.Text = $"{limit500kKwota:N0} zł";
                 txtLimit500kKlientow.Text = $"{limit500kKlientow} kl.";
-                txtLimit500kPlus.Text = $"{limit500kPlusKwota:N0} zl";
+                txtLimit500kPlus.Text = $"{limit500kPlusKwota:N0} zł";
                 txtLimit500kPlusKlientow.Text = $"{limit500kPlusKlientow} kl.";
 
                 // Aktualizuj slupki limitow
@@ -2668,8 +2668,8 @@ FROM FakturyPrzeterminowane;";
             if (total <= 0)
             {
                 txtDonutProcent.Text = "0%";
-                txtDonutTerminowe.Text = " Term. 0%";
-                txtDonutPrzeterminowane.Text = " Przet. 0%";
+                txtDonutTerminowe.Text = "Terminowe 0%";
+                txtDonutPrzeterminowane.Text = "Przeterminowane 0%";
                 return;
             }
 
@@ -2702,8 +2702,8 @@ FROM FakturyPrzeterminowane;";
 
             // Aktualizuj teksty
             txtDonutProcent.Text = $"{procentTerminowe * 100:F0}%";
-            txtDonutTerminowe.Text = $" Term. {procentTerminowe * 100:F0}%";
-            txtDonutPrzeterminowane.Text = $" Przet. {procentPrzeterminowane * 100:F0}%";
+            txtDonutTerminowe.Text = $"Terminowe {procentTerminowe * 100:F0}%";
+            txtDonutPrzeterminowane.Text = $"Przeterminowane {procentPrzeterminowane * 100:F0}%";
         }
 
         /// <summary>
