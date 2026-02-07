@@ -1485,7 +1485,7 @@ namespace Kalendarz1.CRM
                     new SqlCommand($"UPDATE OdbiorcyCRM SET DataNastepnegoKontaktu = '{dialog.WybranaData:yyyy-MM-dd}' WHERE ID={aktualnyOdbiorcaID}", conn).ExecuteNonQuery();
                 }
                 // Aktualizuj lokalnie zamiast przeładowywać całą listę - widok nie będzie resetowany
-                AktualizujDateLokalnie(aktualnyOdbiorcaID, dialog.WybranaData);
+                AktualizujDateLokalnie(aktualnyOdbiorcaID, dialog.WybranaData.Value);
                 ShowToast($"Data kontaktu ustawiona: {dialog.WybranaData:dd.MM.yyyy}");
             }
         }
