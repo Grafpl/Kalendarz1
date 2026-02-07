@@ -961,23 +961,6 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     idx++;
                 }
 
-                // Dodaj etykiety na koncu linii - dodajemy dodatkowa kolumne z nazwami
-                if (labels.Count > 0)
-                {
-                    // Dodajemy pusta etykiete na koncu dla miejsca na nazwy
-                    labels.Add("");
-
-                    // Rozszerz wartosci o ostatni punkt (taki sam jak poprzedni) + tekst
-                    foreach (LineSeries ls in series)
-                    {
-                        if (ls.Values.Count > 0)
-                        {
-                            var lastVal = (double)ls.Values[ls.Values.Count - 1];
-                            ls.Values.Add(lastVal);
-                        }
-                    }
-                }
-
                 // Ustaw os Y do maksymalnego punktu + 10%
                 axisYUdzial.MaxValue = maxProcent * 1.1;
 
