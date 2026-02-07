@@ -56,6 +56,8 @@ namespace Kalendarz1
         private Timer toastTimer;
         private Panel tabIndicatorPanel;
         private FlowLayoutPanel mroznieCardsPanel;
+        private Label lblDzienneSumaWydano, lblDzienneSumaPrzyjeto, lblDzienneBilans;
+        private CheckBox chkUkryjZewnetrzne;
 
         // === CACHE STATYSTYK (zastępują usunięte karty) ===
         private decimal lastWydano, lastPrzyjeto;
@@ -749,6 +751,102 @@ namespace Kalendarz1
 
             Panel dziennyPanel = new Panel { Dock = DockStyle.Fill };
 
+            // Nagłówek zakładki
+            Panel dziennyHeader = new Panel { Dock = DockStyle.Top, Height = 35, BackColor = WarningColor };
+            Label lblDziennyTitle = new Label
+            {
+                Text = "📋 PRZEGLĄD DZIENNY MROŹNI",
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = Color.White,
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            dziennyHeader.Controls.Add(lblDziennyTitle);
+
+            // Pasek statystyk
+            Panel dziennyStatsBar = new Panel { Dock = DockStyle.Top, Height = 52, BackColor = Color.FromArgb(250, 251, 253) };
+            dziennyStatsBar.Paint += (s, e) =>
+            {
+                using (var pen = new Pen(Color.FromArgb(220, 220, 220), 1))
+                    e.Graphics.DrawLine(pen, 0, dziennyStatsBar.Height - 1, dziennyStatsBar.Width, dziennyStatsBar.Height - 1);
+            };
+
+            lblDzienneSumaWydano = new Label
+            {
+                Text = "0 kg",
+                Location = new Point(110, 20),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 13F, FontStyle.Bold),
+                ForeColor = DangerColor
+            };
+            Label lblDzienneWydanoLabel = new Label
+            {
+                Text = "WYDANO ŁĄCZNIE",
+                Location = new Point(110, 4),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 7F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(130, 130, 130)
+            };
+            Panel cardDzWydano = new Panel { Location = new Point(10, 4), Size = new Size(180, 44), BackColor = Color.White };
+            cardDzWydano.Paint += (s, e) =>
+            {
+                using (var pen = new Pen(DangerColor, 2)) e.Graphics.DrawLine(pen, 0, 0, 0, cardDzWydano.Height);
+                using (var pen = new Pen(Color.FromArgb(230, 230, 230))) e.Graphics.DrawRectangle(pen, 0, 0, cardDzWydano.Width - 1, cardDzWydano.Height - 1);
+            };
+            lblDzienneSumaWydano.Location = new Point(10, 19);
+            lblDzienneWydanoLabel.Location = new Point(10, 3);
+            cardDzWydano.Controls.AddRange(new Control[] { lblDzienneWydanoLabel, lblDzienneSumaWydano });
+
+            lblDzienneSumaPrzyjeto = new Label
+            {
+                Text = "0 kg",
+                Location = new Point(10, 19),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 13F, FontStyle.Bold),
+                ForeColor = SuccessColor
+            };
+            Label lblDziennePrzyjetoLabel = new Label
+            {
+                Text = "PRZYJĘTO ŁĄCZNIE",
+                Location = new Point(10, 3),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 7F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(130, 130, 130)
+            };
+            Panel cardDzPrzyjeto = new Panel { Location = new Point(200, 4), Size = new Size(180, 44), BackColor = Color.White };
+            cardDzPrzyjeto.Paint += (s, e) =>
+            {
+                using (var pen = new Pen(SuccessColor, 2)) e.Graphics.DrawLine(pen, 0, 0, 0, cardDzPrzyjeto.Height);
+                using (var pen = new Pen(Color.FromArgb(230, 230, 230))) e.Graphics.DrawRectangle(pen, 0, 0, cardDzPrzyjeto.Width - 1, cardDzPrzyjeto.Height - 1);
+            };
+            cardDzPrzyjeto.Controls.AddRange(new Control[] { lblDziennePrzyjetoLabel, lblDzienneSumaPrzyjeto });
+
+            lblDzienneBilans = new Label
+            {
+                Text = "0 kg",
+                Location = new Point(10, 19),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 13F, FontStyle.Bold),
+                ForeColor = PrimaryColor
+            };
+            Label lblDzienneBilansLabel = new Label
+            {
+                Text = "BILANS",
+                Location = new Point(10, 3),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 7F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(130, 130, 130)
+            };
+            Panel cardDzBilans = new Panel { Location = new Point(390, 4), Size = new Size(180, 44), BackColor = Color.White };
+            cardDzBilans.Paint += (s, e) =>
+            {
+                using (var pen = new Pen(PrimaryColor, 2)) e.Graphics.DrawLine(pen, 0, 0, 0, cardDzBilans.Height);
+                using (var pen = new Pen(Color.FromArgb(230, 230, 230))) e.Graphics.DrawRectangle(pen, 0, 0, cardDzBilans.Width - 1, cardDzBilans.Height - 1);
+            };
+            cardDzBilans.Controls.AddRange(new Control[] { lblDzienneBilansLabel, lblDzienneBilans });
+
+            dziennyStatsBar.Controls.AddRange(new Control[] { cardDzWydano, cardDzPrzyjeto, cardDzBilans });
+
             // Pasek narzędzi analizy (daty, przyciski)
             Panel analysisToolbar = CreateAnalysisToolbar();
 
@@ -757,6 +855,8 @@ namespace Kalendarz1
 
             dziennyPanel.Controls.Add(dgvDzienne);
             dziennyPanel.Controls.Add(analysisToolbar);
+            dziennyPanel.Controls.Add(dziennyStatsBar);
+            dziennyPanel.Controls.Add(dziennyHeader);
             tab1.Controls.Add(dziennyPanel);
 
             // === ZAKŁADKA 3: WYKRESY ===
@@ -888,9 +988,20 @@ namespace Kalendarz1
             lblStanProdukty = new Label { Visible = false };
             chkGrupowanie = new CheckBox { Checked = false, Visible = false };
 
+            chkUkryjZewnetrzne = new CheckBox
+            {
+                Text = "Ukryj mroźnie zewnętrzne",
+                Location = new Point(650, 18),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(80, 80, 80),
+                Checked = false
+            };
+            chkUkryjZewnetrzne.CheckedChanged += ChkUkryjZewnetrzne_CheckedChanged;
+
             stanToolbar.Controls.AddRange(new Control[] {
                 dtpStanMagazynu, btnMapowanie,
-                cardStan, cardRez, lblStanWartosc, lblStanProdukty, chkGrupowanie
+                cardStan, cardRez, chkUkryjZewnetrzne, lblStanWartosc, lblStanProdukty, chkGrupowanie
             });
 
             // === STAN MAGAZYNU - pełnoekranowa tabela ===
@@ -1412,15 +1523,27 @@ namespace Kalendarz1
 
             FormatujKolumne(dgvDzienne, "Data", "Data", "yyyy-MM-dd");
             FormatujKolumne(dgvDzienne, "DzienTygodnia", "Dzień");
-            FormatujKolumne(dgvDzienne, "Wydano", "Wydano (kg)", "N0");
-            FormatujKolumne(dgvDzienne, "Przyjeto", "Przyjęto (kg)", "N0");
-            FormatujKolumne(dgvDzienne, "Bilans", "Bilans (kg)", "N0");
+            FormatujKolumne(dgvDzienne, "Wydano", "Wydano", "#,##0' kg'");
+            FormatujKolumne(dgvDzienne, "Przyjeto", "Przyjęto", "#,##0' kg'");
+            FormatujKolumne(dgvDzienne, "Bilans", "Bilans", "#,##0' kg'");
             FormatujKolumne(dgvDzienne, "Pozycje", "Pozycje");
+
+            // Wyrównanie kolumn numerycznych do prawej
+            if (dgvDzienne.Columns["Wydano"] != null)
+                dgvDzienne.Columns["Wydano"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            if (dgvDzienne.Columns["Przyjeto"] != null)
+                dgvDzienne.Columns["Przyjeto"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            if (dgvDzienne.Columns["Bilans"] != null)
+                dgvDzienne.Columns["Bilans"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            if (dgvDzienne.Columns["Pozycje"] != null)
+                dgvDzienne.Columns["Pozycje"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+
+            decimal sumaWydano = 0, sumaPrzyjeto = 0;
 
             foreach (DataGridViewRow row in dgvDzienne.Rows)
             {
                 // Koloruj bilans
-                if (row.Cells["Bilans"].Value != null)
+                if (row.Cells["Bilans"].Value != null && row.Cells["Bilans"].Value != DBNull.Value)
                 {
                     decimal bilans = Convert.ToDecimal(row.Cells["Bilans"].Value);
                     if (bilans < 0)
@@ -1435,12 +1558,45 @@ namespace Kalendarz1
                     }
                 }
 
+                // Koloruj wydano/przyjęto
+                if (row.Cells["Wydano"].Value != null && row.Cells["Wydano"].Value != DBNull.Value)
+                {
+                    decimal w = Convert.ToDecimal(row.Cells["Wydano"].Value);
+                    sumaWydano += w;
+                    row.Cells["Wydano"].Style.ForeColor = DangerColor;
+                }
+                if (row.Cells["Przyjeto"].Value != null && row.Cells["Przyjeto"].Value != DBNull.Value)
+                {
+                    decimal p = Convert.ToDecimal(row.Cells["Przyjeto"].Value);
+                    sumaPrzyjeto += p;
+                    row.Cells["Przyjeto"].Style.ForeColor = SuccessColor;
+                }
+
                 // Delikatne tło weekendów
                 string dzien = row.Cells["DzienTygodnia"].Value?.ToString() ?? "";
-                if (dzien == "Saturday" || dzien == "Sunday")
+                if (dzien == "Saturday" || dzien == "Sunday" ||
+                    dzien == "sobota" || dzien == "niedziela")
                 {
                     row.DefaultCellStyle.BackColor = Color.FromArgb(255, 252, 240);
                 }
+
+                // Naprzemienne tło (zebra) - ale nie nadpisuj weekendów
+                if (row.Index % 2 == 1 && row.DefaultCellStyle.BackColor == Color.Empty)
+                {
+                    row.DefaultCellStyle.BackColor = Color.FromArgb(248, 249, 252);
+                }
+            }
+
+            // Aktualizuj karty statystyk
+            if (lblDzienneSumaWydano != null)
+                lblDzienneSumaWydano.Text = $"{sumaWydano:N0} kg";
+            if (lblDzienneSumaPrzyjeto != null)
+                lblDzienneSumaPrzyjeto.Text = $"{sumaPrzyjeto:N0} kg";
+            if (lblDzienneBilans != null)
+            {
+                decimal bilansTotal = sumaWydano - sumaPrzyjeto;
+                lblDzienneBilans.Text = $"{bilansTotal:N0} kg";
+                lblDzienneBilans.ForeColor = bilansTotal > 0 ? DangerColor : bilansTotal < 0 ? SuccessColor : PrimaryColor;
             }
         }
 
@@ -2618,6 +2774,10 @@ namespace Kalendarz1
                         HighlightChangedRows(dgvStanMagazynu, changedRows);
                 }
 
+                // Zastosuj stan checkboxa ukrywania mroźni zewnętrznych
+                if (chkUkryjZewnetrzne != null && chkUkryjZewnetrzne.Checked)
+                    ChkUkryjZewnetrzne_CheckedChanged(null, null);
+
                 statusLabel.Text = $"Stan magazynu na {dataStan:yyyy-MM-dd} (porównanie z {dataPoprzedni:yyyy-MM-dd})";
 
                 // 1d: Aktualizuj badge'e
@@ -2631,6 +2791,21 @@ namespace Kalendarz1
             finally
             {
                 this.Cursor = Cursors.Default;
+            }
+        }
+
+        private void ChkUkryjZewnetrzne_CheckedChanged(object sender, EventArgs e)
+        {
+            if (dgvStanMagazynu?.DataSource == null) return;
+
+            bool ukryj = chkUkryjZewnetrzne.Checked;
+
+            foreach (DataGridViewColumn col in dgvStanMagazynu.Columns)
+            {
+                if (col.Name.StartsWith("MZ: ") || col.Name == "Suma Stan")
+                {
+                    col.Visible = !ukryj;
+                }
             }
         }
 
