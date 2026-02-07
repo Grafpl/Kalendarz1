@@ -49,6 +49,19 @@ namespace Kalendarz1.OfertaCenowa
         public string NoweImie { get; private set; }
         public string NoweNazwisko { get; private set; }
 
+        // Model dla notatki
+        private class NotatkaCRM
+        {
+            public int ID { get; set; }
+            public string Data { get; set; }
+            public string Autor { get; set; }
+            public string Tresc { get; set; }
+            public double MaxHeight { get; set; } = 36; // Domyślnie zwinięta (2 linie)
+            public bool Rozwiniety { get; set; } = false;
+        }
+
+        private List<NotatkaCRM> _notatki = new List<NotatkaCRM>();
+
         public EdycjaKontaktuWindow()
         {
             InitializeComponent();
@@ -62,6 +75,14 @@ namespace Kalendarz1.OfertaCenowa
             WczytajWojewodztwa();
             WczytajPKD();
             WczytajDaneKontaktowe();
+            WczytajNotatki();
+
+            // Obsługa placeholdera
+            txtNotatki.TextChanged += (s, ev) =>
+            {
+                txtNotatkaPlaceholder.Visibility = string.IsNullOrEmpty(txtNotatki.Text)
+                    ? Visibility.Visible : Visibility.Collapsed;
+            };
         }
 
         private void WczytajWojewodztwa()
@@ -213,6 +234,100 @@ namespace Kalendarz1.OfertaCenowa
             catch
             {
                 return "";
+            }
+        }
+
+        private void WczytajNotatki()
+        {
+            if (KlientID <= 0) return;
+
+            try
+            {
+                _notatki.Clear();
+
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+
+                    var cmd = new SqlCommand(@"
+                        SELECT ID, Tresc, KtoDodal, DataDodania
+                        FROM NotatkiCRM
+                        WHERE IDOdbiorcy = @id
+                        ORDER BY DataDodania DESC", conn);
+                    cmd.Parameters.AddWithValue("@id", KlientID);
+
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            var notatka = new NotatkaCRM
+                            {
+                                ID = reader.GetInt32(0),
+                                Tresc = reader.IsDBNull(1) ? "" : reader.GetString(1),
+                                Autor = reader.IsDBNull(2) ? "" : reader.GetString(2),
+                                Data = reader.IsDBNull(3) ? "" : reader.GetDateTime(3).ToString("dd.MM.yyyy HH:mm"),
+                                MaxHeight = 36 // Domyślnie zwinięta
+                            };
+                            _notatki.Add(notatka);
+                        }
+                    }
+                }
+
+                listaNotatek.ItemsSource = null;
+                listaNotatek.ItemsSource = _notatki;
+            }
+            catch { }
+        }
+
+        private void TxtNotatki_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == System.Windows.Input.Key.Enter && !string.IsNullOrWhiteSpace(txtNotatki.Text))
+            {
+                DodajNotatke();
+                e.Handled = true;
+            }
+        }
+
+        private void DodajNotatke()
+        {
+            if (KlientID <= 0 || string.IsNullOrWhiteSpace(txtNotatki.Text)) return;
+
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+
+                    var cmd = new SqlCommand(@"
+                        INSERT INTO NotatkiCRM (IDOdbiorcy, Tresc, KtoDodal, DataDodania)
+                        VALUES (@id, @tresc, @kto, GETDATE())", conn);
+                    cmd.Parameters.AddWithValue("@id", KlientID);
+                    cmd.Parameters.AddWithValue("@tresc", txtNotatki.Text.Trim());
+                    cmd.Parameters.AddWithValue("@kto", OperatorID ?? "");
+                    cmd.ExecuteNonQuery();
+                }
+
+                txtNotatki.Text = "";
+                WczytajNotatki();
+                txtStatus.Text = "Notatka dodana";
+            }
+            catch (Exception ex)
+            {
+                txtStatus.Text = $"Błąd dodawania notatki: {ex.Message}";
+            }
+        }
+
+        private void Notatka_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (sender is Border border && border.DataContext is NotatkaCRM notatka)
+            {
+                // Toggle rozwinięcia
+                notatka.Rozwiniety = !notatka.Rozwiniety;
+                notatka.MaxHeight = notatka.Rozwiniety ? double.PositiveInfinity : 36;
+
+                // Odśwież binding
+                listaNotatek.ItemsSource = null;
+                listaNotatek.ItemsSource = _notatki;
             }
         }
 
@@ -531,19 +646,6 @@ namespace Kalendarz1.OfertaCenowa
                         if (rowsAffected > 0)
                         {
                             ZapiszHistorie(conn);
-
-                            // Dodaj notatkę jeśli jest
-                            if (!string.IsNullOrWhiteSpace(txtNotatki.Text))
-                            {
-                                var cmdNotatka = new SqlCommand(@"
-                                    INSERT INTO NotatkiCRM (IDOdbiorcy, Tresc, KtoDodal)
-                                    VALUES (@id, @tresc, @kto)", conn);
-                                cmdNotatka.Parameters.AddWithValue("@id", KlientID);
-                                cmdNotatka.Parameters.AddWithValue("@tresc", txtNotatki.Text.Trim());
-                                cmdNotatka.Parameters.AddWithValue("@kto", OperatorID ?? "");
-                                cmdNotatka.ExecuteNonQuery();
-                            }
-
                             ZapisanoZmiany = true;
                             NowyEmail = txtEmail.Text;
                             NowyTelefon = txtTelefon.Text;

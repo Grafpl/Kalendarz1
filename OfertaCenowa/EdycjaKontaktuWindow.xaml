@@ -516,9 +516,53 @@
 
                 <TextBlock Text="NOTATKI" Style="{StaticResource SectionHeader}" Margin="0,6,0,10"/>
                 <Border Style="{StaticResource CardStyle}" Padding="12">
-                    <TextBox x:Name="txtNotatki" Style="{StaticResource TextBoxStyle}" Margin="0"
-                             Height="80" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
-                             ToolTip="Dodaj nową notatkę (opcjonalnie)"/>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Historia notatek - zwijane -->
+                        <ScrollViewer Grid.Row="0" MaxHeight="150" VerticalScrollBarVisibility="Auto" Margin="0,0,0,10">
+                            <ItemsControl x:Name="listaNotatek">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#1A1D21" CornerRadius="6" Padding="10" Margin="0,0,0,6" Cursor="Hand"
+                                                MouseLeftButtonUp="Notatka_Click">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <Grid Grid.Row="0" Margin="0,0,0,4">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{Binding Data}" FontSize="10" Foreground="#6366F1" FontWeight="SemiBold"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding Autor}" FontSize="9" Foreground="#64748B"/>
+                                                </Grid>
+                                                <TextBlock Grid.Row="1" Text="{Binding Tresc}" FontSize="11" Foreground="#E2E8F0"
+                                                           TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
+                                                           MaxHeight="{Binding MaxHeight}" Tag="{Binding}"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+
+                        <!-- Pole do dodania nowej notatki -->
+                        <Grid Grid.Row="1">
+                            <TextBox x:Name="txtNotatki" Style="{StaticResource TextBoxStyle}" Margin="0"
+                                     Height="50" TextWrapping="Wrap" AcceptsReturn="False"
+                                     KeyDown="TxtNotatki_KeyDown"
+                                     ToolTip="Wpisz notatkę i naciśnij Enter aby dodać"/>
+                            <TextBlock x:Name="txtNotatkaPlaceholder" Text="Wpisz notatkę i naciśnij Enter..."
+                                       FontSize="12" Foreground="#64748B" IsHitTestVisible="False"
+                                       Margin="12,14,0,0" Visibility="Visible"/>
+                        </Grid>
+                    </Grid>
                 </Border>
             </StackPanel>
         </Grid>
