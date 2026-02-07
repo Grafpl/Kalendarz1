@@ -1919,6 +1919,8 @@ namespace Kalendarz1
             }
         }
 
+        private List<DateTime> chartDateMap = new List<DateTime>();
+
         private void DisplayTrendy(DataTable dt)
         {
             if (liveChart == null) return;
@@ -1926,6 +1928,7 @@ namespace Kalendarz1
             liveChart.Series.Clear();
             liveChart.AxisX.Clear();
             liveChart.AxisY.Clear();
+            chartDateMap.Clear();
 
             if (dt == null || dt.Rows.Count == 0) return;
 
@@ -1947,8 +1950,10 @@ namespace Kalendarz1
             var wydaneValues = new ChartValues<double>();
             var przyjeciaValues = new ChartValues<double>();
             var labels = new List<string>();
+            var weekSections = new List<int>();
 
             // Wypełnij KAŻDY dzień
+            int idx = 0;
             for (DateTime d = minDate; d <= maxDate; d = d.AddDays(1))
             {
                 double wydano = 0, przyjeto = 0;
@@ -1959,7 +1964,17 @@ namespace Kalendarz1
                 }
                 wydaneValues.Add(wydano);
                 przyjeciaValues.Add(przyjeto);
-                labels.Add(d.ToString("dd.MM"));
+                chartDateMap.Add(d);
+
+                // Etykieta z dniem tygodnia (Pn, Wt, Śr...)
+                string dzienSkrot = d.ToString("ddd", new System.Globalization.CultureInfo("pl-PL")).Substring(0, 2);
+                labels.Add($"{d:dd.MM} {dzienSkrot}");
+
+                // Separator tygodniowy - niedziela/poniedziałek
+                if (d.DayOfWeek == DayOfWeek.Monday && idx > 0)
+                    weekSections.Add(idx);
+
+                idx++;
             }
 
             // Seria Wydane - kolumny niebieskie
@@ -1997,16 +2012,29 @@ namespace Kalendarz1
             liveChart.Series.Add(colWydane);
             liveChart.Series.Add(colPrzyjete);
 
-            // Oś X - każdy dzień
-            liveChart.AxisX.Add(new LiveCharts.Wpf.Axis
+            // Oś X - każdy dzień (separatory tygodniowe dodane jako AxisSection)
+            var xAxis = new LiveCharts.Wpf.Axis
             {
                 Labels = labels,
                 LabelsRotation = -45,
-                FontSize = 9,
+                FontSize = 8.5,
                 Separator = new Separator { Step = 1, IsEnabled = false },
                 Foreground = new System.Windows.Media.SolidColorBrush(
                     System.Windows.Media.Color.FromRgb(100, 100, 100))
-            });
+            };
+            foreach (int si in weekSections)
+            {
+                xAxis.Sections.Add(new AxisSection
+                {
+                    Value = si - 0.5,
+                    SectionWidth = 0,
+                    Stroke = new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromArgb(100, 180, 60, 60)),
+                    StrokeThickness = 1.5,
+                    StrokeDashArray = new System.Windows.Media.DoubleCollection { 4, 3 }
+                });
+            }
+            liveChart.AxisX.Add(xAxis);
 
             // Oś Y - skrócone etykiety (10k, 50k)
             liveChart.AxisY.Add(new LiveCharts.Wpf.Axis
@@ -2023,6 +2051,134 @@ namespace Kalendarz1
                 Foreground = new System.Windows.Media.SolidColorBrush(
                     System.Windows.Media.Color.FromRgb(100, 100, 100))
             });
+
+            // Kliknięcie na słupek = pokaż szczegóły dnia
+            liveChart.DataClick -= LiveChart_DataClick;
+            liveChart.DataClick += LiveChart_DataClick;
+        }
+
+        private void LiveChart_DataClick(object sender, ChartPoint chartPoint)
+        {
+            int pointIdx = (int)chartPoint.X;
+            if (pointIdx < 0 || pointIdx >= chartDateMap.Count) return;
+
+            DateTime clickedDate = chartDateMap[pointIdx];
+
+            // Pobierz szczegóły produktów dla tego dnia
+            try
+            {
+                DataTable dtSzczegoly = FetchSzczegolyDnia(clickedDate);
+
+                if (dtSzczegoly == null || dtSzczegoly.Rows.Count == 0)
+                {
+                    ShowToast($"Brak danych za {clickedDate:dd.MM.yyyy}", WarningColor);
+                    return;
+                }
+
+                // Pokaż modal ze szczegółami
+                ShowChartDayDetailModal(clickedDate, dtSzczegoly);
+            }
+            catch (Exception ex)
+            {
+                statusLabel.Text = $"Błąd: {ex.Message}";
+            }
+        }
+
+        private DataTable FetchSzczegolyDnia(DateTime data)
+        {
+            string query = $@"
+                SELECT
+                    MZ.kod AS Kod,
+                    ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) AS [Wydano (kg)],
+                    SUM(CASE WHEN MZ.ilosc > 0 THEN MZ.ilosc ELSE 0 END) AS [Przyjęto (kg)]
+                FROM [HANDEL].[HM].[MG]
+                JOIN [HANDEL].[HM].[MZ] ON MG.ID = MZ.super
+                WHERE MG.magazyn = {MagazynMroznia}
+                AND {SQL_FILTR_SERII}
+                AND MG.[Data] = @Data
+                GROUP BY MZ.kod
+                HAVING ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) > 0
+                    OR SUM(CASE WHEN MZ.ilosc > 0 THEN MZ.ilosc ELSE 0 END) > 0
+                ORDER BY ABS(SUM(MZ.ilosc)) DESC";
+
+            using (SqlConnection conn = new SqlConnection(connectionString))
+            {
+                using (SqlDataAdapter adapter = new SqlDataAdapter(query, conn))
+                {
+                    adapter.SelectCommand.Parameters.AddWithValue("@Data", data);
+                    DataTable dt = new DataTable();
+                    adapter.Fill(dt);
+                    return dt;
+                }
+            }
+        }
+
+        private void ShowChartDayDetailModal(DateTime data, DataTable dtSzczegoly)
+        {
+            string dzien = data.ToString("dddd", new System.Globalization.CultureInfo("pl-PL"));
+
+            Form modal = new Form
+            {
+                Text = $"Szczegóły: {data:dd.MM.yyyy} ({dzien})",
+                Size = new Size(650, 500),
+                StartPosition = FormStartPosition.CenterParent,
+                BackColor = Color.White,
+                MinimizeBox = false,
+                MaximizeBox = false,
+                ShowInTaskbar = false,
+                FormBorderStyle = FormBorderStyle.FixedDialog
+            };
+
+            // Nagłówek
+            Panel header = new Panel { Dock = DockStyle.Top, Height = 55, BackColor = Color.FromArgb(41, 128, 185) };
+            Label lblTitle = new Label
+            {
+                Text = $"  {data:dd.MM.yyyy}  ({dzien})",
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
+                ForeColor = Color.White,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            // Podsumowanie
+            decimal sumaWydano = 0, sumaPrzyjeto = 0;
+            foreach (DataRow row in dtSzczegoly.Rows)
+            {
+                sumaWydano += Convert.ToDecimal(row["Wydano (kg)"] ?? 0);
+                sumaPrzyjeto += Convert.ToDecimal(row["Przyjęto (kg)"] ?? 0);
+            }
+            Label lblSuma = new Label
+            {
+                Text = $"Wydano: {sumaWydano:N0} kg  |  Przyjęto: {sumaPrzyjeto:N0} kg  |  Pozycji: {dtSzczegoly.Rows.Count}  ",
+                Dock = DockStyle.Right,
+                AutoSize = true,
+                Font = new Font("Segoe UI", 10F),
+                ForeColor = Color.FromArgb(220, 255, 255, 255),
+                TextAlign = ContentAlignment.MiddleRight,
+                Padding = new Padding(0, 0, 10, 0)
+            };
+            header.Controls.AddRange(new Control[] { lblSuma, lblTitle });
+
+            // Tabela
+            DataGridView dgv = CreateStyledDataGridView();
+            dgv.DataSource = dtSzczegoly;
+            dgv.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(41, 128, 185);
+
+            dgv.DataBindingComplete += (s, e) =>
+            {
+                foreach (DataGridViewColumn col in dgv.Columns)
+                {
+                    if (col.ValueType == typeof(decimal))
+                    {
+                        col.DefaultCellStyle.Format = "N0";
+                        col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                    }
+                }
+            };
+
+            modal.Controls.Add(dgv);
+            modal.Controls.Add(header);
+            modal.ShowDialog();
         }
 
         private void ResetChartZoom()
