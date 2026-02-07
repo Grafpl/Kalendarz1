@@ -489,6 +489,109 @@ namespace Kalendarz1.CRM
             }
         }
 
+        /// <summary>
+        /// Aktualizuje status kontaktu lokalnie w DataTable bez przeładowywania całej listy.
+        /// Dzięki temu widok nie jest resetowany i użytkownik zostaje na tej samej pozycji.
+        /// </summary>
+        private void AktualizujStatusLokalnie(int kontaktId, string nowyStatus)
+        {
+            if (dtKontakty == null) return;
+
+            // Znajdź wiersz w DataTable
+            foreach (DataRow row in dtKontakty.Rows)
+            {
+                if (row["ID"] != DBNull.Value && (int)row["ID"] == kontaktId)
+                {
+                    // Aktualizuj status
+                    row["Status"] = nowyStatus;
+                    // Aktualizuj datę ostatniej zmiany
+                    row["OstatniaZmiana"] = DateTime.Now;
+                    // Aktualizuj ostatniego handlowca - pobierz nazwę operatora
+                    try
+                    {
+                        using (var conn = new SqlConnection(connectionString))
+                        {
+                            conn.Open();
+                            var cmd = new SqlCommand("SELECT Name FROM operators WHERE ID = @id", conn);
+                            cmd.Parameters.AddWithValue("@id", operatorID);
+                            var result = cmd.ExecuteScalar();
+                            if (result != null)
+                            {
+                                row["OstatniHandlowiec"] = result.ToString();
+                                row["OstatniHandlowiecID"] = operatorID;
+                            }
+                        }
+                    }
+                    catch { }
+                    // Odśwież flagę zaniedbania
+                    row["CzyZaniedbany"] = false;
+                    break;
+                }
+            }
+
+            // Odśwież tylko liczniki celów (bez przeładowywania listy)
+            ObliczTargetDnia();
+
+            // Odśwież widok DataGrid żeby pokazać zmiany
+            dgKontakty.Items.Refresh();
+        }
+
+        /// <summary>
+        /// Aktualizuje notatkę kontaktu lokalnie bez przeładowywania całej listy.
+        /// </summary>
+        private void AktualizujNotatkeLokalnie(int kontaktId, string nowaNotatka)
+        {
+            if (dtKontakty == null) return;
+
+            foreach (DataRow row in dtKontakty.Rows)
+            {
+                if (row["ID"] != DBNull.Value && (int)row["ID"] == kontaktId)
+                {
+                    row["OstatniNotatka"] = nowaNotatka;
+                    row["OstatniaZmiana"] = DateTime.Now;
+                    try
+                    {
+                        using (var conn = new SqlConnection(connectionString))
+                        {
+                            conn.Open();
+                            var cmd = new SqlCommand("SELECT Name FROM operators WHERE ID = @id", conn);
+                            cmd.Parameters.AddWithValue("@id", operatorID);
+                            var result = cmd.ExecuteScalar();
+                            if (result != null)
+                            {
+                                row["OstatniHandlowiec"] = result.ToString();
+                                row["OstatniHandlowiecID"] = operatorID;
+                            }
+                        }
+                    }
+                    catch { }
+                    row["CzyZaniedbany"] = false;
+                    break;
+                }
+            }
+
+            ObliczTargetDnia();
+            dgKontakty.Items.Refresh();
+        }
+
+        /// <summary>
+        /// Aktualizuje datę następnego kontaktu lokalnie bez przeładowywania całej listy.
+        /// </summary>
+        private void AktualizujDateLokalnie(int kontaktId, DateTime nowaData)
+        {
+            if (dtKontakty == null) return;
+
+            foreach (DataRow row in dtKontakty.Rows)
+            {
+                if (row["ID"] != DBNull.Value && (int)row["ID"] == kontaktId)
+                {
+                    row["DataNastepnegoKontaktu"] = nowaData;
+                    break;
+                }
+            }
+            dgKontakty.Items.Refresh();
+        }
+
         // Baza firmy - współrzędne do obliczania dystansu
         private const double BazaLat = 51.907335;
         private const double BazaLng = 19.678605;
@@ -1098,12 +1201,13 @@ namespace Kalendarz1.CRM
             // Tryb dodawania
             try
             {
+                string notatkaText = txtNowaNotatka.Text;
                 using (var conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
                     var cmd = new SqlCommand("INSERT INTO NotatkiCRM (IDOdbiorcy, Tresc, KtoDodal) VALUES (@id, @tresc, @op)", conn);
                     cmd.Parameters.AddWithValue("@id", aktualnyOdbiorcaID);
-                    cmd.Parameters.AddWithValue("@tresc", txtNowaNotatka.Text);
+                    cmd.Parameters.AddWithValue("@tresc", notatkaText);
                     cmd.Parameters.AddWithValue("@op", operatorID);
                     cmd.ExecuteNonQuery();
                 }
@@ -1111,6 +1215,8 @@ namespace Kalendarz1.CRM
                 CallReminderService.Instance.LogCrmAction(operatorID, aktualnyOdbiorcaID, wasCalled: false, noteAdded: true, statusChanged: false);
                 txtNowaNotatka.Text = "";
                 WczytajNotatki(aktualnyOdbiorcaID);
+                // Aktualizuj kolumnę OstatniNotatka w głównej liście bez przeładowywania
+                AktualizujNotatkeLokalnie(aktualnyOdbiorcaID, notatkaText);
                 ShowToast("Notatka dodana! 📝");
             }
             catch (Exception ex) { MessageBox.Show(ex.Message); }
@@ -1378,7 +1484,9 @@ namespace Kalendarz1.CRM
                     conn.Open();
                     new SqlCommand($"UPDATE OdbiorcyCRM SET DataNastepnegoKontaktu = '{dialog.WybranaData:yyyy-MM-dd}' WHERE ID={aktualnyOdbiorcaID}", conn).ExecuteNonQuery();
                 }
-                WczytajDane(zachowajFiltry: true);
+                // Aktualizuj lokalnie zamiast przeładowywać całą listę - widok nie będzie resetowany
+                AktualizujDateLokalnie(aktualnyOdbiorcaID, dialog.WybranaData);
+                ShowToast($"Data kontaktu ustawiona: {dialog.WybranaData:dd.MM.yyyy}");
             }
         }
 
@@ -1403,7 +1511,8 @@ namespace Kalendarz1.CRM
                     }
                     // Rejestruj zmianę statusu do licznika połączeń
                     CallReminderService.Instance.LogCrmAction(operatorID, id, wasCalled: false, noteAdded: false, statusChanged: true, nowyStatus);
-                    WczytajDane(zachowajFiltry: true);
+                    // Aktualizuj lokalnie zamiast przeładowywać całą listę - widok nie będzie resetowany
+                    AktualizujStatusLokalnie(id, nowyStatus);
                     ShowToast("Zmieniono status na: " + nowyStatus);
                 }
             }
@@ -1434,7 +1543,8 @@ namespace Kalendarz1.CRM
                     }
                     // Rejestruj zmianę statusu do licznika połączeń
                     CallReminderService.Instance.LogCrmAction(operatorID, id, wasCalled: false, noteAdded: false, statusChanged: true, nowyStatus);
-                    WczytajDane(zachowajFiltry: true);
+                    // Aktualizuj lokalnie zamiast przeładowywać całą listę - widok nie będzie resetowany
+                    AktualizujStatusLokalnie(id, nowyStatus);
                     ShowToast($"Status zmieniony na: {nowyStatus}");
                 }
             }
@@ -1941,7 +2051,8 @@ namespace Kalendarz1.CRM
                     }
                     // Rejestruj zmianę statusu do licznika połączeń
                     CallReminderService.Instance.LogCrmAction(operatorID, aktualnyOdbiorcaID, wasCalled: false, noteAdded: false, statusChanged: true, nowyStatus);
-                    WczytajDane(zachowajFiltry: true);
+                    // Aktualizuj lokalnie zamiast przeładowywać całą listę - widok nie będzie resetowany
+                    AktualizujStatusLokalnie(aktualnyOdbiorcaID, nowyStatus);
                     ShowToast($"Status: {nowyStatus}");
                 }
                 catch (Exception ex)
