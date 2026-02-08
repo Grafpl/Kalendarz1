@@ -9,8 +9,6 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Animation;
-using System.Windows.Media.Effects;
 using Microsoft.Data.SqlClient;
 
 namespace Kalendarz1
@@ -61,9 +59,6 @@ namespace Kalendarz1
             // Ustaw ograniczenia dat - 6 tygodni wstecz, 2 tygodnie do przodu
             minData = DateTime.Today.AddDays(-42); // 6 tygodni wstecz
             maxData = DateTime.Today.AddDays(14);  // 2 tygodnie do przodu
-
-            // Pobierz zakres dat z dostaw
-            PobierzZakresDatDostaw();
 
             // Inicjalizacja domyślnej wydajności
             aktualnaWydajnosc = new WydajnoscModel
@@ -217,39 +212,27 @@ namespace Kalendarz1
             {
                 Mouse.OverrideCursor = Cursors.Wait;
 
-                // Odśwież zakres dat z dostaw
-                PobierzZakresDatDostaw();
+                // Oblicz bieżący tydzień (poniedziałek - niedziela)
+                DateTime poniedzialek = GetPoniedzialek(aktualnyTydzien);
+                DateTime niedziela = poniedzialek.AddDays(6);
 
-                // Oblicz zakres: od min daty -5 dni do max daty +5 dni
-                DateTime dataOd, dataDo;
+                WczytajWydajnoscDlaDaty(poniedzialek);
 
-                if (minDataDostawy.HasValue && maxDataDostawy.HasValue)
-                {
-                    dataOd = minDataDostawy.Value.AddDays(-5);
-                    dataDo = maxDataDostawy.Value.AddDays(5);
-                }
-                else
-                {
-                    // Domyślnie: bieżący tydzień
-                    DateTime poniedzialek = GetPoniedzialek(aktualnyTydzien);
-                    dataOd = poniedzialek.AddDays(-5);
-                    dataDo = poniedzialek.AddDays(12);
-                }
-
-                WczytajWydajnoscDlaDaty(dataOd);
+                // Numer tygodnia
+                int numerTygodnia = CultureInfo.CurrentCulture.Calendar.GetWeekOfYear(
+                    poniedzialek, CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
 
                 // Aktualizuj nagłówki
-                int liczbaDni = (int)(dataDo - dataOd).TotalDays + 1;
-                txtDataZakres.Text = $"{dataOd:dd.MM.yyyy} - {dataDo:dd.MM.yyyy}";
-                txtNumerTygodnia.Text = $"({liczbaDni} dni)";
-                txtDocelowyTydzienZakres.Text = $"Zakres: {dataOd:dd.MM} - {dataDo:dd.MM}";
-                txtInfoZakres.Text = $"Min dostawa: {minDataDostawy?.ToString("dd.MM") ?? "brak"} | Max dostawa: {maxDataDostawy?.ToString("dd.MM") ?? "brak"}";
+                txtDataZakres.Text = $"{poniedzialek:dd.MM.yyyy} - {niedziela:dd.MM.yyyy}";
+                txtNumerTygodnia.Text = $"(Tydzień {numerTygodnia})";
+                txtDocelowyTydzienZakres.Text = $"Zakres: {poniedzialek:dd.MM} - {niedziela:dd.MM}";
+                txtInfoZakres.Text = $"Tydzień {numerTygodnia} / {poniedzialek:yyyy}";
 
-                aktualneDane = PobierzDaneZakresu(dataOd, dataDo);
+                aktualneDane = PobierzDaneTygodnia(poniedzialek, niedziela);
 
-                // Policz dostawy z danymi
+                // Policz dostawy z danymi (tylko dni z dostawami)
                 int liczbaDostaw = aktualneDane.Count(x => !x.JestSuma && x.ZywiecKg > 0);
-                txtLiczbaDostaw.Text = $"{liczbaDostaw} dostaw";
+                txtLiczbaDostaw.Text = $"{liczbaDostaw} dostaw w tygodniu";
 
                 // Dodaj wiersz SUMA
                 var wierszSuma = new PlanDziennyModel
@@ -857,106 +840,36 @@ namespace Kalendarz1
         private void DgPlan_LoadingRow(object sender, DataGridRowEventArgs e)
         {
             var plan = e.Row.Item as PlanDziennyModel;
-            if (plan != null)
+            if (plan == null) return;
+
+            e.Row.Effect = null;
+
+            if (plan.JestSuma)
             {
-                if (plan.JestSuma)
-                {
-                    // Wiersz SUMA - ciemny z pulsującym pomarańczowym glow
-                    e.Row.Background = new SolidColorBrush(Color.FromRgb(52, 73, 94));
-                    e.Row.Foreground = Brushes.White;
-                    e.Row.FontWeight = FontWeights.Bold;
-                    e.Row.FontSize = 14;
-
-                    var glowEffect = new DropShadowEffect
-                    {
-                        Color = Color.FromRgb(255, 167, 38), // Pomarańczowy
-                        BlurRadius = 15,
-                        ShadowDepth = 0,
-                        Opacity = 0.7
-                    };
-                    e.Row.Effect = glowEffect;
-
-                    // Pulsująca animacja glow dla SUMY
-                    var pulseOpacity = new DoubleAnimation
-                    {
-                        From = 0.5,
-                        To = 1.0,
-                        Duration = TimeSpan.FromMilliseconds(800),
-                        AutoReverse = true,
-                        RepeatBehavior = RepeatBehavior.Forever
-                    };
-                    var pulseBlur = new DoubleAnimation
-                    {
-                        From = 10,
-                        To = 25,
-                        Duration = TimeSpan.FromMilliseconds(800),
-                        AutoReverse = true,
-                        RepeatBehavior = RepeatBehavior.Forever
-                    };
-                    glowEffect.BeginAnimation(DropShadowEffect.OpacityProperty, pulseOpacity);
-                    glowEffect.BeginAnimation(DropShadowEffect.BlurRadiusProperty, pulseBlur);
-                }
-                else if (plan.ZywiecKg > 0)
-                {
-                    // Wiersz z dostawami - pulsujący z efektem glow
-                    Color bgColor;
-                    Color glowColor;
-
-                    if (plan.CzyPotwierdzone)
-                    {
-                        bgColor = Color.FromRgb(200, 230, 201); // Zielony - potwierdzony
-                        glowColor = Color.FromRgb(76, 175, 80);
-                    }
-                    else if (plan.ProcentPotwierdzenia > 0)
-                    {
-                        bgColor = Color.FromRgb(255, 249, 196); // Żółty - częściowo
-                        glowColor = Color.FromRgb(255, 193, 7);
-                    }
-                    else
-                    {
-                        bgColor = Color.FromRgb(187, 222, 251); // Niebieski - zaplanowany
-                        glowColor = Color.FromRgb(33, 150, 243);
-                    }
-
-                    e.Row.Background = new SolidColorBrush(bgColor);
-                    e.Row.FontWeight = FontWeights.SemiBold;
-
-                    var glowEffect = new DropShadowEffect
-                    {
-                        Color = glowColor,
-                        BlurRadius = 10,
-                        ShadowDepth = 0,
-                        Opacity = 0.5
-                    };
-                    e.Row.Effect = glowEffect;
-
-                    // Pulsująca animacja dla wierszy z dostawami
-                    var pulseOpacity = new DoubleAnimation
-                    {
-                        From = 0.3,
-                        To = 0.8,
-                        Duration = TimeSpan.FromMilliseconds(900),
-                        AutoReverse = true,
-                        RepeatBehavior = RepeatBehavior.Forever
-                    };
-                    var pulseBlur = new DoubleAnimation
-                    {
-                        From = 6,
-                        To = 16,
-                        Duration = TimeSpan.FromMilliseconds(900),
-                        AutoReverse = true,
-                        RepeatBehavior = RepeatBehavior.Forever
-                    };
-                    glowEffect.BeginAnimation(DropShadowEffect.OpacityProperty, pulseOpacity);
-                    glowEffect.BeginAnimation(DropShadowEffect.BlurRadiusProperty, pulseBlur);
-                }
+                e.Row.Background = new SolidColorBrush(Color.FromRgb(52, 73, 94));
+                e.Row.Foreground = Brushes.White;
+                e.Row.FontWeight = FontWeights.Bold;
+                e.Row.FontSize = 14;
+            }
+            else if (plan.ZywiecKg > 0)
+            {
+                if (plan.CzyPotwierdzone)
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(200, 230, 201)); // Zielony
+                else if (plan.ProcentPotwierdzenia > 0)
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 249, 196)); // Żółty
                 else
-                {
-                    // Wiersz bez dostaw - bez efektu
-                    e.Row.Background = Brushes.White;
-                    e.Row.Foreground = new SolidColorBrush(Color.FromRgb(189, 195, 199));
-                    e.Row.Effect = null;
-                }
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(187, 222, 251)); // Niebieski
+
+                e.Row.Foreground = Brushes.Black;
+                e.Row.FontWeight = FontWeights.SemiBold;
+                e.Row.FontSize = 12;
+            }
+            else
+            {
+                e.Row.Background = Brushes.White;
+                e.Row.Foreground = new SolidColorBrush(Color.FromRgb(189, 195, 199));
+                e.Row.FontWeight = FontWeights.Normal;
+                e.Row.FontSize = 12;
             }
         }
 
@@ -1162,59 +1075,6 @@ namespace Kalendarz1
             }
         }
 
-        private void BtnGoToDelivery_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                var button = sender as Button;
-                var plan = button?.DataContext as PlanDziennyModel;
-
-                if (plan != null && !plan.JestSuma && plan.ZywiecKg > 0)
-                {
-                    DateTime dataWybrana = DateTime.Parse(plan.Data);
-
-                    // Otwórz WidokKalendarzaWPF z wybraną datą
-                    var oknoKalendarza = new Zywiec.Kalendarz.WidokKalendarzaWPF();
-                    oknoKalendarza.Show();
-
-                    // Pokaż informację o nawigacji
-                    MessageBox.Show($"Otwarto kalendarz dostaw.\n\nData: {dataWybrana:dd.MM.yyyy}\nŻywiec: {plan.ZywiecKg:N0} kg\nAuta: {plan.LiczbaAut}",
-                                  "Nawigacja do kalendarza", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd nawigacji: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private void BtnDeleteDelivery_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                var button = sender as Button;
-                var plan = button?.DataContext as PlanDziennyModel;
-
-                if (plan != null && !plan.JestSuma && plan.ZywiecKg > 0)
-                {
-                    DateTime dataWybrana = DateTime.Parse(plan.Data);
-
-                    var result = MessageBox.Show($"Czy na pewno chcesz usunąć wszystkie dostawy z dnia {dataWybrana:dd.MM.yyyy}?\n\nŻywiec: {plan.ZywiecKg:N0} kg\nAuta: {plan.LiczbaAut}",
-                                                "Potwierdzenie usunięcia", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-
-                    if (result == MessageBoxResult.Yes)
-                    {
-                        // Tutaj logika usuwania dostaw
-                        MessageBox.Show("Funkcja usuwania dostaw nie jest jeszcze zaimplementowana.\n\nUżyj kalendarza dostaw do zarządzania dostawami.",
-                                      "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd usuwania: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
     }
 
     public class PlanDziennyModel
