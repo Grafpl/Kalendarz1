@@ -1088,7 +1088,8 @@ namespace Kalendarz1
                 [44] = "KomunikatorFirmowy",
                 [45] = "RozliczeniaAvilog",
                 [46] = "DashboardPrzychodu",
-                [47] = "MapaKlientow"
+                [47] = "MapaKlientow",
+                [48] = "WnioskiUrlopowe"
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
@@ -1546,7 +1547,12 @@ namespace Kalendarz1
                     new MenuItemConfig("KontrolaGodzin", "Kontrola Czasu Pracy",
                         "System UNICARD - rejestracja wejść/wyjść, godziny pracy, obecności i raporty agencji",
                         Color.FromArgb(126, 87, 194), // Indygo #7E57C2
-                        () => new KontrolaGodzinWindow(), "⏱️", "Czas Pracy")
+                        () => new KontrolaGodzinWindow(), "⏱️", "Czas Pracy"),
+
+                    new MenuItemConfig("WnioskiUrlopowe", "Wnioski Urlopowe",
+                        "Kalendarz urlopów, składanie wniosków, zatwierdzanie i bilans urlopowy pracowników",
+                        Color.FromArgb(56, 161, 105), // Zielony #38A169
+                        () => new WnioskiUrlopWindow(), "🏖️", "Urlopy")
                 }
             };
 

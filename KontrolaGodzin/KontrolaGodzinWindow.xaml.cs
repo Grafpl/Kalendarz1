@@ -748,6 +748,10 @@ namespace Kalendarz1.KontrolaGodzin
                     }
 
                     var czasEfektywny = czasPracy - czasPrzerw;
+                    var nadgodzinyTs = czasEfektywny.TotalHours > 8
+                        ? TimeSpan.FromHours(czasEfektywny.TotalHours - 8)
+                        : TimeSpan.Zero;
+
                     string status = "OK";
                     if (!ostatnieWyjscie.HasValue && g.Key.Data == DateTime.Today)
                         status = "🟢 Na terenie";
@@ -768,7 +772,13 @@ namespace Kalendarz1.KontrolaGodzin
                         CzasPracy = FormatTimeSpan(czasPracy),
                         Przerwy = FormatTimeSpan(czasPrzerw),
                         CzasEfektywny = FormatTimeSpan(czasEfektywny),
-                        Status = status
+                        Nadgodziny = nadgodzinyTs > TimeSpan.Zero ? $"+{(int)nadgodzinyTs.TotalHours}:{nadgodzinyTs.Minutes:D2}" : "-",
+                        Status = status,
+                        CzasPracyTS = czasPracy,
+                        CzasEfektywnyTS = czasEfektywny,
+                        NadgodzinyTS = nadgodzinyTs,
+                        PierwszeWejscieDateTime = pierwszeWejscie,
+                        OstatnieWyjscieDateTime = ostatnieWyjscie
                     };
                 })
                 .OrderByDescending(x => x.Data)
@@ -776,6 +786,137 @@ namespace Kalendarz1.KontrolaGodzin
                 .ToList();
 
             gridGodzinyPracy.ItemsSource = grouped;
+            UpdateGodzinyPracyPodsumowanie(grouped);
+        }
+
+        private void UpdateGodzinyPracyPodsumowanie(dynamic grouped)
+        {
+            try
+            {
+                var items = new List<dynamic>();
+                foreach (var item in grouped)
+                    items.Add(item);
+
+                if (items.Count == 0)
+                {
+                    txtGPNazwisko.Text = "Brak danych";
+                    txtGPDzial.Text = "";
+                    txtGPAgencja.Text = "";
+                    txtGPSrEfektywny.Text = "-";
+                    txtGPSrCzasPracy.Text = "-";
+                    txtGPDniPracy.Text = "0";
+                    txtGPSumaGodzin.Text = "0h";
+                    txtGPNadgodziny.Text = "0h";
+                    txtGPSrWejscieWyjscie.Text = "-";
+                    return;
+                }
+
+                // Sprawdź liczbę unikalnych pracowników
+                var pracownikIds = new HashSet<int>();
+                string pierwszyPracownik = "";
+                string pierwszyDzial = "";
+                foreach (var item in items)
+                {
+                    int pid = item.PracownikId;
+                    pracownikIds.Add(pid);
+                    if (string.IsNullOrEmpty(pierwszyPracownik))
+                    {
+                        pierwszyPracownik = item.Pracownik;
+                        pierwszyDzial = item.Grupa;
+                    }
+                }
+
+                if (pracownikIds.Count == 1)
+                {
+                    txtGPNazwisko.Text = pierwszyPracownik;
+                    txtGPDzial.Text = pierwszyDzial;
+                    txtGPAgencja.Text = "";
+                }
+                else
+                {
+                    txtGPNazwisko.Text = "Wszyscy pracownicy";
+                    txtGPDzial.Text = $"{pracownikIds.Count} pracowników";
+                    txtGPAgencja.Text = "";
+                }
+
+                // Oblicz statystyki z surowych TimeSpan
+                int dniPracy = items.Count;
+                TimeSpan sumaEfektywny = TimeSpan.Zero;
+                TimeSpan sumaCzasPracy = TimeSpan.Zero;
+                TimeSpan sumaNadgodziny = TimeSpan.Zero;
+                double sumaMinutWejscie = 0;
+                double sumaMinutWyjscie = 0;
+                int countWejscie = 0;
+                int countWyjscie = 0;
+
+                foreach (var item in items)
+                {
+                    TimeSpan efektywnyTs = item.CzasEfektywnyTS;
+                    TimeSpan pracyTs = item.CzasPracyTS;
+                    TimeSpan nadgodzinyTs = item.NadgodzinyTS;
+                    DateTime? wejscie = item.PierwszeWejscieDateTime;
+                    DateTime? wyjscie = item.OstatnieWyjscieDateTime;
+
+                    sumaEfektywny += efektywnyTs;
+                    sumaCzasPracy += pracyTs;
+                    sumaNadgodziny += nadgodzinyTs;
+
+                    if (wejscie.HasValue)
+                    {
+                        sumaMinutWejscie += wejscie.Value.Hour * 60 + wejscie.Value.Minute;
+                        countWejscie++;
+                    }
+                    if (wyjscie.HasValue)
+                    {
+                        sumaMinutWyjscie += wyjscie.Value.Hour * 60 + wyjscie.Value.Minute;
+                        countWyjscie++;
+                    }
+                }
+
+                // Średni czas efektywny
+                var srEfektywny = TimeSpan.FromTicks(sumaEfektywny.Ticks / dniPracy);
+                txtGPSrEfektywny.Text = FormatTimeSpan(srEfektywny);
+
+                // Średni czas pracy
+                var srCzasPracy = TimeSpan.FromTicks(sumaCzasPracy.Ticks / dniPracy);
+                txtGPSrCzasPracy.Text = FormatTimeSpan(srCzasPracy);
+
+                // Dni pracy
+                txtGPDniPracy.Text = dniPracy.ToString();
+
+                // Suma godzin efektywnych
+                int sumaH = (int)sumaEfektywny.TotalHours;
+                int sumaM = sumaEfektywny.Minutes;
+                txtGPSumaGodzin.Text = $"{sumaH}h {sumaM}m";
+
+                // Nadgodziny
+                int nadH = (int)sumaNadgodziny.TotalHours;
+                int nadM = sumaNadgodziny.Minutes;
+                txtGPNadgodziny.Text = nadH > 0 || nadM > 0 ? $"{nadH}h {nadM}m" : "0h";
+
+                // Średnie wejście / wyjście
+                if (countWejscie > 0 && countWyjscie > 0)
+                {
+                    int srWejscieMin = (int)(sumaMinutWejscie / countWejscie);
+                    int srWyjscieMin = (int)(sumaMinutWyjscie / countWyjscie);
+                    string srWejscie = $"{srWejscieMin / 60:D2}:{srWejscieMin % 60:D2}";
+                    string srWyjscie = $"{srWyjscieMin / 60:D2}:{srWyjscieMin % 60:D2}";
+                    txtGPSrWejscieWyjscie.Text = $"{srWejscie} / {srWyjscie}";
+                }
+                else
+                {
+                    txtGPSrWejscieWyjscie.Text = "-";
+                }
+            }
+            catch
+            {
+                txtGPSrEfektywny.Text = "-";
+                txtGPSrCzasPracy.Text = "-";
+                txtGPDniPracy.Text = "0";
+                txtGPSumaGodzin.Text = "0h";
+                txtGPNadgodziny.Text = "0h";
+                txtGPSrWejscieWyjscie.Text = "-";
+            }
         }
 
         private void UpdateObecni(List<RejestracjaModel> data)

@@ -441,23 +441,89 @@
 
             <!-- ==================== GODZINY PRACY ==================== -->
             <TabItem Header="⏰ Godziny Pracy">
-                <Border Background="White" CornerRadius="8" Margin="0,10,0,0" BorderBrush="#E2E8F0" BorderThickness="1">
-                    <DataGrid x:Name="gridGodzinyPracy" Margin="1" AutoGenerateColumns="False" IsReadOnly="True"
-                              MouseDoubleClick="GridGodzinyPracy_MouseDoubleClick">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="DATA" Binding="{Binding Data, StringFormat=dd.MM.yyyy}" Width="90"/>
-                            <DataGridTextColumn Header="DZIEŃ" Binding="{Binding DzienTygodnia}" Width="60"/>
-                            <DataGridTextColumn Header="PRACOWNIK" Binding="{Binding Pracownik}" Width="200"/>
-                            <DataGridTextColumn Header="DZIAŁ" Binding="{Binding Grupa}" Width="150"/>
-                            <DataGridTextColumn Header="WEJŚCIE" Binding="{Binding PierwszeWejscie}" Width="70"/>
-                            <DataGridTextColumn Header="WYJŚCIE" Binding="{Binding OstatnieWyjscie}" Width="70"/>
-                            <DataGridTextColumn Header="CZAS PRACY" Binding="{Binding CzasPracy}" Width="90"/>
-                            <DataGridTextColumn Header="PRZERWY" Binding="{Binding Przerwy}" Width="70"/>
-                            <DataGridTextColumn Header="EFEKTYWNY" Binding="{Binding CzasEfektywny}" Width="90"/>
-                            <DataGridTextColumn Header="STATUS" Binding="{Binding Status}" Width="*"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </Border>
+                <Grid Margin="0,10,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Panel podsumowania -->
+                    <Border Grid.Row="0" Background="White" CornerRadius="8" Padding="20" Margin="0,0,0,10" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Info o pracowniku -->
+                            <StackPanel Grid.Column="0" Margin="0,0,30,0">
+                                <TextBlock x:Name="txtGPNazwisko" Text="Wszyscy pracownicy" FontSize="20" FontWeight="Bold" Foreground="#1A202C"/>
+                                <TextBlock x:Name="txtGPDzial" Text="" FontSize="12" Foreground="#3182CE" FontWeight="SemiBold" Margin="0,3,0,0"/>
+                                <TextBlock x:Name="txtGPAgencja" Text="" FontSize="11" Foreground="#718096" Margin="0,3,0,0"/>
+                            </StackPanel>
+
+                            <!-- Statystyki -->
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Border Background="#F0FFF4" CornerRadius="8" Padding="20,10" Margin="0,0,10,0">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="ŚR. EFEKTYWNY" FontSize="9" Foreground="#276749" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="txtGPSrEfektywny" Text="-" FontSize="28" FontWeight="Bold" Foreground="#276749" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="#FFFAF0" CornerRadius="8" Padding="20,10" Margin="0,0,10,0">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="ŚR. CZAS PRACY" FontSize="9" Foreground="#C05621" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="txtGPSrCzasPracy" Text="-" FontSize="28" FontWeight="Bold" Foreground="#C05621" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="#EBF8FF" CornerRadius="8" Padding="20,10" Margin="0,0,10,0">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="DNI PRACY" FontSize="9" Foreground="#2B6CB0" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="txtGPDniPracy" Text="0" FontSize="28" FontWeight="Bold" Foreground="#2B6CB0" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="#FAF5FF" CornerRadius="8" Padding="20,10" Margin="0,0,10,0">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="SUMA GODZIN" FontSize="9" Foreground="#6B46C1" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="txtGPSumaGodzin" Text="0h" FontSize="28" FontWeight="Bold" Foreground="#6B46C1" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="#FFF5F5" CornerRadius="8" Padding="20,10" Margin="0,0,10,0">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="NADGODZINY" FontSize="9" Foreground="#C53030" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="txtGPNadgodziny" Text="0h" FontSize="28" FontWeight="Bold" Foreground="#C53030" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="#F0FFF4" CornerRadius="8" Padding="20,10">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="ŚR. WEJŚCIE / WYJŚCIE" FontSize="9" Foreground="#276749" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="txtGPSrWejscieWyjscie" Text="-" FontSize="28" FontWeight="Bold" Foreground="#276749" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- DataGrid -->
+                    <Border Grid.Row="1" Background="White" CornerRadius="8" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <DataGrid x:Name="gridGodzinyPracy" Margin="1" AutoGenerateColumns="False" IsReadOnly="True"
+                                  MouseDoubleClick="GridGodzinyPracy_MouseDoubleClick">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="DATA" Binding="{Binding Data, StringFormat=dd.MM.yyyy}" Width="90"/>
+                                <DataGridTextColumn Header="DZIEŃ" Binding="{Binding DzienTygodnia}" Width="60"/>
+                                <DataGridTextColumn Header="PRACOWNIK" Binding="{Binding Pracownik}" Width="200"/>
+                                <DataGridTextColumn Header="DZIAŁ" Binding="{Binding Grupa}" Width="150"/>
+                                <DataGridTextColumn Header="WEJŚCIE" Binding="{Binding PierwszeWejscie}" Width="70"/>
+                                <DataGridTextColumn Header="WYJŚCIE" Binding="{Binding OstatnieWyjscie}" Width="70"/>
+                                <DataGridTextColumn Header="CZAS PRACY" Binding="{Binding CzasPracy}" Width="90"/>
+                                <DataGridTextColumn Header="PRZERWY" Binding="{Binding Przerwy}" Width="70"/>
+                                <DataGridTextColumn Header="EFEKTYWNY" Binding="{Binding CzasEfektywny}" Width="90"/>
+                                <DataGridTextColumn Header="NADGODZINY" Binding="{Binding Nadgodziny}" Width="90"/>
+                                <DataGridTextColumn Header="STATUS" Binding="{Binding Status}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                </Grid>
             </TabItem>
 
             <!-- ==================== AGENCJE ==================== -->

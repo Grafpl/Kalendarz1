@@ -405,7 +405,7 @@ namespace Kalendarz1
             // Upewnij się że kolumna Symfonia istnieje w bazie
             EnsureSymfoniaColumnExists();
 
-            // Upewnij się że kolumna IdPosrednik istnieje w bazie
+            // Upewnij się że kolumna IdPosrednik istnieje w bazie + tabela Posrednicy
             EnsureIdPosrednikColumnExists();
 
             // Upewnij się że kolumny dla zdjęć z ważenia istnieją w bazie
@@ -413,6 +413,9 @@ namespace Kalendarz1
 
             // Wczytaj ustawienia administracyjne
             LoadAdminSettings();
+
+            // Załaduj listę pośredników do ComboBox
+            LoadPosrednicy();
 
             LoadData(dateTimePicker1.SelectedDate ?? DateTime.Today);
             UpdateFullDateLabel();
@@ -1436,13 +1439,16 @@ namespace Kalendarz1
                                     d.Name AS DriverName,
                                     cust.ShortName AS DostawcaName,
                                     custReal.ShortName AS RealDostawcaName,
-                                    pt.Name AS PriceTypeName
+                                    pt.Name AS PriceTypeName,
+                                    fc.IdPosrednik,
+                                    pos.Name1 AS PosrednikNazwa
                                     FROM [LibraNet].[dbo].[FarmerCalc] fc
                                     LEFT JOIN [LibraNet].[dbo].[Driver] d ON fc.DriverGID = d.GID
                                     LEFT JOIN [LibraNet].[dbo].[PartiaDostawca] pd ON fc.PartiaGuid = pd.guid
                                     LEFT JOIN [LibraNet].[dbo].[Dostawcy] cust ON fc.CustomerGID = cust.ID
                                     LEFT JOIN [LibraNet].[dbo].[Dostawcy] custReal ON fc.CustomerRealGID = custReal.ID
                                     LEFT JOIN [LibraNet].[dbo].[PriceType] pt ON fc.PriceTypeID = pt.ID
+                                    LEFT JOIN [LibraNet].[dbo].[Posrednicy] pos ON fc.IdPosrednik = pos.Id
                                     WHERE fc.CalcDate = @SelectedDate
                                     ORDER BY fc.CarLP";
 
@@ -1526,7 +1532,10 @@ namespace Kalendarz1
                                 Odbiorca = ZapytaniaSQL.GetValueOrDefault<string>(row, "RealDostawcaName", "")?.Trim() ?? "-",
                                 // Partia drobiu - obsluga Guid jako UNIQUEIDENTIFIER lub VARCHAR
                                 PartiaGuid = GetPartiaGuidFromRow(dataTable, row),
-                                PartiaNumber = dataTable.Columns.Contains("PartiaNumber") ? ZapytaniaSQL.GetValueOrDefault<string>(row, "PartiaNumber", null)?.Trim() : null
+                                PartiaNumber = dataTable.Columns.Contains("PartiaNumber") ? ZapytaniaSQL.GetValueOrDefault<string>(row, "PartiaNumber", null)?.Trim() : null,
+                                // Pośrednik
+                                IdPosrednik = dataTable.Columns.Contains("IdPosrednik") && row["IdPosrednik"] != DBNull.Value ? (int?)Convert.ToInt32(row["IdPosrednik"]) : null,
+                                PosrednikNazwa = dataTable.Columns.Contains("PosrednikNazwa") ? ZapytaniaSQL.GetValueOrDefault<string>(row, "PosrednikNazwa", null)?.Trim() : null
                             };
 
                             specyfikacjeData.Add(specRow);
@@ -4979,6 +4988,38 @@ namespace Kalendarz1
             }
         }
 
+        // === Przycisk: Otwórz okno zarządzania pośrednikami ===
+        private void BtnManagePosrednicy_Click(object sender, RoutedEventArgs e)
+        {
+            var window = new PosrednikManagerWindow(connectionString) { Owner = this };
+            window.ShowDialog();
+            if (window.PosrednicyChanged)
+            {
+                LoadPosrednicy();
+            }
+        }
+
+        // === ComboBox Pośrednik: aktualizuj PosrednikNazwa po wyborze ===
+        private void PosrednikComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (sender is ComboBox combo && combo.SelectedItem is PosrednikItem selected)
+            {
+                var row = combo.DataContext as SpecyfikacjaRow;
+                if (row != null)
+                {
+                    row.PosrednikNazwa = selected.Nazwa;
+                }
+            }
+            else if (sender is ComboBox combo2 && combo2.SelectedItem == null)
+            {
+                var row = combo2.DataContext as SpecyfikacjaRow;
+                if (row != null)
+                {
+                    row.PosrednikNazwa = null;
+                }
+            }
+        }
+
         // === Checkbox: Pokaż/ukryj kolumnę Dodatek ===
         private void ChkShowDodatek_Changed(object sender, RoutedEventArgs e)
         {
@@ -5977,10 +6018,57 @@ namespace Kalendarz1
                 doc.Add(title);
 
                 // === BOX GŁÓWNY Z ZAOKRĄGLONYMI ROGAMI ===
+                // Sprawdź czy wiersz ma pośrednika
+                var firstRowShort = specyfikacjeData.FirstOrDefault(r => r.ID == ids[0]);
+                int? shortPdfIdPosrednik = firstRowShort?.IdPosrednik;
+                PosrednikItem shortPdfPosrednik = null;
+                if (shortPdfIdPosrednik.HasValue && shortPdfIdPosrednik.Value > 0)
+                {
+                    shortPdfPosrednik = ListaPosrednikow.FirstOrDefault(p => p.ID == shortPdfIdPosrednik.Value);
+                    if (shortPdfPosrednik == null)
+                    {
+                        try
+                        {
+                            using (var connPos = new Microsoft.Data.SqlClient.SqlConnection(connectionString))
+                            {
+                                connPos.Open();
+                                using (var cmdPos = new Microsoft.Data.SqlClient.SqlCommand(
+                                    "SELECT Id, SymfoniaId, Name1, Shortcut, NIP, Street, City, PostalCode, Phone, Email FROM Posrednicy WHERE Id = @Id", connPos))
+                                {
+                                    cmdPos.Parameters.AddWithValue("@Id", shortPdfIdPosrednik.Value);
+                                    using (var rdr = cmdPos.ExecuteReader())
+                                    {
+                                        if (rdr.Read())
+                                        {
+                                            shortPdfPosrednik = new PosrednikItem
+                                            {
+                                                ID = rdr.GetInt32(0),
+                                                SymfoniaId = rdr.GetInt32(1),
+                                                Nazwa = rdr.IsDBNull(2) ? "" : rdr.GetString(2),
+                                                Kod = rdr.IsDBNull(3) ? "" : rdr.GetString(3),
+                                                NIP = rdr.IsDBNull(4) ? "" : rdr.GetString(4),
+                                                Ulica = rdr.IsDBNull(5) ? "" : rdr.GetString(5),
+                                                Miasto = rdr.IsDBNull(6) ? "" : rdr.GetString(6),
+                                                KodPocztowy = rdr.IsDBNull(7) ? "" : rdr.GetString(7),
+                                                Telefon = rdr.IsDBNull(8) ? "" : rdr.GetString(8),
+                                                Email = rdr.IsDBNull(9) ? "" : rdr.GetString(9)
+                                            };
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        catch { }
+                    }
+                }
+
+                bool hasShortPosrednik = shortPdfPosrednik != null;
+                int shortPartiesColumns = hasShortPosrednik ? 3 : 2;
+
                 // Informacje o stronach
-                PdfPTable infoTable = new PdfPTable(2);
+                PdfPTable infoTable = new PdfPTable(shortPartiesColumns);
                 infoTable.WidthPercentage = 100;
-                infoTable.SetWidths(new float[] { 1f, 1f });
+                infoTable.SetWidths(hasShortPosrednik ? new float[] { 1f, 1f, 1f } : new float[] { 1f, 1f });
                 infoTable.SpacingAfter = 15f;
 
                 // Nabywca
@@ -5990,6 +6078,22 @@ namespace Kalendarz1
                 buyerCell.AddElement(new Paragraph("Ubojnia Drobiu \"Piórkowscy\"", textFontBold));
                 buyerCell.AddElement(new Paragraph("Koziołki 40, 95-061 Dmosin", textFont));
                 infoTable.AddCell(buyerCell);
+
+                // Pośrednik (środek) — tylko gdy jest przypisany
+                if (hasShortPosrednik)
+                {
+                    BaseColor posrednikColorShort = _pdfCzarnoBialy ? BaseColor.BLACK : new BaseColor(2, 119, 189);
+                    BaseColor posrednikBgShort = _pdfCzarnoBialy ? BaseColor.WHITE : new BaseColor(225, 245, 254);
+                    PdfPCell posrednikCellShort = CreateRoundedCell(posrednikColorShort, posrednikBgShort, 8);
+                    posrednikCellShort.AddElement(new Paragraph("SPRZEDAJĄCY", new Font(polishFont, 9, Font.BOLD, posrednikColorShort)));
+                    posrednikCellShort.AddElement(new Paragraph(shortPdfPosrednik.Nazwa ?? "", textFontBold));
+                    if (!string.IsNullOrEmpty(shortPdfPosrednik.NIP))
+                        posrednikCellShort.AddElement(new Paragraph($"NIP: {shortPdfPosrednik.NIP}", textFont));
+                    string shortPosAdres = $"{shortPdfPosrednik.Ulica}, {shortPdfPosrednik.KodPocztowy} {shortPdfPosrednik.Miasto}".Trim().TrimStart(',').Trim();
+                    if (!string.IsNullOrEmpty(shortPosAdres))
+                        posrednikCellShort.AddElement(new Paragraph(shortPosAdres, textFont));
+                    infoTable.AddCell(posrednikCellShort);
+                }
 
                 // Sprzedający
                 string sellerStreet = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "Address") ?? "";
@@ -6027,7 +6131,8 @@ namespace Kalendarz1
 
                 BaseColor sellerBgShort = _pdfCzarnoBialy ? BaseColor.WHITE : new BaseColor(255, 253, 248);
                 PdfPCell sellerCell = CreateRoundedCell(orangeColor, sellerBgShort, 8);
-                sellerCell.AddElement(new Paragraph("SPRZEDAJĄCY", new Font(polishFont, 9, Font.BOLD, orangeColor)));
+                string sellerLabelShort = hasShortPosrednik ? "DOSTAWCA" : "SPRZEDAJĄCY";
+                sellerCell.AddElement(new Paragraph(sellerLabelShort, new Font(polishFont, 9, Font.BOLD, orangeColor)));
                 sellerCell.AddElement(new Paragraph(sellerName, textFontBold));
                 // CustomerID i Partia
                 if (!string.IsNullOrEmpty(customerRealGID))
@@ -6470,10 +6575,57 @@ namespace Kalendarz1
                     doc.Add(mainTitle);
                 }
 
-                // === SEKCJA STRON (NABYWCA / SPRZEDAJĄCY) ===
-                PdfPTable partiesTable = new PdfPTable(2);
+                // === SEKCJA STRON (NABYWCA / POŚREDNIK / SPRZEDAJĄCY) ===
+                // Sprawdź czy wiersz ma pośrednika
+                var firstRow = specyfikacjeData.FirstOrDefault(r => r.ID == ids[0]);
+                int? pdfIdPosrednik = firstRow?.IdPosrednik;
+                PosrednikItem pdfPosrednik = null;
+                if (pdfIdPosrednik.HasValue && pdfIdPosrednik.Value > 0)
+                {
+                    pdfPosrednik = ListaPosrednikow.FirstOrDefault(p => p.ID == pdfIdPosrednik.Value);
+                    // Jeśli nie ma w cache, pobierz z bazy
+                    if (pdfPosrednik == null)
+                    {
+                        try
+                        {
+                            using (var connPos = new Microsoft.Data.SqlClient.SqlConnection(connectionString))
+                            {
+                                connPos.Open();
+                                using (var cmdPos = new Microsoft.Data.SqlClient.SqlCommand(
+                                    "SELECT Id, SymfoniaId, Name1, Shortcut, NIP, Street, City, PostalCode, Phone, Email FROM Posrednicy WHERE Id = @Id", connPos))
+                                {
+                                    cmdPos.Parameters.AddWithValue("@Id", pdfIdPosrednik.Value);
+                                    using (var rdr = cmdPos.ExecuteReader())
+                                    {
+                                        if (rdr.Read())
+                                        {
+                                            pdfPosrednik = new PosrednikItem
+                                            {
+                                                ID = rdr.GetInt32(0),
+                                                SymfoniaId = rdr.GetInt32(1),
+                                                Nazwa = rdr.IsDBNull(2) ? "" : rdr.GetString(2),
+                                                Kod = rdr.IsDBNull(3) ? "" : rdr.GetString(3),
+                                                NIP = rdr.IsDBNull(4) ? "" : rdr.GetString(4),
+                                                Ulica = rdr.IsDBNull(5) ? "" : rdr.GetString(5),
+                                                Miasto = rdr.IsDBNull(6) ? "" : rdr.GetString(6),
+                                                KodPocztowy = rdr.IsDBNull(7) ? "" : rdr.GetString(7),
+                                                Telefon = rdr.IsDBNull(8) ? "" : rdr.GetString(8),
+                                                Email = rdr.IsDBNull(9) ? "" : rdr.GetString(9)
+                                            };
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        catch { }
+                    }
+                }
+
+                bool hasPosrednik = pdfPosrednik != null;
+                int partiesColumns = hasPosrednik ? 3 : 2;
+                PdfPTable partiesTable = new PdfPTable(partiesColumns);
                 partiesTable.WidthPercentage = 100;
-                partiesTable.SetWidths(new float[] { 1f, 1f });
+                partiesTable.SetWidths(hasPosrednik ? new float[] { 1f, 1f, 1f } : new float[] { 1f, 1f });
                 partiesTable.SpacingAfter = 12f;
 
                 // Nabywca (lewa strona)
@@ -6488,6 +6640,28 @@ namespace Kalendarz1
                 buyerCell.AddElement(new Paragraph("Kom: 519 325 117, 505 255 682", new Font(polishFont, 8, Font.NORMAL, grayColor)));
                 buyerCell.AddElement(new Paragraph("Email: Zakup@piorkowscy.com.pl", new Font(polishFont, 8, Font.NORMAL, grayColor)));
                 partiesTable.AddCell(buyerCell);
+
+                // Pośrednik (środek) — tylko gdy jest przypisany
+                if (hasPosrednik)
+                {
+                    BaseColor posrednikColor = _pdfCzarnoBialy ? BaseColor.BLACK : new BaseColor(2, 119, 189); // #0277BD
+                    BaseColor posrednikBgColor = _pdfCzarnoBialy ? BaseColor.WHITE : new BaseColor(225, 245, 254); // #E1F5FE
+                    PdfPCell posrednikCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = posrednikColor, BorderWidth = borderWidthBox, Padding = 10, BackgroundColor = posrednikBgColor };
+                    posrednikCell.AddElement(new Paragraph("SPRZEDAJĄCY", new Font(polishFont, 10, Font.BOLD, posrednikColor)));
+                    posrednikCell.AddElement(new Paragraph(pdfPosrednik.Nazwa ?? "", textFontBold));
+                    if (!string.IsNullOrEmpty(pdfPosrednik.NIP))
+                        posrednikCell.AddElement(new Paragraph($"NIP: {pdfPosrednik.NIP}", textFont));
+                    if (!string.IsNullOrEmpty(pdfPosrednik.Ulica))
+                        posrednikCell.AddElement(new Paragraph(pdfPosrednik.Ulica, textFont));
+                    string posrednikAdres = $"{pdfPosrednik.KodPocztowy} {pdfPosrednik.Miasto}".Trim();
+                    if (!string.IsNullOrEmpty(posrednikAdres))
+                        posrednikCell.AddElement(new Paragraph(posrednikAdres, textFont));
+                    if (!string.IsNullOrEmpty(pdfPosrednik.Telefon))
+                        posrednikCell.AddElement(new Paragraph($"Tel: {pdfPosrednik.Telefon}", new Font(polishFont, 8, Font.NORMAL, grayColor)));
+                    if (!string.IsNullOrEmpty(pdfPosrednik.Email))
+                        posrednikCell.AddElement(new Paragraph($"Email: {pdfPosrednik.Email}", new Font(polishFont, 8, Font.NORMAL, grayColor)));
+                    partiesTable.AddCell(posrednikCell);
+                }
 
                 // Sprzedający (prawa strona)
                 string customerGID = zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerGID");
@@ -6534,7 +6708,8 @@ namespace Kalendarz1
                 // Tło komórki - białe w trybie B&W
                 BaseColor sellerBgColor = _pdfCzarnoBialy ? BaseColor.WHITE : new BaseColor(255, 253, 248);
                 PdfPCell sellerCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = orangeColor, BorderWidth = borderWidthBox, Padding = 10, BackgroundColor = sellerBgColor };
-                sellerCell.AddElement(new Paragraph("SPRZEDAJĄCY (Hodowca)", new Font(polishFont, 10, Font.BOLD, orangeColor)));
+                string sellerLabel = hasPosrednik ? "DOSTAWCA" : "SPRZEDAJĄCY";
+                sellerCell.AddElement(new Paragraph(sellerLabel, new Font(polishFont, 10, Font.BOLD, orangeColor)));
                 sellerCell.AddElement(new Paragraph(sellerName, textFontBold));
                 // CustomerGID (ID hodowcy)
                 if (!string.IsNullOrEmpty(customerGID))
@@ -11240,6 +11415,7 @@ namespace Kalendarz1
 
         /// <summary>
         /// Upewnia się, że kolumna IdPosrednik istnieje w tabeli FarmerCalc
+        /// oraz że tabela Posrednicy istnieje w bazie danych
         /// </summary>
         private void EnsureIdPosrednikColumnExists()
         {
@@ -11257,11 +11433,74 @@ namespace Kalendarz1
                     {
                         cmd.ExecuteNonQuery();
                     }
+
+                    // Tworzenie tabeli Posrednicy jeśli nie istnieje
+                    string createTableSql = @"
+                        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Posrednicy')
+                        CREATE TABLE dbo.Posrednicy (
+                            Id          INT IDENTITY(1,1) PRIMARY KEY,
+                            SymfoniaId  INT NOT NULL,
+                            Shortcut    NVARCHAR(50),
+                            Name1       NVARCHAR(200),
+                            NIP         NVARCHAR(20),
+                            Street      NVARCHAR(100),
+                            City        NVARCHAR(50),
+                            PostalCode  NVARCHAR(10),
+                            Phone       NVARCHAR(50),
+                            Email       NVARCHAR(100),
+                            Aktywny     BIT DEFAULT 1,
+                            DataDodania DATETIME DEFAULT GETDATE(),
+                            DodanyPrzez NVARCHAR(50)
+                        )";
+                    using (SqlCommand cmd2 = new SqlCommand(createTableSql, conn))
+                    {
+                        cmd2.ExecuteNonQuery();
+                    }
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error adding IdPosrednik column: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error in EnsureIdPosrednikColumnExists: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Ładuje listę aktywnych pośredników z tabeli Posrednicy do ComboBox
+        /// </summary>
+        private void LoadPosrednicy()
+        {
+            try
+            {
+                ListaPosrednikow.Clear();
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string sql = "SELECT Id, SymfoniaId, Name1, Shortcut, NIP, Street, City, PostalCode, Phone, Email FROM Posrednicy WHERE Aktywny = 1 ORDER BY Name1";
+                    using (SqlCommand cmd = new SqlCommand(sql, conn))
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            ListaPosrednikow.Add(new PosrednikItem
+                            {
+                                ID = reader.GetInt32(0),
+                                SymfoniaId = reader.GetInt32(1),
+                                Nazwa = reader.IsDBNull(2) ? "" : reader.GetString(2),
+                                Kod = reader.IsDBNull(3) ? "" : reader.GetString(3),
+                                NIP = reader.IsDBNull(4) ? "" : reader.GetString(4),
+                                Ulica = reader.IsDBNull(5) ? "" : reader.GetString(5),
+                                Miasto = reader.IsDBNull(6) ? "" : reader.GetString(6),
+                                KodPocztowy = reader.IsDBNull(7) ? "" : reader.GetString(7),
+                                Telefon = reader.IsDBNull(8) ? "" : reader.GetString(8),
+                                Email = reader.IsDBNull(9) ? "" : reader.GetString(9)
+                            });
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error loading Posrednicy: {ex.Message}");
             }
         }
 
@@ -15173,13 +15412,20 @@ public class CalendarDayItem : INotifyPropertyChanged
 
 /// <summary>
 /// Model dla pośrednika - używany w ComboBox kolumny Pośrednik
-/// Użytkownik dostarczy tabelę z danymi pośredników później
+/// Dane z tabeli Posrednicy (LibraNet), whitelista kontrahentów z Symfonii
 /// </summary>
 public class PosrednikItem
 {
     public int ID { get; set; }
+    public int SymfoniaId { get; set; }
     public string Nazwa { get; set; }
     public string Kod { get; set; }
+    public string NIP { get; set; }
+    public string Ulica { get; set; }
+    public string Miasto { get; set; }
+    public string KodPocztowy { get; set; }
+    public string Telefon { get; set; }
+    public string Email { get; set; }
 }
 
 /// <summary>
