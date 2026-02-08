@@ -77,16 +77,7 @@
 
         <Style x:Key="DarkDataGridCell" TargetType="DataGridCell">
             <Setter Property="BorderThickness" Value="0"/>
-<<<<<<< HEAD
             <Setter Property="Foreground" Value="#F1F5F9"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Style.Triggers>
-                <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#334155"/>
-                    <Setter Property="Foreground" Value="#6366F1"/>
-                </Trigger>
-            </Style.Triggers>
-=======
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Padding" Value="18,10"/>
             <Setter Property="Template">
@@ -98,7 +89,12 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
->>>>>>> DashHandlowie
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#334155"/>
+                    <Setter Property="Foreground" Value="#6366F1"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
 
         <Style x:Key="DarkDataGridRow" TargetType="DataGridRow">
