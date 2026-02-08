@@ -442,99 +442,169 @@
                                 </lvc:CartesianChart>
                                 <Canvas x:Name="canvasCenyKgAvatary" IsHitTestVisible="False" Margin="10,0,0,0"/>
                             </Grid>
-                            <!-- Tabela handlowcow z mozliwoscia klikniecia -->
-                            <DataGrid Grid.Row="1" Grid.ColumnSpan="2" x:Name="gridAnalizaCeny" AutoGenerateColumns="False" IsReadOnly="True"
-                                      Background="Transparent" BorderThickness="0" Margin="0,10,0,0"
-                                      RowBackground="#252A31" AlternatingRowBackground="#2D333B"
-                                      Foreground="#FFFFFF" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#30363D"
-                                      HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False"
-                                      MaxHeight="200" MouseDoubleClick="GridAnalizaCeny_MouseDoubleClick"
-                                      VirtualizingPanel.IsVirtualizing="True"
-                                      VirtualizingPanel.VirtualizationMode="Recycling"
-                                      VirtualizingPanel.ScrollUnit="Item"
-                                      EnableRowVirtualization="True"
-                                      EnableColumnVirtualization="True"
-                                      ScrollViewer.IsDeferredScrollingEnabled="True">
-                                <DataGrid.ColumnHeaderStyle>
-                                    <Style TargetType="DataGridColumnHeader">
-                                        <Setter Property="Background" Value="#1A1D21"/>
-                                        <Setter Property="Foreground" Value="#C0392B"/>
-                                        <Setter Property="Padding" Value="8,6"/>
-                                        <Setter Property="FontWeight" Value="Bold"/>
-                                        <Setter Property="FontSize" Value="11"/>
-                                        <Setter Property="BorderThickness" Value="0,0,0,2"/>
-                                        <Setter Property="BorderBrush" Value="#30363D"/>
-                                    </Style>
-                                </DataGrid.ColumnHeaderStyle>
-                                <DataGrid.RowStyle>
-                                    <Style TargetType="DataGridRow">
-                                        <Setter Property="Cursor" Value="Hand"/>
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Background" Value="#3D434B"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </DataGrid.RowStyle>
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="150"/>
-                                    <DataGridTextColumn Header="Suma kg" Binding="{Binding SumaKgTekst}" Width="100">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                                <Setter Property="Foreground" Value="#17A589"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Srednia cena" Binding="{Binding SredniaCenaTekst}" Width="100">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                                <Setter Property="FontWeight" Value="Bold"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Min cena" Binding="{Binding MinCenaTekst}" Width="90">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                                <Setter Property="Foreground" Value="#FF6B6B"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Max cena" Binding="{Binding MaxCenaTekst}" Width="90">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                                <Setter Property="Foreground" Value="#17A589"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Suma wartosc" Binding="{Binding SumaWartoscTekst}" Width="110">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                                <Setter Property="Foreground" Value="#C0392B"/>
-                                                <Setter Property="FontWeight" Value="Bold"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Transakcji" Binding="{Binding LiczbaTransakcji}" Width="80">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Kontrahentow" Binding="{Binding LiczbaKontrahentow}" Width="90">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                </DataGrid.Columns>
-                            </DataGrid>
+                            <!-- Tabela handlowcow - nowoczesny design -->
+                            <Border Grid.Row="1" Grid.ColumnSpan="2" Background="#1E2530" CornerRadius="12" Margin="0,12,0,0"
+                                    BorderBrush="#3D4A5C" BorderThickness="1">
+                                <Border.Effect>
+                                    <DropShadowEffect ShadowDepth="4" BlurRadius="12" Opacity="0.3" Direction="270" Color="Black"/>
+                                </Border.Effect>
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Naglowek tabeli -->
+                                    <Border Grid.Row="0" Background="#252D3A" CornerRadius="12,12,0,0" Padding="16,12">
+                                        <Grid>
+                                            <TextBlock Text="ANALIZA HANDLOWCOW" FontSize="14" FontWeight="Bold" Foreground="#F59E0B" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Kliknij 2x aby zobaczyc szczegoly" FontSize="11" Foreground="#64748B" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <DataGrid Grid.Row="1" x:Name="gridAnalizaCeny" AutoGenerateColumns="False" IsReadOnly="True"
+                                          Background="Transparent" BorderThickness="0"
+                                          RowBackground="#1E2530" AlternatingRowBackground="#242C3A"
+                                          Foreground="#E2E8F0" GridLinesVisibility="None"
+                                          HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False"
+                                          MaxHeight="260" MouseDoubleClick="GridAnalizaCeny_MouseDoubleClick"
+                                          VirtualizingPanel.IsVirtualizing="True"
+                                          VirtualizingPanel.VirtualizationMode="Recycling"
+                                          EnableRowVirtualization="True"
+                                          RowHeight="56"
+                                          FontSize="15"
+                                          AlternationCount="2">
+                                    <DataGrid.ColumnHeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader">
+                                            <Setter Property="Background" Value="#2A3444"/>
+                                            <Setter Property="Foreground" Value="#94A3B8"/>
+                                            <Setter Property="Padding" Value="16,14"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                            <Setter Property="FontSize" Value="12"/>
+                                            <Setter Property="BorderThickness" Value="0,0,0,2"/>
+                                            <Setter Property="BorderBrush" Value="#3B4A5F"/>
+                                            <Setter Property="Height" Value="50"/>
+                                        </Style>
+                                    </DataGrid.ColumnHeaderStyle>
+                                    <DataGrid.RowStyle>
+                                        <Style TargetType="DataGridRow">
+                                            <Setter Property="Cursor" Value="Hand"/>
+                                            <Setter Property="Margin" Value="8,2"/>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#2D3A4F"/>
+                                                </Trigger>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter Property="Background" Value="#3D4A5F"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGrid.RowStyle>
+                                    <DataGrid.CellStyle>
+                                        <Style TargetType="DataGridCell">
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                                            <Setter Property="Padding" Value="12,8"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="DataGridCell">
+                                                        <Border Padding="{TemplateBinding Padding}" Background="Transparent">
+                                                            <ContentPresenter VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </DataGrid.CellStyle>
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="HANDLOWIEC" Binding="{Binding Handlowiec}" Width="2.5*">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                                    <Setter Property="FontSize" Value="15"/>
+                                                    <Setter Property="Foreground" Value="#FBBF24"/>
+                                                    <Setter Property="Padding" Value="4,0,0,0"/>
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="ILOSC KG" Binding="{Binding SumaKgTekst}" Width="1.3*">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                                    <Setter Property="Foreground" Value="#34D399"/>
+                                                    <Setter Property="FontSize" Value="15"/>
+                                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="SR. CENA" Binding="{Binding SredniaCenaTekst}" Width="1.1*">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                    <Setter Property="FontSize" Value="16"/>
+                                                    <Setter Property="Foreground" Value="#F8FAFC"/>
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="MIN" Binding="{Binding MinCenaTekst}" Width="0.9*">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                                    <Setter Property="Foreground" Value="#FB7185"/>
+                                                    <Setter Property="FontSize" Value="14"/>
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="MAX" Binding="{Binding MaxCenaTekst}" Width="0.9*">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                                    <Setter Property="Foreground" Value="#34D399"/>
+                                                    <Setter Property="FontSize" Value="14"/>
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="WARTOSC ZL" Binding="{Binding SumaWartoscTekst}" Width="1.6*">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                                    <Setter Property="Foreground" Value="#FB923C"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                    <Setter Property="FontSize" Value="16"/>
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="TRANS." Binding="{Binding LiczbaTransakcji}" Width="0.8*">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                                    <Setter Property="FontSize" Value="14"/>
+                                                    <Setter Property="Foreground" Value="#A78BFA"/>
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="KLIENT." Binding="{Binding LiczbaKontrahentow}" Width="0.8*">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                                    <Setter Property="FontSize" Value="14"/>
+                                                    <Setter Property="Foreground" Value="#38BDF8"/>
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                </Grid>
+                            </Border>
                         </Grid>
                     </Grid>
                 </Border>
@@ -897,31 +967,21 @@
                 </Border>
             </TabItem>
 
-            <!-- Tab: Platnosci -->
+            <!-- Tab: Platnosci - Kompaktowy layout -->
             <TabItem Header="Platnosci">
                 <Border Background="{StaticResource CardBackgroundLightBrush}" CornerRadius="0,8,8,8">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <Grid Margin="10">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
+                    <Grid Margin="8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
 
-                            <!-- Filtry -->
-                            <Border Grid.Row="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="15,10" Margin="0,0,0,10">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="Handlowiec:" Style="{StaticResource FilterLabelStyle}"/>
-                                    <ComboBox x:Name="cmbHandlowiecPlat" Style="{StaticResource DarkComboBoxStyle}" Width="150" SelectionChanged="CmbPlatnosci_SelectionChanged"/>
-                                    <TextBlock Text="Kliknij 2x na kontrahenta aby otworzyc szczegoly platnosci" Style="{StaticResource DescriptionStyle}" Margin="20,0,0,0"/>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- Glowne karty statystyk - 6 kart -->
-                            <Grid Grid.Row="1" Margin="0,0,0,10">
+                        <!-- ROW 0: Kompaktowy naglowek - filtr + 6 KPI kart w jednym wierszu -->
+                        <Border Grid.Row="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="8,6" Margin="0,0,0,6">
+                            <Grid>
                                 <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
@@ -930,534 +990,550 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
 
-                                <!-- Karta: Suma do zaplaty -->
-                                <Border Grid.Column="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="0,0,5,0">
+                                <!-- Filtr handlowca - kompaktowy -->
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,15,0">
+                                    <TextBlock Text="Handlowiec:" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <ComboBox x:Name="cmbHandlowiecPlat" Style="{StaticResource DarkComboBoxStyle}" Width="130" SelectionChanged="CmbPlatnosci_SelectionChanged"/>
+                                </StackPanel>
+
+                                <!-- KPI: Suma do zaplaty -->
+                                <Border Grid.Column="1" Background="#1A1D21" CornerRadius="6" Padding="10,6" Margin="3,0">
                                     <StackPanel>
-                                        <TextBlock Text="SUMA DO ZAPLATY" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
-                                        <TextBlock x:Name="txtPlatSumaDoZaplaty" Text="0 zl" FontSize="20" FontWeight="Bold" Foreground="#FFFFFF" Margin="0,3,0,0"/>
-                                        <TextBlock x:Name="txtPlatIloscKlientow" Text="0 klientow" FontSize="10" Foreground="#8B949E" Margin="0,3,0,0"/>
+                                        <TextBlock Text="SUMA DO ZAPLATY" FontSize="8" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                            <TextBlock x:Name="txtPlatSumaDoZaplaty" Text="0 zl" FontSize="16" FontWeight="Bold" Foreground="#FFFFFF"/>
+                                            <TextBlock x:Name="txtPlatIloscKlientow" Text="  (0 kl.)" FontSize="9" Foreground="#8B949E" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
+                                        </StackPanel>
                                     </StackPanel>
                                 </Border>
 
-                                <!-- Karta: Terminowe -->
-                                <Border Grid.Column="1" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,5,0">
+                                <!-- KPI: Terminowe -->
+                                <Border Grid.Column="2" Background="#1A1D21" CornerRadius="6" Padding="10,6" Margin="3,0">
                                     <StackPanel>
-                                        <TextBlock Text="TERMINOWE" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
-                                        <TextBlock x:Name="txtPlatTerminowe" Text="0 zl" FontSize="20" FontWeight="Bold" Foreground="#17A589" Margin="0,3,0,0"/>
-                                        <TextBlock x:Name="txtPlatTerminoweProcent" Text="0%" FontSize="10" Foreground="#17A589" Margin="0,3,0,0"/>
+                                        <TextBlock Text="TERMINOWE" FontSize="8" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                            <TextBlock x:Name="txtPlatTerminowe" Text="0 zl" FontSize="16" FontWeight="Bold" Foreground="#17A589"/>
+                                            <TextBlock x:Name="txtPlatTerminoweProcent" Text="  0%" FontSize="10" Foreground="#17A589" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
+                                        </StackPanel>
                                     </StackPanel>
                                 </Border>
 
-                                <!-- Karta: Przeterminowane -->
-                                <Border Grid.Column="2" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,5,0">
+                                <!-- KPI: Przeterminowane -->
+                                <Border Grid.Column="3" Background="#1A1D21" CornerRadius="6" Padding="10,6" Margin="3,0">
                                     <StackPanel>
-                                        <TextBlock Text="PRZETERMINOWANE" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
-                                        <TextBlock x:Name="txtPlatPrzeterminowane" Text="0 zl" FontSize="20" FontWeight="Bold" Foreground="#FF6B6B" Margin="0,3,0,0"/>
-                                        <TextBlock x:Name="txtPlatPrzeterminowaneProcent" Text="0%" FontSize="10" Foreground="#FF6B6B" Margin="0,3,0,0"/>
+                                        <TextBlock Text="PRZETERMINOWANE" FontSize="8" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                            <TextBlock x:Name="txtPlatPrzeterminowane" Text="0 zl" FontSize="16" FontWeight="Bold" Foreground="#FF6B6B"/>
+                                            <TextBlock x:Name="txtPlatPrzeterminowaneProcent" Text="  0%" FontSize="10" Foreground="#FF6B6B" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
+                                        </StackPanel>
                                     </StackPanel>
                                 </Border>
 
-                                <!-- Karta: Liczba faktur przeterminowanych -->
-                                <Border Grid.Column="3" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,5,0">
+                                <!-- KPI: Faktur przeterminowanych -->
+                                <Border Grid.Column="4" Background="#1A1D21" CornerRadius="6" Padding="10,6" Margin="3,0">
                                     <StackPanel>
-                                        <TextBlock Text="FAKTUR PRZET." FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
-                                        <TextBlock x:Name="txtPlatLiczbaFakturPrzet" Text="0" FontSize="20" FontWeight="Bold" Foreground="#FF6B6B" Margin="0,3,0,0"/>
-                                        <TextBlock x:Name="txtPlatLiczbaKlientowPrzet" Text="u 0 klientow" FontSize="10" Foreground="#8B949E" Margin="0,3,0,0"/>
+                                        <TextBlock Text="FAKTUR PRZET." FontSize="8" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                            <TextBlock x:Name="txtPlatLiczbaFakturPrzet" Text="0" FontSize="16" FontWeight="Bold" Foreground="#FF6B6B"/>
+                                            <TextBlock x:Name="txtPlatLiczbaKlientowPrzet" Text="  (u 0 kl.)" FontSize="9" Foreground="#8B949E" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
+                                        </StackPanel>
                                     </StackPanel>
                                 </Border>
 
-                                <!-- Karta: Przekroczony limit -->
-                                <Border Grid.Column="4" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,5,0">
+                                <!-- KPI: Przekroczony limit -->
+                                <Border Grid.Column="5" Background="#1A1D21" CornerRadius="6" Padding="10,6" Margin="3,0">
                                     <StackPanel>
-                                        <TextBlock Text="PRZEKR. LIMIT" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
-                                        <TextBlock x:Name="txtPlatPrzekroczony" Text="0 zl" FontSize="20" FontWeight="Bold" Foreground="#C0392B" Margin="0,3,0,0"/>
-                                        <TextBlock x:Name="txtPlatPrzekroczonyIlosc" Text="0 klientow" FontSize="10" Foreground="#C0392B" Margin="0,3,0,0"/>
+                                        <TextBlock Text="PRZEKR. LIMIT" FontSize="8" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                            <TextBlock x:Name="txtPlatPrzekroczony" Text="0 zl" FontSize="16" FontWeight="Bold" Foreground="#C0392B"/>
+                                            <TextBlock x:Name="txtPlatPrzekroczonyIlosc" Text="  (0 kl.)" FontSize="9" Foreground="#C0392B" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
+                                        </StackPanel>
                                     </StackPanel>
                                 </Border>
 
-                                <!-- Karta: Max dni przeterminowania -->
-                                <Border Grid.Column="5" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,0,0">
+                                <!-- KPI: Max dni przeterminowania -->
+                                <Border Grid.Column="6" Background="#1A1D21" CornerRadius="6" Padding="10,6" Margin="3,0,0,0">
                                     <StackPanel>
-                                        <TextBlock Text="MAX DNI PRZET." FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
-                                        <TextBlock x:Name="txtPlatMaxDni" Text="0 dni" FontSize="20" FontWeight="Bold" Foreground="#AA96DA" Margin="0,3,0,0"/>
-                                        <TextBlock x:Name="txtPlatMaxDniKlient" Text="" FontSize="9" Foreground="#8B949E" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="MAX DNI PRZET." FontSize="8" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                            <TextBlock x:Name="txtPlatMaxDni" Text="0 dni" FontSize="16" FontWeight="Bold" Foreground="#AA96DA"/>
+                                        </StackPanel>
+                                        <TextBlock x:Name="txtPlatMaxDniKlient" Text="" FontSize="8" Foreground="#8B949E" TextTrimming="CharacterEllipsis" MaxWidth="100"/>
                                     </StackPanel>
                                 </Border>
                             </Grid>
+                        </Border>
 
-                            <!-- Wykresy: Donut + Analiza wiekowa + Top przeterminowani -->
-                            <Grid Grid.Row="2" Margin="0,0,0,10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="180"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="280"/>
-                                </Grid.ColumnDefinitions>
+                        <!-- ROW 1: Kompaktowe wykresy - mniejsza wysokosc -->
+                        <Grid Grid.Row="1" Margin="0,0,0,6" Height="180">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="140"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="220"/>
+                            </Grid.ColumnDefinitions>
 
-                                <!-- LEWA STRONA: Donut Chart -->
-                                <Border Grid.Column="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="0,0,5,0">
-                                    <Grid>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="*"/>
-                                            <RowDefinition Height="Auto"/>
-                                        </Grid.RowDefinitions>
-                                        <TextBlock Grid.Row="0" Text="STRUKTURA" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-
-                                        <!-- Donut Chart Canvas -->
-                                        <Canvas x:Name="canvasDonut" Grid.Row="1" Width="120" Height="120" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                            <!-- Donut segments będą rysowane w C# -->
-                                        </Canvas>
-
-                                        <!-- Środek donuta - tekst -->
-                                        <Grid Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
-                                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                <TextBlock x:Name="txtDonutProcent" Text="0%" FontSize="24" FontWeight="Bold" Foreground="#17A589" HorizontalAlignment="Center"/>
-                                                <TextBlock Text="terminowe" FontSize="9" Foreground="#8B949E" HorizontalAlignment="Center"/>
-                                            </StackPanel>
-                                        </Grid>
-
-                                        <!-- Legenda -->
-                                        <StackPanel Grid.Row="2" Orientation="Vertical" HorizontalAlignment="Center" Margin="0,10,0,0">
-                                            <StackPanel Orientation="Horizontal" Margin="0,2">
-                                                <Rectangle Width="10" Height="10" Fill="#17A589" RadiusX="2" RadiusY="2"/>
-                                                <TextBlock x:Name="txtDonutTerminowe" Text=" Term. 0%" FontSize="10" Foreground="#17A589" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                            <StackPanel Orientation="Horizontal" Margin="0,2">
-                                                <Rectangle Width="10" Height="10" Fill="#EF4444" RadiusX="2" RadiusY="2"/>
-                                                <TextBlock x:Name="txtDonutPrzeterminowane" Text=" Przet. 0%" FontSize="10" Foreground="#EF4444" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                        </StackPanel>
-                                    </Grid>
-                                </Border>
-
-                                <!-- SRODEK: Analiza wiekowa + Top przeterminowani -->
-                                <Grid Grid.Column="1" Margin="5,0,5,0">
+                            <!-- Donut Chart - mniejszy -->
+                            <Border Grid.Column="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="8" Margin="0,0,4,0">
+                                <Grid>
                                     <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="*"/>
                                         <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Text="STRUKTURA" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                    <Canvas x:Name="canvasDonut" Grid.Row="1" Width="80" Height="80" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <Grid Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
+                                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <TextBlock x:Name="txtDonutProcent" Text="0%" FontSize="18" FontWeight="Bold" Foreground="#17A589" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="terminowe" FontSize="8" Foreground="#8B949E" HorizontalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Grid>
+                                    <StackPanel Grid.Row="2" Orientation="Vertical" HorizontalAlignment="Center" Margin="0,4,0,0">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Rectangle Width="8" Height="8" Fill="#17A589" RadiusX="2" RadiusY="2"/>
+                                            <TextBlock x:Name="txtDonutTerminowe" Text=" Term. 0%" FontSize="9" Foreground="#17A589"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Rectangle Width="8" Height="8" Fill="#EF4444" RadiusX="2" RadiusY="2"/>
+                                            <TextBlock x:Name="txtDonutPrzeterminowane" Text=" Przet. 0%" FontSize="9" Foreground="#EF4444"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
 
-                                    <!-- Analiza wiekowa + Przekroczone limity - dwie kolumny -->
-                                    <Grid Grid.Row="0" Margin="0,0,0,5">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-
-                                        <!-- LEWA: Analiza wiekowa -->
-                                        <Border Grid.Column="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="0,0,4,0">
+                            <!-- Analiza wiekowa - kompaktowa -->
+                            <Border Grid.Column="1" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="8" Margin="4,0">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Text="ANALIZA WIEKOWA" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold" Margin="0,0,0,4"/>
+                                    <Grid Grid.Row="1">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+                                        <!-- 1-7 dni -->
+                                        <Border Grid.Row="0" Background="#1A1D21" CornerRadius="4" Padding="6,4" Margin="0,0,0,2">
                                             <Grid>
-                                                <Grid.RowDefinitions>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="*"/>
-                                                </Grid.RowDefinitions>
-                                                <TextBlock Grid.Row="0" Text="ANALIZA WIEKOWA" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold" Margin="0,0,0,8"/>
-
-                                                <Grid Grid.Row="1">
-                                                    <Grid.RowDefinitions>
-                                                        <RowDefinition Height="*"/>
-                                                        <RowDefinition Height="*"/>
-                                                        <RowDefinition Height="*"/>
-                                                        <RowDefinition Height="*"/>
-                                                    </Grid.RowDefinitions>
-
-                                                    <!-- 1-7 dni -->
-                                                    <Border Grid.Row="0" Background="#1A1D21" CornerRadius="5" Padding="8" Margin="0,0,0,3">
-                                                        <Grid>
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="55"/>
-                                                                <ColumnDefinition Width="*"/>
-                                                                <ColumnDefinition Width="70"/>
-                                                                <ColumnDefinition Width="35"/>
-                                                            </Grid.ColumnDefinitions>
-                                                            <TextBlock Grid.Column="0" Text="1-7 DNI" FontSize="10" Foreground="#FCD34D" FontWeight="Bold" VerticalAlignment="Center"/>
-                                                            <Border Grid.Column="1" Background="#2D333B" CornerRadius="3" Height="12" VerticalAlignment="Center" Margin="5,0">
-                                                                <Border x:Name="barAging17" Background="#FCD34D" CornerRadius="3" HorizontalAlignment="Left" Width="0"/>
-                                                            </Border>
-                                                            <TextBlock Grid.Column="2" x:Name="txtAging17" Text="0 zl" FontSize="11" FontWeight="Bold" Foreground="#FCD34D" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                            <TextBlock Grid.Column="3" x:Name="txtAging17Procent" Text="0%" FontSize="9" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                        </Grid>
-                                                    </Border>
-
-                                                    <!-- 8-14 dni -->
-                                                    <Border Grid.Row="1" Background="#1A1D21" CornerRadius="5" Padding="8" Margin="0,0,0,3">
-                                                        <Grid>
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="55"/>
-                                                                <ColumnDefinition Width="*"/>
-                                                                <ColumnDefinition Width="70"/>
-                                                                <ColumnDefinition Width="35"/>
-                                                            </Grid.ColumnDefinitions>
-                                                            <TextBlock Grid.Column="0" Text="8-14 DNI" FontSize="10" Foreground="#F97316" FontWeight="Bold" VerticalAlignment="Center"/>
-                                                            <Border Grid.Column="1" Background="#2D333B" CornerRadius="3" Height="12" VerticalAlignment="Center" Margin="5,0">
-                                                                <Border x:Name="barAging814" Background="#F97316" CornerRadius="3" HorizontalAlignment="Left" Width="0"/>
-                                                            </Border>
-                                                            <TextBlock Grid.Column="2" x:Name="txtAging814" Text="0 zl" FontSize="11" FontWeight="Bold" Foreground="#F97316" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                            <TextBlock Grid.Column="3" x:Name="txtAging814Procent" Text="0%" FontSize="9" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                        </Grid>
-                                                    </Border>
-
-                                                    <!-- 15-21 dni -->
-                                                    <Border Grid.Row="2" Background="#1A1D21" CornerRadius="5" Padding="8" Margin="0,0,0,3">
-                                                        <Grid>
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="55"/>
-                                                                <ColumnDefinition Width="*"/>
-                                                                <ColumnDefinition Width="70"/>
-                                                                <ColumnDefinition Width="35"/>
-                                                            </Grid.ColumnDefinitions>
-                                                            <TextBlock Grid.Column="0" Text="15-21 DNI" FontSize="10" Foreground="#EF4444" FontWeight="Bold" VerticalAlignment="Center"/>
-                                                            <Border Grid.Column="1" Background="#2D333B" CornerRadius="3" Height="12" VerticalAlignment="Center" Margin="5,0">
-                                                                <Border x:Name="barAging1521" Background="#EF4444" CornerRadius="3" HorizontalAlignment="Left" Width="0"/>
-                                                            </Border>
-                                                            <TextBlock Grid.Column="2" x:Name="txtAging1521" Text="0 zl" FontSize="11" FontWeight="Bold" Foreground="#EF4444" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                            <TextBlock Grid.Column="3" x:Name="txtAging1521Procent" Text="0%" FontSize="9" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                        </Grid>
-                                                    </Border>
-
-                                                    <!-- 21+ dni -->
-                                                    <Border Grid.Row="3" Background="#1A1D21" CornerRadius="5" Padding="8">
-                                                        <Grid>
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="55"/>
-                                                                <ColumnDefinition Width="*"/>
-                                                                <ColumnDefinition Width="70"/>
-                                                                <ColumnDefinition Width="35"/>
-                                                            </Grid.ColumnDefinitions>
-                                                            <TextBlock Grid.Column="0" Text="21+ DNI" FontSize="10" Foreground="#DC2626" FontWeight="Bold" VerticalAlignment="Center"/>
-                                                            <Border Grid.Column="1" Background="#2D333B" CornerRadius="3" Height="12" VerticalAlignment="Center" Margin="5,0">
-                                                                <Border x:Name="barAging21Plus" Background="#DC2626" CornerRadius="3" HorizontalAlignment="Left" Width="0"/>
-                                                            </Border>
-                                                            <TextBlock Grid.Column="2" x:Name="txtAging21Plus" Text="0 zl" FontSize="11" FontWeight="Bold" Foreground="#DC2626" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                            <TextBlock Grid.Column="3" x:Name="txtAging21PlusProcent" Text="0%" FontSize="9" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                        </Grid>
-                                                    </Border>
-                                                </Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="50"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="65"/>
+                                                    <ColumnDefinition Width="30"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="1-7 DNI" FontSize="9" Foreground="#FCD34D" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                <Border Grid.Column="1" Background="#2D333B" CornerRadius="2" Height="10" VerticalAlignment="Center" Margin="4,0">
+                                                    <Border x:Name="barAging17" Background="#FCD34D" CornerRadius="2" HorizontalAlignment="Left" Width="0"/>
+                                                </Border>
+                                                <TextBlock Grid.Column="2" x:Name="txtAging17" Text="0 zl" FontSize="10" FontWeight="Bold" Foreground="#FCD34D" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="3" x:Name="txtAging17Procent" Text="0%" FontSize="8" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                             </Grid>
                                         </Border>
-
-                                        <!-- PRAWA: Przekroczone limity wg kwoty -->
-                                        <Border Grid.Column="1" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="4,0,0,0">
+                                        <!-- 8-14 dni -->
+                                        <Border Grid.Row="1" Background="#1A1D21" CornerRadius="4" Padding="6,4" Margin="0,0,0,2">
                                             <Grid>
-                                                <Grid.RowDefinitions>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="*"/>
-                                                </Grid.RowDefinitions>
-                                                <TextBlock Grid.Row="0" Text="PRZEKROCZONE LIMITY" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold" Margin="0,0,0,8"/>
-
-                                                <Grid Grid.Row="1">
-                                                    <Grid.RowDefinitions>
-                                                        <RowDefinition Height="*"/>
-                                                        <RowDefinition Height="*"/>
-                                                        <RowDefinition Height="*"/>
-                                                        <RowDefinition Height="*"/>
-                                                    </Grid.RowDefinitions>
-
-                                                    <!-- do 100k -->
-                                                    <Border Grid.Row="0" Background="#1A1D21" CornerRadius="5" Padding="8" Margin="0,0,0,3">
-                                                        <Grid>
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="60"/>
-                                                                <ColumnDefinition Width="*"/>
-                                                                <ColumnDefinition Width="70"/>
-                                                                <ColumnDefinition Width="40"/>
-                                                            </Grid.ColumnDefinitions>
-                                                            <TextBlock Grid.Column="0" Text="do 100k" FontSize="10" Foreground="#10B981" FontWeight="Bold" VerticalAlignment="Center"/>
-                                                            <Border Grid.Column="1" Background="#2D333B" CornerRadius="3" Height="12" VerticalAlignment="Center" Margin="5,0">
-                                                                <Border x:Name="barLimit100k" Background="#10B981" CornerRadius="3" HorizontalAlignment="Left" Width="0"/>
-                                                            </Border>
-                                                            <TextBlock Grid.Column="2" x:Name="txtLimit100k" Text="0 zl" FontSize="11" FontWeight="Bold" Foreground="#10B981" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                            <TextBlock Grid.Column="3" x:Name="txtLimit100kKlientow" Text="0 kl." FontSize="9" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                        </Grid>
-                                                    </Border>
-
-                                                    <!-- 100-300k -->
-                                                    <Border Grid.Row="1" Background="#1A1D21" CornerRadius="5" Padding="8" Margin="0,0,0,3">
-                                                        <Grid>
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="60"/>
-                                                                <ColumnDefinition Width="*"/>
-                                                                <ColumnDefinition Width="70"/>
-                                                                <ColumnDefinition Width="40"/>
-                                                            </Grid.ColumnDefinitions>
-                                                            <TextBlock Grid.Column="0" Text="100-300k" FontSize="10" Foreground="#F97316" FontWeight="Bold" VerticalAlignment="Center"/>
-                                                            <Border Grid.Column="1" Background="#2D333B" CornerRadius="3" Height="12" VerticalAlignment="Center" Margin="5,0">
-                                                                <Border x:Name="barLimit300k" Background="#F97316" CornerRadius="3" HorizontalAlignment="Left" Width="0"/>
-                                                            </Border>
-                                                            <TextBlock Grid.Column="2" x:Name="txtLimit300k" Text="0 zl" FontSize="11" FontWeight="Bold" Foreground="#F97316" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                            <TextBlock Grid.Column="3" x:Name="txtLimit300kKlientow" Text="0 kl." FontSize="9" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                        </Grid>
-                                                    </Border>
-
-                                                    <!-- 300-500k -->
-                                                    <Border Grid.Row="2" Background="#1A1D21" CornerRadius="5" Padding="8" Margin="0,0,0,3">
-                                                        <Grid>
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="60"/>
-                                                                <ColumnDefinition Width="*"/>
-                                                                <ColumnDefinition Width="70"/>
-                                                                <ColumnDefinition Width="40"/>
-                                                            </Grid.ColumnDefinitions>
-                                                            <TextBlock Grid.Column="0" Text="300-500k" FontSize="10" Foreground="#EF4444" FontWeight="Bold" VerticalAlignment="Center"/>
-                                                            <Border Grid.Column="1" Background="#2D333B" CornerRadius="3" Height="12" VerticalAlignment="Center" Margin="5,0">
-                                                                <Border x:Name="barLimit500k" Background="#EF4444" CornerRadius="3" HorizontalAlignment="Left" Width="0"/>
-                                                            </Border>
-                                                            <TextBlock Grid.Column="2" x:Name="txtLimit500k" Text="0 zl" FontSize="11" FontWeight="Bold" Foreground="#EF4444" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                            <TextBlock Grid.Column="3" x:Name="txtLimit500kKlientow" Text="0 kl." FontSize="9" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                        </Grid>
-                                                    </Border>
-
-                                                    <!-- 500k+ -->
-                                                    <Border Grid.Row="3" Background="#1A1D21" CornerRadius="5" Padding="8">
-                                                        <Grid>
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="60"/>
-                                                                <ColumnDefinition Width="*"/>
-                                                                <ColumnDefinition Width="70"/>
-                                                                <ColumnDefinition Width="40"/>
-                                                            </Grid.ColumnDefinitions>
-                                                            <TextBlock Grid.Column="0" Text="500k+" FontSize="10" Foreground="#DC2626" FontWeight="Bold" VerticalAlignment="Center"/>
-                                                            <Border Grid.Column="1" Background="#2D333B" CornerRadius="3" Height="12" VerticalAlignment="Center" Margin="5,0">
-                                                                <Border x:Name="barLimit500kPlus" Background="#DC2626" CornerRadius="3" HorizontalAlignment="Left" Width="0"/>
-                                                            </Border>
-                                                            <TextBlock Grid.Column="2" x:Name="txtLimit500kPlus" Text="0 zl" FontSize="11" FontWeight="Bold" Foreground="#DC2626" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                            <TextBlock Grid.Column="3" x:Name="txtLimit500kPlusKlientow" Text="0 kl." FontSize="9" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                        </Grid>
-                                                    </Border>
-                                                </Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="50"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="65"/>
+                                                    <ColumnDefinition Width="30"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="8-14 DNI" FontSize="9" Foreground="#F97316" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                <Border Grid.Column="1" Background="#2D333B" CornerRadius="2" Height="10" VerticalAlignment="Center" Margin="4,0">
+                                                    <Border x:Name="barAging814" Background="#F97316" CornerRadius="2" HorizontalAlignment="Left" Width="0"/>
+                                                </Border>
+                                                <TextBlock Grid.Column="2" x:Name="txtAging814" Text="0 zl" FontSize="10" FontWeight="Bold" Foreground="#F97316" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="3" x:Name="txtAging814Procent" Text="0%" FontSize="8" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </Border>
+                                        <!-- 15-21 dni -->
+                                        <Border Grid.Row="2" Background="#1A1D21" CornerRadius="4" Padding="6,4" Margin="0,0,0,2">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="50"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="65"/>
+                                                    <ColumnDefinition Width="30"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="15-21 DNI" FontSize="9" Foreground="#EF4444" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                <Border Grid.Column="1" Background="#2D333B" CornerRadius="2" Height="10" VerticalAlignment="Center" Margin="4,0">
+                                                    <Border x:Name="barAging1521" Background="#EF4444" CornerRadius="2" HorizontalAlignment="Left" Width="0"/>
+                                                </Border>
+                                                <TextBlock Grid.Column="2" x:Name="txtAging1521" Text="0 zl" FontSize="10" FontWeight="Bold" Foreground="#EF4444" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="3" x:Name="txtAging1521Procent" Text="0%" FontSize="8" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </Border>
+                                        <!-- 21+ dni -->
+                                        <Border Grid.Row="3" Background="#1A1D21" CornerRadius="4" Padding="6,4">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="50"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="65"/>
+                                                    <ColumnDefinition Width="30"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="21+ DNI" FontSize="9" Foreground="#DC2626" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                <Border Grid.Column="1" Background="#2D333B" CornerRadius="2" Height="10" VerticalAlignment="Center" Margin="4,0">
+                                                    <Border x:Name="barAging21Plus" Background="#DC2626" CornerRadius="2" HorizontalAlignment="Left" Width="0"/>
+                                                </Border>
+                                                <TextBlock Grid.Column="2" x:Name="txtAging21Plus" Text="0 zl" FontSize="10" FontWeight="Bold" Foreground="#DC2626" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="3" x:Name="txtAging21PlusProcent" Text="0%" FontSize="8" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                             </Grid>
                                         </Border>
                                     </Grid>
+                                </Grid>
+                            </Border>
 
-                                    <!-- Wskazniki platnosci -->
-                                    <Border Grid.Row="1" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="15">
+                            <!-- Przekroczone limity - kompaktowe -->
+                            <Border Grid.Column="2" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="8" Margin="4,0">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Text="PRZEKROCZONE LIMITY" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold" Margin="0,0,0,4"/>
+                                    <Grid Grid.Row="1">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+                                        <!-- do 100k -->
+                                        <Border Grid.Row="0" Background="#1A1D21" CornerRadius="4" Padding="6,4" Margin="0,0,0,2">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="55"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="60"/>
+                                                    <ColumnDefinition Width="35"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="do 100k" FontSize="9" Foreground="#10B981" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                <Border Grid.Column="1" Background="#2D333B" CornerRadius="2" Height="10" VerticalAlignment="Center" Margin="4,0">
+                                                    <Border x:Name="barLimit100k" Background="#10B981" CornerRadius="2" HorizontalAlignment="Left" Width="0"/>
+                                                </Border>
+                                                <TextBlock Grid.Column="2" x:Name="txtLimit100k" Text="0 zl" FontSize="10" FontWeight="Bold" Foreground="#10B981" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="3" x:Name="txtLimit100kKlientow" Text="0 kl." FontSize="8" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </Border>
+                                        <!-- 100-300k -->
+                                        <Border Grid.Row="1" Background="#1A1D21" CornerRadius="4" Padding="6,4" Margin="0,0,0,2">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="55"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="60"/>
+                                                    <ColumnDefinition Width="35"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="100-300k" FontSize="9" Foreground="#F97316" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                <Border Grid.Column="1" Background="#2D333B" CornerRadius="2" Height="10" VerticalAlignment="Center" Margin="4,0">
+                                                    <Border x:Name="barLimit300k" Background="#F97316" CornerRadius="2" HorizontalAlignment="Left" Width="0"/>
+                                                </Border>
+                                                <TextBlock Grid.Column="2" x:Name="txtLimit300k" Text="0 zl" FontSize="10" FontWeight="Bold" Foreground="#F97316" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="3" x:Name="txtLimit300kKlientow" Text="0 kl." FontSize="8" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </Border>
+                                        <!-- 300-500k -->
+                                        <Border Grid.Row="2" Background="#1A1D21" CornerRadius="4" Padding="6,4" Margin="0,0,0,2">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="55"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="60"/>
+                                                    <ColumnDefinition Width="35"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="300-500k" FontSize="9" Foreground="#EF4444" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                <Border Grid.Column="1" Background="#2D333B" CornerRadius="2" Height="10" VerticalAlignment="Center" Margin="4,0">
+                                                    <Border x:Name="barLimit500k" Background="#EF4444" CornerRadius="2" HorizontalAlignment="Left" Width="0"/>
+                                                </Border>
+                                                <TextBlock Grid.Column="2" x:Name="txtLimit500k" Text="0 zl" FontSize="10" FontWeight="Bold" Foreground="#EF4444" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="3" x:Name="txtLimit500kKlientow" Text="0 kl." FontSize="8" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </Border>
+                                        <!-- 500k+ -->
+                                        <Border Grid.Row="3" Background="#1A1D21" CornerRadius="4" Padding="6,4">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="55"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="60"/>
+                                                    <ColumnDefinition Width="35"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="500k+" FontSize="9" Foreground="#DC2626" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                <Border Grid.Column="1" Background="#2D333B" CornerRadius="2" Height="10" VerticalAlignment="Center" Margin="4,0">
+                                                    <Border x:Name="barLimit500kPlus" Background="#DC2626" CornerRadius="2" HorizontalAlignment="Left" Width="0"/>
+                                                </Border>
+                                                <TextBlock Grid.Column="2" x:Name="txtLimit500kPlus" Text="0 zl" FontSize="10" FontWeight="Bold" Foreground="#DC2626" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="3" x:Name="txtLimit500kPlusKlientow" Text="0 kl." FontSize="8" Foreground="#8B949E" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </Border>
+                                    </Grid>
+                                    <!-- Wskazniki - zintegrowane na dole -->
+                                    <Border Grid.Row="2" Background="#1A1D21" CornerRadius="4" Padding="6,4" Margin="0,4,0,0">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
-
                                             <StackPanel Grid.Column="0" HorizontalAlignment="Center">
-                                                <TextBlock Text="Srednie dni opozn." Foreground="#8B949E" FontSize="9" HorizontalAlignment="Center"/>
-                                                <TextBlock x:Name="txtWskaznikSrednieDni" Text="0 dni" Foreground="#FFE66D" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                                <TextBlock Text="Srednie dni" Foreground="#8B949E" FontSize="8" HorizontalAlignment="Center"/>
+                                                <TextBlock x:Name="txtWskaznikSrednieDni" Text="0" Foreground="#FFE66D" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center"/>
                                             </StackPanel>
                                             <StackPanel Grid.Column="1" HorizontalAlignment="Center">
-                                                <TextBlock Text="% przeterminow." Foreground="#8B949E" FontSize="9" HorizontalAlignment="Center"/>
-                                                <TextBlock x:Name="txtWskaznikProcentPrzeterminowanych" Text="0%" Foreground="#FF6B6B" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                                <TextBlock Text="% przet." Foreground="#8B949E" FontSize="8" HorizontalAlignment="Center"/>
+                                                <TextBlock x:Name="txtWskaznikProcentPrzeterminowanych" Text="0%" Foreground="#FF6B6B" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center"/>
                                             </StackPanel>
                                             <StackPanel Grid.Column="2" HorizontalAlignment="Center">
-                                                <TextBlock Text="Klientow przet." Foreground="#8B949E" FontSize="9" HorizontalAlignment="Center"/>
-                                                <TextBlock x:Name="txtWskaznikLiczbaKlientow" Text="0" Foreground="#C0392B" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,3,0,0"/>
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="3" HorizontalAlignment="Center">
-                                                <TextBlock Text="Przekr. limit" Foreground="#8B949E" FontSize="9" HorizontalAlignment="Center"/>
-                                                <TextBlock x:Name="txtWskaznikPrzekroczonyLimit" Text="0" Foreground="#AA96DA" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,3,0,0"/>
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="4" HorizontalAlignment="Center">
-                                                <TextBlock Text="Dyscyplina" Foreground="#8B949E" FontSize="9" HorizontalAlignment="Center"/>
-                                                <TextBlock x:Name="txtWskaznikDyscyplina" Text="0%" Foreground="#17A589" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                                <TextBlock Text="Dyscyplina" Foreground="#8B949E" FontSize="8" HorizontalAlignment="Center"/>
+                                                <TextBlock x:Name="txtWskaznikDyscyplina" Text="0%" Foreground="#17A589" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center"/>
                                             </StackPanel>
                                         </Grid>
                                     </Border>
                                 </Grid>
+                            </Border>
 
-                                <!-- PRAWA STRONA: Top przeterminowani -->
-                                <Border Grid.Column="2" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,0,0">
-                                    <Grid>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="*"/>
-                                        </Grid.RowDefinitions>
-                                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
-                                            <TextBlock Text="🔥" FontSize="12"/>
-                                            <TextBlock Text=" TOP PRZETERMINOWANI" FontSize="10" Foreground="#EF4444" FontWeight="Bold" VerticalAlignment="Center"/>
-                                        </StackPanel>
-
-                                        <ItemsControl x:Name="listTopPrzeterminowani" Grid.Row="1">
+                            <!-- Top przeterminowani - kompaktowy -->
+                            <Border Grid.Column="3" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="8" Margin="4,0,0,0">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Text="🔥 TOP PRZETERMINOWANI" FontSize="9" Foreground="#EF4444" FontWeight="Bold" Margin="0,0,0,4"/>
+                                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl x:Name="listTopPrzeterminowani">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <Border Background="#1A1D21" CornerRadius="5" Padding="10,8" Margin="0,0,0,4">
+                                                    <Border Background="#1A1D21" CornerRadius="4" Padding="6,4" Margin="0,0,0,2">
                                                         <Grid>
                                                             <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="20"/>
+                                                                <ColumnDefinition Width="16"/>
                                                                 <ColumnDefinition Width="*"/>
                                                                 <ColumnDefinition Width="Auto"/>
                                                             </Grid.ColumnDefinitions>
-                                                            <TextBlock Grid.Column="0" Text="{Binding Pozycja}" FontSize="11" Foreground="#8B949E" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                            <TextBlock Grid.Column="0" Text="{Binding Pozycja}" FontSize="9" Foreground="#8B949E" FontWeight="Bold" VerticalAlignment="Center"/>
                                                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                                <TextBlock Text="{Binding Kontrahent}" FontSize="11" Foreground="#FFFFFF" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                                                <TextBlock Text="{Binding DniTekst}" FontSize="9" Foreground="#EF4444"/>
+                                                                <TextBlock Text="{Binding Kontrahent}" FontSize="10" Foreground="#FFFFFF" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                                <TextBlock Text="{Binding DniTekst}" FontSize="8" Foreground="#EF4444"/>
                                                             </StackPanel>
-                                                            <TextBlock Grid.Column="2" Text="{Binding KwotaTekst}" FontSize="12" FontWeight="Bold" Foreground="#EF4444" VerticalAlignment="Center" Margin="5,0,0,0"/>
+                                                            <TextBlock Grid.Column="2" Text="{Binding KwotaTekst}" FontSize="10" FontWeight="Bold" Foreground="#EF4444" VerticalAlignment="Center" Margin="4,0,0,0"/>
                                                         </Grid>
                                                     </Border>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
+                                    </ScrollViewer>
+                                </Grid>
+                            </Border>
+                        </Grid>
+
+                        <!-- Ukryte wskazniki - zachowane dla kompatybilnosci -->
+                        <TextBlock x:Name="txtWskaznikLiczbaKlientow" Visibility="Collapsed"/>
+                        <TextBlock x:Name="txtWskaznikPrzekroczonyLimit" Visibility="Collapsed"/>
+
+                        <!-- ROW 2: Tabela platnosci - nowoczesny design -->
+                        <Border Grid.Row="2" Background="#1A2332" CornerRadius="12" BorderBrush="#2D3A4F" BorderThickness="1">
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="4" BlurRadius="12" Opacity="0.25" Direction="270" Color="Black"/>
+                            </Border.Effect>
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Naglowek tabeli -->
+                                <Border Grid.Row="0" CornerRadius="12,12,0,0" Padding="16,10">
+                                    <Border.Background>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                            <GradientStop Color="#1E5B45" Offset="0"/>
+                                            <GradientStop Color="#1A4A3A" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Border.Background>
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="SZCZEGOLY PLATNOSCI" FontSize="13" FontWeight="Bold" Foreground="#4ADE80" VerticalAlignment="Center"/>
+                                            <Border Background="#10B981" CornerRadius="4" Padding="6,2" Margin="12,0,0,0" VerticalAlignment="Center">
+                                                <TextBlock Text="Kliknij 2x = szczegoly" FontSize="10" Foreground="#FFFFFF"/>
+                                            </Border>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                            <Border Background="#16A34A" CornerRadius="3" Width="12" Height="12" Margin="0,0,4,0"/>
+                                            <TextBlock Text="OK" FontSize="10" Foreground="#86EFAC" Margin="0,0,12,0"/>
+                                            <Border Background="#EA580C" CornerRadius="3" Width="12" Height="12" Margin="0,0,4,0"/>
+                                            <TextBlock Text="1-30 dni" FontSize="10" Foreground="#FDBA74" Margin="0,0,12,0"/>
+                                            <Border Background="#DC2626" CornerRadius="3" Width="12" Height="12" Margin="0,0,4,0"/>
+                                            <TextBlock Text="30+ dni" FontSize="10" Foreground="#FCA5A5"/>
+                                        </StackPanel>
                                     </Grid>
                                 </Border>
-                            </Grid>
 
-                            <!-- Pusty Row 3 - usuniety -->
-                            <Grid Grid.Row="3" Height="0"/>
-
-                            <!-- Tabela ze szczegolami - styl Excel -->
-                            <DataGrid Grid.Row="4" x:Name="gridPlatnosci" AutoGenerateColumns="False" IsReadOnly="True"
-                                      Background="Transparent" BorderThickness="1" BorderBrush="#444444"
-                                      RowBackground="#252A31" AlternatingRowBackground="#2D333B"
-                                      Foreground="#FFFFFF" GridLinesVisibility="All"
-                                      HorizontalGridLinesBrush="#444444" VerticalGridLinesBrush="#444444"
+                                <DataGrid Grid.Row="1" x:Name="gridPlatnosci" AutoGenerateColumns="False" IsReadOnly="True"
+                                      Background="Transparent" BorderThickness="0"
+                                      RowBackground="#1A2332" AlternatingRowBackground="#1F2A3C"
+                                      Foreground="#E2E8F0" GridLinesVisibility="None"
                                       HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False"
                                       CanUserSortColumns="True" Sorting="GridPlatnosci_Sorting"
                                       MouseDoubleClick="GridPlatnosci_MouseDoubleClick"
                                       VirtualizingPanel.IsVirtualizing="True"
                                       VirtualizingPanel.VirtualizationMode="Recycling"
-                                      VirtualizingPanel.ScrollUnit="Item"
                                       EnableRowVirtualization="True"
-                                      EnableColumnVirtualization="True"
-                                      ScrollViewer.IsDeferredScrollingEnabled="True">
+                                      RowHeight="54"
+                                      FontSize="14"
+                                      AlternationCount="2">
                                 <DataGrid.RowStyle>
                                     <Style TargetType="DataGridRow">
                                         <Setter Property="Cursor" Value="Hand"/>
-                                        <Setter Property="Background" Value="#252A31"/>
+                                        <Setter Property="Background" Value="#1A2332"/>
+                                        <Setter Property="Margin" Value="6,2"/>
                                         <Style.Triggers>
-                                            <!-- Zielone tlo dla wierszy bez przeterminowanych -->
                                             <DataTrigger Binding="{Binding IsGreenRow}" Value="True">
-                                                <Setter Property="Background" Value="#1B3D2E"/>
+                                                <Setter Property="Background" Value="#132E23"/>
                                             </DataTrigger>
-                                            <!-- Pomaranczowe tlo dla sredniich przeterminowan 1-30 dni -->
                                             <DataTrigger Binding="{Binding IsOrangeRow}" Value="True">
-                                                <Setter Property="Background" Value="#3D3520"/>
+                                                <Setter Property="Background" Value="#2E2515"/>
                                             </DataTrigger>
-                                            <!-- Czerwone tlo dla duzych przeterminowan >30 dni -->
                                             <DataTrigger Binding="{Binding IsRedRow}" Value="True">
-                                                <Setter Property="Background" Value="#3D1F1F"/>
+                                                <Setter Property="Background" Value="#2E1515"/>
                                             </DataTrigger>
                                             <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Background" Value="#4D535B"/>
+                                                <Setter Property="Background" Value="#2A3A4F"/>
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter Property="Background" Value="#2D4A5F"/>
                                             </Trigger>
                                         </Style.Triggers>
                                     </Style>
                                 </DataGrid.RowStyle>
                                 <DataGrid.ColumnHeaderStyle>
                                     <Style TargetType="DataGridColumnHeader">
-                                        <Setter Property="Background" Value="#3A5F4A"/>
-                                        <Setter Property="Foreground" Value="#FFFFFF"/>
-                                        <Setter Property="Padding" Value="10,8"/>
-                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="Background" Value="#243344"/>
+                                        <Setter Property="Foreground" Value="#94A3B8"/>
+                                        <Setter Property="Padding" Value="14,12"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
                                         <Setter Property="FontSize" Value="11"/>
-                                        <Setter Property="BorderThickness" Value="0,0,1,2"/>
-                                        <Setter Property="BorderBrush" Value="#2A4A3A"/>
+                                        <Setter Property="BorderThickness" Value="0,0,0,2"/>
+                                        <Setter Property="BorderBrush" Value="#334155"/>
                                         <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                        <Setter Property="Height" Value="46"/>
                                     </Style>
                                 </DataGrid.ColumnHeaderStyle>
                                 <DataGrid.CellStyle>
                                     <Style TargetType="DataGridCell">
-                                        <Setter Property="Padding" Value="5,3"/>
                                         <Setter Property="BorderThickness" Value="0"/>
-                                        <Style.Triggers>
-                                            <Trigger Property="IsSelected" Value="True">
-                                                <Setter Property="Background" Value="#5A6068"/>
-                                                <Setter Property="Foreground" Value="#FFFFFF"/>
-                                            </Trigger>
-                                        </Style.Triggers>
+                                        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                                        <Setter Property="Padding" Value="10,6"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="DataGridCell">
+                                                    <Border Padding="{TemplateBinding Padding}" Background="Transparent">
+                                                        <ContentPresenter VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
                                     </Style>
                                 </DataGrid.CellStyle>
                                 <DataGrid.Columns>
-                                    <!-- Kontrahent -->
-                                    <DataGridTextColumn Header="Kontrahent" Binding="{Binding Kontrahent}" Width="180">
+                                    <DataGridTextColumn Header="KONTRAHENT" Binding="{Binding Kontrahent}" Width="2.5*">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="FontWeight" Value="SemiBold"/>
+                                                <Setter Property="FontSize" Value="14"/>
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
-                                                <Setter Property="Padding" Value="5,0"/>
+                                                <Setter Property="Foreground" Value="#34D399"/>
+                                                <Setter Property="Padding" Value="6,0,0,0"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <!-- Limit -->
-                                    <DataGridTextColumn Header="Limit" Binding="{Binding LimitKredytuTekst}" Width="120">
+                                    <DataGridTextColumn Header="LIMIT" Binding="{Binding LimitKredytuTekst}" Width="1.1*">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
-                                                <Setter Property="Padding" Value="5,0"/>
+                                                <Setter Property="FontSize" Value="14"/>
+                                                <Setter Property="Foreground" Value="#A78BFA"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <!-- Do zaplacenia -->
-                                    <DataGridTextColumn Header="Do zaplacenia" Binding="{Binding DoZaplatyTekst}" Width="120">
+                                    <DataGridTextColumn Header="DO ZAPLATY" Binding="{Binding DoZaplatyTekst}" Width="1.3*">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
                                                 <Setter Property="FontWeight" Value="Bold"/>
-                                                <Setter Property="Padding" Value="5,0"/>
+                                                <Setter Property="FontSize" Value="15"/>
+                                                <Setter Property="Foreground" Value="#F8FAFC"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <!-- Przekroczony limit -->
-                                    <DataGridTextColumn Header="Przekroczony limit" Binding="{Binding PrzekroczonyLimitTekst}" Width="130">
+                                    <DataGridTextColumn Header="PRZEKR. LIMIT" Binding="{Binding PrzekroczonyLimitTekst}" Width="1.2*">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
-                                                <Setter Property="Padding" Value="5,0"/>
+                                                <Setter Property="FontSize" Value="14"/>
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding PrzekroczonyLimitAlert}" Value="True">
-                                                        <Setter Property="Foreground" Value="#FF6B6B"/>
+                                                        <Setter Property="Foreground" Value="#FB7185"/>
                                                         <Setter Property="FontWeight" Value="Bold"/>
+                                                        <Setter Property="FontSize" Value="15"/>
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <!-- Terminowe -->
-                                    <DataGridTextColumn Header="Terminowe" Binding="{Binding TerminoweTekst}" Width="110">
+                                    <DataGridTextColumn Header="TERMINOWE" Binding="{Binding TerminoweTekst}" Width="1.1*">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
-                                                <Setter Property="Foreground" Value="#17A589"/>
-                                                <Setter Property="Padding" Value="5,0"/>
+                                                <Setter Property="Foreground" Value="#34D399"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                <Setter Property="FontSize" Value="14"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <!-- Przeterminowane -->
-                                    <DataGridTextColumn Header="Przeterminowane" Binding="{Binding PrzeterminowaneTekst}" Width="130">
+                                    <DataGridTextColumn Header="PRZETERMIN." Binding="{Binding PrzeterminowaneTekst}" Width="1.2*">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
-                                                <Setter Property="Padding" Value="5,0"/>
+                                                <Setter Property="FontSize" Value="14"/>
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding PrzeterminowaneAlert}" Value="True">
-                                                        <Setter Property="Foreground" Value="#FF6B6B"/>
+                                                        <Setter Property="Foreground" Value="#FB7185"/>
                                                         <Setter Property="FontWeight" Value="Bold"/>
+                                                        <Setter Property="FontSize" Value="15"/>
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <!-- Najpozniejsza platnosc - z ikona ostrzezenia -->
-                                    <DataGridTemplateColumn Header="Najpozniejsza platnosc" Width="160">
+                                    <DataGridTemplateColumn Header="NAJSTARSZA" Width="1.4*">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                    <TextBlock Text="⚠" Foreground="#C0392B" FontSize="12" Margin="0,0,5,0" VerticalAlignment="Center"
+                                                    <TextBlock Text="⚠" Foreground="#FB7185" FontSize="16" Margin="0,0,6,0" VerticalAlignment="Center"
                                                                Visibility="{Binding PrzeterminowaneAlert, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                                     <TextBlock Text="{Binding NajpozniejszaPlatnoscTekst}"
-                                                               Foreground="#C0392B" VerticalAlignment="Center"/>
+                                                               Foreground="#FB923C" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                                 </StackPanel>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
                                 </DataGrid.Columns>
-                            </DataGrid>
-                        </Grid>
-                    </ScrollViewer>
+                                </DataGrid>
+                            </Grid>
+                        </Border>
+                    </Grid>
                 </Border>
             </TabItem>
 
