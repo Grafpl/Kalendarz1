@@ -42,14 +42,130 @@
             </Setter>
         </Style>
 
+        <!-- ComboBox Toggle Button -->
+        <ControlTemplate x:Key="ComboBoxToggleButton" TargetType="ToggleButton">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition/>
+                    <ColumnDefinition Width="32"/>
+                </Grid.ColumnDefinitions>
+                <Border x:Name="Border" Grid.ColumnSpan="2" Background="#1E293B" BorderBrush="#334155"
+                        BorderThickness="1" CornerRadius="6"/>
+                <Border Grid.Column="0" Background="Transparent" CornerRadius="6,0,0,6"/>
+                <Path x:Name="Arrow" Grid.Column="1" Fill="#94A3B8" HorizontalAlignment="Center" VerticalAlignment="Center"
+                      Data="M0,0 L6,6 L12,0 Z" Width="10" Height="6" Stretch="Uniform"/>
+            </Grid>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="Border" Property="BorderBrush" Value="#4F46E5"/>
+                    <Setter TargetName="Arrow" Property="Fill" Value="#E2E8F0"/>
+                </Trigger>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter TargetName="Border" Property="BorderBrush" Value="#6366F1"/>
+                    <Setter TargetName="Border" Property="Background" Value="#252F3F"/>
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+
+        <!-- ComboBox TextBox for editable mode -->
+        <ControlTemplate x:Key="ComboBoxTextBox" TargetType="TextBox">
+            <Border x:Name="PART_ContentHost" Focusable="False" Background="Transparent"/>
+        </ControlTemplate>
+
+        <!-- Main ComboBox Style -->
         <Style x:Key="ComboBoxStyle" TargetType="ComboBox">
             <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Padding" Value="8,6"/>
-            <Setter Property="Margin" Value="0,0,0,10"/>
-            <Setter Property="Background" Value="#1E293B"/>
             <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="Background" Value="#1E293B"/>
             <Setter Property="BorderBrush" Value="#334155"/>
-            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="ScrollViewer.CanContentScroll" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton x:Name="ToggleButton" Template="{StaticResource ComboBoxToggleButton}"
+                                          Grid.Column="2" Focusable="False" ClickMode="Press"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"/>
+                            <ContentPresenter x:Name="ContentSite" IsHitTestVisible="False"
+                                              Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                              ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                              Margin="12,8,32,8" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                            <TextBox x:Name="PART_EditableTextBox" Style="{x:Null}"
+                                     Template="{StaticResource ComboBoxTextBox}"
+                                     HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                                     Margin="12,8,32,8" Focusable="True" Background="Transparent"
+                                     Foreground="#E2E8F0" CaretBrush="#E2E8F0"
+                                     Visibility="Hidden" IsReadOnly="{TemplateBinding IsReadOnly}"/>
+                            <Popup x:Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                                <Grid x:Name="DropDown" SnapsToDevicePixels="True"
+                                      MinWidth="{TemplateBinding ActualWidth}" MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                    <Border x:Name="DropDownBorder" Background="#1E293B" BorderBrush="#4F46E5"
+                                            BorderThickness="1" CornerRadius="6" Margin="0,2,0,0">
+                                        <Border.Effect>
+                                            <DropShadowEffect Color="Black" BlurRadius="12" ShadowDepth="4" Opacity="0.4"/>
+                                        </Border.Effect>
+                                    </Border>
+                                    <ScrollViewer Margin="6,8" SnapsToDevicePixels="True">
+                                        <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                    </ScrollViewer>
+                                </Grid>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="HasItems" Value="False">
+                                <Setter TargetName="DropDownBorder" Property="MinHeight" Value="95"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="#64748B"/>
+                            </Trigger>
+                            <Trigger Property="IsGrouping" Value="True">
+                                <Setter Property="ScrollViewer.CanContentScroll" Value="False"/>
+                            </Trigger>
+                            <Trigger Property="IsEditable" Value="True">
+                                <Setter Property="IsTabStop" Value="False"/>
+                                <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="ContentSite" Property="Visibility" Value="Hidden"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ComboBoxItem Style -->
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="Border" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True"
+                                Background="{TemplateBinding Background}" CornerRadius="4" Margin="2,1">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#3730A3"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#4F46E5"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#312E81"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <Style x:Key="SectionHeader" TargetType="TextBlock">
@@ -251,7 +367,7 @@
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Kod pocztowy" Style="{StaticResource LabelStyle}"/>
-                                <TextBox x:Name="txtKod" Style="{StaticResource TextBoxStyle}"/>
+                                <TextBox x:Name="txtKod" Style="{StaticResource TextBoxStyle}" TextChanged="TxtKod_TextChanged"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="Miasto" Style="{StaticResource LabelStyle}"/>
@@ -400,9 +516,53 @@
 
                 <TextBlock Text="NOTATKI" Style="{StaticResource SectionHeader}" Margin="0,6,0,10"/>
                 <Border Style="{StaticResource CardStyle}" Padding="12">
-                    <TextBox x:Name="txtNotatki" Style="{StaticResource TextBoxStyle}" Margin="0"
-                             Height="80" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
-                             ToolTip="Dodaj nową notatkę (opcjonalnie)"/>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Historia notatek - zwijane -->
+                        <ScrollViewer Grid.Row="0" MaxHeight="150" VerticalScrollBarVisibility="Auto" Margin="0,0,0,10">
+                            <ItemsControl x:Name="listaNotatek">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#1A1D21" CornerRadius="6" Padding="10" Margin="0,0,0,6" Cursor="Hand"
+                                                MouseLeftButtonUp="Notatka_Click">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <Grid Grid.Row="0" Margin="0,0,0,4">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{Binding Data}" FontSize="10" Foreground="#6366F1" FontWeight="SemiBold"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding Autor}" FontSize="9" Foreground="#64748B"/>
+                                                </Grid>
+                                                <TextBlock Grid.Row="1" Text="{Binding Tresc}" FontSize="11" Foreground="#E2E8F0"
+                                                           TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
+                                                           MaxHeight="{Binding MaxHeight}" Tag="{Binding}"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+
+                        <!-- Pole do dodania nowej notatki -->
+                        <Grid Grid.Row="1">
+                            <TextBox x:Name="txtNotatki" Style="{StaticResource TextBoxStyle}" Margin="0"
+                                     Height="50" TextWrapping="Wrap" AcceptsReturn="False"
+                                     KeyDown="TxtNotatki_KeyDown"
+                                     ToolTip="Wpisz notatkę i naciśnij Enter aby dodać"/>
+                            <TextBlock x:Name="txtNotatkaPlaceholder" Text="Wpisz notatkę i naciśnij Enter..."
+                                       FontSize="12" Foreground="#64748B" IsHitTestVisible="False"
+                                       Margin="12,14,0,0" Visibility="Visible"/>
+                        </Grid>
+                    </Grid>
                 </Border>
             </StackPanel>
         </Grid>

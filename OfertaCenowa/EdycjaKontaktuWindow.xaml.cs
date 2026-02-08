@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Net.Http;
 using System.Text.Json;
@@ -13,6 +14,31 @@ namespace Kalendarz1.OfertaCenowa
         private readonly string _connectionString =
             "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True;";
 
+        // Mapowanie prefiksu kodu pocztowego na województwo
+        private static readonly Dictionary<string, string> kodDoWojewodztwa = new Dictionary<string, string>
+        {
+            {"00", "mazowieckie"}, {"01", "mazowieckie"}, {"02", "mazowieckie"}, {"03", "mazowieckie"}, {"04", "mazowieckie"}, {"05", "mazowieckie"},
+            {"06", "mazowieckie"}, {"07", "mazowieckie"}, {"08", "mazowieckie"}, {"09", "mazowieckie"},
+            {"10", "warmińsko-mazurskie"}, {"11", "warmińsko-mazurskie"}, {"12", "warmińsko-mazurskie"}, {"13", "warmińsko-mazurskie"}, {"14", "warmińsko-mazurskie"},
+            {"15", "podlaskie"}, {"16", "podlaskie"}, {"17", "podlaskie"}, {"18", "podlaskie"}, {"19", "podlaskie"},
+            {"20", "lubelskie"}, {"21", "lubelskie"}, {"22", "lubelskie"}, {"23", "lubelskie"}, {"24", "lubelskie"},
+            {"25", "świętokrzyskie"}, {"26", "świętokrzyskie"}, {"27", "świętokrzyskie"}, {"28", "świętokrzyskie"}, {"29", "świętokrzyskie"},
+            {"30", "małopolskie"}, {"31", "małopolskie"}, {"32", "małopolskie"}, {"33", "małopolskie"}, {"34", "małopolskie"},
+            {"35", "podkarpackie"}, {"36", "podkarpackie"}, {"37", "podkarpackie"}, {"38", "podkarpackie"}, {"39", "podkarpackie"},
+            {"40", "śląskie"}, {"41", "śląskie"}, {"42", "śląskie"}, {"43", "śląskie"}, {"44", "śląskie"},
+            {"45", "opolskie"}, {"46", "opolskie"}, {"47", "opolskie"}, {"48", "opolskie"}, {"49", "opolskie"},
+            {"50", "dolnośląskie"}, {"51", "dolnośląskie"}, {"52", "dolnośląskie"}, {"53", "dolnośląskie"}, {"54", "dolnośląskie"},
+            {"55", "dolnośląskie"}, {"56", "dolnośląskie"}, {"57", "dolnośląskie"}, {"58", "dolnośląskie"}, {"59", "dolnośląskie"},
+            {"60", "wielkopolskie"}, {"61", "wielkopolskie"}, {"62", "wielkopolskie"}, {"63", "wielkopolskie"}, {"64", "wielkopolskie"},
+            {"65", "lubuskie"}, {"66", "lubuskie"}, {"67", "lubuskie"}, {"68", "lubuskie"}, {"69", "lubuskie"},
+            {"70", "zachodniopomorskie"}, {"71", "zachodniopomorskie"}, {"72", "zachodniopomorskie"}, {"73", "zachodniopomorskie"}, {"74", "zachodniopomorskie"},
+            {"75", "zachodniopomorskie"}, {"76", "zachodniopomorskie"}, {"77", "pomorskie"}, {"78", "zachodniopomorskie"},
+            {"80", "pomorskie"}, {"81", "pomorskie"}, {"82", "pomorskie"}, {"83", "pomorskie"}, {"84", "pomorskie"},
+            {"85", "kujawsko-pomorskie"}, {"86", "kujawsko-pomorskie"}, {"87", "kujawsko-pomorskie"}, {"88", "kujawsko-pomorskie"}, {"89", "kujawsko-pomorskie"},
+            {"90", "łódzkie"}, {"91", "łódzkie"}, {"92", "łódzkie"}, {"93", "łódzkie"}, {"94", "łódzkie"},
+            {"95", "łódzkie"}, {"96", "łódzkie"}, {"97", "łódzkie"}, {"98", "łódzkie"}, {"99", "łódzkie"}
+        };
+
         public int KlientID { get; set; }
         public string KlientNazwa { get; set; }
         public string OperatorID { get; set; }
@@ -23,6 +49,19 @@ namespace Kalendarz1.OfertaCenowa
         public string NoweImie { get; private set; }
         public string NoweNazwisko { get; private set; }
 
+        // Model dla notatki
+        private class NotatkaCRM
+        {
+            public int ID { get; set; }
+            public string Data { get; set; }
+            public string Autor { get; set; }
+            public string Tresc { get; set; }
+            public double MaxHeight { get; set; } = 36; // Domyślnie zwinięta (2 linie)
+            public bool Rozwiniety { get; set; } = false;
+        }
+
+        private List<NotatkaCRM> _notatki = new List<NotatkaCRM>();
+
         public EdycjaKontaktuWindow()
         {
             InitializeComponent();
@@ -32,9 +71,18 @@ namespace Kalendarz1.OfertaCenowa
 
         private void EdycjaKontaktuWindow_Loaded(object sender, RoutedEventArgs e)
         {
+            SprawdzIUtworzKolumny(); // Upewnij się, że wszystkie kolumny istnieją przed wczytaniem
             WczytajWojewodztwa();
             WczytajPKD();
             WczytajDaneKontaktowe();
+            WczytajNotatki();
+
+            // Obsługa placeholdera
+            txtNotatki.TextChanged += (s, ev) =>
+            {
+                txtNotatkaPlaceholder.Visibility = string.IsNullOrEmpty(txtNotatki.Text)
+                    ? Visibility.Visible : Visibility.Collapsed;
+            };
         }
 
         private void WczytajWojewodztwa()
@@ -189,6 +237,100 @@ namespace Kalendarz1.OfertaCenowa
             }
         }
 
+        private void WczytajNotatki()
+        {
+            if (KlientID <= 0) return;
+
+            try
+            {
+                _notatki.Clear();
+
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+
+                    var cmd = new SqlCommand(@"
+                        SELECT ID, Tresc, KtoDodal, DataDodania
+                        FROM NotatkiCRM
+                        WHERE IDOdbiorcy = @id
+                        ORDER BY DataDodania DESC", conn);
+                    cmd.Parameters.AddWithValue("@id", KlientID);
+
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            var notatka = new NotatkaCRM
+                            {
+                                ID = reader.GetInt32(0),
+                                Tresc = reader.IsDBNull(1) ? "" : reader.GetString(1),
+                                Autor = reader.IsDBNull(2) ? "" : reader.GetString(2),
+                                Data = reader.IsDBNull(3) ? "" : reader.GetDateTime(3).ToString("dd.MM.yyyy HH:mm"),
+                                MaxHeight = 36 // Domyślnie zwinięta
+                            };
+                            _notatki.Add(notatka);
+                        }
+                    }
+                }
+
+                listaNotatek.ItemsSource = null;
+                listaNotatek.ItemsSource = _notatki;
+            }
+            catch { }
+        }
+
+        private void TxtNotatki_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == System.Windows.Input.Key.Enter && !string.IsNullOrWhiteSpace(txtNotatki.Text))
+            {
+                DodajNotatke();
+                e.Handled = true;
+            }
+        }
+
+        private void DodajNotatke()
+        {
+            if (KlientID <= 0 || string.IsNullOrWhiteSpace(txtNotatki.Text)) return;
+
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+
+                    var cmd = new SqlCommand(@"
+                        INSERT INTO NotatkiCRM (IDOdbiorcy, Tresc, KtoDodal, DataDodania)
+                        VALUES (@id, @tresc, @kto, GETDATE())", conn);
+                    cmd.Parameters.AddWithValue("@id", KlientID);
+                    cmd.Parameters.AddWithValue("@tresc", txtNotatki.Text.Trim());
+                    cmd.Parameters.AddWithValue("@kto", OperatorID ?? "");
+                    cmd.ExecuteNonQuery();
+                }
+
+                txtNotatki.Text = "";
+                WczytajNotatki();
+                txtStatus.Text = "Notatka dodana";
+            }
+            catch (Exception ex)
+            {
+                txtStatus.Text = $"Błąd dodawania notatki: {ex.Message}";
+            }
+        }
+
+        private void Notatka_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (sender is Border border && border.DataContext is NotatkaCRM notatka)
+            {
+                // Toggle rozwinięcia
+                notatka.Rozwiniety = !notatka.Rozwiniety;
+                notatka.MaxHeight = notatka.Rozwiniety ? double.PositiveInfinity : 36;
+
+                // Odśwież binding
+                listaNotatek.ItemsSource = null;
+                listaNotatek.ItemsSource = _notatki;
+            }
+        }
+
         private async void BtnPobierzNIP_Click(object sender, RoutedEventArgs e)
         {
             string nip = txtNIP.Text?.Trim().Replace("-", "").Replace(" ", "");
@@ -243,54 +385,40 @@ namespace Kalendarz1.OfertaCenowa
         {
             try
             {
-                // Używamy API rejestr.io (darmowe do 100 zapytań dziennie)
                 using var client = new HttpClient();
-                client.Timeout = TimeSpan.FromSeconds(10);
+                client.Timeout = TimeSpan.FromSeconds(15);
 
-                var response = await client.GetAsync($"https://rejestr.io/api/v2/org?nip={nip}");
+                // Oficjalne API Ministerstwa Finansów - Biała Lista VAT
+                string today = DateTime.Now.ToString("yyyy-MM-dd");
+                var response = await client.GetAsync($"https://wl-api.mf.gov.pl/api/search/nip/{nip}?date={today}");
+
                 if (response.IsSuccessStatusCode)
                 {
                     var json = await response.Content.ReadAsStringAsync();
                     using var doc = JsonDocument.Parse(json);
                     var root = doc.RootElement;
 
-                    if (root.TryGetProperty("items", out var items) && items.GetArrayLength() > 0)
+                    if (root.TryGetProperty("result", out var result) &&
+                        result.TryGetProperty("subject", out var subject))
                     {
-                        var item = items[0];
-                        return new DaneFirmy
+                        var dane = new DaneFirmy
                         {
-                            Nazwa = GetJsonString(item, "name"),
-                            Regon = GetJsonString(item, "regon"),
-                            KodPocztowy = GetJsonString(item, "postalCode"),
-                            Miasto = GetJsonString(item, "city"),
-                            Ulica = GetJsonString(item, "street"),
-                            Wojewodztwo = GetJsonString(item, "voivodeship"),
-                            Powiat = GetJsonString(item, "county"),
-                            Gmina = GetJsonString(item, "community"),
-                            PKD = GetJsonString(item, "mainPkd")
+                            Nazwa = GetJsonString(subject, "name"),
+                            Regon = GetJsonString(subject, "regon")
                         };
+
+                        // Parsuj adres z workingAddress lub residenceAddress
+                        string adres = GetJsonString(subject, "workingAddress");
+                        if (string.IsNullOrEmpty(adres))
+                            adres = GetJsonString(subject, "residenceAddress");
+
+                        if (!string.IsNullOrEmpty(adres))
+                        {
+                            ParseAdres(adres, dane);
+                        }
+
+                        return dane;
                     }
-                }
-
-                // Fallback - API KRS
-                response = await client.GetAsync($"https://api-krs.pl/api/nip/{nip}");
-                if (response.IsSuccessStatusCode)
-                {
-                    var json = await response.Content.ReadAsStringAsync();
-                    using var doc = JsonDocument.Parse(json);
-                    var root = doc.RootElement;
-
-                    return new DaneFirmy
-                    {
-                        Nazwa = GetJsonString(root, "nazwa"),
-                        Regon = GetJsonString(root, "regon"),
-                        KodPocztowy = GetJsonString(root, "kod_pocztowy"),
-                        Miasto = GetJsonString(root, "miejscowosc"),
-                        Ulica = GetJsonString(root, "ulica") + " " + GetJsonString(root, "nr_domu"),
-                        Wojewodztwo = GetJsonString(root, "wojewodztwo"),
-                        Powiat = GetJsonString(root, "powiat"),
-                        Gmina = GetJsonString(root, "gmina")
-                    };
                 }
 
                 return null;
@@ -298,6 +426,44 @@ namespace Kalendarz1.OfertaCenowa
             catch
             {
                 return null;
+            }
+        }
+
+        private void ParseAdres(string adres, DaneFirmy dane)
+        {
+            // Format: "ul. Nazwa 123, 00-000 Miasto" lub "Miejscowość, ul. Nazwa 123, 00-000 Miasto"
+            try
+            {
+                // Szukaj kodu pocztowego (XX-XXX)
+                var kodMatch = System.Text.RegularExpressions.Regex.Match(adres, @"(\d{2}-\d{3})");
+                if (kodMatch.Success)
+                {
+                    dane.KodPocztowy = kodMatch.Groups[1].Value;
+
+                    // Miasto jest po kodzie pocztowym
+                    int kodIndex = adres.IndexOf(dane.KodPocztowy);
+                    if (kodIndex >= 0)
+                    {
+                        string poKodzie = adres.Substring(kodIndex + dane.KodPocztowy.Length).Trim();
+                        // Usuń przecinek na początku jeśli jest
+                        if (poKodzie.StartsWith(",")) poKodzie = poKodzie.Substring(1).Trim();
+                        dane.Miasto = poKodzie;
+                    }
+
+                    // Ulica jest przed kodem pocztowym
+                    string przedKodem = adres.Substring(0, kodIndex).Trim();
+                    if (przedKodem.EndsWith(",")) przedKodem = przedKodem.Substring(0, przedKodem.Length - 1).Trim();
+                    dane.Ulica = przedKodem;
+                }
+                else
+                {
+                    // Brak kodu - cały adres to ulica
+                    dane.Ulica = adres;
+                }
+            }
+            catch
+            {
+                dane.Ulica = adres;
             }
         }
 
@@ -310,6 +476,82 @@ namespace Kalendarz1.OfertaCenowa
                 return "";
             }
             catch { return ""; }
+        }
+
+        private void TxtKod_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            string kod = txtKod.Text.Replace("-", "").Trim();
+
+            if (kod.Length >= 2)
+            {
+                string prefix = kod.Substring(0, 2);
+
+                // Auto-wypełnianie województwa na podstawie prefiksu kodu
+                if (kodDoWojewodztwa.TryGetValue(prefix, out string woj))
+                {
+                    int index = cmbWojewodztwo.Items.IndexOf(woj);
+                    if (index >= 0)
+                        cmbWojewodztwo.SelectedIndex = index;
+                }
+
+                // Gdy mamy pełny kod (5 cyfr), szukaj miasta, powiatu i gminy w bazie
+                if (kod.Length >= 5)
+                {
+                    try
+                    {
+                        using (var conn = new SqlConnection(_connectionString))
+                        {
+                            conn.Open();
+
+                            // Szukaj w tabeli KodyPocztowe
+                            var cmd = new SqlCommand(@"
+                                SELECT TOP 1 miej FROM KodyPocztowe
+                                WHERE REPLACE(Kod, '-', '') = @kod", conn);
+                            cmd.Parameters.AddWithValue("@kod", kod);
+                            var miasto = cmd.ExecuteScalar() as string;
+
+                            if (!string.IsNullOrEmpty(miasto) && string.IsNullOrEmpty(txtMiasto.Text))
+                            {
+                                txtMiasto.Text = miasto;
+                            }
+
+                            // Szukaj w OdbiorcyCRM dla powiatu i gminy
+                            var cmd2 = new SqlCommand(@"
+                                SELECT TOP 1 MIASTO, Wojewodztwo, Powiat, Gmina
+                                FROM OdbiorcyCRM
+                                WHERE REPLACE(KOD, '-', '') = @kod
+                                  AND (Powiat IS NOT NULL OR Gmina IS NOT NULL)", conn);
+                            cmd2.Parameters.AddWithValue("@kod", kod);
+                            using (var reader = cmd2.ExecuteReader())
+                            {
+                                if (reader.Read())
+                                {
+                                    if (string.IsNullOrEmpty(txtMiasto.Text) && !reader.IsDBNull(0))
+                                        txtMiasto.Text = reader.GetString(0);
+
+                                    if (!reader.IsDBNull(1))
+                                    {
+                                        string wojDB = reader.GetString(1)?.ToLower();
+                                        if (!string.IsNullOrEmpty(wojDB))
+                                        {
+                                            int idx = cmbWojewodztwo.Items.IndexOf(wojDB);
+                                            if (idx >= 0)
+                                                cmbWojewodztwo.SelectedIndex = idx;
+                                        }
+                                    }
+
+                                    if (string.IsNullOrEmpty(txtPowiat.Text) && !reader.IsDBNull(2))
+                                        txtPowiat.Text = reader.GetString(2);
+
+                                    if (string.IsNullOrEmpty(txtGmina.Text) && !reader.IsDBNull(3))
+                                        txtGmina.Text = reader.GetString(3);
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+                }
+            }
         }
 
         private void BtnZapisz_Click(object sender, RoutedEventArgs e)
@@ -404,19 +646,6 @@ namespace Kalendarz1.OfertaCenowa
                         if (rowsAffected > 0)
                         {
                             ZapiszHistorie(conn);
-
-                            // Dodaj notatkę jeśli jest
-                            if (!string.IsNullOrWhiteSpace(txtNotatki.Text))
-                            {
-                                var cmdNotatka = new SqlCommand(@"
-                                    INSERT INTO NotatkiCRM (IDOdbiorcy, Tresc, KtoDodal)
-                                    VALUES (@id, @tresc, @kto)", conn);
-                                cmdNotatka.Parameters.AddWithValue("@id", KlientID);
-                                cmdNotatka.Parameters.AddWithValue("@tresc", txtNotatki.Text.Trim());
-                                cmdNotatka.Parameters.AddWithValue("@kto", OperatorID ?? "");
-                                cmdNotatka.ExecuteNonQuery();
-                            }
-
                             ZapisanoZmiany = true;
                             NowyEmail = txtEmail.Text;
                             NowyTelefon = txtTelefon.Text;

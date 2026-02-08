@@ -566,5 +566,102 @@ namespace Kalendarz1.CRM.Services
                 Debug.WriteLine($"[CallReminderService] Error completing reminder: {ex.Message}");
             }
         }
+
+        /// <summary>
+        /// Rejestruje akcję wykonaną bezpośrednio w głównym oknie CRM (poza oknem przypomnienia).
+        /// Automatycznie tworzy lub znajduje dzisiejszą "sesję CRM" dla użytkownika.
+        /// </summary>
+        public void LogCrmAction(string userID, int contactId, bool wasCalled, bool noteAdded, bool statusChanged, string newStatus = null)
+        {
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                conn.Open();
+
+                // Znajdź lub utwórz dzisiejszą sesję "CRM_Manual" dla tego użytkownika
+                int reminderLogId = GetOrCreateCrmSessionForToday(conn, userID);
+                if (reminderLogId <= 0) return;
+
+                // Sprawdź czy dla tego kontaktu już jest wpis dzisiaj - jeśli tak, zaktualizuj
+                var cmdCheck = new SqlCommand(@"
+                    SELECT ID, WasCalled, NoteAdded, StatusChanged
+                    FROM CallReminderContacts
+                    WHERE ReminderLogID = @LogID AND ContactID = @ContactID", conn);
+                cmdCheck.Parameters.AddWithValue("@LogID", reminderLogId);
+                cmdCheck.Parameters.AddWithValue("@ContactID", contactId);
+
+                using var reader = cmdCheck.ExecuteReader();
+                if (reader.Read())
+                {
+                    // Wpis istnieje - zaktualizuj flagi (OR z istniejącymi)
+                    int existingId = reader.GetInt32(0);
+                    bool existingCalled = reader.GetBoolean(1);
+                    bool existingNote = reader.GetBoolean(2);
+                    bool existingStatus = reader.GetBoolean(3);
+                    reader.Close();
+
+                    var cmdUpdate = new SqlCommand(@"
+                        UPDATE CallReminderContacts
+                        SET WasCalled = @Called, NoteAdded = @Note, StatusChanged = @StatusChanged,
+                            NewStatus = COALESCE(@NewStatus, NewStatus), ActionTime = GETDATE()
+                        WHERE ID = @ID", conn);
+                    cmdUpdate.Parameters.AddWithValue("@ID", existingId);
+                    cmdUpdate.Parameters.AddWithValue("@Called", existingCalled || wasCalled);
+                    cmdUpdate.Parameters.AddWithValue("@Note", existingNote || noteAdded);
+                    cmdUpdate.Parameters.AddWithValue("@StatusChanged", existingStatus || statusChanged);
+                    cmdUpdate.Parameters.AddWithValue("@NewStatus", (object)newStatus ?? DBNull.Value);
+                    cmdUpdate.ExecuteNonQuery();
+                }
+                else
+                {
+                    reader.Close();
+                    // Nowy wpis
+                    var cmdInsert = new SqlCommand(@"
+                        INSERT INTO CallReminderContacts (ReminderLogID, ContactID, WasCalled, NoteAdded, StatusChanged, NewStatus, ActionTime)
+                        VALUES (@LogID, @ContactID, @Called, @Note, @StatusChanged, @NewStatus, GETDATE())", conn);
+                    cmdInsert.Parameters.AddWithValue("@LogID", reminderLogId);
+                    cmdInsert.Parameters.AddWithValue("@ContactID", contactId);
+                    cmdInsert.Parameters.AddWithValue("@Called", wasCalled);
+                    cmdInsert.Parameters.AddWithValue("@Note", noteAdded);
+                    cmdInsert.Parameters.AddWithValue("@StatusChanged", statusChanged);
+                    cmdInsert.Parameters.AddWithValue("@NewStatus", (object)newStatus ?? DBNull.Value);
+                    cmdInsert.ExecuteNonQuery();
+                }
+
+                Debug.WriteLine($"[CallReminderService] CRM action logged: User={userID}, Contact={contactId}, Called={wasCalled}, Note={noteAdded}, Status={statusChanged}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[CallReminderService] Error logging CRM action: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Pobiera lub tworzy sesję "CRM_Manual" dla danego użytkownika na dzisiejszy dzień.
+        /// Sesja ta służy do zbierania akcji wykonanych bezpośrednio w CRM.
+        /// </summary>
+        private int GetOrCreateCrmSessionForToday(SqlConnection conn, string userID)
+        {
+            // Szukaj istniejącej sesji CRM na dziś (ContactsShown = -1 oznacza sesję manualną CRM)
+            var cmdFind = new SqlCommand(@"
+                SELECT TOP 1 ID FROM CallReminderLog
+                WHERE UserID = @UserID
+                AND ContactsShown = -1
+                AND CAST(ReminderTime AS DATE) = CAST(GETDATE() AS DATE)", conn);
+            cmdFind.Parameters.AddWithValue("@UserID", userID);
+
+            var result = cmdFind.ExecuteScalar();
+            if (result != null)
+                return (int)result;
+
+            // Utwórz nową sesję CRM na dziś (ContactsShown = -1 oznacza że to sesja manualna)
+            var cmdCreate = new SqlCommand(@"
+                INSERT INTO CallReminderLog (UserID, ReminderTime, ContactsShown)
+                OUTPUT INSERTED.ID
+                VALUES (@UserID, GETDATE(), -1)", conn);
+            cmdCreate.Parameters.AddWithValue("@UserID", userID);
+
+            return (int)cmdCreate.ExecuteScalar();
+        }
     }
 }

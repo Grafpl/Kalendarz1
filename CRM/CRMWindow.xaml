@@ -971,13 +971,30 @@
                                                                 <Image x:Name="imgNotatkaAvatar" Stretch="UniformToFill"/>
                                                             </Border>
                                                             <StackPanel Grid.Column="1">
-                                                                <StackPanel Orientation="Horizontal">
+                                                                <Grid Cursor="Hand" MouseLeftButtonUp="NotatkaText_Click" Tag="{Binding}">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="Auto"/>
+                                                                        <ColumnDefinition Width="*"/>
+                                                                    </Grid.ColumnDefinitions>
                                                                     <Path Data="{Binding Typ, Converter={StaticResource NoteTypeToPathConverter}}"
                                                                           Fill="White" Stretch="Uniform" Width="14" Height="14"
                                                                           Margin="0,2,8,0" VerticalAlignment="Top"/>
-                                                                    <TextBlock Text="{Binding Tresc}" TextWrapping="Wrap" FontSize="14" Foreground="#E2E8F0"
-                                                                               MaxHeight="40" TextTrimming="CharacterEllipsis" ToolTip="{Binding Tresc}"/>
-                                                                </StackPanel>
+                                                                    <TextBlock Grid.Column="1" Text="{Binding Tresc}" FontSize="14" Foreground="#E2E8F0"
+                                                                               TextTrimming="CharacterEllipsis" ToolTip="Kliknij aby rozwinąć/zwinąć">
+                                                                        <TextBlock.Style>
+                                                                            <Style TargetType="TextBlock">
+                                                                                <Setter Property="TextWrapping" Value="NoWrap"/>
+                                                                                <Setter Property="MaxHeight" Value="20"/>
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding Rozwiniety}" Value="True">
+                                                                                        <Setter Property="TextWrapping" Value="Wrap"/>
+                                                                                        <Setter Property="MaxHeight" Value="2000"/>
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </TextBlock.Style>
+                                                                    </TextBlock>
+                                                                </Grid>
                                                                 <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
                                                                     <TextBlock Text="{Binding Operator}" FontSize="12" FontWeight="Bold" Foreground="#6366F1"/>
                                                                     <TextBlock Text=" • " FontSize="12" Foreground="#64748B"/>
@@ -1011,7 +1028,7 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBox x:Name="txtNowaNotatka" Background="#334155" Foreground="#E2E8F0" BorderThickness="0" Padding="6" VerticalContentAlignment="Center" FontSize="11" CaretBrush="#E2E8F0" Tag="Wpisz notatkę..."/>
+                                    <TextBox x:Name="txtNowaNotatka" Background="#334155" Foreground="#E2E8F0" BorderThickness="0" Padding="6" VerticalContentAlignment="Center" FontSize="11" CaretBrush="#E2E8F0" Tag="Wpisz notatkę..." KeyDown="TxtNowaNotatka_KeyDown"/>
                                     <Button x:Name="btnDodajNotatke" Grid.Column="1" Content="+" Style="{StaticResource BtnPrimary}" Margin="6,0,0,0" Padding="10,4" Click="BtnDodajNotatke_Click"/>
                                 </Grid>
                             </StackPanel>
