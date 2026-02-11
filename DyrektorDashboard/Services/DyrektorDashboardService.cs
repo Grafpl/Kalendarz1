@@ -256,7 +256,7 @@ namespace Kalendarz1.DyrektorDashboard.Services
                     using var cmd = new SqlCommand(@"
                         SELECT
                             COUNT(*) as KursyDzis,
-                            ISNULL(SUM(CASE WHEN Status IN ('Przypisany','Wlasny') THEN 1 ELSE 0 END),0) as Aktywne,
+                            ISNULL(SUM(CASE WHEN Status IN ('Przypisany','Wlasny','Planowany') THEN 1 ELSE 0 END),0) as Aktywne,
                             ISNULL(SUM(CASE WHEN Status = 'Zakonczony' THEN 1 ELSE 0 END),0) as Zakonczone,
                             COUNT(DISTINCT KierowcaID) as Kierowcy
                         FROM [dbo].[Kurs] WITH (NOLOCK)
@@ -357,7 +357,7 @@ namespace Kalendarz1.DyrektorDashboard.Services
 
                 // Top 5 hodowców (miesiąc) - Dostawcy table
                 using (var cmd = new SqlCommand(@"
-                    SELECT TOP 5 d.Nazwa as Nazwa, d.Miejscowosc as Miasto,
+                    SELECT TOP 5 d.Name as Nazwa, d.Address1 as Miasto,
                            SUM(ISNULL(fc.NettoWeight,0)) as Waga,
                            SUM(ISNULL(fc.NettoWeight,0)) as Wartosc,
                            COUNT(*) as Dostawy
@@ -365,7 +365,7 @@ namespace Kalendarz1.DyrektorDashboard.Services
                     LEFT JOIN [dbo].[Dostawcy] d ON LTRIM(RTRIM(CAST(d.ID AS NVARCHAR(20)))) = LTRIM(RTRIM(fc.CustomerGID))
                     WHERE fc.CalcDate >= DATEADD(MONTH,-1,GETDATE())
                       AND ISNULL(fc.Deleted,0) = 0
-                    GROUP BY d.Nazwa, d.Miejscowosc
+                    GROUP BY d.Name, d.Address1
                     ORDER BY SUM(ISNULL(fc.NettoWeight,0)) DESC", conn))
                 {
                     cmd.CommandTimeout = CMD_TIMEOUT;
@@ -420,7 +420,7 @@ namespace Kalendarz1.DyrektorDashboard.Services
                 // Dostawy dzisiejsze (lista)
                 using (var cmd = new SqlCommand(@"
                     SELECT TOP 20 fc.CalcDate as Godzina,
-                           d.Nazwa as Hodowca,
+                           d.Name as Hodowca,
                            ISNULL(fc.LumQnt,0) as Sztuki,
                            ISNULL(fc.NettoWeight,0) as Waga,
                            CASE WHEN ISNULL(fc.LumQnt,0) > 0
@@ -573,7 +573,7 @@ namespace Kalendarz1.DyrektorDashboard.Services
                             if (int.TryParse(idStr, out int klientId))
                             {
                                 using var cmdH = new SqlCommand(@"
-                                    SELECT Name1 FROM [SSCommon].[STContractors] WHERE Id = @id", connH);
+                                    SELECT Name FROM [SSCommon].[STContractors] WHERE Id = @id", connH);
                                 cmdH.Parameters.AddWithValue("@id", klientId);
                                 cmdH.CommandTimeout = CMD_TIMEOUT;
                                 var nazwa = await cmdH.ExecuteScalarAsync(ct);
@@ -1040,7 +1040,7 @@ namespace Kalendarz1.DyrektorDashboard.Services
 
                 // Duże odchylenia wagi (>5% różnicy między wagą hodowcy a ubojową)
                 using (var cmd = new SqlCommand(@"
-                    SELECT TOP 5 d.Nazwa as Hodowca, fc.CalcDate as Data,
+                    SELECT TOP 5 d.Name as Hodowca, fc.CalcDate as Data,
                            CASE WHEN COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0) > 0
                                 THEN ABS((fc.NettoWeight - COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0))
                                      / COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0) * 100)
@@ -1159,7 +1159,7 @@ namespace Kalendarz1.DyrektorDashboard.Services
             // LibraNet - Dostawcy
             await TestTableStructureAsync(sb, "LibraNet", _connLibra,
                 "Dostawcy", "[dbo].[Dostawcy]",
-                new[] { "ID", "Nazwa", "Miejscowosc" }, ct);
+                new[] { "ID", "Name", "Address1" }, ct);
 
             // Handel - HM.MG
             await TestTableStructureAsync(sb, "Handel", _connHandel,
@@ -1179,7 +1179,7 @@ namespace Kalendarz1.DyrektorDashboard.Services
             // Handel - SSCommon.STContractors
             await TestTableStructureAsync(sb, "Handel", _connHandel,
                 "SSCommon.STContractors", "[SSCommon].[STContractors]",
-                new[] { "Id", "Name1" }, ct);
+                new[] { "Id", "Name" }, ct);
 
             // TransportPL - Kurs
             await TestTableStructureAsync(sb, "TransportPL", _connTransport,
