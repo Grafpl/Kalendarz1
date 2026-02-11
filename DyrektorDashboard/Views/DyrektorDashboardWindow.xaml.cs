@@ -20,9 +20,10 @@ namespace Kalendarz1.DyrektorDashboard.Views
     {
         private readonly DyrektorDashboardService _service;
         private readonly DashboardCache _cache = new() { DefaultExpiry = TimeSpan.FromMinutes(5) };
-        private CancellationTokenSource _cts;
+        private CancellationTokenSource _cts = new();
         private readonly HashSet<int> _loadedTabs = new();
         private DispatcherTimer _autoRefreshTimer;
+        private bool _initialized;
 
         private static readonly string ConnLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private static readonly string ConnHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
@@ -46,8 +47,6 @@ namespace Kalendarz1.DyrektorDashboard.Views
 
         private async void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            _cts = new CancellationTokenSource();
-
             try
             {
                 // 1. Załaduj karty KPI
@@ -59,6 +58,8 @@ namespace Kalendarz1.DyrektorDashboard.Views
 
                 // 3. Uruchom auto-refresh
                 StartAutoRefresh();
+
+                _initialized = true;
             }
             catch (Exception ex)
             {
@@ -123,7 +124,7 @@ namespace Kalendarz1.DyrektorDashboard.Views
 
         private async void TabMain_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (e.Source != tabMain) return;
+            if (!_initialized || e.Source != tabMain) return;
             var idx = tabMain.SelectedIndex;
 
             if (_loadedTabs.Contains(idx)) return;
