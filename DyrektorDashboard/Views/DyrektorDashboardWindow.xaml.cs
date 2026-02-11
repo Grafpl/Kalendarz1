@@ -204,6 +204,47 @@ namespace Kalendarz1.DyrektorDashboard.Views
             gridDostawyDzis.Columns.Add(new DataGridTextColumn { Header = "Waga [kg]", Binding = new System.Windows.Data.Binding("WagaKg") { StringFormat = "N0" }, Width = 80 });
             gridDostawyDzis.Columns.Add(new DataGridTextColumn { Header = "Cena", Binding = new System.Windows.Data.Binding("Cena") { StringFormat = "N2" }, Width = 60 });
             gridDostawyDzis.ItemsSource = dane.DostawyDzis;
+
+            // ── Plan tygodniowy żywca (Pon-Pt) ──
+            try
+            {
+                var plan = await _cache.GetOrLoadAsync("PlanTygodniowy",
+                    () => _service.GetPlanTygodniowyAsync(_cts.Token));
+                if (plan != null)
+                {
+                    zywPlanTygKg.Text = $"{plan.PlanTygodniaSumaKg:N0} kg";
+                    zywRealTygKg.Text = $"{plan.RealizacjaTygodniaSumaKg:N0} kg";
+                    zywRealTygProcent.Text = $"{plan.RealizacjaProcent}%";
+
+                    var borders = new[] { zywPlanDzien0, zywPlanDzien1, zywPlanDzien2, zywPlanDzien3, zywPlanDzien4 };
+                    var nazwy = new[] { zywPlanDzien0Nazwa, zywPlanDzien1Nazwa, zywPlanDzien2Nazwa, zywPlanDzien3Nazwa, zywPlanDzien4Nazwa };
+                    var daty = new[] { zywPlanDzien0Data, zywPlanDzien1Data, zywPlanDzien2Data, zywPlanDzien3Data, zywPlanDzien4Data };
+                    var reals = new[] { zywPlanDzien0Real, zywPlanDzien1Real, zywPlanDzien2Real, zywPlanDzien3Real, zywPlanDzien4Real };
+                    var plans = new[] { zywPlanDzien0Plan, zywPlanDzien1Plan, zywPlanDzien2Plan, zywPlanDzien3Plan, zywPlanDzien4Plan };
+                    var procs = new[] { zywPlanDzien0Proc, zywPlanDzien1Proc, zywPlanDzien2Proc, zywPlanDzien3Proc, zywPlanDzien4Proc };
+
+                    for (int i = 0; i < Math.Min(plan.Dni.Count, 5); i++)
+                    {
+                        var d = plan.Dni[i];
+                        nazwy[i].Text = d.DzienTygodnia;
+                        daty[i].Text = d.Data.ToString("dd.MM");
+                        reals[i].Text = $"{d.RealizacjaKg:N0} kg";
+                        plans[i].Text = $"plan: {d.PlanKg:N0}";
+                        procs[i].Text = d.ProcentRealizacji > 0 ? $"{d.ProcentRealizacji}%" : "";
+
+                        if (d.CzyDzisiaj)
+                            borders[i].Background = new SolidColorBrush(Color.FromArgb(40, 212, 168, 67));
+                        else if (d.Data < DateTime.Today)
+                            borders[i].Background = new SolidColorBrush(Color.FromArgb(20, 39, 174, 96));
+                        else
+                            borders[i].Background = new SolidColorBrush(Color.FromArgb(15, 52, 152, 219));
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Plan tygodniowy w Żywiec error: {ex.Message}");
+            }
         }
 
         // ════════════════════════════════════════════════════════════════════

@@ -265,6 +265,7 @@
                 <Grid Background="{StaticResource CardBgLight}">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
@@ -273,7 +274,7 @@
                     </Grid.ColumnDefinitions>
 
                     <!-- KPI żywiec szczegóły -->
-                    <WrapPanel Grid.Row="0" Grid.ColumnSpan="2" Margin="16,12">
+                    <WrapPanel Grid.Row="0" Grid.ColumnSpan="2" Margin="16,12,16,4">
                         <Border Background="#1E3A2A" CornerRadius="8" Padding="16,10" Margin="0,0,10,6">
                             <StackPanel>
                                 <TextBlock Text="DZIŚ" Foreground="#8B949E" FontSize="10"/>
@@ -306,8 +307,102 @@
                         </Border>
                     </WrapPanel>
 
+                    <!-- ═══ PLAN TYGODNIOWY ŻYWCA (Pon-Pt) ═══ -->
+                    <Border Grid.Row="1" Grid.ColumnSpan="2" Background="#252A31" CornerRadius="8" Margin="16,4,16,4" Padding="14,10">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- Nagłówek planu -->
+                            <Grid Grid.Row="0" Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="PLAN TYGODNIA ŻYWCA" Foreground="#D4A843" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
+                                <Border Grid.Column="2" Background="#1E3A2A" CornerRadius="6" Padding="12,6" Margin="0,0,8,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Plan: " Foreground="#8B949E" FontSize="11"/>
+                                        <TextBlock x:Name="zywPlanTygKg" Text="--" Foreground="#27AE60" FontSize="13" FontWeight="Bold"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Column="3" Background="#1E2A3A" CornerRadius="6" Padding="12,6" Margin="0,0,8,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Realizacja: " Foreground="#8B949E" FontSize="11"/>
+                                        <TextBlock x:Name="zywRealTygKg" Text="--" Foreground="#3498DB" FontSize="13" FontWeight="Bold"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Column="4" Background="#3A2A1E" CornerRadius="6" Padding="12,6">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Realizacja: " Foreground="#8B949E" FontSize="11"/>
+                                        <TextBlock x:Name="zywRealTygProcent" Text="--" Foreground="#F39C12" FontSize="13" FontWeight="Bold"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+
+                            <!-- 5 kart dni (Pon-Pt) -->
+                            <UniformGrid Grid.Row="1" Columns="5">
+                                <!-- Poniedziałek -->
+                                <Border x:Name="zywPlanDzien0" CornerRadius="8" Padding="10,8" Margin="0,0,4,0">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock x:Name="zywPlanDzien0Nazwa" Text="Pn" Foreground="#8B949E" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="zywPlanDzien0Data" Text="--" Foreground="#8B949E" FontSize="9" HorizontalAlignment="Center" Margin="0,1,0,4"/>
+                                        <TextBlock x:Name="zywPlanDzien0Real" Text="-- kg" Foreground="#27AE60" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="zywPlanDzien0Plan" Text="plan: --" Foreground="#8B949E" FontSize="10" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="zywPlanDzien0Proc" Text="" Foreground="#F39C12" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                                <!-- Wtorek -->
+                                <Border x:Name="zywPlanDzien1" CornerRadius="8" Padding="10,8" Margin="2,0,2,0">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock x:Name="zywPlanDzien1Nazwa" Text="Wt" Foreground="#8B949E" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="zywPlanDzien1Data" Text="--" Foreground="#8B949E" FontSize="9" HorizontalAlignment="Center" Margin="0,1,0,4"/>
+                                        <TextBlock x:Name="zywPlanDzien1Real" Text="-- kg" Foreground="#27AE60" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="zywPlanDzien1Plan" Text="plan: --" Foreground="#8B949E" FontSize="10" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="zywPlanDzien1Proc" Text="" Foreground="#F39C12" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                                <!-- Środa -->
+                                <Border x:Name="zywPlanDzien2" CornerRadius="8" Padding="10,8" Margin="2,0,2,0">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock x:Name="zywPlanDzien2Nazwa" Text="Śr" Foreground="#8B949E" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="zywPlanDzien2Data" Text="--" Foreground="#8B949E" FontSize="9" HorizontalAlignment="Center" Margin="0,1,0,4"/>
+                                        <TextBlock x:Name="zywPlanDzien2Real" Text="-- kg" Foreground="#27AE60" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="zywPlanDzien2Plan" Text="plan: --" Foreground="#8B949E" FontSize="10" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="zywPlanDzien2Proc" Text="" Foreground="#F39C12" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                                <!-- Czwartek -->
+                                <Border x:Name="zywPlanDzien3" CornerRadius="8" Padding="10,8" Margin="2,0,2,0">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock x:Name="zywPlanDzien3Nazwa" Text="Cz" Foreground="#8B949E" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="zywPlanDzien3Data" Text="--" Foreground="#8B949E" FontSize="9" HorizontalAlignment="Center" Margin="0,1,0,4"/>
+                                        <TextBlock x:Name="zywPlanDzien3Real" Text="-- kg" Foreground="#27AE60" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="zywPlanDzien3Plan" Text="plan: --" Foreground="#8B949E" FontSize="10" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="zywPlanDzien3Proc" Text="" Foreground="#F39C12" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                                <!-- Piątek -->
+                                <Border x:Name="zywPlanDzien4" CornerRadius="8" Padding="10,8" Margin="4,0,0,0">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock x:Name="zywPlanDzien4Nazwa" Text="Pt" Foreground="#8B949E" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="zywPlanDzien4Data" Text="--" Foreground="#8B949E" FontSize="9" HorizontalAlignment="Center" Margin="0,1,0,4"/>
+                                        <TextBlock x:Name="zywPlanDzien4Real" Text="-- kg" Foreground="#27AE60" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="zywPlanDzien4Plan" Text="plan: --" Foreground="#8B949E" FontSize="10" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="zywPlanDzien4Proc" Text="" Foreground="#F39C12" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                            </UniformGrid>
+                        </Grid>
+                    </Border>
+
                     <!-- Wykres trend 8 tygodni -->
-                    <Border Grid.Row="1" Grid.Column="0" Background="#252A31" CornerRadius="8" Margin="16,0,8,16" Padding="12">
+                    <Border Grid.Row="2" Grid.Column="0" Background="#252A31" CornerRadius="8" Margin="16,4,8,16" Padding="12">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -326,7 +421,7 @@
                     </Border>
 
                     <!-- Top hodowcy + dostawy dziś -->
-                    <Border Grid.Row="1" Grid.Column="1" Background="#252A31" CornerRadius="8" Margin="8,0,16,16" Padding="12">
+                    <Border Grid.Row="2" Grid.Column="1" Background="#252A31" CornerRadius="8" Margin="8,4,16,16" Padding="12">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
