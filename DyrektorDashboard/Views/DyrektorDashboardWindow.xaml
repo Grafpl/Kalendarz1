@@ -167,6 +167,8 @@
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock x:Name="txtLastRefresh" Text="Ładowanie..." FontSize="11" Foreground="{StaticResource TextSecondary}"
                                VerticalAlignment="Center" Margin="0,0,16,0"/>
+                    <Button Content="🔍 Diagnostyka" Style="{StaticResource GoldButton}" Click="BtnDebug_Click" Margin="0,0,8,0"
+                            FontSize="11" Padding="10,8" Background="#E74C3C" ToolTip="Uruchom zaawansowaną diagnostykę SQL"/>
                     <Button Content="⟳ Odśwież" Style="{StaticResource GoldButton}" Click="BtnRefresh_Click" Margin="0,0,8,0"/>
                     <Button Content="✕" Style="{StaticResource GoldButton}" Click="BtnClose_Click" Width="36" Padding="0,8"/>
                 </StackPanel>

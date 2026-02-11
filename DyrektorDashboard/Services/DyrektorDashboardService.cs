@@ -1111,6 +1111,412 @@ namespace Kalendarz1.DyrektorDashboard.Services
             }).ThenByDescending(a => a.Data).ToList();
         }
 
+        // ════════════════════════════════════════════════════════════════════
+        // DIAGNOSTYKA - zaawansowany debugger połączeń i zapytań
+        // ════════════════════════════════════════════════════════════════════
+
+        public async Task<string> RunDiagnosticsAsync(CancellationToken ct = default)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("╔══════════════════════════════════════════════════════════════════╗");
+            sb.AppendLine("║  DIAGNOSTYKA PANELU DYREKTORA                                   ║");
+            sb.AppendLine($"║  {DateTime.Now:yyyy-MM-dd HH:mm:ss}                                       ║");
+            sb.AppendLine("╚══════════════════════════════════════════════════════════════════╝");
+            sb.AppendLine();
+
+            // ── 1. TEST POŁĄCZEŃ ──
+            sb.AppendLine("═══ 1. TEST POŁĄCZEŃ Z BAZAMI DANYCH ═══");
+            sb.AppendLine();
+
+            await TestConnectionAsync(sb, "LibraNet", _connLibra, ct);
+            await TestConnectionAsync(sb, "Handel", _connHandel, ct);
+            await TestConnectionAsync(sb, "TransportPL", _connTransport, ct);
+
+            // ── 2. STRUKTURA TABEL ──
+            sb.AppendLine("═══ 2. WERYFIKACJA STRUKTURY TABEL ═══");
+            sb.AppendLine();
+
+            // LibraNet - FarmerCalc
+            await TestTableStructureAsync(sb, "LibraNet", _connLibra,
+                "FarmerCalc", "[dbo].[FarmerCalc]",
+                new[] { "CalcDate", "NettoWeight", "LumQnt", "CustomerGID", "Deleted", "DeclI1", "NettoFarmWeight", "WagaDek" }, ct);
+
+            // LibraNet - ZamowieniaMieso
+            await TestTableStructureAsync(sb, "LibraNet", _connLibra,
+                "ZamowieniaMieso", "[dbo].[ZamowieniaMieso]",
+                new[] { "Id", "DataUboju", "KlientId", "Status" }, ct);
+
+            // LibraNet - ZamowieniaMiesoTowar
+            await TestTableStructureAsync(sb, "LibraNet", _connLibra,
+                "ZamowieniaMiesoTowar", "[dbo].[ZamowieniaMiesoTowar]",
+                new[] { "ZamowienieId", "KodTowaru", "Ilosc" }, ct);
+
+            // LibraNet - Reklamacje
+            await TestTableStructureAsync(sb, "LibraNet", _connLibra,
+                "Reklamacje", "[dbo].[Reklamacje]",
+                new[] { "Id", "DataZgloszenia", "NazwaKontrahenta", "Status", "Opis", "SumaKg" }, ct);
+
+            // LibraNet - Dostawcy
+            await TestTableStructureAsync(sb, "LibraNet", _connLibra,
+                "Dostawcy", "[dbo].[Dostawcy]",
+                new[] { "ID", "Nazwa", "Miejscowosc" }, ct);
+
+            // Handel - HM.MG
+            await TestTableStructureAsync(sb, "Handel", _connHandel,
+                "HM.MG", "[HM].[MG]",
+                new[] { "id", "data", "seria", "aktywny", "magazyn" }, ct);
+
+            // Handel - HM.MZ
+            await TestTableStructureAsync(sb, "Handel", _connHandel,
+                "HM.MZ", "[HM].[MZ]",
+                new[] { "super", "idtw", "ilosc", "iloscwp", "kod", "magazyn", "wartNetto", "data", "typ" }, ct);
+
+            // Handel - HM.TW
+            await TestTableStructureAsync(sb, "Handel", _connHandel,
+                "HM.TW", "[HM].[TW]",
+                new[] { "id", "kod", "nazwa", "katalog" }, ct);
+
+            // Handel - SSCommon.STContractors
+            await TestTableStructureAsync(sb, "Handel", _connHandel,
+                "SSCommon.STContractors", "[SSCommon].[STContractors]",
+                new[] { "Id", "Name1" }, ct);
+
+            // TransportPL - Kurs
+            await TestTableStructureAsync(sb, "TransportPL", _connTransport,
+                "Kurs", "[dbo].[Kurs]",
+                new[] { "KursID", "DataKursu", "Status", "KierowcaID", "PojazdID", "GodzWyjazdu" }, ct);
+
+            // ── 3. TESTY ZAPYTAŃ ──
+            sb.AppendLine("═══ 3. TESTY ZAPYTAŃ (dane) ═══");
+            sb.AppendLine();
+
+            // KPI: Żywiec
+            await TestQueryAsync(sb, "KPI Żywiec (FarmerCalc dziś)", _connLibra, @"
+                SELECT COUNT(*) as Dostawy,
+                       ISNULL(SUM(ISNULL(LumQnt,0)),0) as Sztuki,
+                       ISNULL(SUM(ISNULL(NettoWeight,0)),0) as WagaKg
+                FROM [dbo].[FarmerCalc] WITH (NOLOCK)
+                WHERE CAST(CalcDate AS DATE) = CAST(GETDATE() AS DATE)
+                  AND ISNULL(Deleted,0) = 0", ct);
+
+            // Sprawdź czy w ogóle są dane w FarmerCalc
+            await TestQueryAsync(sb, "FarmerCalc - TOTAL wierszy", _connLibra, @"
+                SELECT COUNT(*) as Total,
+                       MIN(CalcDate) as NajstarszaData,
+                       MAX(CalcDate) as NajnowszaData
+                FROM [dbo].[FarmerCalc] WITH (NOLOCK)
+                WHERE ISNULL(Deleted,0) = 0", ct);
+
+            // FarmerCalc - ostatnie 3 dni
+            await TestQueryAsync(sb, "FarmerCalc - ostatnie 3 dni", _connLibra, @"
+                SELECT CAST(CalcDate AS DATE) as Dzien, COUNT(*) as Ile,
+                       SUM(ISNULL(NettoWeight,0)) as WagaKg
+                FROM [dbo].[FarmerCalc] WITH (NOLOCK)
+                WHERE CalcDate >= DATEADD(DAY,-3,GETDATE())
+                  AND ISNULL(Deleted,0) = 0
+                GROUP BY CAST(CalcDate AS DATE)
+                ORDER BY CAST(CalcDate AS DATE) DESC", ct);
+
+            // KPI: Zamówienia
+            await TestQueryAsync(sb, "KPI Zamówienia (ZamowieniaMieso dziś)", _connLibra, @"
+                SELECT COUNT(DISTINCT z.Id) as Liczba,
+                       ISNULL(SUM(ISNULL(t.Ilosc,0)),0) as SumaKg
+                FROM [dbo].[ZamowieniaMieso] z WITH (NOLOCK)
+                LEFT JOIN [dbo].[ZamowieniaMiesoTowar] t WITH (NOLOCK) ON z.Id = t.ZamowienieId
+                WHERE z.DataUboju = CAST(GETDATE() AS DATE)
+                  AND ISNULL(z.Status,'Nowe') <> 'Anulowane'", ct);
+
+            // ZamowieniaMieso - total
+            await TestQueryAsync(sb, "ZamowieniaMieso - TOTAL + zakres dat", _connLibra, @"
+                SELECT COUNT(*) as Total,
+                       MIN(DataUboju) as NajstarszaDataUboju,
+                       MAX(DataUboju) as NajnowszaDataUboju
+                FROM [dbo].[ZamowieniaMieso] WITH (NOLOCK)", ct);
+
+            // Reklamacje
+            await TestQueryAsync(sb, "Reklamacje - statusy", _connLibra, @"
+                SELECT Status, COUNT(*) as Liczba
+                FROM [dbo].[Reklamacje] WITH (NOLOCK)
+                GROUP BY Status", ct);
+
+            // KPI: Produkcja (Handel)
+            await TestQueryAsync(sb, "KPI Produkcja (HM.MG/MZ dziś)", _connHandel, @"
+                SELECT MG.seria,
+                       COUNT(*) as Pozycje,
+                       ISNULL(SUM(ABS(MZ.ilosc)),0) as SumaKg
+                FROM [HM].[MG] MG WITH (NOLOCK)
+                JOIN [HM].[MZ] MZ WITH (NOLOCK) ON MZ.super = MG.id
+                WHERE MG.data = CAST(GETDATE() AS DATE)
+                  AND MG.aktywny = 1
+                GROUP BY MG.seria
+                ORDER BY SUM(ABS(MZ.ilosc)) DESC", ct);
+
+            // HM.MG - ostatnie 3 dni z seriami
+            await TestQueryAsync(sb, "HM.MG - ostatnie 3 dni produkcji", _connHandel, @"
+                SELECT TOP 20 MG.data, MG.seria, COUNT(*) as Docs,
+                       SUM(ABS(MZ.ilosc)) as SumaKg
+                FROM [HM].[MG] MG WITH (NOLOCK)
+                JOIN [HM].[MZ] MZ WITH (NOLOCK) ON MZ.super = MG.id
+                WHERE MG.data >= DATEADD(DAY,-3,GETDATE())
+                  AND MG.aktywny = 1
+                GROUP BY MG.data, MG.seria
+                ORDER BY MG.data DESC, SUM(ABS(MZ.ilosc)) DESC", ct);
+
+            // Wszystkie serie w MG
+            await TestQueryAsync(sb, "HM.MG - WSZYSTKIE serie (distinct)", _connHandel, @"
+                SELECT DISTINCT seria, COUNT(*) as Ile
+                FROM [HM].[MG] WITH (NOLOCK)
+                WHERE aktywny = 1 AND data >= DATEADD(MONTH,-1,GETDATE())
+                GROUP BY seria
+                ORDER BY COUNT(*) DESC", ct);
+
+            // Magazyn mroźni
+            await TestQueryAsync(sb, "Magazyn mroźni (MZ magazyn=65552)", _connHandel, $@"
+                SELECT TOP 5 kod,
+                       CAST(ABS(SUM([iloscwp])) AS DECIMAL(18,3)) AS IloscKg,
+                       CAST(ABS(SUM([wartNetto])) AS DECIMAL(18,2)) AS WartoscZl
+                FROM [HM].[MZ] WITH (NOLOCK)
+                WHERE [data] >= '{DATA_STARTOWA}'
+                  AND [data] <= GETDATE()
+                  AND [magazyn] = {MAGAZYN_MROZNIA}
+                  AND typ = '0'
+                GROUP BY kod
+                HAVING ABS(SUM([iloscwp])) > 1
+                ORDER BY ABS(SUM([iloscwp])) DESC", ct);
+
+            // Sprawdź magazyny
+            await TestQueryAsync(sb, "HM.MZ - WSZYSTKIE magazyny (distinct)", _connHandel, @"
+                SELECT DISTINCT magazyn, COUNT(*) as Ile
+                FROM [HM].[MZ] WITH (NOLOCK)
+                WHERE [data] >= DATEADD(MONTH,-1,GETDATE())
+                GROUP BY magazyn
+                ORDER BY COUNT(*) DESC", ct);
+
+            // Transport
+            await TestQueryAsync(sb, "Transport - Kursy dziś", _connTransport, @"
+                SELECT COUNT(*) as KursyDzis, MIN(DataKursu) as MinData, MAX(DataKursu) as MaxData
+                FROM [dbo].[Kurs] WITH (NOLOCK)
+                WHERE CAST(DataKursu AS DATE) = CAST(GETDATE() AS DATE)", ct);
+
+            // Transport - total
+            await TestQueryAsync(sb, "Transport - TOTAL + zakres dat", _connTransport, @"
+                SELECT COUNT(*) as Total,
+                       MIN(DataKursu) as Najstarsza,
+                       MAX(DataKursu) as Najnowsza
+                FROM [dbo].[Kurs] WITH (NOLOCK)", ct);
+
+            // ── 4. SAMPLE DATA ──
+            sb.AppendLine("═══ 4. PRZYKŁADOWE DANE (TOP 3 z każdej tabeli) ═══");
+            sb.AppendLine();
+
+            await TestQueryAsync(sb, "FarmerCalc - TOP 3 (najnowsze)", _connLibra, @"
+                SELECT TOP 3 CalcDate, NettoWeight, LumQnt, CustomerGID,
+                       Deleted, DeclI1
+                FROM [dbo].[FarmerCalc] WITH (NOLOCK)
+                ORDER BY CalcDate DESC", ct);
+
+            await TestQueryAsync(sb, "ZamowieniaMieso - TOP 3", _connLibra, @"
+                SELECT TOP 3 Id, DataUboju, KlientId, Status
+                FROM [dbo].[ZamowieniaMieso] WITH (NOLOCK)
+                ORDER BY Id DESC", ct);
+
+            await TestQueryAsync(sb, "ZamowieniaMiesoTowar - TOP 3", _connLibra, @"
+                SELECT TOP 3 ZamowienieId, KodTowaru, Ilosc
+                FROM [dbo].[ZamowieniaMiesoTowar] WITH (NOLOCK)
+                ORDER BY ZamowienieId DESC", ct);
+
+            await TestQueryAsync(sb, "Reklamacje - TOP 3", _connLibra, @"
+                SELECT TOP 3 Id, DataZgloszenia, NazwaKontrahenta, Status, SumaKg
+                FROM [dbo].[Reklamacje] WITH (NOLOCK)
+                ORDER BY Id DESC", ct);
+
+            await TestQueryAsync(sb, "HM.MG - TOP 3 (najnowsze aktywne)", _connHandel, @"
+                SELECT TOP 3 id, data, seria, aktywny, magazyn
+                FROM [HM].[MG] WITH (NOLOCK)
+                WHERE aktywny = 1
+                ORDER BY data DESC, id DESC", ct);
+
+            await TestQueryAsync(sb, "HM.MZ - TOP 3 (mroźnia 65552)", _connHandel, $@"
+                SELECT TOP 3 super, idtw, ilosc, iloscwp, kod, magazyn, wartNetto, data, typ
+                FROM [HM].[MZ] WITH (NOLOCK)
+                WHERE magazyn = {MAGAZYN_MROZNIA}
+                ORDER BY data DESC", ct);
+
+            await TestQueryAsync(sb, "Kurs - TOP 3", _connTransport, @"
+                SELECT TOP 3 KursID, DataKursu, Status, KierowcaID, PojazdID
+                FROM [dbo].[Kurs] WITH (NOLOCK)
+                ORDER BY KursID DESC", ct);
+
+            sb.AppendLine("═══ DIAGNOSTYKA ZAKOŃCZONA ═══");
+            return sb.ToString();
+        }
+
+        private async Task TestConnectionAsync(System.Text.StringBuilder sb, string dbName, string connStr, CancellationToken ct)
+        {
+            var maskedConn = MaskConnectionString(connStr);
+            sb.AppendLine($"  [{dbName}]");
+            sb.AppendLine($"  Connection: {maskedConn}");
+
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                using var conn = new SqlConnection(connStr);
+                await conn.OpenAsync(ct);
+                sw.Stop();
+                sb.AppendLine($"  Status: OK ({sw.ElapsedMilliseconds} ms)");
+                sb.AppendLine($"  Server Version: {conn.ServerVersion}");
+
+                // Pobierz nazwy baz
+                using var cmd = new SqlCommand("SELECT DB_NAME() AS CurrentDB", conn);
+                cmd.CommandTimeout = 10;
+                using var r = await cmd.ExecuteReaderAsync(ct);
+                if (await r.ReadAsync(ct))
+                    sb.AppendLine($"  Current DB: {r["CurrentDB"]}");
+            }
+            catch (Exception ex)
+            {
+                sw.Stop();
+                sb.AppendLine($"  Status: BŁĄD ({sw.ElapsedMilliseconds} ms)");
+                sb.AppendLine($"  Exception: {ex.GetType().Name}: {ex.Message}");
+                if (ex.InnerException != null)
+                    sb.AppendLine($"  Inner: {ex.InnerException.Message}");
+            }
+            sb.AppendLine();
+        }
+
+        private async Task TestTableStructureAsync(System.Text.StringBuilder sb, string dbName, string connStr,
+            string tableName, string fullTableName, string[] expectedColumns, CancellationToken ct)
+        {
+            sb.AppendLine($"  [{dbName}] {tableName}");
+            try
+            {
+                using var conn = new SqlConnection(connStr);
+                await conn.OpenAsync(ct);
+
+                // Sprawdź czy tabela istnieje i pobierz kolumny
+                var schema = fullTableName.Contains(".")
+                    ? fullTableName.Split('.')[0].Trim('[', ']')
+                    : "dbo";
+                var table = fullTableName.Split('.').Last().Trim('[', ']');
+
+                using var cmd = new SqlCommand(@"
+                    SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH
+                    FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_SCHEMA = @schema AND TABLE_NAME = @table
+                    ORDER BY ORDINAL_POSITION", conn);
+                cmd.Parameters.AddWithValue("@schema", schema);
+                cmd.Parameters.AddWithValue("@table", table);
+                cmd.CommandTimeout = 10;
+
+                var actualColumns = new List<string>();
+                using var r = await cmd.ExecuteReaderAsync(ct);
+                while (await r.ReadAsync(ct))
+                {
+                    var colName = r["COLUMN_NAME"].ToString();
+                    var dataType = r["DATA_TYPE"].ToString();
+                    var maxLen = r["CHARACTER_MAXIMUM_LENGTH"];
+                    var lenStr = maxLen != DBNull.Value ? $"({maxLen})" : "";
+                    actualColumns.Add($"{colName} [{dataType}{lenStr}]");
+                }
+
+                if (actualColumns.Count == 0)
+                {
+                    sb.AppendLine($"    TABELA NIE ISTNIEJE lub brak dostępu!");
+                }
+                else
+                {
+                    sb.AppendLine($"    Kolumny ({actualColumns.Count}): {string.Join(", ", actualColumns.Take(20))}");
+                    if (actualColumns.Count > 20)
+                        sb.AppendLine($"    ... i {actualColumns.Count - 20} więcej");
+
+                    // Sprawdź oczekiwane kolumny
+                    var missing = expectedColumns.Where(ec =>
+                        !actualColumns.Any(ac => ac.StartsWith(ec, StringComparison.OrdinalIgnoreCase) ||
+                                                  ac.StartsWith(ec + " ", StringComparison.OrdinalIgnoreCase))).ToList();
+                    if (missing.Any())
+                        sb.AppendLine($"    BRAKUJĄCE KOLUMNY: {string.Join(", ", missing)}");
+                    else
+                        sb.AppendLine($"    Wszystkie oczekiwane kolumny OK");
+                }
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine($"    BŁĄD: {ex.GetType().Name}: {ex.Message}");
+            }
+            sb.AppendLine();
+        }
+
+        private async Task TestQueryAsync(System.Text.StringBuilder sb, string queryName, string connStr,
+            string sql, CancellationToken ct)
+        {
+            sb.AppendLine($"  [{queryName}]");
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                using var conn = new SqlConnection(connStr);
+                await conn.OpenAsync(ct);
+                using var cmd = new SqlCommand(sql, conn);
+                cmd.CommandTimeout = CMD_TIMEOUT;
+
+                using var r = await cmd.ExecuteReaderAsync(ct);
+                var columns = Enumerable.Range(0, r.FieldCount).Select(i => r.GetName(i)).ToList();
+                sb.AppendLine($"    Kolumny wynikowe: {string.Join(", ", columns)}");
+
+                int rowCount = 0;
+                var sampleRows = new List<string>();
+                while (await r.ReadAsync(ct))
+                {
+                    rowCount++;
+                    if (rowCount <= 5) // Max 5 sample wierszy
+                    {
+                        var vals = new List<string>();
+                        for (int i = 0; i < r.FieldCount; i++)
+                        {
+                            var val = r.IsDBNull(i) ? "NULL" : r.GetValue(i)?.ToString() ?? "NULL";
+                            if (val.Length > 50) val = val.Substring(0, 50) + "...";
+                            vals.Add($"{columns[i]}={val}");
+                        }
+                        sampleRows.Add($"      Row {rowCount}: {string.Join(" | ", vals)}");
+                    }
+                }
+
+                sw.Stop();
+                sb.AppendLine($"    Wiersze: {rowCount} ({sw.ElapsedMilliseconds} ms)");
+                if (rowCount == 0)
+                {
+                    sb.AppendLine($"    ⚠ BRAK DANYCH!");
+                }
+                else
+                {
+                    foreach (var row in sampleRows)
+                        sb.AppendLine(row);
+                    if (rowCount > 5)
+                        sb.AppendLine($"      ... i {rowCount - 5} więcej wierszy");
+                }
+            }
+            catch (Exception ex)
+            {
+                sw.Stop();
+                sb.AppendLine($"    BŁĄD ({sw.ElapsedMilliseconds} ms): {ex.GetType().Name}: {ex.Message}");
+                if (ex.InnerException != null)
+                    sb.AppendLine($"    Inner: {ex.InnerException.Message}");
+            }
+            sb.AppendLine();
+        }
+
+        private static string MaskConnectionString(string connStr)
+        {
+            // Zamaskuj hasło
+            var parts = connStr.Split(';');
+            var masked = parts.Select(p =>
+            {
+                if (p.TrimStart().StartsWith("Password", StringComparison.OrdinalIgnoreCase))
+                    return "Password=***";
+                return p;
+            });
+            return string.Join(";", masked);
+        }
+
         #region IDisposable
 
         public void CloseConnections()

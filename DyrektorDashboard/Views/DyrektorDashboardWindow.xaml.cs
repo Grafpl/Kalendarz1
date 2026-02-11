@@ -522,5 +522,155 @@ namespace Kalendarz1.DyrektorDashboard.Views
         {
             Close();
         }
+
+        // ════════════════════════════════════════════════════════════════════
+        // DIAGNOSTYKA - ZAAWANSOWANY DEBUGGER
+        // ════════════════════════════════════════════════════════════════════
+
+        private async void BtnDebug_Click(object sender, RoutedEventArgs e)
+        {
+            // Utwórz okno diagnostyczne w kodzie (bez XAML)
+            var diagWindow = new Window
+            {
+                Title = "Diagnostyka Panelu Dyrektora - Zaawansowany Debugger SQL",
+                Width = 1100,
+                Height = 750,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1A1D21")),
+                Foreground = new SolidColorBrush(Colors.White)
+            };
+
+            var grid = new Grid();
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            // Nagłówek
+            var header = new Border
+            {
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#252A31")),
+                Padding = new Thickness(16, 12, 16, 12)
+            };
+            var headerPanel = new StackPanel();
+            headerPanel.Children.Add(new TextBlock
+            {
+                Text = "DIAGNOSTYKA SQL - Panel Dyrektora",
+                FontSize = 16, FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E74C3C"))
+            });
+            headerPanel.Children.Add(new TextBlock
+            {
+                Text = "Testowanie połączeń, struktur tabel i zapytań. Proszę czekać...",
+                FontSize = 11,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#8B949E")),
+                Margin = new Thickness(0, 4, 0, 0)
+            });
+            header.Child = headerPanel;
+            Grid.SetRow(header, 0);
+            grid.Children.Add(header);
+
+            // TextBox z logami
+            var logBox = new TextBox
+            {
+                IsReadOnly = true,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0D1117")),
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C9D1D9")),
+                FontFamily = new FontFamily("Consolas, Courier New, monospace"),
+                FontSize = 12,
+                Padding = new Thickness(12),
+                BorderThickness = new Thickness(0),
+                TextWrapping = TextWrapping.NoWrap,
+                Text = "Uruchamianie diagnostyki...\n\nTestowanie połączeń z bazami danych:\n- LibraNet (192.168.0.109)\n- Handel (192.168.0.112)\n- TransportPL (192.168.0.109)\n\nProszę czekać..."
+            };
+            Grid.SetRow(logBox, 1);
+            grid.Children.Add(logBox);
+
+            // Stopka z przyciskami
+            var footer = new Border
+            {
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#252A31")),
+                Padding = new Thickness(16, 10, 16, 10)
+            };
+            var footerPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+
+            var btnCopy = new Button
+            {
+                Content = "Kopiuj do schowka",
+                Padding = new Thickness(16, 8, 16, 8),
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3498DB")),
+                Foreground = new SolidColorBrush(Colors.White),
+                BorderThickness = new Thickness(0),
+                FontWeight = FontWeights.SemiBold,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+            btnCopy.Click += (s2, e2) =>
+            {
+                try { Clipboard.SetText(logBox.Text); MessageBox.Show("Skopiowano do schowka!", "Info"); }
+                catch { }
+            };
+            footerPanel.Children.Add(btnCopy);
+
+            var btnSave = new Button
+            {
+                Content = "Zapisz do pliku",
+                Padding = new Thickness(16, 8, 16, 8),
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#27AE60")),
+                Foreground = new SolidColorBrush(Colors.White),
+                BorderThickness = new Thickness(0),
+                FontWeight = FontWeights.SemiBold,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+            btnSave.Click += (s2, e2) =>
+            {
+                try
+                {
+                    var path = System.IO.Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+                        $"Diagnostyka_Dyrektora_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
+                    System.IO.File.WriteAllText(path, logBox.Text);
+                    MessageBox.Show($"Zapisano do:\n{path}", "Zapisano");
+                }
+                catch (Exception ex2) { MessageBox.Show($"Błąd zapisu: {ex2.Message}", "Błąd"); }
+            };
+            footerPanel.Children.Add(btnSave);
+
+            var btnClose = new Button
+            {
+                Content = "Zamknij",
+                Padding = new Thickness(16, 8, 16, 8),
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6C757D")),
+                Foreground = new SolidColorBrush(Colors.White),
+                BorderThickness = new Thickness(0),
+                FontWeight = FontWeights.SemiBold,
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            btnClose.Click += (s2, e2) => diagWindow.Close();
+            footerPanel.Children.Add(btnClose);
+
+            footer.Child = footerPanel;
+            Grid.SetRow(footer, 2);
+            grid.Children.Add(footer);
+
+            diagWindow.Content = grid;
+            diagWindow.Show();
+
+            // Uruchom diagnostykę asynchronicznie
+            try
+            {
+                var result = await _service.RunDiagnosticsAsync(_cts.Token);
+                logBox.Text = result;
+                ((TextBlock)headerPanel.Children[1]).Text = "Diagnostyka zakończona. Sprawdź wyniki poniżej.";
+                ((TextBlock)headerPanel.Children[1]).Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#27AE60"));
+            }
+            catch (Exception ex)
+            {
+                logBox.Text = $"KRYTYCZNY BŁĄD DIAGNOSTYKI:\n\n{ex.GetType().Name}: {ex.Message}\n\n{ex.StackTrace}";
+                ((TextBlock)headerPanel.Children[1]).Text = "Diagnostyka zakończona z błędem krytycznym!";
+            }
+        }
     }
 }
