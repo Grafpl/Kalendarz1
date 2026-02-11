@@ -314,6 +314,40 @@ namespace Kalendarz1.DyrektorDashboard.Models
         public int ProcentRealizacji => PlanKg > 0
             ? (int)(RealizacjaKg / PlanKg * 100) : 0;
         public bool CzyDzisiaj { get; set; }
+        public int LiczbaDostaw { get; set; }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // ZAMÓWIENIA - WIDOK SZCZEGÓŁOWY (klient + produkt + ilość)
+    // ════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Szczegółowa pozycja zamówienia (klient + produkt + ilość)
+    /// </summary>
+    public class ZamowienieSzczegolyItem
+    {
+        public int ZamowienieId { get; set; }
+        public string Klient { get; set; }
+        public string Status { get; set; }
+        public string Produkt { get; set; }
+        public decimal IloscKg { get; set; }
+        public string Cena { get; set; }
+    }
+
+    /// <summary>
+    /// Kontener na szczegółowe dane zamówień (dziś + jutro)
+    /// </summary>
+    public class DaneZamowieniaSzczegoly
+    {
+        public List<ZamowienieSzczegolyItem> ZamowieniaDzis { get; set; } = new();
+        public List<ZamowienieSzczegolyItem> ZamowieniaJutro { get; set; } = new();
+        public List<string> UnikatoweProdukty { get; set; } = new();
+
+        public int LiczbaDzis { get; set; }
+        public decimal SumaKgDzis { get; set; }
+        public int LiczbaJutro { get; set; }
+        public decimal SumaKgJutro { get; set; }
+        public decimal WartoscDzis { get; set; }
     }
 
     /// <summary>

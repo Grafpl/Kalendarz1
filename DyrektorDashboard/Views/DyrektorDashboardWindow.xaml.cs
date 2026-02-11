@@ -25,6 +25,11 @@ namespace Kalendarz1.DyrektorDashboard.Views
         private DispatcherTimer _autoRefreshTimer;
         private bool _initialized;
 
+        // Zamówienia - stan filtrów
+        private DaneZamowieniaSzczegoly _zamSzczegoly;
+        private bool _zamPokazDzis = true;
+        private string _zamFiltrProdukt;
+
         private static readonly string ConnLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private static readonly string ConnHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
         private static readonly string ConnTransport = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
@@ -172,22 +177,6 @@ namespace Kalendarz1.DyrektorDashboard.Views
             zywSredniaCena.Text = $"{dane.SredniaCenaDzis:N2} zł/kg";
             zywUbytek.Text = $"{dane.SredniUbytekDzis:F1}%";
 
-            // Wykres trend
-            if (dane.Trend8Tygodni.Any())
-            {
-                chartZywiecTrend.Series = new SeriesCollection
-                {
-                    new ColumnSeries
-                    {
-                        Title = "Waga [kg]",
-                        Values = new ChartValues<double>(dane.Trend8Tygodni.Select(t => (double)t.WagaKg)),
-                        Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#27AE60")),
-                        MaxColumnWidth = 40
-                    }
-                };
-                chartZywiecTrend.AxisX[0].Labels = dane.Trend8Tygodni.Select(t => t.Etykieta).ToList();
-            }
-
             // Grid top hodowców
             gridTopHodowcy.Columns.Clear();
             gridTopHodowcy.Columns.Add(new DataGridTextColumn { Header = "#", Binding = new System.Windows.Data.Binding("Pozycja"), Width = 30 });
@@ -205,7 +194,7 @@ namespace Kalendarz1.DyrektorDashboard.Views
             gridDostawyDzis.Columns.Add(new DataGridTextColumn { Header = "Cena", Binding = new System.Windows.Data.Binding("Cena") { StringFormat = "N2" }, Width = 60 });
             gridDostawyDzis.ItemsSource = dane.DostawyDzis;
 
-            // ── Plan tygodniowy żywca (Pon-Pt) ──
+            // ── Plan tygodniowy żywca (Pon-Pt) z liczbą dostaw ──
             try
             {
                 var plan = await _cache.GetOrLoadAsync("PlanTygodniowy",
@@ -220,6 +209,7 @@ namespace Kalendarz1.DyrektorDashboard.Views
                     var nazwy = new[] { zywPlanDzien0Nazwa, zywPlanDzien1Nazwa, zywPlanDzien2Nazwa, zywPlanDzien3Nazwa, zywPlanDzien4Nazwa };
                     var daty = new[] { zywPlanDzien0Data, zywPlanDzien1Data, zywPlanDzien2Data, zywPlanDzien3Data, zywPlanDzien4Data };
                     var reals = new[] { zywPlanDzien0Real, zywPlanDzien1Real, zywPlanDzien2Real, zywPlanDzien3Real, zywPlanDzien4Real };
+                    var dosts = new[] { zywPlanDzien0Dost, zywPlanDzien1Dost, zywPlanDzien2Dost, zywPlanDzien3Dost, zywPlanDzien4Dost };
                     var plans = new[] { zywPlanDzien0Plan, zywPlanDzien1Plan, zywPlanDzien2Plan, zywPlanDzien3Plan, zywPlanDzien4Plan };
                     var procs = new[] { zywPlanDzien0Proc, zywPlanDzien1Proc, zywPlanDzien2Proc, zywPlanDzien3Proc, zywPlanDzien4Proc };
 
@@ -229,6 +219,7 @@ namespace Kalendarz1.DyrektorDashboard.Views
                         nazwy[i].Text = d.DzienTygodnia;
                         daty[i].Text = d.Data.ToString("dd.MM");
                         reals[i].Text = $"{d.RealizacjaKg:N0} kg";
+                        dosts[i].Text = d.LiczbaDostaw > 0 ? $"dostaw: {d.LiczbaDostaw}" : "";
                         plans[i].Text = $"plan: {d.PlanKg:N0}";
                         procs[i].Text = d.ProcentRealizacji > 0 ? $"{d.ProcentRealizacji}%" : "";
 
@@ -253,57 +244,86 @@ namespace Kalendarz1.DyrektorDashboard.Views
 
         private async Task LoadZamowieniaTabAsync()
         {
-            var dane = await _cache.GetOrLoadAsync("Zamowienia",
-                () => _service.GetDaneZamowieniaAsync(_cts.Token));
-            if (dane == null) return;
+            _zamSzczegoly = await _cache.GetOrLoadAsync("ZamowieniaSzczegoly",
+                () => _service.GetDaneZamowieniaSzczegolyAsync(_cts.Token));
+            if (_zamSzczegoly == null) return;
 
-            zamDzisInfo.Text = $"{dane.LiczbaZamowienDzis} zam. / {dane.SumaKgDzis:N0} kg";
-            zamJutroInfo.Text = $"{dane.LiczbaZamowienJutro} zam. / {dane.SumaKgJutro:N0} kg";
-            zamWartoscDzis.Text = $"{dane.SumaWartoscDzis:N0} zł";
+            // KPI
+            zamDzisInfo.Text = $"{_zamSzczegoly.LiczbaDzis} zam. / {_zamSzczegoly.SumaKgDzis:N0} kg";
+            zamJutroInfo.Text = $"{_zamSzczegoly.LiczbaJutro} zam. / {_zamSzczegoly.SumaKgJutro:N0} kg";
+            zamWartoscDzis.Text = $"{_zamSzczegoly.WartoscDzis:N0} zł";
 
-            // Wykres trend
-            if (dane.TrendDzienny.Any())
-            {
-                chartZamowieniaTrend.Series = new SeriesCollection
-                {
-                    new LineSeries
-                    {
-                        Title = "Kg zamówień",
-                        Values = new ChartValues<double>(dane.TrendDzienny.Select(t => (double)t.SumaKg)),
-                        Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3498DB")),
-                        Fill = new SolidColorBrush(Color.FromArgb(40, 52, 152, 219)),
-                        PointGeometrySize = 6,
-                        StrokeThickness = 2
-                    },
-                    new ColumnSeries
-                    {
-                        Title = "Liczba zamówień",
-                        Values = new ChartValues<double>(dane.TrendDzienny.Select(t => (double)t.Liczba)),
-                        Fill = new SolidColorBrush(Color.FromArgb(100, 39, 174, 96)),
-                        MaxColumnWidth = 20,
-                        ScalesYAt = 1
-                    }
-                };
-                chartZamowieniaTrend.AxisX[0].Labels = dane.TrendDzienny.Select(t => t.Data.ToString("dd.MM")).ToList();
+            // Wypełnij ComboBox produktów
+            zamCmbProdukt.Items.Clear();
+            zamCmbProdukt.Items.Add("Wszystkie produkty");
+            foreach (var p in _zamSzczegoly.UnikatoweProdukty)
+                zamCmbProdukt.Items.Add(p);
+            zamCmbProdukt.SelectedIndex = 0;
 
-                if (chartZamowieniaTrend.AxisY.Count < 2)
-                {
-                    chartZamowieniaTrend.AxisY.Add(new Axis
-                    {
-                        Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#8B949E")),
-                        FontSize = 10,
-                        Position = AxisPosition.RightTop
-                    });
-                }
-            }
+            // Konfiguruj DataGrid kolumny
+            zamGridZamowienia.Columns.Clear();
+            zamGridZamowienia.Columns.Add(new DataGridTextColumn { Header = "Klient", Binding = new System.Windows.Data.Binding("Klient"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            zamGridZamowienia.Columns.Add(new DataGridTextColumn { Header = "Status", Binding = new System.Windows.Data.Binding("Status"), Width = 80 });
+            zamGridZamowienia.Columns.Add(new DataGridTextColumn { Header = "Produkt", Binding = new System.Windows.Data.Binding("Produkt"), Width = 200 });
+            zamGridZamowienia.Columns.Add(new DataGridTextColumn { Header = "Ilość [kg]", Binding = new System.Windows.Data.Binding("IloscKg") { StringFormat = "N0" }, Width = 90 });
+            zamGridZamowienia.Columns.Add(new DataGridTextColumn { Header = "Cena", Binding = new System.Windows.Data.Binding("Cena"), Width = 80 });
 
-            // Grid top klientów
-            gridTopKlienci.Columns.Clear();
-            gridTopKlienci.Columns.Add(new DataGridTextColumn { Header = "Klient", Binding = new System.Windows.Data.Binding("Nazwa"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            gridTopKlienci.Columns.Add(new DataGridTextColumn { Header = "Kg", Binding = new System.Windows.Data.Binding("SumaKg") { StringFormat = "N0" }, Width = 90 });
-            gridTopKlienci.Columns.Add(new DataGridTextColumn { Header = "Wartość [zł]", Binding = new System.Windows.Data.Binding("SumaWartosc") { StringFormat = "N0" }, Width = 100 });
-            gridTopKlienci.Columns.Add(new DataGridTextColumn { Header = "Zam.", Binding = new System.Windows.Data.Binding("LiczbaZamowien"), Width = 50 });
-            gridTopKlienci.ItemsSource = dane.TopKlienci;
+            // Pokaż dane
+            OdswiezGridZamowien();
+        }
+
+        private void OdswiezGridZamowien()
+        {
+            if (_zamSzczegoly == null) return;
+
+            var lista = _zamPokazDzis ? _zamSzczegoly.ZamowieniaDzis : _zamSzczegoly.ZamowieniaJutro;
+
+            // Filtr produktu
+            if (!string.IsNullOrEmpty(_zamFiltrProdukt))
+                lista = lista.Where(z => z.Produkt == _zamFiltrProdukt).ToList();
+
+            zamGridZamowienia.ItemsSource = lista;
+
+            // Podsumowanie
+            var unikZam = lista.Select(z => z.ZamowienieId).Distinct().Count();
+            var sumaKg = lista.Sum(z => z.IloscKg);
+            var dzien = _zamPokazDzis ? "DZIŚ" : "JUTRO";
+            zamTxtPodsumowanie.Text = $"{dzien}: {unikZam} zamówień / {sumaKg:N0} kg / {lista.Count} pozycji";
+
+            // Toggle style
+            zamBtnDzis.Background = new SolidColorBrush(_zamPokazDzis
+                ? (Color)ColorConverter.ConvertFromString("#D4A843")
+                : (Color)ColorConverter.ConvertFromString("#3D4450"));
+            zamBtnDzis.Foreground = new SolidColorBrush(_zamPokazDzis
+                ? (Color)ColorConverter.ConvertFromString("#1A1D21")
+                : (Color)ColorConverter.ConvertFromString("#8B949E"));
+
+            zamBtnJutro.Background = new SolidColorBrush(!_zamPokazDzis
+                ? (Color)ColorConverter.ConvertFromString("#D4A843")
+                : (Color)ColorConverter.ConvertFromString("#3D4450"));
+            zamBtnJutro.Foreground = new SolidColorBrush(!_zamPokazDzis
+                ? (Color)ColorConverter.ConvertFromString("#1A1D21")
+                : (Color)ColorConverter.ConvertFromString("#8B949E"));
+        }
+
+        private void ZamBtnDzis_Click(object sender, RoutedEventArgs e)
+        {
+            _zamPokazDzis = true;
+            OdswiezGridZamowien();
+        }
+
+        private void ZamBtnJutro_Click(object sender, RoutedEventArgs e)
+        {
+            _zamPokazDzis = false;
+            OdswiezGridZamowien();
+        }
+
+        private void ZamCmbProdukt_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!_initialized) return;
+            var selected = zamCmbProdukt.SelectedItem?.ToString();
+            _zamFiltrProdukt = selected == "Wszystkie produkty" ? null : selected;
+            OdswiezGridZamowien();
         }
 
         // ════════════════════════════════════════════════════════════════════

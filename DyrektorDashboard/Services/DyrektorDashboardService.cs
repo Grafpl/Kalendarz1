@@ -986,18 +986,22 @@ namespace Kalendarz1.DyrektorDashboard.Services
                         CzyDzisiaj = dzien.Date == today
                     };
 
-                    // Realizacja (rzeczywiste dostawy - CalcDate)
+                    // Realizacja (rzeczywiste dostawy - CalcDate) + liczba dostaw
                     using (var cmd = new SqlCommand(@"
-                        SELECT ISNULL(SUM(ISNULL(NettoWeight,0)),0) as Waga
+                        SELECT ISNULL(SUM(ISNULL(NettoWeight,0)),0) as Waga,
+                               COUNT(*) as Dostawy
                         FROM [dbo].[FarmerCalc] WITH (NOLOCK)
                         WHERE CAST(CalcDate AS DATE) = @dzien
                           AND ISNULL(Deleted,0) = 0", conn))
                     {
                         cmd.Parameters.AddWithValue("@dzien", dzien.Date);
                         cmd.CommandTimeout = CMD_TIMEOUT;
-                        var result = await cmd.ExecuteScalarAsync(ct);
-                        planDzien.RealizacjaKg = result != null && result != DBNull.Value
-                            ? Convert.ToDecimal(result) : 0;
+                        using var rPlan = await cmd.ExecuteReaderAsync(ct);
+                        if (await rPlan.ReadAsync(ct))
+                        {
+                            planDzien.RealizacjaKg = Convert.ToDecimal(rPlan["Waga"]);
+                            planDzien.LiczbaDostaw = rPlan.GetInt32(1);
+                        }
                     }
 
                     // Plan (DeclI1 = planowana ilość sztuk)
@@ -1109,6 +1113,186 @@ namespace Kalendarz1.DyrektorDashboard.Services
                 "Sredni" => 2,
                 _ => 1
             }).ThenByDescending(a => a.Data).ToList();
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // ZAKŁADKA: ZAMÓWIENIA - WIDOK SZCZEGÓŁOWY
+        // Klient + Produkt + Ilość, z rozwiązanymi nazwami z Handel
+        // ════════════════════════════════════════════════════════════════════
+
+        public async Task<DaneZamowieniaSzczegoly> GetDaneZamowieniaSzczegolyAsync(CancellationToken ct = default)
+        {
+            var dane = new DaneZamowieniaSzczegoly();
+            try
+            {
+                using var conn = new SqlConnection(_connLibra);
+                await conn.OpenAsync(ct);
+
+                // Pobierz zamówienia DZIŚ
+                var dzis = await PobierzZamowieniaNaDzienAsync(conn, DateTime.Today, ct);
+                // Pobierz zamówienia JUTRO
+                var jutro = await PobierzZamowieniaNaDzienAsync(conn, DateTime.Today.AddDays(1), ct);
+
+                // Zbierz unikalne KlientId i KodTowaru do batch lookup
+                var allKlientIds = new HashSet<int>();
+                var allKodTowaru = new HashSet<int>();
+                foreach (var z in dzis.Concat(jutro))
+                {
+                    allKlientIds.Add(z.KlientId);
+                    if (z.KodTowaru > 0) allKodTowaru.Add(z.KodTowaru);
+                }
+
+                // Batch lookup nazw klientów z Handel
+                var klientNames = new Dictionary<int, string>();
+                if (allKlientIds.Count > 0)
+                {
+                    try
+                    {
+                        using var connH = new SqlConnection(_connHandel);
+                        await connH.OpenAsync(ct);
+                        // Batch po 100
+                        foreach (var batch in allKlientIds.Select((id, idx) => new { id, idx })
+                            .GroupBy(x => x.idx / 100))
+                        {
+                            var ids = string.Join(",", batch.Select(x => x.id));
+                            using var cmdH = new SqlCommand(
+                                $"SELECT Id, Name FROM [SSCommon].[STContractors] WHERE Id IN ({ids})", connH);
+                            cmdH.CommandTimeout = CMD_TIMEOUT;
+                            using var rH = await cmdH.ExecuteReaderAsync(ct);
+                            while (await rH.ReadAsync(ct))
+                            {
+                                var id = rH.GetInt32(0);
+                                var name = rH["Name"]?.ToString()?.Trim();
+                                if (!string.IsNullOrEmpty(name))
+                                    klientNames[id] = name;
+                            }
+                        }
+                    }
+                    catch { /* Handel niedostępny */ }
+                }
+
+                // Batch lookup nazw produktów z Handel.HM.TW
+                var produktNames = new Dictionary<int, string>();
+                if (allKodTowaru.Count > 0)
+                {
+                    try
+                    {
+                        using var connH = new SqlConnection(_connHandel);
+                        await connH.OpenAsync(ct);
+                        foreach (var batch in allKodTowaru.Select((id, idx) => new { id, idx })
+                            .GroupBy(x => x.idx / 100))
+                        {
+                            var ids = string.Join(",", batch.Select(x => x.id));
+                            using var cmdH = new SqlCommand(
+                                $"SELECT ID, kod FROM [HM].[TW] WHERE ID IN ({ids})", connH);
+                            cmdH.CommandTimeout = CMD_TIMEOUT;
+                            using var rH = await cmdH.ExecuteReaderAsync(ct);
+                            while (await rH.ReadAsync(ct))
+                            {
+                                var id = rH.GetInt32(0);
+                                var kod = rH["kod"]?.ToString()?.Trim();
+                                if (!string.IsNullOrEmpty(kod))
+                                    produktNames[id] = kod;
+                            }
+                        }
+                    }
+                    catch { /* Handel niedostępny */ }
+                }
+
+                // Złóż wyniki DZIŚ
+                foreach (var z in dzis)
+                {
+                    dane.ZamowieniaDzis.Add(new ZamowienieSzczegolyItem
+                    {
+                        ZamowienieId = z.ZamowienieId,
+                        Klient = klientNames.TryGetValue(z.KlientId, out var kn) ? kn : $"Klient #{z.KlientId}",
+                        Status = z.Status,
+                        Produkt = z.KodTowaru > 0 && produktNames.TryGetValue(z.KodTowaru, out var pn) ? pn : (z.KodTowaru > 0 ? $"[{z.KodTowaru}]" : ""),
+                        IloscKg = z.Ilosc,
+                        Cena = z.Cena
+                    });
+                }
+
+                // Złóż wyniki JUTRO
+                foreach (var z in jutro)
+                {
+                    dane.ZamowieniaJutro.Add(new ZamowienieSzczegolyItem
+                    {
+                        ZamowienieId = z.ZamowienieId,
+                        Klient = klientNames.TryGetValue(z.KlientId, out var kn) ? kn : $"Klient #{z.KlientId}",
+                        Status = z.Status,
+                        Produkt = z.KodTowaru > 0 && produktNames.TryGetValue(z.KodTowaru, out var pn) ? pn : (z.KodTowaru > 0 ? $"[{z.KodTowaru}]" : ""),
+                        IloscKg = z.Ilosc,
+                        Cena = z.Cena
+                    });
+                }
+
+                // Sumy
+                dane.LiczbaDzis = dane.ZamowieniaDzis.Select(z => z.ZamowienieId).Distinct().Count();
+                dane.SumaKgDzis = dane.ZamowieniaDzis.Sum(z => z.IloscKg);
+                dane.LiczbaJutro = dane.ZamowieniaJutro.Select(z => z.ZamowienieId).Distinct().Count();
+                dane.SumaKgJutro = dane.ZamowieniaJutro.Sum(z => z.IloscKg);
+
+                // Unikalne produkty (do filtra)
+                dane.UnikatoweProdukty = dane.ZamowieniaDzis
+                    .Concat(dane.ZamowieniaJutro)
+                    .Where(z => !string.IsNullOrEmpty(z.Produkt))
+                    .Select(z => z.Produkt)
+                    .Distinct()
+                    .OrderBy(p => p)
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"ZamowieniaSzczegoly error: {ex.Message}");
+            }
+            return dane;
+        }
+
+        /// <summary>
+        /// Wewnętrzna struktura tymczasowa do pobierania surowych danych zamówień
+        /// </summary>
+        private class ZamowienieRawItem
+        {
+            public int ZamowienieId { get; set; }
+            public int KlientId { get; set; }
+            public string Status { get; set; }
+            public int KodTowaru { get; set; }
+            public decimal Ilosc { get; set; }
+            public string Cena { get; set; }
+        }
+
+        private async Task<List<ZamowienieRawItem>> PobierzZamowieniaNaDzienAsync(
+            SqlConnection conn, DateTime data, CancellationToken ct)
+        {
+            var items = new List<ZamowienieRawItem>();
+            using var cmd = new SqlCommand(@"
+                SELECT z.Id, z.KlientId, ISNULL(z.Status,'Nowe') as Status,
+                       ISNULL(t.KodTowaru,0) as KodTowaru,
+                       ISNULL(t.Ilosc,0) as Ilosc,
+                       ISNULL(t.Cena,'0') as Cena
+                FROM [dbo].[ZamowieniaMieso] z WITH (NOLOCK)
+                LEFT JOIN [dbo].[ZamowieniaMiesoTowar] t WITH (NOLOCK) ON z.Id = t.ZamowienieId
+                WHERE z.DataUboju = @data
+                  AND ISNULL(z.Status,'Nowe') <> 'Anulowane'
+                ORDER BY z.Id, t.KodTowaru", conn);
+            cmd.Parameters.AddWithValue("@data", data.Date);
+            cmd.CommandTimeout = CMD_TIMEOUT;
+
+            using var r = await cmd.ExecuteReaderAsync(ct);
+            while (await r.ReadAsync(ct))
+            {
+                items.Add(new ZamowienieRawItem
+                {
+                    ZamowienieId = r.GetInt32(0),
+                    KlientId = r.IsDBNull(1) ? 0 : Convert.ToInt32(r["KlientId"]),
+                    Status = r["Status"]?.ToString()?.Trim(),
+                    KodTowaru = Convert.ToInt32(r["KodTowaru"]),
+                    Ilosc = Convert.ToDecimal(r["Ilosc"]),
+                    Cena = r["Cena"]?.ToString()?.Trim()
+                });
+            }
+            return items;
         }
 
         // ════════════════════════════════════════════════════════════════════

@@ -268,13 +268,9 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
 
                     <!-- KPI żywiec szczegóły -->
-                    <WrapPanel Grid.Row="0" Grid.ColumnSpan="2" Margin="16,12,16,4">
+                    <WrapPanel Grid.Row="0" Margin="16,12,16,4">
                         <Border Background="#1E3A2A" CornerRadius="8" Padding="16,10" Margin="0,0,10,6">
                             <StackPanel>
                                 <TextBlock Text="DZIŚ" Foreground="#8B949E" FontSize="10"/>
@@ -308,7 +304,7 @@
                     </WrapPanel>
 
                     <!-- ═══ PLAN TYGODNIOWY ŻYWCA (Pon-Pt) ═══ -->
-                    <Border Grid.Row="1" Grid.ColumnSpan="2" Background="#252A31" CornerRadius="8" Margin="16,4,16,4" Padding="14,10">
+                    <Border Grid.Row="1" Background="#252A31" CornerRadius="8" Margin="16,4,16,4" Padding="14,10">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -345,7 +341,7 @@
                                 </Border>
                             </Grid>
 
-                            <!-- 5 kart dni (Pon-Pt) -->
+                            <!-- 5 kart dni (Pon-Pt) z liczbą dostaw -->
                             <UniformGrid Grid.Row="1" Columns="5">
                                 <!-- Poniedziałek -->
                                 <Border x:Name="zywPlanDzien0" CornerRadius="8" Padding="10,8" Margin="0,0,4,0">
@@ -353,6 +349,7 @@
                                         <TextBlock x:Name="zywPlanDzien0Nazwa" Text="Pn" Foreground="#8B949E" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center"/>
                                         <TextBlock x:Name="zywPlanDzien0Data" Text="--" Foreground="#8B949E" FontSize="9" HorizontalAlignment="Center" Margin="0,1,0,4"/>
                                         <TextBlock x:Name="zywPlanDzien0Real" Text="-- kg" Foreground="#27AE60" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="zywPlanDzien0Dost" Text="" Foreground="#D4A843" FontSize="10" HorizontalAlignment="Center"/>
                                         <TextBlock x:Name="zywPlanDzien0Plan" Text="plan: --" Foreground="#8B949E" FontSize="10" HorizontalAlignment="Center"/>
                                         <TextBlock x:Name="zywPlanDzien0Proc" Text="" Foreground="#F39C12" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,2,0,0"/>
                                     </StackPanel>
@@ -363,6 +360,7 @@
                                         <TextBlock x:Name="zywPlanDzien1Nazwa" Text="Wt" Foreground="#8B949E" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center"/>
                                         <TextBlock x:Name="zywPlanDzien1Data" Text="--" Foreground="#8B949E" FontSize="9" HorizontalAlignment="Center" Margin="0,1,0,4"/>
                                         <TextBlock x:Name="zywPlanDzien1Real" Text="-- kg" Foreground="#27AE60" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="zywPlanDzien1Dost" Text="" Foreground="#D4A843" FontSize="10" HorizontalAlignment="Center"/>
                                         <TextBlock x:Name="zywPlanDzien1Plan" Text="plan: --" Foreground="#8B949E" FontSize="10" HorizontalAlignment="Center"/>
                                         <TextBlock x:Name="zywPlanDzien1Proc" Text="" Foreground="#F39C12" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,2,0,0"/>
                                     </StackPanel>
@@ -373,6 +371,7 @@
                                         <TextBlock x:Name="zywPlanDzien2Nazwa" Text="Śr" Foreground="#8B949E" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center"/>
                                         <TextBlock x:Name="zywPlanDzien2Data" Text="--" Foreground="#8B949E" FontSize="9" HorizontalAlignment="Center" Margin="0,1,0,4"/>
                                         <TextBlock x:Name="zywPlanDzien2Real" Text="-- kg" Foreground="#27AE60" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="zywPlanDzien2Dost" Text="" Foreground="#D4A843" FontSize="10" HorizontalAlignment="Center"/>
                                         <TextBlock x:Name="zywPlanDzien2Plan" Text="plan: --" Foreground="#8B949E" FontSize="10" HorizontalAlignment="Center"/>
                                         <TextBlock x:Name="zywPlanDzien2Proc" Text="" Foreground="#F39C12" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,2,0,0"/>
                                     </StackPanel>
@@ -383,6 +382,7 @@
                                         <TextBlock x:Name="zywPlanDzien3Nazwa" Text="Cz" Foreground="#8B949E" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center"/>
                                         <TextBlock x:Name="zywPlanDzien3Data" Text="--" Foreground="#8B949E" FontSize="9" HorizontalAlignment="Center" Margin="0,1,0,4"/>
                                         <TextBlock x:Name="zywPlanDzien3Real" Text="-- kg" Foreground="#27AE60" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="zywPlanDzien3Dost" Text="" Foreground="#D4A843" FontSize="10" HorizontalAlignment="Center"/>
                                         <TextBlock x:Name="zywPlanDzien3Plan" Text="plan: --" Foreground="#8B949E" FontSize="10" HorizontalAlignment="Center"/>
                                         <TextBlock x:Name="zywPlanDzien3Proc" Text="" Foreground="#F39C12" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,2,0,0"/>
                                     </StackPanel>
@@ -393,6 +393,7 @@
                                         <TextBlock x:Name="zywPlanDzien4Nazwa" Text="Pt" Foreground="#8B949E" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center"/>
                                         <TextBlock x:Name="zywPlanDzien4Data" Text="--" Foreground="#8B949E" FontSize="9" HorizontalAlignment="Center" Margin="0,1,0,4"/>
                                         <TextBlock x:Name="zywPlanDzien4Real" Text="-- kg" Foreground="#27AE60" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="zywPlanDzien4Dost" Text="" Foreground="#D4A843" FontSize="10" HorizontalAlignment="Center"/>
                                         <TextBlock x:Name="zywPlanDzien4Plan" Text="plan: --" Foreground="#8B949E" FontSize="10" HorizontalAlignment="Center"/>
                                         <TextBlock x:Name="zywPlanDzien4Proc" Text="" Foreground="#F39C12" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,2,0,0"/>
                                     </StackPanel>
@@ -401,40 +402,35 @@
                         </Grid>
                     </Border>
 
-                    <!-- Wykres trend 8 tygodni -->
-                    <Border Grid.Row="2" Grid.Column="0" Background="#252A31" CornerRadius="8" Margin="16,4,8,16" Padding="12">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
-                            <TextBlock Text="Trend tygodniowy (8 tyg.)" Foreground="#8B949E" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                            <lvc:CartesianChart Grid.Row="1" x:Name="chartZywiecTrend" Hoverable="True" DisableAnimations="True">
-                                <lvc:CartesianChart.AxisX>
-                                    <lvc:Axis Foreground="#8B949E" FontSize="10" Separator="{x:Static lvc:DefaultAxes.CleanSeparator}"/>
-                                </lvc:CartesianChart.AxisX>
-                                <lvc:CartesianChart.AxisY>
-                                    <lvc:Axis Foreground="#8B949E" FontSize="10" LabelFormatter="{Binding KgFormatter}"/>
-                                </lvc:CartesianChart.AxisY>
-                            </lvc:CartesianChart>
-                        </Grid>
-                    </Border>
+                    <!-- Top hodowcy (lewa) + Dostawy dziś (prawa) -->
+                    <Grid Grid.Row="2" Margin="16,4,16,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
 
-                    <!-- Top hodowcy + dostawy dziś -->
-                    <Border Grid.Row="2" Grid.Column="1" Background="#252A31" CornerRadius="8" Margin="8,4,16,16" Padding="12">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
-                            <TextBlock Text="Top 5 hodowców (miesiąc)" Foreground="#8B949E" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                            <DataGrid Grid.Row="1" x:Name="gridTopHodowcy" Margin="0,0,0,8"/>
-                            <TextBlock Grid.Row="2" Text="Dostawy dzisiejsze" Foreground="#8B949E" FontSize="12" FontWeight="SemiBold" Margin="0,4,0,4"/>
-                            <DataGrid Grid.Row="3" x:Name="gridDostawyDzis"/>
-                        </Grid>
-                    </Border>
+                        <Border Grid.Column="0" Background="#252A31" CornerRadius="8" Margin="0,0,4,0" Padding="12">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Text="Top 5 hodowców (miesiąc)" Foreground="#8B949E" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                                <DataGrid Grid.Row="1" x:Name="gridTopHodowcy"/>
+                            </Grid>
+                        </Border>
+
+                        <Border Grid.Column="1" Background="#252A31" CornerRadius="8" Margin="4,0,0,0" Padding="12">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Text="Dostawy dzisiejsze" Foreground="#8B949E" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                                <DataGrid Grid.Row="1" x:Name="gridDostawyDzis"/>
+                            </Grid>
+                        </Border>
+                    </Grid>
                 </Grid>
             </TabItem>
 
@@ -443,14 +439,12 @@
                 <Grid Background="{StaticResource CardBgLight}">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
 
-                    <WrapPanel Grid.Row="0" Grid.ColumnSpan="2" Margin="16,12">
+                    <!-- KPI zamówienia -->
+                    <WrapPanel Grid.Row="0" Margin="16,12,16,4">
                         <Border Background="#1E2A3A" CornerRadius="8" Padding="16,10" Margin="0,0,10,6">
                             <StackPanel>
                                 <TextBlock Text="DZIŚ" Foreground="#8B949E" FontSize="10"/>
@@ -471,35 +465,58 @@
                         </Border>
                     </WrapPanel>
 
-                    <!-- Trend dzienny 14 dni -->
-                    <Border Grid.Row="1" Grid.Column="0" Background="#252A31" CornerRadius="8" Margin="16,0,8,16" Padding="12">
+                    <!-- Pasek filtrów: DZIŚ/JUTRO + filtr produktu + podsumowanie -->
+                    <Border Grid.Row="1" Background="#252A31" CornerRadius="8" Margin="16,4,16,4" Padding="12,8">
                         <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
-                            <TextBlock Text="Trend zamówień (14 dni)" Foreground="#8B949E" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                            <lvc:CartesianChart Grid.Row="1" x:Name="chartZamowieniaTrend" Hoverable="True" DisableAnimations="True">
-                                <lvc:CartesianChart.AxisX>
-                                    <lvc:Axis Foreground="#8B949E" FontSize="10" Separator="{x:Static lvc:DefaultAxes.CleanSeparator}"/>
-                                </lvc:CartesianChart.AxisX>
-                                <lvc:CartesianChart.AxisY>
-                                    <lvc:Axis Foreground="#8B949E" FontSize="10" LabelFormatter="{Binding KgFormatter}"/>
-                                </lvc:CartesianChart.AxisY>
-                            </lvc:CartesianChart>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Toggle DZIŚ / JUTRO -->
+                            <Button x:Name="zamBtnDzis" Grid.Column="0" Content="DZIŚ" Click="ZamBtnDzis_Click"
+                                    Padding="16,8" FontSize="12" FontWeight="Bold" Cursor="Hand" Margin="0,0,4,0"
+                                    Background="#D4A843" Foreground="#1A1D21" BorderThickness="0">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                            <Button x:Name="zamBtnJutro" Grid.Column="1" Content="JUTRO" Click="ZamBtnJutro_Click"
+                                    Padding="16,8" FontSize="12" FontWeight="Bold" Cursor="Hand" Margin="0,0,16,0"
+                                    Background="#3D4450" Foreground="#8B949E" BorderThickness="0">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+
+                            <!-- Filtr produktu -->
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="Produkt: " Foreground="#8B949E" FontSize="11" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                <ComboBox x:Name="zamCmbProdukt" Width="250" FontSize="12"
+                                          Background="#1A1D21" Foreground="#FFFFFF" BorderBrush="#30363D"
+                                          SelectionChanged="ZamCmbProdukt_SelectionChanged"/>
+                            </StackPanel>
+
+                            <!-- Podsumowanie -->
+                            <TextBlock x:Name="zamTxtPodsumowanie" Grid.Column="4" Text="--"
+                                       Foreground="#D4A843" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
                         </Grid>
                     </Border>
 
-                    <!-- Top klienci -->
-                    <Border Grid.Row="1" Grid.Column="1" Background="#252A31" CornerRadius="8" Margin="8,0,16,16" Padding="12">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
-                            <TextBlock Text="Top 10 klientów (miesiąc)" Foreground="#8B949E" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                            <DataGrid Grid.Row="1" x:Name="gridTopKlienci"/>
-                        </Grid>
+                    <!-- DataGrid zamówień -->
+                    <Border Grid.Row="2" Background="#252A31" CornerRadius="8" Margin="16,4,16,16" Padding="12">
+                        <DataGrid x:Name="zamGridZamowienia"/>
                     </Border>
                 </Grid>
             </TabItem>
