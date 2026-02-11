@@ -106,7 +106,6 @@ namespace Kalendarz1.DyrektorDashboard.Services
         {
             var kpi = new KpiKartyDyrektora();
 
-            // 3 grupy równoległych zapytań (po jednym na bazę)
             var taskLibra = Task.Run(async () =>
             {
                 try
@@ -114,12 +113,14 @@ namespace Kalendarz1.DyrektorDashboard.Services
                     using var conn = new SqlConnection(_connLibra);
                     await conn.OpenAsync(ct);
 
-                    // Żywiec dzisiaj
+                    // Żywiec dzisiaj (FarmerCalc: CalcDate, NettoWeight, LumQnt)
                     using (var cmd = new SqlCommand(@"
-                        SELECT COUNT(*) as Dostawy, ISNULL(SUM(LumQnt),0) as Sztuki,
-                               ISNULL(SUM(NettoWeight),0) as WagaKg
+                        SELECT COUNT(*) as Dostawy,
+                               ISNULL(SUM(ISNULL(LumQnt,0)),0) as Sztuki,
+                               ISNULL(SUM(ISNULL(NettoWeight,0)),0) as WagaKg
                         FROM [dbo].[FarmerCalc] WITH (NOLOCK)
-                        WHERE CAST(DataPrzyjecia AS DATE) = CAST(GETDATE() AS DATE)", conn))
+                        WHERE CAST(CalcDate AS DATE) = CAST(GETDATE() AS DATE)
+                          AND ISNULL(Deleted,0) = 0", conn))
                     {
                         cmd.CommandTimeout = CMD_TIMEOUT;
                         using var r = await cmd.ExecuteReaderAsync(ct);
@@ -131,13 +132,14 @@ namespace Kalendarz1.DyrektorDashboard.Services
                         }
                     }
 
-                    // Zamówienia dzisiaj
+                    // Zamówienia dzisiaj (ZamowieniaMieso: DataUboju, ilości w ZamowieniaMiesoTowar)
                     using (var cmd = new SqlCommand(@"
-                        SELECT COUNT(DISTINCT z.ID) as Liczba,
-                               ISNULL(SUM(z.IloscKg),0) as SumaKg,
-                               ISNULL(SUM(z.IloscKg * z.CenaNetto),0) as SumaWartosc
+                        SELECT COUNT(DISTINCT z.Id) as Liczba,
+                               ISNULL(SUM(ISNULL(t.Ilosc,0)),0) as SumaKg
                         FROM [dbo].[ZamowieniaMieso] z WITH (NOLOCK)
-                        WHERE CAST(z.DataOdbioru AS DATE) = CAST(GETDATE() AS DATE)", conn))
+                        LEFT JOIN [dbo].[ZamowieniaMiesoTowar] t WITH (NOLOCK) ON z.Id = t.ZamowienieId
+                        WHERE z.DataUboju = CAST(GETDATE() AS DATE)
+                          AND ISNULL(z.Status,'Nowe') <> 'Anulowane'", conn))
                     {
                         cmd.CommandTimeout = CMD_TIMEOUT;
                         using var r = await cmd.ExecuteReaderAsync(ct);
@@ -145,15 +147,17 @@ namespace Kalendarz1.DyrektorDashboard.Services
                         {
                             kpi.ZamowieniaDzisLiczba = r.GetInt32(0);
                             kpi.ZamowieniaDzisKg = Convert.ToDecimal(r["SumaKg"]);
-                            kpi.ZamowieniaDzisWartosc = Convert.ToDecimal(r["SumaWartosc"]);
                         }
                     }
 
                     // Zamówienia jutro
                     using (var cmd = new SqlCommand(@"
-                        SELECT COUNT(DISTINCT z.ID) as Liczba, ISNULL(SUM(z.IloscKg),0) as SumaKg
+                        SELECT COUNT(DISTINCT z.Id) as Liczba,
+                               ISNULL(SUM(ISNULL(t.Ilosc,0)),0) as SumaKg
                         FROM [dbo].[ZamowieniaMieso] z WITH (NOLOCK)
-                        WHERE CAST(z.DataOdbioru AS DATE) = CAST(DATEADD(DAY,1,GETDATE()) AS DATE)", conn))
+                        LEFT JOIN [dbo].[ZamowieniaMiesoTowar] t WITH (NOLOCK) ON z.Id = t.ZamowienieId
+                        WHERE z.DataUboju = CAST(DATEADD(DAY,1,GETDATE()) AS DATE)
+                          AND ISNULL(z.Status,'Nowe') <> 'Anulowane'", conn))
                     {
                         cmd.CommandTimeout = CMD_TIMEOUT;
                         using var r = await cmd.ExecuteReaderAsync(ct);
@@ -164,20 +168,20 @@ namespace Kalendarz1.DyrektorDashboard.Services
                         }
                     }
 
-                    // Reklamacje otwarte
+                    // Reklamacje otwarte (NazwaKontrahenta, Status, SumaKg)
                     using (var cmd = new SqlCommand(@"
                         SELECT
-                            SUM(CASE WHEN Status = 'Nowa' THEN 1 ELSE 0 END) as Nowe,
-                            SUM(CASE WHEN Status IN ('Nowa','W trakcie') THEN 1 ELSE 0 END) as Otwarte,
-                            ISNULL(SUM(CASE WHEN Status IN ('Nowa','W trakcie') THEN SumaKg ELSE 0 END),0) as SumaKg
+                            ISNULL(SUM(CASE WHEN Status = 'Nowa' THEN 1 ELSE 0 END),0) as Nowe,
+                            ISNULL(SUM(CASE WHEN Status IN ('Nowa','W trakcie') THEN 1 ELSE 0 END),0) as Otwarte,
+                            ISNULL(SUM(CASE WHEN Status IN ('Nowa','W trakcie') THEN ISNULL(SumaKg,0) ELSE 0 END),0) as SumaKg
                         FROM [dbo].[Reklamacje] WITH (NOLOCK)", conn))
                     {
                         cmd.CommandTimeout = CMD_TIMEOUT;
                         using var r = await cmd.ExecuteReaderAsync(ct);
                         if (await r.ReadAsync(ct))
                         {
-                            kpi.ReklamacjeNowe = r.IsDBNull(0) ? 0 : r.GetInt32(0);
-                            kpi.ReklamacjeOtwarte = r.IsDBNull(1) ? 0 : r.GetInt32(1);
+                            kpi.ReklamacjeNowe = Convert.ToInt32(r["Nowe"]);
+                            kpi.ReklamacjeOtwarte = Convert.ToInt32(r["Otwarte"]);
                             kpi.ReklamacjeSumaKg = Convert.ToDecimal(r["SumaKg"]);
                         }
                     }
@@ -195,36 +199,37 @@ namespace Kalendarz1.DyrektorDashboard.Services
                     using var conn = new SqlConnection(_connHandel);
                     await conn.OpenAsync(ct);
 
-                    // Produkcja dzisiaj (sPWU = przyjęcie wewnętrzne uboju, LWP = likwidacja wyrobu)
+                    // Produkcja dzisiaj (JOIN: MZ.super=MG.id, kolumna: MZ.ilosc, data: MG.data)
                     using (var cmd = new SqlCommand(@"
                         SELECT
-                            ISNULL(SUM(CASE WHEN MG.seria = 'sPWU' THEN ABS(MZ.iloscwp) ELSE 0 END),0) as UbojKg,
-                            ISNULL(SUM(CASE WHEN MG.seria = 'LWP' THEN ABS(MZ.iloscwp) ELSE 0 END),0) as LWPKg
+                            ISNULL(SUM(CASE WHEN MG.seria IN ('sPWU','sPWP','PWP') THEN ABS(MZ.ilosc) ELSE 0 END),0) as UbojKg,
+                            ISNULL(SUM(CASE WHEN MG.seria IN ('sWZ','sWZ-W') THEN ABS(MZ.ilosc) ELSE 0 END),0) as WydaniaKg
                         FROM [HM].[MG] MG WITH (NOLOCK)
-                        JOIN [HM].[MZ] MZ WITH (NOLOCK) ON MG.GIDNumer = MZ.GIDNumer AND MG.GIDTyp = MZ.GIDTyp
-                        WHERE CAST(MG.data_ AS DATE) = CAST(GETDATE() AS DATE)
-                          AND MG.seria IN ('sPWU','LWP','RWP')", conn))
+                        JOIN [HM].[MZ] MZ WITH (NOLOCK) ON MZ.super = MG.id
+                        WHERE MG.data = CAST(GETDATE() AS DATE)
+                          AND MG.aktywny = 1
+                          AND MG.seria IN ('sPWU','sPWP','PWP','sWZ','sWZ-W')", conn))
                     {
                         cmd.CommandTimeout = CMD_TIMEOUT;
                         using var r = await cmd.ExecuteReaderAsync(ct);
                         if (await r.ReadAsync(ct))
                         {
                             kpi.ProdukcjaDzisKg = Convert.ToDecimal(r["UbojKg"]);
-                            kpi.ProdukcjaLWPKg = Convert.ToDecimal(r["LWPKg"]);
+                            kpi.ProdukcjaLWPKg = Convert.ToDecimal(r["WydaniaKg"]);
                         }
                     }
 
-                    // Magazyn mroźni - stan aktualny
+                    // Magazyn mroźni - stan aktualny (MZ.iloscwp dla stanu kumulatywnego)
                     using (var cmd = new SqlCommand($@"
                         SELECT
-                            ISNULL(SUM(ABS(MZ.iloscwp)),0) as StanKg,
-                            ISNULL(SUM(ABS(MZ.wartNetto)),0) as StanWartosc
-                        FROM [HM].[MZ] MZ WITH (NOLOCK)
-                        WHERE MZ.data_ >= '{DATA_STARTOWA}'
-                          AND MZ.data_ <= GETDATE()
-                          AND MZ.magazyn = {MAGAZYN_MROZNIA}
-                          AND MZ.typ = '0'
-                        HAVING ABS(SUM(MZ.iloscwp)) > 0", conn))
+                            ISNULL(SUM(ABS([iloscwp])),0) as StanKg,
+                            ISNULL(SUM(ABS([wartNetto])),0) as StanWartosc
+                        FROM [HM].[MZ] WITH (NOLOCK)
+                        WHERE [data] >= '{DATA_STARTOWA}'
+                          AND [data] <= GETDATE()
+                          AND [magazyn] = {MAGAZYN_MROZNIA}
+                          AND typ = '0'
+                        HAVING ABS(SUM([iloscwp])) > 0", conn))
                     {
                         cmd.CommandTimeout = CMD_TIMEOUT;
                         using var r = await cmd.ExecuteReaderAsync(ct);
@@ -251,8 +256,8 @@ namespace Kalendarz1.DyrektorDashboard.Services
                     using var cmd = new SqlCommand(@"
                         SELECT
                             COUNT(*) as KursyDzis,
-                            SUM(CASE WHEN Status IN ('Przypisany','Wlasny') THEN 1 ELSE 0 END) as Aktywne,
-                            SUM(CASE WHEN Status = 'Zakonczony' THEN 1 ELSE 0 END) as Zakonczone,
+                            ISNULL(SUM(CASE WHEN Status IN ('Przypisany','Wlasny') THEN 1 ELSE 0 END),0) as Aktywne,
+                            ISNULL(SUM(CASE WHEN Status = 'Zakonczony' THEN 1 ELSE 0 END),0) as Zakonczone,
                             COUNT(DISTINCT KierowcaID) as Kierowcy
                         FROM [dbo].[Kurs] WITH (NOLOCK)
                         WHERE CAST(DataKursu AS DATE) = CAST(GETDATE() AS DATE)", conn);
@@ -262,9 +267,9 @@ namespace Kalendarz1.DyrektorDashboard.Services
                     if (await r.ReadAsync(ct))
                     {
                         kpi.TransportDzisKursy = r.GetInt32(0);
-                        kpi.TransportAktywneKursy = r.IsDBNull(1) ? 0 : r.GetInt32(1);
-                        kpi.TransportZakonczoneKursy = r.IsDBNull(2) ? 0 : r.GetInt32(2);
-                        kpi.TransportKierowcyAktywni = r.IsDBNull(3) ? 0 : r.GetInt32(3);
+                        kpi.TransportAktywneKursy = Convert.ToInt32(r["Aktywne"]);
+                        kpi.TransportZakonczoneKursy = Convert.ToInt32(r["Zakonczone"]);
+                        kpi.TransportKierowcyAktywni = Convert.ToInt32(r["Kierowcy"]);
                     }
                 }
                 catch (Exception ex)
@@ -279,6 +284,8 @@ namespace Kalendarz1.DyrektorDashboard.Services
 
         // ════════════════════════════════════════════════════════════════════
         // ZAKŁADKA: ŻYWIEC
+        // FarmerCalc: CalcDate (data), NettoWeight (waga), LumQnt (sztuki),
+        //   DeclI1 (plan szt.), CustomerGID → Dostawcy.ID, Deleted
         // ════════════════════════════════════════════════════════════════════
 
         public async Task<DaneZywiec> GetDaneZywiecAsync(CancellationToken ct = default)
@@ -291,14 +298,19 @@ namespace Kalendarz1.DyrektorDashboard.Services
 
                 // Dzisiaj - szczegóły
                 using (var cmd = new SqlCommand(@"
-                    SELECT COUNT(*) as Dostawy, ISNULL(SUM(LumQnt),0) as Sztuki,
-                           ISNULL(SUM(NettoWeight),0) as WagaKg,
-                           ISNULL(SUM((Price + ISNULL(Addition,0)) * NettoWeight * (1 - ISNULL(Loss,0)/100.0)),0) as Wartosc,
-                           ISNULL(AVG(Price + ISNULL(Addition,0)),0) as SredniaCena,
-                           ISNULL(AVG(ISNULL(Loss,0)),0) as SredniUbytek,
-                           ISNULL(SUM(IncDeadConf),0) as Padniete
+                    SELECT COUNT(*) as Dostawy,
+                           ISNULL(SUM(ISNULL(LumQnt,0)),0) as Sztuki,
+                           ISNULL(SUM(ISNULL(NettoWeight,0)),0) as WagaKg,
+                           ISNULL(SUM(ISNULL(NettoWeight,0)),0) as Wartosc,
+                           CASE WHEN SUM(ISNULL(LumQnt,0)) > 0
+                                THEN SUM(ISNULL(NettoWeight,0)) / SUM(ISNULL(LumQnt,0))
+                                ELSE 0 END as SredniaWagaSzt,
+                           CASE WHEN SUM(ISNULL(NettoWeight,0)) > 0 AND SUM(COALESCE(NettoFarmWeight, WagaDek, 0)) > 0
+                                THEN (1.0 - SUM(ISNULL(NettoWeight,0)) / NULLIF(SUM(COALESCE(NettoFarmWeight, WagaDek, 0)),0)) * 100
+                                ELSE 0 END as SredniUbytek
                     FROM [dbo].[FarmerCalc] WITH (NOLOCK)
-                    WHERE CAST(DataPrzyjecia AS DATE) = CAST(GETDATE() AS DATE)", conn))
+                    WHERE CAST(CalcDate AS DATE) = CAST(GETDATE() AS DATE)
+                      AND ISNULL(Deleted,0) = 0", conn))
                 {
                     cmd.CommandTimeout = CMD_TIMEOUT;
                     using var r = await cmd.ExecuteReaderAsync(ct);
@@ -308,55 +320,53 @@ namespace Kalendarz1.DyrektorDashboard.Services
                         dane.DzisSztuki = Convert.ToInt32(r["Sztuki"]);
                         dane.DzisKg = Convert.ToDecimal(r["WagaKg"]);
                         dane.DzisWartosc = Convert.ToDecimal(r["Wartosc"]);
-                        dane.SredniaCenaDzis = Convert.ToDecimal(r["SredniaCena"]);
+                        dane.SredniaCenaDzis = Convert.ToDecimal(r["SredniaWagaSzt"]);
                         dane.SredniUbytekDzis = Convert.ToDecimal(r["SredniUbytek"]);
-                        dane.PadnieteDzis = Convert.ToInt32(r["Padniete"]);
                     }
                 }
 
                 // Tydzień
                 using (var cmd = new SqlCommand(@"
-                    SELECT ISNULL(SUM(NettoWeight),0) as Waga,
-                           ISNULL(SUM((Price + ISNULL(Addition,0)) * NettoWeight * (1 - ISNULL(Loss,0)/100.0)),0) as Wartosc
+                    SELECT ISNULL(SUM(ISNULL(NettoWeight,0)),0) as Waga
                     FROM [dbo].[FarmerCalc] WITH (NOLOCK)
-                    WHERE DataPrzyjecia >= DATEADD(DAY,-7,GETDATE())", conn))
+                    WHERE CalcDate >= DATEADD(DAY,-7,GETDATE())
+                      AND ISNULL(Deleted,0) = 0", conn))
                 {
                     cmd.CommandTimeout = CMD_TIMEOUT;
                     using var r = await cmd.ExecuteReaderAsync(ct);
                     if (await r.ReadAsync(ct))
                     {
                         dane.TydzienKg = Convert.ToDecimal(r["Waga"]);
-                        dane.TydzienWartosc = Convert.ToDecimal(r["Wartosc"]);
                     }
                 }
 
                 // Miesiąc
                 using (var cmd = new SqlCommand(@"
-                    SELECT ISNULL(SUM(NettoWeight),0) as Waga,
-                           ISNULL(SUM((Price + ISNULL(Addition,0)) * NettoWeight * (1 - ISNULL(Loss,0)/100.0)),0) as Wartosc
+                    SELECT ISNULL(SUM(ISNULL(NettoWeight,0)),0) as Waga
                     FROM [dbo].[FarmerCalc] WITH (NOLOCK)
-                    WHERE DataPrzyjecia >= DATEADD(MONTH,-1,GETDATE())", conn))
+                    WHERE CalcDate >= DATEADD(MONTH,-1,GETDATE())
+                      AND ISNULL(Deleted,0) = 0", conn))
                 {
                     cmd.CommandTimeout = CMD_TIMEOUT;
                     using var r = await cmd.ExecuteReaderAsync(ct);
                     if (await r.ReadAsync(ct))
                     {
                         dane.MiesiacKg = Convert.ToDecimal(r["Waga"]);
-                        dane.MiesiacWartosc = Convert.ToDecimal(r["Wartosc"]);
                     }
                 }
 
-                // Top 5 hodowców (miesiąc)
+                // Top 5 hodowców (miesiąc) - Dostawcy table
                 using (var cmd = new SqlCommand(@"
-                    SELECT TOP 5 c.Name as Nazwa, c.City as Miasto,
-                           SUM(fc.NettoWeight) as Waga,
-                           SUM((fc.Price + ISNULL(fc.Addition,0)) * fc.NettoWeight) as Wartosc,
+                    SELECT TOP 5 d.Nazwa as Nazwa, d.Miejscowosc as Miasto,
+                           SUM(ISNULL(fc.NettoWeight,0)) as Waga,
+                           SUM(ISNULL(fc.NettoWeight,0)) as Wartosc,
                            COUNT(*) as Dostawy
                     FROM [dbo].[FarmerCalc] fc WITH (NOLOCK)
-                    JOIN [dbo].[Customer] c ON fc.CustomerGID = c.GID
-                    WHERE fc.DataPrzyjecia >= DATEADD(MONTH,-1,GETDATE())
-                    GROUP BY c.Name, c.City
-                    ORDER BY SUM(fc.NettoWeight) DESC", conn))
+                    LEFT JOIN [dbo].[Dostawcy] d ON LTRIM(RTRIM(CAST(d.ID AS NVARCHAR(20)))) = LTRIM(RTRIM(fc.CustomerGID))
+                    WHERE fc.CalcDate >= DATEADD(MONTH,-1,GETDATE())
+                      AND ISNULL(fc.Deleted,0) = 0
+                    GROUP BY d.Nazwa, d.Miejscowosc
+                    ORDER BY SUM(ISNULL(fc.NettoWeight,0)) DESC", conn))
                 {
                     cmd.CommandTimeout = CMD_TIMEOUT;
                     using var r = await cmd.ExecuteReaderAsync(ct);
@@ -366,7 +376,7 @@ namespace Kalendarz1.DyrektorDashboard.Services
                         dane.TopHodowcy.Add(new TopHodowcaItem
                         {
                             Pozycja = poz++,
-                            Nazwa = r["Nazwa"]?.ToString(),
+                            Nazwa = r["Nazwa"]?.ToString() ?? "(brak)",
                             Miasto = r["Miasto"]?.ToString(),
                             WagaKg = Convert.ToDecimal(r["Waga"]),
                             Wartosc = Convert.ToDecimal(r["Wartosc"]),
@@ -377,16 +387,19 @@ namespace Kalendarz1.DyrektorDashboard.Services
 
                 // Trend 8 tygodni
                 using (var cmd = new SqlCommand(@"
-                    SELECT DATEPART(WEEK, DataPrzyjecia) as Tydzien,
-                           MIN(DataPrzyjecia) as Poczatek,
-                           SUM(NettoWeight) as Waga,
-                           SUM((Price + ISNULL(Addition,0)) * NettoWeight * (1 - ISNULL(Loss,0)/100.0)) as Wartosc,
-                           AVG(Price + ISNULL(Addition,0)) as SredniaCena,
+                    SELECT DATEPART(WEEK, CalcDate) as Tydzien,
+                           MIN(CalcDate) as Poczatek,
+                           SUM(ISNULL(NettoWeight,0)) as Waga,
+                           SUM(ISNULL(NettoWeight,0)) as Wartosc,
+                           CASE WHEN SUM(ISNULL(LumQnt,0)) > 0
+                                THEN SUM(ISNULL(NettoWeight,0)) / SUM(ISNULL(LumQnt,0))
+                                ELSE 0 END as SredniaCena,
                            COUNT(*) as Dostawy
                     FROM [dbo].[FarmerCalc] WITH (NOLOCK)
-                    WHERE DataPrzyjecia >= DATEADD(WEEK,-8,GETDATE())
-                    GROUP BY DATEPART(YEAR, DataPrzyjecia), DATEPART(WEEK, DataPrzyjecia)
-                    ORDER BY MIN(DataPrzyjecia)", conn))
+                    WHERE CalcDate >= DATEADD(WEEK,-8,GETDATE())
+                      AND ISNULL(Deleted,0) = 0
+                    GROUP BY DATEPART(YEAR, CalcDate), DATEPART(WEEK, CalcDate)
+                    ORDER BY MIN(CalcDate)", conn))
                 {
                     cmd.CommandTimeout = CMD_TIMEOUT;
                     using var r = await cmd.ExecuteReaderAsync(ct);
@@ -406,14 +419,19 @@ namespace Kalendarz1.DyrektorDashboard.Services
 
                 // Dostawy dzisiejsze (lista)
                 using (var cmd = new SqlCommand(@"
-                    SELECT TOP 20 fc.DataPrzyjecia, c.Name as Hodowca, fc.LumQnt as Sztuki,
-                           fc.NettoWeight as Waga, (fc.Price + ISNULL(fc.Addition,0)) as Cena,
-                           d.Name as Kierowca
+                    SELECT TOP 20 fc.CalcDate as Godzina,
+                           d.Nazwa as Hodowca,
+                           ISNULL(fc.LumQnt,0) as Sztuki,
+                           ISNULL(fc.NettoWeight,0) as Waga,
+                           CASE WHEN ISNULL(fc.LumQnt,0) > 0
+                                THEN fc.NettoWeight / fc.LumQnt
+                                ELSE 0 END as SrWagaSzt,
+                           '' as Kierowca
                     FROM [dbo].[FarmerCalc] fc WITH (NOLOCK)
-                    JOIN [dbo].[Customer] c ON fc.CustomerGID = c.GID
-                    LEFT JOIN [dbo].[Drivers] d ON fc.DriverGID = d.GID
-                    WHERE CAST(fc.DataPrzyjecia AS DATE) = CAST(GETDATE() AS DATE)
-                    ORDER BY fc.DataPrzyjecia DESC", conn))
+                    LEFT JOIN [dbo].[Dostawcy] d ON LTRIM(RTRIM(CAST(d.ID AS NVARCHAR(20)))) = LTRIM(RTRIM(fc.CustomerGID))
+                    WHERE CAST(fc.CalcDate AS DATE) = CAST(GETDATE() AS DATE)
+                      AND ISNULL(fc.Deleted,0) = 0
+                    ORDER BY fc.CalcDate DESC", conn))
                 {
                     cmd.CommandTimeout = CMD_TIMEOUT;
                     using var r = await cmd.ExecuteReaderAsync(ct);
@@ -422,10 +440,10 @@ namespace Kalendarz1.DyrektorDashboard.Services
                         dane.DostawyDzis.Add(new DostawaDzisItem
                         {
                             Godzina = r.GetDateTime(0),
-                            Hodowca = r["Hodowca"]?.ToString(),
+                            Hodowca = r["Hodowca"]?.ToString() ?? "(brak)",
                             Sztuki = Convert.ToInt32(r["Sztuki"]),
                             WagaKg = Convert.ToDecimal(r["Waga"]),
-                            Cena = Convert.ToDecimal(r["Cena"]),
+                            Cena = Convert.ToDecimal(r["SrWagaSzt"]),
                             Kierowca = r["Kierowca"]?.ToString()
                         });
                     }
@@ -440,6 +458,8 @@ namespace Kalendarz1.DyrektorDashboard.Services
 
         // ════════════════════════════════════════════════════════════════════
         // ZAKŁADKA: ZAMÓWIENIA
+        // ZamowieniaMieso: DataUboju (data uboju), KlientId (FK do Handel.SSCommon.STContractors)
+        // ZamowieniaMiesoTowar: ZamowienieId, KodTowaru, Ilosc, Cena (varchar!)
         // ════════════════════════════════════════════════════════════════════
 
         public async Task<DaneZamowienia> GetDaneZamowieniaAsync(CancellationToken ct = default)
@@ -452,10 +472,12 @@ namespace Kalendarz1.DyrektorDashboard.Services
 
                 // Zamówienia dziś
                 using (var cmd = new SqlCommand(@"
-                    SELECT COUNT(DISTINCT ID) as Liczba, ISNULL(SUM(IloscKg),0) as SumaKg,
-                           ISNULL(SUM(IloscKg * CenaNetto),0) as Wartosc
-                    FROM [dbo].[ZamowieniaMieso] WITH (NOLOCK)
-                    WHERE CAST(DataOdbioru AS DATE) = CAST(GETDATE() AS DATE)", conn))
+                    SELECT COUNT(DISTINCT z.Id) as Liczba,
+                           ISNULL(SUM(ISNULL(t.Ilosc,0)),0) as SumaKg
+                    FROM [dbo].[ZamowieniaMieso] z WITH (NOLOCK)
+                    LEFT JOIN [dbo].[ZamowieniaMiesoTowar] t WITH (NOLOCK) ON z.Id = t.ZamowienieId
+                    WHERE z.DataUboju = CAST(GETDATE() AS DATE)
+                      AND ISNULL(z.Status,'Nowe') <> 'Anulowane'", conn))
                 {
                     cmd.CommandTimeout = CMD_TIMEOUT;
                     using var r = await cmd.ExecuteReaderAsync(ct);
@@ -463,16 +485,17 @@ namespace Kalendarz1.DyrektorDashboard.Services
                     {
                         dane.LiczbaZamowienDzis = r.GetInt32(0);
                         dane.SumaKgDzis = Convert.ToDecimal(r["SumaKg"]);
-                        dane.SumaWartoscDzis = Convert.ToDecimal(r["Wartosc"]);
                     }
                 }
 
                 // Zamówienia jutro
                 using (var cmd = new SqlCommand(@"
-                    SELECT COUNT(DISTINCT ID) as Liczba, ISNULL(SUM(IloscKg),0) as SumaKg,
-                           ISNULL(SUM(IloscKg * CenaNetto),0) as Wartosc
-                    FROM [dbo].[ZamowieniaMieso] WITH (NOLOCK)
-                    WHERE CAST(DataOdbioru AS DATE) = CAST(DATEADD(DAY,1,GETDATE()) AS DATE)", conn))
+                    SELECT COUNT(DISTINCT z.Id) as Liczba,
+                           ISNULL(SUM(ISNULL(t.Ilosc,0)),0) as SumaKg
+                    FROM [dbo].[ZamowieniaMieso] z WITH (NOLOCK)
+                    LEFT JOIN [dbo].[ZamowieniaMiesoTowar] t WITH (NOLOCK) ON z.Id = t.ZamowienieId
+                    WHERE z.DataUboju = CAST(DATEADD(DAY,1,GETDATE()) AS DATE)
+                      AND ISNULL(z.Status,'Nowe') <> 'Anulowane'", conn))
                 {
                     cmd.CommandTimeout = CMD_TIMEOUT;
                     using var r = await cmd.ExecuteReaderAsync(ct);
@@ -480,20 +503,22 @@ namespace Kalendarz1.DyrektorDashboard.Services
                     {
                         dane.LiczbaZamowienJutro = r.GetInt32(0);
                         dane.SumaKgJutro = Convert.ToDecimal(r["SumaKg"]);
-                        dane.SumaWartoscJutro = Convert.ToDecimal(r["Wartosc"]);
                     }
                 }
 
                 // Trend dzienny (ostatnie 14 dni)
                 using (var cmd = new SqlCommand(@"
-                    SELECT CAST(DataOdbioru AS DATE) as Dzien, COUNT(DISTINCT ID) as Liczba,
-                           ISNULL(SUM(IloscKg),0) as SumaKg,
-                           ISNULL(SUM(IloscKg * CenaNetto),0) as Wartosc
-                    FROM [dbo].[ZamowieniaMieso] WITH (NOLOCK)
-                    WHERE DataOdbioru >= DATEADD(DAY,-14,GETDATE())
-                      AND DataOdbioru <= DATEADD(DAY,1,GETDATE())
-                    GROUP BY CAST(DataOdbioru AS DATE)
-                    ORDER BY CAST(DataOdbioru AS DATE)", conn))
+                    SELECT z.DataUboju as Dzien,
+                           COUNT(DISTINCT z.Id) as Liczba,
+                           ISNULL(SUM(ISNULL(t.Ilosc,0)),0) as SumaKg,
+                           0 as Wartosc
+                    FROM [dbo].[ZamowieniaMieso] z WITH (NOLOCK)
+                    LEFT JOIN [dbo].[ZamowieniaMiesoTowar] t WITH (NOLOCK) ON z.Id = t.ZamowienieId
+                    WHERE z.DataUboju >= DATEADD(DAY,-14,GETDATE())
+                      AND z.DataUboju <= DATEADD(DAY,1,GETDATE())
+                      AND ISNULL(z.Status,'Nowe') <> 'Anulowane'
+                    GROUP BY z.DataUboju
+                    ORDER BY z.DataUboju", conn))
                 {
                     cmd.CommandTimeout = CMD_TIMEOUT;
                     using var r = await cmd.ExecuteReaderAsync(ct);
@@ -509,16 +534,17 @@ namespace Kalendarz1.DyrektorDashboard.Services
                     }
                 }
 
-                // Top 10 klientów (miesiąc)
+                // Top 10 klientów (miesiąc) - KlientId, nazwy z HANDEL
                 using (var cmd = new SqlCommand(@"
-                    SELECT TOP 10 z.Kontrahent as Nazwa,
-                           SUM(z.IloscKg) as SumaKg,
-                           SUM(z.IloscKg * z.CenaNetto) as Wartosc,
-                           COUNT(DISTINCT z.ID) as Zamowienia
+                    SELECT TOP 10 z.KlientId,
+                           ISNULL(SUM(ISNULL(t.Ilosc,0)),0) as SumaKg,
+                           COUNT(DISTINCT z.Id) as Zamowienia
                     FROM [dbo].[ZamowieniaMieso] z WITH (NOLOCK)
-                    WHERE z.DataOdbioru >= DATEADD(MONTH,-1,GETDATE())
-                    GROUP BY z.Kontrahent
-                    ORDER BY SUM(z.IloscKg) DESC", conn))
+                    LEFT JOIN [dbo].[ZamowieniaMiesoTowar] t WITH (NOLOCK) ON z.Id = t.ZamowienieId
+                    WHERE z.DataUboju >= DATEADD(MONTH,-1,GETDATE())
+                      AND ISNULL(z.Status,'Nowe') <> 'Anulowane'
+                    GROUP BY z.KlientId
+                    ORDER BY ISNULL(SUM(ISNULL(t.Ilosc,0)),0) DESC", conn))
                 {
                     cmd.CommandTimeout = CMD_TIMEOUT;
                     using var r = await cmd.ExecuteReaderAsync(ct);
@@ -526,12 +552,37 @@ namespace Kalendarz1.DyrektorDashboard.Services
                     {
                         dane.TopKlienci.Add(new TopKlientItem
                         {
-                            Nazwa = r["Nazwa"]?.ToString(),
+                            Nazwa = $"Klient #{r["KlientId"]}",
                             SumaKg = Convert.ToDecimal(r["SumaKg"]),
-                            SumaWartosc = Convert.ToDecimal(r["Wartosc"]),
-                            LiczbaZamowien = r.GetInt32(3)
+                            SumaWartosc = 0,
+                            LiczbaZamowien = r.GetInt32(2)
                         });
                     }
+                }
+
+                // Rozwiąż nazwy klientów z HANDEL
+                if (dane.TopKlienci.Any())
+                {
+                    try
+                    {
+                        using var connH = new SqlConnection(_connHandel);
+                        await connH.OpenAsync(ct);
+                        foreach (var klient in dane.TopKlienci)
+                        {
+                            var idStr = klient.Nazwa.Replace("Klient #", "");
+                            if (int.TryParse(idStr, out int klientId))
+                            {
+                                using var cmdH = new SqlCommand(@"
+                                    SELECT Name1 FROM [SSCommon].[STContractors] WHERE Id = @id", connH);
+                                cmdH.Parameters.AddWithValue("@id", klientId);
+                                cmdH.CommandTimeout = CMD_TIMEOUT;
+                                var nazwa = await cmdH.ExecuteScalarAsync(ct);
+                                if (nazwa != null && nazwa != DBNull.Value)
+                                    klient.Nazwa = nazwa.ToString();
+                            }
+                        }
+                    }
+                    catch { /* Handel niedostępny - zostaw ID */ }
                 }
             }
             catch (Exception ex)
@@ -542,7 +593,10 @@ namespace Kalendarz1.DyrektorDashboard.Services
         }
 
         // ════════════════════════════════════════════════════════════════════
-        // ZAKŁADKA: PRODUKCJA (sPWU = ubój, LWP = krojenie, RWP = rozchód)
+        // ZAKŁADKA: PRODUKCJA
+        // HM.MG JOIN HM.MZ ON MZ.super = MG.id
+        // MZ.ilosc (ruch), MG.data (data), MG.aktywny=1, MG.seria
+        // Serie: sPWU/sPWP/PWP (przyjęcia), sWZ/sWZ-W (wydania)
         // ════════════════════════════════════════════════════════════════════
 
         public async Task<DaneProdukcja> GetDaneProdukcjaAsync(CancellationToken ct = default)
@@ -556,11 +610,12 @@ namespace Kalendarz1.DyrektorDashboard.Services
                 // Produkcja dzisiaj wg typu dokumentu
                 using (var cmd = new SqlCommand(@"
                     SELECT MG.seria,
-                           ISNULL(SUM(ABS(MZ.iloscwp)),0) as SumaKg
+                           ISNULL(SUM(ABS(MZ.ilosc)),0) as SumaKg
                     FROM [HM].[MG] MG WITH (NOLOCK)
-                    JOIN [HM].[MZ] MZ WITH (NOLOCK) ON MG.GIDNumer = MZ.GIDNumer AND MG.GIDTyp = MZ.GIDTyp
-                    WHERE CAST(MG.data_ AS DATE) = CAST(GETDATE() AS DATE)
-                      AND MG.seria IN ('sPWU','LWP','RWP')
+                    JOIN [HM].[MZ] MZ WITH (NOLOCK) ON MZ.super = MG.id
+                    WHERE MG.data = CAST(GETDATE() AS DATE)
+                      AND MG.aktywny = 1
+                      AND MG.seria IN ('sPWU','sPWP','PWP','sWZ','sWZ-W')
                     GROUP BY MG.seria", conn))
                 {
                     cmd.CommandTimeout = CMD_TIMEOUT;
@@ -571,24 +626,26 @@ namespace Kalendarz1.DyrektorDashboard.Services
                         var kg = Convert.ToDecimal(r["SumaKg"]);
                         switch (seria)
                         {
-                            case "sPWU": dane.UbojDzisKg = kg; break;
-                            case "LWP": dane.KrojenieDzisKg = kg; break;
-                            case "RWP": dane.RWPDzisKg = kg; break;
+                            case "sPWU": case "sPWP": case "PWP":
+                                dane.UbojDzisKg += kg; break;
+                            case "sWZ": case "sWZ-W":
+                                dane.KrojenieDzisKg += kg; break;
                         }
                     }
                 }
 
-                // Top 15 produktów dzisiaj (LWP - krojenie)
+                // Top 15 produktów dzisiaj
                 using (var cmd = new SqlCommand(@"
                     SELECT TOP 15 TW.kod, TW.nazwa,
-                           ABS(SUM(MZ.iloscwp)) as IloscKg, MG.seria
+                           SUM(ABS(MZ.ilosc)) as IloscKg, MG.seria
                     FROM [HM].[MG] MG WITH (NOLOCK)
-                    JOIN [HM].[MZ] MZ WITH (NOLOCK) ON MG.GIDNumer = MZ.GIDNumer AND MG.GIDTyp = MZ.GIDTyp
-                    JOIN [HM].[TW] TW WITH (NOLOCK) ON MZ.twr = TW.GIDNumer
-                    WHERE CAST(MG.data_ AS DATE) = CAST(GETDATE() AS DATE)
-                      AND MG.seria IN ('sPWU','LWP')
+                    JOIN [HM].[MZ] MZ WITH (NOLOCK) ON MZ.super = MG.id
+                    JOIN [HM].[TW] TW WITH (NOLOCK) ON MZ.idtw = TW.id
+                    WHERE MG.data = CAST(GETDATE() AS DATE)
+                      AND MG.aktywny = 1
+                      AND MG.seria IN ('sPWU','sPWP','PWP','sWZ','sWZ-W')
                     GROUP BY TW.kod, TW.nazwa, MG.seria
-                    ORDER BY ABS(SUM(MZ.iloscwp)) DESC", conn))
+                    ORDER BY SUM(ABS(MZ.ilosc)) DESC", conn))
                 {
                     cmd.CommandTimeout = CMD_TIMEOUT;
                     using var r = await cmd.ExecuteReaderAsync(ct);
@@ -606,17 +663,17 @@ namespace Kalendarz1.DyrektorDashboard.Services
 
                 // Trend produkcji (ostatnie 7 dni roboczych)
                 using (var cmd = new SqlCommand(@"
-                    SELECT TOP 7 CAST(MG.data_ AS DATE) as Dzien,
-                           ISNULL(SUM(CASE WHEN MG.seria = 'sPWU' THEN ABS(MZ.iloscwp) ELSE 0 END),0) as UbojKg,
-                           ISNULL(SUM(CASE WHEN MG.seria = 'LWP' THEN ABS(MZ.iloscwp) ELSE 0 END),0) as LWPKg,
-                           ISNULL(SUM(CASE WHEN MG.seria = 'RWP' THEN ABS(MZ.iloscwp) ELSE 0 END),0) as RWPKg
+                    SELECT TOP 7 MG.data as Dzien,
+                           ISNULL(SUM(CASE WHEN MG.seria IN ('sPWU','sPWP','PWP') THEN ABS(MZ.ilosc) ELSE 0 END),0) as UbojKg,
+                           ISNULL(SUM(CASE WHEN MG.seria IN ('sWZ','sWZ-W') THEN ABS(MZ.ilosc) ELSE 0 END),0) as WydaniaKg
                     FROM [HM].[MG] MG WITH (NOLOCK)
-                    JOIN [HM].[MZ] MZ WITH (NOLOCK) ON MG.GIDNumer = MZ.GIDNumer AND MG.GIDTyp = MZ.GIDTyp
-                    WHERE MG.data_ >= DATEADD(DAY,-14,GETDATE())
-                      AND MG.seria IN ('sPWU','LWP','RWP')
-                    GROUP BY CAST(MG.data_ AS DATE)
-                    HAVING SUM(ABS(MZ.iloscwp)) > 0
-                    ORDER BY CAST(MG.data_ AS DATE) DESC", conn))
+                    JOIN [HM].[MZ] MZ WITH (NOLOCK) ON MZ.super = MG.id
+                    WHERE MG.data >= DATEADD(DAY,-14,GETDATE())
+                      AND MG.aktywny = 1
+                      AND MG.seria IN ('sPWU','sPWP','PWP','sWZ','sWZ-W')
+                    GROUP BY MG.data
+                    HAVING SUM(ABS(MZ.ilosc)) > 0
+                    ORDER BY MG.data DESC", conn))
                 {
                     cmd.CommandTimeout = CMD_TIMEOUT;
                     using var r = await cmd.ExecuteReaderAsync(ct);
@@ -628,14 +685,13 @@ namespace Kalendarz1.DyrektorDashboard.Services
                             Data = dt,
                             DzienNazwa = _nazwyDni[(int)dt.DayOfWeek],
                             UbojKg = Convert.ToDecimal(r["UbojKg"]),
-                            KrojenieKg = Convert.ToDecimal(r["LWPKg"]),
-                            LWPKg = Convert.ToDecimal(r["LWPKg"])
+                            KrojenieKg = Convert.ToDecimal(r["WydaniaKg"]),
+                            LWPKg = Convert.ToDecimal(r["WydaniaKg"])
                         });
                     }
                 }
                 dane.TrendTygodniowy.Reverse();
 
-                // Wydajność krojenia: LWP / sPWU * 100
                 if (dane.UbojDzisKg > 0)
                     dane.WydajnoscKrojeniaProcent = dane.KrojenieDzisKg / dane.UbojDzisKg * 100;
             }
@@ -648,6 +704,8 @@ namespace Kalendarz1.DyrektorDashboard.Services
 
         // ════════════════════════════════════════════════════════════════════
         // ZAKŁADKA: MAGAZYN MROŹNI
+        // MZ.kod (kod produktu), MZ.iloscwp (stan kumulat.), MZ.wartNetto
+        // MZ.[data], MZ.magazyn=65552, MZ.typ='0'
         // ════════════════════════════════════════════════════════════════════
 
         public async Task<DaneMagazyn> GetDaneMagazynAsync(CancellationToken ct = default)
@@ -658,45 +716,69 @@ namespace Kalendarz1.DyrektorDashboard.Services
                 using var conn = new SqlConnection(_connHandel);
                 await conn.OpenAsync(ct);
 
-                // Top produkty w mroźni
+                // Stan magazynowy wg produktu (wzorzec z Mroznia.cs linii 2416-2427)
                 using var cmd = new SqlCommand($@"
-                    SELECT TW.kod, TW.nazwa,
-                           ABS(SUM(MZ.iloscwp)) as IloscKg,
-                           ABS(SUM(MZ.wartNetto)) as WartoscZl,
-                           CASE WHEN TW.katalog = {KATALOG_SWIEZY} THEN 'Świeży'
-                                WHEN TW.katalog = {KATALOG_MROZONY} THEN 'Mrożony'
-                                ELSE 'Inny' END as Katalog
-                    FROM [HM].[MZ] MZ WITH (NOLOCK)
-                    JOIN [HM].[TW] TW WITH (NOLOCK) ON MZ.twr = TW.GIDNumer
-                    WHERE MZ.data_ >= '{DATA_STARTOWA}'
-                      AND MZ.data_ <= GETDATE()
-                      AND MZ.magazyn = {MAGAZYN_MROZNIA}
-                      AND MZ.typ = '0'
-                    GROUP BY TW.kod, TW.nazwa, TW.katalog
-                    HAVING ABS(SUM(MZ.iloscwp)) > 1
-                    ORDER BY ABS(SUM(MZ.iloscwp)) DESC", conn);
+                    SELECT kod,
+                           CAST(ABS(SUM([iloscwp])) AS DECIMAL(18,3)) AS IloscKg,
+                           CAST(ABS(SUM([wartNetto])) AS DECIMAL(18,2)) AS WartoscZl
+                    FROM [HM].[MZ] WITH (NOLOCK)
+                    WHERE [data] >= '{DATA_STARTOWA}'
+                      AND [data] <= GETDATE()
+                      AND [magazyn] = {MAGAZYN_MROZNIA}
+                      AND typ = '0'
+                    GROUP BY kod
+                    HAVING ABS(SUM([iloscwp])) > 1
+                    ORDER BY ABS(SUM([iloscwp])) DESC", conn);
                 cmd.CommandTimeout = CMD_TIMEOUT;
 
                 using var r = await cmd.ExecuteReaderAsync(ct);
                 while (await r.ReadAsync(ct))
                 {
+                    var kodProduktu = r["kod"]?.ToString()?.Trim() ?? "";
                     var item = new StanProduktItem
                     {
-                        Kod = r["kod"]?.ToString()?.Trim(),
-                        Nazwa = r["nazwa"]?.ToString()?.Trim(),
+                        Kod = kodProduktu,
+                        Nazwa = kodProduktu,
                         IloscKg = Convert.ToDecimal(r["IloscKg"]),
                         WartoscZl = Convert.ToDecimal(r["WartoscZl"]),
-                        Katalog = r["Katalog"]?.ToString()
+                        Katalog = "Inny"
                     };
                     dane.TopProdukty.Add(item);
 
                     dane.StanCaloscKg += item.IloscKg;
                     dane.StanWartoscZl += item.WartoscZl;
                     dane.LiczbaPozycji++;
-
-                    if (item.Katalog == "Świeży") dane.StanSwiezyKg += item.IloscKg;
-                    else if (item.Katalog == "Mrożony") dane.StanMrozonyKg += item.IloscKg;
                 }
+
+                // Rozdziel świeży/mrożony po TW.katalog
+                try
+                {
+                    using var cmd2 = new SqlCommand($@"
+                        SELECT kod, katalog
+                        FROM [HM].[TW] WITH (NOLOCK)
+                        WHERE katalog IN ('{KATALOG_SWIEZY}', '{KATALOG_MROZONY}')", conn);
+                    cmd2.CommandTimeout = CMD_TIMEOUT;
+                    var katalogMap = new Dictionary<string, string>();
+                    using var r2 = await cmd2.ExecuteReaderAsync(ct);
+                    while (await r2.ReadAsync(ct))
+                    {
+                        var kod = r2["kod"]?.ToString()?.Trim() ?? "";
+                        var kat = r2["katalog"]?.ToString()?.Trim();
+                        if (!string.IsNullOrEmpty(kod))
+                            katalogMap[kod] = kat == KATALOG_SWIEZY ? "Świeży" : "Mrożony";
+                    }
+
+                    foreach (var item in dane.TopProdukty)
+                    {
+                        if (katalogMap.TryGetValue(item.Kod, out var kat))
+                        {
+                            item.Katalog = kat;
+                            if (kat == "Świeży") dane.StanSwiezyKg += item.IloscKg;
+                            else dane.StanMrozonyKg += item.IloscKg;
+                        }
+                    }
+                }
+                catch { /* TW lookup opcjonalny */ }
             }
             catch (Exception ex)
             {
@@ -718,13 +800,9 @@ namespace Kalendarz1.DyrektorDashboard.Services
                 await conn.OpenAsync(ct);
 
                 using var cmd = new SqlCommand(@"
-                    SELECT k.KursID, ki.Imie + ' ' + ki.Nazwisko as Kierowca,
-                           p.NumerRejestracyjny as Pojazd,
-                           k.Status,
-                           (SELECT COUNT(*) FROM [dbo].[Ladunek] l WHERE l.KursID = k.KursID) as Ladunki
+                    SELECT k.KursID, k.Status, k.GodzWyjazdu,
+                           k.KierowcaID, k.PojazdID
                     FROM [dbo].[Kurs] k WITH (NOLOCK)
-                    LEFT JOIN [dbo].[Kierowca] ki WITH (NOLOCK) ON k.KierowcaID = ki.KierowcaID
-                    LEFT JOIN [dbo].[Pojazd] p WITH (NOLOCK) ON k.PojazdID = p.PojazdID
                     WHERE CAST(k.DataKursu AS DATE) = CAST(GETDATE() AS DATE)
                     ORDER BY k.KursID", conn);
                 cmd.CommandTimeout = CMD_TIMEOUT;
@@ -735,10 +813,10 @@ namespace Kalendarz1.DyrektorDashboard.Services
                     var kurs = new KursItem
                     {
                         KursID = r.GetInt64(0),
-                        Kierowca = r["Kierowca"]?.ToString()?.Trim(),
-                        Pojazd = r["Pojazd"]?.ToString()?.Trim(),
+                        Kierowca = $"Kier. #{r["KierowcaID"]}",
+                        Pojazd = r["PojazdID"]?.ToString(),
                         Status = r["Status"]?.ToString()?.Trim(),
-                        LiczbaLadunkow = r.GetInt32(4)
+                        LiczbaLadunkow = 0
                     };
                     dane.Kursy.Add(kurs);
 
@@ -762,6 +840,7 @@ namespace Kalendarz1.DyrektorDashboard.Services
 
         // ════════════════════════════════════════════════════════════════════
         // ZAKŁADKA: REKLAMACJE
+        // Reklamacje: NazwaKontrahenta, Status, SumaKg, DataZgloszenia, Opis
         // ════════════════════════════════════════════════════════════════════
 
         public async Task<DaneReklamacje> GetDaneReklamacjeAsync(CancellationToken ct = default)
@@ -774,7 +853,7 @@ namespace Kalendarz1.DyrektorDashboard.Services
 
                 // Statusy
                 using (var cmd = new SqlCommand(@"
-                    SELECT Status, COUNT(*) as Liczba, ISNULL(SUM(SumaKg),0) as SumaKg
+                    SELECT Status, COUNT(*) as Liczba, ISNULL(SUM(ISNULL(SumaKg,0)),0) as SumaKg
                     FROM [dbo].[Reklamacje] WITH (NOLOCK)
                     GROUP BY Status", conn))
                 {
@@ -797,9 +876,9 @@ namespace Kalendarz1.DyrektorDashboard.Services
                     }
                 }
 
-                // Ostatnie 15 reklamacji
+                // Ostatnie 15 reklamacji (NazwaKontrahenta - prawidłowa kolumna)
                 using (var cmd = new SqlCommand(@"
-                    SELECT TOP 15 ID, DataZgloszenia, Kontrahent, Status, Opis,
+                    SELECT TOP 15 Id, DataZgloszenia, NazwaKontrahenta, Status, Opis,
                            ISNULL(SumaKg,0) as SumaKg
                     FROM [dbo].[Reklamacje] WITH (NOLOCK)
                     ORDER BY DataZgloszenia DESC", conn))
@@ -812,7 +891,7 @@ namespace Kalendarz1.DyrektorDashboard.Services
                         {
                             Id = r.GetInt32(0),
                             Data = r.IsDBNull(1) ? DateTime.MinValue : r.GetDateTime(1),
-                            Kontrahent = r["Kontrahent"]?.ToString(),
+                            Kontrahent = r["NazwaKontrahenta"]?.ToString(),
                             Status = r["Status"]?.ToString()?.Trim(),
                             Opis = r["Opis"]?.ToString(),
                             IloscKg = Convert.ToDecimal(r["SumaKg"])
@@ -829,6 +908,7 @@ namespace Kalendarz1.DyrektorDashboard.Services
 
         // ════════════════════════════════════════════════════════════════════
         // ZAKŁADKA: OPAKOWANIA
+        // Wg serii sMM+/sMM-/sMK+/sMK- z mroźni
         // ════════════════════════════════════════════════════════════════════
 
         public async Task<DaneOpakowania> GetDaneOpakowaniaAsync(CancellationToken ct = default)
@@ -839,18 +919,19 @@ namespace Kalendarz1.DyrektorDashboard.Services
                 using var conn = new SqlConnection(_connHandel);
                 await conn.OpenAsync(ct);
 
-                using var cmd = new SqlCommand(@"
-                    SELECT TW.nazwa as TypOpakowania,
-                           ISNULL(SUM(CASE WHEN MZ.iloscwp > 0 THEN MZ.iloscwp ELSE 0 END),0) as Wydane,
-                           ISNULL(SUM(CASE WHEN MZ.iloscwp < 0 THEN ABS(MZ.iloscwp) ELSE 0 END),0) as Przyjete,
-                           ISNULL(SUM(MZ.iloscwp),0) as Saldo
-                    FROM [HM].[MZ] MZ WITH (NOLOCK)
-                    JOIN [HM].[TW] TW WITH (NOLOCK) ON MZ.twr = TW.GIDNumer
-                    WHERE TW.katalog IN (SELECT GIDNumer FROM [HM].[TW] WHERE nazwa LIKE '%opakow%' OR nazwa LIKE '%E2%' OR nazwa LIKE '%H1%')
-                      AND MZ.data_ >= DATEADD(YEAR,-1,GETDATE())
-                    GROUP BY TW.nazwa
-                    HAVING ABS(SUM(MZ.iloscwp)) > 0
-                    ORDER BY ABS(SUM(MZ.iloscwp)) DESC", conn);
+                using var cmd = new SqlCommand($@"
+                    SELECT MZ.kod as TypOpakowania,
+                           ISNULL(SUM(CASE WHEN MZ.ilosc > 0 THEN MZ.ilosc ELSE 0 END),0) as Wydane,
+                           ISNULL(SUM(CASE WHEN MZ.ilosc < 0 THEN ABS(MZ.ilosc) ELSE 0 END),0) as Przyjete,
+                           ISNULL(SUM(MZ.ilosc),0) as Saldo
+                    FROM [HM].[MG] MG WITH (NOLOCK)
+                    JOIN [HM].[MZ] MZ WITH (NOLOCK) ON MZ.super = MG.id
+                    WHERE MG.magazyn = {MAGAZYN_MROZNIA}
+                      AND (MG.seria = 'sMM+' OR MG.seria = 'sMM-' OR MG.seria = 'sMK-' OR MG.seria = 'sMK+')
+                      AND MG.[Data] >= DATEADD(YEAR,-1,GETDATE())
+                    GROUP BY MZ.kod
+                    HAVING ABS(SUM(MZ.ilosc)) > 0
+                    ORDER BY ABS(SUM(MZ.ilosc)) DESC", conn);
                 cmd.CommandTimeout = CMD_TIMEOUT;
 
                 using var r = await cmd.ExecuteReaderAsync(ct);
@@ -880,6 +961,7 @@ namespace Kalendarz1.DyrektorDashboard.Services
 
         // ════════════════════════════════════════════════════════════════════
         // ZAKŁADKA: PLAN TYGODNIOWY
+        // FarmerCalc: CalcDate (realizacja), DeclI1 (plan sztuki)
         // ════════════════════════════════════════════════════════════════════
 
         public async Task<DanePlanTygodniowy> GetPlanTygodniowyAsync(CancellationToken ct = default)
@@ -887,7 +969,6 @@ namespace Kalendarz1.DyrektorDashboard.Services
             var dane = new DanePlanTygodniowy();
             try
             {
-                // Oblicz poniedziałek bieżącego tygodnia
                 var today = DateTime.Today;
                 int diff = (7 + (today.DayOfWeek - DayOfWeek.Monday)) % 7;
                 var monday = today.AddDays(-diff);
@@ -895,8 +976,7 @@ namespace Kalendarz1.DyrektorDashboard.Services
                 using var conn = new SqlConnection(_connLibra);
                 await conn.OpenAsync(ct);
 
-                // Plan i realizacja per dzień tygodnia
-                for (int i = 0; i < 5; i++) // Pon-Pt
+                for (int i = 0; i < 5; i++)
                 {
                     var dzien = monday.AddDays(i);
                     var planDzien = new PlanDzienItem
@@ -906,11 +986,12 @@ namespace Kalendarz1.DyrektorDashboard.Services
                         CzyDzisiaj = dzien.Date == today
                     };
 
-                    // Realizacja (rzeczywiste dostawy)
+                    // Realizacja (rzeczywiste dostawy - CalcDate)
                     using (var cmd = new SqlCommand(@"
-                        SELECT ISNULL(SUM(NettoWeight),0) as Waga
+                        SELECT ISNULL(SUM(ISNULL(NettoWeight,0)),0) as Waga
                         FROM [dbo].[FarmerCalc] WITH (NOLOCK)
-                        WHERE CAST(DataPrzyjecia AS DATE) = @dzien", conn))
+                        WHERE CAST(CalcDate AS DATE) = @dzien
+                          AND ISNULL(Deleted,0) = 0", conn))
                     {
                         cmd.Parameters.AddWithValue("@dzien", dzien.Date);
                         cmd.CommandTimeout = CMD_TIMEOUT;
@@ -919,11 +1000,12 @@ namespace Kalendarz1.DyrektorDashboard.Services
                             ? Convert.ToDecimal(result) : 0;
                     }
 
-                    // Plan (planowane dostawy z harmonogramu - DeclI1 = planowana ilość)
+                    // Plan (DeclI1 = planowana ilość sztuk)
                     using (var cmd = new SqlCommand(@"
-                        SELECT ISNULL(SUM(ISNULL(DeclI1,0)),0) as Plan
+                        SELECT ISNULL(SUM(ISNULL(DeclI1,0)),0) as Planowane
                         FROM [dbo].[FarmerCalc] WITH (NOLOCK)
-                        WHERE CAST(PlanDate AS DATE) = @dzien", conn))
+                        WHERE CAST(CalcDate AS DATE) = @dzien
+                          AND ISNULL(Deleted,0) = 0", conn))
                     {
                         cmd.Parameters.AddWithValue("@dzien", dzien.Date);
                         cmd.CommandTimeout = CMD_TIMEOUT;
@@ -956,13 +1038,23 @@ namespace Kalendarz1.DyrektorDashboard.Services
                 using var conn = new SqlConnection(_connLibra);
                 await conn.OpenAsync(ct);
 
-                // Wysoki ubytek (>5%)
+                // Duże odchylenia wagi (>5% różnicy między wagą hodowcy a ubojową)
                 using (var cmd = new SqlCommand(@"
-                    SELECT TOP 5 c.Name as Hodowca, fc.DataPrzyjecia, fc.Loss as Ubytek
+                    SELECT TOP 5 d.Nazwa as Hodowca, fc.CalcDate as Data,
+                           CASE WHEN COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0) > 0
+                                THEN ABS((fc.NettoWeight - COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0))
+                                     / COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0) * 100)
+                                ELSE 0 END as OdchylenieProcent
                     FROM [dbo].[FarmerCalc] fc WITH (NOLOCK)
-                    JOIN [dbo].[Customer] c ON fc.CustomerGID = c.GID
-                    WHERE fc.Loss > 5 AND fc.DataPrzyjecia >= DATEADD(DAY,-7,GETDATE())
-                    ORDER BY fc.Loss DESC", conn))
+                    LEFT JOIN [dbo].[Dostawcy] d ON LTRIM(RTRIM(CAST(d.ID AS NVARCHAR(20)))) = LTRIM(RTRIM(fc.CustomerGID))
+                    WHERE fc.CalcDate >= DATEADD(DAY,-7,GETDATE())
+                      AND ISNULL(fc.Deleted,0) = 0
+                      AND COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0) > 0
+                      AND fc.NettoWeight > 0
+                      AND ABS((fc.NettoWeight - COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0))
+                          / COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0) * 100) > 5
+                    ORDER BY ABS((fc.NettoWeight - COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0))
+                             / COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0) * 100) DESC", conn))
                 {
                     cmd.CommandTimeout = CMD_TIMEOUT;
                     using var r = await cmd.ExecuteReaderAsync(ct);
@@ -970,48 +1062,19 @@ namespace Kalendarz1.DyrektorDashboard.Services
                     {
                         alerty.Add(new AlertItem
                         {
-                            Typ = "Ubytek",
+                            Typ = "Odchylenie wagi",
                             Priorytet = "Wysoki",
-                            Tytul = "Wysoki ubytek transportowy",
-                            Opis = $"{r["Hodowca"]} - ubytek {Convert.ToDecimal(r["Ubytek"]):F1}%",
+                            Tytul = "Duże odchylenie wagi",
+                            Opis = $"{r["Hodowca"] ?? "?"} - odchylenie {Convert.ToDecimal(r["OdchylenieProcent"]):F1}%",
                             Data = r.GetDateTime(1),
                             Ikona = "⚠️"
                         });
                     }
                 }
 
-                // Padnięcia powyżej 1%
-                using (var cmd = new SqlCommand(@"
-                    SELECT TOP 5 c.Name as Hodowca, fc.DataPrzyjecia,
-                           fc.IncDeadConf as Padniete, fc.LumQnt as Sztuki
-                    FROM [dbo].[FarmerCalc] fc WITH (NOLOCK)
-                    JOIN [dbo].[Customer] c ON fc.CustomerGID = c.GID
-                    WHERE fc.IncDeadConf > 0 AND fc.DataPrzyjecia >= DATEADD(DAY,-7,GETDATE())
-                      AND CAST(fc.IncDeadConf AS FLOAT) / NULLIF(fc.LumQnt,0) > 0.01
-                    ORDER BY CAST(fc.IncDeadConf AS FLOAT) / NULLIF(fc.LumQnt,0) DESC", conn))
-                {
-                    cmd.CommandTimeout = CMD_TIMEOUT;
-                    using var r = await cmd.ExecuteReaderAsync(ct);
-                    while (await r.ReadAsync(ct))
-                    {
-                        var padniete = Convert.ToInt32(r["Padniete"]);
-                        var sztuki = Convert.ToInt32(r["Sztuki"]);
-                        var proc = sztuki > 0 ? (decimal)padniete / sztuki * 100 : 0;
-                        alerty.Add(new AlertItem
-                        {
-                            Typ = "Padnięcia",
-                            Priorytet = proc > 3 ? "Krytyczny" : "Wysoki",
-                            Tytul = "Padnięcia w dostawie",
-                            Opis = $"{r["Hodowca"]} - {padniete} szt ({proc:F1}%)",
-                            Data = r.GetDateTime(1),
-                            Ikona = "💀"
-                        });
-                    }
-                }
-
                 // Nowe reklamacje (ostatnie 7 dni)
                 using (var cmd = new SqlCommand(@"
-                    SELECT TOP 5 Kontrahent, DataZgloszenia, Opis
+                    SELECT TOP 5 NazwaKontrahenta, DataZgloszenia, Opis
                     FROM [dbo].[Reklamacje] WITH (NOLOCK)
                     WHERE Status = 'Nowa' AND DataZgloszenia >= DATEADD(DAY,-7,GETDATE())
                     ORDER BY DataZgloszenia DESC", conn))
@@ -1020,12 +1083,14 @@ namespace Kalendarz1.DyrektorDashboard.Services
                     using var r = await cmd.ExecuteReaderAsync(ct);
                     while (await r.ReadAsync(ct))
                     {
+                        var opis = r["Opis"]?.ToString() ?? "";
+                        if (opis.Length > 80) opis = opis.Substring(0, 80) + "...";
                         alerty.Add(new AlertItem
                         {
                             Typ = "Reklamacja",
                             Priorytet = "Sredni",
                             Tytul = "Nowa reklamacja",
-                            Opis = $"{r["Kontrahent"]} - {r["Opis"]?.ToString()?.Substring(0, Math.Min(80, (r["Opis"]?.ToString()?.Length ?? 0)))}",
+                            Opis = $"{r["NazwaKontrahenta"]} - {opis}",
                             Data = r.IsDBNull(1) ? DateTime.MinValue : r.GetDateTime(1),
                             Ikona = "📋"
                         });
