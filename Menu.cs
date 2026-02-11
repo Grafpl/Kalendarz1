@@ -1089,7 +1089,8 @@ namespace Kalendarz1
                 [45] = "RozliczeniaAvilog",
                 [46] = "DashboardPrzychodu",
                 [47] = "MapaKlientow",
-                [48] = "WnioskiUrlopowe"
+                [48] = "WnioskiUrlopowe",
+                [49] = "PanelDyrektora"
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
@@ -1513,6 +1514,11 @@ namespace Kalendarz1
                 // ═══════════════════════════════════════════════════════════════════════════
                 ["FINANSE I ZARZĄDZANIE"] = new List<MenuItemConfig>
                 {
+                    new MenuItemConfig("PanelDyrektora", "Panel Dyrektora",
+                        "Kompleksowy panel zarządczy - przegląd KPI wszystkich działów zakładu w jednym miejscu",
+                        Color.FromArgb(212, 168, 67), // Złoty #D4A843
+                        () => new Kalendarz1.DyrektorDashboard.Views.DyrektorDashboardWindow(), "👔", "Dyrektor"),
+
                     new MenuItemConfig("DaneFinansowe", "Wyniki Finansowe",
                         "Zestawienie wyników finansowych firmy - przychody, koszty, marże i rentowność",
                         Color.FromArgb(176, 190, 197), // Jasny szaroniebieski #B0BEC5

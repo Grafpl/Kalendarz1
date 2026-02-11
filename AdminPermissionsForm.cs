@@ -1607,6 +1607,10 @@ namespace Kalendarz1
             viewerItem.Click += (s, ev) => ApplyPreset("viewer");
             menu.Items.Add(viewerItem);
 
+            var directorItem = new ToolStripMenuItem("👔 Dyrektor (pełny podgląd bez admin)");
+            directorItem.Click += (s, ev) => ApplyPreset("director");
+            menu.Items.Add(directorItem);
+
             menu.Items.Add(new ToolStripSeparator());
 
             var clearItem = new ToolStripMenuItem("🚫 Wyczyść wszystko");
@@ -1635,6 +1639,7 @@ namespace Kalendarz1
                     {
                         "admin" => true,
                         "manager" => module.Category != "Administracja Systemu",
+                        "director" => module.Category != "Administracja Systemu",
                         "sales" => module.Category == "Sprzedaż i CRM" || module.Category == "Planowanie i Analizy",
                         "warehouse" => module.Category == "Produkcja i Magazyn" || module.Category == "Opakowania i Transport",
                         "viewer" => module.Category == "Planowanie i Analizy" || module.Category == "Finanse i Zarządzanie",
@@ -1649,6 +1654,7 @@ namespace Kalendarz1
             {
                 "admin" => "Administrator",
                 "manager" => "Kierownik",
+                "director" => "Dyrektor",
                 "sales" => "Handlowiec",
                 "warehouse" => "Magazynier",
                 "viewer" => "Podgląd",
@@ -1936,6 +1942,7 @@ namespace Kalendarz1
                 // ═══════════════════════════════════════════════════════════════════════
                 // FINANSE I ZARZĄDZANIE - Szaroniebieski
                 // ═══════════════════════════════════════════════════════════════════════
+                new ModuleInfo("PanelDyrektora", "Panel Dyrektora", "Panel zarządczy - KPI wszystkich działów", "Finanse i Zarządzanie", "👔"),
                 new ModuleInfo("DaneFinansowe", "Wyniki Finansowe", "Przychody, koszty, marże", "Finanse i Zarządzanie", "💼"),
                 new ModuleInfo("CentrumSpotkan", "Centrum Spotkań", "Rejestr spotkań i wizyt", "Finanse i Zarządzanie", "📆"),
                 new ModuleInfo("NotatkiZeSpotkan", "Notatki Służbowe", "Notatki ze spotkań biznesowych", "Finanse i Zarządzanie", "📝"),
@@ -2002,7 +2009,10 @@ namespace Kalendarz1
                 [42] = "CentrumSpotkan",
                 [43] = "PanelPaniJola",
                 [44] = "KomunikatorFirmowy",
-                [46] = "DashboardPrzychodu"
+                [46] = "DashboardPrzychodu",
+                [47] = "MapaKlientow",
+                [48] = "WnioskiUrlopowe",
+                [49] = "PanelDyrektora"
             };
         }
 
