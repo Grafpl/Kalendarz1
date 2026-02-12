@@ -1925,6 +1925,8 @@ namespace Kalendarz1
                 new ModuleInfo("PlanTygodniowy", "Plan Tygodniowy", "Harmonogram uboju i krojenia", "Planowanie i Analizy", "🗓️"),
                 new ModuleInfo("AnalizaTygodniowa", "Dashboard Analityczny", "Analiza produkcji i sprzedaży", "Planowanie i Analizy", "📉"),
                 new ModuleInfo("DashboardPrzychodu", "Przychód Żywca LIVE", "Dashboard przyjęć żywca w czasie rzeczywistym", "Planowanie i Analizy", "🐔"),
+                new ModuleInfo("DashboardZamowien", "Dashboard Zamówień", "Dashboard produktów - bilans zamówień i wydań", "Planowanie i Analizy", "📊"),
+                new ModuleInfo("QuizDrobiarstwo", "Quiz Drobiarstwo", "Quiz szkoleniowy z wiedzy o drobiarstwie", "Planowanie i Analizy", "🎓"),
 
                 // ═══════════════════════════════════════════════════════════════════════
                 // OPAKOWANIA I TRANSPORT - Turkusowy
@@ -2002,7 +2004,9 @@ namespace Kalendarz1
                 [42] = "CentrumSpotkan",
                 [43] = "PanelPaniJola",
                 [44] = "KomunikatorFirmowy",
-                [46] = "DashboardPrzychodu"
+                [46] = "DashboardPrzychodu",
+                [49] = "DashboardZamowien",
+                [50] = "QuizDrobiarstwo"
             };
         }
 

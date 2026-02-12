@@ -46,6 +46,8 @@ namespace Kalendarz1
         private ToolStripProgressBar progressBar;
         private ElementHost chartHost;
         private CartesianChart liveChart;
+        private ElementHost stanChartHost;
+        private CartesianChart stanChart;
         private ToolTip toolTip;
         private CheckBox chkGrupowanie;
         private Timer autoLoadTimer;
@@ -63,14 +65,20 @@ namespace Kalendarz1
         private decimal lastWydano, lastPrzyjeto;
         private int lastDni;
 
+        // === LOADING OVERLAY ===
+        private Panel loadingOverlayPanel;
+        private Label loadingLabel;
+        private System.Windows.Forms.Timer spinnerTimer;
+        private int spinnerAngle;
+        private Panel spinnerPanel;
+
         // Kolory zakładek (1a - kolorowy wskaźnik)
         private readonly Color[] TabColors = new Color[]
         {
             Color.FromArgb(0, 120, 212),   // Stan mroźni - niebieski
             Color.FromArgb(220, 53, 69),   // Rezerwacje - czerwony
             Color.FromArgb(16, 124, 16),   // Mroźnie zewnętrzne - zielony
-            Color.FromArgb(255, 140, 0),   // Przegląd dzienny - pomarańczowy
-            Color.FromArgb(140, 20, 252)   // Wykresy - fioletowy
+            Color.FromArgb(255, 140, 0)    // Przegląd dzienny - pomarańczowy
         };
 
         // === STAŁE BIZNESOWE ===
@@ -152,8 +160,128 @@ namespace Kalendarz1
 
             this.Controls.Add(mainLayout);
 
+            // === LOADING OVERLAY ===
+            InitializeLoadingOverlay();
+
             // === 7bb: TOAST NOTIFICATION SYSTEM ===
             InitializeToastSystem();
+        }
+
+        private void InitializeLoadingOverlay()
+        {
+            loadingOverlayPanel = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(160, 20, 20, 25),
+                Visible = false
+            };
+
+            // Centered card panel
+            spinnerPanel = new Panel
+            {
+                Size = new Size(280, 140),
+                BackColor = Color.Transparent
+            };
+            spinnerPanel.Paint += SpinnerPanel_Paint;
+
+            loadingLabel = new Label
+            {
+                Text = "Ładowanie...",
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 12F, FontStyle.Regular),
+                BackColor = Color.Transparent,
+                AutoSize = false,
+                Size = new Size(280, 30),
+                TextAlign = ContentAlignment.MiddleCenter,
+                Location = new Point(0, 100)
+            };
+
+            spinnerPanel.Controls.Add(loadingLabel);
+            loadingOverlayPanel.Controls.Add(spinnerPanel);
+            this.Controls.Add(loadingOverlayPanel);
+            loadingOverlayPanel.BringToFront();
+
+            // Spinner animation timer
+            spinnerTimer = new System.Windows.Forms.Timer { Interval = 30 };
+            spinnerTimer.Tick += (s, e) =>
+            {
+                spinnerAngle = (spinnerAngle + 8) % 360;
+                spinnerPanel.Invalidate(new Rectangle(
+                    spinnerPanel.Width / 2 - 30, 15, 60, 60));
+            };
+        }
+
+        private void SpinnerPanel_Paint(object sender, PaintEventArgs e)
+        {
+            var g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            var panel = (Panel)sender;
+            int w = panel.Width, h = panel.Height;
+
+            // Background rounded rect
+            using (var path = CreateRoundedRect(0, 0, w, h, 12))
+            {
+                using (var bgBrush = new SolidBrush(Color.FromArgb(37, 42, 49)))
+                    g.FillPath(bgBrush, path);
+                using (var borderPen = new Pen(Color.FromArgb(48, 54, 61), 1))
+                    g.DrawPath(borderPen, path);
+            }
+
+            // Spinner center
+            int cx = w / 2, cy = 45;
+            int radius = 20;
+
+            // Track circle
+            using (var trackPen = new Pen(Color.FromArgb(48, 54, 61), 3))
+                g.DrawEllipse(trackPen, cx - radius, cy - radius, radius * 2, radius * 2);
+
+            // Spinning arc
+            using (var arcPen = new Pen(PrimaryColor, 3))
+            {
+                arcPen.StartCap = System.Drawing.Drawing2D.LineCap.Round;
+                arcPen.EndCap = System.Drawing.Drawing2D.LineCap.Round;
+                g.DrawArc(arcPen, cx - radius, cy - radius, radius * 2, radius * 2, spinnerAngle, 90);
+            }
+        }
+
+        private static GraphicsPath CreateRoundedRect(int x, int y, int w, int h, int r)
+        {
+            var path = new GraphicsPath();
+            path.AddArc(x, y, r * 2, r * 2, 180, 90);
+            path.AddArc(x + w - r * 2 - 1, y, r * 2, r * 2, 270, 90);
+            path.AddArc(x + w - r * 2 - 1, y + h - r * 2 - 1, r * 2, r * 2, 0, 90);
+            path.AddArc(x, y + h - r * 2 - 1, r * 2, r * 2, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+
+        private void ShowLoading(string message = "Ładowanie danych...")
+        {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action(() => ShowLoading(message)));
+                return;
+            }
+            loadingLabel.Text = message;
+            // Center spinner panel
+            spinnerPanel.Location = new Point(
+                (loadingOverlayPanel.Width - spinnerPanel.Width) / 2,
+                (loadingOverlayPanel.Height - spinnerPanel.Height) / 2);
+            loadingOverlayPanel.Visible = true;
+            loadingOverlayPanel.BringToFront();
+            spinnerTimer.Start();
+            Application.DoEvents();
+        }
+
+        private void HideLoading()
+        {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action(() => HideLoading()));
+                return;
+            }
+            spinnerTimer.Stop();
+            loadingOverlayPanel.Visible = false;
         }
 
         private Panel CreateAnalysisToolbar()
@@ -275,36 +403,7 @@ namespace Kalendarz1
 
         private void UpdateTabBadges()
         {
-            try
-            {
-                // Tab 0 - Stan mroźni: liczba produktów
-                if (dgvStanMagazynu?.DataSource is DataTable dtStan && dtStan.Rows.Count > 0)
-                {
-                    int count = dtStan.Rows.Count;
-                    if (dtStan.Rows[0]["Kod/Produkt"]?.ToString() == "SUMA")
-                        count--;
-                    tabControl.TabPages[0].Text = $"  Stan mroźni ({count})  ";
-                }
-
-                // Tab 1 - Rezerwacje: liczba rezerwacji
-                if (dgvZamowienia?.DataSource is DataTable dtRez && dtRez.Rows.Count > 0)
-                    tabControl.TabPages[1].Text = $"  Rezerwacje ({dtRez.Rows.Count})  ";
-                else
-                    tabControl.TabPages[1].Text = "  Rezerwacje  ";
-
-                // Tab 2 - Mroźnie zewnętrzne: liczba mroźni
-                if (dgvMroznieZewnetrzne?.DataSource is DataTable dtMr)
-                    tabControl.TabPages[2].Text = $"  Mroźnie zewnętrzne ({dtMr.Rows.Count})  ";
-
-                // Tab 3 - Przegląd dzienny: liczba dni
-                if (dgvDzienne?.DataSource is DataTable dtDz && dtDz.Rows.Count > 0)
-                    tabControl.TabPages[3].Text = $"  Przegląd dzienny ({dtDz.Rows.Count})  ";
-                else
-                    tabControl.TabPages[3].Text = "  Przegląd dzienny  ";
-
-                // Tab 4 - Wykresy: bez badge'a
-            }
-            catch { }
+            // Statyczne nazwy zakładek bez numerów
         }
 
         // ============================================
@@ -607,6 +706,8 @@ namespace Kalendarz1
                 decimal stan = m.Wydania?.Where(w => w.Typ == "Przyjęcie").Sum(w => w.Ilosc) ?? 0;
                 stan -= m.Wydania?.Where(w => w.Typ == "Wydanie").Sum(w => w.Ilosc) ?? 0;
 
+                if (stan == 0) continue;
+
                 string kontaktyStr = "";
                 if (m.Kontakty != null && m.Kontakty.Count > 0)
                 {
@@ -851,26 +952,46 @@ namespace Kalendarz1
             Panel analysisToolbar = CreateAnalysisToolbar();
 
             dgvDzienne = CreateStyledDataGridView();
+            dgvDzienne.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
+            dgvDzienne.RowTemplate.Height = 50;
+            dgvDzienne.RowTemplate.MinimumHeight = 50;
             dgvDzienne.DoubleClick += DgvDzienne_DoubleClick;
 
-            dziennyPanel.Controls.Add(dgvDzienne);
-            dziennyPanel.Controls.Add(analysisToolbar);
-            dziennyPanel.Controls.Add(dziennyStatsBar);
-            dziennyPanel.Controls.Add(dziennyHeader);
-            tab1.Controls.Add(dziennyPanel);
+            // SplitContainer: tabela u góry, wykres na dole
+            SplitContainer splitDzienny = new SplitContainer
+            {
+                Dock = DockStyle.Fill,
+                Orientation = Orientation.Horizontal,
+                SplitterWidth = 5,
+                BackColor = BackgroundColor
+            };
+            splitDzienny.SizeChanged += (s, e) => {
+                if (splitDzienny.Height > 0)
+                    splitDzienny.SplitterDistance = (int)(splitDzienny.Height * 0.50);
+            };
 
-            // === ZAKŁADKA 3: WYKRESY ===
-            TabPage tab3 = new TabPage("  Wykresy  ");
-            tab3.BackColor = BackgroundColor;
-            tab3.Padding = new Padding(0);
+            // Górna część: tabela
+            splitDzienny.Panel1.Controls.Add(dgvDzienne);
 
-            // Pełnoekranowy wykres trendu
+            // Dolna część: wykres trendu
             Panel chartPanel1 = new Panel
             {
                 Dock = DockStyle.Fill,
                 BackColor = Color.White,
                 Padding = new Padding(5)
             };
+
+            // Nagłówek wykresu
+            Panel chartHeader = new Panel { Dock = DockStyle.Top, Height = 30, BackColor = Color.FromArgb(140, 20, 252) };
+            Label lblChartTitle = new Label
+            {
+                Text = "📊 TREND WYDAŃ I PRZYJĘĆ",
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.White,
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            chartHeader.Controls.Add(lblChartTitle);
 
             liveChart = new CartesianChart
             {
@@ -891,8 +1012,17 @@ namespace Kalendarz1
                 Child = liveChart
             };
 
-            chartPanel1.Controls.Add(chartHost);
-            tab3.Controls.Add(chartPanel1);
+            Panel chartContentPanel = new Panel { Dock = DockStyle.Fill };
+            chartContentPanel.Controls.Add(chartHost);
+
+            splitDzienny.Panel2.Controls.Add(chartContentPanel);
+            splitDzienny.Panel2.Controls.Add(chartHeader);
+
+            dziennyPanel.Controls.Add(splitDzienny);
+            dziennyPanel.Controls.Add(analysisToolbar);
+            dziennyPanel.Controls.Add(dziennyStatsBar);
+            dziennyPanel.Controls.Add(dziennyHeader);
+            tab1.Controls.Add(dziennyPanel);
 
             // === ZAKŁADKA 4: STAN MAGAZYNU (KOMPAKTOWY LAYOUT) ===
             TabPage tab4 = new TabPage("  Stan mroźni  ");
@@ -1004,11 +1134,12 @@ namespace Kalendarz1
                 cardStan, cardRez, chkUkryjZewnetrzne, lblStanWartosc, lblStanProdukty, chkGrupowanie
             });
 
-            // === STAN MAGAZYNU - pełnoekranowa tabela ===
+            // === STAN MAGAZYNU - tabela + wykres ===
             dgvStanMagazynu = CreateStyledDataGridView();
             dgvStanMagazynu.DoubleClick += DgvStanMagazynu_DoubleClick;
             dgvStanMagazynu.MouseClick += DgvStanMagazynu_MouseClick;
             dgvStanMagazynu.CellClick += DgvStanMagazynu_CellClick;
+            dgvStanMagazynu.RowTemplate.Height = 32;
 
             // Menu kontekstowe
             ContextMenuStrip ctxMenuStan = new ContextMenuStrip();
@@ -1018,7 +1149,60 @@ namespace Kalendarz1
             ctxMenuStan.Items.Add("Historia", null, (s, e) => PokazHistorieWybranegoProduktu());
             dgvStanMagazynu.ContextMenuStrip = ctxMenuStan;
 
-            stanMainPanel.Controls.Add(dgvStanMagazynu);
+            // SplitContainer: tabela u góry, wykres stanu na dole
+            SplitContainer splitStan = new SplitContainer
+            {
+                Dock = DockStyle.Fill,
+                Orientation = Orientation.Horizontal,
+                SplitterWidth = 4,
+                BackColor = BackgroundColor
+            };
+            splitStan.SizeChanged += (s, e) => {
+                if (splitStan.Height > 0)
+                    splitStan.SplitterDistance = (int)(splitStan.Height * 0.60);
+            };
+
+            splitStan.Panel1.Controls.Add(dgvStanMagazynu);
+
+            // Wykres stanu magazynu - słupkowy
+            Panel stanChartPanel = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+            Panel stanChartHeader = new Panel { Dock = DockStyle.Top, Height = 28, BackColor = PrimaryColor };
+            Label lblStanChartTitle = new Label
+            {
+                Text = "📊 STAN MROŹNI - OSTATNIE 30 DNI",
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.White,
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            stanChartHeader.Controls.Add(lblStanChartTitle);
+
+            stanChart = new CartesianChart
+            {
+                DisableAnimations = false,
+                Hoverable = true,
+                DataTooltip = new DefaultTooltip
+                {
+                    SelectionMode = TooltipSelectionMode.OnlySender
+                },
+                LegendLocation = LegendLocation.None,
+                Background = System.Windows.Media.Brushes.White,
+                FontFamily = new System.Windows.Media.FontFamily("Segoe UI")
+            };
+            stanChartHost = new ElementHost
+            {
+                Dock = DockStyle.Fill,
+                Child = stanChart
+            };
+
+            Panel stanChartContent = new Panel { Dock = DockStyle.Fill };
+            stanChartContent.Controls.Add(stanChartHost);
+
+            stanChartPanel.Controls.Add(stanChartContent);
+            stanChartPanel.Controls.Add(stanChartHeader);
+            splitStan.Panel2.Controls.Add(stanChartPanel);
+
+            stanMainPanel.Controls.Add(splitStan);
             stanMainPanel.Controls.Add(stanToolbar);
 
             tab4.Controls.Add(stanMainPanel);
@@ -1100,7 +1284,10 @@ namespace Kalendarz1
             Button btnDodajWydanieZewn = CreateModernButton("+ Wydanie/Przyjęcie", 310, 10, 140, PrimaryColor);
             btnDodajWydanieZewn.Click += BtnDodajWydanieZewnetrzne_Click;
 
-            zewnToolbar.Controls.AddRange(new Control[] { btnDodajMroznieZewn, btnEdytujMroznieZewn, btnUsunMroznieZewn, btnDodajWydanieZewn });
+            Button btnInwentaryzacja = CreateModernButton("\U0001f4cb Inwentaryzacja", 470, 10, 140, WarningColor);
+            btnInwentaryzacja.Click += BtnInwentaryzacja_Click;
+
+            zewnToolbar.Controls.AddRange(new Control[] { btnDodajMroznieZewn, btnEdytujMroznieZewn, btnUsunMroznieZewn, btnDodajWydanieZewn, btnInwentaryzacja });
 
             // Split: Lista mroźni | Szczegóły/Wydania
             SplitContainer splitZewn = new SplitContainer
@@ -1243,8 +1430,8 @@ namespace Kalendarz1
             zewnMainPanel.Controls.Add(zewnToolbar);
             tab5.Controls.Add(zewnMainPanel);
 
-            // Stan magazynu jako pierwsza zakładka
-            tc.TabPages.AddRange(new TabPage[] { tab4, tabRez, tab5, tab1, tab3 });
+            // Stan magazynu jako pierwsza zakładka (Wykresy przeniesione do Przeglądu dziennego)
+            tc.TabPages.AddRange(new TabPage[] { tab4, tabRez, tab5, tab1 });
             return tc;
         }
 
@@ -1436,7 +1623,6 @@ namespace Kalendarz1
             statusLabel.Text = "Ładowanie danych...";
             progressBar.Visible = true;
             progressBar.Value = 0;
-            this.Cursor = Cursors.WaitCursor;
             DisableButtons();
 
             DateTime od = dtpOd.Value.Date;
@@ -1480,29 +1666,47 @@ namespace Kalendarz1
             finally
             {
                 progressBar.Visible = false;
-                this.Cursor = Cursors.Default;
                 EnableButtons();
             }
         }
 
         private DataTable FetchDzienneZestawienie(DateTime od, DateTime doDaty)
         {
+            // sMM- / sMK- = wydanie z mroźni (ilosc > 0 w bazie)
+            // sMM+ / sMK+ = przyjęcie do mroźni (ilosc < 0 w bazie)
             string query = $@"
-                SELECT
-                    MG.[Data] AS Data,
-                    DATENAME(dw, MG.[Data]) AS DzienTygodnia,
-                    ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) AS Wydano,
-                    SUM(CASE WHEN MZ.ilosc > 0 THEN MZ.ilosc ELSE 0 END) AS Przyjeto,
-                    ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) -
-                    SUM(CASE WHEN MZ.ilosc > 0 THEN MZ.ilosc ELSE 0 END) AS Bilans,
-                    COUNT(DISTINCT MZ.kod) AS Pozycje
-                FROM [HANDEL].[HM].[MG]
-                JOIN [HANDEL].[HM].[MZ] ON MG.ID = MZ.super
-                WHERE MG.magazyn = {MagazynMroznia}
-                AND {SQL_FILTR_SERII}
-                AND MG.[Data] BETWEEN @Od AND @Do
-                GROUP BY MG.[Data]
-                ORDER BY MG.[Data] DESC";
+                ;WITH Dzienne AS (
+                    SELECT
+                        MG.[Data] AS Data,
+                        SUM(CASE WHEN MZ.ilosc > 0 THEN MZ.ilosc ELSE 0 END) AS Wydano,
+                        ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) AS Przyjeto,
+                        SUM(CASE WHEN MZ.ilosc > 0 THEN MZ.ilosc ELSE 0 END) -
+                        ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) AS Bilans,
+                        COUNT(DISTINCT MZ.kod) AS LiczbaPozycji
+                    FROM [HANDEL].[HM].[MG]
+                    JOIN [HANDEL].[HM].[MZ] ON MG.ID = MZ.super
+                    WHERE MG.magazyn = {MagazynMroznia}
+                    AND {SQL_FILTR_SERII}
+                    AND MG.[Data] BETWEEN @Od AND @Do
+                    GROUP BY MG.[Data]
+                )
+                SELECT d.Data, d.Wydano, d.Przyjeto, d.Bilans, d.LiczbaPozycji,
+                       p.ProduktyLista
+                FROM Dzienne d
+                CROSS APPLY (
+                    SELECT STRING_AGG(kod + ': ' + FORMAT(CAST(total_qty AS DECIMAL(18,1)), '#,##0.#') + ' kg', ', ')
+                        WITHIN GROUP (ORDER BY total_qty DESC) AS ProduktyLista
+                    FROM (
+                        SELECT MZ2.kod, ABS(SUM(MZ2.ilosc)) AS total_qty
+                        FROM [HANDEL].[HM].[MG] MG2
+                        JOIN [HANDEL].[HM].[MZ] MZ2 ON MG2.ID = MZ2.super
+                        WHERE MG2.magazyn = {MagazynMroznia}
+                        AND {SQL_FILTR_SERII.Replace("mg.", "MG2.")}
+                        AND MG2.[Data] = d.Data
+                        GROUP BY MZ2.kod
+                    ) sub
+                ) p
+                ORDER BY d.Data DESC";
 
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
@@ -1519,24 +1723,98 @@ namespace Kalendarz1
         private void DisplayDzienneZestawienie(DataTable dt)
         {
             cachedDzienneData = dt;
+
+            // Wczytaj mapowanie mrożony→świeży dla krótszych nazw
+            var mapowanieMrozonySwiezy = WczytajMapowaniaMrozonyNaSwiezy();
+
+            // Dodaj kolumnę "Data i dzień" łączącą datę z polską nazwą dnia
+            var plCulture = new System.Globalization.CultureInfo("pl-PL");
+            if (!dt.Columns.Contains("DataDzien"))
+            {
+                dt.Columns.Add("DataDzien", typeof(string));
+                dt.Columns.Add("Pozycje", typeof(string));
+                foreach (DataRow row in dt.Rows)
+                {
+                    DateTime data = Convert.ToDateTime(row["Data"]);
+                    string dzienPL = data.ToString("dddd", plCulture);
+                    dzienPL = char.ToUpper(dzienPL[0]) + dzienPL.Substring(1);
+                    row["DataDzien"] = $"{data:dd.MM.yyyy} ({dzienPL})";
+
+                    // Buduj kolumnę Pozycje: "Filet: 1234.5 kg, Korpus: 567.8 kg"
+                    string produkty = row["ProduktyLista"]?.ToString() ?? "";
+                    if (!string.IsNullOrEmpty(produkty))
+                    {
+                        // Zamień kody mrożone na świeże (krótsze nazwy)
+                        var czesci = produkty.Split(new[] { ", " }, StringSplitOptions.RemoveEmptyEntries);
+                        var zamienione = new List<string>();
+                        foreach (var czesc in czesci)
+                        {
+                            // Format: "KodMrozony: 123.4 kg"
+                            int dwukropek = czesc.IndexOf(':');
+                            if (dwukropek > 0)
+                            {
+                                string kodMrozony = czesc.Substring(0, dwukropek).Trim();
+                                string reszta = czesc.Substring(dwukropek); // ": 123.4 kg"
+                                if (mapowanieMrozonySwiezy.TryGetValue(kodMrozony, out string kodSwiezy))
+                                    zamienione.Add(kodSwiezy + reszta);
+                                else
+                                    zamienione.Add(czesc);
+                            }
+                            else
+                            {
+                                zamienione.Add(czesc);
+                            }
+                        }
+                        row["Pozycje"] = string.Join(", ", zamienione);
+                    }
+                    else
+                    {
+                        row["Pozycje"] = "";
+                    }
+                }
+                // Przenieś kolumnę na początek
+                dt.Columns["DataDzien"].SetOrdinal(0);
+            }
+
             dgvDzienne.DataSource = dt;
 
-            FormatujKolumne(dgvDzienne, "Data", "Data", "yyyy-MM-dd");
-            FormatujKolumne(dgvDzienne, "DzienTygodnia", "Dzień");
-            FormatujKolumne(dgvDzienne, "Wydano", "Wydano", "#,##0' kg'");
-            FormatujKolumne(dgvDzienne, "Przyjeto", "Przyjęto", "#,##0' kg'");
-            FormatujKolumne(dgvDzienne, "Bilans", "Bilans", "#,##0' kg'");
+            // Ukryj kolumny pomocnicze
+            if (dgvDzienne.Columns["Data"] != null)
+                dgvDzienne.Columns["Data"].Visible = false;
+            if (dgvDzienne.Columns["LiczbaPozycji"] != null)
+                dgvDzienne.Columns["LiczbaPozycji"].Visible = false;
+            if (dgvDzienne.Columns["ProduktyLista"] != null)
+                dgvDzienne.Columns["ProduktyLista"].Visible = false;
+
+            FormatujKolumne(dgvDzienne, "DataDzien", "Data");
+            FormatujKolumne(dgvDzienne, "Wydano", "Wydano", "#,##0.#' kg'");
+            FormatujKolumne(dgvDzienne, "Przyjeto", "Przyjęto", "#,##0.#' kg'");
+            FormatujKolumne(dgvDzienne, "Bilans", "Bilans", "#,##0.#' kg'");
             FormatujKolumne(dgvDzienne, "Pozycje", "Pozycje");
 
-            // Wyrównanie kolumn numerycznych do prawej
+            // Szerokości kolumn - Pozycje bardzo szeroka, reszta kompaktowa
+            if (dgvDzienne.Columns["DataDzien"] != null)
+                dgvDzienne.Columns["DataDzien"].FillWeight = 18;
             if (dgvDzienne.Columns["Wydano"] != null)
+            {
+                dgvDzienne.Columns["Wydano"].FillWeight = 10;
                 dgvDzienne.Columns["Wydano"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            }
             if (dgvDzienne.Columns["Przyjeto"] != null)
+            {
+                dgvDzienne.Columns["Przyjeto"].FillWeight = 10;
                 dgvDzienne.Columns["Przyjeto"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            }
             if (dgvDzienne.Columns["Bilans"] != null)
+            {
+                dgvDzienne.Columns["Bilans"].FillWeight = 10;
                 dgvDzienne.Columns["Bilans"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            }
             if (dgvDzienne.Columns["Pozycje"] != null)
-                dgvDzienne.Columns["Pozycje"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            {
+                dgvDzienne.Columns["Pozycje"].FillWeight = 52;
+                dgvDzienne.Columns["Pozycje"].DefaultCellStyle.WrapMode = DataGridViewTriState.True;
+            }
 
             decimal sumaWydano = 0, sumaPrzyjeto = 0;
 
@@ -1572,12 +1850,14 @@ namespace Kalendarz1
                     row.Cells["Przyjeto"].Style.ForeColor = SuccessColor;
                 }
 
-                // Delikatne tło weekendów
-                string dzien = row.Cells["DzienTygodnia"].Value?.ToString() ?? "";
-                if (dzien == "Saturday" || dzien == "Sunday" ||
-                    dzien == "sobota" || dzien == "niedziela")
+                // Delikatne tło weekendów - sprawdź datę
+                if (row.Cells["Data"].Value != null && row.Cells["Data"].Value != DBNull.Value)
                 {
-                    row.DefaultCellStyle.BackColor = Color.FromArgb(255, 252, 240);
+                    DateTime data = Convert.ToDateTime(row.Cells["Data"].Value);
+                    if (data.DayOfWeek == DayOfWeek.Saturday || data.DayOfWeek == DayOfWeek.Sunday)
+                    {
+                        row.DefaultCellStyle.BackColor = Color.FromArgb(255, 252, 240);
+                    }
                 }
 
                 // Naprzemienne tło (zebra) - ale nie nadpisuj weekendów
@@ -1721,10 +2001,10 @@ namespace Kalendarz1
             string query = $@"
                 SELECT
                     {SQL_GRUPOWANIE_PRODUKTU} AS Produkt,
-                    ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) AS Wydano,
-                    SUM(CASE WHEN MZ.ilosc > 0 THEN MZ.ilosc ELSE 0 END) AS Przyjeto,
-                    ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) -
-                    SUM(CASE WHEN MZ.ilosc > 0 THEN MZ.ilosc ELSE 0 END) AS Roznica,
+                    SUM(CASE WHEN MZ.ilosc > 0 THEN MZ.ilosc ELSE 0 END) AS Wydano,
+                    ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) AS Przyjeto,
+                    SUM(CASE WHEN MZ.ilosc > 0 THEN MZ.ilosc ELSE 0 END) -
+                    ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) AS Roznica,
                     COUNT(*) AS Operacje
                 FROM [HANDEL].[HM].[MG]
                 JOIN [HANDEL].[HM].[MZ] ON MG.ID = MZ.super
@@ -1744,9 +2024,9 @@ namespace Kalendarz1
 
                 dgv.DataSource = dt;
 
-                FormatujKolumne(dgv, "Wydano", "Wydano (kg)", "N0");
-                FormatujKolumne(dgv, "Przyjeto", "Przyjęto (kg)", "N0");
-                FormatujKolumne(dgv, "Roznica", "Różnica (kg)", "N0");
+                FormatujKolumne(dgv, "Wydano", "Wydano (kg)", "#,##0' kg'");
+                FormatujKolumne(dgv, "Przyjeto", "Przyjęto (kg)", "#,##0' kg'");
+                FormatujKolumne(dgv, "Roznica", "Różnica (kg)", "#,##0' kg'");
                 FormatujKolumne(dgv, "Operacje", "Liczba operacji");
 
                 foreach (DataGridViewRow row in dgv.Rows)
@@ -2063,8 +2343,8 @@ namespace Kalendarz1
             string query = $@"
                 SELECT
                     MG.[Data] AS Data,
-                    ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) AS Wydano,
-                    SUM(CASE WHEN MZ.ilosc > 0 THEN MZ.ilosc ELSE 0 END) AS Przyjeto
+                    SUM(CASE WHEN MZ.ilosc > 0 THEN MZ.ilosc ELSE 0 END) AS Wydano,
+                    ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) AS Przyjeto
                 FROM [HANDEL].[HM].[MG]
                 JOIN [HANDEL].[HM].[MZ] ON MG.ID = MZ.super
                 WHERE MG.magazyn = {MagazynMroznia}
@@ -2257,8 +2537,8 @@ namespace Kalendarz1
             string query = $@"
                 SELECT
                     MZ.kod AS Kod,
-                    ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) AS [Wydano (kg)],
-                    SUM(CASE WHEN MZ.ilosc > 0 THEN MZ.ilosc ELSE 0 END) AS [Przyjęto (kg)]
+                    SUM(CASE WHEN MZ.ilosc > 0 THEN MZ.ilosc ELSE 0 END) AS [Wydano (kg)],
+                    ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) AS [Przyjęto (kg)]
                 FROM [HANDEL].[HM].[MG]
                 JOIN [HANDEL].[HM].[MZ] ON MG.ID = MZ.super
                 WHERE MG.magazyn = {MagazynMroznia}
@@ -2338,7 +2618,7 @@ namespace Kalendarz1
                 {
                     if (col.ValueType == typeof(decimal))
                     {
-                        col.DefaultCellStyle.Format = "N0";
+                        col.DefaultCellStyle.Format = "#,##0' kg'";
                         col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
                     }
                 }
@@ -2358,8 +2638,8 @@ namespace Kalendarz1
         {
             string query = $@"
                 SELECT
-                    ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) AS Wydano,
-                    SUM(CASE WHEN MZ.ilosc > 0 THEN MZ.ilosc ELSE 0 END) AS Przyjeto,
+                    SUM(CASE WHEN MZ.ilosc > 0 THEN MZ.ilosc ELSE 0 END) AS Wydano,
+                    ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) AS Przyjeto,
                     COUNT(DISTINCT MG.[Data]) AS Dni
                 FROM [HANDEL].[HM].[MG]
                 JOIN [HANDEL].[HM].[MZ] ON MG.ID = MZ.super
@@ -2408,7 +2688,7 @@ namespace Kalendarz1
             bool isGrupowanie = chkGrupowanie.Checked; // Zawsze false (checkbox niewidoczny)
 
             statusLabel.Text = "Obliczam stan magazynu...";
-            this.Cursor = Cursors.WaitCursor;
+            ShowLoading("Obliczam stan magazynu...");
 
             try
             {
@@ -2658,20 +2938,43 @@ namespace Kalendarz1
 
                     // Formatowanie
                     string colName = isGrupowanie ? "Produkt" : "Kod";
-                    FormatujKolumne(dgvStanMagazynu, "Stan (kg)", "Stan", "N0");
-                    FormatujKolumne(dgvStanMagazynu, "Rez. (kg)", "Rez.", "N0");
-                    FormatujKolumne(dgvStanMagazynu, "Zmiana", "Zmiana");
+                    FormatujKolumne(dgvStanMagazynu, colName, "Kod / Produkt");
+                    FormatujKolumne(dgvStanMagazynu, "Stan (kg)", "Stan", "#,##0' kg'");
+                    FormatujKolumne(dgvStanMagazynu, "Rez. (kg)", "Rezerwacja", "#,##0' kg'");
+                    FormatujKolumne(dgvStanMagazynu, "Zmiana", "Zmiana 7d");
+
+                    // Szerokości kolumn
+                    if (dgvStanMagazynu.Columns[colName] != null)
+                        dgvStanMagazynu.Columns[colName].FillWeight = 35;
+                    if (dgvStanMagazynu.Columns["Stan (kg)"] != null)
+                    {
+                        dgvStanMagazynu.Columns["Stan (kg)"].FillWeight = 18;
+                        dgvStanMagazynu.Columns["Stan (kg)"].DefaultCellStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+                        dgvStanMagazynu.Columns["Stan (kg)"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                    }
+                    if (dgvStanMagazynu.Columns["Rez. (kg)"] != null)
+                    {
+                        dgvStanMagazynu.Columns["Rez. (kg)"].FillWeight = 18;
+                        dgvStanMagazynu.Columns["Rez. (kg)"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                    }
+                    if (dgvStanMagazynu.Columns["Zmiana"] != null)
+                    {
+                        dgvStanMagazynu.Columns["Zmiana"].FillWeight = 15;
+                        dgvStanMagazynu.Columns["Zmiana"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    }
 
                     // Formatuj kolumny mroźni zewnętrznych
                     foreach (DataGridViewColumn col in dgvStanMagazynu.Columns)
                     {
                         if (col.Name.StartsWith("MZ: "))
                         {
-                            col.DefaultCellStyle.Format = "N0";
+                            col.FillWeight = 14;
+                            col.DefaultCellStyle.Format = "#,##0' kg'";
                             col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
                             col.DefaultCellStyle.BackColor = Color.FromArgb(255, 253, 240);
-                            col.HeaderCell.Style.BackColor = Color.FromArgb(255, 193, 7);
-                            col.HeaderCell.Style.ForeColor = Color.Black;
+                            col.HeaderCell.Style.BackColor = Color.FromArgb(255, 185, 0);
+                            col.HeaderCell.Style.ForeColor = Color.White;
+                            col.HeaderCell.Style.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
                         }
                     }
 
@@ -2679,56 +2982,18 @@ namespace Kalendarz1
                     if (dgvStanMagazynu.Columns.Contains("Suma Stan"))
                     {
                         var colSuma = dgvStanMagazynu.Columns["Suma Stan"];
-                        colSuma.DefaultCellStyle.Format = "N0";
-                        colSuma.DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-                        colSuma.DefaultCellStyle.BackColor = Color.FromArgb(230, 247, 255);
-                        colSuma.HeaderCell.Style.BackColor = Color.FromArgb(0, 123, 255);
+                        colSuma.FillWeight = 18;
+                        colSuma.DefaultCellStyle.Format = "#,##0' kg'";
+                        colSuma.DefaultCellStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+                        colSuma.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                        colSuma.DefaultCellStyle.BackColor = Color.FromArgb(232, 245, 255);
+                        colSuma.HeaderCell.Style.BackColor = Color.FromArgb(0, 105, 217);
                         colSuma.HeaderCell.Style.ForeColor = Color.White;
                     }
 
                     // Ukryj kolumnę Status
                     if (dgvStanMagazynu.Columns.Contains("Status"))
                         dgvStanMagazynu.Columns["Status"].Visible = false;
-
-                    // Kolorowanie
-                    foreach (DataGridViewRow row in dgvStanMagazynu.Rows)
-                    {
-                        string status = row.Cells["Status"].Value?.ToString();
-                        Color backgroundColor = Color.White;
-
-                        if (status == "Krytyczny")
-                            backgroundColor = Color.FromArgb(255, 230, 230);
-                        else if (status == "Poważny")
-                            backgroundColor = Color.FromArgb(255, 250, 230);
-
-                        row.DefaultCellStyle.BackColor = backgroundColor;
-                        row.DefaultCellStyle.SelectionBackColor = Color.FromArgb(200, 220, 255);
-                        row.DefaultCellStyle.SelectionForeColor = TextColor;
-
-                        // Koloruj kolumnę zmiany
-                        string zmiana = row.Cells["Zmiana"].Value?.ToString();
-                        if (zmiana?.Contains("↑") == true)
-                            row.Cells["Zmiana"].Style.ForeColor = Color.FromArgb(220, 53, 69);
-                        else if (zmiana?.Contains("↓") == true)
-                            row.Cells["Zmiana"].Style.ForeColor = Color.FromArgb(40, 167, 69);
-                        else
-                            row.Cells["Zmiana"].Style.ForeColor = Color.Gray;
-
-                        // Koloruj kolumnę Rezerwacja jeśli są zarezerwowane kg
-                        if (dgvStanMagazynu.Columns.Contains("Rez. (kg)"))
-                        {
-                            var rezVal = row.Cells["Rez. (kg)"].Value;
-                            if (rezVal != null && rezVal != DBNull.Value)
-                            {
-                                decimal rez = Convert.ToDecimal(rezVal);
-                                if (rez > 0)
-                                {
-                                    row.Cells["Rez. (kg)"].Style.ForeColor = Color.FromArgb(220, 53, 69);
-                                    row.Cells["Rez. (kg)"].Style.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-                                }
-                            }
-                        }
-                    }
 
                     // Oblicz sumy
                     decimal sumaStan = dtFinal.AsEnumerable().Sum(r => Convert.ToDecimal(r["Stan (kg)"]));
@@ -2746,14 +3011,82 @@ namespace Kalendarz1
                     sumRow["Status"] = "";
                     dtFinal.Rows.InsertAt(sumRow, 0);
 
-                    // Pogrubienie wiersza sumy (pierwszy wiersz)
+                    // Wiersz sumy - gradient ciemnoniebieski
                     dgvStanMagazynu.Rows[0].DefaultCellStyle.Font =
-                        new Font("Segoe UI", 10F, FontStyle.Bold);
+                        new Font("Segoe UI", 10.5F, FontStyle.Bold);
                     dgvStanMagazynu.Rows[0].DefaultCellStyle.BackColor =
-                        Color.FromArgb(41, 128, 185);
+                        Color.FromArgb(30, 60, 114);
                     dgvStanMagazynu.Rows[0].DefaultCellStyle.ForeColor = Color.White;
                     dgvStanMagazynu.Rows[0].DefaultCellStyle.SelectionBackColor =
-                        Color.FromArgb(41, 128, 185);
+                        Color.FromArgb(30, 60, 114);
+                    dgvStanMagazynu.Rows[0].DefaultCellStyle.SelectionForeColor = Color.White;
+                    dgvStanMagazynu.Rows[0].Height = 40;
+
+                    // Kolorowanie wierszy produktów
+                    for (int i = 1; i < dgvStanMagazynu.Rows.Count; i++)
+                    {
+                        var row = dgvStanMagazynu.Rows[i];
+                        string status = row.Cells["Status"].Value?.ToString();
+
+                        if (status == "Krytyczny")
+                        {
+                            row.DefaultCellStyle.BackColor = Color.FromArgb(255, 235, 238);
+                            row.Cells[colName].Style.ForeColor = Color.FromArgb(183, 28, 28);
+                            row.Cells[colName].Style.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+                        }
+                        else if (status == "Poważny")
+                        {
+                            row.DefaultCellStyle.BackColor = Color.FromArgb(255, 248, 225);
+                        }
+                        else if (i % 2 == 0)
+                        {
+                            row.DefaultCellStyle.BackColor = Color.FromArgb(248, 250, 253);
+                        }
+
+                        row.DefaultCellStyle.SelectionBackColor = Color.FromArgb(200, 220, 255);
+                        row.DefaultCellStyle.SelectionForeColor = TextColor;
+
+                        // Koloruj kolumnę zmiany
+                        string zmiana = row.Cells["Zmiana"].Value?.ToString();
+                        if (zmiana?.Contains("\u2191") == true)
+                        {
+                            row.Cells["Zmiana"].Style.ForeColor = Color.FromArgb(220, 53, 69);
+                            row.Cells["Zmiana"].Style.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                        }
+                        else if (zmiana?.Contains("\u2193") == true)
+                        {
+                            row.Cells["Zmiana"].Style.ForeColor = Color.FromArgb(40, 167, 69);
+                            row.Cells["Zmiana"].Style.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                        }
+                        else
+                            row.Cells["Zmiana"].Style.ForeColor = Color.FromArgb(180, 180, 180);
+
+                        // Koloruj rezerwację
+                        if (dgvStanMagazynu.Columns.Contains("Rez. (kg)"))
+                        {
+                            var rezVal = row.Cells["Rez. (kg)"].Value;
+                            if (rezVal != null && rezVal != DBNull.Value)
+                            {
+                                decimal rez = Convert.ToDecimal(rezVal);
+                                if (rez > 0)
+                                {
+                                    row.Cells["Rez. (kg)"].Style.ForeColor = Color.FromArgb(220, 53, 69);
+                                    row.Cells["Rez. (kg)"].Style.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+                                }
+                            }
+                        }
+
+                        // Koloruj stan - zielony gdy wysoki, pomarańczowy gdy niski
+                        var stanVal = row.Cells["Stan (kg)"].Value;
+                        if (stanVal != null && stanVal != DBNull.Value)
+                        {
+                            decimal stan = Convert.ToDecimal(stanVal);
+                            if (stan > 500)
+                                row.Cells["Stan (kg)"].Style.ForeColor = Color.FromArgb(27, 94, 32);
+                            else if (stan > 0 && stan <= 100)
+                                row.Cells["Stan (kg)"].Style.ForeColor = Color.FromArgb(230, 126, 34);
+                        }
+                    }
 
                     // Aktualizuj karty statystyk
                     int liczbaProdukow = dtFinal.Rows.Count - 1;
@@ -2780,8 +3113,10 @@ namespace Kalendarz1
 
                 statusLabel.Text = $"Stan magazynu na {dataStan:yyyy-MM-dd} (porównanie z {dataPoprzedni:yyyy-MM-dd})";
 
-                // 1d: Aktualizuj badge'e
                 UpdateTabBadges();
+
+                // Załaduj wykres stanu na ostatnie 30 dni
+                LoadStanMagazynuChart(dataStan);
             }
             catch (Exception ex)
             {
@@ -2790,7 +3125,111 @@ namespace Kalendarz1
             }
             finally
             {
-                this.Cursor = Cursors.Default;
+                HideLoading();
+            }
+        }
+
+        private void LoadStanMagazynuChart(DateTime dataDo)
+        {
+            if (stanChart == null) return;
+
+            try
+            {
+                stanChart.Series.Clear();
+                stanChart.AxisX.Clear();
+                stanChart.AxisY.Clear();
+
+                DateTime dataOd = dataDo.AddDays(-30);
+
+                string query = $@"
+                    SELECT d.Dzien AS Data,
+                           ISNULL(ABS(SUM(mz.iloscwp)), 0) AS Stan
+                    FROM (
+                        SELECT CAST(DATEADD(DAY, number, @DataOd) AS DATE) AS Dzien
+                        FROM master..spt_values
+                        WHERE type = 'P' AND number BETWEEN 0 AND DATEDIFF(DAY, @DataOd, @DataDo)
+                    ) d
+                    LEFT JOIN [HANDEL].[HM].[MZ] mz
+                        ON mz.[data] >= '{DataStartowa}'
+                        AND mz.[data] <= d.Dzien
+                        AND mz.[magazyn] = {MagazynMroznia}
+                        AND mz.typ = '0'
+                    GROUP BY d.Dzien
+                    ORDER BY d.Dzien";
+
+                var stanValues = new ChartValues<double>();
+                var labels = new List<string>();
+                var plCulture = new System.Globalization.CultureInfo("pl-PL");
+
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@DataOd", dataOd);
+                        cmd.Parameters.AddWithValue("@DataDo", dataDo);
+
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                DateTime data = reader.GetDateTime(0);
+                                double stan = Convert.ToDouble(reader[1]);
+                                stanValues.Add(stan);
+                                string dzienSkrot = data.ToString("ddd", plCulture).Substring(0, 2);
+                                labels.Add($"{data:dd.MM} {dzienSkrot}");
+                            }
+                        }
+                    }
+                }
+
+                if (stanValues.Count == 0) return;
+
+                var colStan = new ColumnSeries
+                {
+                    Title = "Stan mroźni (kg)",
+                    Values = stanValues,
+                    Fill = new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromArgb(200, 0, 120, 212)),
+                    MaxColumnWidth = 25,
+                    ColumnPadding = 1,
+                    LabelPoint = p => p.Y >= 1000 ? (p.Y / 1000).ToString("0.#") + "k" : p.Y > 0 ? p.Y.ToString("N0") : "",
+                    DataLabels = true,
+                    FontSize = 8,
+                    Foreground = new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(0, 120, 212))
+                };
+
+                stanChart.Series.Add(colStan);
+
+                stanChart.AxisX.Add(new LiveCharts.Wpf.Axis
+                {
+                    Labels = labels,
+                    LabelsRotation = -45,
+                    FontSize = 8,
+                    Separator = new Separator { Step = 1, IsEnabled = false },
+                    Foreground = new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(100, 100, 100))
+                });
+
+                stanChart.AxisY.Add(new LiveCharts.Wpf.Axis
+                {
+                    Title = "kg",
+                    LabelFormatter = val => val >= 1000 ? (val / 1000).ToString("0.#") + "k" : val.ToString("N0"),
+                    FontSize = 9,
+                    Separator = new Separator
+                    {
+                        Stroke = new System.Windows.Media.SolidColorBrush(
+                            System.Windows.Media.Color.FromRgb(235, 237, 240)),
+                        StrokeThickness = 1
+                    },
+                    Foreground = new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(100, 100, 100))
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd ładowania wykresu stanu: {ex.Message}");
             }
         }
 
@@ -3071,6 +3510,38 @@ namespace Kalendarz1
             return mapowanie;
         }
 
+        private Dictionary<string, string> WczytajMapowaniaMrozonyNaSwiezy()
+        {
+            var mapowanie = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                string plikMapowan = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "OfertaHandlowa", "mapowania_swiezy_mrozony.json");
+
+                if (File.Exists(plikMapowan))
+                {
+                    string json = File.ReadAllText(plikMapowan);
+                    var lista = JsonSerializer.Deserialize<List<MapowanieItem>>(json);
+                    if (lista != null)
+                    {
+                        foreach (var item in lista)
+                        {
+                            if (!string.IsNullOrEmpty(item.KodMrozony) && !string.IsNullOrEmpty(item.KodSwiezy))
+                            {
+                                mapowanie[item.KodMrozony] = item.KodSwiezy;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd wczytywania mapowań mrożony→świeży: {ex.Message}");
+            }
+            return mapowanie;
+        }
+
         /// <summary>
         /// Otwiera okno mapowania produktów świeżych na mrożone
         /// </summary>
@@ -3216,7 +3687,7 @@ namespace Kalendarz1
 
                 dgvZamowienia.DataSource = dt;
                 dgvZamowienia.Columns["ID"].Visible = false;
-                dgvZamowienia.Columns["Ilość kg"].DefaultCellStyle.Format = "N0";
+                dgvZamowienia.Columns["Ilość kg"].DefaultCellStyle.Format = "#,##0' kg'";
                 dgvZamowienia.Columns["Ważna do"].DefaultCellStyle.Format = "dd.MM.yyyy";
 
                 // Koloruj wiersze bliskie wygaśnięciu
@@ -3571,7 +4042,7 @@ namespace Kalendarz1
 
             dgvMroznieZewnetrzne.DataSource = dt;
             dgvMroznieZewnetrzne.Columns["ID"].Visible = false;
-            dgvMroznieZewnetrzne.Columns["Stan (kg)"].DefaultCellStyle.Format = "N0";
+            dgvMroznieZewnetrzne.Columns["Stan (kg)"].DefaultCellStyle.Format = "#,##0' kg'";
 
             // 6z: Odśwież karty mroźni
             RefreshMroznieCards();
@@ -3654,7 +4125,7 @@ namespace Kalendarz1
                     {
                         if (col.ValueType == typeof(decimal))
                         {
-                            col.DefaultCellStyle.Format = "N0";
+                            col.DefaultCellStyle.Format = "#,##0' kg'";
                             col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
                         }
                     }
@@ -3776,7 +4247,7 @@ namespace Kalendarz1
                         if (col.Name == "Data")
                             col.DefaultCellStyle.Format = "dd.MM.yyyy";
                         else if (col.Name == "Ilość (kg)")
-                            col.DefaultCellStyle.Format = "N0";
+                            col.DefaultCellStyle.Format = "#,##0' kg'";
                     }
 
                     foreach (DataGridViewRow row in dgvWydaniaZewnetrzne.Rows)
@@ -3900,6 +4371,46 @@ namespace Kalendarz1
             }
         }
 
+        private void BtnResetMroznieZewnetrzne_Click(object sender, EventArgs e)
+        {
+            var mroznie = WczytajMroznieZewnetrzne();
+            if (mroznie.Count == 0)
+            {
+                MessageBox.Show("Brak mroźni zewnętrznych do wyczyszczenia.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            int totalWydania = mroznie.Sum(m => m.Wydania?.Count ?? 0);
+
+            var result = MessageBox.Show(
+                $"Czy na pewno chcesz usunąć WSZYSTKIE obroty magazynowe mroźni zewnętrznych?\n\n" +
+                $"Mroźni: {mroznie.Count}\n" +
+                $"Łączna liczba wpisów (wydania/przyjęcia): {totalWydania}\n\n" +
+                "Uwaga: Struktura mroźni (nazwy, adresy, kontakty) zostanie zachowana.\n" +
+                "Usunięte zostaną tylko obroty i stany magazynowe.\n\n" +
+                "Tej operacji NIE MOŻNA cofnąć!",
+                "Potwierdź wyczyszczenie danych",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning);
+
+            if (result == DialogResult.Yes)
+            {
+                // Wyczyść wydania we wszystkich mroźniach
+                foreach (var m in mroznie)
+                {
+                    m.Wydania = new List<WydanieZewnetrzne>();
+                }
+                ZapiszMroznieZewnetrzne(mroznie);
+                LoadMroznieZewnetrzneDoTabeli();
+
+                statusLabel.Text = $"Wyczyszczono {totalWydania} wpisów z {mroznie.Count} mroźni zewnętrznych";
+                ShowToast($"Wyczyszczono dane: {totalWydania} wpisów", DangerColor);
+
+                // Odśwież stan magazynu (może zawierać dane z mroźni zewnętrznych)
+                BtnStanMagazynu_Click(null, null);
+            }
+        }
+
         private void BtnDodajWydanieZewnetrzne_Click(object sender, EventArgs e)
         {
             if (dgvMroznieZewnetrzne.SelectedRows.Count == 0)
@@ -3952,6 +4463,43 @@ namespace Kalendarz1
                         Color toastColor = dlg.Typ == "Przyjęcie" ? SuccessColor : WarningColor;
                         ShowToast($"{dlg.Typ}: {sumaIlosc:N0} kg ({nazwa})", toastColor);
                     }
+                }
+            }
+        }
+
+        private void BtnInwentaryzacja_Click(object sender, EventArgs e)
+        {
+            if (dgvMroznieZewnetrzne.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Najpierw wybierz mroźnię z listy.", "Brak wyboru", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string id = dgvMroznieZewnetrzne.SelectedRows[0].Cells["ID"].Value?.ToString();
+            string nazwa = dgvMroznieZewnetrzne.SelectedRows[0].Cells["Nazwa"].Value?.ToString();
+
+            var mroznie = WczytajMroznieZewnetrzne();
+            var mroznia = mroznie.FirstOrDefault(m => m.Id == id);
+            if (mroznia == null) return;
+
+            using (var dlg = new InwentaryzacjaDialog(mroznia, connectionString))
+            {
+                if (dlg.ShowDialog() == DialogResult.OK && dlg.Korekty.Count > 0)
+                {
+                    if (mroznia.Wydania == null)
+                        mroznia.Wydania = new List<WydanieZewnetrzne>();
+
+                    foreach (var korekta in dlg.Korekty)
+                    {
+                        mroznia.Wydania.Add(korekta);
+                    }
+
+                    ZapiszMroznieZewnetrzne(mroznie);
+                    LoadMroznieZewnetrzneDoTabeli();
+                    DgvMroznieZewnetrzne_SelectionChanged(null, null);
+
+                    statusLabel.Text = $"Inwentaryzacja: {dlg.Korekty.Count} korekt ({nazwa})";
+                    ShowToast($"Inwentaryzacja zapisana: {dlg.Korekty.Count} korekt ({nazwa})", WarningColor);
                 }
             }
         }
@@ -5400,7 +5948,7 @@ namespace Kalendarz1
             decimal suma = 0;
             foreach (var poz in Pozycje)
             {
-                dgvKoszyk.Rows.Add(lp++, poz.KodProduktu, poz.Nazwa, poz.Ilosc.ToString("N0"));
+                dgvKoszyk.Rows.Add(lp++, poz.KodProduktu, poz.Nazwa, $"{poz.Ilosc:N0} kg");
                 suma += poz.Ilosc;
             }
             lblKoszykPozycje.Text = $"Pozycji: {Pozycje.Count}";
@@ -5538,5 +6086,456 @@ namespace Kalendarz1
         public int Id { get; set; }
         public string Kod { get; set; } = "";
         public string Nazwa { get; set; } = "";
+    }
+
+    /// <summary>
+    /// Dialog inwentaryzacji mroźni zewnętrznej - pozwala ustawić rzeczywisty stan i generuje korekty
+    /// </summary>
+    public class InwentaryzacjaDialog : Form
+    {
+        public List<WydanieZewnetrzne> Korekty { get; private set; } = new List<WydanieZewnetrzne>();
+
+        private MrozniaZewnetrzna mroznia;
+        private string connectionString;
+        private DataGridView dgvInwentaryzacja;
+        private DateTimePicker dtpData;
+        private Button btnZapisz, btnDodajProdukt;
+
+        private readonly Color HeaderColor = Color.FromArgb(44, 62, 80);
+        private readonly Color WarningColor = Color.FromArgb(255, 140, 0);
+        private readonly Color SuccessColor = Color.FromArgb(16, 124, 16);
+        private readonly Color DangerColor = Color.FromArgb(232, 17, 35);
+
+        public InwentaryzacjaDialog(MrozniaZewnetrzna mroznia, string connString)
+        {
+            this.mroznia = mroznia;
+            this.connectionString = connString;
+
+            this.Text = $"\U0001f4cb Inwentaryzacja - {mroznia.Nazwa}";
+            this.Size = new Size(900, 650);
+            this.StartPosition = FormStartPosition.CenterParent;
+            this.FormBorderStyle = FormBorderStyle.FixedDialog;
+            this.MaximizeBox = false;
+            this.MinimizeBox = false;
+            this.BackColor = Color.FromArgb(240, 244, 248);
+            this.Font = new Font("Segoe UI", 10F);
+
+            BuildUI();
+            LoadDane();
+        }
+
+        private void BuildUI()
+        {
+            // === HEADER ===
+            var headerPanel = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 70,
+                BackColor = HeaderColor
+            };
+
+            var lblHeader = new Label
+            {
+                Text = $"\U0001f4cb  INWENTARYZACJA - {mroznia.Nazwa.ToUpper()}",
+                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
+                ForeColor = Color.White,
+                Location = new Point(20, 10),
+                AutoSize = true
+            };
+
+            var lblSubHeader = new Label
+            {
+                Text = "Wpisz rzeczywisty stan każdego produktu. Różnice zostaną zapisane jako korekty.",
+                Font = new Font("Segoe UI", 9F, FontStyle.Italic),
+                ForeColor = Color.FromArgb(189, 195, 199),
+                Location = new Point(20, 40),
+                AutoSize = true
+            };
+
+            headerPanel.Controls.AddRange(new Control[] { lblHeader, lblSubHeader });
+
+            // === TOOLBAR (data + przyciski) ===
+            var toolbarPanel = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 50,
+                BackColor = Color.White,
+                Padding = new Padding(10, 8, 10, 8)
+            };
+
+            var lblData = new Label
+            {
+                Text = "Data inwentaryzacji:",
+                Location = new Point(15, 15),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 10F)
+            };
+
+            dtpData = new DateTimePicker
+            {
+                Location = new Point(170, 12),
+                Width = 130,
+                Format = DateTimePickerFormat.Short,
+                Value = DateTime.Today
+            };
+
+            btnDodajProdukt = new Button
+            {
+                Text = "+ Dodaj produkt",
+                Location = new Point(330, 10),
+                Size = new Size(130, 30),
+                BackColor = SuccessColor,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnDodajProdukt.FlatAppearance.BorderSize = 0;
+            btnDodajProdukt.Click += BtnDodajProdukt_Click;
+
+            btnZapisz = new Button
+            {
+                Text = "\u2714 Zapisz korekty",
+                Location = new Point(730, 10),
+                Size = new Size(140, 30),
+                BackColor = WarningColor,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnZapisz.FlatAppearance.BorderSize = 0;
+            btnZapisz.Click += BtnZapisz_Click;
+
+            toolbarPanel.Controls.AddRange(new Control[] { lblData, dtpData, btnDodajProdukt, btnZapisz });
+
+            // === DATAGRIDVIEW ===
+            dgvInwentaryzacja = new DataGridView
+            {
+                Dock = DockStyle.Fill,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                RowHeadersVisible = false,
+                SelectionMode = DataGridViewSelectionMode.CellSelect,
+                BackgroundColor = Color.White,
+                BorderStyle = BorderStyle.None,
+                Font = new Font("Segoe UI", 10F),
+                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
+                {
+                    BackColor = HeaderColor,
+                    ForeColor = Color.White,
+                    Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                    Alignment = DataGridViewContentAlignment.MiddleCenter
+                },
+                EnableHeadersVisualStyles = false,
+                ColumnHeadersHeight = 40,
+                RowTemplate = { Height = 35 },
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    SelectionBackColor = Color.FromArgb(220, 235, 252),
+                    SelectionForeColor = Color.Black
+                }
+            };
+
+            // Kolumny
+            dgvInwentaryzacja.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "KodProduktu",
+                HeaderText = "Kod produktu",
+                ReadOnly = true,
+                FillWeight = 25
+            });
+            dgvInwentaryzacja.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Nazwa",
+                HeaderText = "Nazwa",
+                ReadOnly = true,
+                FillWeight = 30
+            });
+            dgvInwentaryzacja.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "StanObliczony",
+                HeaderText = "Stan obliczony (kg)",
+                ReadOnly = true,
+                FillWeight = 15,
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Format = "#,##0.0",
+                    Alignment = DataGridViewContentAlignment.MiddleRight
+                }
+            });
+            dgvInwentaryzacja.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "StanRzeczywisty",
+                HeaderText = "Stan rzeczywisty (kg)",
+                ReadOnly = false,
+                FillWeight = 15,
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Format = "#,##0.0",
+                    Alignment = DataGridViewContentAlignment.MiddleRight,
+                    BackColor = Color.FromArgb(255, 255, 230)
+                }
+            });
+            dgvInwentaryzacja.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Roznica",
+                HeaderText = "Różnica (kg)",
+                ReadOnly = true,
+                FillWeight = 15,
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Format = "#,##0.0",
+                    Alignment = DataGridViewContentAlignment.MiddleRight
+                }
+            });
+
+            dgvInwentaryzacja.CellEndEdit += DgvInwentaryzacja_CellEndEdit;
+            dgvInwentaryzacja.CellFormatting += DgvInwentaryzacja_CellFormatting;
+
+            this.Controls.Add(dgvInwentaryzacja);
+            this.Controls.Add(toolbarPanel);
+            this.Controls.Add(headerPanel);
+        }
+
+        private void LoadDane()
+        {
+            // Oblicz aktualny stan per produkt z wydań/przyjęć
+            var stanPerProdukt = new Dictionary<string, (string Nazwa, decimal Stan)>(StringComparer.OrdinalIgnoreCase);
+
+            if (mroznia.Wydania != null)
+            {
+                foreach (var w in mroznia.Wydania)
+                {
+                    string kod = w.KodProduktu ?? "";
+                    if (string.IsNullOrEmpty(kod)) continue;
+
+                    if (!stanPerProdukt.ContainsKey(kod))
+                        stanPerProdukt[kod] = (w.Produkt ?? kod, 0m);
+
+                    var current = stanPerProdukt[kod];
+                    if (w.Typ == "Przyjęcie")
+                        stanPerProdukt[kod] = (current.Nazwa, current.Stan + w.Ilosc);
+                    else if (w.Typ == "Wydanie")
+                        stanPerProdukt[kod] = (current.Nazwa, current.Stan - w.Ilosc);
+                }
+            }
+
+            dgvInwentaryzacja.Rows.Clear();
+
+            // Dodaj produkty z niezerowym stanem
+            foreach (var kvp in stanPerProdukt.OrderByDescending(x => x.Value.Stan))
+            {
+                if (kvp.Value.Stan == 0) continue;
+                int idx = dgvInwentaryzacja.Rows.Add();
+                var row = dgvInwentaryzacja.Rows[idx];
+                row.Cells["KodProduktu"].Value = kvp.Key;
+                row.Cells["Nazwa"].Value = kvp.Value.Nazwa;
+                row.Cells["StanObliczony"].Value = kvp.Value.Stan;
+                row.Cells["StanRzeczywisty"].Value = kvp.Value.Stan;
+                row.Cells["Roznica"].Value = 0m;
+            }
+        }
+
+        private void DgvInwentaryzacja_CellEndEdit(object sender, DataGridViewCellEventArgs e)
+        {
+            if (dgvInwentaryzacja.Columns[e.ColumnIndex].Name != "StanRzeczywisty") return;
+
+            var row = dgvInwentaryzacja.Rows[e.RowIndex];
+            decimal stanObl = 0, stanRzecz = 0;
+
+            if (row.Cells["StanObliczony"].Value != null)
+                decimal.TryParse(row.Cells["StanObliczony"].Value.ToString(), out stanObl);
+            if (row.Cells["StanRzeczywisty"].Value != null)
+                decimal.TryParse(row.Cells["StanRzeczywisty"].Value.ToString(), out stanRzecz);
+
+            row.Cells["Roznica"].Value = stanRzecz - stanObl;
+        }
+
+        private void DgvInwentaryzacja_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (dgvInwentaryzacja.Columns[e.ColumnIndex].Name == "Roznica" && e.Value != null)
+            {
+                if (decimal.TryParse(e.Value.ToString(), out decimal roznica))
+                {
+                    if (roznica > 0)
+                        e.CellStyle.ForeColor = SuccessColor;
+                    else if (roznica < 0)
+                        e.CellStyle.ForeColor = DangerColor;
+                    else
+                        e.CellStyle.ForeColor = Color.Gray;
+
+                    e.CellStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+                }
+            }
+        }
+
+        private void BtnDodajProdukt_Click(object sender, EventArgs e)
+        {
+            // Wczytaj produkty mrożone z bazy
+            var produkty = new List<ProduktMrozony>();
+            try
+            {
+                using (var conn = new Microsoft.Data.SqlClient.SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(
+                        $"SELECT Id, Kod, Nazwa FROM [HANDEL].[HM].[TW] WHERE katalog = '{Mroznia.KatalogMrozony}' ORDER BY Nazwa ASC", conn))
+                    using (var rd = cmd.ExecuteReader())
+                        while (rd.Read())
+                            produkty.Add(new ProduktMrozony { Id = rd.GetInt32(0), Kod = rd["Kod"]?.ToString() ?? "", Nazwa = rd["Nazwa"]?.ToString() ?? "" });
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd ładowania produktów: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            // Filtruj produkty już dodane
+            var istniejaceKody = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (DataGridViewRow row in dgvInwentaryzacja.Rows)
+            {
+                var kod = row.Cells["KodProduktu"].Value?.ToString();
+                if (!string.IsNullOrEmpty(kod)) istniejaceKody.Add(kod);
+            }
+
+            var dostepne = produkty.Where(p => !istniejaceKody.Contains(p.Kod)).ToList();
+            if (dostepne.Count == 0)
+            {
+                MessageBox.Show("Wszystkie produkty są już na liście.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            // Prosty dialog wyboru produktu
+            using (var wyborDlg = new Form())
+            {
+                wyborDlg.Text = "Dodaj produkt do inwentaryzacji";
+                wyborDlg.Size = new Size(500, 450);
+                wyborDlg.StartPosition = FormStartPosition.CenterParent;
+                wyborDlg.FormBorderStyle = FormBorderStyle.FixedDialog;
+                wyborDlg.MaximizeBox = false;
+                wyborDlg.MinimizeBox = false;
+                wyborDlg.Font = new Font("Segoe UI", 10F);
+
+                var txtSzukaj = new TextBox
+                {
+                    Dock = DockStyle.Top,
+                    Height = 30,
+                    PlaceholderText = "Szukaj produktu...",
+                    Font = new Font("Segoe UI", 11F)
+                };
+
+                var lstProdukty = new ListBox
+                {
+                    Dock = DockStyle.Fill,
+                    Font = new Font("Segoe UI", 10F)
+                };
+
+                foreach (var p in dostepne)
+                    lstProdukty.Items.Add($"{p.Kod} - {p.Nazwa}");
+
+                txtSzukaj.TextChanged += (s2, e2) =>
+                {
+                    lstProdukty.Items.Clear();
+                    string filtr = txtSzukaj.Text.Trim().ToLower();
+                    foreach (var p in dostepne)
+                    {
+                        if (string.IsNullOrEmpty(filtr) || p.Kod.ToLower().Contains(filtr) || p.Nazwa.ToLower().Contains(filtr))
+                            lstProdukty.Items.Add($"{p.Kod} - {p.Nazwa}");
+                    }
+                };
+
+                var btnDodaj = new Button
+                {
+                    Text = "Dodaj",
+                    Dock = DockStyle.Bottom,
+                    Height = 40,
+                    BackColor = Color.FromArgb(16, 124, 16),
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                };
+                btnDodaj.FlatAppearance.BorderSize = 0;
+                btnDodaj.Click += (s2, e2) =>
+                {
+                    if (lstProdukty.SelectedIndex < 0) return;
+                    string wybrany = lstProdukty.SelectedItem.ToString();
+                    string kodWybrany = wybrany.Split(new[] { " - " }, StringSplitOptions.None)[0];
+                    var prod = dostepne.FirstOrDefault(p => p.Kod == kodWybrany);
+                    if (prod != null)
+                    {
+                        int idx = dgvInwentaryzacja.Rows.Add();
+                        var row = dgvInwentaryzacja.Rows[idx];
+                        row.Cells["KodProduktu"].Value = prod.Kod;
+                        row.Cells["Nazwa"].Value = prod.Nazwa;
+                        row.Cells["StanObliczony"].Value = 0m;
+                        row.Cells["StanRzeczywisty"].Value = 0m;
+                        row.Cells["Roznica"].Value = 0m;
+                        wyborDlg.DialogResult = DialogResult.OK;
+                    }
+                };
+
+                lstProdukty.DoubleClick += (s2, e2) => btnDodaj.PerformClick();
+
+                wyborDlg.Controls.Add(lstProdukty);
+                wyborDlg.Controls.Add(txtSzukaj);
+                wyborDlg.Controls.Add(btnDodaj);
+                wyborDlg.ShowDialog();
+            }
+        }
+
+        private void BtnZapisz_Click(object sender, EventArgs e)
+        {
+            var korekty = new List<WydanieZewnetrzne>();
+            DateTime dataInw = dtpData.Value.Date;
+
+            foreach (DataGridViewRow row in dgvInwentaryzacja.Rows)
+            {
+                decimal roznica = 0;
+                if (row.Cells["Roznica"].Value != null)
+                    decimal.TryParse(row.Cells["Roznica"].Value.ToString(), out roznica);
+
+                if (roznica == 0) continue;
+
+                string kod = row.Cells["KodProduktu"].Value?.ToString() ?? "";
+                string nazwa = row.Cells["Nazwa"].Value?.ToString() ?? "";
+
+                korekty.Add(new WydanieZewnetrzne
+                {
+                    Id = Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper(),
+                    Data = dataInw,
+                    Typ = roznica > 0 ? "Przyjęcie" : "Wydanie",
+                    KodProduktu = kod,
+                    Produkt = nazwa,
+                    Ilosc = Math.Abs(roznica),
+                    Uwagi = $"Inwentaryzacja z dnia {dataInw:dd.MM.yyyy} - korekta stanu"
+                });
+            }
+
+            if (korekty.Count == 0)
+            {
+                MessageBox.Show("Brak różnic do zapisania. Stan rzeczywisty = stan obliczony.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            // Podsumowanie
+            int przyjecia = korekty.Count(k => k.Typ == "Przyjęcie");
+            int wydania = korekty.Count(k => k.Typ == "Wydanie");
+            decimal sumaPlus = korekty.Where(k => k.Typ == "Przyjęcie").Sum(k => k.Ilosc);
+            decimal sumaMinus = korekty.Where(k => k.Typ == "Wydanie").Sum(k => k.Ilosc);
+
+            string msg = $"Podsumowanie inwentaryzacji:\n\n" +
+                         $"Korekty dodatnie (przyjęcia): {przyjecia} pozycji, +{sumaPlus:N1} kg\n" +
+                         $"Korekty ujemne (wydania): {wydania} pozycji, -{sumaMinus:N1} kg\n\n" +
+                         $"Czy zapisać korekty?";
+
+            if (MessageBox.Show(msg, "Potwierdzenie inwentaryzacji", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                this.Korekty = korekty;
+                this.DialogResult = DialogResult.OK;
+            }
+        }
     }
 }

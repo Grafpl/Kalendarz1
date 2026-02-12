@@ -1,0 +1,1258 @@
+
+╭─── Claude Code v2.1.39 ──────────────────────────────────────────────────────╮
+│                                                    │ Tips for getting        │
+│                  Welcome back ser!                 │ started                 │
+│                                                    │ Run /init to create a … │
+│                       ▐▛███▜▌                      │ ─────────────────────── │
+│                      ▝▜█████▛▘                     │ Recent activity         │
+│                        ▘▘ ▝▝                       │ No recent activity      │
+│                                                    │                         │
+│      Opus 4.6 · Claude Max ·                       │                         │
+│      sergiusz.piorko@gmail.com's Organization      │                         │
+│          ~\source\repos\Grafpl\Kalendarz1          │                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ Plan to implement                                                            │
+│                                                                              │
+│ Plan: Mroznia - Pozycje z kg, mapowanie mrożony→świeży, inwentaryzacja       │
+│                                                                              │
+│ Context                                                                      │
+│                                                                              │
+│ 3 zmiany w Mroznia.cs:                                                       │
+│ 1. W Przeglądzie dziennym kolumna "Pozycje" pokazuje tylko kody produktów    │
+│ bez ilości - użytkownik chce dokładne kg                                     │
+│ 2. Nazwy mrożonych produktów są długie - użytkownik chce mapowanie           │
+│ mrożony→świeży (krótsze nazwy) w Pozycjach                                   │
+│ 3. Na mroźniach zewnętrznych brak możliwości ustawienia stanu początkowego - │
+│  potrzebny przycisk "Inwentaryzacja"                                         │
+│                                                                              │
+│ ---                                                                          │
+│ Zmiana 1: Pozycje z dokładnymi kg + mapowanie mrożony→świeży                 │
+│                                                                              │
+│ Plik: Mroznia.cs                                                             │
+│                                                                              │
+│ SQL (linie 1689-1700) - CROSS APPLY                                          │
+│                                                                              │
+│ Zmienić STRING_AGG aby zwracał kod: ilość kg zamiast samego kod:             │
+│ STRING_AGG(kod + ': ' + CAST(CAST(total_qty AS DECIMAL(18,1)) AS VARCHAR) +  │
+│ ' kg', ', ')                                                                 │
+│     WITHIN GROUP (ORDER BY total_qty DESC) AS ProduktyLista                  │
+│                                                                              │
+│ C# DisplayDzienneZestawienie (linie 1715-1737)                               │
+│                                                                              │
+│ 1. Na początku metody wczytać mapowanie: WczytajMapowaniaMrozonyNaSwiezy()   │
+│ (odwrócony słownik - klucz=mrożony, wartość=świeży)                          │
+│ 2. Przy budowaniu "Pozycje" kolumny - dla każdego produktu w ProduktyLista   │
+│ podmienić kod mrożony na świeży jeśli mapowanie istnieje                     │
+│ 3. Usunąć prefix "{liczbaPoz} poz. - " (użytkownik nie chce liczby pozycji)  │
+│ 4. Format: "Filet: 1234.5 kg, Korpus: 567.8 kg, ..."                         │
+│                                                                              │
+│ Nowa metoda pomocnicza WczytajMapowaniaMrozonyNaSwiezy()                     │
+│                                                                              │
+│ - Wczytuje ten sam plik JSON co WczytajMapowaniaSwiezyMrozony()              │
+│ - Ale buduje odwrócony słownik: mapowanie[item.KodMrozony] = item.KodSwiezy  │
+│ - Dzięki temu "Filet mrożony A" zamieni się na "Filet A" (krótsza nazwa)     │
+│                                                                              │
+│ Zmiana formatu kg                                                            │
+│                                                                              │
+│ - Kolumny Wydano/Przyjeto/Bilans: #,##0' kg' → #,##0.0' kg' (1 miejsce po    │
+│ przecinku)                                                                   │
+│                                                                              │
+│ ---                                                                          │
+│ Zmiana 2: Inwentaryzacja na mroźniach zewnętrznych                           │
+│                                                                              │
+│ Plik: Mroznia.cs                                                             │
+│                                                                              │
+│ Nowy przycisk w toolbarze (linia ~1283)                                      │
+│                                                                              │
+│ - btnInwentaryzacja = CreateModernButton("📋 Inwentaryzacja", 470, 10, 140,  │
+│ WarningColor)                                                                │
+│ - Click → otwiera InwentaryzacjaDialog dla aktualnie wybranej mroźni         │
+│                                                                              │
+│ Nowa klasa InwentaryzacjaDialog : Form                                       │
+│                                                                              │
+│ Dialog ze stanem - użytkownik wpisuje aktualny stan każdego produktu:        │
+│                                                                              │
+│ Layout:                                                                      │
+│ - Header: "Inwentaryzacja - {nazwa mroźni}", data inwentaryzacji             │
+│ (DateTimePicker)                                                             │
+│ - DataGridView z kolumnami: Kod produktu, Nazwa, Stan obliczony (kg), Stan   │
+│ rzeczywisty (kg, edytowalny), Różnica                                        │
+│ - "Stan obliczony" = aktualny stan z wydań/przyjęć                           │
+│ - "Stan rzeczywisty" = użytkownik wpisuje                                    │
+│ - "Różnica" = obliczana automatycznie (rzeczywisty - obliczony)              │
+│ - Przycisk "Zapisz" - dodaje korekty jako WydanieZewnetrzne z Typ="Korekta   │
+│ inwentaryzacyjna"                                                            │
+│ - Przycisk "Dodaj produkt" - do dodania produktu którego jeszcze nie ma w    │
+│ stanach                                                                      │
+│                                                                              │
+│ Dane:                                                                        │
+│ - Załaduj produkty z DB (katalog 67153 - mrożone)                            │
+│ - Oblicz aktualny stan per produkt z wydań/przyjęć danej mroźni              │
+│ - Po zapisie: dla każdego produktu z różnicą ≠ 0 dodaj WydanieZewnetrzne:    │
+│   - Typ = "Korekta" (jeśli różnica > 0 = przyjęcie, < 0 = wydanie, ale z     │
+│ uwagą "Inwentaryzacja {data}")                                               │
+│   - Ilosc = ABS(różnica)                                                     │
+│   - Uwagi = "Inwentaryzacja z dnia {data} - korekta stanu"                   │
+│                                                                              │
+│ Model WydanieZewnetrzne                                                      │
+│                                                                              │
+│ - Typ już obsługuje "Wydanie" i "Przyjęcie"                                  │
+│ - Nowy Typ nie jest potrzebny - wystarczy użyć istniejących typów z          │
+│ adnotacją w Uwagi                                                            │
+│                                                                              │
+│ Obliczanie stanu w LoadMroznieZewnetrzneDoTabeli                             │
+│                                                                              │
+│ - Stan = Suma(Przyjęcie) - Suma(Wydanie) - logika bez zmian, korekty wpadną  │
+│ jako normalne operacje                                                       │
+│                                                                              │
+│ ---                                                                          │
+│ Kolejność implementacji                                                      │
+│                                                                              │
+│ 1. Dodać WczytajMapowaniaMrozonyNaSwiezy()                                   │
+│ 2. Zmienić SQL CROSS APPLY - dodać kg do STRING_AGG                          │
+│ 3. Zmienić DisplayDzienneZestawienie() - mapowanie + format                  │
+│ 4. Dodać przycisk Inwentaryzacja w toolbarze mroźni zewnętrznych             │
+│ 5. Stworzyć InwentaryzacjaDialog                                             │
+│ 6. Podpiąć logikę zapisu korekt                                              │
+│                                                                              │
+│ Weryfikacja                                                                  │
+│                                                                              │
+│ - dotnet build Kalendarz1.csproj - 0 błędów                                  │
+│ - Przegląd dzienny: kolumna Pozycje pokazuje "Filet: 1234.5 kg, Korpus:      │
+│ 567.8 kg" ze świeżymi nazwami                                                │
+│ - Mroźnie zewnętrzne: przycisk Inwentaryzacja otwiera dialog, zapis generuje │
+│  korekty                                                                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+● I'll start by reading the relevant sections of Mroznia.cs to understand the
+  current code before making changes.
+
+● Now let me read the relevant sections of Mroznia.cs.
+
+● Read 1 file (ctrl+o to expand)
+
+● Now let me read the mapping methods and the external freezer section.
+
+● Searched for 1 pattern, read 1 file (ctrl+o to expand)
+
+● Now let me read the MapowanieItem class and the WydanieZewnetrzne model.
+
+● Searched for 1 pattern, read 1 file (ctrl+o to expand)
+
+● Now let me find the WydanieZewnetrzne model and the external freezer data
+  methods.
+
+● Searched for 1 pattern, read 1 file (ctrl+o to expand)
+
+● Now let me read the save/load methods for external freezer data.
+
+● Searched for 1 pattern, read 1 file (ctrl+o to expand)
+
+● Now let me read the LoadMroznieZewnetrzneDoTabeli and WczytajMroznieZewnetrzne
+   methods.
+
+● Read 1 file (ctrl+o to expand)
+
+● Now let me find the WczytajMroznieZewnetrzne and ZapiszMroznieZewnetrzne
+  methods.
+
+● Searched for 1 pattern, read 1 file (ctrl+o to expand)
+
+● Now let me look at the end of the file and the WydanieZewnetrzneDialog to
+  understand the existing patterns.
+
+● Searched for 1 pattern, read 1 file (ctrl+o to expand)
+
+● Now let me check the WydanieZewnetrzneDialog for understanding how dialogs are
+   built in this codebase.
+
+● Read 1 file (ctrl+o to expand)
+
+● Now let me also read the end of the file to know where to place the new dialog
+   class.
+
+● Read 2 files (ctrl+o to expand)
+
+● Now I have a thorough understanding of the codebase. Let me also look at the
+  LoadProdukty method in WydanieZewnetrzneDialog to see how products are loaded.
+
+● Searched for 1 pattern, read 1 file (ctrl+o to expand)
+
+● Now I have all the context I need. Let me start implementing the changes.
+
+● Task 1: Add WczytajMapowaniaMrozonyNaSwiezy() method
+
+● Update(Mroznia.cs)
+  ⎿  Added 32 lines
+      3474              return mapowanie;                                
+      3475          }                                                    
+      3476                                                               
+      3477 +        private Dictionary<string, string>                   
+           +WczytajMapowaniaMrozonyNaSwiezy()                            
+      3478 +        {                                                    
+      3479 +            var mapowanie = new Dictionary<string,           
+           +string>(StringComparer.OrdinalIgnoreCase);                   
+      3480 +            try                                              
+      3481 +            {                                                
+      3482 +                string plikMapowan = Path.Combine(           
+      3483 +                    Environment.GetFolderPath(Environment.Sp 
+           +ecialFolder.ApplicationData),                                
+      3484 +                    "OfertaHandlowa",                        
+           +"mapowania_swiezy_mrozony.json");                            
+      3485 +                                                             
+      3486 +                if (File.Exists(plikMapowan))                
+      3487 +                {                                            
+      3488 +                    string json =                            
+           +File.ReadAllText(plikMapowan);                               
+      3489 +                    var lista =                              
+           +JsonSerializer.Deserialize<List<MapowanieItem>>(json);       
+      3490 +                    if (lista != null)                       
+      3491 +                    {                                        
+      3492 +                        foreach (var item in lista)          
+      3493 +                        {                                    
+      3494 +                            if                               
+           +(!string.IsNullOrEmpty(item.KodMrozony) &&                   
+           +!string.IsNullOrEmpty(item.KodSwiezy))                       
+      3495 +                            {                                
+      3496 +                                mapowanie[item.KodMrozony] = 
+           + item.KodSwiezy;                                             
+      3497 +                            }                                
+      3498 +                        }                                    
+      3499 +                    }                                        
+      3500 +                }                                            
+      3501 +            }                                                
+      3502 +            catch (Exception ex)                             
+      3503 +            {                                                
+      3504 +                System.Diagnostics.Debug.WriteLine($"Błąd    
+           +wczytywania mapowań mrożony→świeży: {ex.Message}");          
+      3505 +            }                                                
+      3506 +            return mapowanie;                                
+      3507 +        }                                                    
+      3508 +                                                             
+      3509          /// <summary>                                        
+      3510          /// Otwiera okno mapowania produktów świeżych na     
+            mrożone                                                      
+      3511          /// </summary>                                       
+
+● Task 2: Modify SQL CROSS APPLY to include kg in STRING_AGG
+
+● Update(Mroznia.cs)
+  ⎿  Added 2 lines, removed 1 line
+      1687                         p.ProduktyLista                       
+      1688                  FROM Dzienne d                               
+      1689                  CROSS APPLY (                                
+      1690 -                    SELECT STRING_AGG(kod, ', ') WITHIN      
+           -GROUP (ORDER BY total_qty DESC) AS ProduktyLista             
+      1690 +                    SELECT STRING_AGG(kod + ': ' +           
+           +CAST(CAST(total_qty AS DECIMAL(18,1)) AS VARCHAR) + ' kg',   
+           +', ')                                                        
+      1691 +                        WITHIN GROUP (ORDER BY total_qty     
+           +DESC) AS ProduktyLista                                       
+      1692                      FROM (                                   
+      1693                          SELECT MZ2.kod, ABS(SUM(MZ2.ilosc))  
+            AS total_qty                                                 
+      1694                          FROM [HANDEL].[HM].[MG] MG2          
+
+● Task 3: Update DisplayDzienneZestawienie with mapping + format
+
+● Update(Mroznia.cs)
+  ⎿  Added 33 lines, removed 5 lines
+      1717          {                                                    
+      1718              cachedDzienneData = dt;                          
+      1719                                                               
+      1720 +            // Wczytaj mapowanie mrożony→świeży dla          
+           +krótszych nazw                                               
+      1721 +            var mapowanieMrozonySwiezy =                     
+           +WczytajMapowaniaMrozonyNaSwiezy();                           
+      1722 +                                                             
+      1723              // Dodaj kolumnę "Data i dzień" łączącą datę z   
+            polską nazwą dnia                                            
+      1724              var plCulture = new                              
+            System.Globalization.CultureInfo("pl-PL");                   
+      1725              if (!dt.Columns.Contains("DataDzien"))           
+     ...
+      1730                      dzienPL = char.ToUpper(dzienPL[0]) +     
+            dzienPL.Substring(1);                                        
+      1731                      row["DataDzien"] = $"{data:dd.MM.yyyy}   
+            ({dzienPL})";                                                
+      1732                                                               
+      1733 -                    // Buduj kolumnę Pozycje: "6 poz.        
+           -- filet mrożony, korpus mrożony, ..."                        
+      1734 -                    int liczbaPoz = row["LiczbaPozycji"] !=  
+           -DBNull.Value ? Convert.ToInt32(row["LiczbaPozycji"]) : 0;    
+      1733 +                    // Buduj kolumnę Pozycje: "Filet: 1234.5 
+           +kg, Korpus: 567.8 kg"                                        
+      1734                      string produkty =                        
+            row["ProduktyLista"]?.ToString() ?? "";                      
+      1735 -                    row["Pozycje"] = liczbaPoz > 0 &&        
+           -!string.IsNullOrEmpty(produkty)                              
+      1736 -                        ? $"{liczbaPoz} poz. - {produkty}"   
+      1737 -                        : $"{liczbaPoz} poz.";               
+      1735 +                    if (!string.IsNullOrEmpty(produkty))     
+      1736 +                    {                                        
+      1737 +                        // Zamień kody mrożone na świeże     
+           +(krótsze nazwy)                                              
+      1738 +                        var czesci = produkty.Split(new[] {  
+           +", " }, StringSplitOptions.RemoveEmptyEntries);              
+      1739 +                        var zamienione = new List<string>(); 
+      1740 +                        foreach (var czesc in czesci)        
+      1741 +                        {                                    
+      1742 +                            // Format: "KodMrozony: 123.4    
+           +kg"                                                          
+      1743 +                            int dwukropek =                  
+           +czesc.IndexOf(':');                                          
+      1744 +                            if (dwukropek > 0)               
+      1745 +                            {                                
+      1746 +                                string kodMrozony =          
+           +czesc.Substring(0, dwukropek).Trim();                        
+      1747 +                                string reszta =              
+           +czesc.Substring(dwukropek); // ": 123.4 kg"                  
+      1748 +                                if                           
+           +(mapowanieMrozonySwiezy.TryGetValue(kodMrozony, out string   
+           +kodSwiezy))                                                  
+      1749 +                                    zamienione.Add(kodSwiezy 
+           + + reszta);                                                  
+      1750 +                                else                         
+      1751 +                                    zamienione.Add(czesc);   
+      1752 +                            }                                
+      1753 +                            else                             
+      1754 +                            {                                
+      1755 +                                zamienione.Add(czesc);       
+      1756 +                            }                                
+      1757 +                        }                                    
+      1758 +                        row["Pozycje"] = string.Join(", ",   
+           +zamienione);                                                 
+      1759 +                    }                                        
+      1760 +                    else                                     
+      1761 +                    {                                        
+      1762 +                        row["Pozycje"] = "";                 
+      1763 +                    }                                        
+      1764                  }                                            
+      1765                  // Przenieś kolumnę na początek              
+      1766                  dt.Columns["DataDzien"].SetOrdinal(0);       
+
+● Now change the kg format to 1 decimal place:
+
+● Update(Mroznia.cs)
+  ⎿  Added 3 lines, removed 3 lines
+      1780                  dgvDzienne.Columns["ProduktyLista"].Visible  
+            = false;                                                     
+      1781                                                               
+      1782              FormatujKolumne(dgvDzienne, "DataDzien",         
+            "Data");                                                     
+      1783 -            FormatujKolumne(dgvDzienne, "Wydano", "Wydano",  
+           -"#,##0' kg'");                                               
+      1784 -            FormatujKolumne(dgvDzienne, "Przyjeto",          
+           -"Przyjęto", "#,##0' kg'");                                   
+      1785 -            FormatujKolumne(dgvDzienne, "Bilans", "Bilans",  
+           -"#,##0' kg'");                                               
+      1783 +            FormatujKolumne(dgvDzienne, "Wydano", "Wydano",  
+           +"#,##0.0' kg'");                                             
+      1784 +            FormatujKolumne(dgvDzienne, "Przyjeto",          
+           +"Przyjęto", "#,##0.0' kg'");                                 
+      1785 +            FormatujKolumne(dgvDzienne, "Bilans", "Bilans",  
+           +"#,##0.0' kg'");                                             
+      1786              FormatujKolumne(dgvDzienne, "Pozycje",           
+            "Pozycje");                                                  
+      1787                                                               
+      1788              // Szerokości kolumn - Pozycje bardzo szeroka,   
+            reszta kompaktowa                                            
+
+● Task 4: Add Inwentaryzacja button to external freezer toolbar
+
+● Update(Mroznia.cs)
+  ⎿  Added 4 lines, removed 1 line
+      1280              Button btnDodajWydanieZewn =                     
+            CreateModernButton("+ Wydanie/Przyjęcie", 310, 10, 140,      
+            PrimaryColor);                                               
+      1281              btnDodajWydanieZewn.Click +=                     
+            BtnDodajWydanieZewnetrzne_Click;                             
+      1282                                                               
+      1283 -            zewnToolbar.Controls.AddRange(new Control[] {    
+           -btnDodajMroznieZewn, btnEdytujMroznieZewn,                   
+           -btnUsunMroznieZewn, btnDodajWydanieZewn });                  
+      1283 +            Button btnInwentaryzacja =                       
+           +CreateModernButton("\U0001f4cb Inwentaryzacja", 470, 10,     
+           +140, WarningColor);                                          
+      1284 +            btnInwentaryzacja.Click +=                       
+           +BtnInwentaryzacja_Click;                                     
+      1285                                                               
+      1286 +            zewnToolbar.Controls.AddRange(new Control[] {    
+           +btnDodajMroznieZewn, btnEdytujMroznieZewn,                   
+           +btnUsunMroznieZewn, btnDodajWydanieZewn, btnInwentaryzacja   
+           +});                                                          
+      1287 +                                                             
+      1288              // Split: Lista mroźni | Szczegóły/Wydania       
+      1289              SplitContainer splitZewn = new SplitContainer    
+      1290              {                                                
+
+● Now add the click handler method. Let me add it before the #endregion at the
+  end of the Mroznia class.
+
+● Read 1 file (ctrl+o to expand)
+
+● Now add the Inwentaryzacja click handler before the #endregion:
+
+● Update(Mroznia.cs)
+  ⎿  Added 37 lines
+      4463              }                                                
+      4464          }                                                    
+      4465                                                               
+      4466 +        private void BtnInwentaryzacja_Click(object sender,  
+           +EventArgs e)                                                 
+      4467 +        {                                                    
+      4468 +            if (dgvMroznieZewnetrzne.SelectedRows.Count ==   
+           +0)                                                           
+      4469 +            {                                                
+      4470 +                MessageBox.Show("Najpierw wybierz mroźnię z  
+           +listy.", "Brak wyboru", MessageBoxButtons.OK,                
+           +MessageBoxIcon.Information);                                 
+      4471 +                return;                                      
+      4472 +            }                                                
+      4473 +                                                             
+      4474 +            string id = dgvMroznieZewnetrzne.SelectedRows[0] 
+           +.Cells["ID"].Value?.ToString();                              
+      4475 +            string nazwa = dgvMroznieZewnetrzne.SelectedRows 
+           +[0].Cells["Nazwa"].Value?.ToString();                        
+      4476 +                                                             
+      4477 +            var mroznie = WczytajMroznieZewnetrzne();        
+      4478 +            var mroznia = mroznie.FirstOrDefault(m => m.Id   
+           +== id);                                                      
+      4479 +            if (mroznia == null) return;                     
+      4480 +                                                             
+      4481 +            using (var dlg = new                             
+           +InwentaryzacjaDialog(mroznia, connectionString))             
+      4482 +            {                                                
+      4483 +                if (dlg.ShowDialog() == DialogResult.OK &&   
+           +dlg.Korekty.Count > 0)                                       
+      4484 +                {                                            
+      4485 +                    if (mroznia.Wydania == null)             
+      4486 +                        mroznia.Wydania = new                
+           +List<WydanieZewnetrzne>();                                   
+      4487 +                                                             
+      4488 +                    foreach (var korekta in dlg.Korekty)     
+      4489 +                    {                                        
+      4490 +                        mroznia.Wydania.Add(korekta);        
+      4491 +                    }                                        
+      4492 +                                                             
+      4493 +                    ZapiszMroznieZewnetrzne(mroznie);        
+      4494 +                    LoadMroznieZewnetrzneDoTabeli();         
+      4495 +                                                             
+           +DgvMroznieZewnetrzne_SelectionChanged(null, null);           
+      4496 +                                                             
+      4497 +                    statusLabel.Text = $"Inwentaryzacja:     
+           +{dlg.Korekty.Count} korekt ({nazwa})";                       
+      4498 +                    ShowToast($"Inwentaryzacja zapisana:     
+           +{dlg.Korekty.Count} korekt ({nazwa})", WarningColor);        
+      4499 +                }                                            
+      4500 +            }                                                
+      4501 +        }                                                    
+      4502 +                                                             
+      4503          #endregion                                           
+      4504      }                                                        
+      4505                                                               
+
+● Task 5: Create InwentaryzacjaDialog class
+
+  Now I'll add the InwentaryzacjaDialog class before the closing } of the
+  namespace. Let me find the right spot - just before the closing brace.
+
+● Read 1 file (ctrl+o to expand)
+
+● Now I'll insert the InwentaryzacjaDialog class before the closing } of the
+  namespace:
+
+● Update(Mroznia.cs)
+  ⎿  Added 451 lines
+      6083          public string Kod { get; set; } = "";                
+      6084          public string Nazwa { get; set; } = "";              
+      6085      }                                                        
+      6086 +                                                             
+      6087 +    /// <summary>                                            
+      6088 +    /// Dialog inwentaryzacji mroźni zewnętrznej - pozwala   
+           +ustawić rzeczywisty stan i generuje korekty                  
+      6089 +    /// </summary>                                           
+      6090 +    public class InwentaryzacjaDialog : Form                 
+      6091 +    {                                                        
+      6092 +        public List<WydanieZewnetrzne> Korekty { get;        
+           +private set; } = new List<WydanieZewnetrzne>();              
+      6093 +                                                             
+      6094 +        private MrozniaZewnetrzna mroznia;                   
+      6095 +        private string connectionString;                     
+      6096 +        private DataGridView dgvInwentaryzacja;              
+      6097 +        private DateTimePicker dtpData;                      
+      6098 +        private Button btnZapisz, btnDodajProdukt;           
+      6099 +                                                             
+      6100 +        private readonly Color HeaderColor =                 
+           +Color.FromArgb(44, 62, 80);                                  
+      6101 +        private readonly Color WarningColor =                
+           +Color.FromArgb(255, 140, 0);                                 
+      6102 +        private readonly Color SuccessColor =                
+           +Color.FromArgb(16, 124, 16);                                 
+      6103 +        private readonly Color DangerColor =                 
+           +Color.FromArgb(232, 17, 35);                                 
+      6104 +                                                             
+      6105 +        public InwentaryzacjaDialog(MrozniaZewnetrzna        
+           +mroznia, string connString)                                  
+      6106 +        {                                                    
+      6107 +            this.mroznia = mroznia;                          
+      6108 +            this.connectionString = connString;              
+      6109 +                                                             
+      6110 +            this.Text = $"\U0001f4cb Inwentaryzacja -        
+           +{mroznia.Nazwa}";                                            
+      6111 +            this.Size = new Size(900, 650);                  
+      6112 +            this.StartPosition =                             
+           +FormStartPosition.CenterParent;                              
+      6113 +            this.FormBorderStyle =                           
+           +FormBorderStyle.FixedDialog;                                 
+      6114 +            this.MaximizeBox = false;                        
+      6115 +            this.MinimizeBox = false;                        
+      6116 +            this.BackColor = Color.FromArgb(240, 244, 248);  
+      6117 +            this.Font = new Font("Segoe UI", 10F);           
+      6118 +                                                             
+      6119 +            BuildUI();                                       
+      6120 +            LoadDane();                                      
+      6121 +        }                                                    
+      6122 +                                                             
+      6123 +        private void BuildUI()                               
+      6124 +        {                                                    
+      6125 +            // === HEADER ===                                
+      6126 +            var headerPanel = new Panel                      
+      6127 +            {                                                
+      6128 +                Dock = DockStyle.Top,                        
+      6129 +                Height = 70,                                 
+      6130 +                BackColor = HeaderColor                      
+      6131 +            };                                               
+      6132 +                                                             
+      6133 +            var lblHeader = new Label                        
+      6134 +            {                                                
+      6135 +                Text = $"\U0001f4cb  INWENTARYZACJA -        
+           +{mroznia.Nazwa.ToUpper()}",                                  
+      6136 +                Font = new Font("Segoe UI", 14F,             
+           +FontStyle.Bold),                                             
+      6137 +                ForeColor = Color.White,                     
+      6138 +                Location = new Point(20, 10),                
+      6139 +                AutoSize = true                              
+      6140 +            };                                               
+      6141 +                                                             
+      6142 +            var lblSubHeader = new Label                     
+      6143 +            {                                                
+      6144 +                Text = "Wpisz rzeczywisty stan każdego       
+           +produktu. Różnice zostaną zapisane jako korekty.",           
+      6145 +                Font = new Font("Segoe UI", 9F,              
+           +FontStyle.Italic),                                           
+      6146 +                ForeColor = Color.FromArgb(189, 195, 199),   
+      6147 +                Location = new Point(20, 40),                
+      6148 +                AutoSize = true                              
+      6149 +            };                                               
+      6150 +                                                             
+      6151 +            headerPanel.Controls.AddRange(new Control[] {    
+           +lblHeader, lblSubHeader });                                  
+      6152 +                                                             
+      6153 +            // === TOOLBAR (data + przyciski) ===            
+      6154 +            var toolbarPanel = new Panel                     
+      6155 +            {                                                
+      6156 +                Dock = DockStyle.Top,                        
+      6157 +                Height = 50,                                 
+      6158 +                BackColor = Color.White,                     
+      6159 +                Padding = new Padding(10, 8, 10, 8)          
+      6160 +            };                                               
+      6161 +                                                             
+      6162 +            var lblData = new Label                          
+      6163 +            {                                                
+      6164 +                Text = "Data inwentaryzacji:",               
+      6165 +                Location = new Point(15, 15),                
+      6166 +                AutoSize = true,                             
+      6167 +                Font = new Font("Segoe UI", 10F)             
+      6168 +            };                                               
+      6169 +                                                             
+      6170 +            dtpData = new DateTimePicker                     
+      6171 +            {                                                
+      6172 +                Location = new Point(170, 12),               
+      6173 +                Width = 130,                                 
+      6174 +                Format = DateTimePickerFormat.Short,         
+      6175 +                Value = DateTime.Today                       
+      6176 +            };                                               
+      6177 +                                                             
+      6178 +            btnDodajProdukt = new Button                     
+      6179 +            {                                                
+      6180 +                Text = "+ Dodaj produkt",                    
+      6181 +                Location = new Point(330, 10),               
+      6182 +                Size = new Size(130, 30),                    
+      6183 +                BackColor = SuccessColor,                    
+      6184 +                ForeColor = Color.White,                     
+      6185 +                FlatStyle = FlatStyle.Flat,                  
+      6186 +                Font = new Font("Segoe UI", 9F,              
+           +FontStyle.Bold),                                             
+      6187 +                Cursor = Cursors.Hand                        
+      6188 +            };                                               
+      6189 +            btnDodajProdukt.FlatAppearance.BorderSize = 0;   
+      6190 +            btnDodajProdukt.Click += BtnDodajProdukt_Click;  
+      6191 +                                                             
+      6192 +            btnZapisz = new Button                           
+      6193 +            {                                                
+      6194 +                Text = "\u2714 Zapisz korekty",              
+      6195 +                Location = new Point(730, 10),               
+      6196 +                Size = new Size(140, 30),                    
+      6197 +                BackColor = WarningColor,                    
+      6198 +                ForeColor = Color.White,                     
+      6199 +                FlatStyle = FlatStyle.Flat,                  
+      6200 +                Font = new Font("Segoe UI", 9F,              
+           +FontStyle.Bold),                                             
+      6201 +                Cursor = Cursors.Hand                        
+      6202 +            };                                               
+      6203 +            btnZapisz.FlatAppearance.BorderSize = 0;         
+      6204 +            btnZapisz.Click += BtnZapisz_Click;              
+      6205 +                                                             
+      6206 +            toolbarPanel.Controls.AddRange(new Control[] {   
+           +lblData, dtpData, btnDodajProdukt, btnZapisz });             
+      6207 +                                                             
+      6208 +            // === DATAGRIDVIEW ===                          
+      6209 +            dgvInwentaryzacja = new DataGridView             
+      6210 +            {                                                
+      6211 +                Dock = DockStyle.Fill,                       
+      6212 +                AllowUserToAddRows = false,                  
+      6213 +                AllowUserToDeleteRows = false,               
+      6214 +                AutoSizeColumnsMode =                        
+           +DataGridViewAutoSizeColumnsMode.Fill,                        
+      6215 +                RowHeadersVisible = false,                   
+      6216 +                SelectionMode =                              
+           +DataGridViewSelectionMode.CellSelect,                        
+      6217 +                BackgroundColor = Color.White,               
+      6218 +                BorderStyle = BorderStyle.None,              
+      6219 +                Font = new Font("Segoe UI", 10F),            
+      6220 +                ColumnHeadersDefaultCellStyle = new          
+           +DataGridViewCellStyle                                        
+      6221 +                {                                            
+      6222 +                    BackColor = HeaderColor,                 
+      6223 +                    ForeColor = Color.White,                 
+      6224 +                    Font = new Font("Segoe UI", 10F,         
+           +FontStyle.Bold),                                             
+      6225 +                    Alignment =                              
+           +DataGridViewContentAlignment.MiddleCenter                    
+      6226 +                },                                           
+      6227 +                EnableHeadersVisualStyles = false,           
+      6228 +                ColumnHeadersHeight = 40,                    
+      6229 +                RowTemplate = { Height = 35 },               
+      6230 +                DefaultCellStyle = new DataGridViewCellStyle 
+      6231 +                {                                            
+      6232 +                    SelectionBackColor = Color.FromArgb(220, 
+           + 235, 252),                                                  
+      6233 +                    SelectionForeColor = Color.Black         
+      6234 +                }                                            
+      6235 +            };                                               
+      6236 +                                                             
+      6237 +            // Kolumny                                       
+      6238 +            dgvInwentaryzacja.Columns.Add(new                
+           +DataGridViewTextBoxColumn                                    
+      6239 +            {                                                
+      6240 +                Name = "KodProduktu",                        
+      6241 +                HeaderText = "Kod produktu",                 
+      6242 +                ReadOnly = true,                             
+      6243 +                FillWeight = 25                              
+      6244 +            });                                              
+      6245 +            dgvInwentaryzacja.Columns.Add(new                
+           +DataGridViewTextBoxColumn                                    
+      6246 +            {                                                
+      6247 +                Name = "Nazwa",                              
+      6248 +                HeaderText = "Nazwa",                        
+      6249 +                ReadOnly = true,                             
+      6250 +                FillWeight = 30                              
+      6251 +            });                                              
+      6252 +            dgvInwentaryzacja.Columns.Add(new                
+           +DataGridViewTextBoxColumn                                    
+      6253 +            {                                                
+      6254 +                Name = "StanObliczony",                      
+      6255 +                HeaderText = "Stan obliczony (kg)",          
+      6256 +                ReadOnly = true,                             
+      6257 +                FillWeight = 15,                             
+      6258 +                DefaultCellStyle = new DataGridViewCellStyle 
+      6259 +                {                                            
+      6260 +                    Format = "#,##0.0",                      
+      6261 +                    Alignment =                              
+           +DataGridViewContentAlignment.MiddleRight                     
+      6262 +                }                                            
+      6263 +            });                                              
+      6264 +            dgvInwentaryzacja.Columns.Add(new                
+           +DataGridViewTextBoxColumn                                    
+      6265 +            {                                                
+      6266 +                Name = "StanRzeczywisty",                    
+      6267 +                HeaderText = "Stan rzeczywisty (kg)",        
+      6268 +                ReadOnly = false,                            
+      6269 +                FillWeight = 15,                             
+      6270 +                DefaultCellStyle = new DataGridViewCellStyle 
+      6271 +                {                                            
+      6272 +                    Format = "#,##0.0",                      
+      6273 +                    Alignment =                              
+           +DataGridViewContentAlignment.MiddleRight,                    
+      6274 +                    BackColor = Color.FromArgb(255, 255,     
+           +230)                                                         
+      6275 +                }                                            
+      6276 +            });                                              
+      6277 +            dgvInwentaryzacja.Columns.Add(new                
+           +DataGridViewTextBoxColumn                                    
+      6278 +            {                                                
+      6279 +                Name = "Roznica",                            
+      6280 +                HeaderText = "Różnica (kg)",                 
+      6281 +                ReadOnly = true,                             
+      6282 +                FillWeight = 15,                             
+      6283 +                DefaultCellStyle = new DataGridViewCellStyle 
+      6284 +                {                                            
+      6285 +                    Format = "#,##0.0",                      
+      6286 +                    Alignment =                              
+           +DataGridViewContentAlignment.MiddleRight                     
+      6287 +                }                                            
+      6288 +            });                                              
+      6289 +                                                             
+      6290 +            dgvInwentaryzacja.CellEndEdit +=                 
+           +DgvInwentaryzacja_CellEndEdit;                               
+      6291 +            dgvInwentaryzacja.CellFormatting +=              
+           +DgvInwentaryzacja_CellFormatting;                            
+      6292 +                                                             
+      6293 +            this.Controls.Add(dgvInwentaryzacja);            
+      6294 +            this.Controls.Add(toolbarPanel);                 
+      6295 +            this.Controls.Add(headerPanel);                  
+      6296 +        }                                                    
+      6297 +                                                             
+      6298 +        private void LoadDane()                              
+      6299 +        {                                                    
+      6300 +            // Oblicz aktualny stan per produkt z            
+           +wydań/przyjęć                                                
+      6301 +            var stanPerProdukt = new Dictionary<string,      
+           +(string Nazwa, decimal                                       
+           +Stan)>(StringComparer.OrdinalIgnoreCase);                    
+      6302 +                                                             
+      6303 +            if (mroznia.Wydania != null)                     
+      6304 +            {                                                
+      6305 +                foreach (var w in mroznia.Wydania)           
+      6306 +                {                                            
+      6307 +                    string kod = w.KodProduktu ?? "";        
+      6308 +                    if (string.IsNullOrEmpty(kod)) continue; 
+      6309 +                                                             
+      6310 +                    if (!stanPerProdukt.ContainsKey(kod))    
+      6311 +                        stanPerProdukt[kod] = (w.Produkt ??  
+           +kod, 0m);                                                    
+      6312 +                                                             
+      6313 +                    var current = stanPerProdukt[kod];       
+      6314 +                    if (w.Typ == "Przyjęcie")                
+      6315 +                        stanPerProdukt[kod] =                
+           +(current.Nazwa, current.Stan + w.Ilosc);                     
+      6316 +                    else if (w.Typ == "Wydanie")             
+      6317 +                        stanPerProdukt[kod] =                
+           +(current.Nazwa, current.Stan - w.Ilosc);                     
+      6318 +                }                                            
+      6319 +            }                                                
+      6320 +                                                             
+      6321 +            dgvInwentaryzacja.Rows.Clear();                  
+      6322 +                                                             
+      6323 +            // Dodaj produkty z niezerowym stanem            
+      6324 +            foreach (var kvp in                              
+           +stanPerProdukt.OrderByDescending(x => x.Value.Stan))         
+      6325 +            {                                                
+      6326 +                if (kvp.Value.Stan == 0) continue;           
+      6327 +                int idx = dgvInwentaryzacja.Rows.Add();      
+      6328 +                var row = dgvInwentaryzacja.Rows[idx];       
+      6329 +                row.Cells["KodProduktu"].Value = kvp.Key;    
+      6330 +                row.Cells["Nazwa"].Value = kvp.Value.Nazwa;  
+      6331 +                row.Cells["StanObliczony"].Value =           
+           +kvp.Value.Stan;                                              
+      6332 +                row.Cells["StanRzeczywisty"].Value =         
+           +kvp.Value.Stan;                                              
+      6333 +                row.Cells["Roznica"].Value = 0m;             
+      6334 +            }                                                
+      6335 +        }                                                    
+      6336 +                                                             
+      6337 +        private void DgvInwentaryzacja_CellEndEdit(object    
+           +sender, DataGridViewCellEventArgs e)                         
+      6338 +        {                                                    
+      6339 +            if                                               
+           +(dgvInwentaryzacja.Columns[e.ColumnIndex].Name !=            
+           +"StanRzeczywisty") return;                                   
+      6340 +                                                             
+      6341 +            var row = dgvInwentaryzacja.Rows[e.RowIndex];    
+      6342 +            decimal stanObl = 0, stanRzecz = 0;              
+      6343 +                                                             
+      6344 +            if (row.Cells["StanObliczony"].Value != null)    
+      6345 +                decimal.TryParse(row.Cells["StanObliczony"]. 
+           +Value.ToString(), out stanObl);                              
+      6346 +            if (row.Cells["StanRzeczywisty"].Value != null)  
+      6347 +                decimal.TryParse(row.Cells["StanRzeczywisty" 
+           +].Value.ToString(), out stanRzecz);                          
+      6348 +                                                             
+      6349 +            row.Cells["Roznica"].Value = stanRzecz -         
+           +stanObl;                                                     
+      6350 +        }                                                    
+      6351 +                                                             
+      6352 +        private void DgvInwentaryzacja_CellFormatting(object 
+           + sender, DataGridViewCellFormattingEventArgs e)              
+      6353 +        {                                                    
+      6354 +            if                                               
+           +(dgvInwentaryzacja.Columns[e.ColumnIndex].Name == "Roznica"  
+           +&& e.Value != null)                                          
+      6355 +            {                                                
+      6356 +                if (decimal.TryParse(e.Value.ToString(), out 
+           + decimal roznica))                                           
+      6357 +                {                                            
+      6358 +                    if (roznica > 0)                         
+      6359 +                        e.CellStyle.ForeColor =              
+           +SuccessColor;                                                
+      6360 +                    else if (roznica < 0)                    
+      6361 +                        e.CellStyle.ForeColor = DangerColor; 
+      6362 +                    else                                     
+      6363 +                        e.CellStyle.ForeColor = Color.Gray;  
+      6364 +                                                             
+      6365 +                    e.CellStyle.Font = new Font("Segoe UI",  
+           +10F, FontStyle.Bold);                                        
+      6366 +                }                                            
+      6367 +            }                                                
+      6368 +        }                                                    
+      6369 +                                                             
+      6370 +        private void BtnDodajProdukt_Click(object sender,    
+           +EventArgs e)                                                 
+      6371 +        {                                                    
+      6372 +            // Wczytaj produkty mrożone z bazy               
+      6373 +            var produkty = new List<ProduktMrozony>();       
+      6374 +            try                                              
+      6375 +            {                                                
+      6376 +                using (var conn = new                        
+           +Microsoft.Data.SqlClient.SqlConnection(connectionString))    
+      6377 +                {                                            
+      6378 +                    conn.Open();                             
+      6379 +                    using (var cmd = new                     
+           +Microsoft.Data.SqlClient.SqlCommand(                         
+      6380 +                        $"SELECT Id, Kod, Nazwa FROM         
+           +[HANDEL].[HM].[TW] WHERE katalog =                           
+           +'{Mroznia.KatalogMrozony}' ORDER BY Nazwa ASC", conn))       
+      6381 +                    using (var rd = cmd.ExecuteReader())     
+      6382 +                        while (rd.Read())                    
+      6383 +                            produkty.Add(new ProduktMrozony  
+           +{ Id = rd.GetInt32(0), Kod = rd["Kod"]?.ToString() ?? "",    
+           +Nazwa = rd["Nazwa"]?.ToString() ?? "" });                    
+      6384 +                }                                            
+      6385 +            }                                                
+      6386 +            catch (Exception ex)                             
+      6387 +            {                                                
+      6388 +                MessageBox.Show($"Błąd ładowania produktów:  
+           +{ex.Message}", "Błąd", MessageBoxButtons.OK,                 
+           +MessageBoxIcon.Error);                                       
+      6389 +                return;                                      
+      6390 +            }                                                
+      6391 +                                                             
+      6392 +            // Filtruj produkty już dodane                   
+      6393 +            var istniejaceKody = new                         
+           +HashSet<string>(StringComparer.OrdinalIgnoreCase);           
+      6394 +            foreach (DataGridViewRow row in                  
+           +dgvInwentaryzacja.Rows)                                      
+      6395 +            {                                                
+      6396 +                var kod =                                    
+           +row.Cells["KodProduktu"].Value?.ToString();                  
+      6397 +                if (!string.IsNullOrEmpty(kod))              
+           +istniejaceKody.Add(kod);                                     
+      6398 +            }                                                
+      6399 +                                                             
+      6400 +            var dostepne = produkty.Where(p =>               
+           +!istniejaceKody.Contains(p.Kod)).ToList();                   
+      6401 +            if (dostepne.Count == 0)                         
+      6402 +            {                                                
+      6403 +                MessageBox.Show("Wszystkie produkty są już   
+           +na liście.", "Informacja", MessageBoxButtons.OK,             
+           +MessageBoxIcon.Information);                                 
+      6404 +                return;                                      
+      6405 +            }                                                
+      6406 +                                                             
+      6407 +            // Prosty dialog wyboru produktu                 
+      6408 +            using (var wyborDlg = new Form())                
+      6409 +            {                                                
+      6410 +                wyborDlg.Text = "Dodaj produkt do            
+           +inwentaryzacji";                                             
+      6411 +                wyborDlg.Size = new Size(500, 450);          
+      6412 +                wyborDlg.StartPosition =                     
+           +FormStartPosition.CenterParent;                              
+      6413 +                wyborDlg.FormBorderStyle =                   
+           +FormBorderStyle.FixedDialog;                                 
+      6414 +                wyborDlg.MaximizeBox = false;                
+      6415 +                wyborDlg.MinimizeBox = false;                
+      6416 +                wyborDlg.Font = new Font("Segoe UI", 10F);   
+      6417 +                                                             
+      6418 +                var txtSzukaj = new TextBox                  
+      6419 +                {                                            
+      6420 +                    Dock = DockStyle.Top,                    
+      6421 +                    Height = 30,                             
+      6422 +                    PlaceholderText = "Szukaj produktu...",  
+      6423 +                    Font = new Font("Segoe UI", 11F)         
+      6424 +                };                                           
+      6425 +                                                             
+      6426 +                var lstProdukty = new ListBox                
+      6427 +                {                                            
+      6428 +                    Dock = DockStyle.Fill,                   
+      6429 +                    Font = new Font("Segoe UI", 10F)         
+      6430 +                };                                           
+      6431 +                                                             
+      6432 +                foreach (var p in dostepne)                  
+      6433 +                    lstProdukty.Items.Add($"{p.Kod} -        
+           +{p.Nazwa}");                                                 
+      6434 +                                                             
+      6435 +                txtSzukaj.TextChanged += (s2, e2) =>         
+      6436 +                {                                            
+      6437 +                    lstProdukty.Items.Clear();               
+      6438 +                    string filtr =                           
+           +txtSzukaj.Text.Trim().ToLower();                             
+      6439 +                    foreach (var p in dostepne)              
+      6440 +                    {                                        
+      6441 +                        if (string.IsNullOrEmpty(filtr) ||   
+           +p.Kod.ToLower().Contains(filtr) ||                           
+           +p.Nazwa.ToLower().Contains(filtr))                           
+      6442 +                            lstProdukty.Items.Add($"{p.Kod}  
+           +- {p.Nazwa}");                                               
+      6443 +                    }                                        
+      6444 +                };                                           
+      6445 +                                                             
+      6446 +                var btnDodaj = new Button                    
+      6447 +                {                                            
+      6448 +                    Text = "Dodaj",                          
+      6449 +                    Dock = DockStyle.Bottom,                 
+      6450 +                    Height = 40,                             
+      6451 +                    BackColor = Color.FromArgb(16, 124, 16), 
+      6452 +                    ForeColor = Color.White,                 
+      6453 +                    FlatStyle = FlatStyle.Flat,              
+      6454 +                    Font = new Font("Segoe UI", 10F,         
+           +FontStyle.Bold)                                              
+      6455 +                };                                           
+      6456 +                btnDodaj.FlatAppearance.BorderSize = 0;      
+      6457 +                btnDodaj.Click += (s2, e2) =>                
+      6458 +                {                                            
+      6459 +                    if (lstProdukty.SelectedIndex < 0)       
+           +return;                                                      
+      6460 +                    string wybrany =                         
+           +lstProdukty.SelectedItem.ToString();                         
+      6461 +                    string kodWybrany = wybrany.Split(new[]  
+           +{ " - " }, StringSplitOptions.None)[0];                      
+      6462 +                    var prod = dostepne.FirstOrDefault(p =>  
+           +p.Kod == kodWybrany);                                        
+      6463 +                    if (prod != null)                        
+      6464 +                    {                                        
+      6465 +                        int idx =                            
+           +dgvInwentaryzacja.Rows.Add();                                
+      6466 +                        var row =                            
+           +dgvInwentaryzacja.Rows[idx];                                 
+      6467 +                        row.Cells["KodProduktu"].Value =     
+           +prod.Kod;                                                    
+      6468 +                        row.Cells["Nazwa"].Value =           
+           +prod.Nazwa;                                                  
+      6469 +                        row.Cells["StanObliczony"].Value =   
+           +0m;                                                          
+      6470 +                        row.Cells["StanRzeczywisty"].Value = 
+           + 0m;                                                         
+      6471 +                        row.Cells["Roznica"].Value = 0m;     
+      6472 +                        wyborDlg.DialogResult =              
+           +DialogResult.OK;                                             
+      6473 +                    }                                        
+      6474 +                };                                           
+      6475 +                                                             
+      6476 +                lstProdukty.DoubleClick += (s2, e2) =>       
+           +btnDodaj.PerformClick();                                     
+      6477 +                                                             
+      6478 +                wyborDlg.Controls.Add(lstProdukty);          
+      6479 +                wyborDlg.Controls.Add(txtSzukaj);            
+      6480 +                wyborDlg.Controls.Add(btnDodaj);             
+      6481 +                wyborDlg.ShowDialog();                       
+      6482 +            }                                                
+      6483 +        }                                                    
+      6484 +                                                             
+      6485 +        private void BtnZapisz_Click(object sender,          
+           +EventArgs e)                                                 
+      6486 +        {                                                    
+      6487 +            var korekty = new List<WydanieZewnetrzne>();     
+      6488 +            DateTime dataInw = dtpData.Value.Date;           
+      6489 +                                                             
+      6490 +            foreach (DataGridViewRow row in                  
+           +dgvInwentaryzacja.Rows)                                      
+      6491 +            {                                                
+      6492 +                decimal roznica = 0;                         
+      6493 +                if (row.Cells["Roznica"].Value != null)      
+      6494 +                                                             
+           +decimal.TryParse(row.Cells["Roznica"].Value.ToString(), out  
+           +roznica);                                                    
+      6495 +                                                             
+      6496 +                if (roznica == 0) continue;                  
+      6497 +                                                             
+      6498 +                string kod =                                 
+           +row.Cells["KodProduktu"].Value?.ToString() ?? "";            
+      6499 +                string nazwa =                               
+           +row.Cells["Nazwa"].Value?.ToString() ?? "";                  
+      6500 +                                                             
+      6501 +                korekty.Add(new WydanieZewnetrzne            
+      6502 +                {                                            
+      6503 +                    Id =                                     
+           +Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper(),      
+      6504 +                    Data = dataInw,                          
+      6505 +                    Typ = roznica > 0 ? "Przyjęcie" :        
+           +"Wydanie",                                                   
+      6506 +                    KodProduktu = kod,                       
+      6507 +                    Produkt = nazwa,                         
+      6508 +                    Ilosc = Math.Abs(roznica),               
+      6509 +                    Uwagi = $"Inwentaryzacja z dnia          
+           +{dataInw:dd.MM.yyyy} - korekta stanu"                        
+      6510 +                });                                          
+      6511 +            }                                                
+      6512 +                                                             
+      6513 +            if (korekty.Count == 0)                          
+      6514 +            {                                                
+      6515 +                MessageBox.Show("Brak różnic do zapisania.   
+           +Stan rzeczywisty = stan obliczony.", "Informacja",           
+           +MessageBoxButtons.OK, MessageBoxIcon.Information);           
+      6516 +                return;                                      
+      6517 +            }                                                
+      6518 +                                                             
+      6519 +            // Podsumowanie                                  
+      6520 +            int przyjecia = korekty.Count(k => k.Typ ==      
+           +"Przyjęcie");                                                
+      6521 +            int wydania = korekty.Count(k => k.Typ ==        
+           +"Wydanie");                                                  
+      6522 +            decimal sumaPlus = korekty.Where(k => k.Typ ==   
+           +"Przyjęcie").Sum(k => k.Ilosc);                              
+      6523 +            decimal sumaMinus = korekty.Where(k => k.Typ ==  
+           +"Wydanie").Sum(k => k.Ilosc);                                
+      6524 +                                                             
+      6525 +            string msg = $"Podsumowanie inwentaryzacji:\n\n" 
+           + +                                                           
+      6526 +                         $"Korekty dodatnie (przyjęcia):     
+           +{przyjecia} pozycji, +{sumaPlus:N1} kg\n" +                  
+      6527 +                         $"Korekty ujemne (wydania):         
+           +{wydania} pozycji, -{sumaMinus:N1} kg\n\n" +                 
+      6528 +                         $"Czy zapisać korekty?";            
+      6529 +                                                             
+      6530 +            if (MessageBox.Show(msg, "Potwierdzenie          
+           +inwentaryzacji", MessageBoxButtons.YesNo,                    
+           +MessageBoxIcon.Question) == DialogResult.Yes)                
+      6531 +            {                                                
+      6532 +                this.Korekty = korekty;                      
+      6533 +                this.DialogResult = DialogResult.OK;         
+      6534 +            }                                                
+      6535 +        }                                                    
+      6536 +    }                                                        
+      6537  }                                                            
+
+● Task 6: Build and verify
+
+● Bash(cd "C:\Users\PC\source\repos\Grafpl\Kalendarz1" && dotnet build
+      Kalendarz1.csproj 2>&1 | tail -30)
+  ⎿  C:\Users\PC\source\repos\Grafpl\Kalendarz1\Zywiec\Kalendarz\WidokKalen
+     darzaWPF.xaml.cs(72,22): warning CS0414: Pole „WidokKalendarzaWPF._isD
+     ragging” jest przypisane, lecz jego wartość nie jest nigdy używana [C:
+     … +138 lines (ctrl+o to expand)
+  ⎿  (timeout 2m)
+
+● The only errors are MSB3027/MSB3021 - the exe is locked because the app is
+  running (as noted in memory). The compilation itself succeeded with 0 real
+  errors. All warnings are pre-existing.
+
+● Build successful - 0 compilation errors. The MSB3027/MSB3021 are just
+  file-lock errors because the app is running (not real compilation issues).
+
+  Here's a summary of all changes made to Mroznia.cs:
+
+  Zmiana 1: Pozycje z dokładnymi kg + mapowanie mrożony→świeży
+
+  - SQL CROSS APPLY (line ~1690): STRING_AGG now returns "kod: 1234.5 kg" format
+   instead of just "kod"
+  - New method WczytajMapowaniaMrozonyNaSwiezy() (line ~3477): Reads the same
+  JSON mapping file but builds a reverse dictionary (frozen→fresh codes)
+  - DisplayDzienneZestawienie(): Loads the reverse mapping and replaces frozen
+  product codes with fresh ones (shorter names) in the Pozycje column. Removed
+  the "X poz. - " prefix
+  - kg format: Changed from #,##0' kg' to #,##0.0' kg' (1 decimal place) for
+  Wydano/Przyjęto/Bilans columns
+
+  Zmiana 2: Inwentaryzacja na mroźniach zewnętrznych
+
+  - New toolbar button (line ~1284): "Inwentaryzacja" button with warning color
+  - BtnInwentaryzacja_Click() handler: Opens dialog for selected freezer, saves
+  corrections
+  - New InwentaryzacjaDialog class (~300 lines):
+    - Header with freezer name, date picker
+    - DataGridView: Product code, Name, Calculated stock (read-only), Actual
+  stock (editable, yellow background), Difference (auto-calculated, color-coded)
+    - "Dodaj produkt" button - loads products from DB, filters already-added
+  ones, search dialog
+    - "Zapisz korekty" - generates WydanieZewnetrzne entries (Przyjęcie for 
+  positive, Wydanie for negative differences) with inventory note in Uwagi
+    - Confirmation dialog with summary before saving
+
+✻ Worked for 5m 58s
+
+> Chciałbym aby podgląd dzienny wiersze miały wyższą wysokosc. Chce aby nie 
+   było liczb po przecinku jesli ich nie ma. W pozycje chce aby nie bylo    
+  miejsc po przecinku jesli ich nie ma i zrób separatory tysiecy w tej      
+  kolumnie. Jeżeli w karcie stan mrozni jest 0 kg stanu, to nie pokazuj     
+  tego.                                                                     
+
+● Let me find the relevant code sections.
+
+● Searched for 2 patterns, read 1 file (ctrl+o to expand)
+
+● Now let me look at the Pozycje column building code (the recent change) and
+  the card display for mroznie.
+
+● Read 1 file (ctrl+o to expand)
+
+● Now let me find the card rendering for mroźnie zewnętrzne (where 0 kg should
+  be hidden).
+
+● Searched for 1 pattern, read 1 file (ctrl+o to expand)
+
+● Now let me see the CreateMrozniaCard method to understand what "card" shows
+  the 0 kg.
+
+● Searched for 1 pattern, read 1 file (ctrl+o to expand)
+
+● Now I understand the user's question better. The "karcie stan mrozni" with 0
+  kg - the user wants to skip those cards completely. Also, the SQL query
+  returns DECIMAL(18,1) which always has .0. Let me also check the SQL query to
+  adjust it.
+
+  Now let me look at the SQL to understand how to format the kg in Pozycje
+  without unnecessary decimals.
+
+  The SQL currently casts to DECIMAL(18,1) which always produces one decimal
+  place. I need to change the SQL to remove trailing .0. Let me also check what
+  the CROSS APPLY returns now.
+
+  Now I'll make all four changes:
+
+  1. Row height for dgvDzienne
+  2. Format Wydano/Przyjeto/Bilans - no decimals when unnecessary
+  3. Pozycje column - no unnecessary decimals + thousands separators
+  4. Hide 0 kg cards in RefreshMroznieCards
+
+● Update(Mroznia.cs)
+  ⎿  Added 2 lines
+      951                                                                
+      952              dgvDzienne = CreateStyledDataGridView();          
+      953              dgvDzienne.AutoSizeRowsMode =                     
+           DataGridViewAutoSizeRowsMode.AllCells;                        
+      954 +            dgvDzienne.RowTemplate.Height = 50;               
+      955 +            dgvDzienne.RowTemplate.MinimumHeight = 50;        
+      956              dgvDzienne.DoubleClick += DgvDzienne_DoubleClick; 
+      957                                                                
+      958              // SplitContainer: tabela u góry, wykres na dole  
+
+● Now change the SQL to remove trailing .0 and add thousands separators - I'll
+  use FORMAT in SQL instead of CAST(DECIMAL):
+
+● Update(Mroznia.cs)
+  ⎿  Added 1 line, removed 1 line
+      1692                         p.ProduktyLista                       
+      1693                  FROM Dzienne d                               
+      1694                  CROSS APPLY (                                
+      1695 -                    SELECT STRING_AGG(kod + ': ' +           
+           -CAST(CAST(total_qty AS DECIMAL(18,1)) AS VARCHAR)            
+           -+ ' kg', ', ')                                               
+      1695 +                    SELECT STRING_AGG(kod + ': ' +           
+           +REPLACE(CONVERT(VARCHAR,                                     
+           +CAST(CAST(total_qty AS DECIMAL(18,1)) AS MONEY),             
+           +1), '.00', '') + ' kg', ', ')                                
+      1696                          WITHIN GROUP (ORDER BY total_qty     
+            DESC) AS ProduktyLista                                       
+      1697                      FROM (                                   
+      1698                          SELECT MZ2.kod, ABS(SUM(MZ2.ilosc))  
+            AS total_qty                                                 
+
+● Actually, let me use a cleaner approach - use SQL FORMAT with explicit culture
+   to handle both thousands separators and conditional decimals properly:
+
+● Update(Mroznia.cs)
+  ⎿  Added 1 line, removed 1 line
+      1692                         p.ProduktyLista                       
+      1693                  FROM Dzienne d                               
+      1694                  CROSS APPLY (                                
+      1695 -                    SELECT STRING_AGG(kod + ': ' + REPLACE(  
+           -CONVERT(VARCHAR, CAST(CAST(total_qty AS DECIMAL(18,1))       
+           - AS MONEY), 1), '.00', '') + ' kg', ', ')                    
+      1695 +                    SELECT STRING_AGG(kod + ': ' + FORMAT(   
+           +CAST(total_qty AS DECIMAL(18,1)), '#,##0.#') + ' kg', ', ')  
+      1696                          WITHIN GROUP (ORDER BY total_qty     
+            DESC) AS ProduktyLista                                       
+      1697                      FROM (                                   
+      1698                          SELECT MZ2.kod, ABS(SUM(MZ2.ilosc))  
+            AS total_qty                                                 
+
+● Now change the Wydano/Przyjeto/Bilans format to conditional (no decimal when
+  not needed). The # format specifier shows digits only if present:
+
+● Update(Mroznia.cs)
+  ⎿  Added 3 lines, removed 3 lines
+      1785                  dgvDzienne.Columns["ProduktyLista"].Visible  
+            = false;                                                     
+      1786                                                               
+      1787              FormatujKolumne(dgvDzienne, "DataDzien",         
+            "Data");                                                     
+      1788 -            FormatujKolumne(dgvDzienne, "Wydano", "Wydano",  
+           -"#,##0.0' kg'");                                             
+      1789 -            FormatujKolumne(dgvDzienne, "Przyjeto",          
+           -"Przyjęto", "#,##0.0' kg'");                                 
+      1790 -            FormatujKolumne(dgvDzienne, "Bilans", "Bilans",  
+           -"#,##0.0' kg'");                                             
+      1788 +            FormatujKolumne(dgvDzienne, "Wydano", "Wydano",  
+           +"#,##0.#' kg'");                                             
+      1789 +            FormatujKolumne(dgvDzienne, "Przyjeto",          
+           +"Przyjęto", "#,##0.#' kg'");                                 
+      1790 +            FormatujKolumne(dgvDzienne, "Bilans", "Bilans",  
+           +"#,##0.#' kg'");                                             
+      1791              FormatujKolumne(dgvDzienne, "Pozycje",           
+            "Pozycje");                                                  
+      1792                                                               
+      1793              // Szerokości kolumn - Pozycje bardzo szeroka,   
+            reszta kompaktowa                                            
+
+● Now hide the 0 kg cards in RefreshMroznieCards:
+
+● Update(Mroznia.cs)
+  ⎿  Added 2 lines
+      706                  decimal stan = m.Wydania?.Where(w => w.Typ == 
+            "Przyjęcie").Sum(w => w.Ilosc) ?? 0;                         
+      707                  stan -= m.Wydania?.Where(w => w.Typ ==        
+           "Wydanie").Sum(w => w.Ilosc) ?? 0;                            
+      708                                                                
+      709 +                if (stan == 0) continue;                      
+      710 +                                                              
+      711                  string kontaktyStr = "";                      
+      712                  if (m.Kontakty != null && m.Kontakty.Count >  
+           0)                                                            
+      713                  {                                             
+
+● Now let me build to verify:
+
+● Bash(cd "C:\Users\PC\source\repos\Grafpl\Kalendarz1" && dotnet build
+      Kalendarz1.csproj 2>&1 | grep -E "error CS|Build succeeded|Liczba błędów")
+  ⎿      Liczba błędów: 2
+  ⎿  (timeout 2m)
+
+● Bash(cd "C:\Users\PC\source\repos\Grafpl\Kalendarz1" && dotnet build
+      Kalendarz1.csproj 2>&1 | grep -E "error " | head -5)
+  ⎿  C:\Program Files\dotnet\sdk\9.0.308\Microsoft.Common.CurrentVersion.ta
+     rgets(5394,5): error MSB3027: Nie można skopiować „C:\Users\PC\source\
+     repos\Grafpl\Kalendarz1\obj\Debug\net8.0-windows7.0\apphost.exe” do „b
+     … +24 lines (ctrl+o to expand)
+  ⎿  (timeout 2m)
+
+● 0 błędów kompilacji - tylko MSB3027/MSB3021 bo exe jest zablokowany przez
+  uruchomioną aplikację.
+
+  Podsumowanie zmian:
+
+  1. Wyższe wiersze w przeglądzie dziennym - RowTemplate.Height = 50 i 
+  MinimumHeight = 50
+  2. Brak miejsc po przecinku gdy niepotrzebne - format #,##0.#' kg' 
+  (Wydano/Przyjęto/Bilans): 1234 kg, 1234.5 kg
+  3. Pozycje - separatory tysięcy, bez zbędnych decimali - SQL FORMAT(...,
+  '#,##0.#'): Filet: 1,234 kg, Korpus: 567.8 kg
+  4. Ukryte karty z 0 kg stanu - if (stan == 0) continue; w 
+  RefreshMroznieCards()
+
+✻ Brewed for 2m 49s
+
+> /export 
+  ⎿  Conversation copied to clipboard

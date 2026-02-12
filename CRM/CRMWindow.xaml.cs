@@ -1320,7 +1320,10 @@ namespace Kalendarz1.CRM
                 using (var conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-                    new SqlCommand($"UPDATE OdbiorcyCRM SET Tagi = '{noweTagi}' WHERE ID={id}", conn).ExecuteNonQuery();
+                    var cmd = new SqlCommand("UPDATE OdbiorcyCRM SET Tagi = @Tagi WHERE ID = @ID", conn);
+                    cmd.Parameters.AddWithValue("@Tagi", noweTagi);
+                    cmd.Parameters.AddWithValue("@ID", id);
+                    cmd.ExecuteNonQuery();
                 }
                 WczytajDane(zachowajFiltry: true);
                 ShowToast(tag == "CLEAR" ? "Usunięto tagi" : $"Oznaczono jako: {tag}");
@@ -1508,7 +1511,10 @@ namespace Kalendarz1.CRM
                 using (var conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-                    new SqlCommand($"UPDATE OdbiorcyCRM SET DataNastepnegoKontaktu = '{dialog.WybranaData:yyyy-MM-dd}' WHERE ID={aktualnyOdbiorcaID}", conn).ExecuteNonQuery();
+                    var cmd = new SqlCommand("UPDATE OdbiorcyCRM SET DataNastepnegoKontaktu = @Data WHERE ID = @ID", conn);
+                    cmd.Parameters.AddWithValue("@Data", dialog.WybranaData.Value);
+                    cmd.Parameters.AddWithValue("@ID", aktualnyOdbiorcaID);
+                    cmd.ExecuteNonQuery();
                 }
                 // Aktualizuj lokalnie zamiast przeładowywać całą listę - widok nie będzie resetowany
                 AktualizujDateLokalnie(aktualnyOdbiorcaID, dialog.WybranaData.Value);
@@ -1528,7 +1534,10 @@ namespace Kalendarz1.CRM
                     using (var conn = new SqlConnection(connectionString))
                     {
                         conn.Open();
-                        new SqlCommand($"UPDATE OdbiorcyCRM SET Status = '{nowyStatus}' WHERE ID={id}", conn).ExecuteNonQuery();
+                        var cmdUpdate = new SqlCommand("UPDATE OdbiorcyCRM SET Status = @Status WHERE ID = @ID", conn);
+                        cmdUpdate.Parameters.AddWithValue("@Status", nowyStatus);
+                        cmdUpdate.Parameters.AddWithValue("@ID", id);
+                        cmdUpdate.ExecuteNonQuery();
                         var cmdLog = new SqlCommand("INSERT INTO HistoriaZmianCRM (IDOdbiorcy, TypZmiany, WartoscNowa, KtoWykonal, DataZmiany) VALUES (@id, 'Zmiana statusu', @val, @op, GETDATE())", conn);
                         cmdLog.Parameters.AddWithValue("@id", id);
                         cmdLog.Parameters.AddWithValue("@val", nowyStatus);

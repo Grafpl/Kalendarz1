@@ -1,0 +1,316 @@
+<Window x:Class="Kalendarz1.Quiz.QuizWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Quiz - Broiler Meat Signals"
+        WindowStartupLocation="CenterScreen"
+        WindowState="Maximized"
+        Background="#F0F2F5"
+        FontFamily="Segoe UI"
+        MinWidth="900" MinHeight="600">
+
+    <Window.Resources>
+        <!-- Answer Button Style -->
+        <Style x:Key="AnswerButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="#2C3E50"/>
+            <Setter Property="BorderBrush" Value="#BDC3C7"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="Padding" Value="20,16"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,5"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="10" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="#3498DB"/>
+                                <Setter TargetName="border" Property="Background" Value="#EBF5FB"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Category Filter Button -->
+        <Style x:Key="CategoryChipStyle" TargetType="ToggleButton">
+            <Setter Property="Background" Value="#ECF0F1"/>
+            <Setter Property="Foreground" Value="#2C3E50"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="14,7"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="3"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                CornerRadius="14" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#8E44AD"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Action Button -->
+        <Style x:Key="ActionButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#8E44AD"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="24,12"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" MinWidth="500"/>
+            <ColumnDefinition Width="320"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- LEFT: Main Quiz Area -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <Grid Grid.Column="0" Margin="20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Border Grid.Row="0" CornerRadius="12" Margin="0,0,0,15">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="#8E44AD" Offset="0"/>
+                        <GradientStop Color="#3498DB" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
+                <Grid Margin="25,18">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="&#x1F4DA;" FontSize="24" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <StackPanel>
+                            <TextBlock Text="QUIZ - BROILER MEAT SIGNALS" FontSize="18" Foreground="White" FontWeight="Bold"/>
+                            <TextBlock Text="Szkolenie z drobiarstwa" FontSize="12" Foreground="#D2B4DE" Margin="0,2,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <Border Background="#27AE60" CornerRadius="8" Padding="12,6" Margin="5,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#x2713; " FontSize="13" Foreground="White" FontWeight="Bold"/>
+                                <TextBlock x:Name="txtCorrectCount" Text="0" FontSize="13" Foreground="White" FontWeight="Bold"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="#E74C3C" CornerRadius="8" Padding="12,6" Margin="5,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#x2717; " FontSize="13" Foreground="White" FontWeight="Bold"/>
+                                <TextBlock x:Name="txtWrongCount" Text="0" FontSize="13" Foreground="White" FontWeight="Bold"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="Transparent" BorderBrush="#FFFFFF55" BorderThickness="1" CornerRadius="8" Padding="12,6" Margin="5,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="txtQuestionNumber" Text="0 / 0" FontSize="13" Foreground="White" FontWeight="Bold"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Progress Bar -->
+            <Grid Grid.Row="1" Margin="0,0,0,10">
+                <Border Background="#E8E8E8" CornerRadius="5" Height="10"/>
+                <Border x:Name="progressBar" Background="#8E44AD" CornerRadius="5" Height="10"
+                        HorizontalAlignment="Left" Width="0"/>
+            </Grid>
+
+            <!-- Category Filters -->
+            <Border Grid.Row="2" Background="White" CornerRadius="10" Padding="10,8" Margin="0,0,0,12">
+                <Border.Effect>
+                    <DropShadowEffect ShadowDepth="1" Opacity="0.08" BlurRadius="8"/>
+                </Border.Effect>
+                <WrapPanel x:Name="pnlCategoryFilters"/>
+            </Border>
+
+            <!-- Question Card -->
+            <Border Grid.Row="3" Background="White" CornerRadius="12" Margin="0,0,0,12">
+                <Border.Effect>
+                    <DropShadowEffect ShadowDepth="2" Opacity="0.1" BlurRadius="15"/>
+                </Border.Effect>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="30,25">
+                    <StackPanel>
+                        <!-- Chapter badge -->
+                        <Border x:Name="badgeChapter" Background="#F3E5F5" CornerRadius="12"
+                                Padding="12,5" HorizontalAlignment="Left" Margin="0,0,0,15">
+                            <TextBlock x:Name="txtChapter" Text="Chapter 1" FontSize="11"
+                                       Foreground="#8E44AD" FontWeight="SemiBold"/>
+                        </Border>
+
+                        <!-- Question text -->
+                        <TextBlock x:Name="txtQuestion" Text="Loading question..."
+                                   FontSize="18" FontWeight="SemiBold" Foreground="#2C3E50"
+                                   TextWrapping="Wrap" Margin="0,0,0,25" LineHeight="28"/>
+
+                        <!-- Answer buttons -->
+                        <Button x:Name="btnAnswerA" Style="{StaticResource AnswerButtonStyle}" Click="BtnAnswer_Click" Tag="0"/>
+                        <Button x:Name="btnAnswerB" Style="{StaticResource AnswerButtonStyle}" Click="BtnAnswer_Click" Tag="1"/>
+                        <Button x:Name="btnAnswerC" Style="{StaticResource AnswerButtonStyle}" Click="BtnAnswer_Click" Tag="2"/>
+                        <Button x:Name="btnAnswerD" Style="{StaticResource AnswerButtonStyle}" Click="BtnAnswer_Click" Tag="3"/>
+
+                        <!-- Explanation panel (hidden by default) -->
+                        <Border x:Name="pnlExplanation" Visibility="Collapsed"
+                                CornerRadius="10" Padding="20,15" Margin="0,20,0,0">
+                            <StackPanel>
+                                <TextBlock x:Name="txtExplanationHeader" FontSize="14" FontWeight="Bold" Margin="0,0,0,8"/>
+                                <TextBlock x:Name="txtExplanation" FontSize="13" TextWrapping="Wrap"
+                                           LineHeight="22" Foreground="#2C3E50"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+
+            <!-- Navigation buttons -->
+            <Grid Grid.Row="4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Button x:Name="btnRestart" Grid.Column="0" Content="&#x1F504; Restart"
+                        Style="{StaticResource ActionButtonStyle}" Background="#95A5A6" Click="BtnRestart_Click"/>
+                <Button x:Name="btnNext" Grid.Column="2" Content="Nastepne pytanie &#x27A1;"
+                        Style="{StaticResource ActionButtonStyle}" Click="BtnNext_Click" Visibility="Collapsed"/>
+            </Grid>
+        </Grid>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- RIGHT: Score Panel & History -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <Grid Grid.Column="1" Margin="0,20,20,20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Score Card -->
+            <Border Grid.Row="0" CornerRadius="12" Margin="0,0,0,12">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#2C3E50" Offset="0"/>
+                        <GradientStop Color="#34495E" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
+                <Border.Effect>
+                    <DropShadowEffect ShadowDepth="2" Opacity="0.15" BlurRadius="15"/>
+                </Border.Effect>
+                <StackPanel Margin="20,18">
+                    <TextBlock Text="&#x1F3C6; WYNIK" FontSize="14" Foreground="#BDC3C7" FontWeight="Bold" Margin="0,0,0,12"/>
+                    <TextBlock x:Name="txtScorePercent" Text="0%" FontSize="48" Foreground="White"
+                               FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,5"/>
+                    <TextBlock x:Name="txtScoreDetail" Text="0 z 0 poprawnych" FontSize="13"
+                               Foreground="#95A5A6" HorizontalAlignment="Center" Margin="0,0,0,12"/>
+
+                    <!-- Score bar -->
+                    <Grid Height="8" Margin="0,5,0,0">
+                        <Border Background="#1A1A2E" CornerRadius="4"/>
+                        <Border x:Name="scoreBar" Background="#27AE60" CornerRadius="4"
+                                HorizontalAlignment="Left" Width="0"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Stats per chapter -->
+            <Border Grid.Row="1" Background="White" CornerRadius="12" Margin="0,0,0,12">
+                <Border.Effect>
+                    <DropShadowEffect ShadowDepth="1" Opacity="0.08" BlurRadius="8"/>
+                </Border.Effect>
+                <StackPanel Margin="18,15">
+                    <TextBlock Text="&#x1F4CA; STATYSTYKI WG ROZDZIALU" FontSize="12" Foreground="#7F8C8D"
+                               FontWeight="Bold" Margin="0,0,0,10"/>
+                    <ItemsControl x:Name="lstChapterStats"/>
+                </StackPanel>
+            </Border>
+
+            <!-- History -->
+            <Border Grid.Row="2" Background="White" CornerRadius="12">
+                <Border.Effect>
+                    <DropShadowEffect ShadowDepth="1" Opacity="0.08" BlurRadius="8"/>
+                </Border.Effect>
+                <Grid Margin="18,15">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text="&#x1F4C5; HISTORIA SESJI" FontSize="12" Foreground="#7F8C8D"
+                               FontWeight="Bold" Margin="0,0,0,10"/>
+                    <ListBox x:Name="lstHistory" Grid.Row="1" BorderThickness="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="#ECF0F1" BorderThickness="0,0,0,1" Padding="5,8">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding DateText}" FontSize="11"
+                                                   Foreground="#95A5A6" Width="75"/>
+                                        <StackPanel Grid.Column="1">
+                                            <TextBlock Text="{Binding ScoreText}" FontSize="12" FontWeight="SemiBold"
+                                                       Foreground="{Binding ScoreColor}"/>
+                                            <TextBlock Text="{Binding Detail}" FontSize="10" Foreground="#BDC3C7"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

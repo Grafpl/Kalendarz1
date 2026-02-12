@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 
 using Newtonsoft.Json.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 
 
 
@@ -1164,15 +1165,24 @@ END";
             }
             return wartosc;
         }
+        private static readonly Regex SafeSqlIdentifier = new Regex(@"^[a-zA-Z_][a-zA-Z0-9_.\[\]]+$", RegexOptions.Compiled);
+
+        private static void ValidateSqlIdentifier(string name, string paramName)
+        {
+            if (string.IsNullOrWhiteSpace(name) || !SafeSqlIdentifier.IsMatch(name))
+                throw new ArgumentException($"Niedozwolona nazwa SQL: '{name}'", paramName);
+        }
+
         public string PobierzInformacjeZBazyDanychKonkretneJakiejkolwiek(int ID, string Bazadanych, string kolumna)
         {
+            ValidateSqlIdentifier(Bazadanych, nameof(Bazadanych));
+            ValidateSqlIdentifier(kolumna, nameof(kolumna));
             string wartosc = null;
             try
             {
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
-                    // Budowanie zapytania z bezpośrednim wstawieniem nazw tabeli i kolumny
                     string strSQL = $"SELECT {kolumna} FROM {Bazadanych} WHERE ID = @ID";
 
                     using (SqlCommand command = new SqlCommand(strSQL, connection))
@@ -1197,7 +1207,9 @@ END";
         }
         public T PobierzInformacjeZBazyDanych<T>(int ID, string Bazadanych, string kolumna)
         {
-            T wartosc = default(T); // Wartość domyślna dla typu generycznego
+            ValidateSqlIdentifier(Bazadanych, nameof(Bazadanych));
+            ValidateSqlIdentifier(kolumna, nameof(kolumna));
+            T wartosc = default(T);
 
             try
             {
@@ -1254,14 +1266,15 @@ END";
 
         public T PobierzInformacjeZBazyDanychHarmonogram<T>(int ID, string Bazadanych, string kolumna)
         {
-            T wartosc = default(T); // Wartość domyślna dla typu generycznego
+            ValidateSqlIdentifier(Bazadanych, nameof(Bazadanych));
+            ValidateSqlIdentifier(kolumna, nameof(kolumna));
+            T wartosc = default(T);
 
             try
             {
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
-                    // Budowanie zapytania z bezpośrednim wstawieniem nazw tabeli i kolumny
                     string strSQL = $"SELECT {kolumna} FROM {Bazadanych} WHERE Lp = @ID";
 
                     using (SqlCommand command = new SqlCommand(strSQL, connection))

@@ -8,6 +8,7 @@ using Kalendarz1.KontrolaGodzin;
 using Kalendarz1.Zywiec.RaportyStatystyki;
 using Kalendarz1.Spotkania.Views;
 using Kalendarz1.Zadania;
+using Kalendarz1.PulpitZarzadu.Views;
 using Kalendarz1.Komunikator.Services;
 using Kalendarz1.Komunikator.Views;
 using Microsoft.Data.SqlClient;
@@ -1089,7 +1090,10 @@ namespace Kalendarz1
                 [45] = "RozliczeniaAvilog",
                 [46] = "DashboardPrzychodu",
                 [47] = "MapaKlientow",
-                [48] = "WnioskiUrlopowe"
+                [48] = "WnioskiUrlopowe",
+                [49] = "DashboardZamowien",
+                [50] = "QuizDrobiarstwo",
+                [51] = "PulpitZarzadu"
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
@@ -1179,7 +1183,7 @@ namespace Kalendarz1
                 "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "UstalanieTranportu",
 
                 // FINANSE I ZARZĄDZANIE
-                "DaneFinansowe", "CentrumSpotkan", "NotatkiZeSpotkan", "KomunikatorFirmowy", "PanelPaniJola",
+                "PulpitZarzadu", "DaneFinansowe", "CentrumSpotkan", "NotatkiZeSpotkan", "KomunikatorFirmowy", "PanelPaniJola",
 
                 // KADRY I HR
                 "KontrolaGodzin",
@@ -1480,7 +1484,21 @@ namespace Kalendarz1
                     new MenuItemConfig("DashboardPrzychodu", "Przychod Zywca LIVE",
                         "Dashboard czasu rzeczywistego: plan vs rzeczywiste przyjęcia żywca z prognozą produkcji",
                         Color.FromArgb(156, 39, 176), // Fioletowy #9C27B0
-                        () => new Kalendarz1.DashboardPrzychodu.Views.DashboardPrzychoduWindow(), "🐔", "Przychód")
+                        () => new Kalendarz1.DashboardPrzychodu.Views.DashboardPrzychoduWindow(), "🐔", "Przychód"),
+
+                    new MenuItemConfig("DashboardZamowien", "Dashboard Zamówień",
+                        "Dashboard produktów - bilans zamówień, wydań i stanów magazynowych z analizą odbiorców",
+                        Color.FromArgb(142, 36, 170), // Fioletowy #8E24AA
+                        () => {
+                            var connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+                            var connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+                            return new Kalendarz1.WPF.DashboardWindow(connLibra, connHandel);
+                        }, "📊", "Dashboard"),
+
+                    new MenuItemConfig("QuizDrobiarstwo", "Quiz Drobiarstwo",
+                        "Quiz szkoleniowy z wiedzy o drobiarstwie - pytania z książki Broiler Meat Signals",
+                        Color.FromArgb(186, 104, 200), // Jasny fioletowy #BA68C8
+                        () => new Kalendarz1.Quiz.QuizWindow(), "🎓", "Quiz")
                 },
 
                 // ═══════════════════════════════════════════════════════════════════════════
@@ -1513,6 +1531,11 @@ namespace Kalendarz1
                 // ═══════════════════════════════════════════════════════════════════════════
                 ["FINANSE I ZARZĄDZANIE"] = new List<MenuItemConfig>
                 {
+                    new MenuItemConfig("PulpitZarzadu", "Pulpit Zarzadu",
+                        "Centralny dashboard KPI - magazyn, zamowienia, sprzedaz, produkcja, transport, HR",
+                        Color.FromArgb(212, 175, 55), // Gold #D4AF37
+                        () => new PulpitZarzaduWindow(), "\U0001F4CA", "Pulpit KPI"),
+
                     new MenuItemConfig("DaneFinansowe", "Wyniki Finansowe",
                         "Zestawienie wyników finansowych firmy - przychody, koszty, marże i rentowność",
                         Color.FromArgb(176, 190, 197), // Jasny szaroniebieski #B0BEC5

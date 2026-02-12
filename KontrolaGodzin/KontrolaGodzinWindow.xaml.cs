@@ -51,17 +51,26 @@ namespace Kalendarz1.KontrolaGodzin
                 // Inicjalizacja combo-boxów
                 InitializeCombos();
 
-                // Ładowanie danych
-                LoadGrupy();
-                LoadPracownicy();
-                LoadAllData();
-
-                // Ładowanie nowych zakładek
-                LoadHarmonogramPrzerw();
-                LoadAgencjeTydzien();
+                // Ładowanie danych z overlayem
+                loadingOverlay.Show("Ładowanie danych pracowników...");
+                try
+                {
+                    LoadGrupy();
+                    LoadPracownicy();
+                    loadingOverlay.LoadingMessage = "Ładowanie rejestracji...";
+                    LoadAllData();
+                    loadingOverlay.LoadingMessage = "Ładowanie harmonogramów...";
+                    LoadHarmonogramPrzerw();
+                    LoadAgencjeTydzien();
+                }
+                finally
+                {
+                    loadingOverlay.Hide();
+                }
             }
             catch (Exception ex)
             {
+                loadingOverlay.Hide();
                 System.Diagnostics.Debug.WriteLine($"Błąd inicjalizacji: {ex.Message}");
             }
         }
@@ -1433,9 +1442,17 @@ namespace Kalendarz1.KontrolaGodzin
 
         private void BtnOdswiez_Click(object sender, RoutedEventArgs e)
         {
-            LoadGrupy();
-            LoadPracownicy();
-            LoadAllData();
+            loadingOverlay.Show("Odświeżanie danych...");
+            try
+            {
+                LoadGrupy();
+                LoadPracownicy();
+                LoadAllData();
+            }
+            finally
+            {
+                loadingOverlay.Hide();
+            }
         }
 
         private void BtnExport_Click(object sender, RoutedEventArgs e)

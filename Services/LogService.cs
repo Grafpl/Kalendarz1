@@ -314,18 +314,28 @@ namespace Kalendarz1.Services
         {
             try
             {
-                var title = isCritical ? "Błąd krytyczny" : "Wystąpił błąd";
-                var message = isCritical
-                    ? $"Wystąpił krytyczny błąd aplikacji. Aplikacja zostanie zamknięta.\n\n{ex.Message}\n\nSzczegóły zostały zapisane w logach."
-                    : $"Wystąpił nieoczekiwany błąd:\n\n{ex.Message}\n\nSzczegóły zostały zapisane w logach.";
-
-                System.Windows.MessageBox.Show(
-                    message,
-                    title,
-                    System.Windows.MessageBoxButton.OK,
-                    isCritical ? System.Windows.MessageBoxImage.Error : System.Windows.MessageBoxImage.Warning);
+                if (isCritical)
+                {
+                    // Błędy krytyczne nadal pokazujemy jako MessageBox
+                    var message = $"Wystąpił krytyczny błąd aplikacji. Aplikacja zostanie zamknięta.\n\n{ex.Message}\n\nSzczegóły zostały zapisane w logach.";
+                    System.Windows.MessageBox.Show(message, "Błąd krytyczny",
+                        System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                }
+                else
+                {
+                    // Błędy niekrytyczne pokazujemy jako toast
+                    ToastService.Show($"Błąd: {ex.Message}", ToastType.Error, 5000);
+                }
             }
             catch { /* Ignoruj błędy wyświetlania dialogu */ }
+        }
+
+        /// <summary>
+        /// Wyświetla globalny toast z dowolną wiadomością
+        /// </summary>
+        public static void ShowGlobalToast(string message, ToastType type = ToastType.Info)
+        {
+            ToastService.Show(message, type);
         }
 
         /// <summary>
