@@ -1002,6 +1002,9 @@ namespace Kalendarz1.WPF
                 }
             }
 
+            // Załaduj zdjęcia produktów (z TowarZdjecia) przed generowaniem przycisków
+            await LoadProductImagesAsync();
+
             GenerateProductButtons();
 
             _userCache.Clear();
@@ -1456,6 +1459,114 @@ namespace Kalendarz1.WPF
             await RefreshAllDataAsync();
         }
 
+        private string GetProductIcon(string productName)
+        {
+            var name = productName.ToUpperInvariant();
+            if (name.Contains("KURCZAK")) return "🐔";
+            if (name.Contains("FILET")) return "🥩";
+            if (name.Contains("ĆWIARTKA") || name.Contains("CWIARTKA")) return "🍗";
+            if (name.Contains("SKRZYDŁO") || name.Contains("SKRZYDLO")) return "🦅";
+            if (name.Contains("NOGA") || name.Contains("NOGI")) return "🍗";
+            if (name.Contains("PAŁKA") || name.Contains("PALKA")) return "🍗";
+            if (name.Contains("KORPUS")) return "🦴";
+            if (name.Contains("POLĘDWICZKI") || name.Contains("POLEDWICZKI")) return "🥓";
+            if (name.Contains("SERCE") || name.Contains("SERCA")) return "❤️";
+            if (name.Contains("WĄTROBA") || name.Contains("WATROBA") || name.Contains("WĄTRÓBKI") || name.Contains("WATROBKI")) return "🫀";
+            if (name.Contains("ŻOŁĄDKI") || name.Contains("ZOLADKI")) return "🫘";
+            return "🍖";
+        }
+
+        private string GetProductGroup(string productName)
+        {
+            var name = productName.ToUpperInvariant();
+            if (name.Contains("KURCZAK")) return "A";
+            if (name.Contains("FILET") || name.Contains("ĆWIARTKA") || name.Contains("CWIARTKA") ||
+                name.Contains("SKRZYDŁO") || name.Contains("SKRZYDLO") || name.Contains("NOGA") || name.Contains("NOGI") ||
+                name.Contains("PAŁKA") || name.Contains("PALKA") || name.Contains("KORPUS")) return "B";
+            if (name.Contains("POLĘDWICZKI") || name.Contains("POLEDWICZKI")) return "C";
+            if (name.Contains("SERCE") || name.Contains("SERCA") || name.Contains("WĄTROBA") || name.Contains("WATROBA") ||
+                name.Contains("WĄTRÓBKI") || name.Contains("WATROBKI") || name.Contains("ŻOŁĄDKI") || name.Contains("ZOLADKI")) return "D";
+            return "E";
+        }
+
+        private Button CreateProductButton(string text, string icon, object tag, bool isAllButton = false, BitmapImage? productImage = null)
+        {
+            var stack = new StackPanel
+            {
+                Orientation = Orientation.Vertical,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            if (productImage != null)
+            {
+                // Zdjęcie produktu z bazy
+                var imgBorder = new Border
+                {
+                    Width = 28,
+                    Height = 28,
+                    CornerRadius = new CornerRadius(4),
+                    Background = new ImageBrush { ImageSource = productImage, Stretch = Stretch.UniformToFill },
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 0, 0, 1)
+                };
+                stack.Children.Add(imgBorder);
+            }
+            else
+            {
+                // Fallback na emoji
+                var iconBlock = new TextBlock
+                {
+                    Text = icon,
+                    FontSize = 18,
+                    HorizontalAlignment = HorizontalAlignment.Center
+                };
+                if (isAllButton) iconBlock.Foreground = Brushes.White;
+                stack.Children.Add(iconBlock);
+            }
+
+            var nameBlock = new TextBlock
+            {
+                Text = text,
+                FontSize = 9,
+                FontWeight = FontWeights.Bold,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                TextWrapping = TextWrapping.Wrap,
+                TextAlignment = TextAlignment.Center
+            };
+            if (isAllButton) nameBlock.Foreground = Brushes.White;
+            stack.Children.Add(nameBlock);
+
+            var border = new Border
+            {
+                CornerRadius = new CornerRadius(8),
+                Background = isAllButton
+                    ? new SolidColorBrush(Color.FromRgb(52, 152, 219))
+                    : Brushes.White,
+                BorderBrush = isAllButton
+                    ? new SolidColorBrush(Color.FromRgb(41, 128, 185))
+                    : new SolidColorBrush(Color.FromRgb(189, 195, 199)),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(4, 2, 4, 2),
+                Child = stack
+            };
+
+            var btn = new Button
+            {
+                Content = border,
+                Margin = new Thickness(2),
+                Padding = new Thickness(0),
+                MinWidth = 65,
+                Height = 52,
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Tag = tag
+            };
+
+            return btn;
+        }
+
         private void GenerateProductButtons()
         {
             pnlProductButtons.Children.Clear();
@@ -1463,38 +1574,68 @@ namespace Kalendarz1.WPF
             var catalog = rbSwieze.IsChecked == true ? _productCatalogSwieze : _productCatalogMrozone;
 
             // Przycisk "Wszystkie"
-            var btnAll = new Button
-            {
-                Content = "Wszystkie",
-                Margin = new Thickness(2),
-                Padding = new Thickness(8, 4, 8, 4),
-                FontSize = 11,
-                Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
-                Foreground = Brushes.White,
-                BorderThickness = new Thickness(0),
-                Cursor = System.Windows.Input.Cursors.Hand,
-                Tag = (int?)null
-            };
+            var btnAll = CreateProductButton("Wszystkie", "📋", (int?)null, isAllButton: true);
             btnAll.Click += ProductButton_Click;
             pnlProductButtons.Children.Add(btnAll);
 
-            foreach (var product in catalog.OrderBy(x => x.Value))
+            // Sortuj produkty i grupuj z separatorami
+            var sortedProducts = catalog.OrderBy(x => x.Value).ToList();
+            string lastGroup = "";
+
+            foreach (var product in sortedProducts)
             {
-                var btn = new Button
+                string currentGroup = GetProductGroup(product.Value);
+
+                // Separator między grupami
+                if (!string.IsNullOrEmpty(lastGroup) && currentGroup != lastGroup)
                 {
-                    Content = product.Value,
-                    Margin = new Thickness(2),
-                    Padding = new Thickness(8, 4, 8, 4),
-                    FontSize = 11,
-                    Background = new SolidColorBrush(Color.FromRgb(236, 240, 241)),
-                    Foreground = Brushes.Black,
-                    BorderThickness = new Thickness(1),
-                    BorderBrush = new SolidColorBrush(Color.FromRgb(189, 195, 199)),
-                    Cursor = System.Windows.Input.Cursors.Hand,
-                    Tag = product.Key
-                };
+                    var separator = new Border
+                    {
+                        Width = 1,
+                        Background = new SolidColorBrush(Color.FromRgb(189, 195, 199)),
+                        Margin = new Thickness(3, 6, 3, 6),
+                        VerticalAlignment = VerticalAlignment.Stretch
+                    };
+                    pnlProductButtons.Children.Add(separator);
+                }
+
+                string icon = GetProductIcon(product.Value);
+                var productImage = GetProductImage(product.Key);
+                var btn = CreateProductButton(product.Value, icon, product.Key, productImage: productImage);
                 btn.Click += ProductButton_Click;
                 pnlProductButtons.Children.Add(btn);
+
+                lastGroup = currentGroup;
+            }
+        }
+
+        private void SetProductButtonStyle(Button button, bool isSelected)
+        {
+            if (button.Content is Border border && border.Child is StackPanel stack)
+            {
+                bool isAllButton = button.Tag == null || (button.Tag is int? && (int?)button.Tag == null);
+
+                if (isSelected)
+                {
+                    border.Background = new SolidColorBrush(Color.FromRgb(46, 204, 113));
+                    border.BorderBrush = new SolidColorBrush(Color.FromRgb(39, 174, 96));
+                    foreach (var tb in stack.Children.OfType<TextBlock>())
+                        tb.Foreground = Brushes.White;
+                }
+                else if (isAllButton)
+                {
+                    border.Background = new SolidColorBrush(Color.FromRgb(52, 152, 219));
+                    border.BorderBrush = new SolidColorBrush(Color.FromRgb(41, 128, 185));
+                    foreach (var tb in stack.Children.OfType<TextBlock>())
+                        tb.Foreground = Brushes.White;
+                }
+                else
+                {
+                    border.Background = Brushes.White;
+                    border.BorderBrush = new SolidColorBrush(Color.FromRgb(189, 195, 199));
+                    foreach (var tb in stack.Children.OfType<TextBlock>())
+                        tb.Foreground = Brushes.Black;
+                }
             }
         }
 
@@ -1505,21 +1646,11 @@ namespace Kalendarz1.WPF
                 // Reset all buttons
                 foreach (var child in pnlProductButtons.Children.OfType<Button>())
                 {
-                    if (child.Tag == null)
-                    {
-                        child.Background = new SolidColorBrush(Color.FromRgb(52, 152, 219));
-                        child.Foreground = Brushes.White;
-                    }
-                    else
-                    {
-                        child.Background = new SolidColorBrush(Color.FromRgb(236, 240, 241));
-                        child.Foreground = Brushes.Black;
-                    }
+                    SetProductButtonStyle(child, false);
                 }
 
                 // Highlight selected
-                btn.Background = new SolidColorBrush(Color.FromRgb(46, 204, 113));
-                btn.Foreground = Brushes.White;
+                SetProductButtonStyle(btn, true);
 
                 _selectedProductId = btn.Tag as int?;
                 await RefreshAllDataAsync();

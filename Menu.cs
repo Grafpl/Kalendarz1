@@ -1093,7 +1093,9 @@ namespace Kalendarz1
                 [48] = "WnioskiUrlopowe",
                 [49] = "DashboardZamowien",
                 [50] = "QuizDrobiarstwo",
-                [51] = "PulpitZarzadu"
+                [51] = "PulpitZarzadu",
+                [52] = "CallReminders",
+                [53] = "PorannyBriefing"
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
@@ -1178,18 +1180,20 @@ namespace Kalendarz1
 
                 // PLANOWANIE I ANALIZY
                 "PrognozyUboju", "PlanTygodniowy", "AnalizaTygodniowa", "DashboardPrzychodu",
+                "DashboardZamowien", "QuizDrobiarstwo",
 
                 // OPAKOWANIA I TRANSPORT
                 "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "UstalanieTranportu",
 
                 // FINANSE I ZARZĄDZANIE
-                "PulpitZarzadu", "DaneFinansowe", "CentrumSpotkan", "NotatkiZeSpotkan", "KomunikatorFirmowy", "PanelPaniJola",
+                "PulpitZarzadu", "DaneFinansowe", "CentrumSpotkan", "NotatkiZeSpotkan",
+                "KomunikatorFirmowy", "PorannyBriefing", "PanelPaniJola",
 
                 // KADRY I HR
-                "KontrolaGodzin",
+                "KontrolaGodzin", "WnioskiUrlopowe",
 
                 // ADMINISTRACJA SYSTEMU
-                "ZmianyUHodowcow", "AdminPermissions",
+                "ZmianyUHodowcow", "AdminPermissions", "CallReminders",
 
                 // Nieużywane ale w systemie uprawnień
                 "RezerwacjaKlas", "ReklamacjeJakosc"
@@ -1241,32 +1245,32 @@ namespace Kalendarz1
 
                     new MenuItemConfig("PanelPortiera", "Panel Portiera",
                         "Dotykowy panel do rejestracji wag brutto i tary dostaw żywca przy wjeździe",
-                        Color.FromArgb(85, 139, 47), // Zielony #558B2F (gradient zaopatrzenia)
+                        Color.FromArgb(67, 160, 71), // Zielony #43A047
                         () => new PanelPortiera(), "⚖️", "Portier"),
 
                     new MenuItemConfig("PanelLekarza", "Panel Lekarza",
                         "Ocena dobrostanu drobiu - padłe, konfiskaty CH/NW/ZM dla lekarza weterynarii",
-                        Color.FromArgb(51, 105, 30), // Ciemniejszy zielony #33691E (gradient zaopatrzenia)
+                        Color.FromArgb(56, 142, 60), // Zielony #388E3C
                         () => new PanelLekarza(), "🩺", "Lekarz Wet."),
 
                     new MenuItemConfig("Specyfikacje", "Specyfikacja Surowca",
                         "Definiowanie parametrów jakościowych surowca od poszczególnych dostawców żywca",
-                        Color.FromArgb(67, 160, 71), // #43A047
+                        Color.FromArgb(46, 125, 50), // #2E7D32
                         () => new WidokSpecyfikacje(), "📋", "Specyfikacje"),
 
                     new MenuItemConfig("RozliczeniaAvilog", "Rozliczenia Avilog",
                         "Tygodniowe zestawienia transportu żywca dla firmy Avilog - kalkulacja kosztów usługi transportowej",
-                        Color.FromArgb(56, 142, 60), // #388E3C
+                        Color.FromArgb(40, 113, 44), // #28712C
                         () => new Kalendarz1.Avilog.Views.RozliczeniaAvilogWindow(), "🚛", "Avilog"),
 
                     new MenuItemConfig("DokumentyZakupu", "Dokumenty i Umowy",
                         "Archiwum umów handlowych, certyfikatów i dokumentów związanych z zakupem żywca",
-                        Color.FromArgb(56, 142, 60), // #388E3C
+                        Color.FromArgb(35, 103, 38), // #236726
                         () => new SprawdzalkaUmow { UserID = App.UserID }, "📑", "Umowy"),
 
                     new MenuItemConfig("PlatnosciHodowcy", "Rozliczenia z Hodowcami",
                         "Monitorowanie należności i płatności dla dostawców żywca wraz z historią transakcji",
-                        Color.FromArgb(46, 125, 50), // #2E7D32
+                        Color.FromArgb(30, 94, 33), // #1E5E21
                         () => new Platnosci(), "💵", "Płatności"),
 
                     new MenuItemConfig("ZakupPaszyPisklak", "Zakup Paszy i Piskląt",
@@ -1347,12 +1351,12 @@ namespace Kalendarz1
 
                     new MenuItemConfig("AdminPermissions", "Zarządzanie Uprawnieniami",
                         "Panel administratora do nadawania i odbierania uprawnień dostępu użytkownikom systemu",
-                        Color.FromArgb(183, 28, 28), // Ciemny czerwony #B71C1C
+                        Color.FromArgb(211, 47, 47), // Czerwony #D32F2F
                         () => new AdminPermissionsForm(), "🔐", "Uprawnienia"),
 
                     new MenuItemConfig("CallReminders", "Przypomnienia Telefonów",
                         "Konfiguracja automatycznych przypomnień o telefonach do klientów CRM dla handlowców",
-                        Color.FromArgb(211, 47, 47), // Czerwony #D32F2F
+                        Color.FromArgb(183, 28, 28), // Ciemny czerwony #B71C1C
                         () => new CRM.CallReminderAdminPanel(), "⏰", "Przypomnienia")
                 }
             };
@@ -1380,7 +1384,7 @@ namespace Kalendarz1
 
                     new MenuItemConfig("MapaKlientow", "Mapa Klientów",
                         "Interaktywna mapa Polski z lokalizacjami klientów, kolorowaniem wg kategorii i filtrami",
-                        Color.FromArgb(129, 199, 132), // #81C784
+                        Color.FromArgb(84, 173, 246), // Niebieski #54ADF6
                         () => new Kalendarz1.Kartoteka.Features.Mapa.MapaKlientowWindow(),
                         "🗺️", "Mapa"),
 
@@ -1395,7 +1399,7 @@ namespace Kalendarz1
 
                     new MenuItemConfig("DashboardHandlowca", "Dashboard Handlowca",
                         "Kompleksowa analiza sprzedaży - wykresy, trendy, porównanie miesięczne, top odbiorcy",
-                        Color.FromArgb(41, 121, 255), // Niebieski #2979FF (gradient sprzedaży)
+                        Color.FromArgb(33, 150, 243), // Niebieski #2196F3
                         () => new HandlowiecDashboardWindow(), "📊", "Dashboard"),
 
                     new MenuItemConfig("PanelPaniJola", "Panel Pani Jola",
@@ -1409,12 +1413,12 @@ namespace Kalendarz1
 
                     new MenuItemConfig("DokumentySprzedazy", "Faktury Sprzedaży",
                         "Przeglądanie i drukowanie faktur sprzedaży wraz z dokumentami WZ",
-                        Color.FromArgb(33, 150, 243), // #2196F3
+                        Color.FromArgb(30, 136, 229), // #1E88E5
                         () => new WidokFakturSprzedazy { UserID = App.UserID }, "🧾", "Faktury"),
 
                     new MenuItemConfig("PanelFaktur", "Panel Faktur",
                         "Panel dla fakturzystki - przepisywanie zamówień do Symfonii Handel i tworzenie faktur",
-                        Color.FromArgb(30, 136, 229), // #1E88E5
+                        Color.FromArgb(25, 118, 210), // #1976D2
                         () => {
                             var window = new Kalendarz1.WPF.PanelFakturWindow();
                             window.UserID = App.UserID;
@@ -1423,7 +1427,7 @@ namespace Kalendarz1
 
                     new MenuItemConfig("OfertaCenowa", "Kreator Ofert",
                         "Tworzenie profesjonalnych ofert cenowych dla klientów z aktualnym cennikiem produktów",
-                        Color.FromArgb(30, 136, 229), // #1E88E5
+                        Color.FromArgb(21, 101, 192), // #1565C0
                         () => {
                             var window = new OfertaHandlowaWindow();
                             window.UserID = App.UserID;
@@ -1432,7 +1436,7 @@ namespace Kalendarz1
 
                     new MenuItemConfig("ListaOfert", "Archiwum Ofert",
                         "Historia wszystkich wysłanych ofert handlowych z możliwością kopiowania i edycji",
-                        Color.FromArgb(25, 118, 210), // #1976D2
+                        Color.FromArgb(18, 90, 173), // #125AAD
                         () => {
                             var window = new OfertyListaWindow();
                             window.UserID = App.UserID;
@@ -1441,7 +1445,7 @@ namespace Kalendarz1
 
                     new MenuItemConfig("DashboardOfert", "Analiza Ofert",
                         "Statystyki skuteczności ofert - konwersja, wartości, porównania okresów",
-                        Color.FromArgb(21, 101, 192), // #1565C0
+                        Color.FromArgb(15, 82, 168), // #0F52A8
                         () => {
                             return new OfertyDashboardWindow();
                         }, "📊", "Analiza Ofert"),
@@ -1457,7 +1461,7 @@ namespace Kalendarz1
 
                     new MenuItemConfig("PanelReklamacji", "Reklamacje Klientów",
                         "Rejestracja i obsługa reklamacji jakościowych zgłaszanych przez odbiorców",
-                        Color.FromArgb(21, 101, 192), // #1565C0
+                        Color.FromArgb(13, 71, 161), // Ciemny niebieski #0D47A1
                         () => new FormPanelReklamacjiWindow(connectionString, App.UserID), "⚠️", "Reklamacje")
                 },
 
@@ -1478,17 +1482,17 @@ namespace Kalendarz1
 
                     new MenuItemConfig("AnalizaTygodniowa", "Dashboard Analityczny",
                         "Kompleksowa analiza bilansu produkcji i sprzedaży z wykresami i wskaźnikami",
-                        Color.FromArgb(74, 20, 140), // Ciemny fioletowy #4A148C
+                        Color.FromArgb(156, 39, 176), // Fioletowy #9C27B0
                         () => new Kalendarz1.AnalizaTygodniowa.AnalizaTygodniowaWindow(), "📉", "Analizy"),
 
                     new MenuItemConfig("DashboardPrzychodu", "Przychod Zywca LIVE",
                         "Dashboard czasu rzeczywistego: plan vs rzeczywiste przyjęcia żywca z prognozą produkcji",
-                        Color.FromArgb(156, 39, 176), // Fioletowy #9C27B0
+                        Color.FromArgb(142, 36, 170), // Fioletowy #8E24AA
                         () => new Kalendarz1.DashboardPrzychodu.Views.DashboardPrzychoduWindow(), "🐔", "Przychód"),
 
                     new MenuItemConfig("DashboardZamowien", "Dashboard Zamówień",
                         "Dashboard produktów - bilans zamówień, wydań i stanów magazynowych z analizą odbiorców",
-                        Color.FromArgb(142, 36, 170), // Fioletowy #8E24AA
+                        Color.FromArgb(106, 27, 154), // Fioletowy #6A1B9A
                         () => {
                             var connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
                             var connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
@@ -1497,7 +1501,7 @@ namespace Kalendarz1
 
                     new MenuItemConfig("QuizDrobiarstwo", "Quiz Drobiarstwo",
                         "Quiz szkoleniowy z wiedzy o drobiarstwie - pytania z książki Broiler Meat Signals",
-                        Color.FromArgb(186, 104, 200), // Jasny fioletowy #BA68C8
+                        Color.FromArgb(74, 20, 140), // Ciemny fioletowy #4A148C
                         () => new Kalendarz1.Quiz.QuizWindow(), "🎓", "Quiz")
                 },
 
@@ -1533,7 +1537,7 @@ namespace Kalendarz1
                 {
                     new MenuItemConfig("PulpitZarzadu", "Pulpit Zarzadu",
                         "Centralny dashboard KPI - magazyn, zamowienia, sprzedaz, produkcja, transport, HR",
-                        Color.FromArgb(212, 175, 55), // Gold #D4AF37
+                        Color.FromArgb(207, 216, 220), // Jasny szaroniebieski #CFD8DC
                         () => new PulpitZarzaduWindow(), "\U0001F4CA", "Pulpit KPI"),
 
                     new MenuItemConfig("DaneFinansowe", "Wyniki Finansowe",
@@ -1543,7 +1547,7 @@ namespace Kalendarz1
 
                     new MenuItemConfig("CentrumSpotkan", "Centrum Spotkań",
                         "Kompleksowe zarządzanie spotkaniami, powiadomienia, integracja Fireflies.ai, notatki ze spotkań",
-                        Color.FromArgb(25, 118, 210), // Niebieski #1976D2
+                        Color.FromArgb(144, 164, 174), // Szaroniebieski #90A4AE
                         () => new Kalendarz1.Spotkania.Views.SpotkaniaGlowneWindow(App.UserID), "📅", "Spotkania"),
 
                     new MenuItemConfig("NotatkiZeSpotkan", "Notatki Służbowe",
@@ -1553,12 +1557,12 @@ namespace Kalendarz1
 
                     new MenuItemConfig("KomunikatorFirmowy", "Komunikator Firmowy",
                         "Wewnętrzny czat firmowy z powiadomieniami i avatarami pracowników",
-                        Color.FromArgb(124, 58, 237), // Fioletowy #7C3AED
+                        Color.FromArgb(96, 125, 139), // Szaroniebieski #607D8B
                         () => new Kalendarz1.Komunikator.Views.ChatMainWindow(App.UserID, App.UserFullName), "💬", "Komunikator"),
 
                     new MenuItemConfig("PorannyBriefing", "Poranny Briefing",
                         "Premium editorial dashboard - newsy, analizy AI, konkurencja, ceny, kalendarz strategiczny",
-                        Color.FromArgb(201, 169, 110), // Gold #C9A96E
+                        Color.FromArgb(69, 90, 100), // Szaroniebieski #455A64
                         () => new Kalendarz1.MarketIntelligence.Views.PorannyBriefingWindow(), "📰", "Briefing")
                 },
 
@@ -1569,12 +1573,12 @@ namespace Kalendarz1
                 {
                     new MenuItemConfig("KontrolaGodzin", "Kontrola Czasu Pracy",
                         "System UNICARD - rejestracja wejść/wyjść, godziny pracy, obecności i raporty agencji",
-                        Color.FromArgb(126, 87, 194), // Indygo #7E57C2
+                        Color.FromArgb(149, 117, 205), // Jasny indygo #9575CD
                         () => new KontrolaGodzinWindow(), "⏱️", "Czas Pracy"),
 
                     new MenuItemConfig("WnioskiUrlopowe", "Wnioski Urlopowe",
                         "Kalendarz urlopów, składanie wniosków, zatwierdzanie i bilans urlopowy pracowników",
-                        Color.FromArgb(56, 161, 105), // Zielony #38A169
+                        Color.FromArgb(103, 58, 183), // Ciemny indygo #673AB7
                         () => new WnioskiUrlopWindow(), "🏖️", "Urlopy")
                 }
             };
@@ -1588,6 +1592,22 @@ namespace Kalendarz1
             mainLayout.Controls.Add(rightPanel, 1, 0);
         }
 
+        private Color GetMenuCategoryColor(string categoryName)
+        {
+            switch (categoryName)
+            {
+                case "ZAOPATRZENIE I ZAKUPY": return Color.FromArgb(46, 125, 50);       // Zielony
+                case "PRODUKCJA I MAGAZYN": return Color.FromArgb(230, 81, 0);           // Pomarańczowy
+                case "SPRZEDAŻ I CRM": return Color.FromArgb(25, 118, 210);              // Niebieski
+                case "PLANOWANIE I ANALIZY": return Color.FromArgb(74, 20, 140);          // Fioletowy
+                case "OPAKOWANIA I TRANSPORT": return Color.FromArgb(0, 96, 100);         // Turkusowy
+                case "FINANSE I ZARZĄDZANIE": return Color.FromArgb(69, 90, 100);         // Szaroniebieski
+                case "KADRY I HR": return Color.FromArgb(126, 87, 194);                   // Indygo
+                case "ADMINISTRACJA SYSTEMU": return Color.FromArgb(183, 28, 28);         // Czerwony
+                default: return Color.FromArgb(45, 57, 69);
+            }
+        }
+
         private void PopulateColumn(FlowLayoutPanel columnPanel, Dictionary<string, List<MenuItemConfig>> categories)
         {
             foreach (var category in categories)
@@ -1598,11 +1618,12 @@ namespace Kalendarz1
 
                 if (permittedItems.Any() || isAdmin)
                 {
+                    var categoryColor = GetMenuCategoryColor(category.Key);
                     var categoryLabel = new Label
                     {
                         Text = "▎" + category.Key,
                         Font = new Font("Segoe UI", 14, FontStyle.Bold),
-                        ForeColor = Color.FromArgb(45, 57, 69),
+                        ForeColor = categoryColor,
                         AutoSize = false,
                         Width = columnPanel.Width - 40,
                         Height = 40,

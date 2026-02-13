@@ -19,6 +19,7 @@ namespace Kalendarz1
         #region Pola prywatne
 
         private readonly string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        private readonly string connectionStringHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
         private DataTable originalData;
         private DataTable filteredData;
         private Chart purchaseChart; // Wykres zakupowy
@@ -515,26 +516,26 @@ namespace Kalendarz1
             };
 
             // Checkboxy dla cen sprzedażowych
-            chkNaszaTuszka = new CheckBox
-            {
-                Text = "Nasza Tuszka",
-                Checked = true,
-                AutoSize = true,
-                Margin = new Padding(0, 7, 10, 0)
-            };
-            chkNaszaTuszka.CheckedChanged += (s, e) => UpdateSalesChart();
-
             chkTuszkaZrzeszenia = new CheckBox
             {
-                Text = "Tuszka Zrzeszenia",
+                Text = "Tuszka Zrzeszenia (CenaTuszki)",
                 Checked = true,
                 AutoSize = true,
                 Margin = new Padding(0, 7, 10, 0)
             };
             chkTuszkaZrzeszenia.CheckedChanged += (s, e) => UpdateSalesChart();
 
+            chkNaszaTuszka = new CheckBox
+            {
+                Text = "Nasza Tuszka (śr. sprzedaży)",
+                Checked = true,
+                AutoSize = true,
+                Margin = new Padding(0, 7, 10, 0)
+            };
+            chkNaszaTuszka.CheckedChanged += (s, e) => UpdateSalesChart();
+
             flowPanel.Controls.AddRange(new Control[] {
-                lblSeries, chkNaszaTuszka, chkTuszkaZrzeszenia
+                lblSeries, chkTuszkaZrzeszenia, chkNaszaTuszka
             });
 
             controlPanel.Controls.Add(flowPanel);
@@ -706,16 +707,45 @@ namespace Kalendarz1
             {
                 UpdateStatusMessage("Ładowanie danych...");
 
+                DataTable libraData = null;
+                Dictionary<DateTime, decimal> naszaTuszkaData = null;
+
                 await Task.Run(() =>
                 {
+                    // 1. Ładuj dane z LibraNet (ceny skupu + tuszka zrzeszenia)
                     using (var connection = new SqlConnection(connectionString))
                     {
                         var query = GetOptimizedQuery();
                         var adapter = new SqlDataAdapter(query, connection);
-                        originalData = new DataTable();
-                        adapter.Fill(originalData);
+                        libraData = new DataTable();
+                        adapter.Fill(libraData);
                     }
+
+                    // 2. Ładuj średnią cenę sprzedaży tuszki z bazy Handel
+                    naszaTuszkaData = LoadNaszaTuszkaFromHandel();
                 });
+
+                // 3. Uzupełnij kolumny "Nasza Tuszka" i "Różnica Tuszek" danymi z Handel
+                if (naszaTuszkaData != null && naszaTuszkaData.Count > 0 && libraData != null)
+                {
+                    foreach (DataRow row in libraData.Rows)
+                    {
+                        if (row["DataRaw"] != DBNull.Value)
+                        {
+                            var date = Convert.ToDateTime(row["DataRaw"]).Date;
+                            if (naszaTuszkaData.TryGetValue(date, out decimal naszaCena))
+                            {
+                                row["Nasza Tuszka"] = naszaCena;
+                                if (row["Tuszka Zrzeszenia"] != DBNull.Value)
+                                {
+                                    row["Różnica Tuszek"] = naszaCena - Convert.ToDecimal(row["Tuszka Zrzeszenia"]);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                originalData = libraData;
 
                 // Zmień nazwy kolumn na bardziej czytelne
                 RenameColumns();
@@ -735,6 +765,46 @@ namespace Kalendarz1
                 LoadSampleData();
                 await FilterDataAsync();
             }
+        }
+
+        private Dictionary<DateTime, decimal> LoadNaszaTuszkaFromHandel()
+        {
+            var result = new Dictionary<DateTime, decimal>();
+            try
+            {
+                using (var conn = new SqlConnection(connectionStringHandel))
+                {
+                    conn.Open();
+                    string query = @"
+                        SELECT
+                            CAST(DP.[data] AS DATE) AS Data,
+                            CAST(ROUND(SUM(DP.[wartNetto]) / NULLIF(SUM(DP.[ilosc]), 0), 2) AS DECIMAL(10,2)) AS NaszaTuszka
+                        FROM [HANDEL].[HM].[DP] DP
+                        INNER JOIN [HANDEL].[HM].[TW] TW ON DP.[idtw] = TW.[id]
+                        WHERE DP.[kod] = 'Kurczak A'
+                            AND TW.[katalog] = 67095
+                            AND DP.[data] >= '2023-01-01'
+                            AND DP.[ilosc] > 0
+                        GROUP BY CAST(DP.[data] AS DATE)";
+
+                    using (var cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.CommandTimeout = 30;
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                if (!reader.IsDBNull(0) && !reader.IsDBNull(1))
+                                {
+                                    result[reader.GetDateTime(0)] = reader.GetDecimal(1);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch { /* Handel DB niedostępny - kolumna zostanie pusta */ }
+            return result;
         }
 
         private async Task RefreshAllDataAsync()
@@ -761,26 +831,39 @@ namespace Kalendarz1
         WHERE [Data] >= '2023-01-01'
     ),
     CTE_Harmonogram AS (
-        SELECT 
+        SELECT
             DataOdbioru AS Data,
-            CAST(AVG(CAST(Cena AS DECIMAL(10, 2))) AS DECIMAL(10, 2)) AS SredniaCena
+            CAST(
+                SUM(CAST(Cena AS DECIMAL(18, 4)) * CAST(ISNULL(SztukiDek, 0) AS DECIMAL(18, 2)))
+                / NULLIF(SUM(CAST(ISNULL(SztukiDek, 0) AS DECIMAL(18, 2))), 0)
+            AS DECIMAL(10, 2)) AS SredniaCena
         FROM [LibraNet].[dbo].[HarmonogramDostaw]
-        WHERE (TypCeny = 'Wolnorynkowa' OR TypCeny = 'wolnorynkowa')
+        WHERE LOWER(TypCeny) IN ('wolnyrynek', 'wolnorynkowa')
             AND Bufor = 'Potwierdzony'
             AND DataOdbioru >= '2023-01-01'
+            AND Cena IS NOT NULL AND Cena > 0
+            AND SztukiDek IS NOT NULL AND SztukiDek > 0
         GROUP BY DataOdbioru
     )
-    SELECT 
+    SELECT
         COALESCE(M.Data, R.Data, T.Data) AS DataRaw,
         FORMAT(COALESCE(M.Data, R.Data, T.Data), 'yyyy-MM-dd ddd', 'pl-PL') AS Data,
         CAST(M.CenaMinisterialna AS DECIMAL(10,2)) AS Minister,
-        CAST((ISNULL(M.CenaMinisterialna, 0) + ISNULL(R.CenaRolnicza, 0)) / 2.0 AS DECIMAL(10,2)) AS Laczona,
+        CASE
+            WHEN M.CenaMinisterialna IS NOT NULL AND R.CenaRolnicza IS NOT NULL
+            THEN CAST((M.CenaMinisterialna + R.CenaRolnicza) / 2.0 AS DECIMAL(10,2))
+            ELSE NULL
+        END AS Laczona,
         CAST(R.CenaRolnicza AS DECIMAL(10,2)) AS Rolnicza,
         CAST(HD.SredniaCena AS DECIMAL(10,2)) AS Wolnorynkowa,
-        CAST(ISNULL(R.CenaRolnicza, 0) - ISNULL(HD.SredniaCena, 0) AS DECIMAL(10,2)) AS [Rolnicza-Wolny],
-        CAST(T.CenaTuszki AS DECIMAL(10,2)) AS [Nasza Tuszka],
-        CAST(T.CenaTuszki - 0.05 AS DECIMAL(10,2)) AS [Tuszka Zrzeszenia],
-        CAST(0.05 AS DECIMAL(10,2)) AS [Różnica Tuszek]
+        CASE
+            WHEN R.CenaRolnicza IS NOT NULL AND HD.SredniaCena IS NOT NULL
+            THEN CAST(R.CenaRolnicza - HD.SredniaCena AS DECIMAL(10,2))
+            ELSE NULL
+        END AS [Rolnicza-Wolny],
+        CAST(T.CenaTuszki AS DECIMAL(10,2)) AS [Tuszka Zrzeszenia],
+        CAST(NULL AS DECIMAL(10,2)) AS [Nasza Tuszka],
+        CAST(NULL AS DECIMAL(10,2)) AS [Różnica Tuszek]
     FROM CTE_Ministerialna M
     FULL OUTER JOIN CTE_Rolnicza R ON M.Data = R.Data
     FULL OUTER JOIN CTE_Tuszka T ON COALESCE(M.Data, R.Data) = T.Data
@@ -819,13 +902,13 @@ namespace Kalendarz1
             originalData.Columns.Add("Laczona", typeof(decimal));
             originalData.Columns.Add("Rolnicza", typeof(decimal));
             originalData.Columns.Add("Wolnorynkowa", typeof(decimal));
-            originalData.Columns.Add("Nasza Tuszka", typeof(decimal));
-            originalData.Columns.Add("Tuszka Zrzeszenia", typeof(decimal));
             originalData.Columns.Add("Rolnicza-Wolny", typeof(decimal));
+            originalData.Columns.Add("Tuszka Zrzeszenia", typeof(decimal));
+            originalData.Columns.Add("Nasza Tuszka", typeof(decimal));
             originalData.Columns.Add("Różnica Tuszek", typeof(decimal));
 
             var random = new Random();
-            for (int i = 0; i < 120; i++) // 4 miesiące danych
+            for (int i = 0; i < 120; i++)
             {
                 var date = DateTime.Today.AddDays(-i);
                 var basePrice = 7.50m + (decimal)(random.NextDouble() * 2 - 1);
@@ -834,6 +917,8 @@ namespace Kalendarz1
                 var rolnicza = Math.Round(basePrice + 0.10m + (decimal)(random.NextDouble() * 0.2 - 0.1), 2);
                 var laczona = Math.Round((minister + rolnicza) / 2, 2);
                 var wolnorynkowa = Math.Round(basePrice - 0.10m + (decimal)(random.NextDouble() * 0.2 - 0.1), 2);
+                var tuszkaZrzesz = Math.Round(basePrice + 0.25m + (decimal)(random.NextDouble() * 0.2 - 0.1), 2);
+                var naszaTuszka = Math.Round(basePrice + 0.30m + (decimal)(random.NextDouble() * 0.2 - 0.1), 2);
 
                 originalData.Rows.Add(
                     date,
@@ -842,10 +927,10 @@ namespace Kalendarz1
                     laczona,
                     rolnicza,
                     wolnorynkowa,
-                    Math.Round(basePrice + 0.30m + (decimal)(random.NextDouble() * 0.2 - 0.1), 2),
-                    Math.Round(basePrice + 0.25m + (decimal)(random.NextDouble() * 0.2 - 0.1), 2),
                     Math.Round(rolnicza - wolnorynkowa, 2),
-                    Math.Round(0.05m, 2)
+                    tuszkaZrzesz,
+                    naszaTuszka,
+                    Math.Round(naszaTuszka - tuszkaZrzesz, 2)
                 );
             }
         }
@@ -858,7 +943,46 @@ namespace Kalendarz1
             if (dataGridView1.Columns.Contains("DataRaw"))
                 dataGridView1.Columns["DataRaw"].Visible = false;
 
-            // Formatowanie wszystkich kolumn numerycznych z " zł" na końcu
+            // Czytelne nagłówki kolumn
+            var headerNames = new Dictionary<string, string>
+            {
+                ["Data"] = "Data",
+                ["Minister"] = "Ministerialna",
+                ["Laczona"] = "Łączona",
+                ["Rolnicza"] = "Rolnicza",
+                ["Wolnorynkowa"] = "Wolnorynkowa",
+                ["Rolnicza-Wolny"] = "Roln. - Wolny",
+                ["Tuszka Zrzeszenia"] = "Tusz. Zrzeszenia",
+                ["Nasza Tuszka"] = "Nasza Tuszka",
+                ["Różnica Tuszek"] = "Różnica Tuszek"
+            };
+
+            foreach (var kvp in headerNames)
+            {
+                if (dataGridView1.Columns.Contains(kvp.Key))
+                    dataGridView1.Columns[kvp.Key].HeaderText = kvp.Value;
+            }
+
+            // Tooltips z opisami źródeł danych
+            var tooltips = new Dictionary<string, string>
+            {
+                ["Minister"] = "Cena ministerialna (tabela CenaMinisterialna)",
+                ["Laczona"] = "Średnia z ceny ministerialnej i rolniczej",
+                ["Rolnicza"] = "Cena rolnicza (tabela CenaRolnicza)",
+                ["Wolnorynkowa"] = "Średnia ważona ilością sztuk z dostaw wolnorynkowych",
+                ["Rolnicza-Wolny"] = "Różnica: Rolnicza minus Wolnorynkowa",
+                ["Tuszka Zrzeszenia"] = "Cena tuszki zrzeszenia (tabela CenaTuszki)",
+                ["Nasza Tuszka"] = "Średnia cena sprzedaży Kurczak A (system Handel)",
+                ["Różnica Tuszek"] = "Różnica: Nasza Tuszka minus Tuszka Zrzeszenia"
+            };
+
+            foreach (var kvp in tooltips)
+            {
+                if (dataGridView1.Columns.Contains(kvp.Key))
+                    dataGridView1.Columns[kvp.Key].HeaderCell.ToolTipText = kvp.Value;
+            }
+
+            // Formatowanie kolumn numerycznych
             foreach (DataGridViewColumn col in dataGridView1.Columns)
             {
                 if (col.ValueType == typeof(decimal) || col.ValueType == typeof(double) || col.ValueType == typeof(float))
@@ -868,13 +992,11 @@ namespace Kalendarz1
                 }
             }
 
-            // Ustaw szerokość kolumny Data
+            // Szerokość kolumny Data
             if (dataGridView1.Columns.Contains("Data"))
-            {
                 dataGridView1.Columns["Data"].Width = 150;
-            }
 
-            // Ustaw kolejność kolumn - Łączona między Minister a Rolnicza
+            // Ustaw kolejność kolumn
             SetColumnOrder();
         }
 
@@ -882,7 +1004,7 @@ namespace Kalendarz1
         {
             var columnOrder = new[] {
                 "Data", "Minister", "Laczona", "Rolnicza", "Wolnorynkowa", "Rolnicza-Wolny",
-                "Nasza Tuszka", "Tuszka Zrzeszenia", "Różnica Tuszek"
+                "Tuszka Zrzeszenia", "Nasza Tuszka", "Różnica Tuszek"
             };
 
             int displayIndex = 0;
@@ -985,8 +1107,8 @@ namespace Kalendarz1
             // Konfiguracja serii dla wykresu sprzedażowego
             var seriesConfig = new[]
             {
-                new { Name = "Nasza Tuszka", Column = "Nasza Tuszka", Color = Color.FromArgb(241, 196, 15), Check = chkNaszaTuszka },
-                new { Name = "Tuszka Zrzeszenia", Column = "Tuszka Zrzeszenia", Color = Color.FromArgb(230, 126, 34), Check = chkTuszkaZrzeszenia }
+                new { Name = "Tuszka Zrzeszenia", Column = "Tuszka Zrzeszenia", Color = Color.FromArgb(230, 126, 34), Check = chkTuszkaZrzeszenia },
+                new { Name = "Nasza Tuszka", Column = "Nasza Tuszka", Color = Color.FromArgb(46, 204, 113), Check = chkNaszaTuszka }
             };
 
             foreach (var config in seriesConfig)
@@ -1130,7 +1252,7 @@ namespace Kalendarz1
             statsPanel.Controls.Add(dateRangeCard);
 
             var priceColumns = new[] { "Minister", "Laczona", "Rolnicza", "Wolnorynkowa",
-                                       "Nasza Tuszka", "Tuszka Zrzeszenia" };
+                                       "Tuszka Zrzeszenia", "Nasza Tuszka" };
 
             foreach (var colName in priceColumns)
             {
@@ -1368,19 +1490,19 @@ namespace Kalendarz1
             };
 
             textBox.AppendText($"📅 Data: {row.Cells["Data"].Value}\n\n");
-            textBox.AppendText("💰 CENY PODSTAWOWE:\n");
+            textBox.AppendText("💰 CENY SKUPU:\n");
             AppendFormattedPrice(textBox, "Ministerialna", row.Cells["Minister"].Value);
-            AppendFormattedPrice(textBox, "Łączona", row.Cells["Laczona"].Value);
+            AppendFormattedPrice(textBox, "Łączona (śr. minister. + roln.)", row.Cells["Laczona"].Value);
             AppendFormattedPrice(textBox, "Rolnicza", row.Cells["Rolnicza"].Value);
-            AppendFormattedPrice(textBox, "Wolnorynkowa", row.Cells["Wolnorynkowa"].Value);
+            AppendFormattedPrice(textBox, "Wolnorynkowa (śr. ważona szt.)", row.Cells["Wolnorynkowa"].Value);
 
             textBox.AppendText("\n🏭 CENY TUSZKI:\n");
-            AppendFormattedPrice(textBox, "Nasza Tuszka", row.Cells["Nasza Tuszka"].Value);
-            AppendFormattedPrice(textBox, "Tuszka Zrzeszenia", row.Cells["Tuszka Zrzeszenia"].Value);
+            AppendFormattedPrice(textBox, "Tuszka Zrzeszenia (CenaTuszki)", row.Cells["Tuszka Zrzeszenia"].Value);
+            AppendFormattedPrice(textBox, "Nasza Tuszka (śr. sprzedaży)", row.Cells["Nasza Tuszka"].Value);
 
             textBox.AppendText("\n📊 RÓŻNICE:\n");
-            AppendFormattedPrice(textBox, "Rolnicza - Wolny", row.Cells["Rolnicza-Wolny"].Value);
-            AppendFormattedPrice(textBox, "Różnica Tuszek", row.Cells["Różnica Tuszek"].Value);
+            AppendFormattedPrice(textBox, "Rolnicza - Wolnorynkowa", row.Cells["Rolnicza-Wolny"].Value);
+            AppendFormattedPrice(textBox, "Nasza Tuszka - Zrzeszenia", row.Cells["Różnica Tuszek"].Value);
 
             panel.Controls.Add(textBox);
             form.Controls.Add(panel);

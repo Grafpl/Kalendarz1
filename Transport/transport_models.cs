@@ -18,10 +18,10 @@ namespace Kalendarz1.Transport
         public string Imie { get; set; } = "";
 
         [Required]
-        [MaxLength(50)]
+        [MaxLength(80)]
         public string Nazwisko { get; set; } = "";
 
-        [MaxLength(20)]
+        [MaxLength(30)]
         public string? Telefon { get; set; }
 
         public bool Aktywny { get; set; } = true;
@@ -79,7 +79,7 @@ namespace Kalendarz1.Transport
         public int? KierowcaID { get; set; }
         public int? PojazdID { get; set; }
 
-        [MaxLength(500)]
+        [MaxLength(120)]
         public string? Trasa { get; set; }
 
         public TimeSpan? GodzWyjazdu { get; set; }
@@ -140,7 +140,9 @@ namespace Kalendarz1.Transport
         [Range(1, 255)]
         public byte? PlanE2NaPaleteOverride { get; set; }
 
-        [MaxLength(1000)]
+        public bool TrybE2 { get; set; }
+
+        [MaxLength(255)]
         public string? Uwagi { get; set; }
 
         public DateTime UtworzonoUTC { get; set; }

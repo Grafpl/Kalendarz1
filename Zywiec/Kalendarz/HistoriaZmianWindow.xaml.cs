@@ -92,6 +92,45 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         #region Ładowanie danych
 
+        private async Task EnsureAuditTableExistsAsync(SqlConnection conn)
+        {
+            using (var checkCmd = new SqlCommand(
+                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'AuditLog_Dostawy'", conn))
+            {
+                var exists = (int)await checkCmd.ExecuteScalarAsync();
+                if (exists == 0)
+                {
+                    // Auto-tworzenie tabeli audytu
+                    string createSql = @"
+                        CREATE TABLE AuditLog_Dostawy (
+                            AuditID BIGINT IDENTITY(1,1) PRIMARY KEY,
+                            DataZmiany DATETIME2 NOT NULL DEFAULT GETDATE(),
+                            UserID NVARCHAR(50) NOT NULL,
+                            UserName NVARCHAR(100) NULL,
+                            NazwaTabeli NVARCHAR(100) NOT NULL,
+                            RekordID NVARCHAR(50) NOT NULL,
+                            TypOperacji NVARCHAR(20) NOT NULL,
+                            ZrodloZmiany NVARCHAR(100) NOT NULL,
+                            NazwaPola NVARCHAR(100) NULL,
+                            StaraWartosc NVARCHAR(MAX) NULL,
+                            NowaWartosc NVARCHAR(MAX) NULL,
+                            DodatkoweInfo NVARCHAR(MAX) NULL,
+                            AdresIP NVARCHAR(50) NULL,
+                            NazwaKomputera NVARCHAR(100) NULL,
+                            OpisZmiany NVARCHAR(500) NULL
+                        );
+                        CREATE NONCLUSTERED INDEX IX_AuditLog_DataZmiany ON AuditLog_Dostawy (DataZmiany DESC);
+                        CREATE NONCLUSTERED INDEX IX_AuditLog_RekordID ON AuditLog_Dostawy (RekordID);
+                        CREATE NONCLUSTERED INDEX IX_AuditLog_UserID ON AuditLog_Dostawy (UserID);";
+                    using (var createCmd = new SqlCommand(createSql, conn))
+                    {
+                        await createCmd.ExecuteNonQueryAsync();
+                    }
+                    txtStatusInfo.Text = "Tabela audytu została automatycznie utworzona.";
+                }
+            }
+        }
+
         private async Task LoadUsersAsync()
         {
             try
@@ -99,18 +138,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 using (var conn = new SqlConnection(_connectionString))
                 {
                     await conn.OpenAsync();
-
-                    // Sprawdź czy tabela istnieje
-                    using (var checkCmd = new SqlCommand(
-                        "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'AuditLog_Dostawy'", conn))
-                    {
-                        var exists = (int)await checkCmd.ExecuteScalarAsync();
-                        if (exists == 0)
-                        {
-                            txtStatusInfo.Text = "Tabela audytu nie istnieje. Uruchom skrypt CreateAuditLogTable.sql";
-                            return;
-                        }
-                    }
+                    await EnsureAuditTableExistsAsync(conn);
 
                     // Pobierz listę użytkowników z audytu
                     using (var cmd = new SqlCommand(
@@ -152,17 +180,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 {
                     await conn.OpenAsync();
 
-                    // Sprawdź czy tabela istnieje
-                    using (var checkCmd = new SqlCommand(
-                        "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'AuditLog_Dostawy'", conn))
-                    {
-                        var exists = (int)await checkCmd.ExecuteScalarAsync();
-                        if (exists == 0)
-                        {
-                            txtStatusInfo.Text = "Tabela audytu nie istnieje. Uruchom skrypt SQL.";
-                            return;
-                        }
-                    }
+                    await EnsureAuditTableExistsAsync(conn);
 
                     // Buduj zapytanie
                     var sql = new StringBuilder(@"
@@ -278,13 +296,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     await conn.OpenAsync();
 
                     // Pobierz notatki dla danego LP (IndeksID)
+                    // Kolumny Notatki: IndeksID, TypID, Tresc, KtoStworzyl, DataUtworzenia
                     string sql = @"
-                        SELECT N.ID, N.Tresc, N.DataUtworzenia, N.DataModyfikacji,
-                               N.KtoStworzyl, N.KtoZmodyfikowal,
-                               O1.Name AS KtoDodal, O2.Name AS KtoZmienil
+                        SELECT N.Tresc, N.DataUtworzenia, N.KtoStworzyl,
+                               O.Name AS KtoDodal
                         FROM Notatki N
-                        LEFT JOIN operators O1 ON N.KtoStworzyl = O1.ID
-                        LEFT JOIN operators O2 ON N.KtoZmodyfikowal = O2.ID
+                        LEFT JOIN operators O ON N.KtoStworzyl = O.ID
                         WHERE N.IndeksID = @lp
                         ORDER BY N.DataUtworzenia DESC";
 
@@ -294,16 +311,17 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
                         using (var reader = await cmd.ExecuteReaderAsync())
                         {
+                            int idx = 0;
                             while (await reader.ReadAsync())
                             {
                                 _notatki.Add(new NotatkaHistoryModel
                                 {
-                                    ID = reader.GetInt32(reader.GetOrdinal("ID")),
+                                    ID = ++idx,
                                     Tresc = reader.IsDBNull(reader.GetOrdinal("Tresc")) ? "" : reader.GetString(reader.GetOrdinal("Tresc")),
                                     DataUtworzenia = reader.IsDBNull(reader.GetOrdinal("DataUtworzenia")) ? (DateTime?)null : reader.GetDateTime(reader.GetOrdinal("DataUtworzenia")),
-                                    DataModyfikacji = reader.IsDBNull(reader.GetOrdinal("DataModyfikacji")) ? (DateTime?)null : reader.GetDateTime(reader.GetOrdinal("DataModyfikacji")),
+                                    DataModyfikacji = null,
                                     KtoDodal = reader.IsDBNull(reader.GetOrdinal("KtoDodal")) ? "" : reader.GetString(reader.GetOrdinal("KtoDodal")),
-                                    KtoZmienil = reader.IsDBNull(reader.GetOrdinal("KtoZmienil")) ? "" : reader.GetString(reader.GetOrdinal("KtoZmienil"))
+                                    KtoZmienil = ""
                                 });
                             }
                         }

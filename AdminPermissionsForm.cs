@@ -495,6 +495,7 @@ namespace Kalendarz1
             public static readonly Color Planowanie = Color.FromArgb(74, 20, 140);  // Fioletowy
             public static readonly Color Opakowania = Color.FromArgb(0, 96, 100);   // Turkusowy
             public static readonly Color Finanse = Color.FromArgb(69, 90, 100);     // Szaroniebieski
+            public static readonly Color Kadry = Color.FromArgb(126, 87, 194);    // Indygo
             public static readonly Color Administracja = Color.FromArgb(183, 28, 28); // Czerwony
         }
 
@@ -1196,6 +1197,7 @@ namespace Kalendarz1
                 case "Planowanie i Analizy": return DepartmentColors.Planowanie;
                 case "Opakowania i Transport": return DepartmentColors.Opakowania;
                 case "Finanse i Zarządzanie": return DepartmentColors.Finanse;
+                case "Kadry i HR": return DepartmentColors.Kadry;
                 case "Administracja Systemu": return DepartmentColors.Administracja;
                 default: return Colors.TextGray;
             }
@@ -1211,7 +1213,8 @@ namespace Kalendarz1
                 case "Planowanie i Analizy": return 4;
                 case "Opakowania i Transport": return 5;
                 case "Finanse i Zarządzanie": return 6;
-                case "Administracja Systemu": return 7;
+                case "Kadry i HR": return 7;
+                case "Administracja Systemu": return 8;
                 default: return 99;
             }
         }
@@ -1889,6 +1892,7 @@ namespace Kalendarz1
                 new ModuleInfo("DokumentyZakupu", "Dokumenty i Umowy", "Archiwum umów i certyfikatów", "Zaopatrzenie i Zakupy", "📑"),
                 new ModuleInfo("PlatnosciHodowcy", "Rozliczenia z Hodowcami", "Płatności dla dostawców żywca", "Zaopatrzenie i Zakupy", "💵"),
                 new ModuleInfo("ZakupPaszyPisklak", "Zakup Paszy i Piskląt", "Ewidencja zakupów pasz i piskląt", "Zaopatrzenie i Zakupy", "🌾"),
+                new ModuleInfo("RozliczeniaAvilog", "Rozliczenia Avilog", "Rozliczenia transportu Avilog", "Zaopatrzenie i Zakupy", "🧮"),
                 new ModuleInfo("RaportyHodowcow", "Statystyki Hodowców", "Raporty współpracy z hodowcami", "Zaopatrzenie i Zakupy", "📊"),
 
                 // ═══════════════════════════════════════════════════════════════════════
@@ -1917,6 +1921,7 @@ namespace Kalendarz1
                 new ModuleInfo("DashboardWyczerpalnosci", "Klasy Wagowe", "Rozdzielanie klas wagowych", "Sprzedaż i CRM", "⚖️"),
                 new ModuleInfo("PanelReklamacji", "Reklamacje Klientów", "Obsługa reklamacji odbiorców", "Sprzedaż i CRM", "⚠️"),
                 new ModuleInfo("PanelPaniJola", "Panel Pani Jola", "Uproszczony widok zamówień - duże kafelki", "Sprzedaż i CRM", "📞"),
+                new ModuleInfo("MapaKlientow", "Mapa Klientów", "Wizualizacja lokalizacji klientów na mapie", "Sprzedaż i CRM", "🗺️"),
 
                 // ═══════════════════════════════════════════════════════════════════════
                 // PLANOWANIE I ANALIZY - Fioletowy
@@ -1938,17 +1943,25 @@ namespace Kalendarz1
                 // ═══════════════════════════════════════════════════════════════════════
                 // FINANSE I ZARZĄDZANIE - Szaroniebieski
                 // ═══════════════════════════════════════════════════════════════════════
+                new ModuleInfo("PulpitZarzadu", "Pulpit Zarządu", "Dashboardy i wskaźniki dla zarządu", "Finanse i Zarządzanie", "🏛️"),
                 new ModuleInfo("DaneFinansowe", "Wyniki Finansowe", "Przychody, koszty, marże", "Finanse i Zarządzanie", "💼"),
                 new ModuleInfo("CentrumSpotkan", "Centrum Spotkań", "Rejestr spotkań i wizyt", "Finanse i Zarządzanie", "📆"),
                 new ModuleInfo("NotatkiZeSpotkan", "Notatki Służbowe", "Notatki ze spotkań biznesowych", "Finanse i Zarządzanie", "📝"),
-                new ModuleInfo("KontrolaGodzin", "Kontrola Czasu Pracy", "Monitoring czasu pracy pracowników", "Finanse i Zarządzanie", "⏰"),
                 new ModuleInfo("KomunikatorFirmowy", "Komunikator Firmowy", "Wewnętrzny czat między pracownikami", "Finanse i Zarządzanie", "💬"),
+                new ModuleInfo("PorannyBriefing", "Poranny Briefing", "Newsy, analizy AI, konkurencja, ceny", "Finanse i Zarządzanie", "📰"),
+
+                // ═══════════════════════════════════════════════════════════════════════
+                // KADRY I HR - Indygo
+                // ═══════════════════════════════════════════════════════════════════════
+                new ModuleInfo("KontrolaGodzin", "Kontrola Czasu Pracy", "Monitoring czasu pracy pracowników", "Kadry i HR", "⏰"),
+                new ModuleInfo("WnioskiUrlopowe", "Wnioski Urlopowe", "Kalendarz urlopów i wnioski pracowników", "Kadry i HR", "🏖️"),
 
                 // ═══════════════════════════════════════════════════════════════════════
                 // ADMINISTRACJA SYSTEMU - Czerwony
                 // ═══════════════════════════════════════════════════════════════════════
                 new ModuleInfo("ZmianyUHodowcow", "Wnioski o Zmiany", "Zatwierdzanie zmian danych hodowców", "Administracja Systemu", "📝"),
-                new ModuleInfo("AdminPermissions", "Zarządzanie Uprawnieniami", "Nadawanie uprawnień użytkownikom", "Administracja Systemu", "🔐")
+                new ModuleInfo("AdminPermissions", "Zarządzanie Uprawnieniami", "Nadawanie uprawnień użytkownikom", "Administracja Systemu", "🔐"),
+                new ModuleInfo("CallReminders", "Przypomnienia Telefonów", "Konfiguracja przypomnień o telefonach CRM", "Administracja Systemu", "⏰")
             };
         }
 
@@ -2004,9 +2017,15 @@ namespace Kalendarz1
                 [42] = "CentrumSpotkan",
                 [43] = "PanelPaniJola",
                 [44] = "KomunikatorFirmowy",
+                [45] = "RozliczeniaAvilog",
                 [46] = "DashboardPrzychodu",
+                [47] = "MapaKlientow",
+                [48] = "WnioskiUrlopowe",
                 [49] = "DashboardZamowien",
-                [50] = "QuizDrobiarstwo"
+                [50] = "QuizDrobiarstwo",
+                [51] = "PulpitZarzadu",
+                [52] = "CallReminders",
+                [53] = "PorannyBriefing"
             };
         }
 

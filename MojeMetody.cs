@@ -1165,7 +1165,7 @@ END";
             }
             return wartosc;
         }
-        private static readonly Regex SafeSqlIdentifier = new Regex(@"^[a-zA-Z_][a-zA-Z0-9_.\[\]]+$", RegexOptions.Compiled);
+        private static readonly Regex SafeSqlIdentifier = new Regex(@"^[\[a-zA-Z_][a-zA-Z0-9_.\[\]]+$", RegexOptions.Compiled);
 
         private static void ValidateSqlIdentifier(string name, string paramName)
         {

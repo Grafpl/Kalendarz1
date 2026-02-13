@@ -202,8 +202,8 @@ namespace Kalendarz1.KontrolaGodzin
                         {
                             _grupy.Add(new GrupaModel
                             {
-                                Id = reader.GetInt32(0),
-                                Nazwa = reader.GetString(1)
+                                Id = Convert.ToInt32(reader.GetValue(0)),
+                                Nazwa = reader.GetValue(1)?.ToString() ?? ""
                             });
                         }
                     }
@@ -260,11 +260,11 @@ namespace Kalendarz1.KontrolaGodzin
                         {
                             _pracownicy.Add(new PracownikModel
                             {
-                                Id = reader.GetInt32(0),
-                                Imie = reader.IsDBNull(1) ? "" : reader.GetString(1),
-                                Nazwisko = reader.IsDBNull(2) ? "" : reader.GetString(2),
-                                GrupaId = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
-                                GrupaNazwa = reader.IsDBNull(4) ? "" : reader.GetString(4)
+                                Id = Convert.ToInt32(reader.GetValue(0)),
+                                Imie = reader.IsDBNull(1) ? "" : reader.GetValue(1)?.ToString() ?? "",
+                                Nazwisko = reader.IsDBNull(2) ? "" : reader.GetValue(2)?.ToString() ?? "",
+                                GrupaId = reader.IsDBNull(3) ? 0 : Convert.ToInt32(reader.GetValue(3)),
+                                GrupaNazwa = reader.IsDBNull(4) ? "" : reader.GetValue(4)?.ToString() ?? ""
                             });
                         }
                     }
@@ -333,21 +333,18 @@ namespace Kalendarz1.KontrolaGodzin
                 {
                     conn.Open();
 
-                    // Prawidłowe kolumny z V_KDINAR_ALL_REGISTRATIONS
+                    // Kolumny z V_KDINAR_ALL_REGISTRATIONS - tylko podstawowe, pewne kolumny
                     string sql = @"
-                        SELECT 
+                        SELECT
                             KDINAR_REGISTRTN_DATETIME,
                             KDINAR_REGISTRTN_TYPE,
                             KDINAR_EMPLOYEE_ID,
                             KDINAR_EMPLOYEE_NAME,
                             KDINAR_EMPLOYEE_SURNAME,
                             KDINAR_EMPLOYEE_GROUP_ID,
-                            KDINAR_ACCESS_POINT_NAME,
-                            KDINAR_CARD_NUMBER,
-                            KDINAR_DEVICE_NAME,
-                            KDINAR_REGISTRTN_MODE
+                            KDINAR_ACCESS_POINT_NAME
                         FROM V_KDINAR_ALL_REGISTRATIONS
-                        WHERE KDINAR_REGISTRTN_DATETIME >= @DataOd 
+                        WHERE KDINAR_REGISTRTN_DATETIME >= @DataOd
                           AND KDINAR_REGISTRTN_DATETIME < @DataDo
                           AND KDINAR_EMPLOYEE_ID IS NOT NULL
                         ORDER BY KDINAR_REGISTRTN_DATETIME DESC";
@@ -362,10 +359,21 @@ namespace Kalendarz1.KontrolaGodzin
                             while (reader.Read())
                             {
                                 var punktDostepu = reader.IsDBNull(6) ? "" : reader.GetString(6);
-                                var typZBazy = reader.IsDBNull(1) ? 0 : reader.GetInt32(1);
-                                
+                                // KDINAR_REGISTRTN_TYPE może być int lub string - obsłuż oba przypadki
+                                int typZBazy = 0;
+                                if (!reader.IsDBNull(1))
+                                {
+                                    var rawType = reader.GetValue(1);
+                                    if (rawType is int i) typZBazy = i;
+                                    else if (rawType is string s)
+                                    {
+                                        if (s.ToUpper().Contains("WE") || s.ToUpper().Contains("IN") || s.ToUpper().Contains("ENTRY")) typZBazy = 1;
+                                        else typZBazy = 0;
+                                    }
+                                    else typZBazy = Convert.ToInt32(rawType);
+                                }
+
                                 // Określ typ wejścia/wyjścia na podstawie nazwy punktu dostępu
-                                // "WY" w nazwie = wyjście, "WE" w nazwie = wejście
                                 int typInt = OkreslTypWejsciaWyjscia(punktDostepu, typZBazy);
                                 string typ = typInt == 1 ? "WEJŚCIE" : "WYJŚCIE";
 
@@ -374,13 +382,13 @@ namespace Kalendarz1.KontrolaGodzin
                                     DataCzas = reader.GetDateTime(0),
                                     Typ = typ,
                                     TypInt = typInt,
-                                    PracownikId = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
-                                    Pracownik = $"{(reader.IsDBNull(4) ? "" : reader.GetString(4))} {(reader.IsDBNull(3) ? "" : reader.GetString(3))}".Trim(),
-                                    GrupaId = reader.IsDBNull(5) ? 0 : reader.GetInt32(5),
+                                    PracownikId = reader.IsDBNull(2) ? 0 : Convert.ToInt32(reader.GetValue(2)),
+                                    Pracownik = $"{(reader.IsDBNull(4) ? "" : reader.GetValue(4)?.ToString())} {(reader.IsDBNull(3) ? "" : reader.GetValue(3)?.ToString())}".Trim(),
+                                    GrupaId = reader.IsDBNull(5) ? 0 : Convert.ToInt32(reader.GetValue(5)),
                                     PunktDostepu = punktDostepu,
-                                    NumerKarty = reader.IsDBNull(7) ? 0 : reader.GetInt64(7),
-                                    Urzadzenie = reader.IsDBNull(8) ? "" : reader.GetString(8),
-                                    TrybRejestracji = reader.IsDBNull(9) ? 0 : reader.GetInt32(9)
+                                    NumerKarty = 0,
+                                    Urzadzenie = "",
+                                    TrybRejestracji = 0
                                 };
 
                                 // Uzupełnij nazwę grupy
@@ -1535,16 +1543,27 @@ namespace Kalendarz1.KontrolaGodzin
                             while (reader.Read())
                             {
                                 var punktDostepu = reader.IsDBNull(6) ? "" : reader.GetString(6);
-                                var typZBazy = reader.IsDBNull(1) ? 0 : reader.GetInt32(1);
+                                int typZBazy = 0;
+                                if (!reader.IsDBNull(1))
+                                {
+                                    var rawType = reader.GetValue(1);
+                                    if (rawType is int i) typZBazy = i;
+                                    else if (rawType is string s)
+                                    {
+                                        if (s.ToUpper().Contains("WE") || s.ToUpper().Contains("IN") || s.ToUpper().Contains("ENTRY")) typZBazy = 1;
+                                        else typZBazy = 0;
+                                    }
+                                    else typZBazy = Convert.ToInt32(rawType);
+                                }
                                 int typInt = OkreslTypWejsciaWyjscia(punktDostepu, typZBazy);
 
                                 var reg = new RejestracjaModel
                                 {
                                     DataCzas = reader.GetDateTime(0),
                                     TypInt = typInt,
-                                    PracownikId = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
-                                    Pracownik = $"{(reader.IsDBNull(4) ? "" : reader.GetString(4))} {(reader.IsDBNull(3) ? "" : reader.GetString(3))}".Trim(),
-                                    GrupaId = reader.IsDBNull(5) ? 0 : reader.GetInt32(5)
+                                    PracownikId = reader.IsDBNull(2) ? 0 : Convert.ToInt32(reader.GetValue(2)),
+                                    Pracownik = $"{(reader.IsDBNull(4) ? "" : reader.GetValue(4)?.ToString())} {(reader.IsDBNull(3) ? "" : reader.GetValue(3)?.ToString())}".Trim(),
+                                    GrupaId = reader.IsDBNull(5) ? 0 : Convert.ToInt32(reader.GetValue(5))
                                 };
 
                                 var grupa = _grupy.FirstOrDefault(g => g.Id == reg.GrupaId);
@@ -2807,6 +2826,625 @@ namespace Kalendarz1.KontrolaGodzin
         }
 
         private void CmbPrzesunieciaStatus_Changed(object sender, SelectionChangedEventArgs e) { if (IsLoaded) LoadPrzesuniecia(); }
+
+        #endregion
+
+        #region Diagnostyka SQL
+
+        private void BtnDiagnostyka_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            var sb = new StringBuilder();
+            int testNr = 0;
+            int passed = 0;
+            int failed = 0;
+
+            sb.AppendLine("╔══════════════════════════════════════════════════════════════╗");
+            sb.AppendLine("║           DIAGNOSTYKA POŁĄCZENIA SQL - UNICARD RCP          ║");
+            sb.AppendLine("╚══════════════════════════════════════════════════════════════╝");
+            sb.AppendLine();
+            sb.AppendLine($"  Data raportu:     {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            sb.AppendLine($"  Komputer:         {Environment.MachineName}");
+            sb.AppendLine($"  Użytkownik Win:   {Environment.UserName}");
+            sb.AppendLine($"  OS:               {Environment.OSVersion}");
+            sb.AppendLine($"  .NET Runtime:     {Environment.Version}");
+            sb.AppendLine($"  App UserID:       {App.UserID}");
+            sb.AppendLine($"  App UserName:     {App.UserFullName}");
+            sb.AppendLine();
+
+            // Parsuj connection string bezpiecznie
+            var csBuilder = new SqlConnectionStringBuilder(_connectionString);
+            sb.AppendLine("  Connection String:");
+            sb.AppendLine($"    Server:         {csBuilder.DataSource}");
+            sb.AppendLine($"    Database:       {csBuilder.InitialCatalog}");
+            sb.AppendLine($"    User:           {csBuilder.UserID}");
+            sb.AppendLine($"    Password:       {"*".PadRight(csBuilder.Password.Length, '*')}");
+            sb.AppendLine($"    Timeout:        {csBuilder.ConnectTimeout}s");
+            sb.AppendLine();
+
+            // ─── 1. PING SERWERA ───
+            sb.AppendLine($"── TEST {++testNr}: PING SERWERA ──");
+            try
+            {
+                var host = csBuilder.DataSource.Split('\\')[0];
+                using (var ping = new System.Net.NetworkInformation.Ping())
+                {
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
+                    var reply = ping.Send(host, 3000);
+                    sw.Stop();
+                    if (reply.Status == System.Net.NetworkInformation.IPStatus.Success)
+                    {
+                        sb.AppendLine($"  ✅ PASS  Ping {host} → {reply.RoundtripTime}ms (TTL={reply.Options?.Ttl})");
+                        sb.AppendLine($"           IP: {reply.Address}");
+                        passed++;
+                    }
+                    else
+                    {
+                        sb.AppendLine($"  ❌ FAIL  Ping {host} → {reply.Status}");
+                        failed++;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine($"  ⚠️ SKIP  Ping niedostępny: {ex.Message}");
+            }
+            sb.AppendLine();
+
+            // ─── 2. PORT TCP 1433 ───
+            sb.AppendLine($"── TEST {++testNr}: PORT TCP 1433 ──");
+            try
+            {
+                var host = csBuilder.DataSource.Split('\\')[0];
+                using (var tcp = new System.Net.Sockets.TcpClient())
+                {
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
+                    var connectTask = tcp.ConnectAsync(host, 1433);
+                    if (connectTask.Wait(3000))
+                    {
+                        sw.Stop();
+                        sb.AppendLine($"  ✅ PASS  Port 1433 otwarty ({sw.ElapsedMilliseconds}ms)");
+                        passed++;
+                    }
+                    else
+                    {
+                        sb.AppendLine($"  ❌ FAIL  Port 1433 timeout (>3s) - firewall?");
+                        failed++;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine($"  ❌ FAIL  Port 1433: {ex.Message}");
+                failed++;
+            }
+            sb.AppendLine();
+
+            // ─── 3. SQL CONNECTION ───
+            sb.AppendLine($"── TEST {++testNr}: POŁĄCZENIE SQL ──");
+            string serverVersion = "";
+            bool connectionOk = false;
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
+                    conn.Open();
+                    sw.Stop();
+                    connectionOk = true;
+                    serverVersion = conn.ServerVersion;
+                    sb.AppendLine($"  ✅ PASS  Połączono w {sw.ElapsedMilliseconds}ms");
+                    sb.AppendLine($"           SQL Server wersja: {conn.ServerVersion}");
+                    sb.AppendLine($"           Baza danych:       {conn.Database}");
+                    sb.AppendLine($"           WorkstationId:     {conn.WorkstationId}");
+                    sb.AppendLine($"           PacketSize:        {conn.PacketSize}");
+                    passed++;
+
+                    // Dodatkowe info o serwerze
+                    try
+                    {
+                        using (var cmd = new SqlCommand("SELECT @@SERVERNAME, @@SERVICENAME, SERVERPROPERTY('Edition'), SERVERPROPERTY('ProductLevel'), SYSTEM_USER, DB_NAME()", conn))
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                sb.AppendLine($"           ServerName:        {reader.GetValue(0)}");
+                                sb.AppendLine($"           ServiceName:       {reader.GetValue(1)}");
+                                sb.AppendLine($"           Edition:           {reader.GetValue(2)}");
+                                sb.AppendLine($"           ProductLevel:      {reader.GetValue(3)}");
+                                sb.AppendLine($"           SQL User:          {reader.GetValue(4)}");
+                                sb.AppendLine($"           Current DB:        {reader.GetValue(5)}");
+                            }
+                        }
+                    }
+                    catch { }
+                }
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine($"  ❌ FAIL  {ex.Message}");
+                if (ex.InnerException != null)
+                    sb.AppendLine($"           Inner: {ex.InnerException.Message}");
+                sb.AppendLine($"           Typ wyjątku: {ex.GetType().FullName}");
+                sb.AppendLine($"           HResult: 0x{ex.HResult:X8}");
+                if (ex is SqlException sqlEx)
+                {
+                    sb.AppendLine($"           SQL Error Number: {sqlEx.Number}");
+                    sb.AppendLine($"           SQL Error Class:  {sqlEx.Class}");
+                    sb.AppendLine($"           SQL State:        {sqlEx.State}");
+                    foreach (SqlError err in sqlEx.Errors)
+                        sb.AppendLine($"           → [{err.Number}] {err.Message} (Line {err.LineNumber}, Proc: {err.Procedure})");
+                }
+                failed++;
+            }
+            sb.AppendLine();
+
+            if (!connectionOk)
+            {
+                sb.AppendLine("══ DIAGNOSTYKA PRZERWANA - BRAK POŁĄCZENIA Z SERWEREM ══");
+                sb.AppendLine();
+                sb.AppendLine("Możliwe przyczyny:");
+                sb.AppendLine("  • Serwer SQL jest wyłączony");
+                sb.AppendLine("  • Zła nazwa serwera / instancji");
+                sb.AppendLine("  • Firewall blokuje port 1433");
+                sb.AppendLine("  • SQL Server Browser nie działa (potrzebny dla named instances)");
+                sb.AppendLine("  • Złe hasło lub login");
+                sb.AppendLine();
+                sb.AppendLine($"Wynik: {passed} PASS / {failed} FAIL");
+                PokazDiagnostyke(sb.ToString());
+                return;
+            }
+
+            // ─── 4. WIDOKI - ISTNIENIE I SCHEMAT ───
+            var widoki = new[]
+            {
+                "V_RCINEG_EMPLOYEES_GROUPS",
+                "V_RCINE_EMPLOYEES",
+                "V_KDINAR_ALL_REGISTRATIONS",
+                "V_KDINEC_EMPLOYEES_CARDS",
+                "T_KDCAC_CARDS"
+            };
+
+            sb.AppendLine($"── TEST {++testNr}: WIDOKI I TABELE ──");
+            using (var conn = new SqlConnection(_connectionString))
+            {
+                conn.Open();
+
+                foreach (var widok in widoki)
+                {
+                    try
+                    {
+                        using (var cmd = new SqlCommand($"SELECT TOP 1 * FROM {widok}", conn))
+                        {
+                            cmd.CommandTimeout = 10;
+                            var sw = System.Diagnostics.Stopwatch.StartNew();
+                            using (var reader = cmd.ExecuteReader())
+                            {
+                                sw.Stop();
+                                sb.AppendLine($"  ✅ PASS  {widok} ({sw.ElapsedMilliseconds}ms, {reader.FieldCount} kolumn)");
+                                for (int i = 0; i < reader.FieldCount; i++)
+                                {
+                                    var colName = reader.GetName(i);
+                                    var colType = reader.GetFieldType(i);
+                                    var dbType = reader.GetDataTypeName(i);
+                                    string sampleVal = "";
+                                    if (reader.HasRows && reader.Read())
+                                        sampleVal = reader.IsDBNull(i) ? "<NULL>" : TruncateValue(reader.GetValue(i)?.ToString(), 40);
+                                    sb.AppendLine($"           [{i,2}] {colName,-45} {dbType,-15} (.NET: {colType.Name,-10}) = {sampleVal}");
+                                }
+                                passed++;
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        sb.AppendLine($"  ❌ FAIL  {widok}: {ex.Message}");
+                        failed++;
+                    }
+                    sb.AppendLine();
+                }
+
+                // ─── 5. LICZNOŚĆ DANYCH ───
+                sb.AppendLine($"── TEST {++testNr}: LICZNOŚĆ DANYCH ──");
+
+                var countQueries = new Dictionary<string, string>
+                {
+                    ["Grupy (ogółem)"] = "SELECT COUNT(*) FROM V_RCINEG_EMPLOYEES_GROUPS",
+                    ["Grupy (unikalne)"] = "SELECT COUNT(DISTINCT RCINEG_EMPLOYEE_GROUP_NAME) FROM V_RCINEG_EMPLOYEES_GROUPS WHERE RCINEG_EMPLOYEE_GROUP_NAME IS NOT NULL",
+                    ["Pracownicy (typ=1, aktywni)"] = "SELECT COUNT(*) FROM V_RCINE_EMPLOYEES WHERE RCINE_EMPLOYEE_TYPE = 1",
+                    ["Pracownicy (wszyscy)"] = "SELECT COUNT(*) FROM V_RCINE_EMPLOYEES",
+                    ["Rejestracje (dziś)"] = $"SELECT COUNT(*) FROM V_KDINAR_ALL_REGISTRATIONS WHERE KDINAR_REGISTRTN_DATETIME >= '{DateTime.Today:yyyy-MM-dd}' AND KDINAR_EMPLOYEE_ID IS NOT NULL",
+                    ["Rejestracje (wczoraj)"] = $"SELECT COUNT(*) FROM V_KDINAR_ALL_REGISTRATIONS WHERE KDINAR_REGISTRTN_DATETIME >= '{DateTime.Today.AddDays(-1):yyyy-MM-dd}' AND KDINAR_REGISTRTN_DATETIME < '{DateTime.Today:yyyy-MM-dd}' AND KDINAR_EMPLOYEE_ID IS NOT NULL",
+                    ["Rejestracje (ten miesiąc)"] = $"SELECT COUNT(*) FROM V_KDINAR_ALL_REGISTRATIONS WHERE KDINAR_REGISTRTN_DATETIME >= '{new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1):yyyy-MM-dd}' AND KDINAR_EMPLOYEE_ID IS NOT NULL",
+                    ["Rejestracje (ogółem w bazie)"] = "SELECT COUNT(*) FROM V_KDINAR_ALL_REGISTRATIONS WHERE KDINAR_EMPLOYEE_ID IS NOT NULL",
+                    ["Karty (aktywne)"] = "SELECT COUNT(*) FROM V_KDINEC_EMPLOYEES_CARDS WHERE KDINEC_DATETIME_TO IS NULL",
+                };
+
+                foreach (var kv in countQueries)
+                {
+                    try
+                    {
+                        using (var cmd = new SqlCommand(kv.Value, conn))
+                        {
+                            cmd.CommandTimeout = 15;
+                            var count = Convert.ToInt64(cmd.ExecuteScalar());
+                            string status = count > 0 ? "✅" : "⚠️";
+                            sb.AppendLine($"  {status} {kv.Key,-35} = {count:N0}");
+                            if (count > 0) passed++; else failed++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        sb.AppendLine($"  ❌ {kv.Key,-35} = BŁĄD: {ex.Message}");
+                        failed++;
+                    }
+                }
+                sb.AppendLine();
+
+                // ─── 6. PRÓBKA REJESTRACJI ───
+                sb.AppendLine($"── TEST {++testNr}: PRÓBKA REJESTRACJI (5 ostatnich) ──");
+                try
+                {
+                    using (var cmd = new SqlCommand(@"SELECT TOP 5 * FROM V_KDINAR_ALL_REGISTRATIONS
+                        WHERE KDINAR_EMPLOYEE_ID IS NOT NULL ORDER BY KDINAR_REGISTRTN_DATETIME DESC", conn))
+                    {
+                        cmd.CommandTimeout = 10;
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            int row = 0;
+                            while (reader.Read())
+                            {
+                                row++;
+                                sb.AppendLine($"  --- Rekord {row} ---");
+                                for (int i = 0; i < reader.FieldCount; i++)
+                                {
+                                    var val = reader.IsDBNull(i) ? "<NULL>" : reader.GetValue(i)?.ToString();
+                                    var realType = reader.IsDBNull(i) ? "NULL" : reader.GetValue(i)?.GetType().Name;
+                                    sb.AppendLine($"    {reader.GetName(i),-45} [{reader.GetDataTypeName(i),-12} → .NET {realType,-10}] = {TruncateValue(val, 50)}");
+                                }
+                            }
+                            if (row == 0)
+                            {
+                                sb.AppendLine("  ⚠️ BRAK DANYCH w widoku rejestracji!");
+                                failed++;
+                            }
+                            else
+                            {
+                                sb.AppendLine($"  ✅ Pobrano {row} rekordów");
+                                passed++;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    sb.AppendLine($"  ❌ FAIL: {ex.Message}");
+                    failed++;
+                }
+                sb.AppendLine();
+
+                // ─── 7. PRÓBKA PRACOWNIKÓW ───
+                sb.AppendLine($"── TEST {++testNr}: PRÓBKA PRACOWNIKÓW (3 pierwsze) ──");
+                try
+                {
+                    using (var cmd = new SqlCommand(@"SELECT TOP 3 * FROM V_RCINE_EMPLOYEES WHERE RCINE_EMPLOYEE_TYPE = 1
+                        ORDER BY RCINE_EMPLOYEE_SURNAME", conn))
+                    {
+                        cmd.CommandTimeout = 10;
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            int row = 0;
+                            while (reader.Read())
+                            {
+                                row++;
+                                sb.AppendLine($"  --- Pracownik {row} ---");
+                                for (int i = 0; i < reader.FieldCount; i++)
+                                {
+                                    var val = reader.IsDBNull(i) ? "<NULL>" : reader.GetValue(i)?.ToString();
+                                    var realType = reader.IsDBNull(i) ? "NULL" : reader.GetValue(i)?.GetType().Name;
+                                    sb.AppendLine($"    {reader.GetName(i),-45} [{reader.GetDataTypeName(i),-12} → .NET {realType,-10}] = {TruncateValue(val, 50)}");
+                                }
+                            }
+                            if (row == 0) { sb.AppendLine("  ⚠️ BRAK PRACOWNIKÓW (typ=1)!"); failed++; }
+                            else { passed++; }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    sb.AppendLine($"  ❌ FAIL: {ex.Message}");
+                    failed++;
+                }
+                sb.AppendLine();
+
+                // ─── 8. TEST ZAPYTAŃ UŻYWANYCH W APLIKACJI ───
+                sb.AppendLine($"── TEST {++testNr}: ZAPYTANIA APLIKACJI ──");
+
+                // Test zapytania LoadGrupy
+                sb.AppendLine("  [LoadGrupy]");
+                try
+                {
+                    using (var cmd = new SqlCommand(@"SELECT DISTINCT RCINEG_EMPLOYEE_GROUP_ID, RCINEG_EMPLOYEE_GROUP_NAME
+                        FROM V_RCINEG_EMPLOYEES_GROUPS WHERE RCINEG_EMPLOYEE_GROUP_NAME IS NOT NULL
+                        ORDER BY RCINEG_EMPLOYEE_GROUP_NAME", conn))
+                    {
+                        cmd.CommandTimeout = 10;
+                        var sw = System.Diagnostics.Stopwatch.StartNew();
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            int cnt = 0;
+                            while (reader.Read()) cnt++;
+                            sw.Stop();
+                            sb.AppendLine($"  ✅ PASS  {cnt} grup, {sw.ElapsedMilliseconds}ms");
+                            passed++;
+                        }
+                    }
+                }
+                catch (Exception ex) { sb.AppendLine($"  ❌ FAIL  {ex.Message}"); failed++; }
+
+                // Test zapytania LoadPracownicy
+                sb.AppendLine("  [LoadPracownicy]");
+                try
+                {
+                    using (var cmd = new SqlCommand(@"SELECT RCINE_EMPLOYEE_ID, RCINE_EMPLOYEE_NAME, RCINE_EMPLOYEE_SURNAME,
+                        RCINE_EMPLOYEE_GROUP_ID, RCINE_EMPLOYEE_GROUP_NAME FROM V_RCINE_EMPLOYEES
+                        WHERE RCINE_EMPLOYEE_TYPE = 1 ORDER BY RCINE_EMPLOYEE_SURNAME, RCINE_EMPLOYEE_NAME", conn))
+                    {
+                        cmd.CommandTimeout = 10;
+                        var sw = System.Diagnostics.Stopwatch.StartNew();
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            int cnt = 0;
+                            while (reader.Read()) cnt++;
+                            sw.Stop();
+                            sb.AppendLine($"  ✅ PASS  {cnt} pracowników, {sw.ElapsedMilliseconds}ms");
+                            passed++;
+                        }
+                    }
+                }
+                catch (Exception ex) { sb.AppendLine($"  ❌ FAIL  {ex.Message}"); failed++; }
+
+                // Test zapytania LoadAllData
+                sb.AppendLine("  [LoadAllData]");
+                try
+                {
+                    using (var cmd = new SqlCommand(@"SELECT TOP 10 KDINAR_REGISTRTN_DATETIME, KDINAR_REGISTRTN_TYPE,
+                        KDINAR_EMPLOYEE_ID, KDINAR_EMPLOYEE_NAME, KDINAR_EMPLOYEE_SURNAME,
+                        KDINAR_EMPLOYEE_GROUP_ID, KDINAR_ACCESS_POINT_NAME
+                        FROM V_KDINAR_ALL_REGISTRATIONS
+                        WHERE KDINAR_REGISTRTN_DATETIME >= @DataOd AND KDINAR_REGISTRTN_DATETIME < @DataDo
+                        AND KDINAR_EMPLOYEE_ID IS NOT NULL ORDER BY KDINAR_REGISTRTN_DATETIME DESC", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@DataOd", DateTime.Today);
+                        cmd.Parameters.AddWithValue("@DataDo", DateTime.Today.AddDays(1));
+                        cmd.CommandTimeout = 10;
+                        var sw = System.Diagnostics.Stopwatch.StartNew();
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            int cnt = 0;
+                            while (reader.Read()) cnt++;
+                            sw.Stop();
+                            sb.AppendLine($"  ✅ PASS  {cnt} rejestracji (TOP 10), {sw.ElapsedMilliseconds}ms");
+                            passed++;
+                        }
+                    }
+                }
+                catch (Exception ex) { sb.AppendLine($"  ❌ FAIL  {ex.Message}"); failed++; }
+
+                // Test starych kolumn (które usunęliśmy)
+                sb.AppendLine("  [Opcjonalne kolumny]");
+                var optCols = new[] { "KDINAR_CARD_NUMBER", "KDINAR_DEVICE_NAME", "KDINAR_REGISTRTN_MODE" };
+                foreach (var col in optCols)
+                {
+                    try
+                    {
+                        using (var cmd = new SqlCommand($"SELECT TOP 1 {col} FROM V_KDINAR_ALL_REGISTRATIONS", conn))
+                        {
+                            cmd.CommandTimeout = 5;
+                            using (var reader = cmd.ExecuteReader())
+                            {
+                                string typ = reader.GetDataTypeName(0);
+                                string val = "(pusta tabela)";
+                                if (reader.Read())
+                                    val = reader.IsDBNull(0) ? "<NULL>" : $"{reader.GetValue(0)} ({reader.GetValue(0)?.GetType().Name})";
+                                sb.AppendLine($"  ✅       {col,-35} typ={typ,-12} wartość={val}");
+                            }
+                        }
+                    }
+                    catch (Exception ex) { sb.AppendLine($"  ⚠️       {col,-35} NIE ISTNIEJE ({ex.Message})"); }
+                }
+                sb.AppendLine();
+
+                // ─── 9. UPRAWNIENIA UŻYTKOWNIKA SQL ───
+                sb.AppendLine($"── TEST {++testNr}: UPRAWNIENIA SQL ──");
+                try
+                {
+                    using (var cmd = new SqlCommand(@"SELECT dp.name, dp.type_desc,
+                        IS_SRVROLEMEMBER('sysadmin', dp.name) as is_sysadmin,
+                        IS_SRVROLEMEMBER('dbcreator', dp.name) as is_dbcreator
+                        FROM sys.server_principals dp WHERE dp.name = SYSTEM_USER", conn))
+                    {
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                sb.AppendLine($"  Login:     {reader.GetValue(0)}");
+                                sb.AppendLine($"  Typ:       {reader.GetValue(1)}");
+                                sb.AppendLine($"  sysadmin:  {(Convert.ToInt32(reader.GetValue(2)) == 1 ? "TAK" : "NIE")}");
+                                sb.AppendLine($"  dbcreator: {(Convert.ToInt32(reader.GetValue(3)) == 1 ? "TAK" : "NIE")}");
+                                passed++;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex) { sb.AppendLine($"  ⚠️ Nie można sprawdzić: {ex.Message}"); }
+                sb.AppendLine();
+
+                // ─── 10. STATUS SERWERA SQL ───
+                sb.AppendLine($"── TEST {++testNr}: STATUS SERWERA ──");
+                try
+                {
+                    using (var cmd = new SqlCommand(@"SELECT
+                        (SELECT COUNT(*) FROM sys.dm_exec_sessions) as sessions,
+                        (SELECT sqlserver_start_time FROM sys.dm_os_sys_info) as start_time,
+                        (SELECT physical_memory_kb/1024 FROM sys.dm_os_sys_info) as ram_mb,
+                        (SELECT cpu_count FROM sys.dm_os_sys_info) as cpus,
+                        DB_NAME() as current_db,
+                        (SELECT SUM(size)*8/1024 FROM sys.database_files) as db_size_mb", conn))
+                    {
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                sb.AppendLine($"  Aktywne sesje:    {reader.GetValue(0)}");
+                                sb.AppendLine($"  SQL uruchomiony:  {reader.GetValue(1)}");
+                                sb.AppendLine($"  RAM serwera:      {reader.GetValue(2)} MB");
+                                sb.AppendLine($"  CPU:              {reader.GetValue(3)} rdzeni");
+                                sb.AppendLine($"  Baza danych:      {reader.GetValue(4)}");
+                                sb.AppendLine($"  Rozmiar bazy:     {reader.GetValue(5)} MB");
+                                passed++;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex) { sb.AppendLine($"  ⚠️ {ex.Message}"); }
+            }
+
+            // ─── PODSUMOWANIE ───
+            sb.AppendLine();
+            sb.AppendLine("── STAN APLIKACJI (pamięć) ──");
+            sb.AppendLine($"  Grupy załadowane:       {_grupy?.Count ?? 0}");
+            sb.AppendLine($"  Pracownicy załadowani:  {_pracownicy?.Count ?? 0}");
+            sb.AppendLine($"  Rejestracje w pamięci:  {_wszystkieRejestracje?.Count ?? 0}");
+            sb.AppendLine($"  Zakres dat:             {dpOd.SelectedDate:yyyy-MM-dd} → {dpDo.SelectedDate:yyyy-MM-dd}");
+            sb.AppendLine();
+            sb.AppendLine("╔══════════════════════════════════════════════════════════════╗");
+            sb.AppendLine($"║  WYNIK:  {passed} PASS  /  {failed} FAIL                                  ║");
+            if (failed == 0)
+                sb.AppendLine("║  STATUS: ✅ WSZYSTKO OK                                     ║");
+            else
+                sb.AppendLine("║  STATUS: ❌ WYKRYTO PROBLEMY                                ║");
+            sb.AppendLine("╚══════════════════════════════════════════════════════════════╝");
+
+            PokazDiagnostyke(sb.ToString());
+        }
+
+        private static string TruncateValue(string val, int max)
+        {
+            if (string.IsNullOrEmpty(val)) return "";
+            return val.Length <= max ? val : val.Substring(0, max) + "...";
+        }
+
+        private void PokazDiagnostyke(string raport)
+        {
+            var window = new Window
+            {
+                Title = "Diagnostyka SQL - UNICARD RCP",
+                Width = 900,
+                Height = 700,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Background = new SolidColorBrush(Color.FromRgb(26, 32, 44))
+            };
+            WindowIconHelper.SetIcon(window);
+
+            var grid = new Grid();
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var textBox = new TextBox
+            {
+                Text = raport,
+                IsReadOnly = true,
+                FontFamily = new FontFamily("Consolas"),
+                FontSize = 12,
+                Background = new SolidColorBrush(Color.FromRgb(26, 32, 44)),
+                Foreground = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(16),
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                TextWrapping = TextWrapping.NoWrap
+            };
+            Grid.SetRow(textBox, 0);
+            grid.Children.Add(textBox);
+
+            var btnPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(16, 10, 16, 10)
+            };
+            Grid.SetRow(btnPanel, 1);
+
+            var btnCopy = new Button
+            {
+                Content = "Kopiuj do schowka",
+                Padding = new Thickness(20, 8, 20, 8),
+                Margin = new Thickness(0, 0, 8, 0),
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
+                Background = new SolidColorBrush(Color.FromRgb(66, 153, 225)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            btnCopy.Click += (s, ev) =>
+            {
+                Clipboard.SetText(raport);
+                btnCopy.Content = "✅ Skopiowano!";
+                var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+                timer.Tick += (t, te) => { btnCopy.Content = "Kopiuj do schowka"; timer.Stop(); };
+                timer.Start();
+            };
+
+            var btnSave = new Button
+            {
+                Content = "Zapisz do pliku",
+                Padding = new Thickness(20, 8, 20, 8),
+                Margin = new Thickness(0, 0, 8, 0),
+                FontSize = 13,
+                Background = new SolidColorBrush(Color.FromRgb(72, 187, 120)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            btnSave.Click += (s, ev) =>
+            {
+                var dlg = new SaveFileDialog
+                {
+                    Filter = "Text files (*.txt)|*.txt",
+                    FileName = $"diagnostyka_sql_{DateTime.Now:yyyyMMdd_HHmmss}.txt"
+                };
+                if (dlg.ShowDialog() == true)
+                {
+                    File.WriteAllText(dlg.FileName, raport, Encoding.UTF8);
+                    btnSave.Content = "✅ Zapisano!";
+                    var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+                    timer.Tick += (t, te) => { btnSave.Content = "Zapisz do pliku"; timer.Stop(); };
+                    timer.Start();
+                }
+            };
+
+            var btnClose = new Button
+            {
+                Content = "Zamknij",
+                Padding = new Thickness(20, 8, 20, 8),
+                FontSize = 13,
+                Background = new SolidColorBrush(Color.FromRgb(113, 128, 150)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            btnClose.Click += (s, ev) => window.Close();
+
+            btnPanel.Children.Add(btnCopy);
+            btnPanel.Children.Add(btnSave);
+            btnPanel.Children.Add(btnClose);
+            grid.Children.Add(btnPanel);
+
+            window.Content = grid;
+            window.ShowDialog();
+        }
 
         #endregion
     }

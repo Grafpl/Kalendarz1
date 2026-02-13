@@ -584,9 +584,9 @@ namespace Kalendarz1.Transport.Repozytorium
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
 
-            var sql = @"SELECT LadunekID, KursID, Kolejnosc, KodKlienta, PojemnikiE2, 
-                              PaletyH1, PlanE2NaPaleteOverride, Uwagi, UtworzonoUTC
-                       FROM dbo.Ladunek 
+            var sql = @"SELECT LadunekID, KursID, Kolejnosc, KodKlienta, PojemnikiE2,
+                              PaletyH1, PlanE2NaPaleteOverride, Uwagi, UtworzonoUTC, TrybE2
+                       FROM dbo.Ladunek
                        WHERE KursID = @KursID
                        ORDER BY Kolejnosc";
 
@@ -606,7 +606,8 @@ namespace Kalendarz1.Transport.Repozytorium
                     PaletyH1 = reader.IsDBNull(5) ? null : reader.GetInt32(5),
                     PlanE2NaPaleteOverride = reader.IsDBNull(6) ? null : reader.GetByte(6),
                     Uwagi = reader.IsDBNull(7) ? null : reader.GetString(7),
-                    UtworzonoUTC = reader.GetDateTime(8)
+                    UtworzonoUTC = reader.GetDateTime(8),
+                    TrybE2 = reader.GetBoolean(9)
                 });
             }
 
@@ -624,11 +625,11 @@ namespace Kalendarz1.Transport.Repozytorium
             cmdMax.Parameters.AddWithValue("@KursID", ladunek.KursID);
             var nowaKolejnosc = (int)await cmdMax.ExecuteScalarAsync();
 
-            var sql = @"INSERT INTO dbo.Ladunek 
-                       (KursID, Kolejnosc, KodKlienta, PojemnikiE2, PaletyH1, PlanE2NaPaleteOverride, Uwagi) 
+            var sql = @"INSERT INTO dbo.Ladunek
+                       (KursID, Kolejnosc, KodKlienta, PojemnikiE2, PaletyH1, PlanE2NaPaleteOverride, Uwagi, TrybE2)
                        OUTPUT INSERTED.LadunekID
-                       VALUES (@KursID, @Kolejnosc, @KodKlienta, @PojemnikiE2, @PaletyH1, 
-                               @PlanE2NaPaleteOverride, @Uwagi)";
+                       VALUES (@KursID, @Kolejnosc, @KodKlienta, @PojemnikiE2, @PaletyH1,
+                               @PlanE2NaPaleteOverride, @Uwagi, @TrybE2)";
 
             using var cmd = new SqlCommand(sql, connection);
             cmd.Parameters.AddWithValue("@KursID", ladunek.KursID);
@@ -638,6 +639,7 @@ namespace Kalendarz1.Transport.Repozytorium
             cmd.Parameters.AddWithValue("@PaletyH1", (object)ladunek.PaletyH1 ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@PlanE2NaPaleteOverride", (object)ladunek.PlanE2NaPaleteOverride ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@Uwagi", (object)ladunek.Uwagi ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@TrybE2", ladunek.TrybE2);
 
             return (long)await cmd.ExecuteScalarAsync();
         }
@@ -647,10 +649,11 @@ namespace Kalendarz1.Transport.Repozytorium
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
 
-            var sql = @"UPDATE dbo.Ladunek 
-                       SET Kolejnosc = @Kolejnosc, KodKlienta = @KodKlienta, 
+            var sql = @"UPDATE dbo.Ladunek
+                       SET Kolejnosc = @Kolejnosc, KodKlienta = @KodKlienta,
                            PojemnikiE2 = @PojemnikiE2, PaletyH1 = @PaletyH1,
-                           PlanE2NaPaleteOverride = @PlanE2NaPaleteOverride, Uwagi = @Uwagi
+                           PlanE2NaPaleteOverride = @PlanE2NaPaleteOverride, Uwagi = @Uwagi,
+                           TrybE2 = @TrybE2
                        WHERE LadunekID = @LadunekID";
 
             using var cmd = new SqlCommand(sql, connection);
@@ -661,6 +664,7 @@ namespace Kalendarz1.Transport.Repozytorium
             cmd.Parameters.AddWithValue("@PaletyH1", (object)ladunek.PaletyH1 ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@PlanE2NaPaleteOverride", (object)ladunek.PlanE2NaPaleteOverride ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@Uwagi", (object)ladunek.Uwagi ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@TrybE2", ladunek.TrybE2);
 
             await cmd.ExecuteNonQueryAsync();
         }

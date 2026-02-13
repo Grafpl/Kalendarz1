@@ -58,6 +58,17 @@ namespace Kalendarz1
         private List<DostawcaItem> listaDostawcow { get => ListaDostawcow; set => ListaDostawcow = value; }
         private List<string> listaTypowCen { get => ListaTypowCen; set => ListaTypowCen = value; }
 
+        /// Mapuje nazwę typu ceny z bazy danych na nazwę używaną w UI (ComboBox)
+        private static string MapujNazweTypuCeny(string dbName)
+        {
+            if (string.IsNullOrEmpty(dbName)) return "";
+            switch (dbName.ToLowerInvariant())
+            {
+                case "wolnorynkowa": return "wolnyrynek";
+                default: return dbName;
+            }
+        }
+
         // Ustawienia PDF
         private static string defaultPdfPath = @"\\192.168.0.170\Public\Przel\";
         private static string defaultPlachtaPath = @"\\192.168.0.170\Public\Plachty\";
@@ -1499,7 +1510,8 @@ namespace Kalendarz1
                                 Cena = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "Price", 0),
                                 Dodatek = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "Addition", 0),
                                 // Użyj danych z JOIN zamiast osobnego zapytania (optymalizacja)
-                                TypCeny = ZapytaniaSQL.GetValueOrDefault<string>(row, "PriceTypeName", "")?.Trim() ?? "",
+                                // Mapowanie nazwy z bazy ("wolnorynkowa") na nazwę UI ("wolnyrynek")
+                                TypCeny = MapujNazweTypuCeny(ZapytaniaSQL.GetValueOrDefault<string>(row, "PriceTypeName", "")?.Trim() ?? ""),
                                 PiK = row["IncDeadConf"] != DBNull.Value && Convert.ToBoolean(row["IncDeadConf"]),
                                 Ubytek = Math.Round(ZapytaniaSQL.GetValueOrDefault<decimal>(row, "Loss", 0) * 100, 2),
                                 // Nowe pola
@@ -4326,7 +4338,7 @@ namespace Kalendarz1
                                     Cena = reader["Price"] != DBNull.Value ? Convert.ToDecimal(reader["Price"]) : (decimal?)null,
                                     Dodatek = reader["Addition"] != DBNull.Value ? Convert.ToDecimal(reader["Addition"]) : (decimal?)null,
                                     Ubytek = reader["Loss"] != DBNull.Value ? Convert.ToDecimal(reader["Loss"]) * 100 : (decimal?)null,
-                                    TypCeny = reader["PriceType"]?.ToString(),
+                                    TypCeny = MapujNazweTypuCeny(reader["PriceType"]?.ToString() ?? ""),
                                     TerminDni = reader["TerminDni"] != DBNull.Value ? Convert.ToInt32(reader["TerminDni"]) : (int?)null
                                 };
                             }

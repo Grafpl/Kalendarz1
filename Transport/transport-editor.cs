@@ -102,6 +102,7 @@ namespace Kalendarz1.Transport.Formularze
             public string? Uwagi { get; set; }
             public string? Adres { get; set; }
             public bool TrybE2 { get; set; }
+            public byte? PlanE2NaPaleteOverride { get; set; }
             public string? NazwaKlienta { get; set; }
             public bool ZmienionyWZamowieniu { get; set; }
             public decimal PoprzedniePalety { get; set; }
@@ -1467,11 +1468,12 @@ namespace Kalendarz1.Transport.Formularze
             await using var cn = new SqlConnection(_connectionString);
             await cn.OpenAsync();
 
-            var sql = @"SELECT LadunekID, KursID, Kolejnosc, KodKlienta, 
-                              ISNULL(PaletyH1, 0) AS Palety, 
+            var sql = @"SELECT LadunekID, KursID, Kolejnosc, KodKlienta,
+                              ISNULL(PaletyH1, 0) AS Palety,
                               ISNULL(PojemnikiE2, 0) AS Pojemniki,
-                              Uwagi, ISNULL(TrybE2, 0) AS TrybE2
-                       FROM dbo.Ladunek 
+                              Uwagi, ISNULL(TrybE2, 0) AS TrybE2,
+                              PlanE2NaPaleteOverride
+                       FROM dbo.Ladunek
                        WHERE KursID = @KursID
                        ORDER BY Kolejnosc";
 
@@ -1490,7 +1492,8 @@ namespace Kalendarz1.Transport.Formularze
                     Palety = reader.IsDBNull(4) ? 0 : Convert.ToDecimal(reader.GetInt32(4)),
                     PojemnikiE2 = reader.GetInt32(5),
                     Uwagi = reader.IsDBNull(6) ? null : reader.GetString(6),
-                    TrybE2 = reader.GetBoolean(7)
+                    TrybE2 = reader.GetBoolean(7),
+                    PlanE2NaPaleteOverride = reader.IsDBNull(8) ? null : reader.GetByte(8)
                 };
 
                 if (ladunek.KodKlienta?.StartsWith("ZAM_") == true)
@@ -2583,9 +2586,9 @@ Adres: {zamowienie.Adres}";
 
             foreach (var ladunek in _ladunki.OrderBy(l => l.Kolejnosc))
             {
-                var sqlInsert = @"INSERT INTO dbo.Ladunek 
-                    (KursID, Kolejnosc, KodKlienta, PaletyH1, PojemnikiE2, Uwagi, TrybE2) 
-                    VALUES (@KursID, @Kolejnosc, @KodKlienta, @Palety, @Pojemniki, @Uwagi, @TrybE2)";
+                var sqlInsert = @"INSERT INTO dbo.Ladunek
+                    (KursID, Kolejnosc, KodKlienta, PaletyH1, PojemnikiE2, Uwagi, TrybE2, PlanE2NaPaleteOverride)
+                    VALUES (@KursID, @Kolejnosc, @KodKlienta, @Palety, @Pojemniki, @Uwagi, @TrybE2, @PlanE2NaPaleteOverride)";
 
                 using var cmdInsert = new SqlCommand(sqlInsert, cn);
                 cmdInsert.Parameters.AddWithValue("@KursID", _kursId.Value);
@@ -2595,6 +2598,7 @@ Adres: {zamowienie.Adres}";
                 cmdInsert.Parameters.AddWithValue("@Pojemniki", ladunek.PojemnikiE2);
                 cmdInsert.Parameters.AddWithValue("@Uwagi", (object)ladunek.Uwagi ?? DBNull.Value);
                 cmdInsert.Parameters.AddWithValue("@TrybE2", ladunek.TrybE2);
+                cmdInsert.Parameters.AddWithValue("@PlanE2NaPaleteOverride", (object)ladunek.PlanE2NaPaleteOverride ?? DBNull.Value);
                 await cmdInsert.ExecuteNonQueryAsync();
             }
         }

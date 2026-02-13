@@ -36,6 +36,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
             "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True;" +
             "Min Pool Size=5;Max Pool Size=100;Connection Timeout=30;Command Timeout=30";
 
+        private static readonly string ConnectionStringHandel =
+            "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True;" +
+            "Connection Timeout=15;Command Timeout=15";
+
         private ObservableCollection<DostawaModel> _dostawy = new ObservableCollection<DostawaModel>();
         private ObservableCollection<DostawaModel> _dostawyNastepnyTydzien = new ObservableCollection<DostawaModel>();
         private ObservableCollection<PartiaModel> _partie = new ObservableCollection<PartiaModel>();
@@ -229,7 +233,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
             // Timer odświeżania cen co 30 minut
             _priceTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(30) };
-            _priceTimer.Tick += async (s, e) => { await LoadCenyAsync(); await LoadPartieAsync(); };
+            _priceTimer.Tick += async (s, e) => { await LoadCenyAsync(); await LoadCenyDodatkoweAsync(); await LoadPartieAsync(); };
             _priceTimer.Start();
 
             // Timer ankiety
@@ -385,6 +389,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 {
                     LoadDostawyAsync(),
                     LoadCenyAsync(),
+                    LoadCenyDodatkoweAsync(),
                     LoadPartieAsync(),
                     LoadPojemnoscTuszkiAsync(),
                     LoadOstatnieNotatkiAsync(),
@@ -710,7 +715,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
                     // Cena rolnicza
                     double cenaRolnicza = await GetLatestPriceAsync(conn, "CenaRolnicza", "cena");
-                    double cenaMinister = await GetLatestPriceAsync(conn, "CenaMinister", "cena");
+                    double cenaMinister = await GetLatestPriceAsync(conn, "CenaMinisterialna", "cena");
                     double cenaLaczona = (cenaRolnicza + cenaMinister) / 2;
                     double cenaTuszki = await GetLatestPriceAsync(conn, "CenaTuszki", "cena");
 
@@ -731,6 +736,78 @@ namespace Kalendarz1.Zywiec.Kalendarz
         private void LoadCeny()
         {
             _ = LoadCenyAsync();
+        }
+
+        /// <summary>
+        /// Ładuje ceny "Nasza Tuszka" (z Handel DB) i "Nasz Wolny Rynek" (z LibraNet) dla wybranego dnia
+        /// </summary>
+        private async Task LoadCenyDodatkoweAsync()
+        {
+            try
+            {
+                var date = _selectedDate;
+                double naszaTuszka = 0;
+                double naszWolny = 0;
+
+                // Nasza Tuszka - średnia cena sprzedaży Kurczak A z Handel DB
+                try
+                {
+                    using (var conn = new SqlConnection(ConnectionStringHandel))
+                    {
+                        await conn.OpenAsync(_cts.Token);
+                        string sql = @"
+                            SELECT CASE WHEN SUM(DP.ilosc) > 0
+                                        THEN SUM(DP.wartNetto) / SUM(DP.ilosc)
+                                        ELSE 0 END AS SredniaCena
+                            FROM [HANDEL].[HM].[DP] DP
+                            INNER JOIN [HANDEL].[HM].[TW] TW ON DP.kod = TW.kod
+                            WHERE DP.kod = 'Kurczak A'
+                              AND TW.katalog = 67095
+                              AND CAST(DP.data AS DATE) = @data";
+                        using (var cmd = new SqlCommand(sql, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@data", date.Date);
+                            var result = await cmd.ExecuteScalarAsync(_cts.Token);
+                            if (result != null && result != DBNull.Value)
+                                naszaTuszka = Convert.ToDouble(result);
+                        }
+                    }
+                }
+                catch { }
+
+                // Nasz Wolny Rynek - średnia ważona cena dostaw wolnorynkowych z dnia
+                try
+                {
+                    using (var conn = new SqlConnection(ConnectionString))
+                    {
+                        await conn.OpenAsync(_cts.Token);
+                        string sql = @"
+                            SELECT CASE WHEN SUM(SztukiDek) > 0
+                                        THEN SUM(Cena * SztukiDek) / SUM(SztukiDek)
+                                        ELSE 0 END AS SredniaCena
+                            FROM [LibraNet].[dbo].[HarmonogramDostaw]
+                            WHERE CAST(DataOdbioru AS DATE) = @data
+                              AND LOWER(TypCeny) IN ('wolnyrynek', 'wolnorynkowa')
+                              AND SztukiDek > 0 AND Cena > 0
+                              AND bufor NOT IN ('Anulowany')";
+                        using (var cmd = new SqlCommand(sql, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@data", date.Date);
+                            var result = await cmd.ExecuteScalarAsync(_cts.Token);
+                            if (result != null && result != DBNull.Value)
+                                naszWolny = Convert.ToDouble(result);
+                        }
+                    }
+                }
+                catch { }
+
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    txtNaszaTuszka.Text = naszaTuszka > 0 ? $"{naszaTuszka:F2} zł" : "-";
+                    txtNaszWolnyRynek.Text = naszWolny > 0 ? $"{naszWolny:F2} zł" : "-";
+                });
+            }
+            catch { }
         }
 
         private async Task<double> GetLatestPriceAsync(SqlConnection conn, string table, string column)
@@ -1235,6 +1312,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
                                 DateTime dataWstaw = Convert.ToDateTime(reader["DataWstawienia"]);
                                 txtObecnaDoba.Text = (DateTime.Now - dataWstaw).Days.ToString();
+
+                                txtWstawienieHeaderData.Text = dataWstaw.ToString("dd.MM");
+                                txtWstawienieHeaderSzt.Text = $"{reader["IloscWstawienia"]} szt";
                             }
                         }
                     }
@@ -1897,6 +1977,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 txtHodowcaWstawienia.Text = lpDostawca;
                 txtHodowcaDaneDostawy.Text = lpDostawca;
 
+                // Dzień tygodnia i data w nagłówku
+                var culture = new System.Globalization.CultureInfo("pl-PL");
+                string dzienNazwa = selected.DataOdbioru.ToString("dddd", culture);
+                dzienNazwa = char.ToUpper(dzienNazwa[0]) + dzienNazwa.Substring(1);
+                txtDzienDostawy.Text = $"{dzienNazwa}, {selected.DataOdbioru:dd.MM.yyyy}";
+
                 if (!string.IsNullOrEmpty(selected.LpW))
                 {
                     cmbLpWstawienia.SelectedItem = selected.LpW;
@@ -2063,6 +2149,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 txtHodowcaWstawienia.Text = lpDostawca;
                 txtHodowcaDaneDostawy.Text = lpDostawca;
 
+                // Dzień tygodnia i data w nagłówku
+                var culture = new System.Globalization.CultureInfo("pl-PL");
+                string dzienNazwa = selected.DataOdbioru.ToString("dddd", culture);
+                dzienNazwa = char.ToUpper(dzienNazwa[0]) + dzienNazwa.Substring(1);
+                txtDzienDostawy.Text = $"{dzienNazwa}, {selected.DataOdbioru:dd.MM.yyyy}";
+
                 if (!string.IsNullOrEmpty(selected.LpW))
                 {
                     cmbLpWstawienia.SelectedItem = selected.LpW;
@@ -2140,6 +2232,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                     txtCena.Text = r["Cena"]?.ToString();
                                     cmbTypUmowy.SelectedItem = r["TypUmowy"]?.ToString();
                                     txtDodatek.Text = r["Dodatek"]?.ToString();
+                                    UpdateObliczoneAuta();
 
                                     chkPotwWaga.IsChecked = r["PotwWaga"] != DBNull.Value && Convert.ToBoolean(r["PotwWaga"]);
                                     chkPotwSztuki.IsChecked = r["PotwSztuki"] != DBNull.Value && Convert.ToBoolean(r["PotwSztuki"]);
@@ -2213,6 +2306,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                     txtDataWstawienia.Text = dataWstaw.ToString("yyyy-MM-dd");
                                     txtSztukiWstawienia.Text = iloscWst;
                                     txtObecnaDoba.Text = (DateTime.Now - dataWstaw).Days.ToString();
+                                    txtWstawienieHeaderData.Text = dataWstaw.ToString("dd.MM");
+                                    txtWstawienieHeaderSzt.Text = $"{iloscWst} szt";
                                 });
                             }
                         }
@@ -2950,7 +3045,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     break;
                 case "B.Kontr.":
                     e.Row.Background = (SolidColorBrush)FindResource("StatusBKontrBrush");
-                    e.Row.Foreground = Brushes.White;
+                    e.Row.Foreground = Brushes.Black;
                     break;
                 case "B.Wolny.":
                     e.Row.Background = (SolidColorBrush)FindResource("StatusBWolnyBrush");
@@ -3045,6 +3140,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                 txtCena.Text = r["Cena"]?.ToString();
                                 cmbTypUmowy.SelectedItem = r["TypUmowy"]?.ToString();
                                 txtDodatek.Text = r["Dodatek"]?.ToString();
+                                UpdateObliczoneAuta();
 
                                 chkPotwWaga.IsChecked = r["PotwWaga"] != DBNull.Value && Convert.ToBoolean(r["PotwWaga"]);
                                 chkPotwSztuki.IsChecked = r["PotwSztuki"] != DBNull.Value && Convert.ToBoolean(r["PotwSztuki"]);
@@ -3378,6 +3474,27 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         private void BtnNowaDostawa_Click(object sender, RoutedEventArgs e)
         {
+            // TRYB SYMULACJI - dodaj tymczasową dostawę w pamięci
+            if (_isSimulationMode)
+            {
+                var newDostawa = new DostawaModel
+                {
+                    LP = $"SIM_{DateTime.Now.Ticks}",
+                    DataOdbioru = _selectedDate,
+                    Dostawca = "(Nowa symulacja)",
+                    Auta = 1,
+                    SztukiDek = 0,
+                    WagaDek = 0,
+                    Cena = 0,
+                    Bufor = "Niepotwierdzony",
+                    TypCeny = ""
+                };
+                _dostawy.Add(newDostawa);
+                RefreshDostawyView();
+                ShowToast("📝 Dodano tymczasową dostawę (symulacja)", ToastType.Info);
+                return;
+            }
+
             try
             {
                 var dostawa = new Dostawa("", _selectedDate);
@@ -3393,19 +3510,35 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         private void MenuItemNowaDostawaZDaty_Click(object sender, RoutedEventArgs e)
         {
+            // Pobierz zaznaczony element z odpowiedniej tabeli
+            var selectedItem = dgDostawy.SelectedItem as DostawaModel ?? dgDostawyNastepny.SelectedItem as DostawaModel;
+            DateTime dateToUse = _selectedDate;
+            if (selectedItem != null && !selectedItem.IsSeparator && !selectedItem.IsHeaderRow)
+                dateToUse = selectedItem.DataOdbioru;
+
+            // TRYB SYMULACJI - dodaj tymczasową dostawę w pamięci
+            if (_isSimulationMode)
+            {
+                var newDostawa = new DostawaModel
+                {
+                    LP = $"SIM_{DateTime.Now.Ticks}",
+                    DataOdbioru = dateToUse,
+                    Dostawca = "(Nowa symulacja)",
+                    Auta = 1,
+                    SztukiDek = 0,
+                    WagaDek = 0,
+                    Cena = 0,
+                    Bufor = "Niepotwierdzony",
+                    TypCeny = ""
+                };
+                _dostawy.Add(newDostawa);
+                RefreshDostawyView();
+                ShowToast("📝 Dodano tymczasową dostawę (symulacja)", ToastType.Info);
+                return;
+            }
+
             try
             {
-                // Pobierz zaznaczony element z odpowiedniej tabeli
-                var selectedItem = dgDostawy.SelectedItem as DostawaModel ?? dgDostawyNastepny.SelectedItem as DostawaModel;
-
-                DateTime dateToUse = _selectedDate;
-
-                if (selectedItem != null && !selectedItem.IsSeparator && !selectedItem.IsHeaderRow)
-                {
-                    // Użyj daty z zaznaczonego wiersza
-                    dateToUse = selectedItem.DataOdbioru;
-                }
-
                 var dostawa = new Dostawa("", dateToUse);
                 dostawa.UserID = App.UserID;
                 dostawa.FormClosed += (s, args) => LoadDostawy();
@@ -4386,10 +4519,18 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 return;
             }
 
-            // TRYB SYMULACJI - blokuj
+            // TRYB SYMULACJI - usunięcie z pamięci
             if (_isSimulationMode)
             {
-                ShowToast("⚠️ Tryb symulacji - akcja zablokowana", ToastType.Warning);
+                var simDostawa = _dostawy.FirstOrDefault(d => d.LP == _selectedLP) ??
+                                 _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == _selectedLP);
+                if (simDostawa != null)
+                {
+                    _dostawy.Remove(simDostawa);
+                    _dostawyNastepnyTydzien.Remove(simDostawa);
+                    RefreshDostawyView();
+                    ShowToast($"🗑️ Usunięto {simDostawa.Dostawca} (symulacja)", ToastType.Info);
+                }
                 return;
             }
 
@@ -4652,18 +4793,31 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         /// <summary>
         /// Odświeża widok dostaw po zmianach w symulacji
+        /// Redistribuuje dostawy między tygodniami na podstawie ich aktualnych dat
         /// </summary>
         private void RefreshDostawyView()
         {
-            // Pobierz dane bez nagłówków
-            var dostawyData = _dostawy.Where(d => !d.IsHeaderRow && !d.IsSeparator).ToList();
-            var dostawyNastepnyData = _dostawyNastepnyTydzien.Where(d => !d.IsHeaderRow && !d.IsSeparator).ToList();
+            // Pobierz wszystkie dostawy z obu tabel (bez nagłówków)
+            var allData = _dostawy.Where(d => !d.IsHeaderRow && !d.IsSeparator)
+                .Concat(_dostawyNastepnyTydzien.Where(d => !d.IsHeaderRow && !d.IsSeparator))
+                .ToList();
+
+            // Oblicz zakresy tygodni
+            DateTime startOfWeek1 = _selectedDate.AddDays(-(int)_selectedDate.DayOfWeek + 1);
+            if (_selectedDate.DayOfWeek == DayOfWeek.Sunday) startOfWeek1 = _selectedDate.AddDays(-6);
+            DateTime endOfWeek1 = startOfWeek1.AddDays(7);
+
+            DateTime startOfWeek2 = endOfWeek1;
+            DateTime endOfWeek2 = startOfWeek2.AddDays(7);
+
+            // Rozdziel dostawy wg dat na właściwy tydzień
+            var dostawyData = allData.Where(d => d.DataOdbioru.Date >= startOfWeek1 && d.DataOdbioru.Date < endOfWeek1).ToList();
+            var dostawyNastepnyData = allData.Where(d => d.DataOdbioru.Date >= startOfWeek2 && d.DataOdbioru.Date < endOfWeek2).ToList();
 
             // Wyczyść i przebuduj z nowymi grupami
             _dostawy.Clear();
             _dostawyNastepnyTydzien.Clear();
 
-            // Dodaj z powrotem pogrupowane
             RebuildGroupedView(_dostawy, dostawyData, _selectedDate);
             RebuildGroupedView(_dostawyNastepnyTydzien, dostawyNastepnyData, _selectedDate.AddDays(7));
         }
@@ -4994,6 +5148,24 @@ namespace Kalendarz1.Zywiec.Kalendarz
         #endregion
 
         #region Obsługa transportu
+
+        /// <summary>
+        /// Oblicza obl.A = SztukiDek / (SztSzuflada × 264)
+        /// </summary>
+        private void UpdateObliczoneAuta()
+        {
+            if (double.TryParse(txtSztuki.Text, out double sztuki) &&
+                int.TryParse(txtSztNaSzuflade.Text, out int sztSzuf) && sztSzuf > 0)
+            {
+                double pojemnosc = sztSzuf * 264.0;
+                double oblA = sztuki / pojemnosc;
+                txtOblA.Text = oblA.ToString("F2");
+            }
+            else
+            {
+                txtOblA.Text = "-";
+            }
+        }
 
         private void TxtSztNaSzufladeCalc_TextChanged(object sender, TextChangedEventArgs e)
         {

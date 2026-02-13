@@ -1765,6 +1765,8 @@
                     <TextBlock Text="192.168.0.23\SQLEXPRESS" FontSize="10" Foreground="#718096"/>
                     <TextBlock Text=" • " FontSize="10" Foreground="#CBD5E0"/>
                     <TextBlock x:Name="txtStatusPolaczenia" Text="🟢 Połączono" FontSize="10" Foreground="#38A169" FontWeight="SemiBold"/>
+                    <TextBlock Text=" • " FontSize="10" Foreground="#CBD5E0"/>
+                    <TextBlock Text="🔧" FontSize="10" Cursor="Hand" ToolTip="Diagnostyka połączenia SQL" MouseDown="BtnDiagnostyka_Click" Foreground="#718096"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <TextBlock x:Name="txtLiczbaRejestracjiFooter" Text="0 rejestracji" FontSize="10" Foreground="#718096"/>
