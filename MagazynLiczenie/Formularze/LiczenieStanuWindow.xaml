@@ -38,11 +38,28 @@
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
-                                <TextBlock Grid.Row="0" 
-                                          Text="{Binding KodProduktu}"
-                                          FontSize="18"
-                                          FontWeight="Bold"
-                                          Foreground="#2C3E50"/>
+                                <StackPanel Grid.Row="0" Orientation="Horizontal">
+                                    <Image Source="{Binding Zdjecie}"
+                                           Width="36" Height="36"
+                                           Margin="0,0,8,0"
+                                           VerticalAlignment="Center"
+                                           RenderOptions.BitmapScalingMode="HighQuality">
+                                        <Image.Style>
+                                            <Style TargetType="Image">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Zdjecie}" Value="{x:Null}">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Image.Style>
+                                    </Image>
+                                    <TextBlock Text="{Binding KodProduktu}"
+                                              FontSize="18"
+                                              FontWeight="Bold"
+                                              Foreground="#2C3E50"
+                                              VerticalAlignment="Center"/>
+                                </StackPanel>
 
                                 <TextBlock Grid.Row="1" 
                                           FontSize="22"

@@ -449,6 +449,7 @@ namespace Kalendarz1
         private List<string> _grupyTowaroweNazwy = new(); // Lista nazw grup towarowych dla kolumn
         private bool _pokazujPoDatachUboju = true;
         private bool _dataUbojuKolumnaIstnieje = true;
+        private bool _strefaKolumnaIstnieje = false;
         private bool _isInitialized = false;
 
         // ====== Dane i Cache ======
@@ -1369,6 +1370,22 @@ namespace Kalendarz1
         {
             await SprawdzIUtworzKolumneDataUboju();
 
+            // Sprawdź kolumnę Strefa w ZamowieniaMiesoTowar (per-product) - auto-tworzenie
+            try
+            {
+                await using var cnStrefa = new SqlConnection(_connLibra);
+                await cnStrefa.OpenAsync();
+                var cmdStrefa = new SqlCommand("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMiesoTowar' AND COLUMN_NAME = 'Strefa'", cnStrefa);
+                _strefaKolumnaIstnieje = Convert.ToInt32(await cmdStrefa.ExecuteScalarAsync()) > 0;
+                if (!_strefaKolumnaIstnieje)
+                {
+                    await using var alter = new SqlCommand("ALTER TABLE [dbo].[ZamowieniaMiesoTowar] ADD Strefa BIT NULL DEFAULT 0", cnStrefa);
+                    await alter.ExecuteNonQueryAsync();
+                    _strefaKolumnaIstnieje = true;
+                }
+            }
+            catch { _strefaKolumnaIstnieje = false; }
+
             _twKodCache.Clear();
             _twKatalogCache.Clear();
             await using (var cn = new SqlConnection(_connHandel))
@@ -1516,6 +1533,7 @@ namespace Kalendarz1
             _dtZamowienia.Columns.Add("UtworzonePrzez", typeof(string));
             _dtZamowienia.Columns.Add("Status", typeof(string));
             _dtZamowienia.Columns.Add("MaNotatke", typeof(bool));
+            _dtZamowienia.Columns.Add("Strefa", typeof(bool));
 
             // Dynamiczne kolumny dla grup towarowych
             foreach (var grupaName in _grupyTowaroweNazwy)
@@ -1571,17 +1589,20 @@ namespace Kalendarz1
                     string dataKolumna = (_pokazujPoDatachUboju && _dataUbojuKolumnaIstnieje) ? "zm.DataUboju" : "zm.DataZamowienia";
                     string dataUbojuSelect = _dataUbojuKolumnaIstnieje ? ", zm.DataUboju" : "";
                     string dataUbojuGroupBy = _dataUbojuKolumnaIstnieje ? ", zm.DataUboju" : "";
+                    string strefaSelect = _strefaKolumnaIstnieje ? ", MAX(CAST(ISNULL(zmt.Strefa, 0) AS INT)) AS Strefa" : "";
+                    string strefaGroupBy = "";
+                    string foliaHalalSelect = ", MAX(CAST(ISNULL(zmt.Folia, 0) AS INT)) AS MaFolie, MAX(CAST(ISNULL(zmt.Hallal, 0) AS INT)) AS MaHalal";
 
                     string sql = $@"
-                SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc, 
+                SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc,
                        zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
-                       zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi{dataUbojuSelect}
+                       zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi{dataUbojuSelect}{strefaSelect}{foliaHalalSelect}
                 FROM [dbo].[ZamowieniaMieso] zm
                 JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
                 WHERE {dataKolumna} = @Dzien AND zmt.KodTowaru IN ({idwList}) AND zm.Status <> 'Anulowane' " +
                         (selectedProductId.HasValue ? "AND zmt.KodTowaru = @TowarId " : "") +
                         $@"GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
-                         zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi{dataUbojuGroupBy}
+                         zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi{dataUbojuGroupBy}{strefaGroupBy}
                   ORDER BY zm.Id";
 
                     await using var cmd = new SqlCommand(sql, cnLibra);
@@ -1644,6 +1665,7 @@ namespace Kalendarz1
                 {
                     dataUboju = r["DataUboju"] is DBNull or null ? (DateTime?)null : Convert.ToDateTime(r["DataUboju"]);
                 }
+                bool strefa = _strefaKolumnaIstnieje && temp.Columns.Contains("Strefa") && r["Strefa"] != DBNull.Value && Convert.ToBoolean(r["Strefa"]);
                 string idUser = r["IdUser"]?.ToString() ?? "";
                 string status = r["Status"]?.ToString() ?? "Nowe";
                 string uwagi = r["Uwagi"]?.ToString() ?? "";
@@ -1653,12 +1675,29 @@ namespace Kalendarz1
                 decimal palety = Math.Ceiling(r["LiczbaPalet"] == DBNull.Value ? 0m : Convert.ToDecimal(r["LiczbaPalet"]));
                 bool trybE2 = r["TrybE2"] != DBNull.Value && Convert.ToBoolean(r["TrybE2"]);
                 string trybText = trybE2 ? "E2 (40)" : "STD (36)";
+                bool maFolie = temp.Columns.Contains("MaFolie") && r["MaFolie"] != DBNull.Value && Convert.ToBoolean(r["MaFolie"]);
+                bool maHalal = temp.Columns.Contains("MaHalal") && r["MaHalal"] != DBNull.Value && Convert.ToBoolean(r["MaHalal"]);
 
                 var (nazwa, handlowiec) = kontrahenci.TryGetValue(klientId, out var kh) ? kh : ($"Nieznany ({klientId})", "");
 
+                if (strefa)
+                {
+                    nazwa = "\u26A0\uFE0F STREFA " + nazwa;
+                }
+
+                if (maHalal)
+                {
+                    nazwa = "\u262A\uFE0F HALAL " + nazwa;
+                }
+
+                if (maFolie)
+                {
+                    nazwa = "\U0001F39E\uFE0F FOLIA " + nazwa;
+                }
+
                 if (maNotatke)
                 {
-                    nazwa = "📝 " + nazwa;
+                    nazwa = "\U0001F4DD " + nazwa;
                 }
 
                 decimal wydane = 0m;
@@ -1704,6 +1743,7 @@ namespace Kalendarz1
                 newRow["UtworzonePrzez"] = utworzonePrzez;
                 newRow["Status"] = status;
                 newRow["MaNotatke"] = maNotatke;
+                newRow["Strefa"] = strefa;
 
                 // Wypełnij kolumny grup towarowych
                 foreach (var grupaName in _grupyTowaroweNazwy)
@@ -1918,6 +1958,17 @@ namespace Kalendarz1
                     e.FormattingApplied = true;
                 }
             }
+
+            // Podświetl zamówienia ze strefy na czerwono
+            if (_dtZamowienia.Columns.Contains("Strefa"))
+            {
+                var drv = dgvZamowienia.Rows[e.RowIndex].DataBoundItem as DataRowView;
+                if (drv != null && drv["Strefa"] is bool strefa && strefa)
+                {
+                    e.CellStyle.BackColor = Color.FromArgb(255, 235, 238);
+                    e.CellStyle.ForeColor = Color.FromArgb(183, 28, 28);
+                }
+            }
         }
 
         private void dgvSzczegoly_CellFormatting(object? sender, DataGridViewCellFormattingEventArgs e)
@@ -1933,6 +1984,87 @@ namespace Kalendarz1
                     e.Value = "✔";
                     e.CellStyle.Font = new Font("Segoe UI Symbol", 12f, FontStyle.Bold);
                     e.CellStyle.ForeColor = Color.Green;
+                    e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    e.FormattingApplied = true;
+                }
+                else if (value.Equals("NIE", StringComparison.OrdinalIgnoreCase))
+                {
+                    e.Value = "";
+                    e.FormattingApplied = true;
+                }
+                else if (value.Equals("B/D", StringComparison.OrdinalIgnoreCase))
+                {
+                    e.Value = "?";
+                    e.CellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Regular);
+                    e.CellStyle.ForeColor = Color.Gray;
+                    e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    e.FormattingApplied = true;
+                }
+            }
+
+            // Formatowanie kolumny Hallal - identycznie jak Folia
+            if (dgvSzczegoly.Columns[e.ColumnIndex].Name == "Hallal" && e.Value != null)
+            {
+                string value = e.Value.ToString() ?? "";
+                if (value.Equals("TAK", StringComparison.OrdinalIgnoreCase))
+                {
+                    e.Value = "✔";
+                    e.CellStyle.Font = new Font("Segoe UI Symbol", 12f, FontStyle.Bold);
+                    e.CellStyle.ForeColor = Color.FromArgb(0, 150, 136);
+                    e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    e.FormattingApplied = true;
+                }
+                else if (value.Equals("NIE", StringComparison.OrdinalIgnoreCase))
+                {
+                    e.Value = "";
+                    e.FormattingApplied = true;
+                }
+                else if (value.Equals("B/D", StringComparison.OrdinalIgnoreCase))
+                {
+                    e.Value = "?";
+                    e.CellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Regular);
+                    e.CellStyle.ForeColor = Color.Gray;
+                    e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    e.FormattingApplied = true;
+                }
+            }
+
+            // Formatowanie kolumny E2 - identycznie jak Folia
+            if (dgvSzczegoly.Columns[e.ColumnIndex].Name == "E2" && e.Value != null)
+            {
+                string value = e.Value.ToString() ?? "";
+                if (value.Equals("TAK", StringComparison.OrdinalIgnoreCase))
+                {
+                    e.Value = "✔";
+                    e.CellStyle.Font = new Font("Segoe UI Symbol", 12f, FontStyle.Bold);
+                    e.CellStyle.ForeColor = Color.FromArgb(33, 150, 243);
+                    e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    e.FormattingApplied = true;
+                }
+                else if (value.Equals("NIE", StringComparison.OrdinalIgnoreCase))
+                {
+                    e.Value = "";
+                    e.FormattingApplied = true;
+                }
+                else if (value.Equals("B/D", StringComparison.OrdinalIgnoreCase))
+                {
+                    e.Value = "?";
+                    e.CellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Regular);
+                    e.CellStyle.ForeColor = Color.Gray;
+                    e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    e.FormattingApplied = true;
+                }
+            }
+
+            // Formatowanie kolumny Strefa
+            if (dgvSzczegoly.Columns[e.ColumnIndex].Name == "Strefa" && e.Value != null)
+            {
+                string value = e.Value.ToString() ?? "";
+                if (value.Equals("TAK", StringComparison.OrdinalIgnoreCase))
+                {
+                    e.Value = "⚠";
+                    e.CellStyle.Font = new Font("Segoe UI Symbol", 12f, FontStyle.Bold);
+                    e.CellStyle.ForeColor = Color.FromArgb(211, 47, 47);
                     e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                     e.FormattingApplied = true;
                 }
@@ -2470,7 +2602,7 @@ namespace Kalendarz1
 
                 int klientId = 0;
                 string notatki = "";
-                var pozycjeZamowienia = new List<(int KodTowaru, decimal Ilosc, bool Folia)>();
+                var pozycjeZamowienia = new List<(int KodTowaru, decimal Ilosc, bool Folia, bool E2, bool Hallal, bool Strefa)>();
 
                 DateTime dataDoWyszukaniaWydan = _selectedDate.Date;
 
@@ -2503,7 +2635,8 @@ namespace Kalendarz1
                     }
 
                     using (var cmdPozycje = new SqlCommand(@"
-                SELECT KodTowaru, Ilosc, ISNULL(Folia, 0) as Folia
+                SELECT KodTowaru, Ilosc, ISNULL(Folia, 0) as Folia, ISNULL(E2, 0) as E2, ISNULL(Hallal, 0) as Hallal" +
+                (_strefaKolumnaIstnieje ? ", ISNULL(Strefa, 0) as Strefa" : "") + @"
                 FROM dbo.ZamowieniaMiesoTowar
                 WHERE ZamowienieId = @Id", cn))
                     {
@@ -2514,8 +2647,11 @@ namespace Kalendarz1
                             int kodTowaru = readerPozycje.GetInt32(0);
                             decimal ilosc = readerPozycje.IsDBNull(1) ? 0m : readerPozycje.GetDecimal(1);
                             bool folia = readerPozycje.GetBoolean(2);
+                            bool e2 = readerPozycje.GetBoolean(3);
+                            bool hallal = readerPozycje.GetBoolean(4);
+                            bool strefa = _strefaKolumnaIstnieje ? readerPozycje.GetBoolean(5) : false;
 
-                            pozycjeZamowienia.Add((kodTowaru, ilosc, folia));
+                            pozycjeZamowienia.Add((kodTowaru, ilosc, folia, e2, hallal, strefa));
                         }
                     }
                 }
@@ -2555,6 +2691,9 @@ namespace Kalendarz1
                 dt.Columns.Add("Wydano", typeof(decimal));
                 dt.Columns.Add("Różnica", typeof(decimal));
                 dt.Columns.Add("Folia", typeof(string));
+                dt.Columns.Add("Hallal", typeof(string));
+                dt.Columns.Add("E2", typeof(string));
+                dt.Columns.Add("Strefa", typeof(string));
 
                 foreach (var pozycja in pozycjeZamowienia)
                 {
@@ -2572,7 +2711,10 @@ namespace Kalendarz1
                         zamowiono,
                         wydano,
                         roznica,
-                        pozycja.Folia ? "TAK" : "NIE"
+                        pozycja.Folia ? "TAK" : "NIE",
+                        pozycja.Hallal ? "TAK" : "NIE",
+                        pozycja.E2 ? "TAK" : "NIE",
+                        pozycja.Strefa ? "TAK" : "NIE"
                     );
 
                     wydania.Remove(pozycja.KodTowaru);
@@ -2590,6 +2732,9 @@ namespace Kalendarz1
                         0m,
                         kv.Value,
                         kv.Value,
+                        "B/D",
+                        "B/D",
+                        "B/D",
                         "B/D"
                     );
                 }
@@ -2619,6 +2764,21 @@ namespace Kalendarz1
                     {
                         dgvSzczegoly.Columns["Folia"].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
                         dgvSzczegoly.Columns["Folia"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    }
+                    if (dgvSzczegoly.Columns["Hallal"] != null)
+                    {
+                        dgvSzczegoly.Columns["Hallal"].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+                        dgvSzczegoly.Columns["Hallal"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    }
+                    if (dgvSzczegoly.Columns["E2"] != null)
+                    {
+                        dgvSzczegoly.Columns["E2"].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+                        dgvSzczegoly.Columns["E2"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    }
+                    if (dgvSzczegoly.Columns["Strefa"] != null)
+                    {
+                        dgvSzczegoly.Columns["Strefa"].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+                        dgvSzczegoly.Columns["Strefa"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                     }
                     if (dgvSzczegoly.Columns["Produkt"] != null)
                     {

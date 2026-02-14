@@ -1,0 +1,335 @@
+<Window x:Class="Kalendarz1.WPF.ProductImageManagerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Zarządzanie zdjęciami produktów"
+        WindowStartupLocation="CenterScreen"
+        Width="1280" Height="800"
+        MinWidth="900" MinHeight="600"
+        Background="#F0F2F5"
+        FontFamily="Segoe UI"
+        Loaded="Window_Loaded">
+
+    <Window.Resources>
+        <Style x:Key="ModernButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#3498DB"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DangerButtonStyle" TargetType="Button" BasedOn="{StaticResource ModernButtonStyle}">
+            <Setter Property="Background" Value="#E53935"/>
+        </Style>
+
+        <Style x:Key="SuccessButtonStyle" TargetType="Button" BasedOn="{StaticResource ModernButtonStyle}">
+            <Setter Property="Background" Value="#43A047"/>
+        </Style>
+
+        <Style x:Key="BadgeStyle" TargetType="Border">
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="12,4"/>
+            <Setter Property="Margin" Value="4,0"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- NAGŁÓWEK -->
+        <Border Grid.Row="0" Padding="20,14">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#C62828" Offset="0"/>
+                    <GradientStop Color="#B71C1C" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="📸" FontSize="24" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <TextBlock Text="Zdjęcia Produktów" FontSize="20" FontWeight="Bold"
+                               Foreground="White" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Style="{StaticResource BadgeStyle}" Background="#FFFFFF30">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Wszystkie: " Foreground="#FFFFFFCC" FontSize="12"/>
+                            <TextBlock x:Name="txtBadgeAll" Text="0" Foreground="White" FontWeight="Bold" FontSize="12"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource BadgeStyle}" Background="#4CAF5060">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Ze zdjęciem: " Foreground="#FFFFFFCC" FontSize="12"/>
+                            <TextBlock x:Name="txtBadgeWithImage" Text="0" Foreground="White" FontWeight="Bold" FontSize="12"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource BadgeStyle}" Background="#FF572260">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Bez zdjęcia: " Foreground="#FFFFFFCC" FontSize="12"/>
+                            <TextBlock x:Name="txtBadgeNoImage" Text="0" Foreground="White" FontWeight="Bold" FontSize="12"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- PASEK FILTRÓW -->
+        <Border Grid.Row="1" Background="White" Padding="16,10"
+                BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal">
+                <TextBox x:Name="txtSearch" Width="250" Padding="8,6" FontSize="13"
+                         VerticalContentAlignment="Center"
+                         TextChanged="TxtSearch_TextChanged">
+                    <TextBox.Style>
+                        <Style TargetType="TextBox">
+                            <Setter Property="BorderBrush" Value="#BDBDBD"/>
+                            <Setter Property="BorderThickness" Value="1"/>
+                        </Style>
+                    </TextBox.Style>
+                </TextBox>
+                <TextBlock Text="🔍" FontSize="14" VerticalAlignment="Center" Margin="-28,0,16,0" IsHitTestVisible="False"/>
+
+                <TextBlock Text="Kategoria:" VerticalAlignment="Center" Margin="8,0,6,0" FontSize="13" Foreground="#555"/>
+                <ComboBox x:Name="cmbKategoria" Width="140" Padding="6,4" FontSize="13"
+                          SelectionChanged="CmbKategoria_SelectionChanged">
+                    <ComboBoxItem Content="Wszystkie" IsSelected="True"/>
+                    <ComboBoxItem Content="Świeże"/>
+                    <ComboBoxItem Content="Mrożone"/>
+                </ComboBox>
+
+                <TextBlock Text="Status:" VerticalAlignment="Center" Margin="16,0,6,0" FontSize="13" Foreground="#555"/>
+                <ComboBox x:Name="cmbStatus" Width="140" Padding="6,4" FontSize="13"
+                          SelectionChanged="CmbStatus_SelectionChanged">
+                    <ComboBoxItem Content="Wszystkie" IsSelected="True"/>
+                    <ComboBoxItem Content="Ze zdjęciem"/>
+                    <ComboBoxItem Content="Bez zdjęcia"/>
+                </ComboBox>
+
+                <Button Content="⟳ Odśwież" Margin="16,0,0,0"
+                        Style="{StaticResource ModernButtonStyle}"
+                        Click="BtnRefresh_Click"/>
+            </StackPanel>
+        </Border>
+
+        <!-- GŁÓWNA ZAWARTOŚĆ -->
+        <Grid Grid.Row="2" Margin="16,12,16,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="380"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- LEWA KOLUMNA - LISTA PRODUKTÓW -->
+            <Border Grid.Column="0" Background="White" CornerRadius="10" Margin="0,0,10,0">
+                <Border.Effect>
+                    <DropShadowEffect ShadowDepth="1" Opacity="0.08" BlurRadius="10"/>
+                </Border.Effect>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Padding="14,10" Background="#FAFAFA"
+                            BorderBrush="#EEEEEE" BorderThickness="0,0,0,1"
+                            CornerRadius="10,10,0,0">
+                        <Grid>
+                            <TextBlock Text="Lista produktów" FontSize="14" FontWeight="SemiBold" Foreground="#333"/>
+                            <TextBlock x:Name="txtListCount" Text="" HorizontalAlignment="Right"
+                                       FontSize="12" Foreground="#999" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+
+                    <ListView x:Name="lvProducts" Grid.Row="1" BorderThickness="0"
+                              SelectionChanged="LvProducts_SelectionChanged"
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="4,4" Height="56">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="52"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Miniaturka -->
+                                    <Border Grid.Column="0" Width="48" Height="48" CornerRadius="6"
+                                            Background="#F5F5F5" ClipToBounds="True">
+                                        <Grid>
+                                            <TextBlock Text="📷" FontSize="20"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                       Visibility="{Binding NoImageVisibility}"/>
+                                            <Image Source="{Binding Thumbnail}" Stretch="UniformToFill"
+                                                   Visibility="{Binding ImageVisibility}"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Info -->
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0,0,0">
+                                        <TextBlock Text="{Binding Kod}" FontSize="13" FontWeight="SemiBold"
+                                                   Foreground="#212121" TextTrimming="CharacterEllipsis"/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                            <TextBlock Text="{Binding KategoriaText}" FontSize="11" Foreground="#888"/>
+                                            <TextBlock Text=" · " FontSize="11" Foreground="#CCC"
+                                                       Visibility="{Binding MetaVisibility}"/>
+                                            <TextBlock Text="{Binding RozmiarText}" FontSize="11" Foreground="#888"
+                                                       Visibility="{Binding MetaVisibility}"/>
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <!-- Status -->
+                                    <TextBlock Grid.Column="2" Text="{Binding StatusIcon}"
+                                               FontSize="18" VerticalAlignment="Center" Margin="8,0"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+
+                    <!-- Loading overlay -->
+                    <Border x:Name="loadingOverlay" Grid.RowSpan="2" Background="#FFFFFFDD"
+                            CornerRadius="10" Visibility="Collapsed">
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <TextBlock Text="⏳" FontSize="32" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Ładowanie produktów..." FontSize="14" Foreground="#666"
+                                       HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- PRAWA KOLUMNA - PODGLĄD SZCZEGÓŁÓW -->
+            <Border Grid.Column="1" Background="White" CornerRadius="10"
+                    Margin="0,0,0,0">
+                <Border.Effect>
+                    <DropShadowEffect ShadowDepth="1" Opacity="0.08" BlurRadius="10"/>
+                </Border.Effect>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Padding="14,10" Background="#FAFAFA"
+                            BorderBrush="#EEEEEE" BorderThickness="0,0,0,1"
+                            CornerRadius="10,10,0,0">
+                        <TextBlock Text="Podgląd" FontSize="14" FontWeight="SemiBold" Foreground="#333"/>
+                    </Border>
+
+                    <!-- Podgląd zdjęcia + metadane -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="16">
+                        <StackPanel x:Name="detailPanel">
+                            <!-- Placeholder gdy nic nie wybrane -->
+                            <StackPanel x:Name="detailPlaceholder" VerticalAlignment="Center"
+                                        HorizontalAlignment="Center" Margin="0,80,0,0">
+                                <TextBlock Text="📷" FontSize="48" HorizontalAlignment="Center" Opacity="0.3"/>
+                                <TextBlock Text="Wybierz produkt z listy" FontSize="14"
+                                           Foreground="#AAA" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                            </StackPanel>
+
+                            <!-- Zawartość szczegółów -->
+                            <StackPanel x:Name="detailContent" Visibility="Collapsed">
+                                <TextBlock x:Name="txtDetailKod" FontSize="16" FontWeight="Bold"
+                                           Foreground="#212121" Margin="0,0,0,8"/>
+
+                                <!-- Duży podgląd -->
+                                <Border Background="#F5F5F5" CornerRadius="8" ClipToBounds="True"
+                                        Height="300" Margin="0,0,0,12">
+                                    <Grid>
+                                        <TextBlock x:Name="txtNoImage" Text="Brak zdjęcia" FontSize="16"
+                                                   Foreground="#BBB" HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"/>
+                                        <Image x:Name="imgPreview" Stretch="Uniform" />
+                                    </Grid>
+                                </Border>
+
+                                <!-- Metadane -->
+                                <Border Background="#FAFAFA" CornerRadius="6" Padding="12" Margin="0,0,0,8">
+                                    <Grid x:Name="gridMeta">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Plik:" FontSize="12" Foreground="#888" Margin="0,2"/>
+                                        <TextBlock x:Name="txtMetaPlik" Grid.Row="0" Grid.Column="1" FontSize="12" Foreground="#333" Margin="8,2"/>
+
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="MIME:" FontSize="12" Foreground="#888" Margin="0,2"/>
+                                        <TextBlock x:Name="txtMetaMIME" Grid.Row="1" Grid.Column="1" FontSize="12" Foreground="#333" Margin="8,2"/>
+
+                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Wymiary:" FontSize="12" Foreground="#888" Margin="0,2"/>
+                                        <TextBlock x:Name="txtMetaWymiary" Grid.Row="2" Grid.Column="1" FontSize="12" Foreground="#333" Margin="8,2"/>
+
+                                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Rozmiar:" FontSize="12" Foreground="#888" Margin="0,2"/>
+                                        <TextBlock x:Name="txtMetaRozmiar" Grid.Row="3" Grid.Column="1" FontSize="12" Foreground="#333" Margin="8,2"/>
+
+                                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Dodano:" FontSize="12" Foreground="#888" Margin="0,2"/>
+                                        <TextBlock x:Name="txtMetaData" Grid.Row="4" Grid.Column="1" FontSize="12" Foreground="#333" Margin="8,2"/>
+
+                                        <TextBlock Grid.Row="5" Grid.Column="0" Text="Przez:" FontSize="12" Foreground="#888" Margin="0,2"/>
+                                        <TextBlock x:Name="txtMetaDodal" Grid.Row="5" Grid.Column="1" FontSize="12" Foreground="#333" Margin="8,2"/>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- Przyciski akcji -->
+                    <Border Grid.Row="2" Padding="14,10" Background="#FAFAFA"
+                            BorderBrush="#EEEEEE" BorderThickness="0,1,0,0"
+                            CornerRadius="0,0,10,10">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Button x:Name="btnUpload" Content="📤 Dodaj / Zmień"
+                                    Style="{StaticResource SuccessButtonStyle}"
+                                    Click="BtnUpload_Click" IsEnabled="False" Margin="0,0,6,0"/>
+                            <Button x:Name="btnDownload" Content="💾 Pobierz"
+                                    Style="{StaticResource ModernButtonStyle}"
+                                    Click="BtnDownload_Click" IsEnabled="False" Margin="0,0,6,0"/>
+                            <Button x:Name="btnDelete" Content="🗑 Usuń"
+                                    Style="{StaticResource DangerButtonStyle}"
+                                    Click="BtnDelete_Click" IsEnabled="False"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

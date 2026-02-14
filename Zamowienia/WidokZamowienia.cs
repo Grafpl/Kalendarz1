@@ -40,6 +40,9 @@ namespace Kalendarz1
         private RadioButton? rbMrozony;
         private string _aktywnyKatalog = "67095";
 
+        // Cache miniaturek produktów: TowarId -> Image (32x32)
+        private readonly Dictionary<int, Image?> _productImages = new();
+
         private sealed class KontrahentInfo
         {
             public string Id { get; set; } = "";
@@ -60,6 +63,7 @@ namespace Kalendarz1
         private Label? lblSumaPalet;
         private Label? lblSumaPojemnikow;
         private Label? lblSumaKg;
+        private Label? lblPozycji;
 
         // Pasek klas wagowych w podsumowaniu
         private Panel? panelKlasyWagowe;
@@ -91,6 +95,10 @@ namespace Kalendarz1
 
         // Śledzenie zmian - oryginalne wartości przy edycji
         private OryginalneWartosciZamowienia? _oryginalneWartosci;
+
+        // Animacja pulsowania wiersza
+        private readonly Dictionary<int, int> _pulseRows = new();
+        private System.Windows.Forms.Timer? _pulseTimer;
 
         /// <summary>
         /// Przechowuje oryginalne wartości zamówienia do śledzenia zmian
@@ -155,6 +163,56 @@ namespace Kalendarz1
             // Konfiguracja checkboxa własnego odbioru
             chkWlasnyOdbior.CheckedChanged += ChkWlasnyOdbior_CheckedChanged;
 
+            // Przycisk "Kopiuj z ostatniego zamówienia"
+            var btnKopiuj = new Button
+            {
+                Text = "Kopiuj ostatnie",
+                Font = new Font("Segoe UI", 8f),
+                Size = new Size(110, 26),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(25, 118, 210),
+                ForeColor = Color.White,
+                Cursor = Cursors.Hand,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                Location = new Point(panelOdbiorca.Width - 120, 65)
+            };
+            btnKopiuj.FlatAppearance.BorderSize = 0;
+            btnKopiuj.Click += BtnKopiujOstatnie_Click;
+            panelOdbiorca.Controls.Add(btnKopiuj);
+            btnKopiuj.BringToFront();
+
+            // Przyciski szablonów w panelu akcji
+            var btnZapiszSzablon = new Button
+            {
+                Text = "Zapisz szablon",
+                Font = new Font("Segoe UI", 8f),
+                Size = new Size(100, 30),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(107, 114, 128),
+                ForeColor = Color.White,
+                Cursor = Cursors.Hand,
+                Location = new Point(10, 4)
+            };
+            btnZapiszSzablon.FlatAppearance.BorderSize = 0;
+            btnZapiszSzablon.Click += BtnZapiszSzablon_Click;
+
+            var btnWczytajSzablon = new Button
+            {
+                Text = "Wczytaj szablon",
+                Font = new Font("Segoe UI", 8f),
+                Size = new Size(105, 30),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(79, 70, 229),
+                ForeColor = Color.White,
+                Cursor = Cursors.Hand,
+                Location = new Point(115, 4)
+            };
+            btnWczytajSzablon.FlatAppearance.BorderSize = 0;
+            btnWczytajSzablon.Click += BtnWczytajSzablon_Click;
+
+            panelAkcji.Controls.Add(btnZapiszSzablon);
+            panelAkcji.Controls.Add(btnWczytajSzablon);
+
             try
             {
                 await LoadInitialDataInBackground();
@@ -173,7 +231,6 @@ namespace Kalendarz1
             }
             finally
             {
-                this.Cursor = Cursors.Default;
                 btnZapisz.Enabled = true;
             }
         }
@@ -832,6 +889,7 @@ namespace Kalendarz1
             _dt.Columns.Add("E2", typeof(bool));
             _dt.Columns.Add("Folia", typeof(bool));
             _dt.Columns.Add("Hallal", typeof(bool));
+            _dt.Columns.Add("Strefa", typeof(bool));
             _dt.Columns.Add("Palety", typeof(decimal));
             _dt.Columns.Add("Pojemniki", typeof(decimal));
             _dt.Columns.Add("Ilosc", typeof(decimal));
@@ -856,7 +914,7 @@ namespace Kalendarz1
 
             var cKod = dataGridViewZamowienie.Columns["Kod"]!;
             cKod.ReadOnly = true;
-            cKod.FillWeight = 165;
+            cKod.FillWeight = 180;
             cKod.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
             cKod.DefaultCellStyle.Font = new Font("Segoe UI Semibold", 9.5f);
             cKod.DefaultCellStyle.ForeColor = Color.FromArgb(31, 41, 55);
@@ -902,6 +960,20 @@ namespace Kalendarz1
                 cHallal.DefaultCellStyle.BackColor = Color.FromArgb(240, 255, 240);
                 cHallal.ToolTipText = "Cięty zgodnie z Hallal";
                 cHallal.Resizable = DataGridViewTriState.False;
+            }
+
+            var cStrefa = dataGridViewZamowienie.Columns["Strefa"] as DataGridViewCheckBoxColumn;
+            if (cStrefa != null)
+            {
+                cStrefa.HeaderText = "⚠️ Strefa";
+                cStrefa.Width = 65;
+                cStrefa.MinimumWidth = 65;
+                cStrefa.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                cStrefa.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                cStrefa.DefaultCellStyle.Padding = new Padding(3);
+                cStrefa.DefaultCellStyle.BackColor = Color.FromArgb(255, 235, 238);
+                cStrefa.ToolTipText = "Strefa ptasiej grypy / pomoru";
+                cStrefa.Resizable = DataGridViewTriState.False;
             }
 
             var cPalety = dataGridViewZamowienie.Columns["Palety"]!;
@@ -1054,6 +1126,35 @@ namespace Kalendarz1
                 _blokujObslugeZmian = false;
             }
             RecalcSum();
+
+            // Uruchom pulsowanie wiersza
+            TriggerRowPulse(e.RowIndex);
+        }
+
+        private void TriggerRowPulse(int rowIndex)
+        {
+            _pulseRows[rowIndex] = 6; // 6 kroków animacji (3 fade-in + 3 fade-out)
+
+            if (_pulseTimer == null)
+            {
+                _pulseTimer = new System.Windows.Forms.Timer { Interval = 80 };
+                _pulseTimer.Tick += (s, e) =>
+                {
+                    var finished = new List<int>();
+                    foreach (var kvp in _pulseRows)
+                    {
+                        _pulseRows[kvp.Key] = kvp.Value - 1;
+                        if (_pulseRows[kvp.Key] <= 0) finished.Add(kvp.Key);
+                    }
+                    foreach (var idx in finished) _pulseRows.Remove(idx);
+
+                    dataGridViewZamowienie.InvalidateRow(dataGridViewZamowienie.Rows.Count > 0 ? Math.Min(rowIndex, dataGridViewZamowienie.Rows.Count - 1) : 0);
+
+                    if (_pulseRows.Count == 0) _pulseTimer.Stop();
+                };
+            }
+
+            if (!_pulseTimer.Enabled) _pulseTimer.Start();
         }
         #endregion
 
@@ -1066,6 +1167,7 @@ namespace Kalendarz1
 
             bool dataProdukcjiExists = false;
             bool walutaExists = false;
+            bool strefaExists = false;
             try
             {
                 await using var cmdCheck = new SqlCommand(@"
@@ -1176,6 +1278,7 @@ namespace Kalendarz1
                 r["E2"] = false;
                 r["Folia"] = false;
                 r["Hallal"] = false;
+                r["Strefa"] = false;
                 r["Ilosc"] = 0m;
                 r["Pojemniki"] = 0m;
                 r["Palety"] = 0m;
@@ -1183,13 +1286,15 @@ namespace Kalendarz1
                 r["MaWartosci"] = 1;
             }
 
-            var zamowienieTowary = new List<(int KodTowaru, decimal Ilosc, int Pojemniki, decimal Palety, bool E2, bool Folia, bool Hallal, string Cena)>();
+            bool strefaTowarExists = await CheckStrefaTowarColumnExists(cn);
+            var zamowienieTowary = new List<(int KodTowaru, decimal Ilosc, int Pojemniki, decimal Palety, bool E2, bool Folia, bool Hallal, string Cena, bool Strefa)>();
 
-            await using (var cmdT = new SqlCommand(@"
+            string strefaCol = strefaTowarExists ? ", ISNULL(zmt.Strefa, 0) as Strefa" : "";
+            await using (var cmdT = new SqlCommand($@"
         SELECT zmt.KodTowaru, zmt.Ilosc, ISNULL(zmt.Pojemniki, 0) as Pojemniki,
                ISNULL(zmt.Palety, 0) as Palety, ISNULL(zmt.E2, 0) as E2,
                ISNULL(zmt.Folia, 0) as Folia, ISNULL(zmt.Hallal, 0) as Hallal,
-               ISNULL(zmt.Cena, '0') as Cena
+               ISNULL(zmt.Cena, '0') as Cena{strefaCol}
         FROM [dbo].[ZamowieniaMiesoTowar] zmt
         WHERE zmt.ZamowienieId=@Id", cn))
             {
@@ -1206,8 +1311,9 @@ namespace Kalendarz1
                     bool folia = rd.GetBoolean(5);
                     bool hallal = rd.GetBoolean(6);
                     string cena = rd.GetString(7);
+                    bool strefa = strefaTowarExists ? rd.GetBoolean(8) : false;
 
-                    zamowienieTowary.Add((kodTowaru, ilosc, pojemniki, palety, e2, folia, hallal, cena));
+                    zamowienieTowary.Add((kodTowaru, ilosc, pojemniki, palety, e2, folia, hallal, cena, strefa));
 
                     // Zapisz oryginalne wartości produktu do śledzenia zmian
                     if (_oryginalneWartosci != null && ilosc > 0)
@@ -1253,6 +1359,7 @@ namespace Kalendarz1
                     row["E2"] = towar.E2;
                     row["Folia"] = towar.Folia;
                     row["Hallal"] = towar.Hallal;
+                    row["Strefa"] = towar.Strefa;
 
                     // STRING - zapisz jako string lub NULL
                     if (!string.IsNullOrWhiteSpace(towar.Cena) &&
@@ -1348,7 +1455,17 @@ namespace Kalendarz1
                 string summary = BuildOrderSummary();
                 bool isEdit = _idZamowieniaDoEdycji.HasValue;
 
-                using var afterSaveDialog = new AfterSaveDialog(summary, isEdit);
+                // Zbuduj mapę kod→zdjęcie dla podsumowania
+                var kodToImage = new Dictionary<string, Image>();
+                foreach (DataRow r in _dt.Rows)
+                {
+                    int id = r.Field<int>("Id");
+                    string kod = r.Field<string>("Kod") ?? "";
+                    if (_productImages.TryGetValue(id, out var img) && img != null && !kodToImage.ContainsKey(kod))
+                        kodToImage[kod] = img;
+                }
+
+                using var afterSaveDialog = new AfterSaveDialog(summary, isEdit, kodToImage);
                 afterSaveDialog.ShowDialog(this);
 
                 if (afterSaveDialog.CreateAnother)
@@ -1415,6 +1532,7 @@ namespace Kalendarz1
             bool dataProdukcjiExists = await CheckIfColumnExists(cn, "DataProdukcji");
             bool dataUbojuExists = await CheckIfColumnExists(cn, "DataUboju");
             bool walutaExists = await CheckIfColumnExists(cn, "Waluta");
+            bool strefaTowarExists = await CheckStrefaTowarColumnExists(cn);
 
             await using var tr = (SqlTransaction)await cn.BeginTransactionAsync();
 
@@ -1425,10 +1543,10 @@ namespace Kalendarz1
 
             foreach (DataRow r in _dt.Rows)
             {
-                if (r.Field<decimal>("Ilosc") > 0m)
+                if ((r.Field<decimal?>("Ilosc") ?? 0m) > 0m)
                 {
-                    sumaPojemnikow += r.Field<decimal>("Pojemniki");
-                    sumaPalet += r.Field<decimal>("Palety");
+                    sumaPojemnikow += r.Field<decimal?>("Pojemniki") ?? 0m;
+                    sumaPalet += r.Field<decimal?>("Palety") ?? 0m;
                     if (r.Field<bool>("E2")) czyJakikolwiekE2 = true;
                 }
             }
@@ -1512,9 +1630,11 @@ namespace Kalendarz1
                 await cmdInsert.ExecuteNonQueryAsync();
             }
 
-            var cmdInsertItem = new SqlCommand(@"INSERT INTO [dbo].[ZamowieniaMiesoTowar] 
-        (ZamowienieId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2, Folia, Hallal) 
-        VALUES (@zid, @kt, @il, @ce, @poj, @pal, @e2, @folia, @hallal)", cn, tr);
+            string strefaInsCol = strefaTowarExists ? ", Strefa" : "";
+            string strefaInsVal = strefaTowarExists ? ", @strefa" : "";
+            var cmdInsertItem = new SqlCommand($@"INSERT INTO [dbo].[ZamowieniaMiesoTowar]
+        (ZamowienieId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2, Folia, Hallal{strefaInsCol})
+        VALUES (@zid, @kt, @il, @ce, @poj, @pal, @e2, @folia, @hallal{strefaInsVal})", cn, tr);
 
             cmdInsertItem.Parameters.Add("@zid", SqlDbType.Int);
             cmdInsertItem.Parameters.Add("@kt", SqlDbType.Int);
@@ -1525,14 +1645,15 @@ namespace Kalendarz1
             cmdInsertItem.Parameters.Add("@e2", SqlDbType.Bit);
             cmdInsertItem.Parameters.Add("@folia", SqlDbType.Bit);
             cmdInsertItem.Parameters.Add("@hallal", SqlDbType.Bit);
+            if (strefaTowarExists) cmdInsertItem.Parameters.Add("@strefa", SqlDbType.Bit);
 
             foreach (DataRow r in _dt.Rows)
             {
-                if (r.Field<decimal>("Ilosc") <= 0m) continue;
+                if ((r.Field<decimal?>("Ilosc") ?? 0m) <= 0m) continue;
 
                 cmdInsertItem.Parameters["@zid"].Value = orderId;
                 cmdInsertItem.Parameters["@kt"].Value = r.Field<int>("Id");
-                cmdInsertItem.Parameters["@il"].Value = r.Field<decimal>("Ilosc");
+                cmdInsertItem.Parameters["@il"].Value = r.Field<decimal?>("Ilosc") ?? 0m;
 
                 // OBSŁUGA CENY - STRING (VARCHAR w bazie)
                 if (r.IsNull("Cena"))
@@ -1552,11 +1673,12 @@ namespace Kalendarz1
                     }
                 }
 
-                cmdInsertItem.Parameters["@poj"].Value = (int)Math.Round(r.Field<decimal>("Pojemniki"));
-                cmdInsertItem.Parameters["@pal"].Value = r.Field<decimal>("Palety");
+                cmdInsertItem.Parameters["@poj"].Value = (int)Math.Round(r.Field<decimal?>("Pojemniki") ?? 0m);
+                cmdInsertItem.Parameters["@pal"].Value = r.Field<decimal?>("Palety") ?? 0m;
                 cmdInsertItem.Parameters["@e2"].Value = r.Field<bool>("E2");
                 cmdInsertItem.Parameters["@folia"].Value = r.Field<bool>("Folia");
                 cmdInsertItem.Parameters["@hallal"].Value = r.Field<bool>("Hallal");
+                if (strefaTowarExists) cmdInsertItem.Parameters["@strefa"].Value = r.Field<bool>("Strefa");
 
                 await cmdInsertItem.ExecuteNonQueryAsync();
             }
@@ -1713,7 +1835,7 @@ namespace Kalendarz1
             // Zbierz aktualne wartości produktów
             foreach (DataRow r in _dt.Rows)
             {
-                decimal ilosc = r.Field<decimal>("Ilosc");
+                decimal ilosc = r.Field<decimal?>("Ilosc") ?? 0m;
                 if (ilosc > 0)
                 {
                     int kodTowaru = r.Field<int>("Id");
@@ -1925,6 +2047,7 @@ namespace Kalendarz1
                         r["E2"] = false;
                         r["Folia"] = false;
                         r["Hallal"] = false;
+                        r["Strefa"] = false;
                         r["Ilosc"] = 0m;
                         r["Pojemniki"] = 0m;
                         r["Palety"] = 0m;
@@ -2206,16 +2329,19 @@ namespace Kalendarz1
             var flowPanel = new FlowLayoutPanel
             {
                 Dock = DockStyle.Left,
-                Width = 520,
+                Width = 640,
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents = false,
                 Padding = new Padding(20, 12, 20, 12)
             };
 
+            lblPozycji = CreateSummaryLabel("POZYCJI", "0");
             lblSumaPalet = CreateSummaryLabel("PALETY", "0");
             lblSumaPojemnikow = CreateSummaryLabel("POJEMNIKI", "0");
             lblSumaKg = CreateSummaryLabel("KILOGRAMY", "0");
 
+            flowPanel.Controls.Add(lblPozycji);
+            flowPanel.Controls.Add(CreateSeparator());
             flowPanel.Controls.Add(lblSumaPalet);
             flowPanel.Controls.Add(CreateSeparator());
             flowPanel.Controls.Add(lblSumaPojemnikow);
@@ -2359,7 +2485,7 @@ namespace Kalendarz1
                     string kod = r.Field<string>("Kod") ?? "";
                     if (kod.Contains("Kurczak A") || kod.Contains("TUSZKA") || kod.Contains("Tuszka"))
                     {
-                        zamowioneKgTuszki = r.Field<decimal>("Ilosc");
+                        zamowioneKgTuszki = r.Field<decimal?>("Ilosc") ?? 0m;
                         break;
                     }
                 }
@@ -2634,7 +2760,7 @@ namespace Kalendarz1
             dataGridViewZamowienie.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
             dataGridViewZamowienie.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single;
 
-            dataGridViewZamowienie.RowTemplate.Height = 28;
+            dataGridViewZamowienie.RowTemplate.Height = 36;
             dataGridViewZamowienie.DefaultCellStyle.SelectionBackColor = Color.FromArgb(224, 242, 215);
             dataGridViewZamowienie.DefaultCellStyle.SelectionForeColor = Color.FromArgb(55, 65, 81);
             dataGridViewZamowienie.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(249, 250, 251);
@@ -2665,7 +2791,6 @@ namespace Kalendarz1
 
         private void InitDefaults()
         {
-            this.Cursor = Cursors.WaitCursor;
             btnZapisz.Enabled = false;
             var dzis = DateTime.Now.Date;
 
@@ -2706,6 +2831,9 @@ namespace Kalendarz1
 
             listaWynikowOdbiorcy.Click += ListaWynikowOdbiorcy_Click;
             listaWynikowOdbiorcy.KeyDown += ListaWynikowOdbiorcy_KeyDown;
+            listaWynikowOdbiorcy.DrawMode = DrawMode.OwnerDrawFixed;
+            listaWynikowOdbiorcy.ItemHeight = 38;
+            listaWynikowOdbiorcy.DrawItem += ListaWynikowOdbiorcy_DrawItem;
 
             var hands = _kontrahenci.Select(k => k.Handlowiec).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().OrderBy(s => s).ToList();
             hands.Insert(0, "— Wszyscy —");
@@ -2723,7 +2851,58 @@ namespace Kalendarz1
         {
             var towaryTask = LoadTowaryAsRowsAsync();
             var kontrahenciTask = LoadKontrahenciAsync();
-            await Task.WhenAll(towaryTask, kontrahenciTask);
+            var imagesTask = LoadProductImagesAsync();
+            await Task.WhenAll(towaryTask, kontrahenciTask, imagesTask);
+        }
+
+        private async Task LoadProductImagesAsync()
+        {
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // Sprawdź czy tabela istnieje
+                const string checkSql = @"SELECT CASE WHEN EXISTS (SELECT 1 FROM sys.tables WHERE name = 'TowarZdjecia') THEN 1 ELSE 0 END";
+                await using (var cmdCheck = new SqlCommand(checkSql, cn))
+                {
+                    var exists = (int)(await cmdCheck.ExecuteScalarAsync())!;
+                    if (exists == 0) return;
+                }
+
+                const string sql = @"SELECT TowarId, Zdjecie FROM dbo.TowarZdjecia WHERE Aktywne = 1";
+                await using var cmd = new SqlCommand(sql, cn);
+                await using var rdr = await cmd.ExecuteReaderAsync();
+
+                while (await rdr.ReadAsync())
+                {
+                    int towarId = rdr.GetInt32(0);
+                    if (!rdr.IsDBNull(1))
+                    {
+                        byte[] data = (byte[])rdr[1];
+                        try
+                        {
+                            // MemoryStream NIE może być using - GDI+ wymaga otwartego strumienia
+                            var ms = new System.IO.MemoryStream(data);
+                            var bmp = new Bitmap(ms);
+                            // Stwórz niezależną miniaturkę 32x32
+                            var thumb = new Bitmap(bmp, 32, 32);
+                            bmp.Dispose();
+                            ms.Dispose();
+                            _productImages[towarId] = thumb;
+                        }
+                        catch { }
+                    }
+                }
+
+                // Odśwież DataGridView aby obrazki pojawiły się od razu
+                if (dataGridViewZamowienie != null && !dataGridViewZamowienie.IsDisposed)
+                    dataGridViewZamowienie.Invalidate();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[LoadProductImages] Błąd: {ex.Message}");
+            }
         }
 
         private async Task LoadTowaryAsRowsAsync()
@@ -2780,7 +2959,7 @@ namespace Kalendarz1
                 foreach (var item in sortedList)
                 {
                     // POPRAWIONE - ostatni parametr to DBNull.Value zamiast 0m
-                    _dt.Rows.Add(item.Id, item.Kod, item.Katalog, false, false, false, 0m, 0m, 0m, DBNull.Value, item.Kod, item.Kod, 1);
+                    _dt.Rows.Add(item.Id, item.Kod, item.Katalog, false, false, false, false, 0m, 0m, 0m, DBNull.Value, item.Kod, item.Kod, 1);
                 }
             }
         }
@@ -2884,6 +3063,14 @@ namespace Kalendarz1
                 row.DefaultCellStyle.Font = new Font("Segoe UI", 9.5f);
             }
 
+            // Pulsowanie zielone po wpisaniu wartości
+            if (_pulseRows.TryGetValue(e.RowIndex, out int pulseStep) && pulseStep > 0)
+            {
+                int alpha = pulseStep > 3 ? (6 - pulseStep) * 30 : pulseStep * 30; // fade in/out
+                using var overlay = new SolidBrush(Color.FromArgb(alpha, 34, 197, 94));
+                e.Graphics.FillRectangle(overlay, e.RowBounds);
+            }
+
             var e2Cell = row.Cells["E2"];
             var foliaCell = row.Cells["Folia"];
             var hallalCell = row.Cells["Hallal"];
@@ -2975,8 +3162,8 @@ namespace Kalendarz1
                 var clientPoint = panelDetaleZamowienia.PointToClient(screenPoint);
 
                 listaWynikowOdbiorcy.Location = new Point(clientPoint.X, clientPoint.Y + txtSzukajOdbiorcy.Height + 50);
-                listaWynikowOdbiorcy.Width = 270;
-                listaWynikowOdbiorcy.Height = Math.Min(180, wyniki.Count * 22 + 5);
+                listaWynikowOdbiorcy.Width = 380;
+                listaWynikowOdbiorcy.Height = Math.Min(300, wyniki.Count * 38 + 5);
                 listaWynikowOdbiorcy.Visible = true;
                 listaWynikowOdbiorcy.BringToFront();
             }
@@ -3009,11 +3196,469 @@ namespace Kalendarz1
             }
         }
 
+        private void ListaWynikowOdbiorcy_DrawItem(object? sender, DrawItemEventArgs e)
+        {
+            if (e.Index < 0) return;
+            e.DrawBackground();
+
+            var item = listaWynikowOdbiorcy.Items[e.Index] as KontrahentInfo;
+            if (item == null) return;
+
+            bool selected = (e.State & DrawItemState.Selected) != 0;
+            var bgColor = selected ? Color.FromArgb(25, 118, 210) : Color.White;
+            var fgName = selected ? Color.White : Color.FromArgb(33, 33, 33);
+            var fgDetail = selected ? Color.FromArgb(200, 220, 255) : Color.Gray;
+
+            using (var bg = new SolidBrush(bgColor))
+                e.Graphics.FillRectangle(bg, e.Bounds);
+
+            using var fontName = new Font("Segoe UI", 9.5f, FontStyle.Bold);
+            using var fontDetail = new Font("Segoe UI", 8f);
+            using var brushName = new SolidBrush(fgName);
+            using var brushDetail = new SolidBrush(fgDetail);
+
+            e.Graphics.DrawString(item.Nazwa, fontName, brushName, e.Bounds.X + 4, e.Bounds.Y + 2);
+
+            var detail = item.Miejscowosc;
+            if (!string.IsNullOrEmpty(item.NIP))
+                detail += (string.IsNullOrEmpty(detail) ? "" : "  |  ") + "NIP: " + item.NIP;
+
+            e.Graphics.DrawString(detail, fontDetail, brushDetail, e.Bounds.X + 4, e.Bounds.Y + 19);
+        }
+
         private void WybierzOdbiorceZListy()
         {
             if (listaWynikowOdbiorcy.SelectedItem is KontrahentInfo wybrany)
             {
                 UstawOdbiorce(wybrany.Id);
+            }
+        }
+
+        private async void BtnZapiszSzablon_Click(object? sender, EventArgs e)
+        {
+            // Zbierz produkty z wartościami
+            var towary = new List<(int Id, string Kod, decimal Ilosc, int Pojemniki, decimal Palety, bool E2, bool Folia, bool Hallal, bool Strefa)>();
+            foreach (DataRow r in _dt.Rows)
+            {
+                decimal il = r.Field<decimal?>("Ilosc") ?? 0m;
+                if (il > 0)
+                {
+                    towary.Add((
+                        r.Field<int>("Id"),
+                        r.Field<string>("Kod") ?? "",
+                        il,
+                        (int)(r.Field<decimal?>("Pojemniki") ?? 0m),
+                        r.Field<decimal?>("Palety") ?? 0m,
+                        r.Field<bool>("E2"),
+                        r.Field<bool>("Folia"),
+                        r.Field<bool>("Hallal"),
+                        r.Field<bool>("Strefa")
+                    ));
+                }
+            }
+
+            if (!towary.Any())
+            {
+                ToastNotification.Show(this, "Brak produktów do zapisania w szablonie", ToastNotification.ToastType.Warning);
+                return;
+            }
+
+            // Pytanie o nazwę szablonu
+            var inputForm = new Form
+            {
+                Text = "Nazwa szablonu",
+                Size = new Size(360, 150),
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false
+            };
+            var txtNazwa = new TextBox { Location = new Point(20, 20), Width = 300, Font = new Font("Segoe UI", 11) };
+            var lblInfo = new Label { Text = "Podaj nazwę szablonu:", Location = new Point(20, 2), AutoSize = true, Font = new Font("Segoe UI", 9) };
+            var btnOk = new Button { Text = "Zapisz", DialogResult = DialogResult.OK, Location = new Point(220, 60), Size = new Size(100, 32) };
+            inputForm.Controls.AddRange(new Control[] { lblInfo, txtNazwa, btnOk });
+            inputForm.AcceptButton = btnOk;
+
+            string defaultName = _kontrahenci.FirstOrDefault(k => k.Id == _selectedKlientId)?.Nazwa ?? "Szablon";
+            txtNazwa.Text = $"{defaultName} - {DateTime.Now:dd.MM}";
+
+            if (inputForm.ShowDialog(this) != DialogResult.OK || string.IsNullOrWhiteSpace(txtNazwa.Text))
+                return;
+
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // Stwórz tabelę jeśli nie istnieje
+                await using (var cmdCreate = new SqlCommand(@"
+                    IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'SzablonyZamowien')
+                    CREATE TABLE dbo.SzablonyZamowien (
+                        Id INT IDENTITY(1,1) PRIMARY KEY,
+                        Nazwa NVARCHAR(200) NOT NULL,
+                        KlientId INT NULL,
+                        TworzonyPrzez NVARCHAR(50),
+                        DataUtworzenia DATETIME2 DEFAULT SYSDATETIME(),
+                        Aktywny BIT DEFAULT 1
+                    );
+                    IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'SzablonyZamowienTowar')
+                    CREATE TABLE dbo.SzablonyZamowienTowar (
+                        Id INT IDENTITY(1,1) PRIMARY KEY,
+                        SzablonId INT NOT NULL,
+                        KodTowaru INT NOT NULL,
+                        Ilosc DECIMAL(18,2),
+                        Pojemniki INT DEFAULT 0,
+                        Palety DECIMAL(18,2) DEFAULT 0,
+                        E2 BIT DEFAULT 0,
+                        Folia BIT DEFAULT 0,
+                        Hallal BIT DEFAULT 0
+                    );", cn))
+                {
+                    await cmdCreate.ExecuteNonQueryAsync();
+                }
+
+                // Zapisz szablon
+                await using var cmdSzablon = new SqlCommand(@"
+                    INSERT INTO dbo.SzablonyZamowien (Nazwa, KlientId, TworzonyPrzez)
+                    VALUES (@nazwa, @klient, @user);
+                    SELECT SCOPE_IDENTITY();", cn);
+                cmdSzablon.Parameters.AddWithValue("@nazwa", txtNazwa.Text.Trim());
+                cmdSzablon.Parameters.AddWithValue("@klient",
+                    string.IsNullOrEmpty(_selectedKlientId) ? (object)DBNull.Value : int.Parse(_selectedKlientId));
+                cmdSzablon.Parameters.AddWithValue("@user", UserID);
+
+                int szablonId = Convert.ToInt32(await cmdSzablon.ExecuteScalarAsync());
+
+                // Zapisz towary szablonu
+                bool strefaSzablonExists = false;
+                try
+                {
+                    await using var cmdChk = new SqlCommand("SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.SzablonyZamowienTowar') AND name = 'Strefa'", cn);
+                    strefaSzablonExists = (int)await cmdChk.ExecuteScalarAsync() > 0;
+                    if (!strefaSzablonExists)
+                    {
+                        await using var alter = new SqlCommand(
+                            "ALTER TABLE [dbo].[SzablonyZamowienTowar] ADD Strefa BIT NULL DEFAULT 0", cn);
+                        await alter.ExecuteNonQueryAsync();
+                        strefaSzablonExists = true;
+                    }
+                }
+                catch { }
+                string strCol = strefaSzablonExists ? ", Strefa" : "";
+                string strVal = strefaSzablonExists ? ", @str" : "";
+
+                foreach (var t in towary)
+                {
+                    await using var cmdT = new SqlCommand($@"
+                        INSERT INTO dbo.SzablonyZamowienTowar (SzablonId, KodTowaru, Ilosc, Pojemniki, Palety, E2, Folia, Hallal{strCol})
+                        VALUES (@sid, @kod, @il, @poj, @pal, @e2, @fol, @hal{strVal})", cn);
+                    cmdT.Parameters.AddWithValue("@sid", szablonId);
+                    cmdT.Parameters.AddWithValue("@kod", t.Id);
+                    cmdT.Parameters.AddWithValue("@il", t.Ilosc);
+                    cmdT.Parameters.AddWithValue("@poj", t.Pojemniki);
+                    cmdT.Parameters.AddWithValue("@pal", t.Palety);
+                    cmdT.Parameters.AddWithValue("@e2", t.E2);
+                    cmdT.Parameters.AddWithValue("@fol", t.Folia);
+                    cmdT.Parameters.AddWithValue("@hal", t.Hallal);
+                    if (strefaSzablonExists) cmdT.Parameters.AddWithValue("@str", t.Strefa);
+                    await cmdT.ExecuteNonQueryAsync();
+                }
+
+                ToastNotification.Show(this, $"Szablon \"{txtNazwa.Text.Trim()}\" zapisany ({towary.Count} poz.)", ToastNotification.ToastType.Success);
+            }
+            catch (Exception ex)
+            {
+                ShowError($"Błąd zapisu szablonu: {ex.Message}");
+            }
+        }
+
+        private async void BtnWczytajSzablon_Click(object? sender, EventArgs e)
+        {
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // Sprawdź czy tabela istnieje
+                await using (var cmdCheck = new SqlCommand(
+                    "SELECT CASE WHEN EXISTS (SELECT 1 FROM sys.tables WHERE name = 'SzablonyZamowien') THEN 1 ELSE 0 END", cn))
+                {
+                    if ((int)(await cmdCheck.ExecuteScalarAsync())! == 0)
+                    {
+                        ToastNotification.Show(this, "Brak zapisanych szablonów", ToastNotification.ToastType.Info);
+                        return;
+                    }
+                }
+
+                // Pobierz listę szablonów
+                var szablony = new List<(int Id, string Nazwa, string Data, int Pozycji)>();
+                await using (var cmdList = new SqlCommand(@"
+                    SELECT s.Id, s.Nazwa, s.DataUtworzenia, COUNT(t.Id) as Pozycji
+                    FROM dbo.SzablonyZamowien s
+                    LEFT JOIN dbo.SzablonyZamowienTowar t ON s.Id = t.SzablonId
+                    WHERE s.Aktywny = 1
+                    ORDER BY s.DataUtworzenia DESC", cn))
+                {
+                    await using var rd = await cmdList.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
+                    {
+                        szablony.Add((
+                            rd.GetInt32(0),
+                            rd.GetString(1),
+                            rd.GetDateTime(2).ToString("dd.MM.yyyy HH:mm"),
+                            rd.GetInt32(3)
+                        ));
+                    }
+                }
+
+                if (!szablony.Any())
+                {
+                    ToastNotification.Show(this, "Brak zapisanych szablonów", ToastNotification.ToastType.Info);
+                    return;
+                }
+
+                // Dialog wyboru szablonu
+                var selectForm = new Form
+                {
+                    Text = "Wybierz szablon",
+                    Size = new Size(420, 350),
+                    StartPosition = FormStartPosition.CenterParent,
+                    FormBorderStyle = FormBorderStyle.FixedDialog,
+                    MaximizeBox = false,
+                    MinimizeBox = false
+                };
+
+                var listBox = new ListBox
+                {
+                    Dock = DockStyle.Fill,
+                    Font = new Font("Segoe UI", 10),
+                    DrawMode = DrawMode.OwnerDrawFixed,
+                    ItemHeight = 36
+                };
+
+                foreach (var s in szablony)
+                    listBox.Items.Add(s);
+
+                listBox.DrawItem += (s2, e2) =>
+                {
+                    if (e2.Index < 0) return;
+                    e2.DrawBackground();
+                    var item = ((int Id, string Nazwa, string Data, int Pozycji))listBox.Items[e2.Index];
+
+                    bool sel = (e2.State & DrawItemState.Selected) != 0;
+                    var bg = sel ? Color.FromArgb(79, 70, 229) : Color.White;
+                    var fg1 = sel ? Color.White : Color.Black;
+                    var fg2 = sel ? Color.FromArgb(200, 200, 255) : Color.Gray;
+
+                    using var bgBr = new SolidBrush(bg);
+                    e2.Graphics.FillRectangle(bgBr, e2.Bounds);
+
+                    using var f1 = new Font("Segoe UI", 10f, FontStyle.Bold);
+                    using var f2 = new Font("Segoe UI", 8f);
+                    using var br1 = new SolidBrush(fg1);
+                    using var br2 = new SolidBrush(fg2);
+
+                    e2.Graphics.DrawString(item.Nazwa, f1, br1, e2.Bounds.X + 6, e2.Bounds.Y + 2);
+                    e2.Graphics.DrawString($"{item.Data}  |  {item.Pozycji} pozycji", f2, br2, e2.Bounds.X + 6, e2.Bounds.Y + 19);
+                };
+
+                listBox.DoubleClick += (s2, e2) => { selectForm.DialogResult = DialogResult.OK; selectForm.Close(); };
+
+                var btnLoad = new Button
+                {
+                    Text = "Wczytaj",
+                    DialogResult = DialogResult.OK,
+                    Dock = DockStyle.Bottom,
+                    Height = 40,
+                    FlatStyle = FlatStyle.Flat,
+                    BackColor = Color.FromArgb(79, 70, 229),
+                    ForeColor = Color.White,
+                    Font = new Font("Segoe UI", 10, FontStyle.Bold)
+                };
+                btnLoad.FlatAppearance.BorderSize = 0;
+
+                var btnUsun = new Button
+                {
+                    Text = "Usuń szablon",
+                    Dock = DockStyle.Bottom,
+                    Height = 30,
+                    FlatStyle = FlatStyle.Flat,
+                    BackColor = Color.FromArgb(239, 68, 68),
+                    ForeColor = Color.White,
+                    Font = new Font("Segoe UI", 8.5f)
+                };
+                btnUsun.FlatAppearance.BorderSize = 0;
+                btnUsun.Click += async (s2, e2) =>
+                {
+                    if (listBox.SelectedIndex < 0) return;
+                    var sel = ((int Id, string Nazwa, string Data, int Pozycji))listBox.SelectedItem;
+                    if (MessageBox.Show($"Usunąć szablon \"{sel.Nazwa}\"?", "Potwierdzenie",
+                        MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+
+                    await using var cn2 = new SqlConnection(_connLibra);
+                    await cn2.OpenAsync();
+                    await using var cmdDel = new SqlCommand("UPDATE dbo.SzablonyZamowien SET Aktywny = 0 WHERE Id = @id", cn2);
+                    cmdDel.Parameters.AddWithValue("@id", sel.Id);
+                    await cmdDel.ExecuteNonQueryAsync();
+                    listBox.Items.RemoveAt(listBox.SelectedIndex);
+                    ToastNotification.Show(this, "Szablon usunięty", ToastNotification.ToastType.Info);
+                };
+
+                selectForm.Controls.Add(listBox);
+                selectForm.Controls.Add(btnUsun);
+                selectForm.Controls.Add(btnLoad);
+
+                if (selectForm.ShowDialog(this) != DialogResult.OK || listBox.SelectedIndex < 0)
+                    return;
+
+                var selected = ((int Id, string Nazwa, string Data, int Pozycji))listBox.SelectedItem;
+
+                // Wczytaj towary szablonu
+                bool strefaSzablonEx = false;
+                try
+                {
+                    await using var cmdChkS = new SqlCommand("SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.SzablonyZamowienTowar') AND name = 'Strefa'", cn);
+                    strefaSzablonEx = (int)await cmdChkS.ExecuteScalarAsync() > 0;
+                }
+                catch { }
+                string strSel = strefaSzablonEx ? ", ISNULL(Strefa, 0) as Strefa" : "";
+
+                await using var cmdTowary = new SqlCommand($@"
+                    SELECT KodTowaru, Ilosc, Pojemniki, Palety, E2, Folia, Hallal{strSel}
+                    FROM dbo.SzablonyZamowienTowar
+                    WHERE SzablonId = @id", cn);
+                cmdTowary.Parameters.AddWithValue("@id", selected.Id);
+
+                _blokujObslugeZmian = true;
+                foreach (DataRow r in _dt.Rows)
+                {
+                    r["E2"] = false; r["Folia"] = false; r["Hallal"] = false; r["Strefa"] = false;
+                    r["Ilosc"] = 0m; r["Pojemniki"] = 0m; r["Palety"] = 0m;
+                    r["Cena"] = DBNull.Value; r["MaWartosci"] = 1;
+                }
+
+                int loaded = 0;
+                await using var rdT = await cmdTowary.ExecuteReaderAsync();
+                while (await rdT.ReadAsync())
+                {
+                    int kodTowaru = rdT.GetInt32(0);
+                    var rows = _dt.Select($"Id = {kodTowaru}");
+                    if (rows.Any())
+                    {
+                        var row = rows[0];
+                        row["Ilosc"] = rdT.IsDBNull(1) ? 0m : rdT.GetDecimal(1);
+                        row["Pojemniki"] = rdT.GetInt32(2);
+                        row["Palety"] = rdT.GetDecimal(3);
+                        row["E2"] = rdT.GetBoolean(4);
+                        row["Folia"] = rdT.GetBoolean(5);
+                        row["Hallal"] = rdT.GetBoolean(6);
+                        row["Strefa"] = strefaSzablonEx ? rdT.GetBoolean(7) : false;
+                        decimal ilTmpl = rdT.IsDBNull(1) ? 0m : rdT.GetDecimal(1);
+                        row["MaWartosci"] = ilTmpl > 0 ? 0 : 1;
+                        loaded++;
+                    }
+                }
+
+                _blokujObslugeZmian = false;
+                RecalcSum();
+
+                ToastNotification.Show(this, $"Wczytano \"{selected.Nazwa}\" ({loaded} poz.)", ToastNotification.ToastType.Success);
+            }
+            catch (Exception ex)
+            {
+                ShowError($"Błąd wczytywania szablonu: {ex.Message}");
+            }
+        }
+
+        private async void BtnKopiujOstatnie_Click(object? sender, EventArgs e)
+        {
+            if (string.IsNullOrEmpty(_selectedKlientId))
+            {
+                ToastNotification.Show(this, "Najpierw wybierz odbiorcę", ToastNotification.ToastType.Warning);
+                return;
+            }
+
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // Znajdź ostatnie zamówienie tego klienta
+                await using var cmdLast = new SqlCommand(@"
+                    SELECT TOP 1 Id FROM [dbo].[ZamowieniaMieso]
+                    WHERE KlientId = @KlientId
+                    ORDER BY DataZamowienia DESC, Id DESC", cn);
+                cmdLast.Parameters.AddWithValue("@KlientId", int.Parse(_selectedKlientId));
+
+                var lastId = await cmdLast.ExecuteScalarAsync();
+                if (lastId == null)
+                {
+                    ToastNotification.Show(this, "Brak poprzednich zamówień dla tego odbiorcy", ToastNotification.ToastType.Info);
+                    return;
+                }
+
+                int zamId = (int)lastId;
+
+                // Załaduj produkty z ostatniego zamówienia
+                bool strefaCopyExists = await CheckStrefaTowarColumnExists(cn);
+                string strefaCopyCol = strefaCopyExists ? ", ISNULL(zmt.Strefa, 0) as Strefa" : "";
+                await using var cmdTowary = new SqlCommand($@"
+                    SELECT zmt.KodTowaru, zmt.Ilosc, ISNULL(zmt.Pojemniki, 0) as Pojemniki,
+                           ISNULL(zmt.Palety, 0) as Palety, ISNULL(zmt.E2, 0) as E2,
+                           ISNULL(zmt.Folia, 0) as Folia, ISNULL(zmt.Hallal, 0) as Hallal{strefaCopyCol}
+                    FROM [dbo].[ZamowieniaMiesoTowar] zmt
+                    WHERE zmt.ZamowienieId = @Id AND zmt.Ilosc > 0", cn);
+                cmdTowary.Parameters.AddWithValue("@Id", zamId);
+
+                _blokujObslugeZmian = true;
+
+                // Wyzeruj obecne wartości
+                foreach (DataRow r in _dt.Rows)
+                {
+                    r["E2"] = false;
+                    r["Folia"] = false;
+                    r["Hallal"] = false;
+                    r["Strefa"] = false;
+                    r["Ilosc"] = 0m;
+                    r["Pojemniki"] = 0m;
+                    r["Palety"] = 0m;
+                    r["Cena"] = DBNull.Value;
+                    r["MaWartosci"] = 1;
+                }
+
+                int loaded = 0;
+                await using var rd = await cmdTowary.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                {
+                    int kodTowaru = rd.GetInt32(0);
+                    var rows = _dt.Select($"Id = {kodTowaru}");
+                    if (rows.Any())
+                    {
+                        var row = rows[0];
+                        row["Ilosc"] = await rd.IsDBNullAsync(1) ? 0m : rd.GetDecimal(1);
+                        row["Pojemniki"] = rd.GetInt32(2);
+                        row["Palety"] = rd.GetDecimal(3);
+                        row["E2"] = rd.GetBoolean(4);
+                        row["Folia"] = rd.GetBoolean(5);
+                        row["Hallal"] = rd.GetBoolean(6);
+                        row["Strefa"] = strefaCopyExists ? rd.GetBoolean(7) : false;
+                        decimal ilCopy = await rd.IsDBNullAsync(1) ? 0m : rd.GetDecimal(1);
+                        row["MaWartosci"] = ilCopy > 0 ? 0 : 1;
+                        loaded++;
+                    }
+                }
+
+                _blokujObslugeZmian = false;
+                RecalcSum();
+
+                if (loaded > 0)
+                    ToastNotification.Show(this, $"Skopiowano {loaded} pozycji z zamówienia #{zamId}", ToastNotification.ToastType.Success);
+                else
+                    ToastNotification.Show(this, "Ostatnie zamówienie nie zawierało produktów", ToastNotification.ToastType.Info);
+            }
+            catch (Exception ex)
+            {
+                ShowError($"Błąd kopiowania zamówienia: {ex.Message}");
             }
         }
 
@@ -3278,6 +3923,7 @@ namespace Kalendarz1
                 sumaPalety += palety;
             }
 
+            if (lblPozycji != null) lblPozycji.Text = _dt.Rows.Count.ToString();
             if (lblSumaPalet != null) lblSumaPalet.Text = sumaPalety.ToString("N1");
             if (lblSumaPojemnikow != null) lblSumaPojemnikow.Text = sumaPojemniki.ToString("N0");
             if (lblSumaKg != null) lblSumaKg.Text = sumaIlosc.ToString("N0");
@@ -3305,6 +3951,7 @@ namespace Kalendarz1
 
         private void DataGridViewZamowienie_CellPainting(object? sender, DataGridViewCellPaintingEventArgs e)
         {
+            // Nagłówki z ikonami
             if (e.RowIndex == -1 && e.ColumnIndex >= 0)
             {
                 string colName = dataGridViewZamowienie.Columns[e.ColumnIndex].Name;
@@ -3328,6 +3975,66 @@ namespace Kalendarz1
                     e.CellStyle.ForeColor, TextFormatFlags.VerticalCenter | TextFormatFlags.Left);
 
                 e.Handled = true;
+                return;
+            }
+
+            // Miniaturki produktów w kolumnach Kod i KodKopia
+            if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
+            {
+                string colName2 = dataGridViewZamowienie.Columns[e.ColumnIndex].Name;
+                if (colName2 == "Kod" || colName2 == "KodKopia")
+                {
+                    var dataRow = (dataGridViewZamowienie.Rows[e.RowIndex].DataBoundItem as DataRowView)?.Row;
+                    if (dataRow != null)
+                    {
+                        int id = dataRow.Field<int>("Id");
+                        if (_productImages.TryGetValue(id, out var img) && img != null)
+                        {
+                            e.PaintBackground(e.CellBounds, true);
+
+                            int imgSize = Math.Min(e.CellBounds.Height - 6, 28);
+                            int yImg = e.CellBounds.Y + (e.CellBounds.Height - imgSize) / 2;
+                            int pad = 4;
+                            string text = e.Value?.ToString() ?? "";
+
+                            e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+
+                            if (colName2 == "Kod")
+                            {
+                                // Kod (początek): tekst wyrównany w prawo, obrazek po prawej stronie tekstu
+                                int xImg = e.CellBounds.Right - imgSize - pad;
+                                e.Graphics.DrawImage(img, xImg, yImg, imgSize, imgSize);
+
+                                var textRect = new Rectangle(
+                                    e.CellBounds.X + pad,
+                                    e.CellBounds.Y,
+                                    e.CellBounds.Width - imgSize - pad * 3,
+                                    e.CellBounds.Height);
+
+                                TextRenderer.DrawText(e.Graphics, text, e.CellStyle.Font, textRect,
+                                    e.CellStyle.ForeColor, TextFormatFlags.VerticalCenter | TextFormatFlags.Right);
+                            }
+                            else
+                            {
+                                // KodKopia (koniec): obrazek po lewej, tekst wyrównany w lewo
+                                int xImg = e.CellBounds.X + pad;
+                                e.Graphics.DrawImage(img, xImg, yImg, imgSize, imgSize);
+
+                                var textRect = new Rectangle(
+                                    xImg + imgSize + pad,
+                                    e.CellBounds.Y,
+                                    e.CellBounds.Width - imgSize - pad * 3,
+                                    e.CellBounds.Height);
+
+                                TextRenderer.DrawText(e.Graphics, text, e.CellStyle.Font, textRect,
+                                    e.CellStyle.ForeColor, TextFormatFlags.VerticalCenter | TextFormatFlags.Left);
+                            }
+
+                            e.Handled = true;
+                            return;
+                        }
+                    }
+                }
             }
         }
 
@@ -3346,6 +4053,7 @@ namespace Kalendarz1
                 r["E2"] = false;
                 r["Folia"] = false;
                 r["Hallal"] = false;
+                r["Strefa"] = false;
                 r["Ilosc"] = 0m;
                 r["Pojemniki"] = 0m;
                 r["Palety"] = 0m;
@@ -3414,7 +4122,7 @@ namespace Kalendarz1
             bool czyMaJakiekolwiekIlosci = false;
             foreach (DataRow r in _dt.Rows)
             {
-                if (r.Field<decimal>("Ilosc") > 0m)
+                if ((r.Field<decimal?>("Ilosc") ?? 0m) > 0m)
                 {
                     czyMaJakiekolwiekIlosci = true;
                     break;
@@ -3427,7 +4135,7 @@ namespace Kalendarz1
                 return false;
             }
 
-            if (_dt.AsEnumerable().Any(r => r.Field<decimal>("Ilosc") < 0m))
+            if (_dt.AsEnumerable().Any(r => (r.Field<decimal?>("Ilosc") ?? 0m) < 0m))
             {
                 message = "Ilość nie może być ujemna.";
                 return false;
@@ -3558,6 +4266,31 @@ namespace Kalendarz1
             }
         }
 
+        private bool? _strefaTowarColumnExists;
+        private async Task<bool> CheckStrefaTowarColumnExists(SqlConnection cn)
+        {
+            if (_strefaTowarColumnExists.HasValue) return _strefaTowarColumnExists.Value;
+            try
+            {
+                await using var cmd = new SqlCommand(@"
+                    SELECT COUNT(*) FROM sys.columns
+                    WHERE object_id = OBJECT_ID(N'[dbo].[ZamowieniaMiesoTowar]')
+                    AND name = 'Strefa'", cn);
+                bool exists = (int)await cmd.ExecuteScalarAsync() > 0;
+                if (!exists)
+                {
+                    // Auto-tworzenie kolumny Strefa jeśli nie istnieje
+                    await using var alter = new SqlCommand(
+                        "ALTER TABLE [dbo].[ZamowieniaMiesoTowar] ADD Strefa BIT NULL DEFAULT 0", cn);
+                    await alter.ExecuteNonQueryAsync();
+                    exists = true;
+                }
+                _strefaTowarColumnExists = exists;
+            }
+            catch { _strefaTowarColumnExists = false; }
+            return _strefaTowarColumnExists.Value;
+        }
+
         private string BuildOrderSummary()
         {
             var sb = new StringBuilder();
@@ -3608,8 +4341,8 @@ namespace Kalendarz1
                 string e2Marker = item.Field<bool>("E2") ? " [E2]" : "";
                 string foliaMarker = item.Field<bool>("Folia") ? " [FOLIA]" : "";
                 string hallalMarker = item.Field<bool>("Hallal") ? " [🔪 HALLAL]" : "";
-                decimal pojemniki = item.Field<decimal>("Pojemniki");
-                decimal palety = item.Field<decimal>("Palety");
+                decimal pojemniki = item.Field<decimal?>("Pojemniki") ?? 0m;
+                decimal palety = item.Field<decimal?>("Palety") ?? 0m;
 
                 // POPRAWIONE - odczytywanie STRING
                 decimal cena = 0m;
@@ -3624,16 +4357,16 @@ namespace Kalendarz1
 
                 if (cena > 0)
                 {
-                    totalCena += cena * item.Field<decimal>("Ilosc");
+                    totalCena += cena * (item.Field<decimal?>("Ilosc") ?? 0m);
                 }
 
                 string cenaStrDisplay = cena > 0 ? $", {cena:N2} zł/kg" : "";
 
-                sb.AppendLine($"  {item.Field<string>("Kod")}{katalog}{e2Marker}{foliaMarker}{hallalMarker}: {item.Field<decimal>("Ilosc"):N0} kg " +
+                sb.AppendLine($"  {item.Field<string>("Kod")}{katalog}{e2Marker}{foliaMarker}{hallalMarker}: {item.Field<decimal?>("Ilosc") ?? 0m:N0} kg " +
                             $"({pojemniki:N0} poj., {palety:N1} pal.{cenaStrDisplay})");
             }
 
-            decimal totalKg = orderedItems.Sum(r => r.Field<decimal>("Ilosc"));
+            decimal totalKg = orderedItems.Sum(r => r.Field<decimal?>("Ilosc") ?? 0m);
             sb.AppendLine($"\nPodsumowanie:");
             sb.AppendLine($"  Łącznie: {totalKg:N0} kg");
             sb.AppendLine($"  Pojemników: {totalPojemniki:N0}");
@@ -3650,12 +4383,12 @@ namespace Kalendarz1
         #region MessageBox Helpers
         private void ShowInfo(string message, string title = "Informacja")
         {
-            MessageBox.Show(this, message, title, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            ToastNotification.Show(this, message, ToastNotification.ToastType.Info);
         }
 
         private void ShowWarning(string message, string title = "Ostrzeżenie")
         {
-            MessageBox.Show(this, message, title, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            ToastNotification.Show(this, message, ToastNotification.ToastType.Warning);
         }
 
         private void ShowError(string message, string title = "Błąd")
@@ -3791,9 +4524,11 @@ namespace Kalendarz1
         private class AfterSaveDialog : Form
         {
             public bool CreateAnother { get; private set; } = false;
+            private readonly Dictionary<string, Image> _images;
 
-            public AfterSaveDialog(string orderSummary, bool isEdit)
+            public AfterSaveDialog(string orderSummary, bool isEdit, Dictionary<string, Image>? productImages = null)
             {
+                _images = productImages ?? new();
                 Text = isEdit ? "✓ Zamówienie zaktualizowane" : "✓ Zamówienie zapisane";
                 Size = new Size(700, 750);
                 StartPosition = FormStartPosition.CenterParent;
@@ -3914,16 +4649,43 @@ namespace Kalendarz1
                         var line = lines[i].Trim();
                         if (string.IsNullOrEmpty(line)) continue;
 
+                        // Dopasuj zdjęcie po kodzie produktu (pierwsza część linii przed " - ")
+                        int xOffset = 15;
+                        var kodPart = line.Split(new[] { " - " }, StringSplitOptions.None)[0].Trim();
+                        Image? matchedImg = null;
+                        foreach (var kvp in _images)
+                        {
+                            if (kodPart.Equals(kvp.Key, StringComparison.OrdinalIgnoreCase) ||
+                                kodPart.Contains(kvp.Key, StringComparison.OrdinalIgnoreCase))
+                            {
+                                matchedImg = kvp.Value;
+                                break;
+                            }
+                        }
+
+                        if (matchedImg != null)
+                        {
+                            var pb = new PictureBox
+                            {
+                                Image = matchedImg,
+                                SizeMode = PictureBoxSizeMode.Zoom,
+                                Size = new Size(22, 22),
+                                Location = new Point(15, towYPos)
+                            };
+                            towaryPanel.Controls.Add(pb);
+                            xOffset = 42;
+                        }
+
                         var itemLabel = new Label
                         {
                             Text = line,
                             Font = new Font("Segoe UI", 9f),
                             ForeColor = Color.FromArgb(55, 65, 81),
-                            Location = new Point(15, towYPos),
-                            Size = new Size(600, 22)
+                            Location = new Point(xOffset, towYPos),
+                            Size = new Size(600 - (xOffset - 15), 22)
                         };
                         towaryPanel.Controls.Add(itemLabel);
-                        towYPos += 24;
+                        towYPos += 26;
                     }
 
                     contentPanel.Controls.Add(towaryPanel);

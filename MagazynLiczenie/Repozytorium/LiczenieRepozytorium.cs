@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows.Media.Imaging;
 using Kalendarz1.MagazynLiczenie.Modele;
 using Microsoft.Data.SqlClient;
 
@@ -134,6 +136,45 @@ namespace Kalendarz1.MagazynLiczenie.Repozytorium
                 await transaction.RollbackAsync();
                 throw;
             }
+        }
+
+        public async Task<Dictionary<int, BitmapImage>> PobierzZdjeciaProduktowAsync()
+        {
+            var zdjecia = new Dictionary<int, BitmapImage>();
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                var cmdCheck = new SqlCommand("SELECT CASE WHEN EXISTS (SELECT 1 FROM sys.tables WHERE name = 'TowarZdjecia') THEN 1 ELSE 0 END", cn);
+                if ((int)(await cmdCheck.ExecuteScalarAsync())! == 0) return zdjecia;
+
+                var cmd = new SqlCommand("SELECT TowarId, Zdjecie FROM dbo.TowarZdjecia WHERE Aktywne = 1", cn);
+                using var rdr = await cmd.ExecuteReaderAsync();
+                while (await rdr.ReadAsync())
+                {
+                    int towarId = rdr.GetInt32(0);
+                    if (!rdr.IsDBNull(1))
+                    {
+                        byte[] data = (byte[])rdr[1];
+                        try
+                        {
+                            var ms = new MemoryStream(data);
+                            var bi = new BitmapImage();
+                            bi.BeginInit();
+                            bi.StreamSource = ms;
+                            bi.DecodePixelWidth = 48;
+                            bi.CacheOption = BitmapCacheOption.OnLoad;
+                            bi.EndInit();
+                            bi.Freeze();
+                            zdjecia[towarId] = bi;
+                        }
+                        catch { }
+                    }
+                }
+            }
+            catch { }
+            return zdjecia;
         }
 
         private async Task UtworzTabeleLiczenia(SqlConnection cn, SqlTransaction transaction)

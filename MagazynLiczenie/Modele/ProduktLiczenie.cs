@@ -1,6 +1,7 @@
 ﻿using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Windows.Media.Imaging;
 
 namespace Kalendarz1.MagazynLiczenie.Modele
 {
@@ -11,6 +12,7 @@ namespace Kalendarz1.MagazynLiczenie.Modele
         private string _nazwaProduktu;
         private decimal _stanMagazynowy;
         private bool _jestZmodyfikowany;
+        private BitmapImage? _zdjecie;
 
         public int ProduktId
         {
@@ -48,6 +50,12 @@ namespace Kalendarz1.MagazynLiczenie.Modele
         {
             get => _jestZmodyfikowany;
             set { _jestZmodyfikowany = value; OnPropertyChanged(); }
+        }
+
+        public BitmapImage? Zdjecie
+        {
+            get => _zdjecie;
+            set { _zdjecie = value; OnPropertyChanged(); }
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

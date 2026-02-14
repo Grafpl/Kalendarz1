@@ -203,6 +203,12 @@
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <Button Background="#ED8936" Foreground="White" BorderBrush="#DD6B20" Style="{StaticResource ModernButton}" Padding="8,4" Margin="0,0,4,0" Click="BtnTutorial_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="📖" FontSize="12"/>
+                            <TextBlock Text=" Pomoc" FontSize="10" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </Button>
                     <Button Style="{StaticResource ModernButton}" Padding="8,4" Margin="0,0,4,0" Click="BtnTimeline_Click">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="📊" FontSize="12"/>

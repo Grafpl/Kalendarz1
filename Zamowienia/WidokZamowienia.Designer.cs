@@ -134,7 +134,7 @@ namespace Kalendarz1
             chkWlasnyOdbior.TabIndex = 6;
             chkWlasnyOdbior.Text = "Własny odbiór";
             chkWlasnyOdbior.UseVisualStyleBackColor = true;
-            // 
+            //
             // dateTimePickerGodzinaPrzyjazdu
             // 
             dateTimePickerGodzinaPrzyjazdu.Format = DateTimePickerFormat.Custom;

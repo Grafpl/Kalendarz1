@@ -1095,7 +1095,8 @@ namespace Kalendarz1
                 [50] = "QuizDrobiarstwo",
                 [51] = "PulpitZarzadu",
                 [52] = "CallReminders",
-                [53] = "PorannyBriefing"
+                [53] = "PorannyBriefing",
+                [54] = "ProductImages"
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
@@ -1193,7 +1194,7 @@ namespace Kalendarz1
                 "KontrolaGodzin", "WnioskiUrlopowe",
 
                 // ADMINISTRACJA SYSTEMU
-                "ZmianyUHodowcow", "AdminPermissions", "CallReminders",
+                "ZmianyUHodowcow", "AdminPermissions", "CallReminders", "ProductImages",
 
                 // Nieużywane ale w systemie uprawnień
                 "RezerwacjaKlas", "ReklamacjeJakosc"
@@ -1357,7 +1358,12 @@ namespace Kalendarz1
                     new MenuItemConfig("CallReminders", "Przypomnienia Telefonów",
                         "Konfiguracja automatycznych przypomnień o telefonach do klientów CRM dla handlowców",
                         Color.FromArgb(183, 28, 28), // Ciemny czerwony #B71C1C
-                        () => new CRM.CallReminderAdminPanel(), "⏰", "Przypomnienia")
+                        () => new CRM.CallReminderAdminPanel(), "⏰", "Przypomnienia"),
+
+                    new MenuItemConfig("ProductImages", "Zdjęcia Produktów",
+                        "Zarządzanie zdjęciami produktów świeżych i mrożonych - podgląd, dodawanie, usuwanie",
+                        Color.FromArgb(198, 40, 40), // Czerwony #C62828
+                        () => new WPF.ProductImageManagerWindow(), "📸", "Zdjęcia")
                 }
             };
 
@@ -2019,6 +2025,16 @@ namespace Kalendarz1
                 panel.ShowDialog();
             };
             contextMenu.Items.Add(reminderItem);
+
+            // 4. Zdjęcia produktów
+            var imagesItem = new ToolStripMenuItem("Zdjęcia produktów");
+            imagesItem.Image = CreateMenuItemImage("📸");
+            imagesItem.Click += (s, args) =>
+            {
+                var win = new WPF.ProductImageManagerWindow();
+                win.Show();
+            };
+            contextMenu.Items.Add(imagesItem);
 
             // Pokaż menu pod przyciskiem
             if (button != null)

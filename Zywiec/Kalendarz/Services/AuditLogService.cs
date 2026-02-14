@@ -58,6 +58,7 @@ namespace Kalendarz1.Zywiec.Kalendarz.Services
         // Menu kontekstowe
         ContextMenu_Potwierdz,
         ContextMenu_Anuluj,
+        ContextMenu_Sprzedany,
         ContextMenu_Usun,
         ContextMenu_PotwierdzWage,
         ContextMenu_PotwierdzSztuki,

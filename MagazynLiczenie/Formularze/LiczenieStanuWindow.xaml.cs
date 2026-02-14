@@ -47,6 +47,7 @@ namespace Kalendarz1.MagazynLiczenie.Formularze
 
                 _produkty = await _repozytorium.PobierzProduktyDoLiczeniaAsync();
                 var istniejaceStany = await _repozytorium.PobierzAktualneStalyAsync(_dataLiczenia);
+                var zdjecia = await _repozytorium.PobierzZdjeciaProduktowAsync();
 
                 foreach (var produkt in _produkty)
                 {
@@ -54,6 +55,10 @@ namespace Kalendarz1.MagazynLiczenie.Formularze
                     {
                         produkt.StanMagazynowy = stan;
                         produkt.JestZmodyfikowany = true;
+                    }
+                    if (zdjecia.TryGetValue(produkt.ProduktId, out var img))
+                    {
+                        produkt.Zdjecie = img;
                     }
                 }
 

@@ -2001,7 +2001,7 @@ END";
                         }
 
                         // Zaktualizuj rekord w bazie danych
-                        string strSQL = $"UPDATE dbo.FarmerCalc SET {kolumna} = @Zmienna WHERE ID = @ID";
+                        string strSQL = $"UPDATE dbo.FarmerCalc SET [{kolumna}] = @Zmienna WHERE ID = @ID";
 
                         using (SqlCommand command = new SqlCommand(strSQL, cnn))
                         {
@@ -2010,13 +2010,9 @@ END";
 
                             int rowsAffected = command.ExecuteNonQuery();
 
-                            if (rowsAffected > 0)
+                            if (rowsAffected <= 0)
                             {
-
-                            }
-                            else
-                            {
-                                MessageBox.Show("Nie udało się zaktualizować danych", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                MessageBox.Show($"Nie udało się zaktualizować [{kolumna}] (rows=0, ID={IdSpecyfikacji})", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
                             }
                         }
                     }

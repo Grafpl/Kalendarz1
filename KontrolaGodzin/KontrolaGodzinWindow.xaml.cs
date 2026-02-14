@@ -2829,6 +2829,1415 @@ namespace Kalendarz1.KontrolaGodzin
 
         #endregion
 
+        #region Tutorial / Pomoc
+
+        private void BtnTutorial_Click(object sender, RoutedEventArgs e)
+        {
+            var window = new Window
+            {
+                Title = "Pomoc - Kontrola Czasu Pracy",
+                Width = 1000,
+                Height = 800,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Background = new SolidColorBrush(Color.FromRgb(250, 251, 252))
+            };
+            WindowIconHelper.SetIcon(window);
+
+            var mainGrid = new Grid();
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(220) });
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            // === LEWY PANEL - SPIS TRESCI ===
+            var navBorder = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(26, 32, 44)),
+                Padding = new Thickness(0)
+            };
+
+            var navStack = new StackPanel();
+            var navScroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = navStack };
+
+            // Naglowek nawigacji
+            var navHeader = new TextBlock
+            {
+                Text = "SPIS TRESCI",
+                FontSize = 11,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(160, 174, 192)),
+                Margin = new Thickness(16, 16, 16, 12)
+            };
+            navStack.Children.Add(navHeader);
+
+            // === PRAWY PANEL - TRESC ===
+            var contentScroll = new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                Padding = new Thickness(32, 24, 32, 24)
+            };
+            var contentStack = new StackPanel();
+            contentScroll.Content = contentStack;
+
+            // Definicje rozdzialow
+            var rozdzialy = new List<(string ikona, string tytul, string tresc)>
+            {
+                ("🏠", "Witaj!", GetTutorialWitaj()),
+                ("📊", "Dashboard", GetTutorialDashboard()),
+                ("📋", "Rejestracje", GetTutorialRejestracje()),
+                ("⏰", "Godziny pracy", GetTutorialGodzinyPracy()),
+                ("👥", "Obecni", GetTutorialObecni()),
+                ("🏢", "Agencje", GetTutorialAgencje()),
+                ("📅", "Raport miesięczny", GetTutorialRaport()),
+                ("🏆", "Ranking", GetTutorialRanking()),
+                ("⏱️", "Punktualność", GetTutorialPunktualnosc()),
+                ("⏱️", "Spóźnienia", GetTutorialSpoznienia()),
+                ("☕", "Przerwy", GetTutorialPrzerwy()),
+                ("🚨", "Alerty", GetTutorialAlerty()),
+                ("🔍", "Filtrowanie", GetTutorialFiltrowanie()),
+                ("📥", "Eksport danych", GetTutorialEksport()),
+                ("🔧", "Diagnostyka", GetTutorialDiagnostyka()),
+                ("⌨️", "Skróty i triki", GetTutorialSkroty()),
+            };
+
+            // Dodaj pierwszy rozdzial
+            void PokazRozdzial(int index)
+            {
+                contentStack.Children.Clear();
+                var (ikona, tytul, tresc) = rozdzialy[index];
+
+                var header = new TextBlock
+                {
+                    Text = $"{ikona}  {tytul}",
+                    FontSize = 24,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(26, 32, 44)),
+                    Margin = new Thickness(0, 0, 0, 8)
+                };
+                contentStack.Children.Add(header);
+
+                var separator = new Border
+                {
+                    Height = 3,
+                    Background = new SolidColorBrush(Color.FromRgb(66, 153, 225)),
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    Width = 60,
+                    CornerRadius = new CornerRadius(2),
+                    Margin = new Thickness(0, 0, 0, 20)
+                };
+                contentStack.Children.Add(separator);
+
+                // Parsuj tresc - linie zaczynajace sie od ## to naglowki, --- to separatory
+                foreach (var linia in tresc.Split('\n'))
+                {
+                    var l = linia.TrimEnd('\r');
+                    if (l.StartsWith("## "))
+                    {
+                        var sub = new TextBlock
+                        {
+                            Text = l.Substring(3),
+                            FontSize = 16,
+                            FontWeight = FontWeights.SemiBold,
+                            Foreground = new SolidColorBrush(Color.FromRgb(44, 82, 130)),
+                            Margin = new Thickness(0, 18, 0, 6)
+                        };
+                        contentStack.Children.Add(sub);
+                    }
+                    else if (l.StartsWith("───") || l.StartsWith("---"))
+                    {
+                        var sep = new Border
+                        {
+                            Height = 1,
+                            Background = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
+                            Margin = new Thickness(0, 8, 0, 8)
+                        };
+                        contentStack.Children.Add(sep);
+                    }
+                    else if (l.StartsWith("  TIP:") || l.StartsWith("  WSKAZOWKA:"))
+                    {
+                        var tip = new Border
+                        {
+                            Background = new SolidColorBrush(Color.FromRgb(235, 248, 255)),
+                            BorderBrush = new SolidColorBrush(Color.FromRgb(66, 153, 225)),
+                            BorderThickness = new Thickness(3, 0, 0, 0),
+                            Padding = new Thickness(12, 8, 12, 8),
+                            Margin = new Thickness(0, 4, 0, 4),
+                            CornerRadius = new CornerRadius(0, 4, 4, 0)
+                        };
+                        tip.Child = new TextBlock
+                        {
+                            Text = l.Trim(),
+                            FontSize = 12,
+                            Foreground = new SolidColorBrush(Color.FromRgb(44, 82, 130)),
+                            TextWrapping = TextWrapping.Wrap
+                        };
+                        contentStack.Children.Add(tip);
+                    }
+                    else if (l.StartsWith("  UWAGA:"))
+                    {
+                        var warn = new Border
+                        {
+                            Background = new SolidColorBrush(Color.FromRgb(255, 251, 235)),
+                            BorderBrush = new SolidColorBrush(Color.FromRgb(237, 137, 54)),
+                            BorderThickness = new Thickness(3, 0, 0, 0),
+                            Padding = new Thickness(12, 8, 12, 8),
+                            Margin = new Thickness(0, 4, 0, 4),
+                            CornerRadius = new CornerRadius(0, 4, 4, 0)
+                        };
+                        warn.Child = new TextBlock
+                        {
+                            Text = l.Trim(),
+                            FontSize = 12,
+                            Foreground = new SolidColorBrush(Color.FromRgb(146, 64, 14)),
+                            TextWrapping = TextWrapping.Wrap
+                        };
+                        contentStack.Children.Add(warn);
+                    }
+                    else
+                    {
+                        var txt = new TextBlock
+                        {
+                            Text = l,
+                            FontSize = 13,
+                            Foreground = new SolidColorBrush(Color.FromRgb(45, 55, 72)),
+                            TextWrapping = TextWrapping.Wrap,
+                            Margin = new Thickness(0, 2, 0, 2),
+                            LineHeight = 20
+                        };
+                        contentStack.Children.Add(txt);
+                    }
+                }
+
+                contentScroll.ScrollToTop();
+
+                // Podswietl aktywny przycisk
+                foreach (var child in navStack.Children)
+                {
+                    if (child is Button btn)
+                        btn.Background = System.Windows.Media.Brushes.Transparent;
+                }
+                if (navStack.Children.Count > index + 1 && navStack.Children[index + 1] is Button activeBtn)
+                    activeBtn.Background = new SolidColorBrush(Color.FromRgb(45, 55, 72));
+            }
+
+            // Buduj nawigacje
+            for (int i = 0; i < rozdzialy.Count; i++)
+            {
+                var idx = i;
+                var (ikona, tytul, _) = rozdzialy[i];
+                var btn = new Button
+                {
+                    Content = $" {ikona}  {tytul}",
+                    HorizontalContentAlignment = HorizontalAlignment.Left,
+                    Padding = new Thickness(16, 8, 16, 8),
+                    FontSize = 12,
+                    Foreground = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
+                    Background = System.Windows.Media.Brushes.Transparent,
+                    BorderThickness = new Thickness(0),
+                    Cursor = System.Windows.Input.Cursors.Hand
+                };
+                btn.Click += (s, ev) => PokazRozdzial(idx);
+                navStack.Children.Add(btn);
+            }
+
+            navBorder.Child = navScroll;
+            Grid.SetColumn(navBorder, 0);
+            mainGrid.Children.Add(navBorder);
+
+            Grid.SetColumn(contentScroll, 1);
+            mainGrid.Children.Add(contentScroll);
+
+            PokazRozdzial(0);
+
+            window.Content = mainGrid;
+            window.ShowDialog();
+        }
+
+        private string GetTutorialWitaj() => @"
+Witaj w module Kontrola Czasu Pracy!
+
+Ten program pozwala sledzic czas pracy pracownikow na podstawie
+danych z czytnikow kart UNICARD RCP (Rejestracja Czasu Pracy).
+Kazdy pracownik posiada karte, ktora przykladka do czytnika
+przy wejsciu i wyjsciu z zakladu. Program zbiera te dane
+i przetwarza je na czytelne raporty.
+
+## Co znajdziesz w programie?
+
+  👁️  Podglad na zywo kto jest w pracy
+  ⏰  Godziny pracy kazdego pracownika
+  📊  Raporty miesieczne i tygodniowe
+  🏢  Rozliczenia agencji pracy tymczasowej
+  🚨  Alerty o przekroczeniach i brakach odbic
+  🏆  Ranking pracownikow wg godzin i punktualnosci
+  ☕  Kontrola przerw i nieobecnosci
+  📥  Eksport danych do CSV / Excel / druk
+
+## Jak zaczac? - krok po kroku
+
+  1.  Program laduje dane automatycznie po uruchomieniu
+      (poczekaj az pasek stanu na dole pokaze 'Polaczono')
+  2.  Na gorze widzisz aktualny czas i liczbe obecnych osob
+  3.  Uzyj zakladek u dolu aby przegladac rozne widoki danych
+  4.  Filtruj dane po dziale, dacie lub wyszukaj pracownika po imieniu
+
+  TIP: Zacznij od zakladki Dashboard - tam masz przeglad calego dnia!
+
+## Przyklad: typowy dzien pracy z programem
+
+  Rano otwierasz program i patrzysz na Dashboard:
+  - Widzisz ze 45 pracownikow jest juz w pracy
+  - Zauwazasz 2 alerty - ktos nie odbil karty wczoraj
+  - Przechodzisz do zakladki Alerty i sprawdzasz szczegoly
+  - Na koniec dnia generujesz raport i sprawdzasz godziny
+
+---
+
+## Uklad ekranu - co jest gdzie?
+
+  ┌─────────────────────────────────────────────────┐
+  │  📖 Pomoc  📊 Timeline  📈 Statystyki     14:30 │  ← Gora: przyciski + zegar
+  ├─────────────────────────────────────────────────┤
+  │  Od: [data]  Do: [data]  Dzial: [▼]  Szukaj    │  ← Filtry
+  ├─────────────────────────────────────────────────┤
+  │                                                 │
+  │  📋 Rejestracje │ ⏰ Godziny │ 🏢 Agencje │... │  ← Zakladki
+  │                                                 │
+  │       (tutaj sa dane - tabele, wykresy)         │
+  │                                                 │
+  ├─────────────────────────────────────────────────┤
+  │  UNICARD v2.0 • 192.168.0.23 • 🟢 Polaczono   │  ← Stopka
+  └─────────────────────────────────────────────────┘
+
+  GORNY PASEK:  Przyciski funkcyjne (Pomoc, Timeline, Statystyki,
+                Karty, Druk), zegar z data, licznik obecnych
+  FILTRY:       Zakres dat (Od/Do), wybor dzialu, pole szukania
+  ZAKLADKI:     Kazda zakladka to inny widok danych (kliknij nazwe)
+  STOPKA:       Status polaczenia z serwerem, wersja, diagnostyka
+
+  TIP: Zielona kropka w stopce oznacza ze polaczenie dziala.
+  Czerwona = problem z serwerem (kliknij 🔧 aby zdiagnozowac).
+
+  UWAGA: Jesli widzisz 'Brak polaczenia' w stopce, dane moga
+  byc nieaktualne! Sprawdz polaczenie sieciowe.
+";
+
+        private string GetTutorialDashboard() => @"
+Dashboard to glowny ekran programu. Pokazuje podsumowanie
+calego dnia w jednym miejscu - nie musisz klikac w inne zakladki.
+
+## Kafelki na gorze - szybki przeglad
+
+  👥 OBECNI       Ilu pracownikow jest TERAZ w zakladzie
+  ➡️ WEJSCIA      Ile osob weszlo dzisiaj (unikalne osoby)
+  ⬅️ WYJSCIA      Ile osob wyszlo dzisiaj
+  ⏱️ GODZINY      Suma godzin wszystkich pracownikow lacznie
+  🚨 ALERTY       Ile jest aktywnych alertow (problemow do sprawdzenia)
+
+## Przyklad: co mowia kafelki?
+
+  Jesli widzisz:  OBECNI: 38 / WEJSCIA: 52 / WYJSCIA: 14
+  To znaczy, ze:
+  - 52 osoby przylozily karte na wejsciu dzisiaj
+  - 14 osob juz wyszlo z pracy
+  - 38 osob jest nadal na terenie zakladu (52 - 14 = 38)
+
+---
+
+## Obecnosc wg lokalizacji
+
+  Kolorowe kafelki pokazuja ilu pracownikow jest na poszczegolnych
+  dzialach. Kazdy dzial ma swoj kolor:
+
+  🟦 Produkcja       np. 18 osob
+  🟩 Strefa czysta   np. 8 osob
+  🟨 Strefa brudna   np. 5 osob
+  🟪 Myjka           np. 3 osoby
+  🟧 Mechanicy       np. 4 osoby
+  ⬜ Biuro            np. 6 osob
+
+  TIP: Duzy kafelek = duzo pracownikow. Na pierwszy rzut oka
+  widzisz gdzie jest najwiecej ludzi!
+
+---
+
+## Ostatnie wejscia / wyjscia
+
+  Dwie tabelki na dole pokazuja 10 ostatnich rejestacji:
+
+  OSTATNIE WEJSCIA:               OSTATNIE WYJSCIA:
+  ┌──────────┬───────┬─────────┐  ┌──────────┬───────┬──────────┐
+  │ 06:02    │ WE    │ Kowalski│  │ 14:05    │ WY    │ Nowak    │
+  │ 06:05    │ WE    │ Nowak   │  │ 14:08    │ WY    │ Zielinski│
+  │ 06:07    │ WE    │ Wisnia  │  │ 14:10    │ WY    │ Krawczyk │
+  └──────────┴───────┴─────────┘  └──────────┴───────┴──────────┘
+
+  Dzieki temu widzisz na zywo kto wlasnie przyszedl lub wyszedl.
+
+---
+
+## Automatyczne odswiezanie
+
+  TIP: Dashboard odswieza sie co 30 sekund jesli wlaczysz
+  checkbox 'Auto' w pasku filtrow! Mozesz zostawic program
+  otwarty na monitorze i patrzec na aktualne dane caly dzien.
+
+  UWAGA: Bez wlaczonego 'Auto' dane pokaza stan z momentu
+  ostatniego odswiezenia. Kliknij 'Odswiez' reczne aby
+  zaktualizowac.
+";
+
+        private string GetTutorialRejestracje() => @"
+Zakladka Rejestracje pokazuje surowe dane z czytnikow kart.
+To sa oryginalne zapisy - kazde przylozenie karty do czytnika
+tworzy jeden wiersz w tej tabeli.
+
+## Co widzisz w tabeli? - opis kolumn
+
+  DATA          Dzien rejestracji (np. 2026-02-13)
+  GODZINA       Dokladna godzina przylozenia karty (np. 06:02:15)
+  TYP           WEJSCIE lub WYJSCIE
+  PRACOWNIK     Imie i nazwisko osoby
+  DZIAL         Do jakiego dzialu nalezy pracownik (np. Produkcja)
+  PUNKT         Nazwa czytnika (np. Portiernia WE, Produkcja WY)
+
+## Przyklad: jak wyglada typowy dzien pracownika?
+
+  Pracownik Jan Kowalski z dzialu Produkcja:
+
+  ┌────────────┬──────────┬─────────┬──────────────┬────────────┐
+  │ 2026-02-13 │ 05:58:22 │ WEJSCIE │ Jan Kowalski │ Produkcja  │
+  │ 2026-02-13 │ 09:01:45 │ WYJSCIE │ Jan Kowalski │ Produkcja  │
+  │ 2026-02-13 │ 09:16:30 │ WEJSCIE │ Jan Kowalski │ Produkcja  │
+  │ 2026-02-13 │ 14:02:10 │ WYJSCIE │ Jan Kowalski │ Produkcja  │
+  └────────────┴──────────┴─────────┴──────────────┴────────────┘
+
+  Co to znaczy?
+  - 05:58 - Przyszedl do pracy (przylozyl karte na wejsciu)
+  - 09:01 - Wyszedl na przerwe sniadaniowa
+  - 09:16 - Wrocil z przerwy (15 minut przerwy)
+  - 14:02 - Zakonczyl prace i wyszedl
+
+---
+
+## Jak czytac dane?
+
+  Kazdy wiersz = jedno przylozenie karty do czytnika.
+  Pracownik moze miec wiele wpisow dziennie:
+
+  Typowy schemat:
+  1. WEJSCIE rano (poczatek pracy)
+  2. WYJSCIE na przerwe sniadaniowa
+  3. WEJSCIE po przerwie
+  4. WYJSCIE na obiad (opcjonalnie)
+  5. WEJSCIE po obiedzie (opcjonalnie)
+  6. WYJSCIE koniec pracy
+
+  TIP: Jesli pracownik ma tylko WEJSCIE bez WYJSCIA to albo
+  nadal jest w pracy, albo zapomnial odbic karte!
+
+---
+
+## Filtrowanie rejestacji
+
+  Uzyj pola 'Szukaj' na gorze aby znalezc konkretnego pracownika.
+  Wpisz imie, nazwisko lub nazwe dzialu.
+
+  Przyklady wyszukiwania:
+  - Wpisz 'Kowalski' → zobaczysz wszystkie odbicia Kowalskiego
+  - Wpisz 'Produkcja' → tylko pracownicy z dzialu Produkcja
+  - Wpisz 'Jan' → wszyscy o imieniu Jan
+
+  TIP: Kliknij dwukrotnie na wiersz aby zobaczyc szczegoly
+  calego dnia danego pracownika!
+
+  UWAGA: Duza ilosc danych (np. caly miesiac) moze dluzej sie
+  ladowac. Zacznij od krotszych okresow (dzis, wczoraj, tydzien).
+";
+
+        private string GetTutorialGodzinyPracy() => @"
+Ta zakladka przelicza surowe rejestracje na godziny pracy.
+Zamiast surowych odbic karty widzisz gotowe podsumowanie:
+ile kto pracowal, ile mial przerw, ile nadgodzin.
+
+## Kolumny w tabeli - co znaczy kazda?
+
+  DATA          Dzien pracy (np. 2026-02-13)
+  DZIEN         Dzien tygodnia (Pon, Wt, Sr, Czw, Pt, Sob, Nd)
+  PRACOWNIK     Imie i nazwisko pracownika
+  DZIAL         Nazwa dzialu (np. Produkcja, Biuro)
+  WEJSCIE       Godzina PIERWSZEGO wejscia tego dnia
+  WYJSCIE       Godzina OSTATNIEGO wyjscia tego dnia
+  CZAS PRACY    Calkowity czas (wyjscie minus wejscie)
+  PRZERWY       Ile czasu lacznie spedzono na przerwach
+  EFEKTYWNY     Czas pracy minus przerwy (faktycznie przepracowane)
+  NADGODZINY    Godziny ponad 8h dziennie (efektywne)
+  STATUS        Ikona statusu pracownika
+
+## Przyklad: jak czytac wiersz tabeli?
+
+  ┌──────────┬─────┬──────────────┬───────┬───────┬──────┬────────┬─────┬───────┬────────┬────┐
+  │ DATA     │DZIEN│ PRACOWNIK    │ DZIAL │WEJSCIE│WYJSC.│CZ.PRACY│PRZE.│EFEKT. │NADGODZ.│ ST │
+  ├──────────┼─────┼──────────────┼───────┼───────┼──────┼────────┼─────┼───────┼────────┼────┤
+  │2026-02-13│ Czw │ Jan Kowalski │ Prod. │ 05:58 │14:02 │ 8:04   │0:15 │ 7:49  │  0:00  │ ✅ │
+  │2026-02-13│ Czw │ Anna Nowak   │ Biuro │ 07:02 │16:35 │ 9:33   │0:30 │ 9:03  │  1:03  │ ✅ │
+  │2026-02-13│ Czw │ Piotr Ziel.  │ Prod. │ 06:00 │      │        │     │       │        │ ⚠️ │
+  └──────────┴─────┴──────────────┴───────┴───────┴──────┴────────┴─────┴───────┴────────┴────┘
+
+  Co tu widzimy?
+  - Kowalski: przyszedl 5:58, wyszedl 14:02, pracowal 7h49min (z przerwa 15min). OK
+  - Nowak: przyszla 7:02, wyszla 16:35, pracowal 9h03min efektywnie. 1h03min nadgodzin
+  - Zielinski: przyszedl 6:00 ale NIE MA WYJSCIA - moze jest jeszcze w pracy albo
+    zapomnial odbic karte → status ⚠️
+
+---
+
+## Statusy - co oznaczaja ikony?
+
+  ✅  OK - normalny dzien pracy (do 10h, ma wejscie i wyjscie)
+  ⚠️  Brak wyjscia - pracownik nie odbil karty na wyjsciu
+  🔴  Dlugi dzien - ponad 12 godzin pracy (wymaga uwagi!)
+
+  TIP: Status ⚠️ (brak wyjscia) jest najczestszym problemem.
+  Zwykle oznacza ze pracownik zapomnial przylozyc karte
+  na wyjsciu. Sprawdz to z przelozonym dzialu.
+
+---
+
+## Podsumowanie na gorze
+
+  Pod tabela sa 4 kafelki ze statystykami za wybrany okres:
+
+  SREDNI EFEKTYWNY   np. 7h 42min  (srednia na pracownika dziennie)
+  SREDNI CALKOWITY   np. 8h 15min  (srednia lacznie z przerwami)
+  LACZNE GODZINY     np. 1,248h    (suma godzin wszystkich)
+  LACZNE NADGODZINY  np. 87h       (suma nadgodzin wszystkich)
+
+---
+
+## Jak uzywac?
+
+  1.  Wybierz zakres dat (np. Od: 01.02 Do: 28.02)
+  2.  Opcjonalnie wybierz dzial (np. tylko Produkcja)
+  3.  Dane laduja sie automatycznie
+  4.  Sortuj klikajac na naglowek kolumny (np. kliknij NADGODZINY)
+  5.  Kliknij dwukrotnie na wiersz → szczegoly dnia
+
+  TIP: Kliknij na naglowek kolumny NADGODZINY aby posortowac
+  od najwiekszej. Szybko znajdziesz kto ma najwiecej nadgodzin!
+
+  UWAGA: Jesli widzisz '0:00' w kolumnie CZAS PRACY ale pracownik
+  mial wejscie, to prawdopodobnie nie odbil karty na wyjsciu.
+";
+
+        private string GetTutorialObecni() => @"
+Zakladka Obecni pokazuje kto TERAZ jest w zakladzie.
+To jest 'na zywo' - widzisz kto aktualnie przebywa na terenie firmy.
+
+## Jak to dziala?
+
+  Program sprawdza kto dzisiaj:
+  - Ma rejestracje WEJSCIA
+  - Ale NIE ma rejestracji WYJSCIA po tym wejsciu
+  - Czyli jest nadal na terenie zakladu
+
+  Prosty przyklad:
+  Jan Kowalski: WEJSCIE 06:00 → brak WYJSCIA → jest OBECNY
+  Anna Nowak:   WEJSCIE 06:00 → WYJSCIE 14:00 → NIE jest obecna
+
+---
+
+## Kolumny w tabeli
+
+  PRACOWNIK       Imie i nazwisko
+  DZIAL           Dzial pracownika (np. Produkcja, Biuro)
+  WEJSCIE         O ktorej godzinie wszedl dzisiaj
+  CZAS OBECNOSCI  Ile czasu jest juz w pracy (np. 6h 23min)
+  PUNKT WEJSCIA   Przez ktory czytnik wszedl (np. Portiernia)
+
+## Przyklad: co widzisz na ekranie?
+
+  Godzina teraz: 12:30
+  ┌──────────────┬────────────┬─────────┬─────────────┬────────────┐
+  │ PRACOWNIK    │ DZIAL      │ WEJSCIE │ CZAS OBEC.  │ PUNKT      │
+  ├──────────────┼────────────┼─────────┼─────────────┼────────────┤
+  │ Jan Kowalski │ Produkcja  │  05:58  │  6h 32min   │ Portiernia │
+  │ Anna Nowak   │ Biuro      │  07:15  │  5h 15min   │ Portiernia │
+  │ Marek Wisnia │ Mechanicy  │  06:05  │  6h 25min   │ Brama boczna│
+  └──────────────┴────────────┴─────────┴─────────────┴────────────┘
+
+  To znaczy ze te 3 osoby sa teraz na terenie zakladu.
+  Kowalski jest najdluzej (od 5:58), Nowak najkrocej (od 7:15).
+
+---
+
+## Do czego to sluzy?
+
+  - Sprawdzenie kto jest w pracy w danym momencie
+  - Kontrola bezpieczenstwa (kto jest na terenie zakladu)
+  - Planowanie - ilu ludzi jest na jakiej zmianie
+  - Szybka odpowiedz na pytanie 'Czy Kowalski jest dzis w pracy?'
+
+  TIP: Wlacz auto-odswiezanie (checkbox 'Auto') aby lista
+  aktualizowala sie co 30 sekund bez klikania!
+
+  UWAGA: Jesli pracownik nie odbije karty na wyjsciu,
+  bedzie widoczny jako 'obecny' nawet po zakonczeniu pracy!
+  Np. jesli ktos wyszedl o 14:00 ale nie odbil karty,
+  o 20:00 nadal bedzie widoczny na liscie obecnych.
+  Takie przypadki widac tez w zakladce Alerty.
+";
+
+        private string GetTutorialAgencje() => @"
+Dwie zakladki dotycza rozliczen pracownikow z agencji pracy
+tymczasowej. Agencje to firmy zewnetrzne ktore dostarczaja
+pracownikow (np. Adecco, Randstad, ManpowerGroup).
+
+## Zakladka 'Agencje' - raport miesieczny
+
+  Jak uzyc:
+  1. Wybierz agencje z listy rozwijanej (np. 'Adecco')
+  2. Wybierz miesiac (np. Luty) i rok (np. 2026)
+  3. Kliknij przycisk 'Generuj raport'
+  4. Poczekaj az dane sie zaladuja
+
+  Zobaczysz dla kazdego pracownika agencji:
+
+  PRACOWNIK    Imie i nazwisko pracownika agencyjnego
+  DNI PRACY    Ile dni pracowal w danym miesiacu
+  NORMALNE     Godziny do 8h dziennie (stawka podstawowa)
+  NADGODZINY   Godziny ponad 8h (stawka wyzsza - zwykle x1.5)
+  NOCNE        Godziny miedzy 22:00-06:00 (dodatek nocny)
+  SUMA         Laczna liczba godzin w miesiacu
+  DO WYPLATY   Kwota do zaplaty agencji (obliczona wg stawek)
+
+## Przyklad rozliczenia pracownika agencji:
+
+  Pracownik: Adam Wisniak (Agencja: Adecco)
+  Miesiac: Luty 2026
+
+  ┌────────────────┬──────┬──────────┬───────────┬───────┬───────┬───────────┐
+  │ PRACOWNIK      │ DNI  │ NORMALNE │ NADGODZINY│ NOCNE │ SUMA  │ DO WYPLATY│
+  ├────────────────┼──────┼──────────┼───────────┼───────┼───────┼───────────┤
+  │ Adam Wisniak   │  20  │  160:00  │   12:30   │ 0:00  │172:30 │ 4,250 PLN │
+  └────────────────┴──────┴──────────┴───────────┴───────┴───────┴───────────┘
+
+  Jak to liczyc?
+  - 20 dni x 8h = 160h normalnych (np. po 25 PLN/h = 4,000 PLN)
+  - 12.5h nadgodzin (np. po 20 PLN/h = 250 PLN)
+  - Lacznie: 4,250 PLN do zaplaty agencji
+
+  TIP: Stawki ustawiasz przyciskiem ⚙️ Stawki w gornym pasku!
+  Mozesz ustawic inne stawki dla kazdej agencji.
+
+---
+
+## Zakladka 'Agencje' (tygodniowy) - kontrola tygodnia
+
+  Ta zakladka jest KLUCZOWA dla kontroli pracownikow agencji.
+  Pokazuje godziny dzien po dniu (Pn-Nd) dla kazdego pracownika.
+
+  Przyklad:
+  ┌────────────────┬───────┬───────┬───────┬───────┬───────┬───────┬───────┐
+  │ PRACOWNIK      │  Pon  │  Wt   │  Sr   │  Czw  │  Pt   │  Sob  │  Nd   │
+  ├────────────────┼───────┼───────┼───────┼───────┼───────┼───────┼───────┤
+  │ Adam Wisniak   │ 🟩8:00│🟩7:45 │🟨9:30 │🟧11:00│🟩8:15 │ ---   │ ---   │
+  │ Ewa Kowalczyk  │ 🟩8:00│🟩8:00 │🟩8:00 │🟥13:30│🟩8:00 │ ---   │ ---   │
+  └────────────────┴───────┴───────┴───────┴───────┴───────┴───────┴───────┘
+
+  Kolory oznaczaja:
+  🟩 Zielony      Do 8 godzin (norma - wszystko OK)
+  🟨 Zolty        8-10 godzin (nadgodziny, ale dopuszczalne)
+  🟧 Pomaranczowy 10-12 godzin (duzo nadgodzin, uwaga!)
+  🟥 Czerwony     Ponad 12 godzin - PRZEKROCZENIE LIMITU!
+
+  UWAGA: Pracownicy agencji NIE MOGA pracowac wiecej niz
+  12 godzin dziennie! To jest limit prawny. Czerwone komorki
+  wymagaja natychmiastowej reakcji - skontaktuj sie z kierownikiem
+  zmiany i agencja pracy!
+
+---
+
+## Nawigacja miedzy tygodniami
+
+  ◀  Poprzedni tydzien
+  ▶  Nastepny tydzien
+  Biezacy  Wroc do aktualnego tygodnia
+
+  TIP: Na koniec tygodnia przejrzyj widok tygodniowy aby
+  upewnic sie ze nikt nie przekroczyl limitu 12h!
+";
+
+        private string GetTutorialRaport() => @"
+Zakladka do generowania raportow miesiecznych. Raport to
+podsumowanie godzin pracy WSZYSTKICH pracownikow za caly miesiac.
+Uzywany najczesciej do rozliczen z dzialem kadr i plac.
+
+## Jak wygenerowac raport? - krok po kroku
+
+  1.  Przejdz do zakladki 'Raport miesieczny'
+  2.  Wybierz miesiac z listy rozwijanej (np. Luty)
+  3.  Wybierz rok (np. 2026)
+  4.  Opcjonalnie: wybierz dzial w gornym pasku filtrow
+      (jesli chcesz raport tylko dla jednego dzialu)
+  5.  Kliknij przycisk 📊 Generuj
+  6.  Poczekaj az dane sie zaladuja (moze trwac kilka sekund)
+
+---
+
+## Co zawiera raport? - opis kolumn
+
+  Dla kazdego pracownika zobaczysz:
+
+  PRACOWNIK     Imie i nazwisko
+  DZIAL         Nazwa dzialu (np. Produkcja)
+  DNI           Ile dni pracowal w danym miesiacu
+  GODZINY       Suma godzin efektywnych w miesiacu
+  NADGODZINY    Ile godzin ponad norme (np. ponad 8h dziennie)
+  BRAKI         Ile razy brakowalo odbicia karty
+  UWAGI         Szczegoly problemow
+
+## Przyklad raportu miesiecznego:
+
+  Raport za: LUTY 2026 / Dzial: Produkcja
+
+  ┌────────────────┬────────────┬─────┬─────────┬───────────┬───────┬─────────────────────┐
+  │ PRACOWNIK      │ DZIAL      │ DNI │ GODZINY │ NADGODZ.  │ BRAKI │ UWAGI               │
+  ├────────────────┼────────────┼─────┼─────────┼───────────┼───────┼─────────────────────┤
+  │ Jan Kowalski   │ Produkcja  │  20 │  164:30 │   4:30    │   0   │                     │
+  │ Anna Nowak     │ Produkcja  │  18 │  148:00 │   4:00    │   2   │ 05.02 brak wyjscia  │
+  │                │            │     │         │           │       │ 19.02 brak wyjscia  │
+  │ Piotr Zielinski│ Produkcja  │  15 │  120:00 │   0:00    │   0   │ Urlop 10-14.02      │
+  └────────────────┴────────────┴─────┴─────────┴───────────┴───────┴─────────────────────┘
+
+  Co tu widzimy?
+  - Kowalski: 20 dni, 164.5h, 4.5h nadgodzin, bez problemow ✅
+  - Nowak: 18 dni, 2 braki odbicia (5 i 19 lutego nie odbila karty) ⚠️
+  - Zielinski: 15 dni bo mial urlop 10-14 lutego
+
+---
+
+## Dodatkowe opcje - eksport i druk
+
+  📥 Excel      Eksportuj raport do pliku CSV (otworzy sie w Excelu)
+                 Plik zostanie zapisany na pulpicie z nazwa:
+                 'Raport_Luty_2026_Produkcja.csv'
+  🖨️ Drukuj    Wydrukuj raport (otwiera systemowe okno drukowania)
+                 Raport jest sformatowany do wydruku na A4 poziomo
+
+  TIP: Raport mozesz filtrowac po dziale - wybierz dzial
+  w gornym pasku filtrow PRZED generowaniem raportu!
+  Jesli chcesz raport dla calej firmy, zostaw 'Wszystkie dzialy'.
+
+  TIP: Kolumne BRAKI sprawdzaj szczegolnie uwazenie. Jesli
+  pracownik ma duzo brakow, trzeba z nim porozmawiac o
+  regularnym odbijaniu karty.
+
+  UWAGA: Raport generuje sie z danych serwera. Upewnij sie
+  ze masz polaczenie z serwerem (zielona kropka w stopce).
+";
+
+        private string GetTutorialRanking() => @"
+Ranking pokazuje pracownikow posortowanych wg godzin pracy
+i punktualnosci. Pomaga wyroznic najlepszych pracownikow
+i zidentyfikowac tych, ktorzy wymagaja rozmowy.
+
+## Kolumny rankingu - co znaczy kazda?
+
+  #             Pozycja w rankingu (1 = najlepszy)
+  PRACOWNIK     Imie i nazwisko
+  DZIAL         Nazwa dzialu
+  GODZINY       Suma godzin efektywnych w wybranym okresie
+  DNI PRACY     Ile dni pracowal (obecnosc)
+  SR. DZIENNIE  Srednia godzin na dzien (godziny / dni)
+  PUNKTUALNOSC  Procent dni BEZ spoznien
+  OCENA         Gwiazdki od 1 do 3
+
+## Przyklad rankingu:
+
+  Okres: Luty 2026
+
+  ┌───┬────────────────┬────────────┬─────────┬──────┬──────────┬───────┬────────┐
+  │ # │ PRACOWNIK      │ DZIAL      │ GODZINY │ DNI  │SR.DZIEN. │PUNKT. │ OCENA  │
+  ├───┼────────────────┼────────────┼─────────┼──────┼──────────┼───────┼────────┤
+  │ 1 │ Jan Kowalski   │ Produkcja  │  168:00 │  21  │  8:00    │ 100%  │ ⭐⭐⭐ │
+  │ 2 │ Ewa Wilk       │ Produkcja  │  165:30 │  21  │  7:53    │  98%  │ ⭐⭐⭐ │
+  │ 3 │ Marek Lis      │ Mechanicy  │  160:00 │  20  │  8:00    │  90%  │ ⭐⭐   │
+  │...│ ...            │ ...        │  ...    │ ...  │  ...     │  ...  │ ...    │
+  │45 │ Tomasz Bak     │ Produkcja  │  120:00 │  15  │  8:00    │  60%  │ ❌     │
+  └───┴────────────────┴────────────┴─────────┴──────┴──────────┴───────┴────────┘
+
+  Co tu widzimy?
+  - Kowalski na 1. miejscu: 21 dni, 100% punktualnosc → ⭐⭐⭐
+  - Wilk na 2. miejscu: tez 21 dni, ale 98% punktualnosc
+  - Bak na ostatnim: tylko 15 dni, 60% punktualnosc → ❌
+
+---
+
+## System ocen - jak sa przyznawane gwiazdki?
+
+  ⭐⭐⭐  Wzorowa        Punktualnosc 95% i wiecej
+                         (na 20 dni - max 1 spoznienie)
+  ⭐⭐    Dobra          Punktualnosc 85-95%
+                         (na 20 dni - 1 do 3 spoznien)
+  ⭐      Do poprawy     Punktualnosc 70-85%
+                         (na 20 dni - 3 do 6 spoznien)
+  ❌      Slaba          Punktualnosc ponizej 70%
+                         (na 20 dni - wiecej niz 6 spoznien)
+
+  TIP: Ranking jest swietnym narzedziem do miesiecznych
+  rozmow z pracownikami. Top 3 mozna wyroznic!
+
+  TIP: Sortuj klikajac na naglowki kolumn. Np. kliknij
+  PUNKTUALNOSC aby zobaczyc kto ma najgorsza punktualnosc.
+";
+
+        private string GetTutorialPunktualnosc() => @"
+Zakladka analizuje punktualnosc kazdego pracownika.
+Pokazuje ile razy kto spoznil sie i o ile minut lacznie.
+
+## Kolumny tabeli
+
+  PRACOWNIK     Imie i nazwisko
+  DNI           Ile dni pracowal w wybranym okresie
+  SPOZNIENIA    Ile razy sie spoznil (liczba dni ze spoznieniem)
+  SUMA MIN      Laczna liczba minut spoznien w calym okresie
+  WCZ. WYJSCIA  Ile razy wyszedl przed koncem zmiany
+  %             Procent punktualnosci (im wiecej tym lepiej)
+  OCENA         Ocena tekstowa (Wzorowa / Dobra / Do poprawy / Slaba)
+
+## Przyklad tabeli punktualnosci:
+
+  Okres: Luty 2026
+
+  ┌────────────────┬─────┬───────────┬──────────┬───────────┬──────┬────────────┐
+  │ PRACOWNIK      │ DNI │ SPOZNIENIA│ SUMA MIN │ WCZ.WYJSC.│  %   │ OCENA      │
+  ├────────────────┼─────┼───────────┼──────────┼───────────┼──────┼────────────┤
+  │ Jan Kowalski   │  20 │     0     │    0     │     0     │ 100% │ Wzorowa    │
+  │ Anna Nowak     │  20 │     1     │    7     │     0     │  95% │ Wzorowa    │
+  │ Piotr Lis      │  20 │     4     │   35     │     2     │  80% │ Do poprawy │
+  │ Tomasz Bak     │  18 │     8     │   92     │     3     │  56% │ Slaba      │
+  └────────────────┴─────┴───────────┴──────────┴───────────┴──────┴────────────┘
+
+  Co tu widzimy?
+  - Kowalski: ani razu sie nie spoznil → 100% → Wzorowa ✅
+  - Nowak: 1 spoznienie o 7 minut → 95% → nadal Wzorowa ✅
+  - Lis: 4 spoznienia (lacznie 35 minut) i 2 wczesne wyjscia → 80%
+  - Bak: 8 spoznien (lacznie 1.5h!) i 3 wczesne wyjscia → 56% ❌
+
+---
+
+## Jak liczona jest punktualnosc?
+
+  Punktualnosc = (dni bez spoznien / wszystkie dni) x 100%
+
+  Przyklad:  20 dni pracy, 3 spoznienia
+  Punktualnosc = (20 - 3) / 20 x 100% = 85%
+
+  Spoznienie = wejscie po godzinie 6:05 rano
+  (tolerancja 5 minut jest domyslna, czyli wejscie o 6:04 = OK,
+   wejscie o 6:06 = spoznienie)
+
+  TIP: Tolerancje mozesz zmienic w zakladce Spoznienia.
+  Dostepne opcje: 0, 5, 10 lub 15 minut.
+
+  TIP: Ta zakladka jest idealna do miesiecznych ocen pracownikow.
+  Eksportuj do Excela i dolacz do dokumentacji kadrowej.
+";
+
+        private string GetTutorialSpoznienia() => @"
+Zakladka do szczegolowej analizy spoznien. Tutaj widzisz
+KAZDE pojedyncze spoznienie - kto, kiedy, o ile minut.
+
+## Jak wykryc spoznienia? - krok po kroku
+
+  1.  Przejdz do zakladki 'Spoznienia'
+  2.  Wybierz miesiac i rok (np. Luty 2026)
+  3.  Ustaw tolerancje (domyslnie 5 minut):
+      - 0 min = kazde spoznienie po 6:00
+      - 5 min = spoznienie dopiero po 6:05
+      - 10 min = spoznienie dopiero po 6:10
+      - 15 min = spoznienie dopiero po 6:15
+  4.  Kliknij 🔍 Wykryj spoznienia
+  5.  Poczekaj na wyniki
+
+---
+
+## Co zobaczysz? - opis kolumn
+
+  DATA            Kiedy sie spoznil (np. 2026-02-05)
+  DZIEN           Dzien tygodnia (np. Sroda)
+  PRACOWNIK       Kto sie spoznil
+  PLANOWANA       Oczekiwana godzina przyjscia (np. 6:00)
+  RZECZYWISTA     Faktyczna godzina wejscia (np. 6:23)
+  SPOZNIENIE      Ile minut spoznienia (np. 23 min)
+  STATUS          ❌ nieusprawiedliwione / ✅ usprawiedliwione
+
+## Przyklad listy spoznien:
+
+  Tolerancja: 5 minut / Miesiac: Luty 2026
+
+  ┌────────────┬────────┬────────────────┬──────────┬────────────┬──────────┬────────┐
+  │ DATA       │ DZIEN  │ PRACOWNIK      │ PLANOW.  │ RZECZYW.   │ SPOZN.   │ STATUS │
+  ├────────────┼────────┼────────────────┼──────────┼────────────┼──────────┼────────┤
+  │ 2026-02-03 │ Pon    │ Tomasz Bak     │  06:00   │  🟡 06:12  │  12 min  │  ❌    │
+  │ 2026-02-05 │ Sr     │ Anna Nowak     │  06:00   │  🟡 06:07  │   7 min  │  ✅    │
+  │ 2026-02-07 │ Pt     │ Tomasz Bak     │  06:00   │  🟠 06:25  │  25 min  │  ❌    │
+  │ 2026-02-10 │ Pon    │ Piotr Lis      │  06:00   │  🔴 06:48  │  48 min  │  ❌    │
+  │ 2026-02-12 │ Sr     │ Tomasz Bak     │  06:00   │  🟡 06:08  │   8 min  │  ❌    │
+  └────────────┴────────┴────────────────┴──────────┴────────────┴──────────┴────────┘
+
+  Co tu widzimy?
+  - Bak spoznia sie regularnie (3 razy w miesiacu!) - recydywista
+  - Nowak spoznila sie raz o 7 min i jest juz usprawiedliwiona ✅
+  - Lis mial jedno duze spoznienie - prawie godzine (48 min!)
+
+---
+
+## Kolory spoznien - szybka ocena powagi
+
+  🟡 Zolty         Do 15 minut (drobne spoznienie)
+  🟠 Pomaranczowy  15-30 minut (znaczace spoznienie)
+  🔴 Czerwony      Ponad 30 minut (powazne spoznienie!)
+
+---
+
+## Usprawiedliwianie spoznien
+
+  Niektore spoznienia maja uzasadnienie (np. wizyta u lekarza,
+  korek na drodze, awaria auta). Aby usprawiedliwic:
+
+  1.  Kliknij na wiersz spoznienia w tabeli (zaznacz go)
+  2.  Kliknij przycisk ✅ Usprawiedliw
+  3.  Status zmieni sie z ❌ na ✅
+
+  Usprawiedliwione spoznienia nie wliczaja sie do oceny
+  punktualnosci w zakladce Ranking.
+
+---
+
+## Statystyki na gorze (kafelki podsumowania)
+
+  LICZBA SPOZNIEN     Ile spoznien lacznie w okresie (np. 23)
+  SUMA MINUT          Ile minut lacznie (np. 287 min = 4h 47min)
+  SREDNIA              Sredni czas spoznienia (np. 12.5 min)
+  RECYDYWISCI         Ilu pracownikow ma wiecej niz 3 spoznienia
+
+  TIP: Zwroc szczegolna uwage na RECYDYWISTOW - to osoby
+  ktore spozniaja sie regularnie i wymagaja rozmowy.
+
+  TIP: Mozesz eksportowac liste spoznien do pliku CSV
+  przyciskiem 📥 i dolaczac do dokumentacji kadrowej.
+";
+
+        private string GetTutorialPrzerwy() => @"
+Zakladka do kontroli przerw pracownikow. Program automatycznie
+wykrywa przerwy na podstawie par WYJSCIE → WEJSCIE w ciagu dnia.
+Jesli ktos wyszedl i wrocil po kilku minutach - to przerwa.
+
+## Harmonogram przerw - co to jest?
+
+  Po lewej stronie widzisz zaplanowane (dozwolone) przerwy:
+
+  ┌──────────────────┬─────────────┬──────────────┐
+  │ NAZWA            │ GODZINY     │ CZAS TRWANIA │
+  ├──────────────────┼─────────────┼──────────────┤
+  │ Sniadaniowa      │ 09:00-09:15 │  15 minut    │
+  │ Obiadowa         │ 12:00-12:30 │  30 minut    │
+  │ Popoludniowa     │ 15:00-15:15 │  15 minut    │
+  └──────────────────┴─────────────┴──────────────┘
+
+  To sa przerwy ktore firma oficjalnie dopuszcza.
+  Mozesz dodac nowe przerwy przyciskiem ➕ Dodaj przerwe.
+  Mozesz tez edytowac lub usunac istniejace.
+
+---
+
+## Jak analizowac przerwy? - krok po kroku
+
+  1.  Wybierz date w gornym pasku (np. dzisiejsza data)
+  2.  Kliknij 🔍 Analizuj przerwy
+  3.  Program przeszuka dane i znajdzie pary:
+      WYJSCIE o 09:02 → WEJSCIE o 09:18 = przerwa 16 minut
+  4.  Kazda znaleziona przerwa pojawi sie w tabeli
+
+  Program szuka przerw trwajacych od 5 do 120 minut.
+  Krotsze niz 5 min = prawdopodobnie blad czytnika.
+  Dluzsze niz 120 min = prawdopodobnie koniec zmiany.
+
+---
+
+## Przyklad wynikow analizy przerw:
+
+  Data: 2026-02-13 (Czwartek)
+
+  ┌────────────────┬─────────┬─────────┬──────────┬─────────────────┬────────┐
+  │ PRACOWNIK      │ WYJSCIE │ WEJSCIE │ CZAS     │ PRZERWA         │ STATUS │
+  ├────────────────┼─────────┼─────────┼──────────┼─────────────────┼────────┤
+  │ Jan Kowalski   │  09:01  │  09:16  │  15 min  │ Sniadaniowa     │ 🟩 OK  │
+  │ Jan Kowalski   │  12:02  │  12:28  │  26 min  │ Obiadowa        │ 🟩 OK  │
+  │ Anna Nowak     │  09:05  │  09:25  │  20 min  │ Sniadaniowa     │ 🟨 +5  │
+  │ Piotr Lis      │  10:30  │  10:52  │  22 min  │ POZA HARMONO.   │ 🟥     │
+  │ Tomasz Bak     │  09:00  │  09:35  │  35 min  │ Sniadaniowa     │ 🟥 +20 │
+  └────────────────┴─────────┴─────────┴──────────┴─────────────────┴────────┘
+
+  Co tu widzimy?
+  - Kowalski: 2 przerwy, obie zgodne z harmonogramem ✅
+  - Nowak: przerwa sniadaniowa przedluzona o 5 min (20 zamiast 15)
+  - Lis: przerwa o 10:30 - NIE MA takiej przerwy w harmonogramie! 🟥
+  - Bak: przerwa sniadaniowa 35 min zamiast 15 - przekroczenie o 20 min!
+
+---
+
+## Statusy przerw
+
+  🟩 OK           Przerwa w harmonogramie, nie przekroczona
+  🟨 +X min       Przerwa w harmonogramie ale przedluzona o X min
+  🟥              Przerwa calkowicie poza harmonogramem
+  🟥 +X min       Przerwa w harmonogramie ale mocno przekroczona
+
+---
+
+## Filtrowanie wynikow
+
+  Zaznacz checkbox 'Tylko poza harmonogramem' aby zobaczyc
+  TYLKO problematyczne przerwy - te nieplanowane lub przekroczone.
+  Ukryje to wszystkie normalne przerwy 🟩.
+
+## Statystyki (kafelki na gorze)
+
+  W HARMONOGRAMIE      Ile przerw bylo zgodnych z planem
+  POZA HARMONOGRAMEM   Ile przerw bylo nieplanowanych
+  SREDNI CZAS          Srednia dlugosc przerwy
+  NAJDLUZSZA           Najdluzsza przerwa dnia (kto i ile)
+
+  TIP: Sprawdzaj regularne te zakladke - pomaga wykryc
+  pracownikow ktorzy regularnie przedluzaja przerwy.
+
+  TIP: Jesli widzisz duzo przerw 'poza harmonogramem', moze
+  warto dodac nowa przerwe do harmonogramu (np. przerwe na kawę).
+";
+
+        private string GetTutorialAlerty() => @"
+System alertow automatycznie wykrywa problemy i nieprawidlowosci.
+To jak alarm - informuje Cie ze cos wymaga uwagi.
+Powinienes sprawdzac alerty CODZIENNIE.
+
+## Typy alertow - co oznacza kazdy?
+
+  🔴 Przekroczenie 12h (Agencja)
+     Pracownik agencji pracowal dluzej niz 12 godzin.
+     To jest NARUSZENIE prawa pracy! Wymaga natychmiastowej reakcji.
+     Przyklad: Adam Wisniak (Adecco) - 13h 20min dnia 05.02.2026
+
+  🟠 Przekroczenie 13h (Wlasny pracownik)
+     Wlasny pracownik pracowal dluzej niz 13 godzin.
+     Moze to byc zmeczenie lub zapomniane odbicie karty.
+     Przyklad: Jan Kowalski - 13h 45min dnia 08.02.2026
+
+  ❌ Brak wyjscia
+     Pracownik odbil karte na WEJSCIU, ale NIE odbil na WYJSCIU.
+     Najczesciej: zapomnial przylozyc karte wychodzac.
+     Przyklad: Anna Nowak - brak wyjscia dnia 12.02.2026
+
+  ⏰ Spoznienie (powtarzajace sie)
+     Pracownik spoznil sie 3 lub wiecej razy w miesiacu.
+     Wymaga rozmowy z przełożonym.
+     Przyklad: Tomasz Bak - 5 spoznien w Lutym 2026
+
+---
+
+## Przyklad listy alertow:
+
+  ┌──────┬────────────────────────────────────────────────┬────────────┬────────┐
+  │ TYP  │ OPIS                                           │ DATA       │ STATUS │
+  ├──────┼────────────────────────────────────────────────┼────────────┼────────┤
+  │  🔴  │ Adam Wisniak (Adecco) - 13h20min przekroczenie │ 2026-02-05 │  NOWY  │
+  │  ❌  │ Anna Nowak - brak wyjscia                      │ 2026-02-12 │  NOWY  │
+  │  ❌  │ Piotr Lis - brak wyjscia                       │ 2026-02-12 │  NOWY  │
+  │  ⏰  │ Tomasz Bak - 5 spoznien w Lutym                │ 2026-02-13 │  NOWY  │
+  │  🟠  │ Jan Kowalski - 13h45min dlugi dzien             │ 2026-02-08 │ PRZECZYT│
+  └──────┴────────────────────────────────────────────────┴────────────┴────────┘
+
+---
+
+## Jak korzystac z alertow? - krok po kroku
+
+  1.  Otworz zakladke Alerty (lub patrz na kafelek ALERTY na Dashboard)
+  2.  Przejrzyj nowe alerty (status: NOWY)
+  3.  Rozwiaz problem (np. porozmawiaj z pracownikiem)
+  4.  Kliknij ✅ Przeczytane aby oznaczyc jako obsluzone
+  5.  Kliknij 🔄 Skanuj aby odswiezyc liste (szuka nowych alertow)
+
+---
+
+## Filtrowanie alertow
+
+  Typ alertu:       Wybierz z listy (np. tylko 'Brak wyjscia')
+  Pracownik:        Wybierz konkretna osobe
+  Nieprzeczytane:   Zaznacz aby ukryc juz obsluzone alerty
+
+  TIP: Zaznacz 'Nieprzeczytane' aby widziec TYLKO nowe problemy
+  ktore jeszcze nie zostaly obsluzone. Dzieki temu nic nie umknie.
+
+  UWAGA: Czerwone alerty 🔴 (przekroczenie 12h agencji)
+  sa NAJWAZNIEJSZE - moga oznaczac naruszenie prawa pracy!
+  Reaguj na nie w pierwszej kolejnosci!
+
+  TIP: Sprawdzaj alerty codziennie rano. Jesli na Dashboard
+  widzisz ALERTY: 0 - swietnie, nie ma problemow!
+";
+
+        private string GetTutorialFiltrowanie() => @"
+Program oferuje wiele sposobow filtrowania danych.
+Filtry sa w gornym pasku nad tabela. Mozesz je laczyc!
+
+## Filtr dat - wybierz okres
+
+  Od / Do       Wybierz zakres dat z kalendarza
+  Dzis          Szybki filtr - tylko dzisiejsze dane
+  Wczoraj       Tylko wczorajsze dane
+  Tydzien       Ostatnie 7 dni
+  Miesiac       Od 1. dnia biezacego miesiaca
+
+  Przyklad uzycia:
+  - Chcesz zobaczyc dane z dzisiaj → kliknij 'Dzis'
+  - Chcesz caly Luty → ustaw Od: 01.02.2026, Do: 28.02.2026
+  - Chcesz ostatni tydzien → kliknij 'Tydzien'
+
+  TIP: Zmiana daty automatycznie przeladowuje dane z serwera!
+  Nie musisz klikac dodatkowego przycisku.
+
+  UWAGA: Im dluzszy okres, tym wiecej danych = dluzsze ladowanie.
+  Zacznij od krotszych okresow. Caly rok moze trwac kilka sekund.
+
+---
+
+## Filtr dzialu - wybierz zespol
+
+  Rozwij liste 'Dzial' i wybierz konkretny dzial.
+  '-- Wszystkie dzialy --' pokazuje wszystkich pracownikow.
+
+  Przyklady dzialow:
+  - Produkcja       (pracownicy linii produkcyjnej)
+  - Biuro            (administracja, ksiegowosc)
+  - Mechanicy        (utrzymanie ruchu)
+  - Strefa czysta    (pakowanie, etykietowanie)
+  - Myjka            (mycie i dezynfekcja)
+
+  Przyklad: chcesz zobaczyc tylko Produkcje za dzisiaj?
+  1. Kliknij 'Dzis'
+  2. Wybierz 'Produkcja' z listy dzialow
+  3. Gotowe - widzisz tylko dane Produkcji z dzisiaj
+
+---
+
+## Wyszukiwarka - szybkie znajdowanie
+
+  Wpisz w pole 'Szukaj' dowolny tekst:
+  - Imie lub nazwisko pracownika (np. 'Kowalski')
+  - Nazwe dzialu (np. 'Produkcja')
+  - Nazwe punktu dostepu (np. 'Portiernia')
+
+  Filtrowanie dziala NA ZYWO - wyniki zmieniaja sie
+  podczas pisania. Nie musisz klikac Enter.
+
+  Przyklady wyszukiwania:
+  - Wpisz 'Kow' → wyswietli: Kowalski, Kowalczyk
+  - Wpisz 'Jan' → wyswietli: Jan Kowalski, Janina Nowak
+  - Wpisz 'Prod' → wyswietli tylko pracownikow z Produkcji
+
+  Przycisk ✕ czysci wyszukiwarke (pokazuje znow wszystko).
+
+---
+
+## Laczenie filtrow - przyklad
+
+  Scenariusz: 'Chce zobaczyc spoznienia Kowalskiego w Lutym'
+
+  1.  Ustaw Od: 01.02.2026 Do: 28.02.2026
+  2.  W pole Szukaj wpisz: Kowalski
+  3.  Przejdz do zakladki Spoznienia
+  4.  Kliknij 🔍 Wykryj
+  → Widzisz tylko spoznienia Kowalskiego w Lutym!
+
+---
+
+## Odswiezanie danych
+
+  ⟳ Odswiez     Recznie przeladuj dane z serwera
+                  (kliknij gdy chcesz najswiezsze dane)
+  Auto           Wlacz automatyczne odswiezanie co 30 sekund
+                  (idealne na monitorze dyżurnym)
+
+  TIP: Jesli dane nie laduja sie po zmianie filtrow,
+  kliknij ⟳ Odswiez recznie.
+";
+
+        private string GetTutorialEksport() => @"
+Dane mozna eksportowac do plikow CSV (otwieranych w Excelu)
+lub drukowac na papierze. Przydatne do archiwizacji i raportow.
+
+## Eksport rejestacji do CSV
+
+  1.  Ustaw filtr dat (np. caly Luty 2026)
+  2.  Opcjonalnie wybierz dzial
+  3.  Kliknij 📥 w gornym pasku filtrow
+  4.  Wybierz miejsce zapisu (domyslnie Pulpit)
+  5.  Plik zostanie zapisany jako CSV
+
+  Format pliku: Data; Godzina; Typ; Pracownik; Dzial; Punkt
+  Przyklad wiersza w pliku:
+  2026-02-13; 06:02:15; WEJSCIE; Jan Kowalski; Produkcja; Portiernia
+
+---
+
+## Eksport raportu miesiecznego
+
+  1.  Przejdz do zakladki 'Raport miesieczny'
+  2.  Wygeneruj raport (miesiac, rok, Generuj)
+  3.  Kliknij 📥 Excel
+  4.  Wybierz miejsce zapisu
+
+  Plik bedzie zawierac: Pracownik, Dzial, Dni, Godziny,
+  Nadgodziny, Braki, Uwagi
+
+---
+
+## Eksport rozliczenia agencji
+
+  1.  Przejdz do zakladki 'Agencje'
+  2.  Wygeneruj raport agencji
+  3.  Kliknij 📥 Export Excel
+  4.  Wybierz miejsce zapisu
+
+  Plik bedzie zawierac: Pracownik, Dni, Normalne, Nadgodziny,
+  Nocne, Suma godzin, Kwota do wyplaty
+
+  TIP: Ten plik mozna wyslac bezposrednio do agencji pracy
+  jako podstawe do faktury!
+
+---
+
+## Jak otworzyc plik CSV w Excelu?
+
+  Sposob 1 (prosty):
+  - Kliknij dwukrotnie na plik CSV → otworzy sie w Excelu
+
+  Sposob 2 (jesli dane sa w jednej kolumnie):
+  - Otworz Excel → Dane → Z pliku tekstowego/CSV
+  - Wybierz plik → Separator: Srednik (;) → Zaladuj
+
+  TIP: Pliki CSV uzywaja srednika (;) jako separatora
+  i kodowania UTF-8 (polskie znaki beda poprawne).
+
+---
+
+## Drukowanie raportow
+
+  W zakladce 'Raport Mies.' kliknij 🖨️ Drukuj.
+  Otworzy sie systemowe okno drukowania:
+  1.  Wybierz drukarke z listy
+  2.  Ustaw orientacje: Pozioma (lepiej dla szerokich tabel)
+  3.  Kliknij Drukuj
+
+  Raport jest sformatowany do wydruku na A4 w orientacji
+  poziomej. Zawiera naglowek z data, dzialem i okresem.
+
+  UWAGA: Przed drukowaniem upewnij sie ze raport wyglada
+  poprawnie na ekranie. Druk kosztuje papier i tusz!
+";
+
+        private string GetTutorialDiagnostyka() => @"
+Narzedzie diagnostyczne pomaga gdy program nie moze polaczyc
+sie z serwerem SQL. Uruchom je gdy widzisz bledy lub
+czerwona kropke 🔴 w stopce okna.
+
+## Kiedy uruchamic diagnostyke?
+
+  - Program pokazuje 'Brak polaczenia' w stopce
+  - Dane nie laduja sie lub sa puste
+  - Pojawia sie komunikat o bledzie SQL
+  - Chcesz sprawdzic stan serwera bazy danych
+
+## Jak uruchomic diagnostyke?
+
+  1.  Spojrz na STOPKE okna (dolny pasek)
+  2.  Kliknij ikone 🔧 (po prawej stronie tekstu statusu)
+  3.  Poczekaj az testy sie zakoncza (moze trwac 10-30 sekund)
+  4.  Otworzy sie okno z wynikami
+
+---
+
+## Co sprawdza diagnostyka? - 9 testow
+
+  TEST 1: Ping serwera
+  Sprawdza czy komputer serwera (192.168.0.23) odpowiada w sieci.
+  PASS = serwer jest wlaczony i widoczny w sieci
+  FAIL = serwer wylaczony lub problem z siecia
+
+  TEST 2: Port TCP 1433
+  Sprawdza czy SQL Server nasluchuje na standardowym porcie.
+  PASS = SQL Server jest uruchomiony i przyjmuje polaczenia
+  FAIL = SQL Server nie dziala lub port jest zablokowany
+
+  TEST 3: Polaczenie SQL
+  Probuje polaczyc sie do bazy danych z loginem i haslem.
+  PASS = polaczenie udane, baza dostepna
+  FAIL = zly login/haslo lub baza nie istnieje
+
+  TEST 4: Widoki i tabele bazy
+  Sprawdza czy tabele UNICARD (V_RCINE_EMPLOYEES itd.) istnieja.
+  PASS = struktura bazy jest poprawna
+  FAIL = baza uszkodzona lub inna wersja UNICARD
+
+  TEST 5: Licznosc danych
+  Liczy ile jest rekordow (pracownikow, rejestracji, grup).
+  Pokazuje czy baza zawiera dane.
+
+  TEST 6: Probki danych
+  Wyswietla kilka przykladowych rekordow z bazy.
+  Pomaga zweryfikowac czy dane sa sensowne.
+
+  TEST 7: Zapytania aplikacji
+  Uruchamia te same zapytania co program.
+  Jesli tu dzialaja a w programie nie → problem w kodzie.
+
+  TEST 8: Uprawnienia
+  Sprawdza czy uzytkownik SQL ma wystarczajace uprawnienia.
+
+  TEST 9: Status serwera
+  Informacje o wersji SQL Server, RAM, CPU.
+
+---
+
+## Co robic z wynikiem?
+
+  1.  Kliknij 'Kopiuj do schowka' (skopiuje caly raport)
+  2.  Otworz email lub komunikator
+  3.  Wklej raport (Ctrl+V) i wyslij do administratora IT
+  4.  Raport zawiera WSZYSTKO co IT potrzebuje do diagnozy
+
+  Mozesz tez kliknac 'Zapisz do pliku' aby zachowac raport
+  na dysku jako plik tekstowy.
+
+---
+
+## Najczescsze problemy i rozwiazania
+
+  Problem: Wszystkie testy FAIL
+  → Serwer jest wylaczony lub odlaczony od sieci
+  → Rozwiazanie: poproś IT o wlaczenie serwera
+
+  Problem: Ping OK, Port FAIL
+  → SQL Server nie dziala na serwerze
+  → Rozwiazanie: restart uslogi SQL Server na serwerze
+
+  Problem: Ping OK, Port OK, Polaczenie FAIL
+  → Zle haslo lub baza nie istnieje
+  → Rozwiazanie: sprawdzic haslo z administratorem
+
+  Problem: Polaczenie OK, ale dane FAIL
+  → Baza jest pusta lub uszkodzona
+  → Rozwiazanie: sprawdzic system UNICARD na serwerze
+
+  TIP: Najczesciej problem to wylaczony serwer lub
+  firewall blokujacy port 1433 po aktualizacji Windows.
+";
+
+        private string GetTutorialSkroty() => @"
+Porady, triki i skroty dla zaawansowanych uzytkownikow.
+Jesli juz znasz podstawy - ta sekcja pomoze Ci pracowac szybciej.
+
+## Przyciski w gornym pasku - co robi kazdy?
+
+  📖 Pomoc         Ten tutorial (wlasnie go czytasz!)
+  📊 Timeline      Wizualny harmonogram dnia na osi czasu
+                    (pokazuje pracownikow jako paski czasowe)
+  📈 Statystyki    Wykresy i analizy statystyczne
+                    (wykresy slupkowe, kolowe, trendy miesieczne)
+  💳 Karty         Zarzadzanie kartami RCP pracownikow
+                    (przypisywanie kart, blokowanie, historia)
+  🖨️ Karta RCP    Drukowanie karty czasu pracy jednego pracownika
+                    (formularz do podpisania przez pracownika)
+  ⚙️ Stawki        Ustawienia stawek godzinowych agencji
+                    (stawka normalna, nadgodziny, nocne)
+
+---
+
+## Dwuklik na wiersz tabeli - szczegoly
+
+  W wiekszosci tabel mozesz kliknac DWUKROTNIE na wiersz
+  aby zobaczyc szczegolowe informacje:
+
+  Zakladka Rejestracje     → wszystkie odbicia danego dnia
+  Zakladka Godziny pracy   → rozklad: wejscia, przerwy, wyjscia
+  Zakladka Raport mies.    → pelne dane pracownika za miesiac
+  Zakladka Ranking          → historia godzin i punktualnosci
+
+  Przyklad: dwuklik na Kowalskiego w Godzinach pracy pokaze:
+  ┌──────────┬─────────┬──────────────────────────────┐
+  │ 05:58    │ WEJSCIE │ Portiernia - czytnik glowny  │
+  │ 09:01    │ WYJSCIE │ Produkcja - czytnik WY       │
+  │ 09:16    │ WEJSCIE │ Produkcja - czytnik WE       │
+  │ 12:00    │ WYJSCIE │ Produkcja - czytnik WY       │
+  │ 12:28    │ WEJSCIE │ Produkcja - czytnik WE       │
+  │ 14:02    │ WYJSCIE │ Portiernia - czytnik glowny  │
+  └──────────┴─────────┴──────────────────────────────┘
+
+---
+
+## Kolory w tabelach - uniwersalny kod
+
+  Kolory sa takie same we WSZYSTKICH zakladkach:
+
+  🟩 Zielony tlo   = wszystko OK, norma
+  🟨 Zolty tlo     = do sprawdzenia (np. male nadgodziny)
+  🟧 Pomaranczowy  = wymaga uwagi (np. duzo nadgodzin)
+  🟥 Czerwony tlo  = PROBLEM / przekroczenie limitu
+  ⬜ Szary tlo     = brak danych lub nieaktywny
+
+  Ogolna zasada: im ciemniejszy/czerwienszy kolor,
+  tym powazniejszy problem. Zielony = spokoj.
+
+---
+
+## Najczesciej uzywane scenariusze
+
+  CODZIENNIE RANO:
+  1.  Otworz program → Dashboard
+  2.  Sprawdz ile osob jest w pracy
+  3.  Sprawdz kafelek ALERTY → jesli > 0 → otworz Alerty
+  4.  Obsluz nowe alerty (brak wyjsc, przekroczenia)
+
+  CO TYDZIEN (piatek):
+  1.  Przejdz do Agencje (tygodniowy)
+  2.  Sprawdz czy nikt nie przekroczyl 12h
+  3.  Przejrzyj spoznienia za tydzien
+
+  CO MIESIAC (ostatni dzien):
+  1.  Raport miesieczny → Generuj za caly miesiac
+  2.  Eksportuj do Excela 📥
+  3.  Agencje → Generuj rozliczenie → Eksportuj
+  4.  Ranking → sprawdz najlepszych i najgorszych
+
+---
+
+## Klawiatura
+
+  Ctrl+F       Szybkie szukanie (aktywuje pole Szukaj)
+  F5            Odswiez dane z serwera
+  Escape        Zamknij otwarte okno dialogowe
+
+  TIP: Na co dzien najwazniejsze sa Dashboard i Alerty.
+  Raporty miesieczne generuj na koniec kazdego miesiaca.
+  Raport agencji wyslij do agencji jako podstawe faktury.
+
+  TIP: Jesli masz wiele monitorow, zostaw program otwarty
+  na jednym z Dashboard i wlaczonym Auto-odswiezaniem.
+  Masz wtedy ciagle podglad na obecnosc pracownikow.
+";
+
+        #endregion
+
         #region Diagnostyka SQL
 
         private void BtnDiagnostyka_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
@@ -3339,8 +4748,8 @@ namespace Kalendarz1.KontrolaGodzin
             var window = new Window
             {
                 Title = "Diagnostyka SQL - UNICARD RCP",
-                Width = 900,
-                Height = 700,
+                Width = 950,
+                Height = 750,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 Owner = this,
                 Background = new SolidColorBrush(Color.FromRgb(26, 32, 44))
@@ -3376,6 +4785,20 @@ namespace Kalendarz1.KontrolaGodzin
             };
             Grid.SetRow(btnPanel, 1);
 
+            var btnHelp = new Button
+            {
+                Content = "Jak korzystac?",
+                Padding = new Thickness(20, 8, 20, 8),
+                Margin = new Thickness(0, 0, 8, 0),
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
+                Background = new SolidColorBrush(Color.FromRgb(237, 137, 54)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            btnHelp.Click += (s, ev) => PokazTutorial();
+
             var btnCopy = new Button
             {
                 Content = "Kopiuj do schowka",
@@ -3391,7 +4814,7 @@ namespace Kalendarz1.KontrolaGodzin
             btnCopy.Click += (s, ev) =>
             {
                 Clipboard.SetText(raport);
-                btnCopy.Content = "✅ Skopiowano!";
+                btnCopy.Content = "Skopiowano!";
                 var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
                 timer.Tick += (t, te) => { btnCopy.Content = "Kopiuj do schowka"; timer.Stop(); };
                 timer.Start();
@@ -3418,7 +4841,7 @@ namespace Kalendarz1.KontrolaGodzin
                 if (dlg.ShowDialog() == true)
                 {
                     File.WriteAllText(dlg.FileName, raport, Encoding.UTF8);
-                    btnSave.Content = "✅ Zapisano!";
+                    btnSave.Content = "Zapisano!";
                     var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
                     timer.Tick += (t, te) => { btnSave.Content = "Zapisz do pliku"; timer.Stop(); };
                     timer.Start();
@@ -3437,6 +4860,7 @@ namespace Kalendarz1.KontrolaGodzin
             };
             btnClose.Click += (s, ev) => window.Close();
 
+            btnPanel.Children.Add(btnHelp);
             btnPanel.Children.Add(btnCopy);
             btnPanel.Children.Add(btnSave);
             btnPanel.Children.Add(btnClose);
@@ -3444,6 +4868,399 @@ namespace Kalendarz1.KontrolaGodzin
 
             window.Content = grid;
             window.ShowDialog();
+        }
+
+        private void PokazTutorial()
+        {
+            var tutorial = new StringBuilder();
+            tutorial.AppendLine("╔══════════════════════════════════════════════════════════════════════════════╗");
+            tutorial.AppendLine("║              TUTORIAL - DIAGNOSTYKA SQL UNICARD RCP                        ║");
+            tutorial.AppendLine("║              Jak czytac raport i rozwiazywac problemy                      ║");
+            tutorial.AppendLine("╚══════════════════════════════════════════════════════════════════════════════╝");
+            tutorial.AppendLine();
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine("  CO TO JEST?");
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  Diagnostyka sprawdza polaczenie miedzy Twoja aplikacja a serwerem");
+            tutorial.AppendLine("  SQL Server z systemem UNICARD RCP (rejestracja czasu pracy).");
+            tutorial.AppendLine("  Serwer: 192.168.0.23\\SQLEXPRESS, baza: UNISYSTEM");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  Ikona w raporcie:  PASS = test przeszedl pomyslnie");
+            tutorial.AppendLine("                     FAIL = test nie przeszedl - wymaga naprawy");
+            tutorial.AppendLine("                     SKIP/brak = test pominiety (nieistotny)");
+            tutorial.AppendLine();
+            tutorial.AppendLine();
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine("  NAGLOWEK RAPORTU");
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  Pokazuje informacje o Twoim komputerze i ustawieniach polaczenia:");
+            tutorial.AppendLine("  - Komputer / Uzytkownik   → nazwa Twojego PC i login Windows");
+            tutorial.AppendLine("  - .NET Runtime            → wersja srodowiska (wymagane 8.0+)");
+            tutorial.AppendLine("  - App UserID / UserName   → zalogowany uzytkownik w aplikacji");
+            tutorial.AppendLine("  - Connection String       → dane polaczenia (serwer, baza, login)");
+            tutorial.AppendLine("    UWAGA: Haslo jest ukryte gwiazdkami - to normalne.");
+            tutorial.AppendLine();
+            tutorial.AppendLine();
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine("  TEST 1: PING SERWERA");
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  Sprawdza czy serwer 192.168.0.23 odpowiada w sieci.");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  PASS → Serwer jest dostepny, wyswietla czas odpowiedzi (np. 2ms).");
+            tutorial.AppendLine("         Dobry czas: <5ms (siec lokalna), <50ms (VPN).");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  FAIL (TimedOut) → Serwer nie odpowiada. Mozliwe przyczyny:");
+            tutorial.AppendLine("    1. Serwer jest wylaczony → wlacz go fizycznie");
+            tutorial.AppendLine("    2. Kabel sieciowy odlaczony → sprawdz kabel / Wi-Fi na serwerze");
+            tutorial.AppendLine("    3. Serwer zmienil IP → sprawdz IP: na serwerze cmd → ipconfig");
+            tutorial.AppendLine("    4. Firewall blokuje ICMP → na serwerze wylacz blokade pinga:");
+            tutorial.AppendLine("       netsh advfirewall firewall add rule name=\"Ping\"");
+            tutorial.AppendLine("         dir=in action=allow protocol=icmpv4");
+            tutorial.AppendLine("    5. Jestes w innej sieci (np. VPN) → polacz sie z siecia firmowa");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  SKIP → Ping niedostepny - nieistotne, przejdz do testu 2.");
+            tutorial.AppendLine();
+            tutorial.AppendLine();
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine("  TEST 2: PORT TCP 1433");
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  Sprawdza czy SQL Server nasluchuje na porcie 1433 (standardowy port SQL).");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  PASS → Port otwarty, SQL Server przyjmuje polaczenia.");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  FAIL (timeout) → Port zamkniety. Mozliwe przyczyny:");
+            tutorial.AppendLine("    1. SQL Server nie nasluchuje na TCP/IP → na serwerze:");
+            tutorial.AppendLine("       a) Otworz SQL Server Configuration Manager");
+            tutorial.AppendLine("          (Win+R → SQLServerManager15.msc)");
+            tutorial.AppendLine("       b) SQL Server Network Configuration → Protocols for SQLEXPRESS");
+            tutorial.AppendLine("       c) TCP/IP → prawy klik → Enable");
+            tutorial.AppendLine("       d) Dwuklik TCP/IP → IP Addresses → IPAll:");
+            tutorial.AppendLine("          TCP Dynamic Ports = (puste)");
+            tutorial.AppendLine("          TCP Port = 1433");
+            tutorial.AppendLine("       e) Zrestartuj SQL Server:");
+            tutorial.AppendLine("          net stop \"SQL Server (SQLEXPRESS)\"");
+            tutorial.AppendLine("          net start \"SQL Server (SQLEXPRESS)\"");
+            tutorial.AppendLine();
+            tutorial.AppendLine("    2. Firewall blokuje port → na serwerze (cmd jako Administrator):");
+            tutorial.AppendLine("       netsh advfirewall firewall add rule name=\"SQL Server 1433\"");
+            tutorial.AppendLine("         dir=in action=allow protocol=tcp localport=1433");
+            tutorial.AppendLine("       netsh advfirewall firewall add rule name=\"SQL Server Browser\"");
+            tutorial.AppendLine("         dir=in action=allow protocol=udp localport=1434");
+            tutorial.AppendLine();
+            tutorial.AppendLine("    3. SQL Server Browser nie dziala (potrzebny dla \\SQLEXPRESS):");
+            tutorial.AppendLine("       net start \"SQL Server Browser\"");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  Po naprawie sprawdz na serwerze:");
+            tutorial.AppendLine("    netstat -an | findstr 1433");
+            tutorial.AppendLine("  Powinno pokazac: 0.0.0.0:1433  LISTENING");
+            tutorial.AppendLine();
+            tutorial.AppendLine();
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine("  TEST 3: POLACZENIE SQL");
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  Probuje zalogowac sie do SQL Server uzywajac danych z Connection String.");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  PASS → Polaczenie udane. Wyswietla:");
+            tutorial.AppendLine("    - SQL Server wersja   → np. 15.0.2000.5 (SQL Server 2019)");
+            tutorial.AppendLine("    - Edition             → Express, Standard, Enterprise");
+            tutorial.AppendLine("    - SQL User             → kto jest zalogowany (sa)");
+            tutorial.AppendLine("    Czas polaczenia <100ms = OK, >500ms = wolna siec");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  FAIL → Blad logowania. Najczestsze bledy:");
+            tutorial.AppendLine();
+            tutorial.AppendLine("    Error 18456 (Login failed):");
+            tutorial.AppendLine("      → Zle haslo lub login. Sprawdz haslo w SSMS.");
+            tutorial.AppendLine("      → SQL Server moze nie miec wlaczonego 'SQL Server Authentication'");
+            tutorial.AppendLine("        W SSMS: prawy klik na serwer → Properties → Security");
+            tutorial.AppendLine("        → zaznacz 'SQL Server and Windows Authentication mode'");
+            tutorial.AppendLine();
+            tutorial.AppendLine("    Error 26 (Error Locating Server/Instance):");
+            tutorial.AppendLine("      → SQL Server Browser nie dziala. Uruchom:");
+            tutorial.AppendLine("        net start \"SQL Server Browser\"");
+            tutorial.AppendLine("      → Lub zla nazwa instancji (nie SQLEXPRESS a inna).");
+            tutorial.AppendLine("        Sprawdz w services.msc jaka instancja jest zainstalowana.");
+            tutorial.AppendLine();
+            tutorial.AppendLine("    Error -1 (network-related):");
+            tutorial.AppendLine("      → Serwer niedostepny - wroc do testow 1 i 2.");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  UWAGA: Jezeli test 3 FAIL, diagnostyka zostaje przerwana.");
+            tutorial.AppendLine("  Napierw napraw polaczenie, potem uruchom diagnostyke ponownie.");
+            tutorial.AppendLine();
+            tutorial.AppendLine();
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine("  TEST 4: WIDOKI I TABELE");
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  Sprawdza czy wymagane widoki/tabele istnieja w bazie UNISYSTEM.");
+            tutorial.AppendLine("  Dla kazdego widoku wyswietla liste kolumn z typami danych.");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  Wymagane widoki:");
+            tutorial.AppendLine("  ┌──────────────────────────────────┬──────────────────────────────┐");
+            tutorial.AppendLine("  │ Widok                            │ Do czego sluzy               │");
+            tutorial.AppendLine("  ├──────────────────────────────────┼──────────────────────────────┤");
+            tutorial.AppendLine("  │ V_RCINEG_EMPLOYEES_GROUPS        │ Dzialy / grupy pracownikow   │");
+            tutorial.AppendLine("  │ V_RCINE_EMPLOYEES                │ Lista pracownikow            │");
+            tutorial.AppendLine("  │ V_KDINAR_ALL_REGISTRATIONS       │ Rejestracje wejsc/wyjsc      │");
+            tutorial.AppendLine("  │ V_KDINEC_EMPLOYEES_CARDS         │ Przypisane karty RCP         │");
+            tutorial.AppendLine("  │ T_KDCAC_CARDS                    │ Tabela kart (fizyczne karty) │");
+            tutorial.AppendLine("  └──────────────────────────────────┴──────────────────────────────┘");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  PASS → Widok istnieje. Lista kolumn z przykladowymi wartosciami:");
+            tutorial.AppendLine("    [ 0] RCINE_EMPLOYEE_ID    int     (.NET: Int32) = 1234");
+            tutorial.AppendLine("    ─── numer ──────────────── typ SQL ── typ .NET ─── wartosc ──");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  FAIL → Widok nie istnieje lub brak uprawnien.");
+            tutorial.AppendLine("    → Sprawdz w SSMS czy widok istnieje w bazie UNISYSTEM.");
+            tutorial.AppendLine("    → Moze trzeba przeinstalowac/zaktualizowac UNICARD.");
+            tutorial.AppendLine();
+            tutorial.AppendLine();
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine("  TEST 5: LICZNOSC DANYCH");
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  Zlicza rekordy w kazdym widoku. Pomaga sprawdzic czy sa dane.");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  Grupy (unikalne)          = ile jest dzialow (np. 15)");
+            tutorial.AppendLine("  Pracownicy (typ=1)        = ile aktywnych pracownikow (np. 200)");
+            tutorial.AppendLine("  Rejestracje (dzis)        = ile rejestacji dzisiaj (np. 350)");
+            tutorial.AppendLine("  Rejestracje (wczoraj)     = ile rejestacji wczoraj");
+            tutorial.AppendLine("  Rejestracje (ten miesiac) = ile rejestacji w tym miesiacu");
+            tutorial.AppendLine("  Rejestracje (ogolem)      = ile rekordow w calej bazie");
+            tutorial.AppendLine("  Karty (aktywne)            = ile kart jest aktualnie przypisanych");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  Jesli 'Rejestracje (dzis) = 0' ale jest dzien roboczy:");
+            tutorial.AppendLine("    → Czytniki RCP moga nie dzialac lub nie przesylac danych.");
+            tutorial.AppendLine("    → Sprawdz w SSMS ostatnia rejestracje:");
+            tutorial.AppendLine("      SELECT TOP 5 * FROM V_KDINAR_ALL_REGISTRATIONS");
+            tutorial.AppendLine("      ORDER BY KDINAR_REGISTRTN_DATETIME DESC");
+            tutorial.AppendLine();
+            tutorial.AppendLine();
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine("  TEST 6: PROBKA REJESTRACJI");
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  Wyswietla 5 ostatnich rejestracji z pelnym zrzutem kolumn.");
+            tutorial.AppendLine("  Kazda kolumna pokazuje:");
+            tutorial.AppendLine("    NAZWA_KOLUMNY    [typ_sql → typ_.NET]  = wartosc");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  Wazne kolumny do sprawdzenia:");
+            tutorial.AppendLine("  - KDINAR_REGISTRTN_TYPE → typ rejestracji.");
+            tutorial.AppendLine("    Moze byc int (0/1) lub string ('WEJSCIE'/'WYJSCIE').");
+            tutorial.AppendLine("    Aplikacja obsluguje oba formaty.");
+            tutorial.AppendLine("  - KDINAR_REGISTRTN_DATETIME → data/godzina rejestracji.");
+            tutorial.AppendLine("    Sprawdz czy daty sa aktualne (a nie np. sprzed roku).");
+            tutorial.AppendLine("  - KDINAR_ACCESS_POINT_NAME → nazwa punktu dostepu (czytnika).");
+            tutorial.AppendLine("    Jesli zawiera 'WE' = wejscie, 'WY' = wyjscie.");
+            tutorial.AppendLine();
+            tutorial.AppendLine();
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine("  TEST 7: PROBKA PRACOWNIKOW");
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  Wyswietla 3 pierwszych pracownikow (typ=1 = aktywni).");
+            tutorial.AppendLine("  Sprawdz czy imiona i nazwiska sie wyswietlaja poprawnie.");
+            tutorial.AppendLine("  Jesli widac 'krzaczki' → problem z kodowaniem znakow (collation).");
+            tutorial.AppendLine();
+            tutorial.AppendLine();
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine("  TEST 8: ZAPYTANIA APLIKACJI");
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  Testuje dokladnie te same zapytania SQL co aplikacja:");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  [LoadGrupy]        → laduje dzialy do filtra 'Grupa/Dzial'");
+            tutorial.AppendLine("  [LoadPracownicy]   → laduje liste pracownikow do comboboxow");
+            tutorial.AppendLine("  [LoadAllData]       → laduje rejestracje wejsc/wyjsc (glowne dane)");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  Jezeli ktorykolwiek FAIL → to jest dokladna przyczyna bledu w aplikacji!");
+            tutorial.AppendLine("  Tresc bledu powie co jest nie tak (zla kolumna, brak uprawnien itp.).");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  [Opcjonalne kolumny] → sprawdza dodatkowe kolumny w V_KDINAR:");
+            tutorial.AppendLine("    - KDINAR_CARD_NUMBER    = numer karty RCP");
+            tutorial.AppendLine("    - KDINAR_DEVICE_NAME     = nazwa urzadzenia (czytnika)");
+            tutorial.AppendLine("    - KDINAR_REGISTRTN_MODE  = tryb rejestracji");
+            tutorial.AppendLine("    Te kolumny NIE SA WYMAGANE - aplikacja dziala bez nich.");
+            tutorial.AppendLine("    Jesli widac 'NIE ISTNIEJE' - to normalne, nie jest to blad.");
+            tutorial.AppendLine();
+            tutorial.AppendLine();
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine("  TEST 9: UPRAWNIENIA SQL");
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  Sprawdza uprawnienia zalogowanego uzytkownika SQL (sa).");
+            tutorial.AppendLine("  - sysadmin: TAK  → pelne uprawnienia (prawidlowe dla 'sa')");
+            tutorial.AppendLine("  - sysadmin: NIE  → ograniczone uprawnienia");
+            tutorial.AppendLine("    Moze powodowac problemy z odczytem niektorych widokow.");
+            tutorial.AppendLine("    Rozwiazanie: w SSMS dodaj uzytkownika do roli sysadmin");
+            tutorial.AppendLine("    lub nadaj uprawnienia SELECT do widokow UNICARD.");
+            tutorial.AppendLine();
+            tutorial.AppendLine();
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine("  TEST 10: STATUS SERWERA");
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  Informacje o serwerze SQL:");
+            tutorial.AppendLine("  - Aktywne sesje    → ile polaczen jest aktualnie (np. 15)");
+            tutorial.AppendLine("  - SQL uruchomiony  → kiedy ostatnio restartowano SQL Server");
+            tutorial.AppendLine("  - RAM serwera      → ile pamieci ma serwer");
+            tutorial.AppendLine("  - Rozmiar bazy     → ile wazy baza UNISYSTEM w MB");
+            tutorial.AppendLine();
+            tutorial.AppendLine();
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine("  STAN APLIKACJI (pamiec)");
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  Ile danych jest aktualnie zaladowanych w pamieci aplikacji:");
+            tutorial.AppendLine("  - Grupy zaladowane       → powinno byc >0 (np. 15)");
+            tutorial.AppendLine("  - Pracownicy zaladowani  → powinno byc >0 (np. 200)");
+            tutorial.AppendLine("  - Rejestracje w pamieci  → zalezy od wybranego zakresu dat");
+            tutorial.AppendLine("  Jesli wszystkie = 0, dane nie zostaly zaladowane (blad na starcie).");
+            tutorial.AppendLine();
+            tutorial.AppendLine();
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine("  PODSUMOWANIE WYNIKOW");
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  Na koncu raportu jest podsumowanie:");
+            tutorial.AppendLine("    X PASS / Y FAIL");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  WSZYSTKO OK     → wszystkie testy przeszly, system dziala prawidlowo.");
+            tutorial.AppendLine("  WYKRYTO PROBLEMY → sa bledy - przejrzyj testy oznaczone FAIL.");
+            tutorial.AppendLine();
+            tutorial.AppendLine();
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine("  NAJCZESTSZE PROBLEMY I ROZWIAZANIA");
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  PROBLEM: Ping FAIL, Port FAIL, Polaczenie FAIL");
+            tutorial.AppendLine("  ─────────────────────────────────────────────────");
+            tutorial.AppendLine("  Serwer jest niedostepny w sieci.");
+            tutorial.AppendLine("  → Sprawdz czy serwer jest wlaczony");
+            tutorial.AppendLine("  → Sprawdz kabel sieciowy / Wi-Fi");
+            tutorial.AppendLine("  → Sprawdz czy jestes w tej samej sieci (192.168.0.x)");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  PROBLEM: Ping PASS, Port FAIL");
+            tutorial.AppendLine("  ──────────────────────────────");
+            tutorial.AppendLine("  Serwer dziala, ale SQL Server nie nasluchuje lub firewall blokuje.");
+            tutorial.AppendLine("  → Na serwerze wlacz TCP/IP w SQL Server Configuration Manager");
+            tutorial.AppendLine("  → Otworz port 1433 w firewallu (patrz TEST 2 powyzej)");
+            tutorial.AppendLine("  → Uruchom SQL Server Browser");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  PROBLEM: Ping PASS, Port PASS, Polaczenie FAIL (Error 18456)");
+            tutorial.AppendLine("  ──────────────────────────────────────────────────────────────");
+            tutorial.AppendLine("  Zle haslo lub login do SQL Server.");
+            tutorial.AppendLine("  → Sprawdz haslo w SSMS (SQL Server Management Studio)");
+            tutorial.AppendLine("  → Sprawdz czy SQL Authentication jest wlaczone");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  PROBLEM: Polaczenie PASS, ale Widoki FAIL");
+            tutorial.AppendLine("  ──────────────────────────────────────────");
+            tutorial.AppendLine("  Baza dziala, ale brakuje widokow UNICARD.");
+            tutorial.AppendLine("  → UNICARD moze nie byc zainstalowany na tej bazie");
+            tutorial.AppendLine("  → Sprawdz nazwe bazy (UNISYSTEM) - moze byc inna");
+            tutorial.AppendLine("  → Skontaktuj sie z dostawca UNICARD");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  PROBLEM: Wszystko PASS, ale 'Rejestracje dzis = 0'");
+            tutorial.AppendLine("  ─────────────────────────────────────────────────────");
+            tutorial.AppendLine("  Baza dziala, ale czytniki RCP nie przesylaja danych.");
+            tutorial.AppendLine("  → Sprawdz czy czytniki sa wlaczone i podlaczone do sieci");
+            tutorial.AppendLine("  → Sprawdz serwis UNICARD na serwerze (uslugi)");
+            tutorial.AppendLine("  → Sprawdz ostatnia date rejestracji w sekcji 'Probka rejestracji'");
+            tutorial.AppendLine();
+            tutorial.AppendLine();
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine("  JAK UZYSKAC POMOC");
+            tutorial.AppendLine("══════════════════════════════════════════════════════════════════════════════");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  1. Kliknij 'Kopiuj do schowka' w oknie diagnostyki");
+            tutorial.AppendLine("  2. Wklej raport do maila lub komunikatora");
+            tutorial.AppendLine("  3. Wyslij do administratora IT lub dostawcy UNICARD");
+            tutorial.AppendLine("  4. Raport zawiera wszystkie potrzebne informacje do diagnozy");
+            tutorial.AppendLine();
+            tutorial.AppendLine("  Mozesz tez kliknac 'Zapisz do pliku' aby zachowac raport jako .txt");
+            tutorial.AppendLine();
+
+            var helpWindow = new Window
+            {
+                Title = "Jak korzystac z diagnostyki SQL",
+                Width = 900,
+                Height = 750,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Background = new SolidColorBrush(Color.FromRgb(26, 32, 44))
+            };
+            WindowIconHelper.SetIcon(helpWindow);
+
+            var helpGrid = new Grid();
+            helpGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            helpGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var helpText = new TextBox
+            {
+                Text = tutorial.ToString(),
+                IsReadOnly = true,
+                FontFamily = new FontFamily("Consolas"),
+                FontSize = 12,
+                Background = new SolidColorBrush(Color.FromRgb(26, 32, 44)),
+                Foreground = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(16),
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                TextWrapping = TextWrapping.NoWrap
+            };
+            Grid.SetRow(helpText, 0);
+            helpGrid.Children.Add(helpText);
+
+            var helpBtnPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(16, 10, 16, 10)
+            };
+            Grid.SetRow(helpBtnPanel, 1);
+
+            var btnCopyHelp = new Button
+            {
+                Content = "Kopiuj tutorial",
+                Padding = new Thickness(20, 8, 20, 8),
+                Margin = new Thickness(0, 0, 8, 0),
+                FontSize = 13,
+                Background = new SolidColorBrush(Color.FromRgb(66, 153, 225)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            btnCopyHelp.Click += (s2, ev2) =>
+            {
+                Clipboard.SetText(tutorial.ToString());
+                btnCopyHelp.Content = "Skopiowano!";
+                var t2 = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+                t2.Tick += (t3, te3) => { btnCopyHelp.Content = "Kopiuj tutorial"; t2.Stop(); };
+                t2.Start();
+            };
+
+            var btnCloseHelp = new Button
+            {
+                Content = "Zamknij",
+                Padding = new Thickness(20, 8, 20, 8),
+                FontSize = 13,
+                Background = new SolidColorBrush(Color.FromRgb(113, 128, 150)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            btnCloseHelp.Click += (s2, ev2) => helpWindow.Close();
+
+            helpBtnPanel.Children.Add(btnCopyHelp);
+            helpBtnPanel.Children.Add(btnCloseHelp);
+            helpGrid.Children.Add(helpBtnPanel);
+
+            helpWindow.Content = helpGrid;
+            helpWindow.ShowDialog();
         }
 
         #endregion

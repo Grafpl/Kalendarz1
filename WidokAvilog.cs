@@ -69,7 +69,6 @@ namespace Kalendarz1
             // Auto-focus na pierwszy DateTimePicker po załadowaniu okna
             this.Shown += (s, e) => {
                 poczatekUslugiData.Focus();
-                SendKeys.Send("{HOME}"); // Upewnij się że zaznaczamy godziny
             };
 
             // Obsługa zmiany netto - pokaż różnicę

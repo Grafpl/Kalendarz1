@@ -74,10 +74,16 @@ namespace Kalendarz1.Transport.Formularze
         // Dane
         private List<Kurs> _kursy;
         private Dictionary<long, WynikPakowania> _wypelnienia;
+        private Timer _autoRefreshTimer;
+        private bool _isRefreshing;
 
         // Cache klientów dla szybszego ładowania
         private static Dictionary<int, string> _klienciCache = new Dictionary<int, string>();
         private static DateTime _klienciCacheTime = DateTime.MinValue;
+
+        // Cache użytkowników (userId → fullName) i avatarów
+        private Dictionary<string, string> _userNameCache = new Dictionary<string, string>();
+        private Dictionary<string, Image> _avatarCache = new Dictionary<string, Image>();
 
         public TransportMainFormImproved(TransportRepozytorium repozytorium, string uzytkownik = null)
         {
@@ -94,8 +100,29 @@ namespace Kalendarz1.Transport.Formularze
 
             this.Load += async (s, e) =>
             {
-                // NIE wywołuj UpdateSummary tutaj - niech LoadKursyAsync to zrobi
                 await LoadInitialDataAsync();
+
+                // Auto-odświeżanie co 30 sekund
+                _autoRefreshTimer = new Timer { Interval = 30000 };
+                _autoRefreshTimer.Tick += async (ts, te) =>
+                {
+                    if (_isRefreshing) return;
+                    _isRefreshing = true;
+                    try { await LoadKursyAsync(); }
+                    catch { }
+                    finally { _isRefreshing = false; }
+                };
+                _autoRefreshTimer.Start();
+            };
+
+            this.FormClosed += (s, e) =>
+            {
+                _autoRefreshTimer?.Stop();
+                _autoRefreshTimer?.Dispose();
+                // Zwolnij cache avatarów
+                foreach (var img in _avatarCache.Values)
+                    img?.Dispose();
+                _avatarCache.Clear();
             };
         }
 
@@ -137,9 +164,9 @@ namespace Kalendarz1.Transport.Formularze
             };
 
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 80));  // Header
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 46));  // Filters - kompaktowe
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));  // Filters
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // Content + Side panel
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 90));  // Summary - karty
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 110));  // Summary - karty
 
             // Panel środkowy z dwoma kolumnami
             var contentWrapper = new TableLayoutPanel
@@ -150,8 +177,8 @@ namespace Kalendarz1.Transport.Formularze
                 Margin = new Padding(0),
                 Padding = new Padding(0)
             };
-            contentWrapper.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 70));  // Kursy
-            contentWrapper.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30));  // Wolne zamówienia
+            contentWrapper.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 65));  // Kursy
+            contentWrapper.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35));  // Wolne zamówienia
 
             contentWrapper.Controls.Add(panelContent, 0, 0);
             contentWrapper.Controls.Add(panelWolneZamowienia, 1, 0);
@@ -242,43 +269,52 @@ namespace Kalendarz1.Transport.Formularze
                 Anchor = AnchorStyles.Top | AnchorStyles.Right
             };
 
-            btnNowyKurs = CreateActionButton("NOWY KURS", Color.FromArgb(40, 167, 69), 120);
+            // Grupa 1: Akcje na kursach (niebieski)
+            var colorAkcje = Color.FromArgb(52, 119, 219);
+            btnNowyKurs = CreateActionButton("+ NOWY KURS", colorAkcje, 130);
             btnNowyKurs.Click += BtnNowyKurs_Click;
 
-            btnEdytuj = CreateActionButton("EDYTUJ", Color.FromArgb(255, 193, 7), 100);
+            btnEdytuj = CreateActionButton("✏ EDYTUJ", ControlPaint.Light(colorAkcje, 0.15f), 100);
             btnEdytuj.Click += BtnEdytujKurs_Click;
 
-            btnKopiuj = CreateActionButton("KOPIUJ", Color.FromArgb(108, 117, 125), 100);
+            btnKopiuj = CreateActionButton("⧉ KOPIUJ", ControlPaint.Light(colorAkcje, 0.25f), 100);
             btnKopiuj.Click += BtnKopiujKurs_Click;
 
-            btnUsun = CreateActionButton("USUŃ", Color.FromArgb(220, 53, 69), 80);
+            btnUsun = CreateActionButton("✕ USUŃ", Color.FromArgb(220, 53, 69), 80);
             btnUsun.Click += BtnUsunKurs_Click;
 
-            // NOWY PRZYCISK RAPORT
-            var btnRaport = CreateActionButton("RAPORT", Color.FromArgb(155, 89, 182), 100);
+            // Separator 1
+            var sep1 = new Panel { Width = 2, Height = 30, BackColor = Color.FromArgb(70, 75, 85), Margin = new Padding(8, 10, 8, 2) };
+
+            // Grupa 2: Widoki/Raporty (fioletowy)
+            var colorWidoki = Color.FromArgb(126, 87, 194);
+            var btnRaport = CreateActionButton("📊 RAPORT", colorWidoki, 110);
             btnRaport.Click += BtnRaport_Click;
 
-            // PRZYCISK STATYSTYKI
-            var btnStatystyki = CreateActionButton("STATYSTYKI", Color.FromArgb(26, 188, 156), 110);
+            var btnStatystyki = CreateActionButton("📈 STATYSTYKI", ControlPaint.Light(colorWidoki, 0.12f), 120);
             btnStatystyki.Click += BtnStatystyki_Click;
 
-            btnMapa = CreateActionButton("MAPA", Color.FromArgb(156, 39, 176), 80);
+            btnMapa = CreateActionButton("🗺 MAPA", ControlPaint.Light(colorWidoki, 0.25f), 85);
             btnMapa.Click += BtnMapa_Click;
 
-            btnKierowcy = CreateActionButton("KIEROWCY", Color.FromArgb(52, 73, 94), 100);
+            // Separator 2
+            var sep2 = new Panel { Width = 2, Height = 30, BackColor = Color.FromArgb(70, 75, 85), Margin = new Padding(8, 10, 8, 2) };
+
+            // Grupa 3: Zasoby (ciemny szary)
+            var colorZasoby = Color.FromArgb(75, 85, 99);
+            btnKierowcy = CreateActionButton("KIEROWCY", colorZasoby, 100);
             btnKierowcy.Click += SafeBtnKierowcy_Click;
 
-            btnPojazdy = CreateActionButton("POJAZDY", Color.FromArgb(52, 73, 94), 100);
+            btnPojazdy = CreateActionButton("POJAZDY", colorZasoby, 100);
             btnPojazdy.Click += SafeBtnPojazdy_Click;
 
-            // Przycisk szybkiego przypisania kierowcy/pojazdu - pomarańczowy
-            btnPrzydziel = CreateActionButton("⚡ PRZYDZIEL", Color.FromArgb(230, 126, 34), 120);
+            btnPrzydziel = CreateActionButton("⚡ PRZYDZIEL", Color.FromArgb(217, 119, 6), 120);
             btnPrzydziel.Click += BtnPrzydziel_Click;
-            btnPrzydziel.Enabled = false; // Aktywowany gdy wybrany kurs wymaga przypisania
+            btnPrzydziel.Enabled = false;
 
-            // Dodanie wszystkich przycisków do panelu
+            // Dodanie wszystkich przycisków z separatorami (RightToLeft)
             panelButtons.Controls.AddRange(new Control[] {
-                btnUsun, btnKopiuj, btnMapa, btnStatystyki, btnRaport, btnKierowcy, btnPojazdy, btnPrzydziel, btnEdytuj, btnNowyKurs
+                btnUsun, btnKopiuj, sep1, btnMapa, btnStatystyki, btnRaport, sep2, btnKierowcy, btnPojazdy, btnPrzydziel, btnEdytuj, btnNowyKurs
             });
 
             panelHeader.Controls.Add(panelDate);
@@ -486,7 +522,16 @@ namespace Kalendarz1.Transport.Formularze
                 Margin = new Padding(0, 6, 8, 0)
             };
 
-            // Filtr kierowcy - bez etykiety, z placeholder
+            // Etykiety filtrów
+            var lblFiltrKierowca = new Label
+            {
+                Text = "Kierowca:",
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(75, 85, 99),
+                AutoSize = true,
+                Margin = new Padding(0, 12, 2, 0)
+            };
+
             cboFiltrKierowca = new ComboBox
             {
                 Width = 170,
@@ -497,7 +542,15 @@ namespace Kalendarz1.Transport.Formularze
             };
             cboFiltrKierowca.SelectedIndexChanged += FiltrChanged;
 
-            // Filtr pojazdu
+            var lblFiltrPojazd = new Label
+            {
+                Text = "Pojazd:",
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(75, 85, 99),
+                AutoSize = true,
+                Margin = new Padding(0, 12, 2, 0)
+            };
+
             cboFiltrPojazd = new ComboBox
             {
                 Width = 140,
@@ -508,7 +561,15 @@ namespace Kalendarz1.Transport.Formularze
             };
             cboFiltrPojazd.SelectedIndexChanged += FiltrChanged;
 
-            // Filtr statusu
+            var lblFiltrStatus = new Label
+            {
+                Text = "Status:",
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(75, 85, 99),
+                AutoSize = true,
+                Margin = new Padding(0, 12, 2, 0)
+            };
+
             cboFiltrStatus = new ComboBox
             {
                 Width = 120,
@@ -545,7 +606,7 @@ namespace Kalendarz1.Transport.Formularze
             btnWyczyscFiltry.Click += BtnWyczyscFiltry_Click;
 
             flowLayout.Controls.AddRange(new Control[] {
-                lblIkona, cboFiltrKierowca, cboFiltrPojazd, cboFiltrStatus, btnWyczyscFiltry
+                lblIkona, lblFiltrKierowca, cboFiltrKierowca, lblFiltrPojazd, cboFiltrPojazd, lblFiltrStatus, cboFiltrStatus, btnWyczyscFiltry
             });
 
             panelFilters.Controls.Add(flowLayout);
@@ -616,10 +677,11 @@ namespace Kalendarz1.Transport.Formularze
             dgvKursy.DefaultCellStyle.SelectionBackColor = Color.FromArgb(52, 152, 219);
             dgvKursy.DefaultCellStyle.SelectionForeColor = Color.White;
             dgvKursy.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(252, 252, 254);
-            dgvKursy.RowTemplate.Height = 42;
+            dgvKursy.RowTemplate.Height = 46;
             dgvKursy.GridColor = Color.FromArgb(240, 242, 246);
 
             dgvKursy.CellFormatting += DgvKursy_CellFormatting;
+            dgvKursy.CellPainting += DgvKursy_CellPainting;
             dgvKursy.CellDoubleClick += (s, e) => BtnEdytujKurs_Click(s, e);
             dgvKursy.SelectionChanged += DgvKursy_SelectionChanged;
             dgvKursy.MouseClick += DgvKursy_MouseClick;
@@ -731,13 +793,13 @@ namespace Kalendarz1.Transport.Formularze
             dgvWolneZamowienia.EnableHeadersVisualStyles = false;
             dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(245, 247, 250);
             dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(100, 100, 120);
-            dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
+            dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
             dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.Padding = new Padding(4, 6, 4, 6);
-            dgvWolneZamowienia.ColumnHeadersHeight = 28;
+            dgvWolneZamowienia.ColumnHeadersHeight = 30;
             dgvWolneZamowienia.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None;
             dgvWolneZamowienia.DefaultCellStyle.Font = new Font("Segoe UI", 8.5F);
             dgvWolneZamowienia.DefaultCellStyle.Padding = new Padding(4, 2, 4, 2);
-            dgvWolneZamowienia.DefaultCellStyle.SelectionBackColor = Color.FromArgb(155, 89, 182);
+            dgvWolneZamowienia.DefaultCellStyle.SelectionBackColor = Color.FromArgb(52, 152, 219);
             dgvWolneZamowienia.DefaultCellStyle.SelectionForeColor = Color.White;
             dgvWolneZamowienia.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(250, 250, 252);
             dgvWolneZamowienia.RowTemplate.Height = 26;
@@ -765,7 +827,7 @@ namespace Kalendarz1.Transport.Formularze
             {
                 Dock = DockStyle.Fill,
                 BackColor = Color.FromArgb(38, 42, 50),
-                Padding = new Padding(20, 10, 20, 10)
+                Padding = new Padding(20, 12, 20, 12)
             };
 
             // Górna linia dekoracyjna
@@ -809,9 +871,9 @@ namespace Kalendarz1.Transport.Formularze
         {
             var card = new Panel
             {
-                Size = new Size(180, 70),
+                Size = new Size(220, 70),
                 BackColor = Color.FromArgb(48, 52, 60),
-                Margin = new Padding(0, 0, 15, 0)
+                Margin = new Padding(0, 0, 20, 0)
             };
 
             // Lewa linia akcentu
@@ -826,19 +888,19 @@ namespace Kalendarz1.Transport.Formularze
             var lblTitle = new Label
             {
                 Text = title,
-                Location = new Point(14, 10),
+                Location = new Point(16, 8),
                 AutoSize = true,
-                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(140, 150, 165)
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(160, 168, 180)
             };
 
             // Wartość
             valueLabel = new Label
             {
                 Text = "0",
-                Location = new Point(14, 30),
+                Location = new Point(16, 30),
                 AutoSize = true,
-                Font = new Font("Segoe UI", 22F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 24F, FontStyle.Bold),
                 ForeColor = accentColor
             };
 
@@ -966,15 +1028,39 @@ namespace Kalendarz1.Transport.Formularze
 
                 System.Diagnostics.Debug.WriteLine($"Loaded {_kursy?.Count ?? 0} courses");
 
+                // Pobierz LIVE dane zamówień z ZamowieniaMieso (pojemniki mogą się zmienić)
+                var liveZamowieniaMap = await PobierzLiveZamowieniaMapAsync();
+
+                // Zbierz KlientIds z ZAM_ ładunków aby pobrać Handlowców
+                var kursHandlowcy = new Dictionary<long, HashSet<string>>();
+                var allKlientIds = new HashSet<int>();
+
                 if (_kursy != null)
                 {
                     foreach (var kurs in _kursy)
                     {
                         try
                         {
-                            var wynik = await _repozytorium.ObliczPakowanieKursuAsync(kurs.KursID);
+                            // Pobierz ładunki i zaktualizuj ZAM_ o live dane
+                            var ladunki = await _repozytorium.PobierzLadunkiAsync(kurs.KursID);
+                            foreach (var lad in ladunki)
+                            {
+                                if (lad.KodKlienta?.StartsWith("ZAM_") == true &&
+                                    int.TryParse(lad.KodKlienta.Substring(4), out int zamId) &&
+                                    liveZamowieniaMap.TryGetValue(zamId, out var liveData))
+                                {
+                                    lad.PojemnikiE2 = liveData.Pojemniki;
+                                    lad.TrybE2 = liveData.TrybE2;
+                                    allKlientIds.Add(liveData.KlientId);
+
+                                    if (!kursHandlowcy.ContainsKey(kurs.KursID))
+                                        kursHandlowcy[kurs.KursID] = new HashSet<string>();
+                                    // Tymczasowo przechowujemy KlientId jako string, zastąpimy nazwiskami
+                                    kursHandlowcy[kurs.KursID].Add(liveData.KlientId.ToString());
+                                }
+                            }
+                            var wynik = _repozytorium.ObliczPakowanieZLadunkow(ladunki, kurs.PojazdID ?? 0);
                             _wypelnienia[kurs.KursID] = wynik;
-                            System.Diagnostics.Debug.WriteLine($"Course {kurs.KursID}: SumaE2={wynik?.SumaE2}, PaletyNominal={wynik?.PaletyNominal}");
                         }
                         catch (Exception ex)
                         {
@@ -989,6 +1075,28 @@ namespace Kalendarz1.Transport.Formularze
                     }
                 }
 
+                // Pobierz nazwy handlowców hurtowo
+                var handlowcyMap = await PobierzHandlowcowAsync(allKlientIds);
+
+                // Zamień KlientId na nazwiska handlowców
+                var kursHandlowcyNazwy = new Dictionary<long, string>();
+                foreach (var kvp in kursHandlowcy)
+                {
+                    var nazwy = new HashSet<string>();
+                    foreach (var klientIdStr in kvp.Value)
+                    {
+                        if (int.TryParse(klientIdStr, out int kId) && handlowcyMap.TryGetValue(kId, out var nazwa))
+                            nazwy.Add(nazwa);
+                    }
+                    kursHandlowcyNazwy[kvp.Key] = nazwy.Count > 0 ? string.Join(", ", nazwy) : "";
+                }
+
+                // Pobierz pełne nazwy użytkowników (Utworzyl/Zmienil to userId)
+                var allUserIds = _kursy?.Select(k => k.Utworzyl)
+                    .Concat(_kursy?.Select(k => k.Zmienil) ?? Enumerable.Empty<string>())
+                    .Where(id => !string.IsNullOrEmpty(id)).Distinct() ?? Enumerable.Empty<string>();
+                await PobierzNazwyUzytkownikowAsync(allUserIds);
+
                 var dt = new DataTable();
                 dt.Columns.Add("KursID", typeof(long));
                 dt.Columns.Add("Godzina", typeof(string));
@@ -1000,7 +1108,9 @@ namespace Kalendarz1.Transport.Formularze
                 dt.Columns.Add("Pojemniki", typeof(int));
                 dt.Columns.Add("Wypełnienie", typeof(decimal));
                 dt.Columns.Add("Status", typeof(string));
-                dt.Columns.Add("Zmieniono", typeof(string)); // Historia zmian
+                dt.Columns.Add("Utworzył", typeof(string));
+                dt.Columns.Add("UtworzylId", typeof(string)); // Ukryta - userId do avatara
+                dt.Columns.Add("Handlowcy", typeof(string));
                 dt.Columns.Add("WymagaPrzydzialu", typeof(bool)); // Ukryta kolumna do formatowania
 
                 // Pobierz aktywne filtry
@@ -1036,16 +1146,18 @@ namespace Kalendarz1.Transport.Formularze
                         // Status z bazy lub "Planowany" jako domyślny
                         var status = kurs.Status ?? "Planowany";
 
-                        // Historia zmian - formatowanie
-                        var zmieniono = "";
-                        if (kurs.ZmienionoUTC.HasValue && !string.IsNullOrEmpty(kurs.Zmienil))
+                        // Kto utworzył kurs - pełna nazwa + data
+                        var utworzylId = kurs.Utworzyl ?? "";
+                        var utworzylName = "";
+                        if (!string.IsNullOrEmpty(utworzylId))
                         {
-                            zmieniono = $"{kurs.Zmienil} ({kurs.ZmienionoUTC.Value.ToLocalTime():dd.MM HH:mm})";
+                            var fullName = _userNameCache.TryGetValue(utworzylId, out var n) ? n : utworzylId;
+                            utworzylName = $"{fullName} ({kurs.UtworzonoUTC.ToLocalTime():dd.MM HH:mm})";
                         }
-                        else if (!string.IsNullOrEmpty(kurs.Utworzyl))
-                        {
-                            zmieniono = $"{kurs.Utworzyl} ({kurs.UtworzonoUTC.ToLocalTime():dd.MM HH:mm})";
-                        }
+
+                        // Handlowcy (kto ostatnio modyfikował zamówienia w kursie)
+                        var handlowcy = kursHandlowcyNazwy.ContainsKey(kurs.KursID)
+                            ? kursHandlowcyNazwy[kurs.KursID] : "";
 
                         dt.Rows.Add(
                             kurs.KursID,
@@ -1058,7 +1170,9 @@ namespace Kalendarz1.Transport.Formularze
                             wyp?.SumaE2 ?? 0,
                             wyp?.ProcNominal ?? 0,
                             status,
-                            zmieniono,
+                            utworzylName,
+                            utworzylId,
+                            handlowcy,
                             wymagaPrzydzialu
                         );
                     }
@@ -1077,6 +1191,8 @@ namespace Kalendarz1.Transport.Formularze
                     dgvKursy.Columns["KierowcaID"].Visible = false;
                 if (dgvKursy.Columns["PojazdID"] != null)
                     dgvKursy.Columns["PojazdID"].Visible = false;
+                if (dgvKursy.Columns["UtworzylId"] != null)
+                    dgvKursy.Columns["UtworzylId"].Visible = false;
 
                 if (dgvKursy.Columns["Godzina"] != null)
                 {
@@ -1100,10 +1216,16 @@ namespace Kalendarz1.Transport.Formularze
                     dgvKursy.Columns["Wypełnienie"].HeaderText = "Wypełnienie";
                 }
 
-                if (dgvKursy.Columns["Zmieniono"] != null)
+                if (dgvKursy.Columns["Utworzył"] != null)
                 {
-                    dgvKursy.Columns["Zmieniono"].Width = 160;
-                    dgvKursy.Columns["Zmieniono"].HeaderText = "Ostatnia zmiana";
+                    dgvKursy.Columns["Utworzył"].Width = 180;
+                    dgvKursy.Columns["Utworzył"].HeaderText = "Utworzył";
+                }
+
+                if (dgvKursy.Columns["Handlowcy"] != null)
+                {
+                    dgvKursy.Columns["Handlowcy"].Width = 160;
+                    dgvKursy.Columns["Handlowcy"].HeaderText = "Handlowcy";
                 }
                 System.Diagnostics.Debug.WriteLine("Calling UpdateSummary...");
                 UpdateSummary();
@@ -1353,9 +1475,125 @@ namespace Kalendarz1.Transport.Formularze
             }
         }
 
+        private void DgvKursy_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
+        {
+            if (e.RowIndex < 0) return;
+
+            var colName = dgvKursy.Columns[e.ColumnIndex].Name;
+            if (colName != "Utworzył" && colName != "Handlowcy") return;
+
+            var cellValue = e.Value?.ToString() ?? "";
+            if (string.IsNullOrWhiteSpace(cellValue)) return;
+
+            e.Handled = true;
+            var selected = dgvKursy.Rows[e.RowIndex].Selected;
+
+            // Rysuj tło komórki
+            using (var bgBrush = new SolidBrush(selected ? e.CellStyle.SelectionBackColor : e.CellStyle.BackColor))
+                e.Graphics.FillRectangle(bgBrush, e.CellBounds);
+
+            e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            e.Graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+
+            if (colName == "Utworzył")
+            {
+                // Pobierz userId z ukrytej kolumny
+                var userId = dgvKursy.Rows[e.RowIndex].Cells["UtworzylId"]?.Value?.ToString() ?? "";
+
+                // Parsuj: "Pełna Nazwa (dd.MM HH:mm)"
+                string displayName;
+                string dateInfo = "";
+                var parenIdx = cellValue.IndexOf('(');
+                if (parenIdx > 0)
+                {
+                    displayName = cellValue.Substring(0, parenIdx).Trim();
+                    dateInfo = cellValue.Substring(parenIdx).Trim();
+                }
+                else
+                {
+                    displayName = cellValue;
+                }
+
+                var avatarSize = 30;
+                var avatarX = e.CellBounds.Left + 6;
+                var avatarY = e.CellBounds.Top + (e.CellBounds.Height - avatarSize) / 2;
+
+                // Avatar z UserAvatarManager (zdjęcie lub domyślny z inicjałami)
+                var avatarImg = GetOrCreateAvatar(
+                    !string.IsNullOrEmpty(userId) ? userId : displayName,
+                    displayName, avatarSize);
+                if (avatarImg != null)
+                    e.Graphics.DrawImage(avatarImg, avatarX, avatarY, avatarSize, avatarSize);
+
+                // Tekst: nazwa + data
+                var textX = avatarX + avatarSize + 6;
+                var textColor = selected ? Color.White : Color.FromArgb(40, 50, 65);
+                var dateColor = selected ? Color.FromArgb(200, 220, 255) : Color.FromArgb(130, 140, 155);
+
+                using (var font = new Font("Segoe UI", 8.5F, FontStyle.Bold))
+                using (var brush = new SolidBrush(textColor))
+                    e.Graphics.DrawString(displayName, font, brush, textX,
+                        e.CellBounds.Top + (e.CellBounds.Height / 2) - (string.IsNullOrEmpty(dateInfo) ? 7 : 12));
+
+                if (!string.IsNullOrEmpty(dateInfo))
+                {
+                    using (var font = new Font("Segoe UI", 7.5F))
+                    using (var brush = new SolidBrush(dateColor))
+                        e.Graphics.DrawString(dateInfo, font, brush, textX, e.CellBounds.Top + (e.CellBounds.Height / 2) + 2);
+                }
+            }
+            else // Handlowcy
+            {
+                var names = cellValue.Split(',').Select(n => n.Trim()).Where(n => !string.IsNullOrEmpty(n)).ToList();
+                if (names.Count == 0) return;
+
+                var avatarSize = 28;
+                var overlap = 8;
+                var startX = e.CellBounds.Left + 6;
+                var avatarY = e.CellBounds.Top + (e.CellBounds.Height - avatarSize) / 2;
+
+                // Rysuj avatary od tyłu (pierwszy na wierzchu)
+                var count = Math.Min(names.Count, 3);
+                for (int i = count - 1; i >= 0; i--)
+                {
+                    var x = startX + i * (avatarSize - overlap);
+                    // Handlowcy nie mają userId - używamy GenerateDefaultAvatar z nazwą jako id
+                    var avatarImg = GetOrCreateAvatar(names[i], names[i], avatarSize);
+                    if (avatarImg != null)
+                    {
+                        // Biała obwódka
+                        using (var pen = new Pen(selected ? e.CellStyle.SelectionBackColor : Color.White, 2))
+                            e.Graphics.DrawEllipse(pen, x - 1, avatarY - 1, avatarSize + 1, avatarSize + 1);
+                        e.Graphics.DrawImage(avatarImg, x, avatarY, avatarSize, avatarSize);
+                    }
+                }
+
+                // Tekst z nazwami
+                var textX = startX + count * (avatarSize - overlap) + overlap + 2;
+                var textColor = selected ? Color.White : Color.FromArgb(40, 50, 65);
+
+                var displayText = names.Count <= 2
+                    ? string.Join(", ", names)
+                    : $"{names[0]} +{names.Count - 1}";
+
+                using (var font = new Font("Segoe UI", 8F))
+                using (var brush = new SolidBrush(textColor))
+                {
+                    var sf = new StringFormat { LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter };
+                    var textRect = new RectangleF(textX, e.CellBounds.Top, e.CellBounds.Right - textX - 4, e.CellBounds.Height);
+                    e.Graphics.DrawString(displayText, font, brush, textRect, sf);
+                }
+            }
+
+            // Obramowanie
+            using (var borderPen = new Pen(dgvKursy.GridColor))
+                e.Graphics.DrawLine(borderPen, e.CellBounds.Left, e.CellBounds.Bottom - 1,
+                    e.CellBounds.Right - 1, e.CellBounds.Bottom - 1);
+        }
+
         // USUNIĘTE stare metody które nie działały:
         // - BtnKierowcy_Click
-        // - BtnPojazdy_Click  
+        // - BtnPojazdy_Click
         // - CreateSummaryTile
         // - TryFindLabelsInPanels
         // - FindAllLabelsRecursive
@@ -1367,10 +1605,9 @@ namespace Kalendarz1.Transport.Formularze
             try
             {
                 using var dlg = new EdytorKursuWithPalety(_repozytorium, _selectedDate, _currentUser);
-                if (dlg.ShowDialog(this) == DialogResult.OK)
-                {
-                    _ = LoadKursyAsync();
-                }
+                dlg.ShowDialog(this);
+                // ZAWSZE odśwież po zamknięciu edytora (nie tylko po OK)
+                _ = LoadKursyAsync();
             }
             catch (Exception ex)
             {
@@ -1396,10 +1633,9 @@ namespace Kalendarz1.Transport.Formularze
                 if (kurs == null) return;
 
                 using var dlg = new EdytorKursuWithPalety(_repozytorium, kurs, _currentUser);
-                if (dlg.ShowDialog(this) == DialogResult.OK)
-                {
-                    _ = LoadKursyAsync();
-                }
+                dlg.ShowDialog(this);
+                // ZAWSZE odśwież po zamknięciu edytora (nie tylko po OK)
+                _ = LoadKursyAsync();
             }
             catch (Exception ex)
             {
@@ -1854,6 +2090,114 @@ namespace Kalendarz1.Transport.Formularze
             return false;
         }
 
+        /// <summary>
+        /// Pobiera LIVE dane zamówień z ZamowieniaMieso (LiczbaPojemnikow, TrybE2)
+        /// aby widok główny zawsze pokazywał aktualne wartości.
+        /// </summary>
+        private async Task<Dictionary<int, (int Pojemniki, bool TrybE2, int KlientId)>> PobierzLiveZamowieniaMapAsync()
+        {
+            var map = new Dictionary<int, (int Pojemniki, bool TrybE2, int KlientId)>();
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+                var sql = @"SELECT zm.Id,
+                                   ISNULL(zm.LiczbaPojemnikow, 0),
+                                   ISNULL(zm.TrybE2, 0),
+                                   zm.KlientId
+                           FROM dbo.ZamowieniaMieso zm
+                           WHERE ISNULL(zm.Status, '') <> 'Anulowane'";
+                await using var cmd = new SqlCommand(sql, cn);
+                await using var rdr = await cmd.ExecuteReaderAsync();
+                while (await rdr.ReadAsync())
+                {
+                    var id = rdr.GetInt32(0);
+                    var pojemniki = rdr.GetInt32(1);
+                    var trybE2 = rdr.GetBoolean(2);
+                    var klientId = rdr.GetInt32(3);
+                    map[id] = (pojemniki, trybE2, klientId);
+                }
+            }
+            catch { }
+            return map;
+        }
+
+        private async Task<Dictionary<int, string>> PobierzHandlowcowAsync(IEnumerable<int> klientIds)
+        {
+            var map = new Dictionary<int, string>();
+            var ids = klientIds.Distinct().ToList();
+            if (ids.Count == 0) return map;
+            try
+            {
+                await using var cn = new SqlConnection(_connHandel);
+                await cn.OpenAsync();
+                var sql = $@"SELECT c.Id, ISNULL(wym.CDim_Handlowiec_Val, '')
+                            FROM SSCommon.STContractors c
+                            LEFT JOIN SSCommon.ContractorClassification wym ON c.Id = wym.ElementId
+                            WHERE c.Id IN ({string.Join(",", ids)})";
+                await using var cmd = new SqlCommand(sql, cn);
+                await using var rdr = await cmd.ExecuteReaderAsync();
+                while (await rdr.ReadAsync())
+                {
+                    var id = rdr.GetInt32(0);
+                    var handlowiec = rdr.GetString(1);
+                    if (!string.IsNullOrWhiteSpace(handlowiec))
+                        map[id] = handlowiec;
+                }
+            }
+            catch { }
+            return map;
+        }
+
+        private async Task PobierzNazwyUzytkownikowAsync(IEnumerable<string> userIds)
+        {
+            var toFetch = userIds.Where(id => !string.IsNullOrEmpty(id) && !_userNameCache.ContainsKey(id)).Distinct().ToList();
+            if (toFetch.Count == 0) return;
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+                var paramNames = toFetch.Select((id, i) => $"@u{i}").ToList();
+                var sql = $"SELECT ID, ISNULL(Name, ID) FROM operators WHERE ID IN ({string.Join(",", paramNames)})";
+                await using var cmd = new SqlCommand(sql, cn);
+                for (int i = 0; i < toFetch.Count; i++)
+                    cmd.Parameters.AddWithValue($"@u{i}", toFetch[i]);
+                await using var rdr = await cmd.ExecuteReaderAsync();
+                while (await rdr.ReadAsync())
+                {
+                    var id = rdr.GetString(0);
+                    var name = rdr.GetString(1);
+                    _userNameCache[id] = name;
+                }
+            }
+            catch { }
+            // Zapewnij, że każdy userId ma wpis (fallback na sam userId)
+            foreach (var id in toFetch)
+                if (!_userNameCache.ContainsKey(id))
+                    _userNameCache[id] = id;
+        }
+
+        private Image GetOrCreateAvatar(string userId, string displayName, int size)
+        {
+            var key = $"{userId}_{size}";
+            if (_avatarCache.TryGetValue(key, out var cached))
+                return cached;
+
+            Image avatar = null;
+            try
+            {
+                if (UserAvatarManager.HasAvatar(userId))
+                    avatar = UserAvatarManager.GetAvatarRounded(userId, size);
+            }
+            catch { }
+
+            if (avatar == null)
+                avatar = UserAvatarManager.GenerateDefaultAvatar(displayName ?? userId, userId, size);
+
+            _avatarCache[key] = avatar;
+            return avatar;
+        }
+
         private string UtworzUrlGoogleMaps(List<string> adresy)
         {
             if (adresy.Count < 2) return "";
@@ -1906,9 +2250,8 @@ namespace Kalendarz1.Transport.Formularze
         {
             try
             {
-                // Zoptymalizowane zapytanie - filtrowanie w SQL
-                // Wolne = nie ma przypisanego kursu (TransportKursID IS NULL)
-                //         i TransportStatus nie jest 'Przypisany' ani 'Własny'
+                // Wolne = TransportStatus to 'Oczekuje' (lub NULL/pusty) i nie 'Własny'/'Przypisany'
+                // Spójne z logiką w EdytorKursuWithPalety.LoadWolneZamowieniaForDate
                 var sql = @"
                     SELECT
                         zm.Id,
@@ -1918,9 +2261,8 @@ namespace Kalendarz1.Transport.Formularze
                         ISNULL(zm.LiczbaPalet, 0) AS Palety,
                         ISNULL(zm.LiczbaPojemnikow, 0) AS Pojemniki
                     FROM dbo.ZamowieniaMieso zm
-                    WHERE zm.DataUboju = @Data
-                      AND ISNULL(zm.Status, 'Nowe') NOT IN ('Anulowane', 'Wydany')
-                      AND zm.TransportKursID IS NULL
+                    WHERE CAST(zm.DataUboju AS DATE) = @Data
+                      AND ISNULL(zm.Status, 'Nowe') NOT IN ('Anulowane')
                       AND ISNULL(zm.TransportStatus, 'Oczekuje') NOT IN ('Przypisany', 'Własny')
                     ORDER BY zm.DataPrzyjazdu";
 

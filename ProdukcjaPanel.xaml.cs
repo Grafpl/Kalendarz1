@@ -12,6 +12,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
 namespace Kalendarz1
@@ -23,6 +24,8 @@ namespace Kalendarz1
         private readonly string _connTransport = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
 
         private static bool? _dataAkceptacjiProdukcjaColumnExists = null;
+        private static bool? _strefaColumnExists = null;
+        private readonly Dictionary<int, BitmapImage?> _productImages = new();
 
         public string UserID { get; set; } = "User";
         private DateTime _selectedDate = DateTime.Today;
@@ -84,6 +87,7 @@ namespace Kalendarz1
             dpHistoriaRealizacjiOd.SelectedDate = DateTime.Today.AddDays(-30);
             dpHistoriaRealizacjiDo.SelectedDate = DateTime.Today;
 
+            await LoadProductImagesAsync();
             await ReloadAllAsync();
         }
 
@@ -788,6 +792,71 @@ namespace Kalendarz1
             return _dataAkceptacjiProdukcjaColumnExists.Value;
         }
 
+        private async Task<bool> CheckStrefaColumnExistsAsync(SqlConnection cn)
+        {
+            if (_strefaColumnExists.HasValue)
+                return _strefaColumnExists.Value;
+
+            string checkSql = @"SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMiesoTowar') AND name = 'Strefa'";
+            using var cmd = new SqlCommand(checkSql, cn);
+            var result = await cmd.ExecuteScalarAsync();
+            bool exists = result != null;
+            if (!exists)
+            {
+                try
+                {
+                    using var alter = new SqlCommand("ALTER TABLE [dbo].[ZamowieniaMiesoTowar] ADD Strefa BIT NULL DEFAULT 0", cn);
+                    await alter.ExecuteNonQueryAsync();
+                    exists = true;
+                }
+                catch { }
+            }
+            _strefaColumnExists = exists;
+            return _strefaColumnExists.Value;
+        }
+
+        private async Task LoadProductImagesAsync()
+        {
+            if (_productImages.Count > 0) return;
+            try
+            {
+                using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+                var cmdCheck = new SqlCommand("SELECT CASE WHEN EXISTS (SELECT 1 FROM sys.tables WHERE name = 'TowarZdjecia') THEN 1 ELSE 0 END", cn);
+                if ((int)(await cmdCheck.ExecuteScalarAsync())! == 0) return;
+
+                var cmd = new SqlCommand("SELECT TowarId, Zdjecie FROM dbo.TowarZdjecia WHERE Aktywne = 1", cn);
+                using var rdr = await cmd.ExecuteReaderAsync();
+                while (await rdr.ReadAsync())
+                {
+                    int towarId = rdr.GetInt32(0);
+                    if (!rdr.IsDBNull(1))
+                    {
+                        byte[] data = (byte[])rdr[1];
+                        try
+                        {
+                            var ms = new System.IO.MemoryStream(data);
+                            var bi = new BitmapImage();
+                            bi.BeginInit();
+                            bi.StreamSource = ms;
+                            bi.DecodePixelWidth = 32;
+                            bi.CacheOption = BitmapCacheOption.OnLoad;
+                            bi.EndInit();
+                            bi.Freeze();
+                            _productImages[towarId] = bi;
+                        }
+                        catch { }
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private BitmapImage? GetProductImage(int towarId)
+        {
+            return _productImages.TryGetValue(towarId, out var img) ? img : null;
+        }
+
         private static bool? _partialRealizationColumnsExist = null;
         private async Task<bool> CheckPartialRealizationColumnsExistAsync(SqlConnection cn)
         {
@@ -814,9 +883,11 @@ namespace Kalendarz1
                 {
                     await cn.OpenAsync();
 
-                    // Sprawdź czy kolumna DataAkceptacjiProdukcja istnieje
+                    // Sprawdź czy kolumny opcjonalne istnieją
                     bool hasAkceptacjaColumn = await CheckDataAkceptacjiProdukcjaColumnExistsAsync(cn);
                     string akceptacjaColumn = hasAkceptacjaColumn ? ", z.DataAkceptacjiProdukcja" : ", NULL AS DataAkceptacjiProdukcja";
+
+                    bool hasStrefaColumn = await CheckStrefaColumnExistsAsync(cn);
 
                     // Sprawdź czy kolumny częściowej realizacji istnieją
                     bool hasPartialColumns = await CheckPartialRealizationColumnsExistAsync(cn);
@@ -850,6 +921,10 @@ namespace Kalendarz1
                         sqlBuilder.Append(", ISNULL(z.CzyCzesciowoZrealizowane, 0) AS CzyCzesciowoZrealizowane, z.ProcentRealizacji");
                     else
                         sqlBuilder.Append(", CAST(0 AS BIT) AS CzyCzesciowoZrealizowane, NULL AS ProcentRealizacji");
+                    sqlBuilder.Append(hasStrefaColumn
+                        ? ", CAST((SELECT MAX(CAST(ISNULL(ts.Strefa, 0) AS INT)) FROM dbo.ZamowieniaMiesoTowar ts WHERE ts.ZamowienieId = z.Id) AS BIT) AS Strefa"
+                        : ", CAST(0 AS BIT) AS Strefa");
+                    sqlBuilder.Append(", CAST(CASE WHEN EXISTS(SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id AND ISNULL(t.E2, 0) = 1) THEN 1 ELSE 0 END AS BIT) AS MaE2");
                     sqlBuilder.Append($" FROM dbo.ZamowieniaMieso z WHERE z.{dateColumn}=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')");
                     if (_filteredProductId.HasValue)
                         sqlBuilder.Append(" AND EXISTS (SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId=z.Id AND t.KodTowaru=@P)");
@@ -910,7 +985,9 @@ namespace Kalendarz1
                             CzyZmodyfikowaneOdRealizacji = czyZmodyfikowane,
                             // Pola częściowej realizacji
                             CzyCzesciowoZrealizowane = czyCzesciowoZrealizowane,
-                            ProcentRealizacji = procentRealizacji
+                            ProcentRealizacji = procentRealizacji,
+                            Strefa = rd.IsDBNull(18) ? false : rd.GetBoolean(18),
+                            MaE2 = rd.GetBoolean(19)
                         };
                         _zamowienia[info.Id] = info;
                         klientIdsWithOrder.Add(info.KlientId);
@@ -1120,7 +1197,7 @@ namespace Kalendarz1
 
             await EnsureNotesTableAsync();
 
-            var orderPositions = new List<(int TowarId, decimal Ilosc, bool Folia, decimal? IloscZreal)>();
+            var orderPositions = new List<(int TowarId, decimal Ilosc, bool Folia, bool E2, bool Hallal, decimal? IloscZreal, bool Strefa)>();
             using (var cn = new SqlConnection(_connLibra))
             {
                 await cn.OpenAsync();
@@ -1129,7 +1206,10 @@ namespace Kalendarz1
                 bool hasZrealColumn = await CheckPartialRealizationColumnsExistAsync(cn);
                 string zrealCol = hasZrealColumn ? ", zmt.IloscZrealizowana" : ", NULL AS IloscZrealizowana";
 
-                string sql = $@"SELECT zmt.KodTowaru, zmt.Ilosc, ISNULL(zmt.Folia, 0) AS Folia{zrealCol}
+                bool hasStrefaCol = await CheckStrefaColumnExistsAsync(cn);
+                string strefaSelCol = hasStrefaCol ? ", ISNULL(zmt.Strefa, 0) AS Strefa" : "";
+
+                string sql = $@"SELECT zmt.KodTowaru, zmt.Ilosc, ISNULL(zmt.Folia, 0) AS Folia, ISNULL(zmt.E2, 0) AS E2, ISNULL(zmt.Hallal, 0) AS Hallal{zrealCol}{strefaSelCol}
                                FROM dbo.ZamowieniaMiesoTowar zmt
                                WHERE zmt.ZamowienieId=@Id" + (_filteredProductId.HasValue ? " AND zmt.KodTowaru=@P" : "");
                 var cmd = new SqlCommand(sql, cn);
@@ -1139,7 +1219,7 @@ namespace Kalendarz1
                 using var rd = await cmd.ExecuteReaderAsync();
                 while (await rd.ReadAsync())
                 {
-                    orderPositions.Add((rd.GetInt32(0), rd.GetDecimal(1), rd.GetBoolean(2), rd.IsDBNull(3) ? null : rd.GetDecimal(3)));
+                    orderPositions.Add((rd.GetInt32(0), rd.GetDecimal(1), rd.GetBoolean(2), rd.GetBoolean(3), rd.GetBoolean(4), rd.IsDBNull(5) ? null : rd.GetDecimal(5), hasStrefaCol ? rd.GetBoolean(6) : false));
                 }
             }
 
@@ -1155,14 +1235,20 @@ namespace Kalendarz1
 
             var dt = new DataTable();
             dt.Columns.Add("Produkt", typeof(string));
+            dt.Columns.Add("ProduktImg", typeof(BitmapImage));
             dt.Columns.Add("Zamówiono (kg)", typeof(decimal));
             dt.Columns.Add("Zrealizowano", typeof(string));
             dt.Columns.Add("Wydano (kg)", typeof(decimal));
             dt.Columns.Add("Różnica (kg)", typeof(decimal));
             // Kolumna zmian - pokazuje różnicę między aktualnym stanem a snapshotem
             dt.Columns.Add("Zmiana", typeof(string));
+            // Kolumny checkbox per-produkt
+            dt.Columns.Add("Halal", typeof(bool));
+            dt.Columns.Add("Folia", typeof(bool));
+            dt.Columns.Add("E2", typeof(bool));
+            dt.Columns.Add("Strefa", typeof(bool));
 
-            var mapOrd = orderPositions.ToDictionary(p => p.TowarId, p => (p.Ilosc, p.Folia, p.IloscZreal));
+            var mapOrd = orderPositions.ToDictionary(p => p.TowarId, p => (p.Ilosc, p.Folia, p.E2, p.Hallal, p.IloscZreal, p.Strefa));
 
             foreach (var id in ids)
             {
@@ -1171,7 +1257,6 @@ namespace Kalendarz1
                 snapshot.TryGetValue(id, out var snap);
 
                 string kod = towarMap.TryGetValue(id, out var t) ? t.Kod : $"ID:{id}";
-                if (ord.Folia) kod = "🎞️ " + kod;
 
                 // Oblicz zmianę od snapshotu
                 string zmiana = "";
@@ -1198,7 +1283,19 @@ namespace Kalendarz1
                     zrealDisplay = $"{ord.IloscZreal:N0}";
                 }
 
-                dt.Rows.Add(kod, ord.Ilosc, zrealDisplay, wyd, ord.Ilosc - wyd, zmiana);
+                var row = dt.NewRow();
+                row["Produkt"] = kod;
+                row["ProduktImg"] = (object?)GetProductImage(id) ?? DBNull.Value;
+                row["Zamówiono (kg)"] = ord.Ilosc;
+                row["Zrealizowano"] = zrealDisplay;
+                row["Wydano (kg)"] = wyd;
+                row["Różnica (kg)"] = ord.Ilosc - wyd;
+                row["Zmiana"] = zmiana;
+                row["Halal"] = ord.Hallal;
+                row["Folia"] = ord.Folia;
+                row["E2"] = ord.E2;
+                row["Strefa"] = ord.Strefa;
+                dt.Rows.Add(row);
             }
 
             // Sprawdź czy są pozycje usunięte (były w snapshocie, ale nie ma w aktualnym zamówieniu)
@@ -1208,7 +1305,19 @@ namespace Kalendarz1
                 {
                     string kod = towarMap.TryGetValue(snapItem.Key, out var t) ? t.Kod : $"ID:{snapItem.Key}";
                     kod = "❌ " + kod;
-                    dt.Rows.Add(kod, 0, "", 0, 0, $"USUNIĘTO ({snapItem.Value.Ilosc:N0} kg)");
+                    var row = dt.NewRow();
+                    row["Produkt"] = kod;
+                    row["ProduktImg"] = (object?)GetProductImage(snapItem.Key) ?? DBNull.Value;
+                    row["Zamówiono (kg)"] = 0m;
+                    row["Zrealizowano"] = "";
+                    row["Wydano (kg)"] = 0m;
+                    row["Różnica (kg)"] = 0m;
+                    row["Zmiana"] = $"USUNIĘTO ({snapItem.Value.Ilosc:N0} kg)";
+                    row["Halal"] = false;
+                    row["Folia"] = false;
+                    row["E2"] = false;
+                    row["Strefa"] = false;
+                    dt.Rows.Add(row);
                 }
             }
 
@@ -2435,6 +2544,7 @@ namespace Kalendarz1
             public bool CzyZrealizowane { get; set; }
             public bool CzyWydane { get; set; }
             public bool MaHalal { get; set; }
+            public bool MaE2 { get; set; }
             public bool WlasnyTransport { get; set; }
             public DateTime? DataPrzyjazdu { get; set; }
             public string Kierowca { get; set; } = "";
@@ -2447,6 +2557,7 @@ namespace Kalendarz1
             // Pola częściowej realizacji
             public bool CzyCzesciowoZrealizowane { get; set; }
             public decimal? ProcentRealizacji { get; set; }
+            public bool Strefa { get; set; } // Strefa ptasiej grypy/pomoru
         }
 
         public class ContractorInfo
@@ -2516,11 +2627,12 @@ namespace Kalendarz1
             public ZamowienieInfo Info { get; }
             public ZamowienieViewModel(ZamowienieInfo info) { Info = info; }
 
-            // Ikony przy nazwie klienta (bez ⚠️ - zamiast tego żółta czcionka)
-            public string Klient => $"{(Info.MaNotatke ? "📝 " : "")}{(Info.MaFolie ? "🎞️ " : "")}{(Info.MaHalal ? "🔪 " : "")}{(Info.WlasnyTransport ? "🚚 " : "")}{Info.Klient}";
+            // Ikonki przy nazwie klienta
+            public string Klient => $"{(Info.Strefa ? "\u26A0\uFE0F " : "")}{(Info.MaNotatke ? "\U0001F4DD " : "")}{(Info.MaFolie ? "\U0001F39E\uFE0F " : "")}{(Info.MaHalal ? "\U0001F52A " : "")}{(Info.MaE2 ? "\U0001F4E6 " : "")}{(Info.WlasnyTransport ? "\U0001F69A " : "")}{Info.Klient}";
 
-            // Kolor nazwy klienta - żółty gdy zamówienie zostało zmodyfikowane
-            public Brush KlientColor => Info.CzyZmodyfikowaneOdRealizacji ? Brushes.Yellow : Brushes.White;
+            // Kolor nazwy klienta - żółty gdy zmodyfikowane, czerwony gdy strefa
+            public Brush KlientColor => Info.Strefa ? new SolidColorBrush(Color.FromRgb(255, 200, 200)) :
+                                        Info.CzyZmodyfikowaneOdRealizacji ? Brushes.Yellow : Brushes.White;
 
             // Wyświetlanie kierowcy
             public string KierowcaDisplay => Info.WlasnyTransport ? "Własny odbiór" : (string.IsNullOrEmpty(Info.Kierowca) ? "Brak" : Info.Kierowca);

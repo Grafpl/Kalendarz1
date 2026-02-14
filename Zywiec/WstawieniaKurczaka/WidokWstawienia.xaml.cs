@@ -184,7 +184,6 @@ namespace Kalendarz1
         {
             textBoxFilter.TextChanged += TextBoxFilter_TextChanged;
             dataGridWstawienia.SelectionChanged += DataGridWstawienia_SelectionChanged;
-            dataGridWstawienia.MouseDoubleClick += DataGridWstawienia_DoubleClick;
             dataGridPrzypomnienia.SelectionChanged += DataGridPrzypomnienia_SelectionChanged;
             dataGridPrzypomnienia.MouseDoubleClick += DataGridPrzypomnienia_DoubleClick;
             chkPokazPrzyszle.Checked += ChkPokazPrzyszle_Changed;
@@ -1295,191 +1294,13 @@ namespace Kalendarz1
                         };
                     }
 
-                    // Tooltip z pełnymi informacjami
-                    var hodowca = row["Dostawca"]?.ToString() ?? "-";
-                    var data = row["Data"]?.ToString() ?? "-";
-                    var ilosc = row["IloscWstawienia"] != DBNull.Value ? Convert.ToInt32(row["IloscWstawienia"]).ToString("# ##0") : "-";
-                    var typUmowy = row["TypUmowy"]?.ToString() ?? "-";
-                    var typCeny = row["TypCeny"]?.ToString() ?? "-";
-                    var ktoStwo = row["KtoStwo"]?.ToString() ?? "-";
-                    var dataUtw = row["DataUtw"]?.ToString() ?? "-";
-
-                    var tooltipContent = new StackPanel { Margin = new Thickness(5) };
-
-                    // Nagłówek - Hodowca
-                    var headerPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 5) };
-                    headerPanel.Children.Add(new TextBlock { Text = "🐔 ", FontSize = 14 });
-                    headerPanel.Children.Add(new TextBlock { Text = hodowca, FontWeight = FontWeights.Bold, FontSize = 13, Foreground = new SolidColorBrush(Color.FromRgb(92, 138, 58)) });
-                    tooltipContent.Children.Add(headerPanel);
-
-                    tooltipContent.Children.Add(new Separator { Margin = new Thickness(0, 2, 0, 5) });
-
-                    // Dane podstawowe
-                    var grid = new Grid();
-                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(10) });
-                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-                    void AddInfoRow(int rowIndex, string label, string value, Brush color)
+                    // Double-click otwiera osobne okno ze szczegółami wstawienia i dostaw
+                    e.Row.MouseDoubleClick += (rowSender, rowArgs) =>
                     {
-                        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-                        var labelTb = new TextBlock { Text = label, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)), Margin = new Thickness(0, 1, 0, 1) };
-                        Grid.SetRow(labelTb, rowIndex);
-                        Grid.SetColumn(labelTb, 0);
-                        grid.Children.Add(labelTb);
-
-                        var valueTb = new TextBlock { Text = value, Foreground = color, Margin = new Thickness(0, 1, 0, 1) };
-                        Grid.SetRow(valueTb, rowIndex);
-                        Grid.SetColumn(valueTb, 2);
-                        grid.Children.Add(valueTb);
-                    }
-
-                    AddInfoRow(0, "LP:", lp.ToString(), new SolidColorBrush(Color.FromRgb(44, 62, 80)));
-                    AddInfoRow(1, "Data wstawienia:", data, new SolidColorBrush(Color.FromRgb(52, 152, 219)));
-                    AddInfoRow(2, "Ilość:", ilosc, new SolidColorBrush(Color.FromRgb(46, 125, 50)));
-                    AddInfoRow(3, "Typ umowy:", typUmowy, new SolidColorBrush(Color.FromRgb(142, 68, 173)));
-                    AddInfoRow(4, "Typ ceny:", typCeny, new SolidColorBrush(Color.FromRgb(230, 126, 34)));
-                    AddInfoRow(5, "Utworzył:", ktoStwo, new SolidColorBrush(Color.FromRgb(100, 116, 139)));
-                    AddInfoRow(6, "Data utworzenia:", dataUtw, new SolidColorBrush(Color.FromRgb(149, 165, 166)));
-
-                    tooltipContent.Children.Add(grid);
-
-                    // Dostawy
-                    var deliveries = GetDeliveryDetails(lp);
-                    if (deliveries.Count > 0)
-                    {
-                        tooltipContent.Children.Add(new Separator { Margin = new Thickness(0, 5, 0, 5) });
-
-                        var deliveryHeader = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 5) };
-                        deliveryHeader.Children.Add(new TextBlock { Text = "📦 Zaplanowane dostawy:", FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(92, 138, 58)) });
-                        tooltipContent.Children.Add(deliveryHeader);
-
-                        // Nagłówek tabeli
-                        var headerGrid = new Grid { Margin = new Thickness(5, 0, 0, 3) };
-                        headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) });  // Icon
-                        headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(95) }); // Data
-                        headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(25) }); // A
-                        headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) }); // Szt
-                        headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) }); // Waga
-                        headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) }); // Cena
-                        headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) }); // Dni
-                        headerGrid.RowDefinitions.Add(new RowDefinition());
-
-                        var headerColor = new SolidColorBrush(Color.FromRgb(127, 140, 141));
-                        var headers = new[] { "", "Data", "A", "Szt", "Waga", "Cena", "Dni" };
-                        for (int i = 0; i < headers.Length; i++)
+                        rowArgs.Handled = true;
+                        if (e.Row.DataContext is DataRowView rowData && rowData["LP"] != DBNull.Value)
                         {
-                            var tb = new TextBlock { Text = headers[i], FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = headerColor };
-                            Grid.SetColumn(tb, i);
-                            headerGrid.Children.Add(tb);
-                        }
-                        tooltipContent.Children.Add(headerGrid);
-
-                        var today = DateTime.Today;
-                        foreach (var delivery in deliveries)
-                        {
-                            var rowGrid = new Grid { Margin = new Thickness(5, 1, 0, 1) };
-                            rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) });
-                            rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(95) });
-                            rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(25) });
-                            rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) });
-                            rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) });
-                            rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
-                            rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });
-                            rowGrid.RowDefinitions.Add(new RowDefinition());
-
-                            var isPast = delivery.DataOdbioru.Date < today;
-                            var isToday = delivery.DataOdbioru.Date == today;
-
-                            var dateColor = isPast ? new SolidColorBrush(Color.FromRgb(46, 125, 50)) :
-                                           isToday ? new SolidColorBrush(Color.FromRgb(230, 126, 34)) :
-                                           new SolidColorBrush(Color.FromRgb(100, 116, 139));
-
-                            var icon = isPast ? "✓" : isToday ? "▶" : "○";
-                            var fontWeight = isToday ? FontWeights.Bold : FontWeights.Normal;
-
-                            var values = new (string text, Brush color)[]
-                            {
-                                (icon, dateColor),
-                                (delivery.DataOdbioru.ToString("MM-dd ddd"), dateColor),
-                                (delivery.Auta.ToString(), new SolidColorBrush(Color.FromRgb(52, 152, 219))),
-                                (delivery.SztukiDek.ToString("# ##0"), new SolidColorBrush(Color.FromRgb(46, 125, 50))),
-                                (delivery.WagaDek.ToString("# ##0.00"), new SolidColorBrush(Color.FromRgb(142, 68, 173))),
-                                (delivery.Cena.ToString("0.00"), new SolidColorBrush(Color.FromRgb(230, 126, 34))),
-                                (delivery.RoznicaDni.ToString(), new SolidColorBrush(Color.FromRgb(127, 140, 141)))
-                            };
-
-                            for (int i = 0; i < values.Length; i++)
-                            {
-                                var tb = new TextBlock { Text = values[i].text, FontSize = 10, Foreground = values[i].color, FontWeight = fontWeight };
-                                Grid.SetColumn(tb, i);
-                                rowGrid.Children.Add(tb);
-                            }
-                            tooltipContent.Children.Add(rowGrid);
-                        }
-
-                        // Podsumowanie
-                        var totalDeliveredSzt = deliveries.Where(d => d.DataOdbioru.Date < today).Sum(d => d.SztukiDek);
-                        var totalPlannedSzt = deliveries.Where(d => d.DataOdbioru.Date >= today).Sum(d => d.SztukiDek);
-                        var totalDeliveredWaga = deliveries.Where(d => d.DataOdbioru.Date < today).Sum(d => d.WagaDek);
-                        var totalPlannedWaga = deliveries.Where(d => d.DataOdbioru.Date >= today).Sum(d => d.WagaDek);
-
-                        tooltipContent.Children.Add(new Separator { Margin = new Thickness(0, 4, 0, 4) });
-                        var summaryPanel = new StackPanel { Margin = new Thickness(5, 0, 0, 0) };
-                        var summaryRow1 = new StackPanel { Orientation = Orientation.Horizontal };
-                        summaryRow1.Children.Add(new TextBlock { Text = $"✓ Odebrano: {totalDeliveredSzt:# ##0} szt. ({totalDeliveredWaga:# ##0.00} kg)", Foreground = new SolidColorBrush(Color.FromRgb(46, 125, 50)), FontSize = 10, FontWeight = FontWeights.SemiBold });
-                        summaryPanel.Children.Add(summaryRow1);
-                        var summaryRow2 = new StackPanel { Orientation = Orientation.Horizontal };
-                        summaryRow2.Children.Add(new TextBlock { Text = $"○ Pozostało: {totalPlannedSzt:# ##0} szt. ({totalPlannedWaga:# ##0.00} kg)", Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)), FontSize = 10 });
-                        summaryPanel.Children.Add(summaryRow2);
-                        tooltipContent.Children.Add(summaryPanel);
-                    }
-                    else
-                    {
-                        tooltipContent.Children.Add(new Separator { Margin = new Thickness(0, 5, 0, 5) });
-                        tooltipContent.Children.Add(new TextBlock { Text = "📦 Brak zaplanowanych dostaw", FontStyle = FontStyles.Italic, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)) });
-                    }
-
-                    var tooltip = new ToolTip
-                    {
-                        Background = new SolidColorBrush(Colors.White),
-                        BorderBrush = new SolidColorBrush(Color.FromRgb(92, 138, 58)),
-                        BorderThickness = new Thickness(2),
-                        Padding = new Thickness(8),
-                        StaysOpen = true
-                    };
-
-                    // Wrap content with close button
-                    tooltip.Content = WrapTooltipWithCloseButton(tooltipContent, tooltip);
-
-                    e.Row.ToolTip = tooltip;
-                    // Wyłącz automatyczne pokazywanie tooltipa przy hover
-                    ToolTipService.SetIsEnabled(e.Row, false);
-                    ToolTipService.SetShowDuration(e.Row, 15000);
-
-                    // Kliknięcie na wiersz pokazuje tooltip z timerem 6s
-                    // Ale tylko jeśli tooltip nie został właśnie zamknięty (w tym samym kliknięciu)
-                    e.Row.MouseLeftButtonUp += (rowSender, rowArgs) =>
-                    {
-                        // Nie otwieraj tooltipa jeśli został zamknięty mniej niż 200ms temu
-                        if ((DateTime.Now - _tooltipCloseTime).TotalMilliseconds < 350)
-                        {
-                            return;
-                        }
-
-                        if (e.Row.ToolTip is ToolTip tt)
-                        {
-                            ShowTooltipWithTimer(tt);
-                        }
-                    };
-
-                    // Zamknij tooltip gdy stracił focus
-                    tooltip.Closed += (s, args) =>
-                    {
-                        StopTooltipTimer();
-                        if (_currentOpenTooltip == tooltip)
-                        {
-                            _currentOpenTooltip = null;
+                            ShowDetailWindow("Szczegóły wstawienia - " + rowData["Dostawca"]?.ToString(), () => BuildWstawienieDetailContent(rowData));
                         }
                     };
                 }
@@ -1614,6 +1435,176 @@ namespace Kalendarz1
             mainContainer.Children.Add(content);
 
             return mainContainer;
+        }
+
+        private void ShowDetailWindow(string title, Func<StackPanel> contentBuilder)
+        {
+            var content = contentBuilder();
+            content.Margin = new Thickness(15);
+
+            var scrollViewer = new ScrollViewer
+            {
+                Content = content,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+            };
+
+            var window = new Window
+            {
+                Title = title,
+                Content = scrollViewer,
+                Width = 500,
+                Height = 450,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Background = new SolidColorBrush(Colors.White),
+                ResizeMode = ResizeMode.CanResize
+            };
+
+            WindowIconHelper.SetIcon(window);
+            window.Show();
+        }
+
+        private StackPanel BuildWstawienieDetailContent(DataRowView row)
+        {
+            int lp = Convert.ToInt32(row["LP"]);
+            var hodowca = row["Dostawca"]?.ToString() ?? "-";
+            var data = row["Data"]?.ToString() ?? "-";
+            var ilosc = row["IloscWstawienia"] != DBNull.Value ? Convert.ToInt32(row["IloscWstawienia"]).ToString("# ##0") : "-";
+            var typUmowy = row["TypUmowy"]?.ToString() ?? "-";
+            var typCeny = row["TypCeny"]?.ToString() ?? "-";
+            var ktoStwo = row["KtoStwo"]?.ToString() ?? "-";
+            var dataUtw = row["DataUtw"]?.ToString() ?? "-";
+
+            var panel = new StackPanel();
+
+            var headerPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 5) };
+            headerPanel.Children.Add(new TextBlock { Text = "🐔 ", FontSize = 16 });
+            headerPanel.Children.Add(new TextBlock { Text = hodowca, FontWeight = FontWeights.Bold, FontSize = 15, Foreground = new SolidColorBrush(Color.FromRgb(92, 138, 58)) });
+            panel.Children.Add(headerPanel);
+            panel.Children.Add(new Separator { Margin = new Thickness(0, 2, 0, 5) });
+
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(10) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            void AddRow(int idx, string label, string value, Brush color)
+            {
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                var lb = new TextBlock { Text = label, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)), Margin = new Thickness(0, 2, 0, 2), FontSize = 12 };
+                Grid.SetRow(lb, idx); Grid.SetColumn(lb, 0); grid.Children.Add(lb);
+                var vb = new TextBlock { Text = value, Foreground = color, Margin = new Thickness(0, 2, 0, 2), FontSize = 12 };
+                Grid.SetRow(vb, idx); Grid.SetColumn(vb, 2); grid.Children.Add(vb);
+            }
+
+            AddRow(0, "LP:", lp.ToString(), new SolidColorBrush(Color.FromRgb(44, 62, 80)));
+            AddRow(1, "Data wstawienia:", data, new SolidColorBrush(Color.FromRgb(52, 152, 219)));
+            AddRow(2, "Ilość:", ilosc, new SolidColorBrush(Color.FromRgb(46, 125, 50)));
+            AddRow(3, "Typ umowy:", typUmowy, new SolidColorBrush(Color.FromRgb(142, 68, 173)));
+            AddRow(4, "Typ ceny:", typCeny, new SolidColorBrush(Color.FromRgb(230, 126, 34)));
+            AddRow(5, "Utworzył:", ktoStwo, new SolidColorBrush(Color.FromRgb(100, 116, 139)));
+            AddRow(6, "Data utworzenia:", dataUtw, new SolidColorBrush(Color.FromRgb(149, 165, 166)));
+            panel.Children.Add(grid);
+
+            var deliveries = GetDeliveryDetails(lp);
+            if (deliveries.Count > 0)
+            {
+                panel.Children.Add(new Separator { Margin = new Thickness(0, 8, 0, 5) });
+                panel.Children.Add(new TextBlock { Text = "📦 Zaplanowane dostawy:", FontWeight = FontWeights.Bold, FontSize = 13, Foreground = new SolidColorBrush(Color.FromRgb(92, 138, 58)), Margin = new Thickness(0, 0, 0, 5) });
+
+                var headerGrid = new Grid { Margin = new Thickness(5, 0, 0, 3) };
+                var colWidths = new[] { 25.0, 100, 30, 60, 65, 45, 35 };
+                foreach (var w in colWidths) headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
+                headerGrid.RowDefinitions.Add(new RowDefinition());
+                var headers = new[] { "", "Data", "A", "Szt", "Waga", "Cena", "Dni" };
+                var hColor = new SolidColorBrush(Color.FromRgb(127, 140, 141));
+                for (int i = 0; i < headers.Length; i++)
+                {
+                    var tb = new TextBlock { Text = headers[i], FontSize = 10, FontWeight = FontWeights.SemiBold, Foreground = hColor };
+                    Grid.SetColumn(tb, i); headerGrid.Children.Add(tb);
+                }
+                panel.Children.Add(headerGrid);
+
+                var today = DateTime.Today;
+                foreach (var d in deliveries)
+                {
+                    var rg = new Grid { Margin = new Thickness(5, 1, 0, 1) };
+                    foreach (var w in colWidths) rg.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
+                    rg.RowDefinitions.Add(new RowDefinition());
+
+                    var isPast = d.DataOdbioru.Date < today;
+                    var isToday = d.DataOdbioru.Date == today;
+                    var dateColor = isPast ? new SolidColorBrush(Color.FromRgb(46, 125, 50)) : isToday ? new SolidColorBrush(Color.FromRgb(230, 126, 34)) : new SolidColorBrush(Color.FromRgb(100, 116, 139));
+                    var icon = isPast ? "✓" : isToday ? "▶" : "○";
+                    var fw = isToday ? FontWeights.Bold : FontWeights.Normal;
+
+                    var vals = new (string t, Brush c)[]
+                    {
+                        (icon, dateColor), (d.DataOdbioru.ToString("MM-dd ddd"), dateColor),
+                        (d.Auta.ToString(), new SolidColorBrush(Color.FromRgb(52, 152, 219))),
+                        (d.SztukiDek.ToString("# ##0"), new SolidColorBrush(Color.FromRgb(46, 125, 50))),
+                        (d.WagaDek.ToString("# ##0.00"), new SolidColorBrush(Color.FromRgb(142, 68, 173))),
+                        (d.Cena.ToString("0.00"), new SolidColorBrush(Color.FromRgb(230, 126, 34))),
+                        (d.RoznicaDni.ToString(), new SolidColorBrush(Color.FromRgb(127, 140, 141)))
+                    };
+                    for (int i = 0; i < vals.Length; i++)
+                    {
+                        var tb = new TextBlock { Text = vals[i].t, FontSize = 11, Foreground = vals[i].c, FontWeight = fw };
+                        Grid.SetColumn(tb, i); rg.Children.Add(tb);
+                    }
+                    panel.Children.Add(rg);
+                }
+
+                var totalDelSzt = deliveries.Where(x => x.DataOdbioru.Date < today).Sum(x => x.SztukiDek);
+                var totalPlnSzt = deliveries.Where(x => x.DataOdbioru.Date >= today).Sum(x => x.SztukiDek);
+                var totalDelWaga = deliveries.Where(x => x.DataOdbioru.Date < today).Sum(x => x.WagaDek);
+                var totalPlnWaga = deliveries.Where(x => x.DataOdbioru.Date >= today).Sum(x => x.WagaDek);
+
+                panel.Children.Add(new Separator { Margin = new Thickness(0, 6, 0, 4) });
+                panel.Children.Add(new TextBlock { Text = $"✓ Odebrano: {totalDelSzt:# ##0} szt. ({totalDelWaga:# ##0.00} kg)", Foreground = new SolidColorBrush(Color.FromRgb(46, 125, 50)), FontSize = 11, FontWeight = FontWeights.SemiBold, Margin = new Thickness(5, 0, 0, 0) });
+                panel.Children.Add(new TextBlock { Text = $"○ Pozostało: {totalPlnSzt:# ##0} szt. ({totalPlnWaga:# ##0.00} kg)", Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)), FontSize = 11, Margin = new Thickness(5, 0, 0, 0) });
+            }
+            else
+            {
+                panel.Children.Add(new Separator { Margin = new Thickness(0, 5, 0, 5) });
+                panel.Children.Add(new TextBlock { Text = "📦 Brak zaplanowanych dostaw", FontStyle = FontStyles.Italic, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)) });
+            }
+
+            return panel;
+        }
+
+        private StackPanel BuildHistoriaDetailContent(DataRowView rowView)
+        {
+            var hodowca = rowView["Dostawca"]?.ToString() ?? "-";
+            var userName = rowView["UserName"]?.ToString() ?? "-";
+            var snoozedUntil = rowView["SnoozedUntil"];
+            var reason = rowView["Reason"]?.ToString() ?? "-";
+            var createdAt = rowView["CreatedAt"];
+
+            var snoozedStr = snoozedUntil != DBNull.Value && snoozedUntil != null ? ((DateTime)snoozedUntil).ToString("dd.MM.yyyy") : "-";
+            var createdStr = createdAt != DBNull.Value && createdAt != null ? ((DateTime)createdAt).ToString("dd.MM.yyyy HH:mm:ss") : "-";
+
+            var panel = new StackPanel();
+
+            void AddInfoLine(string icon, string label, string value, Brush labelColor)
+            {
+                var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
+                sp.Children.Add(new TextBlock { Text = icon + " " + label, FontWeight = FontWeights.Bold, FontSize = 12, Foreground = labelColor });
+                sp.Children.Add(new TextBlock { Text = value, FontSize = 12, Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)), Margin = new Thickness(5, 0, 0, 0) });
+                panel.Children.Add(sp);
+            }
+
+            AddInfoLine("🐔", "Hodowca:", hodowca, new SolidColorBrush(Color.FromRgb(92, 138, 58)));
+            AddInfoLine("👤", "Użytkownik:", userName, new SolidColorBrush(Color.FromRgb(52, 152, 219)));
+            panel.Children.Add(new Separator { Margin = new Thickness(0, 5, 0, 5) });
+            AddInfoLine("📅", "Przesunięcie do:", snoozedStr, new SolidColorBrush(Color.FromRgb(243, 156, 18)));
+            AddInfoLine("🕐", "Dodano:", createdStr, new SolidColorBrush(Color.FromRgb(155, 89, 182)));
+            panel.Children.Add(new Separator { Margin = new Thickness(0, 5, 0, 5) });
+
+            panel.Children.Add(new TextBlock { Text = "📝 Notatka:", FontWeight = FontWeights.Bold, FontSize = 12, Foreground = new SolidColorBrush(Color.FromRgb(231, 76, 60)), Margin = new Thickness(0, 0, 0, 5) });
+            panel.Children.Add(new TextBlock { Text = reason, FontSize = 12, TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)), Margin = new Thickness(5, 0, 0, 0) });
+
+            return panel;
         }
 
         /// <summary>
@@ -2016,9 +2007,6 @@ namespace Kalendarz1
 
             dataGridHistoria.ContextMenu = contextMenu;
 
-            // Podwójne kliknięcie - tworzenie nowego wstawienia
-            dataGridHistoria.MouseDoubleClick += DataGridHistoria_MouseDoubleClick;
-
             // Event for loading avatars
             dataGridHistoria.LoadingRow += DataGridHistoria_LoadingRow;
         }
@@ -2033,108 +2021,13 @@ namespace Kalendarz1
                     LoadAvatarForHistoriaRow(e.Row, userId);
                 }
 
-                // Utwórz tooltip z pełnymi szczegółami
-                var hodowca = rowView["Dostawca"]?.ToString() ?? "-";
-                var userName = rowView["UserName"]?.ToString() ?? "-";
-                var snoozedUntil = rowView["SnoozedUntil"];
-                var reason = rowView["Reason"]?.ToString() ?? "-";
-                var createdAt = rowView["CreatedAt"];
-
-                var snoozedUntilStr = snoozedUntil != DBNull.Value && snoozedUntil != null
-                    ? ((DateTime)snoozedUntil).ToString("dd.MM.yyyy")
-                    : "-";
-                var createdAtStr = createdAt != DBNull.Value && createdAt != null
-                    ? ((DateTime)createdAt).ToString("dd.MM.yyyy HH:mm:ss")
-                    : "-";
-
-                // Utwórz sformatowany tooltip
-                var tooltipContent = new StackPanel { Margin = new Thickness(5) };
-
-                // Hodowca
-                var hodowcaPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
-                hodowcaPanel.Children.Add(new TextBlock { Text = "🐔 Hodowca: ", FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(92, 138, 58)) });
-                hodowcaPanel.Children.Add(new TextBlock { Text = hodowca, Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)) });
-                tooltipContent.Children.Add(hodowcaPanel);
-
-                // User
-                var userPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
-                userPanel.Children.Add(new TextBlock { Text = "👤 Użytkownik: ", FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(52, 152, 219)) });
-                userPanel.Children.Add(new TextBlock { Text = userName, Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)) });
-                tooltipContent.Children.Add(userPanel);
-
-                // Separator
-                tooltipContent.Children.Add(new Separator { Margin = new Thickness(0, 4, 0, 4) });
-
-                // Przesunięcie do
-                var snoozedPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
-                snoozedPanel.Children.Add(new TextBlock { Text = "📅 Przesunięcie do: ", FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(243, 156, 18)) });
-                snoozedPanel.Children.Add(new TextBlock { Text = snoozedUntilStr, Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)) });
-                tooltipContent.Children.Add(snoozedPanel);
-
-                // Dodano
-                var createdPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
-                createdPanel.Children.Add(new TextBlock { Text = "🕐 Dodano: ", FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(155, 89, 182)) });
-                createdPanel.Children.Add(new TextBlock { Text = createdAtStr, Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)) });
-                tooltipContent.Children.Add(createdPanel);
-
-                // Separator
-                tooltipContent.Children.Add(new Separator { Margin = new Thickness(0, 4, 0, 4) });
-
-                // Notatka - pełna treść
-                var notatkaTitlePanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
-                notatkaTitlePanel.Children.Add(new TextBlock { Text = "📝 Notatka:", FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(231, 76, 60)) });
-                tooltipContent.Children.Add(notatkaTitlePanel);
-
-                var notatkaText = new TextBlock
+                // Double-click otwiera osobne okno ze szczegółami historii
+                e.Row.MouseDoubleClick += (rowSender, rowArgs) =>
                 {
-                    Text = reason,
-                    Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
-                    TextWrapping = TextWrapping.Wrap,
-                    MaxWidth = 350,
-                    Margin = new Thickness(5, 2, 0, 0)
-                };
-                tooltipContent.Children.Add(notatkaText);
-
-                var tooltip = new ToolTip
-                {
-                    Background = new SolidColorBrush(Colors.White),
-                    BorderBrush = new SolidColorBrush(Color.FromRgb(155, 89, 182)),
-                    BorderThickness = new Thickness(2),
-                    Padding = new Thickness(8),
-                    StaysOpen = true
-                };
-
-                // Wrap content with close button
-                tooltip.Content = WrapTooltipWithCloseButton(tooltipContent, tooltip);
-
-                e.Row.ToolTip = tooltip;
-                // Wyłącz automatyczne pokazywanie tooltipa przy hover
-                ToolTipService.SetIsEnabled(e.Row, false);
-                ToolTipService.SetShowDuration(e.Row, 15000);
-
-                // Kliknięcie na wiersz pokazuje tooltip z timerem 6s
-                // Ale tylko jeśli tooltip nie został właśnie zamknięty (w tym samym kliknięciu)
-                e.Row.MouseLeftButtonUp += (rowSender, rowArgs) =>
-                {
-                    // Nie otwieraj tooltipa jeśli został zamknięty mniej niż 200ms temu
-                    if ((DateTime.Now - _tooltipCloseTime).TotalMilliseconds < 350)
+                    rowArgs.Handled = true;
+                    if (e.Row.DataContext is DataRowView rv)
                     {
-                        return;
-                    }
-
-                    if (e.Row.ToolTip is ToolTip tt)
-                    {
-                        ShowTooltipWithTimer(tt);
-                    }
-                };
-
-                // Zamknij tooltip gdy stracił focus
-                tooltip.Closed += (s, args) =>
-                {
-                    StopTooltipTimer();
-                    if (_currentOpenTooltip == tooltip)
-                    {
-                        _currentOpenTooltip = null;
+                        ShowDetailWindow("Historia kontaktu - " + (rv["Dostawca"]?.ToString() ?? ""), () => BuildHistoriaDetailContent(rv));
                     }
                 };
             }
@@ -2551,6 +2444,33 @@ namespace Kalendarz1
                     wstawienie.ShowDialog();
                     RefreshAll();
                 }
+            }
+        }
+
+        private void MenuNoweWstawienieKopiuj_Click(object sender, RoutedEventArgs e)
+        {
+            if (dataGridWstawienia.SelectedItem == null) return;
+            var row = (DataRowView)dataGridWstawienia.SelectedItem;
+            if (row["LP"] == DBNull.Value) return;
+
+            string dostawca = row["Dostawca"]?.ToString();
+            int ilosc = row["IloscWstawienia"] != DBNull.Value ? Convert.ToInt32(row["IloscWstawienia"]) : 0;
+
+            var daneOstatniego = PobierzDaneOstatniegoDostarczonego(dostawca);
+            var dialogKopiowania = new OknoKopiowaniaDanychDialog(dostawca, daneOstatniego);
+            if (dialogKopiowania.ShowDialog() == true)
+            {
+                var wstawienie = new WstawienieWindow { UserID = App.UserID };
+                wstawienie.Dostawca = dostawca;
+                wstawienie.SztWstawienia = ilosc;
+
+                if (dialogKopiowania.KopiujDodatkoweDane && daneOstatniego != null)
+                {
+                    wstawienie.DaneOstatniegoDostarczonego = daneOstatniego;
+                }
+
+                wstawienie.ShowDialog();
+                RefreshAll();
             }
         }
 

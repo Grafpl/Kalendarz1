@@ -13,6 +13,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -148,6 +149,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
             SetupTimers();
             SetupKeyboardShortcuts();
             SetupDragDrop();
+            SetupGridKeyboardNav();
             // Menu kontekstowe jest teraz zdefiniowane w XAML
         }
 
@@ -378,6 +380,137 @@ namespace Kalendarz1.Zywiec.Kalendarz
             dgDostawyNastepny.DragLeave += DgDostawy_DragLeave;
             dgDostawyNastepny.DragOver += DgDostawy_DragOver;
             dgDostawyNastepny.AllowDrop = true;
+        }
+
+        private void SetupGridKeyboardNav()
+        {
+            dgDostawy.PreviewKeyDown += DgDostawy_NavKeyDown;
+            dgDostawyNastepny.PreviewKeyDown += DgDostawy_NavKeyDown;
+        }
+
+        // Nazwy nagłówków kolumn edytowalnych (w kolejności nawigacji Tab)
+        private static readonly string[] _editableColumnHeaders = { "🚛", "🐔 Szt", "⚖️ Waga", "💰 Cena" };
+
+        private void DgDostawy_NavKeyDown(object sender, KeyEventArgs e)
+        {
+            var dg = sender as DataGrid;
+            if (dg == null) return;
+
+            var items = dg.Items;
+            int currentIndex = dg.SelectedIndex;
+
+            // Strzałka góra/dół - przeskocz nagłówki i separatory
+            if (e.Key == Key.Down || e.Key == Key.Up)
+            {
+                int direction = e.Key == Key.Down ? 1 : -1;
+                int nextIndex = currentIndex + direction;
+
+                while (nextIndex >= 0 && nextIndex < items.Count)
+                {
+                    var candidate = items[nextIndex] as DostawaModel;
+                    if (candidate != null && !candidate.IsHeaderRow && !candidate.IsSeparator)
+                    {
+                        dg.SelectedIndex = nextIndex;
+                        dg.ScrollIntoView(dg.SelectedItem);
+                        e.Handled = true;
+                        return;
+                    }
+                    nextIndex += direction;
+                }
+                e.Handled = true; // nie wychodź poza zakres
+                return;
+            }
+
+            // Tab / Shift+Tab - przeskok między kolumnami edytowalnymi
+            if (e.Key == Key.Tab)
+            {
+                e.Handled = true;
+                bool isShift = Keyboard.Modifiers == ModifierKeys.Shift;
+                var selectedItem = dg.SelectedItem as DostawaModel;
+                if (selectedItem == null || selectedItem.IsHeaderRow || selectedItem.IsSeparator) return;
+
+                // Znajdź bieżącą kolumnę
+                var currentCell = dg.CurrentCell;
+                string currentHeader = currentCell.Column?.Header?.ToString() ?? "";
+                int colIdx = Array.IndexOf(_editableColumnHeaders, currentHeader);
+
+                if (colIdx < 0)
+                {
+                    // Nie jest edytowalna - przejdź do pierwszej
+                    colIdx = isShift ? _editableColumnHeaders.Length - 1 : 0;
+                }
+                else
+                {
+                    colIdx += isShift ? -1 : 1;
+                }
+
+                // Przejście do następnego/poprzedniego wiersza danych
+                if (colIdx >= _editableColumnHeaders.Length || colIdx < 0)
+                {
+                    int direction = isShift ? -1 : 1;
+                    int nextIndex = dg.SelectedIndex + direction;
+                    while (nextIndex >= 0 && nextIndex < items.Count)
+                    {
+                        var candidate = items[nextIndex] as DostawaModel;
+                        if (candidate != null && !candidate.IsHeaderRow && !candidate.IsSeparator)
+                        {
+                            dg.SelectedIndex = nextIndex;
+                            dg.ScrollIntoView(dg.SelectedItem);
+                            break;
+                        }
+                        nextIndex += direction;
+                    }
+                    colIdx = isShift ? _editableColumnHeaders.Length - 1 : 0;
+                }
+
+                // Ustaw focus na docelową kolumnę
+                string targetHeader = _editableColumnHeaders[colIdx];
+                foreach (var col in dg.Columns)
+                {
+                    if (col.Header?.ToString() == targetHeader)
+                    {
+                        dg.CurrentCell = new DataGridCellInfo(dg.SelectedItem, col);
+                        break;
+                    }
+                }
+                return;
+            }
+
+            // Enter - otwórz inline edit na bieżącej komórce
+            if (e.Key == Key.Enter)
+            {
+                e.Handled = true;
+                var selectedItem = dg.SelectedItem as DostawaModel;
+                if (selectedItem == null || selectedItem.IsHeaderRow || selectedItem.IsSeparator) return;
+
+                var currentCell = dg.CurrentCell;
+                string header = currentCell.Column?.Header?.ToString() ?? "";
+                bool isSecond = (dg == dgDostawyNastepny);
+
+                // Znajdź wizualną komórkę
+                DataGridCell visualCell = null;
+                var row = dg.ItemContainerGenerator.ContainerFromItem(dg.SelectedItem) as DataGridRow;
+                if (row != null)
+                {
+                    var presenter = FindVisualChild<DataGridCellsPresenter>(row);
+                    if (presenter != null)
+                    {
+                        int colIndex = currentCell.Column?.DisplayIndex ?? -1;
+                        if (colIndex >= 0)
+                            visualCell = presenter.ItemContainerGenerator.ContainerFromIndex(colIndex) as DataGridCell;
+                    }
+                }
+
+                if (header == "🚛" || header.Contains("Auta"))
+                    _ = EditCellValueAsync(selectedItem.LP, "A", isSecond, visualCell);
+                else if (header == "🐔 Szt" || header.Contains("Szt"))
+                    _ = EditCellValueAsync(selectedItem.LP, "Szt", isSecond, visualCell);
+                else if (header == "⚖️ Waga" || header.Contains("Waga"))
+                    _ = EditCellValueAsync(selectedItem.LP, "Waga", isSecond, visualCell);
+                else if (header == "💰 Cena" || header.Contains("Cena"))
+                    _ = EditCenaAsync(selectedItem, isSecond);
+                return;
+            }
         }
 
         private async Task LoadAllDataAsync()
@@ -2382,15 +2515,15 @@ namespace Kalendarz1.Zywiec.Kalendarz
             // Obsługa edycji dla konkretnych kolumn (z obsługą emoji w nagłówkach)
             if (columnHeader == "🚛" || columnHeader.Contains("Auta"))
             {
-                await EditCellValueAsync(selectedItem.LP, "A", isFromSecondTable);
+                await EditCellValueAsync(selectedItem.LP, "A", isFromSecondTable, cell);
             }
             else if (columnHeader == "🐔 Szt" || columnHeader.Contains("Szt"))
             {
-                await EditCellValueAsync(selectedItem.LP, "Szt", isFromSecondTable);
+                await EditCellValueAsync(selectedItem.LP, "Szt", isFromSecondTable, cell);
             }
             else if (columnHeader == "⚖️ Waga" || columnHeader.Contains("Waga"))
             {
-                await EditCellValueAsync(selectedItem.LP, "Waga", isFromSecondTable);
+                await EditCellValueAsync(selectedItem.LP, "Waga", isFromSecondTable, cell);
             }
             else if (columnHeader == "📊 Typ" || columnHeader.Contains("Typ"))
             {
@@ -2406,7 +2539,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
             }
         }
 
-        private async Task EditCellValueAsync(string lp, string columnName, bool isFromSecondTable = false)
+        private Popup _inlineEditPopup;
+
+        private async Task EditCellValueAsync(string lp, string columnName, bool isFromSecondTable = false, DataGridCell targetCell = null)
         {
             // Pobierz aktualną wartość z odpowiedniej kolekcji
             var collection = isFromSecondTable ? _dostawyNastepnyTydzien : _dostawy;
@@ -2432,28 +2567,57 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     break;
             }
 
-            // Pokaż dialog edycji
-            var dialog = new Window
+            // Zamknij poprzedni popup jeśli otwarty
+            if (_inlineEditPopup != null && _inlineEditPopup.IsOpen)
+                _inlineEditPopup.IsOpen = false;
+
+            var popup = new Popup
             {
-                Title = $"Edycja {columnName}",
-                Width = 400,
-                Height = 200,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                Owner = this,
-                ResizeMode = ResizeMode.NoResize
+                PlacementTarget = targetCell ?? (UIElement)this,
+                Placement = targetCell != null ? PlacementMode.Bottom : PlacementMode.Center,
+                StaysOpen = false,
+                AllowsTransparency = true,
+                PopupAnimation = PopupAnimation.Fade
+            };
+            _inlineEditPopup = popup;
+
+            var border = new Border
+            {
+                Background = Brushes.White,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(33, 150, 243)),
+                BorderThickness = new Thickness(2),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(2),
+                Effect = new DropShadowEffect { BlurRadius = 8, Opacity = 0.3, ShadowDepth = 2 }
             };
 
-            var stack = new StackPanel { Margin = new Thickness(20) };
-            var textBox = new TextBox { Text = currentValue, FontSize = 24, Padding = new Thickness(10), Margin = new Thickness(0, 0, 0, 15) };
-            textBox.SelectAll();
-
-            var buttonPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-            var btnOk = new Button { Content = "OK", Width = 100, Height = 40, FontSize = 16, Margin = new Thickness(0, 0, 10, 0) };
-            var btnCancel = new Button { Content = "Anuluj", Width = 100, Height = 40, FontSize = 16 };
-
-            btnOk.Click += async (s, e) =>
+            var textBox = new TextBox
             {
+                Text = currentValue,
+                FontSize = 15,
+                FontWeight = FontWeights.SemiBold,
+                MinWidth = 70,
+                Padding = new Thickness(6, 3, 6, 3),
+                BorderThickness = new Thickness(0),
+                VerticalContentAlignment = VerticalAlignment.Center,
+                HorizontalContentAlignment = HorizontalAlignment.Right
+            };
+
+            border.Child = textBox;
+            popup.Child = border;
+
+            bool saved = false;
+
+            async Task SaveValueAsync()
+            {
+                if (saved) return;
+                saved = true;
                 string newValue = textBox.Text.Trim().Replace(",", ".");
+                if (newValue == currentValue)
+                {
+                    popup.IsOpen = false;
+                    return;
+                }
                 try
                 {
                     using (SqlConnection conn = new SqlConnection(ConnectionString))
@@ -2474,7 +2638,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         }
                     }
 
-                    // AUDIT LOG - logowanie zmiany
+                    // AUDIT LOG
                     if (_auditService != null)
                     {
                         var source = columnName switch
@@ -2491,33 +2655,34 @@ namespace Kalendarz1.Zywiec.Kalendarz
                             _cts.Token);
                     }
 
-                    dialog.Close();
+                    popup.IsOpen = false;
                     ShowToast($"{columnName} zaktualizowane", ToastType.Success);
                     await LoadDostawyAsync();
                 }
                 catch (Exception ex)
                 {
+                    saved = false;
                     ShowToast($"Błąd: {ex.Message}", ToastType.Error);
                 }
-            };
+            }
 
-            btnCancel.Click += (s, e) => dialog.Close();
-
-            textBox.KeyDown += (s, e) =>
+            textBox.KeyDown += async (s, e) =>
             {
-                if (e.Key == Key.Enter) btnOk.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                if (e.Key == Key.Escape) dialog.Close();
+                if (e.Key == Key.Enter) { e.Handled = true; await SaveValueAsync(); }
+                if (e.Key == Key.Escape) { e.Handled = true; popup.IsOpen = false; }
             };
 
-            buttonPanel.Children.Add(btnOk);
-            buttonPanel.Children.Add(btnCancel);
-            stack.Children.Add(new TextBlock { Text = $"Podaj nową wartość dla {columnName}:", FontSize = 16, Margin = new Thickness(0, 0, 0, 10) });
-            stack.Children.Add(textBox);
-            stack.Children.Add(buttonPanel);
-            dialog.Content = stack;
+            popup.Closed += async (s, e) =>
+            {
+                if (!saved) await SaveValueAsync();
+            };
 
-            textBox.Focus();
-            dialog.ShowDialog();
+            popup.IsOpen = true;
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                textBox.SelectAll();
+                textBox.Focus();
+            }), DispatcherPriority.Input);
         }
 
         private async Task EditNoteAsync(string lp)

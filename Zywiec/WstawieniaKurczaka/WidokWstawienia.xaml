@@ -588,6 +588,7 @@
                                 <DataGrid.ContextMenu>
                                     <ContextMenu>
                                         <MenuItem Header="✏️ Edytuj wstawienie" Click="MenuEdytuj_Click" FontWeight="SemiBold"/>
+                                        <MenuItem Header="➕ Nowe wstawienie (kopiuj dane)" Click="MenuNoweWstawienieKopiuj_Click" FontWeight="SemiBold"/>
                                         <MenuItem Header="📅 Zmień datę wstawienia" Click="MenuZmienDateWstawienia_Click" FontWeight="SemiBold"/>
                                         <MenuItem Header="💰 Zmień typ ceny" Click="MenuZmienTypCeny_Click" FontWeight="SemiBold"/>
                                         <Separator/>

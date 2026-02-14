@@ -32,7 +32,6 @@ namespace Kalendarz1.Transport.Formularze
         private List<Kierowca> _kierowcy;
         private List<Pojazd> _pojazdy;
         private List<ZamowienieDoTransportu> _wolneZamowienia = new List<ZamowienieDoTransportu>();
-        private List<KontrahentInfo> _kontrahenci = new List<KontrahentInfo>();
         private Timer _autoUpdateTimer;
 
         private RadioButton rbDataUboju;
@@ -43,6 +42,17 @@ namespace Kalendarz1.Transport.Formularze
         private List<ZamowienieDoTransportu> _zamowieniaDoDodania = new List<ZamowienieDoTransportu>();
         private List<int> _zamowieniaDoUsuniecia = new List<int>();
         private bool _dataLoaded = false;
+
+        // Szukaj zamówień
+        private TextBox txtSzukajZamowienia;
+        private string _filtrZamowien = "";
+
+        // Drag & drop
+        private bool _isDragging;
+        private int _dragRowIndex = -1;
+        private string _dragSource;
+        private Rectangle _dragBoxFromMouseDown;
+        private bool _isUpdating;
 
         // Kontrolki nagłówka
         private ComboBox cboKierowca;
@@ -64,24 +74,27 @@ namespace Kalendarz1.Transport.Formularze
         private DateTimePicker _dtpZamowienia;
         private Label _lblLiczbaZamowien;
 
-        // Panel ręcznego dodawania - nowe kontrolki
-        private ComboBox cboKlient;
-        private ComboBox cbFiltrHandlowca;
-        private NumericUpDown nudPalety;
-        private MaskedTextBox txtGodzina;
-        private TextBox txtUwagi;
-        private Button btnDodaj;
-
         // Przyciski zarządzania kolejnością
         private Button btnMoveUp;
         private Button btnMoveDown;
         private Button btnSortujPoKolejnosci;
 
         // Wskaźnik wypełnienia
-        private ProgressBar progressWypelnienie;
+        private Panel progressWypelnienie;
+        private Panel _progressFill;
+        private Label _progressLabel;
         private Label lblWypelnienie;
         private Label lblStatystyki;
         private Label lblAutoUpdate;
+        private Panel _panelInfoKursu;
+        private string _infoUtworzylId;
+        private string _infoUtworzylName;
+        private string _infoUtworzylDate;
+        private string _infoZmienilId;
+        private string _infoZmienilName;
+        private string _infoZmienilDate;
+        private string _infoHandlowcy;
+        private Dictionary<string, Image> _editorAvatarCache = new Dictionary<string, Image>();
 
         // Przyciski główne
         private Button btnZapisz;
@@ -105,6 +118,7 @@ namespace Kalendarz1.Transport.Formularze
             public byte? PlanE2NaPaleteOverride { get; set; }
             public string? NazwaKlienta { get; set; }
             public bool ZmienionyWZamowieniu { get; set; }
+            public bool AnulowanyWZamowieniu { get; set; }
             public decimal PoprzedniePalety { get; set; }
             public int PoprzedniePojemniki { get; set; }
             public DateTime? DataUboju { get; set; }  // NOWE
@@ -140,6 +154,7 @@ namespace Kalendarz1.Transport.Formularze
             public DateTime? DataUboju { get; set; }  // NOWE
             public string GodzinaStr => DataPrzyjazdu.ToString("HH:mm");
             public string Status { get; set; } = "Nowe";
+            public string TransportStatus { get; set; } = "Oczekuje";
             public string Handlowiec { get; set; } = "";
             public string Adres { get; set; } = "";
         }
@@ -147,60 +162,160 @@ namespace Kalendarz1.Transport.Formularze
         {
             public Kierowca NowyKierowca { get; private set; }
             private TextBox txtImie, txtNazwisko, txtTelefon;
+            private Label lblBladImie, lblBladNazwisko;
 
             public DodajKierowceDialog()
             {
-                Text = "Dodaj nowego kierowcę";
-                Size = new Size(400, 250);
+                Text = "Nowy kierowca";
+                Size = new Size(440, 320);
                 StartPosition = FormStartPosition.CenterParent;
+                FormBorderStyle = FormBorderStyle.FixedDialog;
+                MaximizeBox = false;
+                MinimizeBox = false;
+                BackColor = Color.FromArgb(30, 33, 40);
+                ForeColor = Color.White;
+                Font = new Font("Segoe UI", 10F);
 
-                var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(20) };
-
-                txtImie = new TextBox { Dock = DockStyle.Fill };
-                txtNazwisko = new TextBox { Dock = DockStyle.Fill };
-                txtTelefon = new TextBox { Dock = DockStyle.Fill };
-
-                layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
-                layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
-                layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
-                layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
-
-                layout.Controls.Add(new Label { Text = "Imię:", TextAlign = ContentAlignment.MiddleRight }, 0, 0);
-                layout.Controls.Add(txtImie, 1, 0);
-                layout.Controls.Add(new Label { Text = "Nazwisko:", TextAlign = ContentAlignment.MiddleRight }, 0, 1);
-                layout.Controls.Add(txtNazwisko, 1, 1);
-                layout.Controls.Add(new Label { Text = "Telefon:", TextAlign = ContentAlignment.MiddleRight }, 0, 2);
-                layout.Controls.Add(txtTelefon, 1, 2);
-
-                var btnPanel = new FlowLayoutPanel { FlowDirection = FlowDirection.RightToLeft, Dock = DockStyle.Fill };
-                var btnOK = new Button { Text = "Dodaj", DialogResult = DialogResult.OK, Width = 80 };
-                var btnCancel = new Button { Text = "Anuluj", DialogResult = DialogResult.Cancel, Width = 80 };
-
-                btnOK.Click += (s, e) =>
+                // Header
+                var header = new Panel { Dock = DockStyle.Top, Height = 50, BackColor = Color.FromArgb(37, 99, 235) };
+                var lblTitle = new Label
                 {
-                    if (string.IsNullOrWhiteSpace(txtImie.Text) || string.IsNullOrWhiteSpace(txtNazwisko.Text))
-                    {
-                        MessageBox.Show("Podaj imię i nazwisko.");
-                        DialogResult = DialogResult.None;
+                    Text = "Dodaj nowego kierowcę",
+                    Font = new Font("Segoe UI", 13F, FontStyle.Bold),
+                    ForeColor = Color.White,
+                    Dock = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleCenter
+                };
+                header.Controls.Add(lblTitle);
+
+                // Form fields
+                var body = new Panel { Dock = DockStyle.Fill, Padding = new Padding(25, 15, 25, 10) };
+
+                int y = 15;
+                body.Controls.Add(CreateFieldLabel("Imię *", y));
+                txtImie = CreateFieldTextBox(y + 20); body.Controls.Add(txtImie);
+                lblBladImie = CreateErrorLabel(y + 48); body.Controls.Add(lblBladImie);
+                y += 60;
+
+                body.Controls.Add(CreateFieldLabel("Nazwisko *", y));
+                txtNazwisko = CreateFieldTextBox(y + 20); body.Controls.Add(txtNazwisko);
+                lblBladNazwisko = CreateErrorLabel(y + 48); body.Controls.Add(lblBladNazwisko);
+                y += 60;
+
+                body.Controls.Add(CreateFieldLabel("Telefon (opcjonalnie)", y));
+                txtTelefon = CreateFieldTextBox(y + 20); body.Controls.Add(txtTelefon);
+
+                // Buttons
+                var footer = new Panel { Dock = DockStyle.Bottom, Height = 60, Padding = new Padding(25, 10, 25, 10) };
+
+                var btnZapisz = new Button
+                {
+                    Text = "✔  ZAPISZ",
+                    Size = new Size(140, 40),
+                    FlatStyle = FlatStyle.Flat,
+                    BackColor = Color.FromArgb(34, 154, 67),
+                    ForeColor = Color.White,
+                    Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                    Cursor = Cursors.Hand,
+                    Anchor = AnchorStyles.Right
+                };
+                btnZapisz.FlatAppearance.BorderSize = 0;
+                btnZapisz.Location = new Point(footer.Width - 290, 10);
+
+                var btnAnuluj = new Button
+                {
+                    Text = "Anuluj",
+                    Size = new Size(100, 40),
+                    FlatStyle = FlatStyle.Flat,
+                    BackColor = Color.Transparent,
+                    ForeColor = Color.FromArgb(156, 163, 175),
+                    Font = new Font("Segoe UI", 10F),
+                    Cursor = Cursors.Hand,
+                    Anchor = AnchorStyles.Right
+                };
+                btnAnuluj.FlatAppearance.BorderColor = Color.FromArgb(100, 105, 115);
+                btnAnuluj.Location = new Point(footer.Width - 140, 10);
+
+                btnZapisz.Click += (s, e) =>
+                {
+                    lblBladImie.Text = "";
+                    lblBladNazwisko.Text = "";
+                    bool valid = true;
+
+                    if (string.IsNullOrWhiteSpace(txtImie.Text))
+                    { lblBladImie.Text = "Pole wymagane"; valid = false; }
+                    if (string.IsNullOrWhiteSpace(txtNazwisko.Text))
+                    { lblBladNazwisko.Text = "Pole wymagane"; valid = false; }
+
+                    if (!valid) return;
+
+                    var imie = txtImie.Text.Trim();
+                    var nazwisko = txtNazwisko.Text.Trim();
+                    var tel = string.IsNullOrWhiteSpace(txtTelefon.Text) ? "" : txtTelefon.Text.Trim();
+
+                    var potwierdzenie = $"Czy na pewno chcesz dodać kierowcę?\n\n" +
+                        $"   Imię:         {imie}\n" +
+                        $"   Nazwisko:  {nazwisko}\n" +
+                        (tel != "" ? $"   Telefon:     {tel}\n" : "") +
+                        $"\nTa operacja doda nowy rekord do bazy danych.";
+
+                    if (MessageBox.Show(potwierdzenie, "Potwierdzenie zapisu",
+                        MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1) != DialogResult.Yes)
                         return;
-                    }
 
                     NowyKierowca = new Kierowca
                     {
-                        Imie = txtImie.Text.Trim(),
-                        Nazwisko = txtNazwisko.Text.Trim(),
-                        Telefon = string.IsNullOrWhiteSpace(txtTelefon.Text) ? null : txtTelefon.Text.Trim(),
+                        Imie = imie,
+                        Nazwisko = nazwisko,
+                        Telefon = tel == "" ? null : tel,
                         Aktywny = true
                     };
+                    DialogResult = DialogResult.OK;
                 };
 
-                btnPanel.Controls.Add(btnCancel);
-                btnPanel.Controls.Add(btnOK);
-                layout.SetColumnSpan(btnPanel, 2);
-                layout.Controls.Add(btnPanel, 0, 3);
+                btnAnuluj.Click += (s, e) => { DialogResult = DialogResult.Cancel; };
 
-                Controls.Add(layout);
+                footer.Controls.AddRange(new Control[] { btnZapisz, btnAnuluj });
+
+                Controls.Add(body);
+                Controls.Add(footer);
+                Controls.Add(header);
+
+                // Focus on first field
+                Shown += (s, e) => txtImie.Focus();
+
+                // Enter = submit, Escape = cancel
+                AcceptButton = btnZapisz;
+                CancelButton = btnAnuluj;
             }
+
+            private Label CreateFieldLabel(string text, int y) => new Label
+            {
+                Text = text,
+                Location = new Point(0, y),
+                Size = new Size(370, 18),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(156, 163, 175)
+            };
+
+            private TextBox CreateFieldTextBox(int y) => new TextBox
+            {
+                Location = new Point(0, y),
+                Size = new Size(370, 28),
+                Font = new Font("Segoe UI", 11F),
+                BackColor = Color.FromArgb(52, 56, 64),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            private Label CreateErrorLabel(int y) => new Label
+            {
+                Location = new Point(0, y),
+                Size = new Size(370, 16),
+                Font = new Font("Segoe UI", 8F),
+                ForeColor = Color.FromArgb(248, 113, 113),
+                Text = ""
+            };
         }
 
         public class DodajPojazdDialog : Form
@@ -208,71 +323,184 @@ namespace Kalendarz1.Transport.Formularze
             public Pojazd NowyPojazd { get; private set; }
             private TextBox txtRejestracja, txtMarka, txtModel;
             private NumericUpDown nudPalety;
+            private Label lblBladRej;
 
             public DodajPojazdDialog()
             {
-                Text = "Dodaj nowy pojazd";
-                Size = new Size(400, 280);
+                Text = "Nowy pojazd";
+                Size = new Size(440, 390);
                 StartPosition = FormStartPosition.CenterParent;
+                FormBorderStyle = FormBorderStyle.FixedDialog;
+                MaximizeBox = false;
+                MinimizeBox = false;
+                BackColor = Color.FromArgb(30, 33, 40);
+                ForeColor = Color.White;
+                Font = new Font("Segoe UI", 10F);
 
-                var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(20) };
+                // Header
+                var header = new Panel { Dock = DockStyle.Top, Height = 50, BackColor = Color.FromArgb(126, 87, 194) };
+                var lblTitle = new Label
+                {
+                    Text = "Dodaj nowy pojazd",
+                    Font = new Font("Segoe UI", 13F, FontStyle.Bold),
+                    ForeColor = Color.White,
+                    Dock = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleCenter
+                };
+                header.Controls.Add(lblTitle);
 
-                txtRejestracja = new TextBox { Dock = DockStyle.Fill };
-                txtMarka = new TextBox { Dock = DockStyle.Fill };
-                txtModel = new TextBox { Dock = DockStyle.Fill };
+                // Form fields
+                var body = new Panel { Dock = DockStyle.Fill, Padding = new Padding(25, 15, 25, 10) };
+
+                int y = 15;
+                body.Controls.Add(CreateFieldLabel("Nr rejestracyjny *", y));
+                txtRejestracja = CreateFieldTextBox(y + 20); body.Controls.Add(txtRejestracja);
+                txtRejestracja.CharacterCasing = CharacterCasing.Upper;
+                lblBladRej = CreateErrorLabel(y + 48); body.Controls.Add(lblBladRej);
+                y += 60;
+
+                body.Controls.Add(CreateFieldLabel("Marka (opcjonalnie)", y));
+                txtMarka = CreateFieldTextBox(y + 20); body.Controls.Add(txtMarka);
+                y += 55;
+
+                body.Controls.Add(CreateFieldLabel("Model (opcjonalnie)", y));
+                txtModel = CreateFieldTextBox(y + 20); body.Controls.Add(txtModel);
+                y += 55;
+
+                body.Controls.Add(CreateFieldLabel("Pojemność (palety H1)", y));
                 nudPalety = new NumericUpDown
                 {
-                    Dock = DockStyle.Fill,
+                    Location = new Point(0, y + 20),
+                    Size = new Size(120, 28),
                     Minimum = 1,
                     Maximum = 50,
-                    Value = 33
+                    Value = 33,
+                    Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                    BackColor = Color.FromArgb(52, 56, 64),
+                    ForeColor = Color.White,
+                    BorderStyle = BorderStyle.FixedSingle
                 };
+                body.Controls.Add(nudPalety);
 
-                layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
-                layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
-                layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
-                layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
-                layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
-
-                layout.Controls.Add(new Label { Text = "Rejestracja:", TextAlign = ContentAlignment.MiddleRight }, 0, 0);
-                layout.Controls.Add(txtRejestracja, 1, 0);
-                layout.Controls.Add(new Label { Text = "Marka:", TextAlign = ContentAlignment.MiddleRight }, 0, 1);
-                layout.Controls.Add(txtMarka, 1, 1);
-                layout.Controls.Add(new Label { Text = "Model:", TextAlign = ContentAlignment.MiddleRight }, 0, 2);
-                layout.Controls.Add(txtModel, 1, 2);
-                layout.Controls.Add(new Label { Text = "Palety H1:", TextAlign = ContentAlignment.MiddleRight }, 0, 3);
-                layout.Controls.Add(nudPalety, 1, 3);
-
-                var btnPanel = new FlowLayoutPanel { FlowDirection = FlowDirection.RightToLeft, Dock = DockStyle.Fill };
-                var btnOK = new Button { Text = "Dodaj", DialogResult = DialogResult.OK, Width = 80 };
-                var btnCancel = new Button { Text = "Anuluj", DialogResult = DialogResult.Cancel, Width = 80 };
-
-                btnOK.Click += (s, e) =>
+                var lblPaletyInfo = new Label
                 {
+                    Text = "(domyślnie 33 dla naczepy)",
+                    Location = new Point(130, y + 24),
+                    Size = new Size(200, 20),
+                    Font = new Font("Segoe UI", 8.5F, FontStyle.Italic),
+                    ForeColor = Color.FromArgb(120, 130, 140)
+                };
+                body.Controls.Add(lblPaletyInfo);
+
+                // Buttons
+                var footer = new Panel { Dock = DockStyle.Bottom, Height = 60, Padding = new Padding(25, 10, 25, 10) };
+
+                var btnZapisz = new Button
+                {
+                    Text = "✔  ZAPISZ",
+                    Size = new Size(140, 40),
+                    FlatStyle = FlatStyle.Flat,
+                    BackColor = Color.FromArgb(34, 154, 67),
+                    ForeColor = Color.White,
+                    Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                    Cursor = Cursors.Hand,
+                    Anchor = AnchorStyles.Right
+                };
+                btnZapisz.FlatAppearance.BorderSize = 0;
+                btnZapisz.Location = new Point(footer.Width - 290, 10);
+
+                var btnAnuluj = new Button
+                {
+                    Text = "Anuluj",
+                    Size = new Size(100, 40),
+                    FlatStyle = FlatStyle.Flat,
+                    BackColor = Color.Transparent,
+                    ForeColor = Color.FromArgb(156, 163, 175),
+                    Font = new Font("Segoe UI", 10F),
+                    Cursor = Cursors.Hand,
+                    Anchor = AnchorStyles.Right
+                };
+                btnAnuluj.FlatAppearance.BorderColor = Color.FromArgb(100, 105, 115);
+                btnAnuluj.Location = new Point(footer.Width - 140, 10);
+
+                btnZapisz.Click += (s, e) =>
+                {
+                    lblBladRej.Text = "";
                     if (string.IsNullOrWhiteSpace(txtRejestracja.Text))
                     {
-                        MessageBox.Show("Podaj numer rejestracyjny.");
-                        DialogResult = DialogResult.None;
+                        lblBladRej.Text = "Pole wymagane";
                         return;
                     }
 
+                    var rej = txtRejestracja.Text.Trim().ToUpper();
+                    var marka = string.IsNullOrWhiteSpace(txtMarka.Text) ? "" : txtMarka.Text.Trim();
+                    var model = string.IsNullOrWhiteSpace(txtModel.Text) ? "" : txtModel.Text.Trim();
+                    var palety = (int)nudPalety.Value;
+
+                    var opis = marka != "" ? $"{marka} {model} ({rej})" : rej;
+                    var potwierdzenie = $"Czy na pewno chcesz dodać pojazd?\n\n" +
+                        $"   Rejestracja:   {rej}\n" +
+                        (marka != "" ? $"   Marka:           {marka}\n" : "") +
+                        (model != "" ? $"   Model:           {model}\n" : "") +
+                        $"   Palety H1:      {palety}\n" +
+                        $"\nTa operacja doda nowy rekord do bazy danych.";
+
+                    if (MessageBox.Show(potwierdzenie, "Potwierdzenie zapisu",
+                        MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1) != DialogResult.Yes)
+                        return;
+
                     NowyPojazd = new Pojazd
                     {
-                        Rejestracja = txtRejestracja.Text.Trim().ToUpper(),
-                        Marka = string.IsNullOrWhiteSpace(txtMarka.Text) ? null : txtMarka.Text.Trim(),
-                        Model = string.IsNullOrWhiteSpace(txtModel.Text) ? null : txtModel.Text.Trim(),
-                        PaletyH1 = (int)nudPalety.Value,
+                        Rejestracja = rej,
+                        Marka = marka == "" ? null : marka,
+                        Model = model == "" ? null : model,
+                        PaletyH1 = palety,
                         Aktywny = true
                     };
+                    DialogResult = DialogResult.OK;
                 };
 
-                btnPanel.Controls.Add(btnCancel);
-                btnPanel.Controls.Add(btnOK);
-                layout.SetColumnSpan(btnPanel, 2);
-                layout.Controls.Add(btnPanel, 0, 4);
+                btnAnuluj.Click += (s, e) => { DialogResult = DialogResult.Cancel; };
 
-                Controls.Add(layout);
+                footer.Controls.AddRange(new Control[] { btnZapisz, btnAnuluj });
+
+                Controls.Add(body);
+                Controls.Add(footer);
+                Controls.Add(header);
+
+                // Focus + shortcuts
+                Shown += (s, e) => txtRejestracja.Focus();
+                AcceptButton = btnZapisz;
+                CancelButton = btnAnuluj;
             }
+
+            private Label CreateFieldLabel(string text, int y) => new Label
+            {
+                Text = text,
+                Location = new Point(0, y),
+                Size = new Size(370, 18),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(156, 163, 175)
+            };
+
+            private TextBox CreateFieldTextBox(int y) => new TextBox
+            {
+                Location = new Point(0, y),
+                Size = new Size(370, 28),
+                Font = new Font("Segoe UI", 11F),
+                BackColor = Color.FromArgb(52, 56, 64),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            private Label CreateErrorLabel(int y) => new Label
+            {
+                Location = new Point(0, y),
+                Size = new Size(370, 16),
+                Font = new Font("Segoe UI", 8F),
+                ForeColor = Color.FromArgb(248, 113, 113),
+                Text = ""
+            };
         }
 
         #endregion
@@ -314,7 +542,11 @@ namespace Kalendarz1.Transport.Formularze
         {
             _autoUpdateTimer = new Timer();
             _autoUpdateTimer.Interval = 10000;
-            _autoUpdateTimer.Tick += async (s, e) => await CheckForZamowieniaUpdates();
+            _autoUpdateTimer.Tick += async (s, e) =>
+            {
+                await CheckForZamowieniaUpdates();
+                await RefreshWolneZamowieniaSilently();
+            };
             _autoUpdateTimer.Start();
         }
 
@@ -331,7 +563,7 @@ namespace Kalendarz1.Transport.Formularze
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
-                RowCount = 4,
+                RowCount = 3,
                 Padding = new Padding(25),
                 BackColor = Color.FromArgb(240, 242, 247)
             };
@@ -340,21 +572,17 @@ namespace Kalendarz1.Transport.Formularze
             mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45));
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 180));
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 100));
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 80)); // Zwiększone 
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 80));
 
             var headerPanel = CreateHeaderPanel();
             mainLayout.Controls.Add(headerPanel, 0, 0);
             mainLayout.SetColumnSpan(headerPanel, 2);
 
             mainLayout.Controls.Add(CreateLadunkiPanel(), 0, 1);
-            mainLayout.Controls.Add(CreateAddPanel(), 0, 2);
-
             mainLayout.Controls.Add(CreateZamowieniaPanel(), 1, 1);
-            mainLayout.SetRowSpan(mainLayout.GetControlFromPosition(1, 1), 2);
 
             var buttonsPanel = CreateButtonsPanel();
-            mainLayout.Controls.Add(buttonsPanel, 0, 3);
+            mainLayout.Controls.Add(buttonsPanel, 0, 2);
             mainLayout.SetColumnSpan(buttonsPanel, 2);
 
             Controls.Add(mainLayout);
@@ -370,7 +598,7 @@ namespace Kalendarz1.Transport.Formularze
             };
 
             var lblKierowca = CreateLabel("KIEROWCA:", 20, 20, 90);
-            lblKierowca.ForeColor = Color.FromArgb(173, 181, 189);
+            lblKierowca.ForeColor = Color.FromArgb(156, 163, 175);
             lblKierowca.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
 
             cboKierowca = new ComboBox
@@ -378,6 +606,7 @@ namespace Kalendarz1.Transport.Formularze
                 Location = new Point(115, 18),
                 Size = new Size(200, 26),
                 DropDownStyle = ComboBoxStyle.DropDownList,
+                DropDownHeight = 600,
                 Font = new Font("Segoe UI", 10F),
                 DisplayMember = "PelneNazwisko",
                 BackColor = Color.FromArgb(52, 56, 64),
@@ -400,7 +629,7 @@ namespace Kalendarz1.Transport.Formularze
             btnNowyKierowca.Click += BtnNowyKierowca_Click;
 
             var lblPojazd = CreateLabel("POJAZD:", 365, 20, 70);
-            lblPojazd.ForeColor = Color.FromArgb(173, 181, 189);
+            lblPojazd.ForeColor = Color.FromArgb(156, 163, 175);
             lblPojazd.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
 
             cboPojazd = new ComboBox
@@ -408,6 +637,7 @@ namespace Kalendarz1.Transport.Formularze
                 Location = new Point(440, 18),
                 Size = new Size(150, 26),
                 DropDownStyle = ComboBoxStyle.DropDownList,
+                DropDownHeight = 600,
                 Font = new Font("Segoe UI", 10F),
                 DisplayMember = "Opis",
                 BackColor = Color.FromArgb(52, 56, 64),
@@ -431,7 +661,7 @@ namespace Kalendarz1.Transport.Formularze
             btnNowyPojazd.Click += BtnNowyPojazd_Click;
 
             var lblData = CreateLabel("DATA:", 640, 20, 50);
-            lblData.ForeColor = Color.FromArgb(173, 181, 189);
+            lblData.ForeColor = Color.FromArgb(156, 163, 175);
             lblData.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
 
             dtpData = new DateTimePicker
@@ -455,7 +685,7 @@ namespace Kalendarz1.Transport.Formularze
             };
 
             var lblGodziny = CreateLabel("GODZINY:", 20, 60, 90);
-            lblGodziny.ForeColor = Color.FromArgb(173, 181, 189);
+            lblGodziny.ForeColor = Color.FromArgb(156, 163, 175);
             lblGodziny.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
 
             txtGodzWyjazdu = new MaskedTextBox
@@ -490,7 +720,7 @@ namespace Kalendarz1.Transport.Formularze
             };
 
             var lblTrasa = CreateLabel("TRASA:", 305, 60, 60);
-            lblTrasa.ForeColor = Color.FromArgb(173, 181, 189);
+            lblTrasa.ForeColor = Color.FromArgb(156, 163, 175);
             lblTrasa.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
 
             txtTrasa = new TextBox
@@ -518,17 +748,33 @@ namespace Kalendarz1.Transport.Formularze
                 Size = new Size(120, 20),
                 Text = "WYPEŁNIENIE:",
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(173, 181, 189)
+                ForeColor = Color.FromArgb(156, 163, 175)
             };
 
-            progressWypelnienie = new ProgressBar
+            progressWypelnienie = new Panel
             {
-                Location = new Point(140, 15),
-                Size = new Size(700, 22),
-                Maximum = 100,
-                Value = 0,
-                Style = ProgressBarStyle.Continuous
+                Location = new Point(140, 13),
+                Size = new Size(700, 26),
+                BackColor = Color.FromArgb(55, 60, 70)
             };
+            _progressFill = new Panel
+            {
+                Location = new Point(0, 0),
+                Size = new Size(0, 26),
+                BackColor = Color.FromArgb(34, 197, 94)
+            };
+            _progressLabel = new Label
+            {
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.Transparent,
+                Text = "0%"
+            };
+            progressWypelnienie.Controls.Add(_progressLabel);
+            progressWypelnienie.Controls.Add(_progressFill);
+            _progressLabel.BringToFront();
 
             lblStatystyki = new Label
             {
@@ -542,13 +788,23 @@ namespace Kalendarz1.Transport.Formularze
 
             panelWypelnienie.Controls.AddRange(new Control[] { lblWypelnienie, progressWypelnienie, lblStatystyki });
 
+            // Info bar - kto utworzył/modyfikował (rysowany z avatarami)
+            _panelInfoKursu = new Panel
+            {
+                Location = new Point(15, 162),
+                Size = new Size(1200, 18),
+                BackColor = Color.Transparent
+            };
+            _panelInfoKursu.Paint += PanelInfoKursu_Paint;
+
             panel.Controls.AddRange(new Control[] {
                 lblKierowca, cboKierowca, btnNowyKierowca,
                 lblPojazd, cboPojazd, btnNowyPojazd,
                 lblData, dtpData, lblAutoUpdate,
                 lblGodziny, txtGodzWyjazdu, lblDo, txtGodzPowrotu,
                 lblTrasa, txtTrasa,
-                panelWypelnienie
+                panelWypelnienie,
+                _panelInfoKursu
             });
 
             return panel;
@@ -658,14 +914,12 @@ namespace Kalendarz1.Transport.Formularze
             dgvLadunki.GridColor = Color.FromArgb(236, 240, 241);
 
             var contextMenu = new ContextMenuStrip();
-            var menuEdytuj = new ToolStripMenuItem("Edytuj pozycję", null, (s, e) => EdytujLadunek());
             var menuEdytujZamowienie = new ToolStripMenuItem("Edytuj zamówienie", null, async (s, e) => await EdytujPrzypisaneZamowienie());
             var menuUsun = new ToolStripMenuItem("Usuń z kursu", null, async (s, e) => await UsunLadunek());
             var menuGora = new ToolStripMenuItem("Przesuń w górę", null, async (s, e) => await PrzesunLadunek(-1));
             var menuDol = new ToolStripMenuItem("Przesuń w dół", null, async (s, e) => await PrzesunLadunek(1));
             var menuOdswiez = new ToolStripMenuItem("Odśwież z zamówienia", null, async (s, e) => await OdswiezZamowienie());
 
-            contextMenu.Items.Add(menuEdytuj);
             contextMenu.Items.Add(menuEdytujZamowienie);
             contextMenu.Items.Add(new ToolStripSeparator());
             contextMenu.Items.Add(menuOdswiez);
@@ -677,120 +931,21 @@ namespace Kalendarz1.Transport.Formularze
 
             dgvLadunki.ContextMenuStrip = contextMenu;
 
+            // Drag & drop
+            dgvLadunki.AllowDrop = true;
+            dgvLadunki.MouseDown += DgvLadunki_MouseDown;
+            dgvLadunki.MouseMove += DgvLadunki_MouseMove;
+            dgvLadunki.DragEnter += DgvLadunki_DragEnter;
+            dgvLadunki.DragOver += DgvTarget_DragOver;
+            dgvLadunki.DragDrop += DgvLadunki_DragDrop;
+            dgvLadunki.DragLeave += DgvTarget_DragLeave;
+
             panel.Controls.Add(dgvLadunki);
             panel.Controls.Add(panelKolejnosc);
 
             return panel;
         }
 
-        private Panel CreateAddPanel()
-        {
-            var panel = new Panel
-            {
-                Dock = DockStyle.Fill,
-                BackColor = Color.White,
-                Padding = new Padding(20, 5, 20, 5),
-                BorderStyle = BorderStyle.FixedSingle
-            };
-
-            var lblTytul = CreateLabel("Ręczne dodawanie z utworzeniem zamówienia:", 5, 3, 320);
-            lblTytul.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-
-            // Filtr handlowca
-            var lblFiltr = CreateLabel("Handlowiec:", 5, 28, 80);
-            cbFiltrHandlowca = new ComboBox
-            {
-                Location = new Point(90, 25),
-                Size = new Size(150, 26),
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Font = new Font("Segoe UI", 9F)
-            };
-            cbFiltrHandlowca.SelectedIndexChanged += FiltrujKontrahentow;
-
-            // Wybór klienta
-            var lblKlient = CreateLabel("Kontrahent:", 250, 28, 70);
-            cboKlient = new ComboBox
-            {
-                Location = new Point(325, 25),
-                Size = new Size(250, 26),
-                Font = new Font("Segoe UI", 9F),
-                DropDownStyle = ComboBoxStyle.DropDown,
-                AutoCompleteMode = AutoCompleteMode.SuggestAppend,
-                AutoCompleteSource = AutoCompleteSource.ListItems,
-                DisplayMember = "Nazwa",
-                ValueMember = "Id"
-            };
-
-            // Liczba palet
-            var lblPalety = CreateLabel("Palety:", 585, 28, 50);
-            nudPalety = new NumericUpDown
-            {
-                Location = new Point(640, 25),
-                Size = new Size(70, 26),
-                Font = new Font("Segoe UI", 9F),
-                Maximum = 100,
-                Minimum = 0,
-                DecimalPlaces = 1,
-                Increment = 0.5m,
-                TextAlign = HorizontalAlignment.Center
-            };
-
-            // Godzina
-            var lblGodzina = CreateLabel("Godz.:", 720, 28, 45);
-            txtGodzina = new MaskedTextBox
-            {
-                Location = new Point(770, 25),
-                Size = new Size(55, 26),
-                Mask = "00:00",
-                Font = new Font("Segoe UI", 9F),
-                Text = "08:00",
-                TextAlign = HorizontalAlignment.Center
-            };
-
-            // Uwagi
-            var lblUwagi = CreateLabel("Uwagi:", 835, 28, 45);
-            txtUwagi = new TextBox
-            {
-                Location = new Point(885, 25),
-                Size = new Size(120, 26),
-                Font = new Font("Segoe UI", 9F),
-                PlaceholderText = "Opcjonalne..."
-            };
-
-            // Przycisk dodaj
-            btnDodaj = new Button
-            {
-                Location = new Point(1015, 22),
-                Size = new Size(110, 32),
-                Text = "Utwórz i dodaj",
-                BackColor = Color.FromArgb(46, 204, 113),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                Cursor = Cursors.Hand
-            };
-            btnDodaj.FlatAppearance.BorderSize = 0;
-            btnDodaj.Click += async (s, e) => await DodajLadunekRecznyZZamowieniem();
-
-            // Info
-            var lblInfo = new Label
-            {
-                Location = new Point(5, 58),
-                Size = new Size(1120, 18),
-                Text = "Wybierz kontrahenta, wpisz palety i godzinę - zostanie utworzone nowe zamówienie i dodane do kursu",
-                Font = new Font("Segoe UI", 8F, FontStyle.Italic),
-                ForeColor = Color.FromArgb(100, 100, 100)
-            };
-
-            panel.Controls.AddRange(new Control[] {
-                lblTytul, lblFiltr, cbFiltrHandlowca,
-                lblKlient, cboKlient, lblPalety, nudPalety,
-                lblGodzina, txtGodzina, lblUwagi, txtUwagi,
-                btnDodaj, lblInfo
-            });
-
-            return panel;
-        }
 
         private Panel CreateZamowieniaPanel()
         {
@@ -805,7 +960,7 @@ namespace Kalendarz1.Transport.Formularze
             var panelHeader = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 110,  // Zwiększone z 70 na 110
+                Height = 140,
                 BackColor = Color.FromArgb(248, 249, 252),
                 Padding = new Padding(10, 5, 10, 5)
             };
@@ -863,9 +1018,44 @@ namespace Kalendarz1.Transport.Formularze
                 }
             };
 
+            txtSzukajZamowienia = new TextBox
+            {
+                Location = new Point(10, 65),
+                Size = new Size(300, 26),
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.Gray,
+                Text = "Szukaj klienta lub handlowca...",
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+            };
+            txtSzukajZamowienia.GotFocus += (s, e) =>
+            {
+                if (txtSzukajZamowienia.ForeColor == Color.Gray)
+                {
+                    txtSzukajZamowienia.Text = "";
+                    txtSzukajZamowienia.ForeColor = Color.Black;
+                }
+            };
+            txtSzukajZamowienia.LostFocus += (s, e) =>
+            {
+                if (string.IsNullOrWhiteSpace(txtSzukajZamowienia.Text))
+                {
+                    txtSzukajZamowienia.ForeColor = Color.Gray;
+                    txtSzukajZamowienia.Text = "Szukaj klienta lub handlowca...";
+                    _filtrZamowien = "";
+                }
+            };
+            txtSzukajZamowienia.TextChanged += (s, e) =>
+            {
+                if (txtSzukajZamowienia.ForeColor != Color.Gray)
+                {
+                    _filtrZamowien = txtSzukajZamowienia.Text.Trim();
+                    ShowZamowieniaInGrid();
+                }
+            };
+
             var dtpZamowienia = new DateTimePicker
             {
-                Location = new Point(10, 70),
+                Location = new Point(10, 100),
                 Size = new Size(150, 26),
                 Format = DateTimePickerFormat.Short,
                 Font = new Font("Segoe UI", 10F),
@@ -879,7 +1069,7 @@ namespace Kalendarz1.Transport.Formularze
             var btnRefreshZamowienia = new Button
             {
                 Text = "Odśwież",
-                Location = new Point(170, 70),
+                Location = new Point(170, 100),
                 Size = new Size(70, 26),
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.FromArgb(52, 152, 219),
@@ -896,7 +1086,7 @@ namespace Kalendarz1.Transport.Formularze
             var btnToday = new Button
             {
                 Text = "Dziś",
-                Location = new Point(250, 70),
+                Location = new Point(250, 100),
                 Size = new Size(50, 26),
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.FromArgb(108, 117, 125),
@@ -913,7 +1103,7 @@ namespace Kalendarz1.Transport.Formularze
 
             var lblLiczbaZamowien = new Label
             {
-                Location = new Point(310, 70),
+                Location = new Point(310, 100),
                 Size = new Size(120, 26),
                 Text = "0 zamówień",
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
@@ -924,7 +1114,8 @@ namespace Kalendarz1.Transport.Formularze
 
             panelHeader.Controls.AddRange(new Control[] {
         lblZamowieniaInfo,
-        lblFiltrujPoData, rbDataUboju, rbDataOdbioru,  // NOWE
+        lblFiltrujPoData, rbDataUboju, rbDataOdbioru,
+        txtSzukajZamowienia,
         dtpZamowienia,
         btnRefreshZamowienia,
         btnToday,
@@ -936,8 +1127,8 @@ namespace Kalendarz1.Transport.Formularze
 
             dgvWolneZamowienia = new DataGridView
             {
-                Location = new Point(10, 120),  // Zmienione z 80 na 120
-                Size = new Size(panel.Width - 20, panel.Height - 180),  // Dostosowane
+                Location = new Point(10, 150),
+                Size = new Size(panel.Width - 20, panel.Height - 210),
                 Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
@@ -965,6 +1156,15 @@ namespace Kalendarz1.Transport.Formularze
 
             dgvWolneZamowienia.CellDoubleClick += async (s, e) => await DodajZamowienieDoKursu();
 
+            // Drag & drop
+            dgvWolneZamowienia.AllowDrop = true;
+            dgvWolneZamowienia.MouseDown += DgvWolneZamowienia_MouseDown;
+            dgvWolneZamowienia.MouseMove += DgvWolneZamowienia_MouseMove;
+            dgvWolneZamowienia.DragEnter += DgvWolneZamowienia_DragEnter;
+            dgvWolneZamowienia.DragOver += DgvTarget_DragOver;
+            dgvWolneZamowienia.DragDrop += DgvWolneZamowienia_DragDrop;
+            dgvWolneZamowienia.DragLeave += DgvTarget_DragLeave;
+
             var contextMenuWolne = new ContextMenuStrip();
             var menuDodajDoKursu = new ToolStripMenuItem("Dodaj do kursu", null, async (s, e) => await DodajZamowienieDoKursu());
             var menuEdytujZamowienie = new ToolStripMenuItem("Edytuj zamówienie", null, async (s, e) => await EdytujWolneZamowienie());
@@ -978,16 +1178,17 @@ namespace Kalendarz1.Transport.Formularze
 
             btnDodajZamowienie = new Button
             {
-                Text = "+ Dodaj do kursu",
+                Text = "⬅  Dodaj do kursu",
                 Dock = DockStyle.Bottom,
                 Height = 40,
-                BackColor = Color.FromArgb(46, 204, 113),
+                BackColor = Color.FromArgb(34, 154, 67),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
             btnDodajZamowienie.FlatAppearance.BorderSize = 0;
+            btnDodajZamowienie.FlatAppearance.MouseOverBackColor = Color.FromArgb(28, 130, 56);
             btnDodajZamowienie.Click += async (s, e) => await DodajZamowienieDoKursu();
 
             panel.Controls.AddRange(new Control[] { panelHeader, dgvWolneZamowienia, btnDodajZamowienie });
@@ -1006,32 +1207,35 @@ namespace Kalendarz1.Transport.Formularze
 
             btnZapisz = new Button
             {
-                Size = new Size(140, 45),
-                Text = "ZAPISZ",
-                BackColor = Color.FromArgb(40, 167, 69),
+                Size = new Size(170, 48),
+                Text = "✔  ZAPISZ KURS",
+                BackColor = Color.FromArgb(34, 154, 67),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
                 Cursor = Cursors.Hand,
                 Anchor = AnchorStyles.Bottom | AnchorStyles.Right
             };
             btnZapisz.FlatAppearance.BorderSize = 0;
-            btnZapisz.Location = new Point(panel.Width - btnZapisz.Width - 170, 15); // Zmienione z 10 na 15
+            btnZapisz.FlatAppearance.MouseOverBackColor = Color.FromArgb(28, 130, 56);
+            btnZapisz.Location = new Point(panel.Width - btnZapisz.Width - 170, 13);
             btnZapisz.Click += BtnZapisz_Click;
 
             btnAnuluj = new Button
             {
-                Size = new Size(140, 45),
+                Size = new Size(120, 42),
                 Text = "ANULUJ",
-                BackColor = Color.FromArgb(108, 117, 125),
-                ForeColor = Color.White,
+                BackColor = Color.Transparent,
+                ForeColor = Color.FromArgb(180, 185, 195),
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 11F),
+                Font = new Font("Segoe UI", 10F),
                 Cursor = Cursors.Hand,
                 Anchor = AnchorStyles.Bottom | AnchorStyles.Right
             };
-            btnAnuluj.FlatAppearance.BorderSize = 0;
-            btnAnuluj.Location = new Point(panel.Width - btnAnuluj.Width - 20, 15); // Zmienione z 10 na 15
+            btnAnuluj.FlatAppearance.BorderColor = Color.FromArgb(100, 105, 115);
+            btnAnuluj.FlatAppearance.BorderSize = 1;
+            btnAnuluj.FlatAppearance.MouseOverBackColor = Color.FromArgb(55, 60, 70);
+            btnAnuluj.Location = new Point(panel.Width - btnAnuluj.Width - 20, 16);
             btnAnuluj.Click += (s, e) =>
             {
                 if (_ladunki.Count > 0 || _zamowieniaDoDodania.Count > 0 || _zamowieniaDoUsuniecia.Count > 0)
@@ -1055,8 +1259,8 @@ namespace Kalendarz1.Transport.Formularze
 
             panel.Resize += (s, e) =>
             {
-                btnAnuluj.Location = new Point(panel.Width - btnAnuluj.Width - 20, 15); // Zmienione
-                btnZapisz.Location = new Point(panel.Width - btnZapisz.Width - 170, 15); // Zmienione
+                btnAnuluj.Location = new Point(panel.Width - btnAnuluj.Width - 20, 16);
+                btnZapisz.Location = new Point(panel.Width - btnZapisz.Width - 160, 13);
             };
 
             return panel;
@@ -1100,7 +1304,6 @@ namespace Kalendarz1.Transport.Formularze
                 cboKierowca.SelectedIndex = -1;
                 cboPojazd.SelectedIndex = -1;
 
-                await LoadKontrahenciAsync();
                 await LoadWolneZamowienia();
 
                 if (_kursId.HasValue && _kursId.Value > 0)
@@ -1119,110 +1322,6 @@ namespace Kalendarz1.Transport.Formularze
             {
                 Cursor = Cursors.Default;
             }
-        }
-
-        private async Task LoadKontrahenciAsync()
-        {
-            const string sql = @"
-        SELECT 
-            c.Id,
-            ISNULL(c.Shortcut, 'KH ' + CAST(c.Id AS VARCHAR(10))) AS Nazwa,
-            ISNULL(c.NIP, '') AS NIP,
-            ISNULL(poa.Postcode, '') AS KodPocztowy,
-            ISNULL(poa.Street, '') AS Miejscowosc, 
-            ISNULL(wym.CDim_Handlowiec_Val, '') AS Handlowiec
-        FROM [HANDEL].[SSCommon].[STContractors] c
-        LEFT JOIN [HANDEL].[SSCommon].[STPostOfficeAddresses] poa 
-            ON poa.ContactGuid = c.ContactGuid 
-            AND poa.AddressName = N'adres domyślny'
-        LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] wym 
-            ON c.Id = wym.ElementId
-                ORDER BY c.Shortcut";
-
-            try
-            {
-                _kontrahenci.Clear();
-
-                await using var cn = new SqlConnection(_connHandel);
-                await cn.OpenAsync();
-
-                await using var cmd = new SqlCommand(sql, cn);
-                await using var rd = await cmd.ExecuteReaderAsync();
-
-                while (await rd.ReadAsync())
-                {
-                    _kontrahenci.Add(new KontrahentInfo
-                    {
-                        Id = rd.GetInt32(0),
-                        Nazwa = rd.GetString(1),
-                        NIP = rd.GetString(2),
-                        KodPocztowy = rd.GetString(3),
-                        Miejscowosc = rd.GetString(4),
-                        Handlowiec = rd.GetString(5)
-                    });
-                }
-
-                // Wypełnij ComboBox klientów
-                if (this.InvokeRequired)
-                {
-                    this.Invoke(() =>
-                    {
-                        cboKlient.DataSource = new BindingSource(_kontrahenci, null);
-                        cboKlient.SelectedIndex = -1;
-
-                        // Wypełnij filtr handlowców
-                        var handlowcy = _kontrahenci
-                            .Select(k => k.Handlowiec)
-                            .Where(h => !string.IsNullOrEmpty(h))
-                            .Distinct()
-                            .OrderBy(h => h)
-                            .ToList();
-
-                        handlowcy.Insert(0, "— Wszyscy —");
-                        cbFiltrHandlowca.DataSource = handlowcy;
-                        cbFiltrHandlowca.SelectedIndex = 0;
-                    });
-                }
-                else
-                {
-                    cboKlient.DataSource = new BindingSource(_kontrahenci, null);
-                    cboKlient.SelectedIndex = -1;
-
-                    var handlowcy = _kontrahenci
-                        .Select(k => k.Handlowiec)
-                        .Where(h => !string.IsNullOrEmpty(h))
-                        .Distinct()
-                        .OrderBy(h => h)
-                        .ToList();
-
-                    handlowcy.Insert(0, "— Wszyscy —");
-                    cbFiltrHandlowca.DataSource = handlowcy;
-                    cbFiltrHandlowca.SelectedIndex = 0;
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd ładowania kontrahentów: {ex.Message}",
-                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        private void FiltrujKontrahentow(object sender, EventArgs e)
-        {
-            var wybranyHandlowiec = cbFiltrHandlowca.SelectedItem?.ToString();
-
-            if (string.IsNullOrEmpty(wybranyHandlowiec) || wybranyHandlowiec == "— Wszyscy —")
-            {
-                cboKlient.DataSource = new BindingSource(_kontrahenci, null);
-            }
-            else
-            {
-                var przefiltrowane = _kontrahenci
-                    .Where(k => k.Handlowiec == wybranyHandlowiec)
-                    .ToList();
-                cboKlient.DataSource = new BindingSource(przefiltrowane, null);
-            }
-            cboKlient.SelectedIndex = -1;
         }
 
         private async Task LoadKursData()
@@ -1266,14 +1365,257 @@ namespace Kalendarz1.Transport.Formularze
 
             txtTrasa.Text = _kurs.Trasa ?? "";
 
+            // Pokaż info o utworzeniu/modyfikacji kursu
+            UpdateInfoKursu();
+
             await LoadLadunki();
+
+            // Uzupełnij info o handlowcach (async, po załadowaniu ładunków)
+            _ = UpdateHandlowcyInfoAsync();
+        }
+
+        private void UpdateInfoKursu(string handlowcyInfo = null)
+        {
+            if (_panelInfoKursu == null) return;
+
+            if (_kurs != null)
+            {
+                _infoUtworzylId = _kurs.Utworzyl ?? "";
+                _infoUtworzylDate = _kurs.UtworzonoUTC.ToLocalTime().ToString("dd.MM HH:mm");
+                if (_kurs.ZmienionoUTC.HasValue && !string.IsNullOrEmpty(_kurs.Zmienil))
+                {
+                    _infoZmienilId = _kurs.Zmienil;
+                    _infoZmienilDate = _kurs.ZmienionoUTC.Value.ToLocalTime().ToString("dd.MM HH:mm");
+                }
+            }
+            if (!string.IsNullOrEmpty(handlowcyInfo))
+                _infoHandlowcy = handlowcyInfo;
+
+            // Pobierz pełne nazwy użytkowników asynchronicznie
+            _ = ResolveInfoNamesAndRepaint();
+        }
+
+        private async Task ResolveInfoNamesAndRepaint()
+        {
+            try
+            {
+                var ids = new List<string>();
+                if (!string.IsNullOrEmpty(_infoUtworzylId)) ids.Add(_infoUtworzylId);
+                if (!string.IsNullOrEmpty(_infoZmienilId)) ids.Add(_infoZmienilId);
+                if (ids.Count > 0)
+                {
+                    await using var cn = new SqlConnection(_connLibra);
+                    await cn.OpenAsync();
+                    var paramNames = ids.Select((_, i) => $"@u{i}").ToList();
+                    var sql = $"SELECT ID, ISNULL(Name, ID) FROM operators WHERE ID IN ({string.Join(",", paramNames)})";
+                    await using var cmd = new SqlCommand(sql, cn);
+                    for (int i = 0; i < ids.Count; i++)
+                        cmd.Parameters.AddWithValue($"@u{i}", ids[i]);
+                    await using var rdr = await cmd.ExecuteReaderAsync();
+                    while (await rdr.ReadAsync())
+                    {
+                        var id = rdr.GetString(0);
+                        var name = rdr.GetString(1);
+                        if (id == _infoUtworzylId) _infoUtworzylName = name;
+                        if (id == _infoZmienilId) _infoZmienilName = name;
+                    }
+                }
+            }
+            catch { }
+
+            if (string.IsNullOrEmpty(_infoUtworzylName)) _infoUtworzylName = _infoUtworzylId;
+            if (!string.IsNullOrEmpty(_infoZmienilId) && string.IsNullOrEmpty(_infoZmienilName))
+                _infoZmienilName = _infoZmienilId;
+
+            _panelInfoKursu?.Invalidate();
+        }
+
+        private Image GetEditorAvatar(string userId, string displayName, int size)
+        {
+            var key = $"{userId}_{size}";
+            if (_editorAvatarCache.TryGetValue(key, out var cached))
+                return cached;
+
+            Image avatar = null;
+            try
+            {
+                if (UserAvatarManager.HasAvatar(userId))
+                    avatar = UserAvatarManager.GetAvatarRounded(userId, size);
+            }
+            catch { }
+
+            if (avatar == null)
+                avatar = UserAvatarManager.GenerateDefaultAvatar(displayName ?? userId, userId, size);
+
+            _editorAvatarCache[key] = avatar;
+            return avatar;
+        }
+
+        private void PanelInfoKursu_Paint(object sender, PaintEventArgs e)
+        {
+            var g = e.Graphics;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+
+            var avatarSize = 16;
+            var x = 5;
+            var labelColor = Color.FromArgb(100, 110, 130);
+            var nameColor = Color.FromArgb(200, 210, 225);
+            var dateColor = Color.FromArgb(130, 140, 155);
+
+            // Utworzył
+            if (!string.IsNullOrEmpty(_infoUtworzylId))
+            {
+                using (var font = new Font("Segoe UI", 7.5F))
+                using (var brush = new SolidBrush(labelColor))
+                {
+                    g.DrawString("Utworzył:", font, brush, x, 1);
+                    x += (int)g.MeasureString("Utworzył:", font).Width + 3;
+                }
+
+                var avatar = GetEditorAvatar(_infoUtworzylId, _infoUtworzylName ?? _infoUtworzylId, avatarSize);
+                if (avatar != null)
+                {
+                    g.DrawImage(avatar, x, 1, avatarSize, avatarSize);
+                    x += avatarSize + 3;
+                }
+
+                var name = _infoUtworzylName ?? _infoUtworzylId;
+                using (var font = new Font("Segoe UI", 7.5F, FontStyle.Bold))
+                using (var brush = new SolidBrush(nameColor))
+                {
+                    g.DrawString(name, font, brush, x, 1);
+                    x += (int)g.MeasureString(name, font).Width + 2;
+                }
+
+                using (var font = new Font("Segoe UI", 7F))
+                using (var brush = new SolidBrush(dateColor))
+                {
+                    g.DrawString($"({_infoUtworzylDate})", font, brush, x, 2);
+                    x += (int)g.MeasureString($"({_infoUtworzylDate})", font).Width;
+                }
+            }
+
+            // Zmienił
+            if (!string.IsNullOrEmpty(_infoZmienilId))
+            {
+                x += 15;
+                using (var font = new Font("Segoe UI", 7.5F))
+                using (var brush = new SolidBrush(labelColor))
+                {
+                    g.DrawString("Zmienił:", font, brush, x, 1);
+                    x += (int)g.MeasureString("Zmienił:", font).Width + 3;
+                }
+
+                var avatar = GetEditorAvatar(_infoZmienilId, _infoZmienilName ?? _infoZmienilId, avatarSize);
+                if (avatar != null)
+                {
+                    g.DrawImage(avatar, x, 1, avatarSize, avatarSize);
+                    x += avatarSize + 3;
+                }
+
+                var name = _infoZmienilName ?? _infoZmienilId;
+                using (var font = new Font("Segoe UI", 7.5F, FontStyle.Bold))
+                using (var brush = new SolidBrush(nameColor))
+                {
+                    g.DrawString(name, font, brush, x, 1);
+                    x += (int)g.MeasureString(name, font).Width + 2;
+                }
+
+                using (var font = new Font("Segoe UI", 7F))
+                using (var brush = new SolidBrush(dateColor))
+                {
+                    g.DrawString($"({_infoZmienilDate})", font, brush, x, 2);
+                    x += (int)g.MeasureString($"({_infoZmienilDate})", font).Width;
+                }
+            }
+
+            // Handlowcy
+            if (!string.IsNullOrEmpty(_infoHandlowcy))
+            {
+                x += 15;
+                using (var font = new Font("Segoe UI", 7.5F))
+                using (var brush = new SolidBrush(labelColor))
+                {
+                    g.DrawString("Handlowcy:", font, brush, x, 1);
+                    x += (int)g.MeasureString("Handlowcy:", font).Width + 3;
+                }
+
+                var names = _infoHandlowcy.Split(',').Select(n => n.Trim()).Where(n => !string.IsNullOrEmpty(n)).ToList();
+                foreach (var hName in names.Take(3))
+                {
+                    var avatar = GetEditorAvatar(hName, hName, avatarSize);
+                    if (avatar != null)
+                    {
+                        g.DrawImage(avatar, x, 1, avatarSize, avatarSize);
+                        x += avatarSize + 2;
+                    }
+                }
+
+                using (var font = new Font("Segoe UI", 7.5F, FontStyle.Bold))
+                using (var brush = new SolidBrush(nameColor))
+                    g.DrawString(_infoHandlowcy, font, brush, x, 1);
+            }
+        }
+
+        private async Task UpdateHandlowcyInfoAsync()
+        {
+            try
+            {
+                var klientIds = new HashSet<int>();
+                foreach (var lad in _ladunki)
+                {
+                    if (lad.KodKlienta?.StartsWith("ZAM_") == true &&
+                        int.TryParse(lad.KodKlienta.Substring(4), out int zamId))
+                    {
+                        // Potrzebujemy KlientId - pobierz z LibraNet
+                    }
+                }
+
+                // Pobierz KlientIds z zamówień w LibraNet
+                var zamIds = _ladunki
+                    .Where(l => l.KodKlienta?.StartsWith("ZAM_") == true)
+                    .Select(l => int.TryParse(l.KodKlienta!.Substring(4), out int id) ? id : 0)
+                    .Where(id => id > 0).Distinct().ToList();
+
+                if (zamIds.Count == 0) return;
+
+                await using var cnLibra = new SqlConnection(_connLibra);
+                await cnLibra.OpenAsync();
+                var sqlZam = $"SELECT Id, KlientId FROM dbo.ZamowieniaMieso WHERE Id IN ({string.Join(",", zamIds)})";
+                await using var cmdZam = new SqlCommand(sqlZam, cnLibra);
+                await using var rdrZam = await cmdZam.ExecuteReaderAsync();
+                while (await rdrZam.ReadAsync())
+                    klientIds.Add(rdrZam.GetInt32(1));
+
+                if (klientIds.Count == 0) return;
+
+                // Pobierz Handlowców z Handel DB
+                await using var cnHandel = new SqlConnection(_connHandel);
+                await cnHandel.OpenAsync();
+                var sqlH = $@"SELECT DISTINCT ISNULL(wym.CDim_Handlowiec_Val, '')
+                             FROM SSCommon.STContractors c
+                             LEFT JOIN SSCommon.ContractorClassification wym ON c.Id = wym.ElementId
+                             WHERE c.Id IN ({string.Join(",", klientIds)})
+                               AND ISNULL(wym.CDim_Handlowiec_Val, '') <> ''";
+                await using var cmdH = new SqlCommand(sqlH, cnHandel);
+                await using var rdrH = await cmdH.ExecuteReaderAsync();
+                var handlowcy = new List<string>();
+                while (await rdrH.ReadAsync())
+                    handlowcy.Add(rdrH.GetString(0));
+
+                if (handlowcy.Count > 0)
+                    UpdateInfoKursu(string.Join(", ", handlowcy));
+            }
+            catch { }
         }
 
         private async Task LoadLadunki()
         {
             if (!_kursId.HasValue && _ladunki.Count == 0) return;
 
-            if (_kursId.HasValue && _ladunki.Count == 0)
+            // Reload z DB tylko przy pierwszym ładowaniu (przed _dataLoaded)
+            if (_kursId.HasValue && _ladunki.Count == 0 && !_dataLoaded)
             {
                 _ladunki = await LoadLadunkiFromDatabase(_kursId.Value);
             }
@@ -1359,9 +1701,13 @@ namespace Kalendarz1.Transport.Formularze
                 }
 
                 string status = "";
-                if (ladunek.ZmienionyWZamowieniu)
+                if (ladunek.AnulowanyWZamowieniu)
                 {
-                    status = "Zaktualizowano (niezapisane)";
+                    status = "⚠ Anulowane/Własny";
+                }
+                else if (ladunek.ZmienionyWZamowieniu)
+                {
+                    status = "⚠ Zmienione (niezapisane)";
                 }
 
                 dt.Rows.Add(
@@ -1427,16 +1773,201 @@ namespace Kalendarz1.Transport.Formularze
 
             foreach (DataGridViewRow row in dgvLadunki.Rows)
             {
-                var statusCell = row.Cells["Status"];
-                if (statusCell?.Value?.ToString()?.Contains("niezapisane") == true)
+                var ladunekId = Convert.ToInt64(row.Cells["ID"].Value);
+                var lad = _ladunki.FirstOrDefault(l => l.LadunekID == ladunekId);
+
+                if (lad != null && lad.AnulowanyWZamowieniu)
                 {
-                    row.DefaultCellStyle.BackColor = Color.FromArgb(255, 250, 230);
+                    row.DefaultCellStyle.BackColor = Color.FromArgb(255, 220, 220);
+                    row.DefaultCellStyle.ForeColor = Color.DarkRed;
+                }
+                else if (lad != null && lad.ZmienionyWZamowieniu)
+                {
+                    row.DefaultCellStyle.BackColor = Color.FromArgb(255, 243, 205);
+                }
+                else
+                {
+                    var statusCell = row.Cells["Status"];
+                    if (statusCell?.Value?.ToString()?.Contains("niezapisane") == true)
+                    {
+                        row.DefaultCellStyle.BackColor = Color.FromArgb(255, 250, 230);
+                    }
                 }
             }
 
             UpdateTrasa();
             await UpdateWypelnienie();
         }
+
+        /// <summary>
+        /// Synchronicznie odświeża grid ładunków z aktualnej listy _ladunki.
+        /// Nie wywołuje żadnych operacji async/DB - używa danych już w pamięci.
+        /// Używane przez drag & drop i operacje usuwania/dodawania.
+        /// </summary>
+        private void RefreshLadunkiGrid()
+        {
+            var dt = new DataTable();
+            dt.Columns.Add("ID", typeof(long));
+            dt.Columns.Add("Lp.", typeof(int));
+            dt.Columns.Add("Klient", typeof(string));
+            dt.Columns.Add("Data uboju", typeof(string));
+            dt.Columns.Add("Palety", typeof(decimal));
+            dt.Columns.Add("Pojemniki", typeof(int));
+            dt.Columns.Add("Adres", typeof(string));
+            dt.Columns.Add("Uwagi", typeof(string));
+            dt.Columns.Add("Status", typeof(string));
+
+            foreach (var ladunek in _ladunki.OrderBy(l => l.Kolejnosc))
+            {
+                string klientNazwa = ladunek.NazwaKlienta ?? "";
+                if (string.IsNullOrEmpty(klientNazwa))
+                {
+                    if (!string.IsNullOrEmpty(ladunek.Uwagi))
+                    {
+                        var idx = ladunek.Uwagi.IndexOf('(');
+                        klientNazwa = idx > 0 ? ladunek.Uwagi.Substring(0, idx).Trim() : ladunek.Uwagi;
+                        ladunek.NazwaKlienta = klientNazwa;
+                    }
+                    else
+                    {
+                        klientNazwa = ladunek.KodKlienta ?? "";
+                        ladunek.NazwaKlienta = klientNazwa;
+                    }
+                }
+
+                string dataUbojuStr = ladunek.DataUboju.HasValue
+                    ? ladunek.DataUboju.Value.ToString("yyyy-MM-dd") : "---";
+
+                string status = "";
+                if (ladunek.AnulowanyWZamowieniu)
+                    status = "⚠ Anulowane/Własny";
+                else if (ladunek.ZmienionyWZamowieniu)
+                    status = "⚠ Zmienione (niezapisane)";
+
+                dt.Rows.Add(
+                    ladunek.LadunekID,
+                    ladunek.Kolejnosc,
+                    klientNazwa,
+                    dataUbojuStr,
+                    ladunek.Palety,
+                    ladunek.PojemnikiE2,
+                    ladunek.Adres ?? "",
+                    ladunek.Uwagi ?? "",
+                    status
+                );
+            }
+
+            dgvLadunki.DataSource = dt;
+
+            if (dgvLadunki.Columns["ID"] != null)
+                dgvLadunki.Columns["ID"].Visible = false;
+            if (dgvLadunki.Columns["Lp."] != null)
+                dgvLadunki.Columns["Lp."].Width = 40;
+            if (dgvLadunki.Columns["Klient"] != null)
+                dgvLadunki.Columns["Klient"].Width = 150;
+            if (dgvLadunki.Columns["Data uboju"] != null)
+            {
+                dgvLadunki.Columns["Data uboju"].Width = 85;
+                dgvLadunki.Columns["Data uboju"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                dgvLadunki.Columns["Data uboju"].DefaultCellStyle.ForeColor = Color.DarkBlue;
+                dgvLadunki.Columns["Data uboju"].DefaultCellStyle.BackColor = Color.FromArgb(230, 240, 255);
+            }
+            if (dgvLadunki.Columns["Palety"] != null)
+            {
+                dgvLadunki.Columns["Palety"].Width = 70;
+                dgvLadunki.Columns["Palety"].DefaultCellStyle.Format = "N1";
+                dgvLadunki.Columns["Palety"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            }
+            if (dgvLadunki.Columns["Pojemniki"] != null)
+            {
+                dgvLadunki.Columns["Pojemniki"].Width = 80;
+                dgvLadunki.Columns["Pojemniki"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                dgvLadunki.Columns["Pojemniki"].DefaultCellStyle.ForeColor = Color.Blue;
+            }
+            if (dgvLadunki.Columns["Adres"] != null)
+            {
+                dgvLadunki.Columns["Adres"].Width = 180;
+                dgvLadunki.Columns["Adres"].DefaultCellStyle.Font = new Font("Segoe UI", 8.5F);
+                dgvLadunki.Columns["Adres"].DefaultCellStyle.ForeColor = Color.FromArgb(100, 100, 100);
+            }
+            if (dgvLadunki.Columns["Status"] != null)
+            {
+                dgvLadunki.Columns["Status"].Width = 160;
+                dgvLadunki.Columns["Status"].DefaultCellStyle.ForeColor = Color.Orange;
+                dgvLadunki.Columns["Status"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            }
+            if (dgvLadunki.Columns["Uwagi"] != null)
+                dgvLadunki.Columns["Uwagi"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+
+            foreach (DataGridViewRow row in dgvLadunki.Rows)
+            {
+                var ladunekId = Convert.ToInt64(row.Cells["ID"].Value);
+                var lad = _ladunki.FirstOrDefault(l => l.LadunekID == ladunekId);
+
+                if (lad != null && lad.AnulowanyWZamowieniu)
+                {
+                    row.DefaultCellStyle.BackColor = Color.FromArgb(255, 220, 220);
+                    row.DefaultCellStyle.ForeColor = Color.DarkRed;
+                }
+                else if (lad != null && lad.ZmienionyWZamowieniu)
+                {
+                    row.DefaultCellStyle.BackColor = Color.FromArgb(255, 243, 205);
+                }
+            }
+
+            UpdateTrasa();
+
+            // Inline UpdateWypelnienie (sync)
+            try
+            {
+                if (cboPojazd.SelectedItem is Pojazd pojazd)
+                {
+                    decimal sumaPalet = _ladunki?.Sum(l => l.Palety) ?? 0m;
+                    int paletyPojazdu = pojazd.PaletyH1;
+                    decimal procent = paletyPojazdu > 0 ? (sumaPalet / paletyPojazdu * 100m) : 0m;
+
+                    int fillWidth = (int)(Math.Min(100, procent) / 100m * progressWypelnienie.Width);
+                    _progressFill.Width = Math.Max(0, fillWidth);
+                    _progressLabel.Text = $"{procent:F1}%";
+                    lblStatystyki.Text = $"{sumaPalet:N1} palet z {paletyPojazdu} dostępnych ({procent:N1}%)";
+
+                    Color barColor;
+                    if (procent > 100)
+                    {
+                        barColor = Color.FromArgb(220, 38, 38);
+                        lblWypelnienie.ForeColor = Color.FromArgb(248, 113, 113);
+                        lblWypelnienie.Text = $"⚠ PRZEPEŁNIENIE: {procent:F1}%";
+                    }
+                    else if (procent > 90)
+                    {
+                        barColor = Color.FromArgb(245, 158, 11);
+                        lblWypelnienie.ForeColor = Color.FromArgb(251, 191, 36);
+                        lblWypelnienie.Text = $"WYPEŁNIENIE: {procent:F1}%";
+                    }
+                    else if (procent > 70)
+                    {
+                        barColor = Color.FromArgb(234, 179, 8);
+                        lblWypelnienie.ForeColor = Color.FromArgb(156, 163, 175);
+                        lblWypelnienie.Text = $"WYPEŁNIENIE: {procent:F1}%";
+                    }
+                    else
+                    {
+                        barColor = Color.FromArgb(34, 197, 94);
+                        lblWypelnienie.ForeColor = Color.FromArgb(156, 163, 175);
+                        lblWypelnienie.Text = $"WYPEŁNIENIE: {procent:F1}%";
+                    }
+                    _progressFill.BackColor = barColor;
+                }
+                else
+                {
+                    _progressFill.Width = 0;
+                    _progressLabel.Text = "0%";
+                    lblStatystyki.Text = "0 palet z 0 dostępnych";
+                }
+            }
+            catch { }
+        }
+
         // 8. DODAJ nową metodę pomocniczą:
         private async Task<DateTime?> PobierzDateUbojuAsync(int zamowienieId)
         {
@@ -1675,7 +2206,18 @@ namespace Kalendarz1.Transport.Formularze
             dt.Columns.Add("Handlowiec", typeof(string));
             dt.Columns.Add("Adres", typeof(string));
 
-            foreach (var zam in _wolneZamowienia.OrderBy(z => z.DataOdbioru).ThenBy(z => z.DataPrzyjazdu))
+            var zamowieniaDoPokazania = _wolneZamowienia.AsEnumerable();
+            if (!string.IsNullOrEmpty(_filtrZamowien))
+            {
+                var filtr = _filtrZamowien.ToLower();
+                zamowieniaDoPokazania = zamowieniaDoPokazania.Where(z =>
+                    (z.KlientNazwa ?? "").ToLower().Contains(filtr) ||
+                    (z.Handlowiec ?? "").ToLower().Contains(filtr) ||
+                    (z.Adres ?? "").ToLower().Contains(filtr) ||
+                    z.ZamowienieId.ToString().Contains(filtr));
+            }
+
+            foreach (var zam in zamowieniaDoPokazania.OrderBy(z => z.DataOdbioru).ThenBy(z => z.DataPrzyjazdu))
             {
                 string dataUbojuStr = zam.DataUboju.HasValue
                     ? zam.DataUboju.Value.ToString("yyyy-MM-dd")
@@ -1805,176 +2347,6 @@ namespace Kalendarz1.Transport.Formularze
 
         #region Operacje na ładunkach
 
-        private async Task DodajLadunekRecznyZZamowieniem()
-        {
-            if (cboKlient.SelectedItem is not KontrahentInfo kontrahent)
-            {
-                MessageBox.Show("Wybierz kontrahenta z listy.", "Brak danych",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                cboKlient.Focus();
-                return;
-            }
-
-            if (nudPalety.Value <= 0)
-            {
-                MessageBox.Show("Podaj liczbę palet (większą niż 0).", "Brak danych",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                nudPalety.Focus();
-                return;
-            }
-
-            TimeSpan? godzinaPrzyjazdu = null;
-            if (TimeSpan.TryParse(txtGodzina.Text, out var godz))
-            {
-                godzinaPrzyjazdu = godz;
-            }
-
-            try
-            {
-                Cursor = Cursors.WaitCursor;
-
-                int noweZamowienieId = await UtworzZamowienieAsync(
-                    kontrahent,
-                    nudPalety.Value,
-                    godzinaPrzyjazdu,
-                    txtUwagi.Text.Trim());
-
-                if (noweZamowienieId <= 0)
-                {
-                    MessageBox.Show("Nie udało się utworzyć zamówienia.", "Błąd",
-                        MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    return;
-                }
-
-                int pojemniki = (int)(nudPalety.Value * 36);
-
-                var ladunek = new LadunekWithPalety
-                {
-                    LadunekID = -(noweZamowienieId + 1000),
-                    KursID = _kursId ?? 0,
-                    KodKlienta = $"ZAM_{noweZamowienieId}",
-                    NazwaKlienta = kontrahent.Nazwa,
-                    Palety = nudPalety.Value,
-                    PojemnikiE2 = pojemniki,
-                    TrybE2 = false,
-                    Uwagi = string.IsNullOrWhiteSpace(txtUwagi.Text)
-                        ? $"{kontrahent.Nazwa} ({godzinaPrzyjazdu?.ToString(@"hh\:mm") ?? "08:00"})"
-                        : txtUwagi.Text.Trim(),
-                    Adres = kontrahent.Adres,
-                    Kolejnosc = _ladunki.Count + 1
-                };
-
-                _ladunki.Add(ladunek);
-
-                var zamowienieDoTransportu = new ZamowienieDoTransportu
-                {
-                    ZamowienieId = noweZamowienieId,
-                    KlientId = kontrahent.Id,
-                    KlientNazwa = kontrahent.Nazwa,
-                    Palety = nudPalety.Value,
-                    Pojemniki = pojemniki,
-                    TrybE2 = false,
-                    DataPrzyjazdu = dtpData.Value.Date.Add(godzinaPrzyjazdu ?? TimeSpan.FromHours(8)),
-                    DataOdbioru = dtpData.Value.Date,
-                    Status = "Nowe",
-                    Handlowiec = kontrahent.Handlowiec,
-                    Adres = kontrahent.Adres
-                };
-
-                _zamowieniaDoDodania.Add(zamowienieDoTransportu);
-
-                await LoadLadunki();
-                await LoadWolneZamowienia();
-
-                cboKlient.SelectedIndex = -1;
-                nudPalety.Value = 0;
-                txtGodzina.Text = "08:00";
-                txtUwagi.Clear();
-                cboKlient.Focus();
-
-                var message = $"Utworzono zamówienie #{noweZamowienieId}\n" +
-                              $"Dodano do kursu: {kontrahent.Nazwa}\n" +
-                              $"{nudPalety.Value:N1} palet ({pojemniki} pojemników)\n\n" +
-                              $"Pamiętaj: Kliknij 'ZAPISZ' aby zachować wszystkie zmiany!";
-
-                MessageBox.Show(message, "Zamówienie utworzone",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd podczas tworzenia zamówienia: {ex.Message}\n\n{ex.StackTrace}",
-                    "Błąd krytyczny", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            finally
-            {
-                Cursor = Cursors.Default;
-            }
-        }
-
-        private async Task<int> UtworzZamowienieAsync(
-            KontrahentInfo kontrahent,
-            decimal liczbaPalet,
-            TimeSpan? godzinaPrzyjazdu,
-            string uwagi)
-        {
-            await using var cn = new SqlConnection(_connLibra);
-            await cn.OpenAsync();
-
-            using var transaction = cn.BeginTransaction();
-
-            try
-            {
-                var sqlGetId = "SELECT ISNULL(MAX(Id), 0) + 1 FROM dbo.ZamowieniaMieso";
-                await using var cmdId = new SqlCommand(sqlGetId, cn, transaction);
-                int noweId = Convert.ToInt32(await cmdId.ExecuteScalarAsync());
-
-                int liczbaPojemnikow = (int)(liczbaPalet * 36);
-                var dataPrzyjazdu = dtpData.Value.Date.Add(godzinaPrzyjazdu ?? TimeSpan.FromHours(8));
-
-                var sqlInsert = @"
-                    INSERT INTO dbo.ZamowieniaMieso (
-                        Id, DataZamowienia, DataPrzyjazdu, KlientId, 
-                        Status, TransportStatus, TransportKursId,
-                        LiczbaPalet, LiczbaPojemnikow, TrybE2,
-                        Uwagi, IdUser, DataUtworzenia
-                    ) VALUES (
-                        @Id, @DataZamowienia, @DataPrzyjazdu, @KlientId,
-                        @Status, @TransportStatus, @TransportKursId,
-                        @LiczbaPalet, @LiczbaPojemnikow, @TrybE2,
-                        @Uwagi, @IdUser, SYSDATETIME()
-                    )";
-
-                await using var cmdInsert = new SqlCommand(sqlInsert, cn, transaction);
-                cmdInsert.Parameters.AddWithValue("@Id", noweId);
-                cmdInsert.Parameters.AddWithValue("@DataZamowienia", dtpData.Value.Date);
-                cmdInsert.Parameters.AddWithValue("@DataPrzyjazdu", dataPrzyjazdu);
-                cmdInsert.Parameters.AddWithValue("@KlientId", kontrahent.Id);
-                cmdInsert.Parameters.AddWithValue("@Status", "Nowe");
-                cmdInsert.Parameters.AddWithValue("@TransportStatus", "Oczekuje");
-                cmdInsert.Parameters.AddWithValue("@TransportKursId",
-                    _kursId.HasValue && _kursId.Value > 0 ? (object)_kursId.Value : DBNull.Value);
-                cmdInsert.Parameters.AddWithValue("@LiczbaPalet", liczbaPalet);
-                cmdInsert.Parameters.AddWithValue("@LiczbaPojemnikow", liczbaPojemnikow);
-                cmdInsert.Parameters.AddWithValue("@TrybE2", false);
-                cmdInsert.Parameters.AddWithValue("@Uwagi",
-                    string.IsNullOrWhiteSpace(uwagi)
-                        ? (object)$"Utworzone ręcznie z transportu przez {UserID ?? _uzytkownik}"
-                        : uwagi);
-                cmdInsert.Parameters.AddWithValue("@IdUser", UserID ?? _uzytkownik);
-
-                await cmdInsert.ExecuteNonQueryAsync();
-
-                transaction.Commit();
-
-                return noweId;
-            }
-            catch
-            {
-                transaction.Rollback();
-                throw;
-            }
-        }
-
         private async Task DodajZamowienieDoKursu()
         {
             if (dgvWolneZamowienia.CurrentRow == null) return;
@@ -1983,29 +2355,35 @@ namespace Kalendarz1.Transport.Formularze
             var zamowienie = _wolneZamowienia.FirstOrDefault(z => z.ZamowienieId == zamId);
             if (zamowienie == null) return;
 
-            _zamowieniaDoDodania.Add(zamowienie);
-
-            _zamowieniaDoUsuniecia.Remove(zamId);
-
-            var ladunek = new LadunekWithPalety
+            _isUpdating = true;
+            try
             {
-                LadunekID = -(zamId + 1000),
-                KursID = _kursId ?? 0,
-                KodKlienta = $"ZAM_{zamowienie.ZamowienieId}",
-                Palety = zamowienie.Palety,
-                PojemnikiE2 = zamowienie.Pojemniki,
-                TrybE2 = zamowienie.TrybE2,
-                Uwagi = $"{zamowienie.KlientNazwa} ({zamowienie.GodzinaStr})",
-                Adres = zamowienie.Adres,
-                NazwaKlienta = zamowienie.KlientNazwa,
-                Kolejnosc = _ladunki.Count + 1
-            };
+                _zamowieniaDoDodania.Add(zamowienie);
+                _zamowieniaDoUsuniecia.Remove(zamId);
 
-            _ladunki.Add(ladunek);
+                var ladunek = new LadunekWithPalety
+                {
+                    LadunekID = -(zamId + 1000),
+                    KursID = _kursId ?? 0,
+                    KodKlienta = $"ZAM_{zamowienie.ZamowienieId}",
+                    Palety = zamowienie.Palety,
+                    PojemnikiE2 = zamowienie.Pojemniki,
+                    TrybE2 = zamowienie.TrybE2,
+                    Uwagi = $"{zamowienie.KlientNazwa} ({zamowienie.GodzinaStr})",
+                    Adres = zamowienie.Adres,
+                    NazwaKlienta = zamowienie.KlientNazwa,
+                    Kolejnosc = _ladunki.Count + 1
+                };
 
-            _wolneZamowienia.Remove(zamowienie);
-            ShowZamowieniaInGrid();
-            await LoadLadunki();
+                _ladunki.Add(ladunek);
+                _wolneZamowienia.Remove(zamowienie);
+                ShowZamowieniaInGrid();
+                RefreshLadunkiGrid();
+            }
+            finally
+            {
+                _isUpdating = false;
+            }
         }
 
         private async Task UsunLadunek()
@@ -2016,39 +2394,38 @@ namespace Kalendarz1.Transport.Formularze
             var ladunek = _ladunki.FirstOrDefault(l => l.LadunekID == ladunekId);
             if (ladunek == null) return;
 
-            if (ladunek.KodKlienta?.StartsWith("ZAM_") == true)
+            _isUpdating = true;
+            try
             {
-                var zamId = int.Parse(ladunek.KodKlienta.Substring(4));
+                // 1. SYNCHRONICZNIE: Usuń z listy NATYCHMIAST (przed async)
+                _ladunki.Remove(ladunek);
+                for (int i = 0; i < _ladunki.Count; i++)
+                    _ladunki[i].Kolejnosc = i + 1;
 
-                var zamDoDodania = _zamowieniaDoDodania.FirstOrDefault(z => z.ZamowienieId == zamId);
-                if (zamDoDodania != null)
+                // 2. Tracking + zwrot do wolnych
+                if (ladunek.KodKlienta?.StartsWith("ZAM_") == true)
                 {
-                    _zamowieniaDoDodania.Remove(zamDoDodania);
-                }
-                else
-                {
-                    if (ladunekId > 0)
-                    {
+                    var zamId = int.Parse(ladunek.KodKlienta.Substring(4));
+
+                    var zamDoDodania = _zamowieniaDoDodania.FirstOrDefault(z => z.ZamowienieId == zamId);
+                    if (zamDoDodania != null)
+                        _zamowieniaDoDodania.Remove(zamDoDodania);
+                    else if (ladunekId > 0)
                         _zamowieniaDoUsuniecia.Add(zamId);
-                    }
+
+                    var zamowienie = await PobierzAktualneZamowienie(zamId);
+                    if (zamowienie != null)
+                        _wolneZamowienia.Add(zamowienie);
                 }
 
-                var zamowienie = await PobierzAktualneZamowienie(zamId);
-                if (zamowienie != null)
-                {
-                    _wolneZamowienia.Add(zamowienie);
-                }
+                // 3. Odśwież gridy SYNCHRONICZNIE
+                RefreshLadunkiGrid();
+                ShowZamowieniaInGrid();
             }
-
-            _ladunki.Remove(ladunek);
-
-            for (int i = 0; i < _ladunki.Count; i++)
+            finally
             {
-                _ladunki[i].Kolejnosc = i + 1;
+                _isUpdating = false;
             }
-
-            ShowZamowieniaInGrid();
-            await LoadLadunki();
         }
 
         private async Task PrzesunLadunek(int kierunek)
@@ -2073,7 +2450,7 @@ namespace Kalendarz1.Transport.Formularze
                 _ladunki[i].Kolejnosc = i + 1;
             }
 
-            await LoadLadunki();
+            RefreshLadunkiGrid();
 
             foreach (DataGridViewRow row in dgvLadunki.Rows)
             {
@@ -2108,26 +2485,8 @@ namespace Kalendarz1.Transport.Formularze
             if (dlg.ShowDialog(this) == DialogResult.OK && dlg.ZmienioneKolejnosci != null)
             {
                 _ladunki = dlg.ZmienioneKolejnosci;
-                await LoadLadunki();
+                RefreshLadunkiGrid();
             }
-        }
-
-        private void EdytujLadunek()
-        {
-            if (dgvLadunki.CurrentRow == null) return;
-
-            var row = dgvLadunki.CurrentRow;
-
-            var klient = _kontrahenci.FirstOrDefault(k => k.Nazwa == row.Cells["Klient"].Value?.ToString());
-            if (klient != null)
-            {
-                cboKlient.SelectedItem = klient;
-            }
-
-            nudPalety.Value = Convert.ToDecimal(row.Cells["Palety"].Value ?? 0);
-            txtUwagi.Text = row.Cells["Uwagi"].Value?.ToString() ?? "";
-
-            _ = UsunLadunek();
         }
 
         #endregion
@@ -2136,7 +2495,8 @@ namespace Kalendarz1.Transport.Formularze
 
         private async Task CheckForZamowieniaUpdates()
         {
-            if (!_dataLoaded) return;
+            if (!_dataLoaded || _isUpdating) return;
+            _isUpdating = true;
 
             try
             {
@@ -2151,16 +2511,57 @@ namespace Kalendarz1.Transport.Formularze
 
                         if (aktualneZamowienie != null)
                         {
+                            // Wykryj anulowanie lub zmianę na transport własny
+                            if (aktualneZamowienie.Status == "Anulowane" || aktualneZamowienie.TransportStatus == "Własny")
+                            {
+                                ladunek.AnulowanyWZamowieniu = true;
+                                ladunek.ZmienionyWZamowieniu = true;
+                                zmienioneLadunki.Add(ladunek);
+                                anyChanges = true;
+                                continue;
+                            }
+
+                            bool changed = false;
+
                             if (ladunek.Palety != aktualneZamowienie.Palety ||
                                 ladunek.PojemnikiE2 != aktualneZamowienie.Pojemniki)
                             {
                                 ladunek.PoprzedniePalety = ladunek.Palety;
                                 ladunek.PoprzedniePojemniki = ladunek.PojemnikiE2;
-
                                 ladunek.Palety = aktualneZamowienie.Palety;
                                 ladunek.PojemnikiE2 = aktualneZamowienie.Pojemniki;
-                                ladunek.ZmienionyWZamowieniu = true;
+                                changed = true;
+                            }
 
+                            if (ladunek.TrybE2 != aktualneZamowienie.TrybE2)
+                            {
+                                ladunek.TrybE2 = aktualneZamowienie.TrybE2;
+                                changed = true;
+                            }
+
+                            if (ladunek.DataUboju != aktualneZamowienie.DataUboju)
+                            {
+                                ladunek.DataUboju = aktualneZamowienie.DataUboju;
+                                changed = true;
+                            }
+
+                            if (!string.IsNullOrEmpty(aktualneZamowienie.KlientNazwa) &&
+                                ladunek.NazwaKlienta != aktualneZamowienie.KlientNazwa)
+                            {
+                                ladunek.NazwaKlienta = aktualneZamowienie.KlientNazwa;
+                                changed = true;
+                            }
+
+                            if (!string.IsNullOrEmpty(aktualneZamowienie.Adres) &&
+                                ladunek.Adres != aktualneZamowienie.Adres)
+                            {
+                                ladunek.Adres = aktualneZamowienie.Adres;
+                                changed = true;
+                            }
+
+                            if (changed)
+                            {
+                                ladunek.ZmienionyWZamowieniu = true;
                                 zmienioneLadunki.Add(ladunek);
                                 anyChanges = true;
                             }
@@ -2175,8 +2576,15 @@ namespace Kalendarz1.Transport.Formularze
 
                     if (lblAutoUpdate != null)
                     {
-                        lblAutoUpdate.Text = $"Zaktualizowano {zmienioneLadunki.Count} pozycji z zamówień (nie zapisano)";
-                        lblAutoUpdate.ForeColor = Color.Orange;
+                        var anulowane = zmienioneLadunki.Count(l => l.AnulowanyWZamowieniu);
+                        string msg;
+                        if (anulowane > 0)
+                            msg = $"⚠ {anulowane} anulowanych, {zmienioneLadunki.Count - anulowane} zaktualizowanych (nie zapisano)";
+                        else
+                            msg = $"Zaktualizowano {zmienioneLadunki.Count} pozycji z zamówień (nie zapisano)";
+
+                        lblAutoUpdate.Text = msg;
+                        lblAutoUpdate.ForeColor = anulowane > 0 ? Color.Red : Color.Orange;
                         lblAutoUpdate.Visible = true;
 
                         var hideTimer = new Timer { Interval = 5000 };
@@ -2194,6 +2602,69 @@ namespace Kalendarz1.Transport.Formularze
             {
                 Console.WriteLine($"Błąd podczas automatycznej aktualizacji: {ex.Message}");
             }
+            finally
+            {
+                _isUpdating = false;
+            }
+        }
+
+        private async Task RefreshWolneZamowieniaSilently()
+        {
+            if (!_dataLoaded || _isUpdating) return;
+
+            try
+            {
+                var previousIds = new HashSet<int>(_wolneZamowienia.Select(z => z.ZamowienieId));
+
+                // Zapamiętaj zaznaczony wiersz
+                int? selectedZamId = null;
+                if (dgvWolneZamowienia?.CurrentRow != null)
+                {
+                    selectedZamId = Convert.ToInt32(dgvWolneZamowienia.CurrentRow.Cells["ID"].Value);
+                }
+
+                await LoadWolneZamowieniaForDate(_dtpZamowienia?.Value ?? dtpData.Value);
+
+                var currentIds = new HashSet<int>(_wolneZamowienia.Select(z => z.ZamowienieId));
+
+                if (!previousIds.SetEquals(currentIds))
+                {
+                    int noweCount = currentIds.Except(previousIds).Count();
+                    if (noweCount > 0 && lblAutoUpdate != null)
+                    {
+                        lblAutoUpdate.Text = $"+{noweCount} nowych zamówień";
+                        lblAutoUpdate.ForeColor = Color.FromArgb(52, 152, 219);
+                        lblAutoUpdate.Visible = true;
+
+                        var hideTimer = new Timer { Interval = 4000 };
+                        hideTimer.Tick += (s, e) =>
+                        {
+                            lblAutoUpdate.Visible = false;
+                            hideTimer.Stop();
+                            hideTimer.Dispose();
+                        };
+                        hideTimer.Start();
+                    }
+                }
+
+                // Przywróć zaznaczony wiersz
+                if (selectedZamId.HasValue && dgvWolneZamowienia != null)
+                {
+                    foreach (DataGridViewRow row in dgvWolneZamowienia.Rows)
+                    {
+                        if (Convert.ToInt32(row.Cells["ID"].Value) == selectedZamId.Value)
+                        {
+                            row.Selected = true;
+                            dgvWolneZamowienia.CurrentCell = row.Cells[1];
+                            break;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Błąd odświeżania wolnych zamówień: {ex.Message}");
+            }
         }
 
         private async Task<ZamowienieDoTransportu> PobierzAktualneZamowienie(int zamowienieId)
@@ -2204,7 +2675,7 @@ namespace Kalendarz1.Transport.Formularze
                 await cn.OpenAsync();
 
                 var sql = @"
-                    SELECT 
+                    SELECT
                         zm.Id AS ZamowienieId,
                         zm.KlientId,
                         zm.DataPrzyjazdu,
@@ -2212,12 +2683,16 @@ namespace Kalendarz1.Transport.Formularze
                         ISNULL(zm.LiczbaPalet, 0) AS LiczbaPalet,
                         ISNULL(zm.LiczbaPojemnikow, 0) AS LiczbaPojemnikow,
                         ISNULL(zm.TrybE2, 0) AS TrybE2,
-                        SUM(ISNULL(zmt.Ilosc, 0)) AS IloscKg
+                        SUM(ISNULL(zmt.Ilosc, 0)) AS IloscKg,
+                        zm.DataUboju,
+                        ISNULL(zm.TransportStatus, 'Oczekuje') AS TransportStatus,
+                        zm.DataZamowienia
                     FROM dbo.ZamowieniaMieso zm
                     LEFT JOIN dbo.ZamowieniaMiesoTowar zmt ON zm.Id = zmt.ZamowienieId
                     WHERE zm.Id = @ZamowienieId
-                    GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.Status, 
-                             zm.LiczbaPalet, zm.LiczbaPojemnikow, zm.TrybE2";
+                    GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.Status,
+                             zm.LiczbaPalet, zm.LiczbaPojemnikow, zm.TrybE2,
+                             zm.DataUboju, zm.TransportStatus, zm.DataZamowienia";
 
                 using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@ZamowienieId", zamowienieId);
@@ -2225,7 +2700,7 @@ namespace Kalendarz1.Transport.Formularze
                 using var reader = await cmd.ExecuteReaderAsync();
                 if (await reader.ReadAsync())
                 {
-                    return new ZamowienieDoTransportu
+                    var zamowienie = new ZamowienieDoTransportu
                     {
                         ZamowienieId = reader.GetInt32(0),
                         KlientId = reader.GetInt32(1),
@@ -2234,8 +2709,43 @@ namespace Kalendarz1.Transport.Formularze
                         Palety = reader.GetDecimal(4),
                         Pojemniki = reader.GetInt32(5),
                         TrybE2 = reader.GetBoolean(6),
-                        IloscKg = reader.IsDBNull(7) ? 0 : reader.GetDecimal(7)
+                        IloscKg = reader.IsDBNull(7) ? 0 : reader.GetDecimal(7),
+                        DataUboju = reader.IsDBNull(8) ? null : reader.GetDateTime(8),
+                        TransportStatus = reader.GetString(9),
+                        DataOdbioru = reader.IsDBNull(10) ? DateTime.Today : reader.GetDateTime(10)
                     };
+
+                    // Pobierz dane klienta z Handel DB
+                    try
+                    {
+                        await using var cnHandel = new SqlConnection(_connHandel);
+                        await cnHandel.OpenAsync();
+
+                        var sqlKlient = @"
+                            SELECT
+                                ISNULL(c.Shortcut, 'KH ' + CAST(c.Id AS VARCHAR(10))) AS Nazwa,
+                                ISNULL(wym.CDim_Handlowiec_Val, '') AS Handlowiec,
+                                ISNULL(poa.Postcode, '') + ' ' + ISNULL(poa.Street, '') AS Adres
+                            FROM SSCommon.STContractors c
+                            LEFT JOIN SSCommon.ContractorClassification wym ON c.Id = wym.ElementId
+                            LEFT JOIN SSCommon.STPostOfficeAddresses poa ON poa.ContactGuid = c.ContactGuid
+                                AND poa.AddressName = N'adres domyślny'
+                            WHERE c.Id = @KlientId";
+
+                        using var cmdKlient = new SqlCommand(sqlKlient, cnHandel);
+                        cmdKlient.Parameters.AddWithValue("@KlientId", zamowienie.KlientId);
+
+                        using var readerKlient = await cmdKlient.ExecuteReaderAsync();
+                        if (await readerKlient.ReadAsync())
+                        {
+                            zamowienie.KlientNazwa = readerKlient.GetString(0);
+                            zamowienie.Handlowiec = readerKlient.GetString(1);
+                            zamowienie.Adres = readerKlient.GetString(2).Trim();
+                        }
+                    }
+                    catch { /* Handel DB niedostępna - kontynuuj bez danych klienta */ }
+
+                    return zamowienie;
                 }
 
                 return null;
@@ -2342,7 +2852,8 @@ namespace Kalendarz1.Transport.Formularze
             {
                 if (cboPojazd.SelectedItem is not Pojazd pojazd)
                 {
-                    progressWypelnienie.Value = 0;
+                    _progressFill.Width = 0;
+                    _progressLabel.Text = "0%";
                     lblStatystyki.Text = "0 palet z 0 dostępnych";
                     return;
                 }
@@ -2351,27 +2862,37 @@ namespace Kalendarz1.Transport.Formularze
                 int paletyPojazdu = pojazd.PaletyH1;
                 decimal procent = paletyPojazdu > 0 ? (sumaPalet / paletyPojazdu * 100m) : 0m;
 
-                progressWypelnienie.Value = Math.Min(100, (int)procent);
+                int fillWidth = (int)(Math.Min(100, procent) / 100m * progressWypelnienie.Width);
+                _progressFill.Width = Math.Max(0, fillWidth);
+                _progressLabel.Text = $"{procent:F1}%";
                 lblStatystyki.Text = $"{sumaPalet:N1} palet z {paletyPojazdu} dostępnych ({procent:N1}%)";
 
+                Color barColor;
                 if (procent > 100)
                 {
-                    progressWypelnienie.ForeColor = Color.Red;
-                    lblWypelnienie.ForeColor = Color.Red;
-                    lblWypelnienie.Text = $"PRZEPEŁNIENIE: {procent:F1}%";
+                    barColor = Color.FromArgb(220, 38, 38);
+                    lblWypelnienie.ForeColor = Color.FromArgb(248, 113, 113);
+                    lblWypelnienie.Text = $"⚠ PRZEPEŁNIENIE: {procent:F1}%";
                 }
                 else if (procent > 90)
                 {
-                    progressWypelnienie.ForeColor = Color.Orange;
-                    lblWypelnienie.ForeColor = Color.Orange;
-                    lblWypelnienie.Text = $"Wypełnienie: {procent:F1}% (mało miejsca)";
+                    barColor = Color.FromArgb(245, 158, 11);
+                    lblWypelnienie.ForeColor = Color.FromArgb(251, 191, 36);
+                    lblWypelnienie.Text = $"WYPEŁNIENIE: {procent:F1}%";
+                }
+                else if (procent > 70)
+                {
+                    barColor = Color.FromArgb(234, 179, 8);
+                    lblWypelnienie.ForeColor = Color.FromArgb(156, 163, 175);
+                    lblWypelnienie.Text = $"WYPEŁNIENIE: {procent:F1}%";
                 }
                 else
                 {
-                    progressWypelnienie.ForeColor = Color.Green;
-                    lblWypelnienie.ForeColor = Color.Green;
-                    lblWypelnienie.Text = $"Wypełnienie: {procent:F1}%";
+                    barColor = Color.FromArgb(34, 197, 94);
+                    lblWypelnienie.ForeColor = Color.FromArgb(156, 163, 175);
+                    lblWypelnienie.Text = $"WYPEŁNIENIE: {procent:F1}%";
                 }
+                _progressFill.BackColor = barColor;
             }
             catch
             {
@@ -2395,7 +2916,7 @@ namespace Kalendarz1.Transport.Formularze
                 {
                     ladunek.Palety = aktualneZamowienie.Palety;
                     ladunek.PojemnikiE2 = aktualneZamowienie.Pojemniki;
-                    await LoadLadunki();
+                    RefreshLadunkiGrid();
 
                     MessageBox.Show("Dane zamówienia zostały zaktualizowane (niezapisane).", "Odświeżono",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -2465,6 +2986,252 @@ Adres: {zamowienie.Adres}";
                     "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
+
+        #region Drag & Drop
+
+        private void DgvWolneZamowienia_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                var hitTest = dgvWolneZamowienia.HitTest(e.X, e.Y);
+                if (hitTest.RowIndex >= 0)
+                {
+                    _dragRowIndex = hitTest.RowIndex;
+                    _dragSource = "wolne";
+                    Size dragSize = SystemInformation.DragSize;
+                    _dragBoxFromMouseDown = new Rectangle(
+                        new Point(e.X - dragSize.Width / 2, e.Y - dragSize.Height / 2), dragSize);
+                }
+                else
+                {
+                    _dragBoxFromMouseDown = Rectangle.Empty;
+                    _dragSource = null;
+                }
+            }
+        }
+
+        private void DgvLadunki_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                var hitTest = dgvLadunki.HitTest(e.X, e.Y);
+                if (hitTest.RowIndex >= 0)
+                {
+                    _dragRowIndex = hitTest.RowIndex;
+                    _dragSource = "ladunki";
+                    Size dragSize = SystemInformation.DragSize;
+                    _dragBoxFromMouseDown = new Rectangle(
+                        new Point(e.X - dragSize.Width / 2, e.Y - dragSize.Height / 2), dragSize);
+                }
+                else
+                {
+                    _dragBoxFromMouseDown = Rectangle.Empty;
+                    _dragSource = null;
+                }
+            }
+        }
+
+        private void DgvWolneZamowienia_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left && _dragBoxFromMouseDown != Rectangle.Empty && _dragSource == "wolne")
+            {
+                if (!_dragBoxFromMouseDown.Contains(e.X, e.Y))
+                {
+                    _isDragging = true;
+                    // Przekazujemy ID zamówienia zamiast rowIndex (bezpieczniejsze)
+                    if (_dragRowIndex >= 0 && _dragRowIndex < dgvWolneZamowienia.Rows.Count)
+                    {
+                        var zamId = Convert.ToInt32(dgvWolneZamowienia.Rows[_dragRowIndex].Cells["ID"].Value);
+                        dgvWolneZamowienia.DoDragDrop(zamId, DragDropEffects.Move);
+                    }
+                    _isDragging = false;
+                    _dragBoxFromMouseDown = Rectangle.Empty;
+                }
+            }
+        }
+
+        private void DgvLadunki_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left && _dragBoxFromMouseDown != Rectangle.Empty && _dragSource == "ladunki")
+            {
+                if (!_dragBoxFromMouseDown.Contains(e.X, e.Y))
+                {
+                    _isDragging = true;
+                    // Przekazujemy LadunekID zamiast rowIndex (bezpieczniejsze)
+                    if (_dragRowIndex >= 0 && _dragRowIndex < dgvLadunki.Rows.Count)
+                    {
+                        var ladunekId = Convert.ToInt64(dgvLadunki.Rows[_dragRowIndex].Cells["ID"].Value);
+                        dgvLadunki.DoDragDrop(ladunekId, DragDropEffects.Move);
+                    }
+                    _isDragging = false;
+                    _dragBoxFromMouseDown = Rectangle.Empty;
+                }
+            }
+        }
+
+        private void DgvLadunki_DragEnter(object sender, DragEventArgs e)
+        {
+            // Akceptujemy drop z wolnych zamówień
+            if (_dragSource == "wolne" && e.Data.GetDataPresent(typeof(int)))
+            {
+                e.Effect = DragDropEffects.Move;
+                dgvLadunki.BackgroundColor = Color.FromArgb(220, 240, 255);
+            }
+            else
+            {
+                e.Effect = DragDropEffects.None;
+            }
+        }
+
+        private void DgvWolneZamowienia_DragEnter(object sender, DragEventArgs e)
+        {
+            // Akceptujemy drop z ładunków - ale tylko ZAM_
+            if (_dragSource == "ladunki" && e.Data.GetDataPresent(typeof(long)))
+            {
+                var ladunekId = (long)e.Data.GetData(typeof(long));
+                var ladunek = _ladunki.FirstOrDefault(l => l.LadunekID == ladunekId);
+                if (ladunek?.KodKlienta?.StartsWith("ZAM_") == true)
+                {
+                    e.Effect = DragDropEffects.Move;
+                    dgvWolneZamowienia.BackgroundColor = Color.FromArgb(220, 240, 255);
+                    return;
+                }
+            }
+            e.Effect = DragDropEffects.None;
+        }
+
+        private void DgvTarget_DragOver(object sender, DragEventArgs e)
+        {
+            // KRYTYCZNE: DragOver musi podtrzymywać e.Effect, inaczej drop nie zadziała
+            if (sender == dgvLadunki && _dragSource == "wolne" && e.Data.GetDataPresent(typeof(int)))
+            {
+                e.Effect = DragDropEffects.Move;
+            }
+            else if (sender == dgvWolneZamowienia && _dragSource == "ladunki" && e.Data.GetDataPresent(typeof(long)))
+            {
+                var ladunekId = (long)e.Data.GetData(typeof(long));
+                var ladunek = _ladunki.FirstOrDefault(l => l.LadunekID == ladunekId);
+                e.Effect = ladunek?.KodKlienta?.StartsWith("ZAM_") == true
+                    ? DragDropEffects.Move
+                    : DragDropEffects.None;
+            }
+            else
+            {
+                e.Effect = DragDropEffects.None;
+            }
+        }
+
+        private void DgvLadunki_DragDrop(object sender, DragEventArgs e)
+        {
+            dgvLadunki.BackgroundColor = Color.White;
+            _dragBoxFromMouseDown = Rectangle.Empty;
+
+            if (_dragSource != "wolne" || !e.Data.GetDataPresent(typeof(int)))
+            {
+                _dragSource = null;
+                return;
+            }
+
+            var zamId = (int)e.Data.GetData(typeof(int));
+            _dragSource = null;
+
+            var zamowienie = _wolneZamowienia.FirstOrDefault(z => z.ZamowienieId == zamId);
+            if (zamowienie == null) return;
+
+            _isUpdating = true;
+            try
+            {
+                _zamowieniaDoDodania.Add(zamowienie);
+                _zamowieniaDoUsuniecia.Remove(zamId);
+
+                var ladunek = new LadunekWithPalety
+                {
+                    LadunekID = -(zamId + 1000),
+                    KursID = _kursId ?? 0,
+                    KodKlienta = $"ZAM_{zamowienie.ZamowienieId}",
+                    Palety = zamowienie.Palety,
+                    PojemnikiE2 = zamowienie.Pojemniki,
+                    TrybE2 = zamowienie.TrybE2,
+                    Uwagi = $"{zamowienie.KlientNazwa} ({zamowienie.GodzinaStr})",
+                    Adres = zamowienie.Adres,
+                    NazwaKlienta = zamowienie.KlientNazwa,
+                    DataUboju = zamowienie.DataUboju,
+                    Kolejnosc = _ladunki.Count + 1
+                };
+
+                _ladunki.Add(ladunek);
+                _wolneZamowienia.Remove(zamowienie);
+
+                ShowZamowieniaInGrid();
+                RefreshLadunkiGrid();
+            }
+            finally
+            {
+                _isUpdating = false;
+            }
+        }
+
+        private async void DgvWolneZamowienia_DragDrop(object sender, DragEventArgs e)
+        {
+            dgvWolneZamowienia.BackgroundColor = Color.White;
+            _dragBoxFromMouseDown = Rectangle.Empty;
+
+            if (_dragSource != "ladunki" || !e.Data.GetDataPresent(typeof(long)))
+            {
+                _dragSource = null;
+                return;
+            }
+
+            var ladunekId = (long)e.Data.GetData(typeof(long));
+            _dragSource = null;
+
+            var ladunek = _ladunki.FirstOrDefault(l => l.LadunekID == ladunekId);
+            if (ladunek == null) return;
+            if (ladunek.KodKlienta?.StartsWith("ZAM_") != true) return;
+
+            var zamIdStr = ladunek.KodKlienta.Substring(4);
+            if (!int.TryParse(zamIdStr, out var zamId)) return;
+
+            // Blokada timera na czas operacji
+            _isUpdating = true;
+            try
+            {
+                // 1. SYNCHRONICZNIE: Usuń ładunek z listy
+                _ladunki.Remove(ladunek);
+                for (int i = 0; i < _ladunki.Count; i++)
+                    _ladunki[i].Kolejnosc = i + 1;
+
+                // 2. Aktualizuj tracking list
+                var zamDoDodania = _zamowieniaDoDodania.FirstOrDefault(z => z.ZamowienieId == zamId);
+                if (zamDoDodania != null)
+                    _zamowieniaDoDodania.Remove(zamDoDodania);
+                else if (ladunekId > 0)
+                    _zamowieniaDoUsuniecia.Add(zamId);
+
+                // 3. SYNCHRONICZNIE: Odśwież grid kursu NATYCHMIAST (przed jakimkolwiek await)
+                RefreshLadunkiGrid();
+
+                // 4. ASYNC: Pobierz dane zamówienia i dodaj do wolnych
+                var zamowienie = await PobierzAktualneZamowienie(zamId);
+                if (zamowienie != null)
+                    _wolneZamowienia.Add(zamowienie);
+                ShowZamowieniaInGrid();
+            }
+            finally
+            {
+                _isUpdating = false;
+            }
+        }
+
+        private void DgvTarget_DragLeave(object sender, EventArgs e)
+        {
+            if (sender is DataGridView dgv)
+            {
+                dgv.BackgroundColor = Color.White;
+            }
+        }
+
+        #endregion
 
         #region Zapis
 
@@ -2578,28 +3345,39 @@ Adres: {zamowienie.Adres}";
 
             await using var cn = new SqlConnection(_connectionString);
             await cn.OpenAsync();
+            await using var transaction = await cn.BeginTransactionAsync();
 
-            var sqlDelete = "DELETE FROM dbo.Ladunek WHERE KursID = @KursID";
-            using var cmdDelete = new SqlCommand(sqlDelete, cn);
-            cmdDelete.Parameters.AddWithValue("@KursID", _kursId.Value);
-            await cmdDelete.ExecuteNonQueryAsync();
-
-            foreach (var ladunek in _ladunki.OrderBy(l => l.Kolejnosc))
+            try
             {
-                var sqlInsert = @"INSERT INTO dbo.Ladunek
-                    (KursID, Kolejnosc, KodKlienta, PaletyH1, PojemnikiE2, Uwagi, TrybE2, PlanE2NaPaleteOverride)
-                    VALUES (@KursID, @Kolejnosc, @KodKlienta, @Palety, @Pojemniki, @Uwagi, @TrybE2, @PlanE2NaPaleteOverride)";
+                var sqlDelete = "DELETE FROM dbo.Ladunek WHERE KursID = @KursID";
+                using var cmdDelete = new SqlCommand(sqlDelete, cn, (SqlTransaction)transaction);
+                cmdDelete.Parameters.AddWithValue("@KursID", _kursId.Value);
+                await cmdDelete.ExecuteNonQueryAsync();
 
-                using var cmdInsert = new SqlCommand(sqlInsert, cn);
-                cmdInsert.Parameters.AddWithValue("@KursID", _kursId.Value);
-                cmdInsert.Parameters.AddWithValue("@Kolejnosc", ladunek.Kolejnosc);
-                cmdInsert.Parameters.AddWithValue("@KodKlienta", (object)ladunek.KodKlienta ?? DBNull.Value);
-                cmdInsert.Parameters.AddWithValue("@Palety", ladunek.Palety);
-                cmdInsert.Parameters.AddWithValue("@Pojemniki", ladunek.PojemnikiE2);
-                cmdInsert.Parameters.AddWithValue("@Uwagi", (object)ladunek.Uwagi ?? DBNull.Value);
-                cmdInsert.Parameters.AddWithValue("@TrybE2", ladunek.TrybE2);
-                cmdInsert.Parameters.AddWithValue("@PlanE2NaPaleteOverride", (object)ladunek.PlanE2NaPaleteOverride ?? DBNull.Value);
-                await cmdInsert.ExecuteNonQueryAsync();
+                foreach (var ladunek in _ladunki.OrderBy(l => l.Kolejnosc))
+                {
+                    var sqlInsert = @"INSERT INTO dbo.Ladunek
+                        (KursID, Kolejnosc, KodKlienta, PaletyH1, PojemnikiE2, Uwagi, TrybE2, PlanE2NaPaleteOverride)
+                        VALUES (@KursID, @Kolejnosc, @KodKlienta, @Palety, @Pojemniki, @Uwagi, @TrybE2, @PlanE2NaPaleteOverride)";
+
+                    using var cmdInsert = new SqlCommand(sqlInsert, cn, (SqlTransaction)transaction);
+                    cmdInsert.Parameters.AddWithValue("@KursID", _kursId.Value);
+                    cmdInsert.Parameters.AddWithValue("@Kolejnosc", ladunek.Kolejnosc);
+                    cmdInsert.Parameters.AddWithValue("@KodKlienta", (object)ladunek.KodKlienta ?? DBNull.Value);
+                    cmdInsert.Parameters.AddWithValue("@Palety", ladunek.Palety);
+                    cmdInsert.Parameters.AddWithValue("@Pojemniki", ladunek.PojemnikiE2);
+                    cmdInsert.Parameters.AddWithValue("@Uwagi", (object)ladunek.Uwagi ?? DBNull.Value);
+                    cmdInsert.Parameters.AddWithValue("@TrybE2", ladunek.TrybE2);
+                    cmdInsert.Parameters.AddWithValue("@PlanE2NaPaleteOverride", (object)ladunek.PlanE2NaPaleteOverride ?? DBNull.Value);
+                    await cmdInsert.ExecuteNonQueryAsync();
+                }
+
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
             }
         }
 
@@ -2669,29 +3447,62 @@ Adres: {zamowienie.Adres}";
 
         #region Event Handlers
 
-        private void BtnNowyKierowca_Click(object sender, EventArgs e)
+        private async void BtnNowyKierowca_Click(object sender, EventArgs e)
         {
             using var dlg = new DodajKierowceDialog();
-            if (dlg.ShowDialog(this) == DialogResult.OK)
+            if (dlg.ShowDialog(this) == DialogResult.OK && dlg.NowyKierowca != null)
             {
-                _ = Task.Run(async () =>
+                try
                 {
                     await _repozytorium.DodajKierowceAsync(dlg.NowyKierowca);
-                    await LoadDataAsync();
-                });
+
+                    _kierowcy = (await _repozytorium.PobierzKierowcowAsync()).ToList();
+                    cboKierowca.DataSource = null;
+                    cboKierowca.DataSource = _kierowcy;
+                    cboKierowca.DisplayMember = "PelneNazwisko";
+
+                    // Auto-select the new driver
+                    var nowy = _kierowcy.FirstOrDefault(k =>
+                        k.Imie == dlg.NowyKierowca.Imie && k.Nazwisko == dlg.NowyKierowca.Nazwisko);
+                    if (nowy != null) cboKierowca.SelectedItem = nowy;
+
+                    MessageBox.Show($"Kierowca {dlg.NowyKierowca.PelneNazwisko} został dodany.",
+                        "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd zapisu kierowcy:\n{ex.Message}",
+                        "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
         }
 
-        private void BtnNowyPojazd_Click(object sender, EventArgs e)
+        private async void BtnNowyPojazd_Click(object sender, EventArgs e)
         {
             using var dlg = new DodajPojazdDialog();
-            if (dlg.ShowDialog(this) == DialogResult.OK)
+            if (dlg.ShowDialog(this) == DialogResult.OK && dlg.NowyPojazd != null)
             {
-                _ = Task.Run(async () =>
+                try
                 {
                     await _repozytorium.DodajPojazdAsync(dlg.NowyPojazd);
-                    await LoadDataAsync();
-                });
+
+                    _pojazdy = (await _repozytorium.PobierzPojazdyAsync()).ToList();
+                    cboPojazd.DataSource = null;
+                    cboPojazd.DataSource = _pojazdy;
+                    cboPojazd.DisplayMember = "Opis";
+
+                    // Auto-select the new vehicle
+                    var nowy = _pojazdy.FirstOrDefault(p => p.Rejestracja == dlg.NowyPojazd.Rejestracja);
+                    if (nowy != null) cboPojazd.SelectedItem = nowy;
+
+                    MessageBox.Show($"Pojazd {dlg.NowyPojazd.Rejestracja} został dodany.",
+                        "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd zapisu pojazdu:\n{ex.Message}",
+                        "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
         }
 
@@ -2708,6 +3519,70 @@ Adres: {zamowienie.Adres}";
             }
             base.Dispose(disposing);
         }
+
+        #region Skróty klawiszowe
+
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            // Ctrl+S → Zapisz kurs
+            if (keyData == (Keys.Control | Keys.S))
+            {
+                BtnZapisz_Click(this, EventArgs.Empty);
+                return true;
+            }
+
+            // Escape → Zamknij edytor
+            if (keyData == Keys.Escape)
+            {
+                Close();
+                return true;
+            }
+
+            // Delete → Usuń zaznaczony ładunek (gdy fokus na dgvLadunki)
+            if (keyData == Keys.Delete && dgvLadunki != null && dgvLadunki.Focused)
+            {
+                _ = UsunLadunek();
+                return true;
+            }
+
+            // Enter → Dodaj zaznaczone zamówienie do kursu (gdy fokus na wolnych zamówieniach)
+            if (keyData == Keys.Enter && dgvWolneZamowienia != null && dgvWolneZamowienia.Focused)
+            {
+                _ = DodajZamowienieDoKursu();
+                return true;
+            }
+
+            // Ctrl+Up → Przesuń ładunek w górę
+            if (keyData == (Keys.Control | Keys.Up) && dgvLadunki != null && dgvLadunki.Focused)
+            {
+                _ = PrzesunLadunek(-1);
+                return true;
+            }
+
+            // Ctrl+Down → Przesuń ładunek w dół
+            if (keyData == (Keys.Control | Keys.Down) && dgvLadunki != null && dgvLadunki.Focused)
+            {
+                _ = PrzesunLadunek(1);
+                return true;
+            }
+
+            // Ctrl+F → Fokus na szukaj zamówień
+            if (keyData == (Keys.Control | Keys.F) && txtSzukajZamowienia != null)
+            {
+                txtSzukajZamowienia.Focus();
+                if (txtSzukajZamowienia.ForeColor == Color.Gray)
+                {
+                    txtSzukajZamowienia.Text = "";
+                    txtSzukajZamowienia.ForeColor = Color.Black;
+                }
+                txtSzukajZamowienia.SelectAll();
+                return true;
+            }
+
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        #endregion
     }
 
     public class KolejnoscLadunkuDialog : Form

@@ -743,6 +743,35 @@ namespace Kalendarz1.Transport.Repozytorium
             return _pakowanieSerwis.ObliczKurs(pozycje, paletyPojazdu, planE2NaPalete);
         }
 
+        /// <summary>
+        /// Oblicza pakowanie z podanej listy ładunków (mogą mieć live-zaktualizowane wartości).
+        /// </summary>
+        public WynikPakowania ObliczPakowanieZLadunkow(List<Ladunek> ladunki, int pojazdId)
+        {
+            if (ladunki == null || ladunki.Count == 0)
+                return new WynikPakowania { SumaE2 = 0, PaletyNominal = 0, ProcNominal = 0 };
+
+            int paletyPojazdu = 0;
+            int planE2NaPalete = 36;
+
+            try
+            {
+                using var cn = new SqlConnection(_connectionString);
+                cn.Open();
+                using var cmd = new SqlCommand("SELECT PaletyH1 FROM dbo.Pojazd WHERE PojazdID = @Id", cn);
+                cmd.Parameters.AddWithValue("@Id", pojazdId);
+                var result = cmd.ExecuteScalar();
+                if (result != null) paletyPojazdu = (int)result;
+            }
+            catch { }
+
+            if (paletyPojazdu == 0)
+                return new WynikPakowania { SumaE2 = ladunki.Sum(l => l.PojemnikiE2), PaletyNominal = 0, ProcNominal = 0 };
+
+            var pozycje = ladunki.Select(l => l.ToPozycjaLike()).ToList();
+            return _pakowanieSerwis.ObliczKurs(pozycje, paletyPojazdu, planE2NaPalete);
+        }
+
         #endregion
 
         #region Pomocnicze

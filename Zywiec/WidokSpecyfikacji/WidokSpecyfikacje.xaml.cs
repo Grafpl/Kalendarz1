@@ -5019,7 +5019,16 @@ namespace Kalendarz1
                 var row = combo.DataContext as SpecyfikacjaRow;
                 if (row != null)
                 {
-                    row.PosrednikNazwa = selected.Nazwa;
+                    if (selected.ID == 0)
+                    {
+                        // Wybrano "(brak)" - usuń pośrednika
+                        row.IdPosrednik = null;
+                        row.PosrednikNazwa = null;
+                    }
+                    else
+                    {
+                        row.PosrednikNazwa = selected.Nazwa;
+                    }
                 }
             }
             else if (sender is ComboBox combo2 && combo2.SelectedItem == null)
@@ -5027,6 +5036,7 @@ namespace Kalendarz1
                 var row = combo2.DataContext as SpecyfikacjaRow;
                 if (row != null)
                 {
+                    row.IdPosrednik = null;
                     row.PosrednikNazwa = null;
                 }
             }
@@ -11484,6 +11494,8 @@ namespace Kalendarz1
             try
             {
                 ListaPosrednikow.Clear();
+                // Pusty element na początku - pozwala usunąć pośrednika
+                ListaPosrednikow.Add(new PosrednikItem { ID = 0, Nazwa = "(brak)" });
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
