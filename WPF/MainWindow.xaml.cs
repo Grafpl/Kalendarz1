@@ -32,6 +32,14 @@ namespace Kalendarz1.WPF
 
         private static readonly DateTime MinSqlDate = new DateTime(1753, 1, 1);
         private static readonly DateTime MaxSqlDate = new DateTime(9999, 12, 31);
+        private static bool _strefaColumnExists = false;
+
+        // Avatary handlowców (identycznie jak w HandlowiecDashboardWindow)
+        private static Dictionary<string, BitmapSource> _handlowiecAvatarCache = new(StringComparer.OrdinalIgnoreCase);
+        private static Dictionary<string, string> _handlowiecMapowanie;
+
+        [System.Runtime.InteropServices.DllImport("gdi32.dll")]
+        private static extern bool DeleteObject(IntPtr hObject);
 
         public string UserID { get; set; } = string.Empty;
         private DateTime _selectedDate;
@@ -960,6 +968,8 @@ namespace Kalendarz1.WPF
             await CheckAndCreateStatusColumnsAsync();
             await CheckAndCreateAnulowanieColumnsAsync();
             await CheckAndCreateWalutaColumnAsync();
+            await CheckAndCreateStrefaColumnAsync();
+            await EnsureHandlowiecMappingLoadedAsync();
 
             _productCodeCache.Clear();
             _productCatalogCache.Clear();
@@ -1117,6 +1127,109 @@ namespace Kalendarz1.WPF
             catch (Exception ex)
             {
                 _walutaColumnExists = false;
+            }
+        }
+
+        private async Task CheckAndCreateStrefaColumnAsync()
+        {
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                const string checkSql = @"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                                         WHERE TABLE_NAME = 'ZamowieniaMiesoTowar' AND COLUMN_NAME = 'Strefa'";
+                await using var cmdCheck = new SqlCommand(checkSql, cn);
+                int count = Convert.ToInt32(await cmdCheck.ExecuteScalarAsync());
+
+                if (count == 0)
+                {
+                    const string alterSql = @"ALTER TABLE [dbo].[ZamowieniaMiesoTowar] ADD Strefa BIT NULL DEFAULT 0";
+                    await using var cmdAlter = new SqlCommand(alterSql, cn);
+                    await cmdAlter.ExecuteNonQueryAsync();
+                }
+
+                _strefaColumnExists = true;
+            }
+            catch
+            {
+                _strefaColumnExists = false;
+            }
+        }
+
+        /// <summary>
+        /// Ładuje mapowanie HandlowiecName → UserID (identycznie jak EnsureHandlowiecMappingLoadedAsync w dashboardzie)
+        /// </summary>
+        private async Task EnsureHandlowiecMappingLoadedAsync()
+        {
+            if (_handlowiecMapowanie != null) return;
+            _handlowiecMapowanie = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+                await using var cmd = new SqlCommand("SELECT HandlowiecName, UserID FROM UserHandlowcy", cn);
+                await using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                    _handlowiecMapowanie[rd.GetString(0)] = rd.GetString(1);
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// Cache'uje avatar handlowca (identycznie jak EnsureAvatarCached w dashboardzie)
+        /// </summary>
+        private void EnsureHandlowiecAvatarCached(string handlowiec, int size = 64)
+        {
+            if (string.IsNullOrEmpty(handlowiec)) return;
+            if (_handlowiecAvatarCache.ContainsKey(handlowiec)) return;
+            if (_handlowiecMapowanie == null) return;
+
+            BitmapSource avatarBmp = null;
+            if (_handlowiecMapowanie.TryGetValue(handlowiec, out var uid))
+            {
+                try
+                {
+                    if (UserAvatarManager.HasAvatar(uid))
+                        using (var av = UserAvatarManager.GetAvatarRounded(uid, size))
+                            if (av != null) avatarBmp = ConvertToBitmapSource(av);
+                    if (avatarBmp == null)
+                        using (var defAv = UserAvatarManager.GenerateDefaultAvatar(handlowiec, uid, size))
+                            avatarBmp = ConvertToBitmapSource(defAv);
+                }
+                catch { }
+            }
+            if (avatarBmp == null)
+            {
+                try
+                {
+                    using (var defAv = UserAvatarManager.GenerateDefaultAvatar(handlowiec, handlowiec, size))
+                        avatarBmp = ConvertToBitmapSource(defAv);
+                }
+                catch { }
+            }
+            if (avatarBmp != null)
+            {
+                avatarBmp.Freeze();
+                _handlowiecAvatarCache[handlowiec] = avatarBmp;
+            }
+        }
+
+        private BitmapSource ConvertToBitmapSource(System.Drawing.Image image)
+        {
+            if (image == null) return null;
+            using (var bitmap = new System.Drawing.Bitmap(image))
+            {
+                var hBitmap = bitmap.GetHbitmap();
+                try
+                {
+                    return System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
+                        hBitmap, IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+                }
+                finally
+                {
+                    DeleteObject(hBitmap);
+                }
             }
         }
 
@@ -2866,6 +2979,7 @@ namespace Kalendarz1.WPF
             _dtOrders.Columns.Add("Kategoria", typeof(string));
             _dtOrders.Columns.Add("Odbiorca", typeof(string));
             _dtOrders.Columns.Add("Handlowiec", typeof(string));
+            _dtOrders.Columns.Add("HandlowiecAvatar", typeof(BitmapSource));
             _dtOrders.Columns.Add("IloscZamowiona", typeof(decimal));
             _dtOrders.Columns.Add("IloscFaktyczna", typeof(decimal));
             _dtOrders.Columns.Add("Roznica", typeof(decimal));
@@ -2878,10 +2992,12 @@ namespace Kalendarz1.WPF
             _dtOrders.Columns.Add("DataUboju", typeof(DateTime));
             _dtOrders.Columns.Add("UtworzonePrzez", typeof(string));
             _dtOrders.Columns.Add("UtworzonePrzezID", typeof(string));
+            _dtOrders.Columns.Add("UtworzonoGodzina", typeof(string));
             _dtOrders.Columns.Add("Status", typeof(string));
             _dtOrders.Columns.Add("MaNotatke", typeof(bool));
             _dtOrders.Columns.Add("MaFolie", typeof(bool));
             _dtOrders.Columns.Add("MaHallal", typeof(bool));
+            _dtOrders.Columns.Add("MaStrefa", typeof(bool));
             _dtOrders.Columns.Add("Trans", typeof(string));
             _dtOrders.Columns.Add("Prod", typeof(string));
             _dtOrders.Columns.Add("CzyMaCeny", typeof(bool));
@@ -2984,6 +3100,8 @@ SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc,
             THEN 1 ELSE 0 END AS BIT) AS MaFolie,
        CAST(CASE WHEN EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND Hallal = 1)
             THEN 1 ELSE 0 END AS BIT) AS MaHallal,
+       " + (_strefaColumnExists ? @"CAST(CASE WHEN EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND Strefa = 1)
+            THEN 1 ELSE 0 END AS BIT) AS MaStrefa," : "CAST(0 AS BIT) AS MaStrefa,") + $@"
        CAST(CASE WHEN NOT EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND (Cena IS NULL OR Cena = '' OR Cena = '0'))
             AND EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id)
             THEN 1 ELSE 0 END AS BIT) AS CzyMaCeny,
@@ -3246,6 +3364,7 @@ ORDER BY zm.Id";
                 bool hasNote = !string.IsNullOrWhiteSpace(notes);
                 bool hasFoil = temp.Columns.Contains("MaFolie") && !(r["MaFolie"] is DBNull) && Convert.ToBoolean(r["MaFolie"]);
                 bool hasHallal = temp.Columns.Contains("MaHallal") && !(r["MaHallal"] is DBNull) && Convert.ToBoolean(r["MaHallal"]);
+                bool hasStrefa = temp.Columns.Contains("MaStrefa") && !(r["MaStrefa"] is DBNull) && Convert.ToBoolean(r["MaStrefa"]);
                 bool czyMaCeny = temp.Columns.Contains("CzyMaCeny") && !(r["CzyMaCeny"] is DBNull) && Convert.ToBoolean(r["CzyMaCeny"]);
                 string cenaInfo = czyMaCeny ? "✓" : "✗";
 
@@ -3272,14 +3391,19 @@ ORDER BY zm.Id";
                 //     name = "📝 " + name;
                 // }
 
+                if (hasStrefa)
+                {
+                    name = "\u26A0\uFE0F " + name;
+                }
+
                 if (hasFoil)
                 {
-                    name = "📦 " + name;
+                    name = "\U0001F39E\uFE0F " + name;
                 }
 
                 if (hasHallal)
                 {
-                    name = "🔪 " + name;
+                    name = "\U0001F52A " + name;
                 }
 
                 decimal released = 0m;
@@ -3385,6 +3509,8 @@ ORDER BY zm.Id";
                 newRow["Kategoria"] = kategorie.TryGetValue(clientId, out var kat) ? kat : "";
                 newRow["Odbiorca"] = name;
                 newRow["Handlowiec"] = salesman;
+                EnsureHandlowiecAvatarCached(salesman);
+                newRow["HandlowiecAvatar"] = _handlowiecAvatarCache.TryGetValue(salesman, out var av) ? (object)av : DBNull.Value;
                 newRow["IloscZamowiona"] = quantity;
                 newRow["IloscFaktyczna"] = released;
                 newRow["Roznica"] = roznica;
@@ -3397,10 +3523,12 @@ ORDER BY zm.Id";
                 newRow["DataUboju"] = slaughterDate.HasValue ? (object)slaughterDate.Value.Date : DBNull.Value;
                 newRow["UtworzonePrzez"] = createdBy;
                 newRow["UtworzonePrzezID"] = userId.ToString();
+                newRow["UtworzonoGodzina"] = createdDate.HasValue ? createdDate.Value.ToString("HH:mm") : "";
                 newRow["Status"] = status;
                 newRow["MaNotatke"] = hasNote;
                 newRow["MaFolie"] = hasFoil;
                 newRow["MaHallal"] = hasHallal;
+                newRow["MaStrefa"] = hasStrefa;
                 newRow["Trans"] = transColumn;
                 newRow["Prod"] = prodColumn;
                 newRow["CzyMaCeny"] = czyMaCeny;
@@ -3447,6 +3575,8 @@ ORDER BY zm.Id";
                 row["Kategoria"] = kategorie.TryGetValue(clientId, out var katWyd) ? katWyd : "";
                 row["Odbiorca"] = name;
                 row["Handlowiec"] = salesman;
+                EnsureHandlowiecAvatarCached(salesman);
+                row["HandlowiecAvatar"] = _handlowiecAvatarCache.TryGetValue(salesman, out var avWyd) ? (object)avWyd : DBNull.Value;
                 row["IloscZamowiona"] = 0m;
                 row["IloscFaktyczna"] = released;
                 row["Roznica"] = -released; // 0 - released
@@ -3462,10 +3592,12 @@ ORDER BY zm.Id";
                 row["DataUboju"] = DBNull.Value;
                 row["UtworzonePrzez"] = "";
                 row["UtworzonePrzezID"] = "";
+                row["UtworzonoGodzina"] = "";
                 row["Status"] = "Wydanie bez zamówienia";
                 row["MaNotatke"] = false;
                 row["MaFolie"] = false;
                 row["MaHallal"] = false;
+                row["MaStrefa"] = false;
                 row["Trans"] = "";
                 row["Prod"] = "";
                 row["CzyMaCeny"] = false;
@@ -3527,6 +3659,7 @@ ORDER BY zm.Id";
 
                 // ✅ POPRAWKA 3: Tylko liczba zamówień (bez tekstu "Zamówień:")
                 summaryRow["Handlowiec"] = actualOrdersCount.ToString();
+                summaryRow["HandlowiecAvatar"] = DBNull.Value;
 
                 summaryRow["IloscZamowiona"] = totalOrdered;
                 summaryRow["IloscFaktyczna"] = totalReleased;
@@ -3539,10 +3672,12 @@ ORDER BY zm.Id";
                 summaryRow["TerminOdbioru"] = "";
                 summaryRow["DataUboju"] = DBNull.Value;
                 summaryRow["UtworzonePrzez"] = "";
+                summaryRow["UtworzonoGodzina"] = "";
                 summaryRow["Status"] = "SUMA";
                 summaryRow["MaNotatke"] = false;
                 summaryRow["MaFolie"] = false;
                 summaryRow["MaHallal"] = false;
+                summaryRow["MaStrefa"] = false;
                 summaryRow["Trans"] = "";
                 summaryRow["Prod"] = "";
                 summaryRow["CzyMaCeny"] = false;
@@ -3882,14 +4017,44 @@ ORDER BY zm.Id";
                 Width = new DataGridLength(180)
             });
 
-            // 2. Handlowiec (rozmiar M)
-            dgOrders.Columns.Add(new DataGridTextColumn
+            // 2. Handlowiec z avatarem (rozmiar jak Utworzono - 32px display, 64px source)
             {
-                Header = "Hand.",
-                Binding = new System.Windows.Data.Binding("Handlowiec"),
-                Width = new DataGridLength(60),
-                ElementStyle = (Style)FindResource("BoldCellStyle")
-            });
+                var handTemplate = new DataGridTemplateColumn
+                {
+                    Header = "Hand.",
+                    Width = new DataGridLength(80),
+                    IsReadOnly = true
+                };
+
+                var cellFactory = new FrameworkElementFactory(typeof(StackPanel));
+                cellFactory.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+                cellFactory.SetValue(StackPanel.VerticalAlignmentProperty, VerticalAlignment.Center);
+                cellFactory.SetValue(StackPanel.MarginProperty, new Thickness(2));
+                cellFactory.SetValue(UIElement.SnapsToDevicePixelsProperty, true);
+                cellFactory.SetValue(FrameworkElement.UseLayoutRoundingProperty, true);
+
+                var imgFactory = new FrameworkElementFactory(typeof(System.Windows.Controls.Image));
+                imgFactory.SetBinding(System.Windows.Controls.Image.SourceProperty, new System.Windows.Data.Binding("HandlowiecAvatar"));
+                imgFactory.SetValue(FrameworkElement.WidthProperty, 32.0);
+                imgFactory.SetValue(FrameworkElement.HeightProperty, 32.0);
+                imgFactory.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 6, 0));
+                imgFactory.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+                imgFactory.SetValue(RenderOptions.BitmapScalingModeProperty, BitmapScalingMode.Fant);
+                imgFactory.SetValue(UIElement.SnapsToDevicePixelsProperty, true);
+
+                var txtFactory = new FrameworkElementFactory(typeof(TextBlock));
+                txtFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("Handlowiec"));
+                txtFactory.SetValue(TextBlock.FontWeightProperty, FontWeights.Bold);
+                txtFactory.SetValue(TextBlock.FontSizeProperty, 11.0);
+                txtFactory.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+                txtFactory.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
+
+                cellFactory.AppendChild(imgFactory);
+                cellFactory.AppendChild(txtFactory);
+
+                handTemplate.CellTemplate = new DataTemplate { VisualTree = cellFactory };
+                dgOrders.Columns.Add(handTemplate);
+            }
 
             // 3. Zamówiono - pogrubione
             var zamowioneStyle = new Style(typeof(TextBlock));
@@ -3983,6 +4148,8 @@ ORDER BY zm.Id";
             avatarGridFactory.SetValue(Grid.WidthProperty, 32.0);
             avatarGridFactory.SetValue(Grid.HeightProperty, 32.0);
             avatarGridFactory.SetValue(Grid.MarginProperty, new Thickness(0, 0, 6, 0));
+            avatarGridFactory.SetValue(UIElement.SnapsToDevicePixelsProperty, true);
+            avatarGridFactory.SetValue(FrameworkElement.UseLayoutRoundingProperty, true);
 
             // Avatar border with initials
             var avatarBorderFactory = new FrameworkElementFactory(typeof(Border));
@@ -4011,17 +4178,29 @@ ORDER BY zm.Id";
             ellipseFactory.SetValue(Ellipse.HeightProperty, 32.0);
             ellipseFactory.SetValue(Ellipse.VisibilityProperty, Visibility.Collapsed);
             ellipseFactory.SetValue(Ellipse.NameProperty, "avatarEllipse");
+            ellipseFactory.SetValue(RenderOptions.BitmapScalingModeProperty, BitmapScalingMode.Fant);
+            ellipseFactory.SetValue(UIElement.SnapsToDevicePixelsProperty, true);
 
             avatarGridFactory.AppendChild(ellipseFactory);
             stackPanelFactory.AppendChild(avatarGridFactory);
 
-            // Text
+            // Text container (vertical: name + time)
+            var textContainerFactory = new FrameworkElementFactory(typeof(StackPanel));
+            textContainerFactory.SetValue(StackPanel.OrientationProperty, Orientation.Vertical);
+            textContainerFactory.SetValue(StackPanel.VerticalAlignmentProperty, VerticalAlignment.Center);
+
             var textFactory = new FrameworkElementFactory(typeof(TextBlock));
-            textFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
             textFactory.SetValue(TextBlock.FontSizeProperty, 11.0);
             textFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("UtworzonePrzez"));
 
-            stackPanelFactory.AppendChild(textFactory);
+            var timeFactory = new FrameworkElementFactory(typeof(TextBlock));
+            timeFactory.SetValue(TextBlock.FontSizeProperty, 9.0);
+            timeFactory.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(139, 148, 158)));
+            timeFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("UtworzonoGodzina"));
+
+            textContainerFactory.AppendChild(textFactory);
+            textContainerFactory.AppendChild(timeFactory);
+            stackPanelFactory.AppendChild(textContainerFactory);
 
             utworzonoTemplate.VisualTree = stackPanelFactory;
             utworzonoColumn.CellTemplate = utworzonoTemplate;
@@ -4786,7 +4965,7 @@ ORDER BY zm.Id";
                 int clientId = 0;
                 string notes = "";
                 string waluta = "PLN";
-                var orderItems = new List<(int ProductCode, decimal Quantity, bool Foil, bool Hallal, string Cena)>(); // STRING!
+                var orderItems = new List<(int ProductCode, decimal Quantity, bool Foil, bool Hallal, string Cena, bool Strefa)>(); // STRING!
                 DateTime dateForReleases = ValidateSqlDate(_selectedDate.Date);
 
                 await using (var cn = new SqlConnection(_connLibra))
@@ -4833,7 +5012,8 @@ ORDER BY zm.Id";
                     }
 
                     using (var cmdItems = new SqlCommand(@"
-                SELECT KodTowaru, Ilosc, ISNULL(Folia, 0) as Folia, ISNULL(Hallal, 0) as Hallal, ISNULL(Cena, '0') as Cena
+                SELECT KodTowaru, Ilosc, ISNULL(Folia, 0) as Folia, ISNULL(Hallal, 0) as Hallal, ISNULL(Cena, '0') as Cena" +
+                (_strefaColumnExists ? ", ISNULL(Strefa, 0) as Strefa" : "") + @"
                 FROM dbo.ZamowieniaMiesoTowar
                 WHERE ZamowienieId = @Id", cn))
                     {
@@ -4847,8 +5027,9 @@ ORDER BY zm.Id";
                             bool foil = readerItems.GetBoolean(2);
                             bool hallal = readerItems.GetBoolean(3);
                             string cenaStr = readerItems.GetString(4); // STRING z bazy!
+                            bool strefa = _strefaColumnExists ? readerItems.GetBoolean(5) : false;
 
-                            orderItems.Add((productCode, quantity, foil, hallal, cenaStr));
+                            orderItems.Add((productCode, quantity, foil, hallal, cenaStr, strefa));
                         }
                     }
                 }
@@ -4886,11 +5067,13 @@ ORDER BY zm.Id";
                 var dt = new DataTable();
                 dt.Columns.Add("KodTowaru", typeof(int));  // Hidden - do identyfikacji
                 dt.Columns.Add("Produkt", typeof(string));
+                dt.Columns.Add("ProduktImg", typeof(BitmapImage));
                 dt.Columns.Add("Zamówiono", typeof(decimal));
                 dt.Columns.Add("Wydano", typeof(decimal));
                 dt.Columns.Add("Różnica", typeof(decimal));
                 dt.Columns.Add("Folia", typeof(bool));
                 dt.Columns.Add("Hallal", typeof(bool));
+                dt.Columns.Add("Strefa", typeof(bool));
                 dt.Columns.Add("Cena", typeof(decimal));
 
                 var cultureInfo = new CultureInfo("pl-PL");
@@ -4913,7 +5096,7 @@ ORDER BY zm.Id";
                         decimal.TryParse(item.Cena, NumberStyles.Any, CultureInfo.InvariantCulture, out cenaValue);
                     }
 
-                    dt.Rows.Add(item.ProductCode, product, ordered, released, difference, item.Foil, item.Hallal, cenaValue);
+                    dt.Rows.Add(item.ProductCode, product, (object?)GetProductImage(item.ProductCode) ?? DBNull.Value, ordered, released, difference, item.Foil, item.Hallal, item.Strefa, cenaValue);
                     releases.Remove(item.ProductCode);
                 }
 
@@ -4924,7 +5107,7 @@ ORDER BY zm.Id";
 
                     string product = _productCatalogCache.TryGetValue(kv.Key, out var code) ?
                         code : $"Nieznany ({kv.Key})";
-                    dt.Rows.Add(kv.Key, product, 0m, kv.Value, kv.Value, false, false, 0m);
+                    dt.Rows.Add(kv.Key, product, (object?)GetProductImage(kv.Key) ?? DBNull.Value, 0m, kv.Value, kv.Value, false, false, false, 0m);
                 }
 
                 txtNotes.Text = notes;
@@ -5004,14 +5187,32 @@ ORDER BY zm.Id";
                 Visibility = Visibility.Collapsed
             });
 
-            dgDetails.Columns.Add(new DataGridTextColumn
+            // Kolumna Produkt z miniaturką zdjęcia
+            var produktCol = new DataGridTemplateColumn
             {
                 Header = "Produkt",
-                Binding = new System.Windows.Data.Binding("Produkt"),
                 Width = new DataGridLength(1, DataGridLengthUnitType.Star),
                 MinWidth = 80,
                 IsReadOnly = true
-            });
+            };
+            var cellTemplate = new DataTemplate();
+            var spFactory = new FrameworkElementFactory(typeof(StackPanel));
+            spFactory.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+            spFactory.SetValue(StackPanel.VerticalAlignmentProperty, VerticalAlignment.Center);
+            var imgFactory = new FrameworkElementFactory(typeof(System.Windows.Controls.Image));
+            imgFactory.SetBinding(System.Windows.Controls.Image.SourceProperty, new System.Windows.Data.Binding("ProduktImg"));
+            imgFactory.SetValue(System.Windows.Controls.Image.WidthProperty, 20.0);
+            imgFactory.SetValue(System.Windows.Controls.Image.HeightProperty, 20.0);
+            imgFactory.SetValue(System.Windows.Controls.Image.MarginProperty, new Thickness(0, 0, 4, 0));
+            imgFactory.SetValue(RenderOptions.BitmapScalingModeProperty, BitmapScalingMode.HighQuality);
+            spFactory.AppendChild(imgFactory);
+            var txtFactory = new FrameworkElementFactory(typeof(TextBlock));
+            txtFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("Produkt"));
+            txtFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            spFactory.AppendChild(txtFactory);
+            cellTemplate.VisualTree = spFactory;
+            produktCol.CellTemplate = cellTemplate;
+            dgDetails.Columns.Add(produktCol);
 
             // Edytowalna kolumna ilości - z separatorem tysięcy
             var zamowioneBinding = new System.Windows.Data.Binding("Zamówiono")
@@ -5055,9 +5256,9 @@ ORDER BY zm.Id";
             };
             dgDetails.Columns.Add(new DataGridCheckBoxColumn
             {
-                Header = "Folia",
+                Header = "\U0001F39E\uFE0F Folia",
                 Binding = foliaBinding,
-                Width = new DataGridLength(40),
+                Width = new DataGridLength(55),
                 IsReadOnly = false
             });
 
@@ -5069,9 +5270,23 @@ ORDER BY zm.Id";
             };
             dgDetails.Columns.Add(new DataGridCheckBoxColumn
             {
-                Header = "Hallal",
+                Header = "\U0001F52A Halal",
                 Binding = hallalBinding,
-                Width = new DataGridLength(45),
+                Width = new DataGridLength(55),
+                IsReadOnly = false
+            });
+
+            // Checkbox Strefa
+            var strefaBinding = new System.Windows.Data.Binding("Strefa")
+            {
+                Mode = System.Windows.Data.BindingMode.TwoWay,
+                UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged
+            };
+            dgDetails.Columns.Add(new DataGridCheckBoxColumn
+            {
+                Header = "\u26A0\uFE0F Strefa",
+                Binding = strefaBinding,
+                Width = new DataGridLength(60),
                 IsReadOnly = false
             });
 
@@ -5097,7 +5312,7 @@ ORDER BY zm.Id";
             dgDetails.PreviewKeyDown -= DgDetails_PreviewKeyDown;
             dgDetails.PreviewKeyDown += DgDetails_PreviewKeyDown;
 
-            // Obsługa kliknięć w checkboxy (Folia/Hallal)
+            // Obsługa kliknięć w checkboxy (Folia/Hallal/Strefa)
             dgDetails.BeginningEdit -= DgDetails_BeginningEdit;
             dgDetails.BeginningEdit += DgDetails_BeginningEdit;
         }
@@ -6649,9 +6864,15 @@ ORDER BY zm.Id";
                 await cmdInsert.ExecuteNonQueryAsync();
 
                 // POPRAWIONE - Cena to VARCHAR
-                var cmdCopyItems = new SqlCommand(@"INSERT INTO ZamowieniaMiesoTowar 
-            (ZamowienieId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2, Folia, Hallal) 
-            SELECT @newId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2, Folia, Hallal 
+                var cmdCopyItems = new SqlCommand(
+                    _strefaColumnExists
+                    ? @"INSERT INTO ZamowieniaMiesoTowar
+            (ZamowienieId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2, Folia, Hallal, Strefa)
+            SELECT @newId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2, Folia, Hallal, ISNULL(Strefa, 0)
+            FROM ZamowieniaMiesoTowar WHERE ZamowienieId = @sourceId"
+                    : @"INSERT INTO ZamowieniaMiesoTowar
+            (ZamowienieId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2, Folia, Hallal)
+            SELECT @newId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2, Folia, Hallal
             FROM ZamowieniaMiesoTowar WHERE ZamowienieId = @sourceId", cn, tr);
                 cmdCopyItems.Parameters.AddWithValue("@newId", newId);
                 cmdCopyItems.Parameters.AddWithValue("@sourceId", sourceId);
@@ -7283,8 +7504,9 @@ ORDER BY zm.Id";
             {
                 "Zam." => row.Field<decimal>("Zamówiono"),
                 "Cena" => row.Field<decimal>("Cena"),
-                "Folia" => row.Field<bool>("Folia"),
-                "Hallal" => row.Field<bool>("Hallal"),
+                _ when _editColumnName.Contains("Folia") => row.Field<bool>("Folia"),
+                _ when _editColumnName.Contains("Halal") => row.Field<bool>("Hallal"),
+                _ when _editColumnName.Contains("Strefa") => row.Field<bool>("Strefa"),
                 _ => null
             };
         }
@@ -7354,8 +7576,9 @@ ORDER BY zm.Id";
                 {
                     "Zam." => "Ilosc",
                     "Cena" => "Cena",
-                    "Folia" => "Folia",
-                    "Hallal" => "Hallal",
+                    _ when columnName.Contains("Folia") => "Folia",
+                    _ when columnName.Contains("Halal") => "Hallal",
+                    _ when columnName.Contains("Strefa") => "Strefa",
                     _ => ""
                 };
 
@@ -7433,8 +7656,9 @@ ORDER BY zm.Id";
             {
                 "Zam." => $"{value:N0} kg",
                 "Cena" => $"{value:N2} zł",
-                "Folia" => (bool)value ? "TAK" : "NIE",
-                "Hallal" => (bool)value ? "TAK" : "NIE",
+                _ when columnName.Contains("Folia") => (bool)value ? "TAK" : "NIE",
+                _ when columnName.Contains("Halal") => (bool)value ? "TAK" : "NIE",
+                _ when columnName.Contains("Strefa") => (bool)value ? "TAK" : "NIE",
                 _ => value.ToString() ?? "brak"
             };
         }

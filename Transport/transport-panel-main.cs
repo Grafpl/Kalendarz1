@@ -139,7 +139,7 @@ namespace Kalendarz1.Transport.Formularze
             CreateHeader();
 
             // ========== FILTERS ==========
-            CreateFilters();
+            // CreateFilters(); // Usunięte - filtry niepotrzebne
 
             // ========== CONTENT ==========
             CreateContent();
@@ -158,15 +158,14 @@ namespace Kalendarz1.Transport.Formularze
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
-                RowCount = 4,
+                RowCount = 3,
                 Margin = new Padding(0),
                 Padding = new Padding(0)
             };
 
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 80));  // Header
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));  // Filters
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // Content + Side panel
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 110));  // Summary - karty
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 60));  // Summary - karty
 
             // Panel środkowy z dwoma kolumnami
             var contentWrapper = new TableLayoutPanel
@@ -184,9 +183,8 @@ namespace Kalendarz1.Transport.Formularze
             contentWrapper.Controls.Add(panelWolneZamowienia, 1, 0);
 
             mainLayout.Controls.Add(panelHeader, 0, 0);
-            mainLayout.Controls.Add(panelFilters, 0, 1);
-            mainLayout.Controls.Add(contentWrapper, 0, 2);
-            mainLayout.Controls.Add(panelSummary, 0, 3);
+            mainLayout.Controls.Add(contentWrapper, 0, 1);
+            mainLayout.Controls.Add(panelSummary, 0, 2);
 
             Controls.Add(mainLayout);
         }
@@ -666,14 +664,15 @@ namespace Kalendarz1.Transport.Formularze
             dgvKursy.EnableHeadersVisualStyles = false;
             dgvKursy.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(250, 251, 253);
             dgvKursy.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(80, 90, 110);
-            dgvKursy.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            dgvKursy.ColumnHeadersDefaultCellStyle.Padding = new Padding(10, 8, 10, 8);
-            dgvKursy.ColumnHeadersHeight = 40;
+            dgvKursy.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 7.5F, FontStyle.Bold);
+            dgvKursy.ColumnHeadersDefaultCellStyle.Padding = new Padding(3, 2, 3, 2);
+            dgvKursy.ColumnHeadersDefaultCellStyle.WrapMode = DataGridViewTriState.True;
+            dgvKursy.ColumnHeadersHeight = 34;
             dgvKursy.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None;
 
             // Stylizacja wierszy
-            dgvKursy.DefaultCellStyle.Font = new Font("Segoe UI", 9.5F);
-            dgvKursy.DefaultCellStyle.Padding = new Padding(10, 6, 10, 6);
+            dgvKursy.DefaultCellStyle.Font = new Font("Segoe UI", 9F);
+            dgvKursy.DefaultCellStyle.Padding = new Padding(4, 4, 4, 4);
             dgvKursy.DefaultCellStyle.SelectionBackColor = Color.FromArgb(52, 152, 219);
             dgvKursy.DefaultCellStyle.SelectionForeColor = Color.White;
             dgvKursy.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(252, 252, 254);
@@ -699,7 +698,9 @@ namespace Kalendarz1.Transport.Formularze
                 {
                     dgvKursy.ClearSelection();
                     dgvKursy.Rows[hitTest.RowIndex].Selected = true;
-                    dgvKursy.CurrentCell = dgvKursy.Rows[hitTest.RowIndex].Cells[0];
+                    var firstVisibleCol = dgvKursy.Columns.Cast<DataGridViewColumn>().FirstOrDefault(c => c.Visible);
+                    if (firstVisibleCol != null)
+                        dgvKursy.CurrentCell = dgvKursy.Rows[hitTest.RowIndex].Cells[firstVisibleCol.Index];
                     contextMenuKurs.Show(dgvKursy, e.Location);
                 }
             }
@@ -802,8 +803,9 @@ namespace Kalendarz1.Transport.Formularze
             dgvWolneZamowienia.DefaultCellStyle.SelectionBackColor = Color.FromArgb(52, 152, 219);
             dgvWolneZamowienia.DefaultCellStyle.SelectionForeColor = Color.White;
             dgvWolneZamowienia.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(250, 250, 252);
-            dgvWolneZamowienia.RowTemplate.Height = 26;
+            dgvWolneZamowienia.RowTemplate.Height = 24;
             dgvWolneZamowienia.GridColor = Color.FromArgb(240, 242, 245);
+            dgvWolneZamowienia.CellPainting += DgvWolneZamowienia_CellPainting;
 
             // Kontener dla grida z ramką
             var gridContainer = new Panel
@@ -821,13 +823,52 @@ namespace Kalendarz1.Transport.Formularze
             panelWolneZamowienia.Controls.Add(leftBorder);
         }
 
+        private void DgvWolneZamowienia_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
+        {
+            if (e.RowIndex < 0) return;
+            var row = dgvWolneZamowienia.Rows[e.RowIndex];
+            if (row.Cells["IsGroupRow"]?.Value == null || !Convert.ToBoolean(row.Cells["IsGroupRow"].Value))
+                return;
+
+            e.Handled = true;
+            var bgColor = row.Selected ? e.CellStyle.SelectionBackColor : Color.FromArgb(235, 230, 245);
+            using (var brush = new SolidBrush(bgColor))
+                e.Graphics.FillRectangle(brush, e.CellBounds);
+
+            var colName = dgvWolneZamowienia.Columns[e.ColumnIndex].Name;
+
+            // Rysuj tekst nagłówka grupy scalony w kolumnach Odbiór + Godz.
+            if (colName == "Odbiór")
+            {
+                var headerText = row.Cells["Odbiór"]?.Value?.ToString() ?? "";
+                // Oblicz łączną szerokość Odbiór + Godz.
+                var odbiorWidth = dgvWolneZamowienia.Columns["Odbiór"]?.Width ?? 0;
+                var godzWidth = dgvWolneZamowienia.Columns["Godz."]?.Width ?? 0;
+                var mergedWidth = odbiorWidth + godzWidth;
+
+                using (var font = new Font("Segoe UI", 7.5F, FontStyle.Bold))
+                using (var textBrush = new SolidBrush(Color.FromArgb(100, 60, 140)))
+                {
+                    var sf = new StringFormat { LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter };
+                    e.Graphics.DrawString(headerText, font, textBrush,
+                        new RectangleF(e.CellBounds.Left + 4, e.CellBounds.Top, mergedWidth - 6, e.CellBounds.Height), sf);
+                }
+            }
+            // Godz. w wierszu grupy - nie rysuj nic (tekst już narysowany przez Odbiór)
+
+            // Dolna linia
+            using (var pen = new Pen(Color.FromArgb(210, 200, 225)))
+                e.Graphics.DrawLine(pen, e.CellBounds.Left, e.CellBounds.Bottom - 1,
+                    e.CellBounds.Right, e.CellBounds.Bottom - 1);
+        }
+
         private void CreateSummary()
         {
             panelSummary = new Panel
             {
                 Dock = DockStyle.Fill,
                 BackColor = Color.FromArgb(38, 42, 50),
-                Padding = new Padding(20, 12, 20, 12)
+                Padding = new Padding(15, 6, 15, 6)
             };
 
             // Górna linia dekoracyjna
@@ -838,26 +879,19 @@ namespace Kalendarz1.Transport.Formularze
                 BackColor = Color.FromArgb(60, 65, 75)
             };
 
-            // Główny layout z kartami
+            // Główny layout z kartami - kompaktowy
             var mainLayout = new FlowLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents = false,
                 BackColor = Color.Transparent,
-                Padding = new Padding(0, 8, 0, 0)
+                Padding = new Padding(0, 2, 0, 0)
             };
 
-            // Karta 1 - Kursy
             var cardKursy = CreateSummaryCard("KURSY", Color.FromArgb(52, 152, 219), out lblSummaryKursy);
-
-            // Karta 2 - Pojemniki E2
-            var cardPojemniki = CreateSummaryCard("POJEMNIKI E2", Color.FromArgb(241, 196, 15), out lblSummaryPojemniki);
-
-            // Karta 3 - Palety
+            var cardPojemniki = CreateSummaryCard("POJEMNIKI", Color.FromArgb(241, 196, 15), out lblSummaryPojemniki);
             var cardPalety = CreateSummaryCard("PALETY", Color.FromArgb(155, 89, 182), out lblSummaryPalety);
-
-            // Karta 4 - Wypełnienie
             var cardWypelnienie = CreateSummaryCard("WYPEŁNIENIE", Color.FromArgb(46, 204, 113), out lblSummaryWypelnienie);
             lblSummaryWypelnienie.Text = "0%";
 
@@ -871,36 +905,37 @@ namespace Kalendarz1.Transport.Formularze
         {
             var card = new Panel
             {
-                Size = new Size(220, 70),
+                Size = new Size(180, 42),
                 BackColor = Color.FromArgb(48, 52, 60),
-                Margin = new Padding(0, 0, 20, 0)
+                Margin = new Padding(0, 0, 12, 0)
             };
 
             // Lewa linia akcentu
             var accent = new Panel
             {
                 Dock = DockStyle.Left,
-                Width = 4,
+                Width = 3,
                 BackColor = accentColor
             };
 
-            // Tytuł
+            // Tytuł - po lewej
             var lblTitle = new Label
             {
                 Text = title,
-                Location = new Point(16, 8),
+                Location = new Point(12, 13),
                 AutoSize = true,
-                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(160, 168, 180)
+                Font = new Font("Segoe UI", 7.5F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(140, 150, 165)
             };
 
-            // Wartość
+            // Wartość - po prawej
             valueLabel = new Label
             {
                 Text = "0",
-                Location = new Point(16, 30),
-                AutoSize = true,
-                Font = new Font("Segoe UI", 24F, FontStyle.Bold),
+                Location = new Point(100, 6),
+                Size = new Size(72, 30),
+                TextAlign = ContentAlignment.MiddleRight,
+                Font = new Font("Segoe UI", 18F, FontStyle.Bold),
                 ForeColor = accentColor
             };
 
@@ -963,9 +998,6 @@ namespace Kalendarz1.Transport.Formularze
 
                 // Ustaw nazwę dnia tygodnia
                 lblDayName.Text = _selectedDate.ToString("dddd", new System.Globalization.CultureInfo("pl-PL"));
-
-                // Załaduj dane do filtrów
-                await LoadFilterDataAsync();
 
                 // Załaduj kursy - to automatycznie wywoła UpdateSummary
                 await LoadKursyAsync();
@@ -1088,7 +1120,7 @@ namespace Kalendarz1.Transport.Formularze
                         if (int.TryParse(klientIdStr, out int kId) && handlowcyMap.TryGetValue(kId, out var nazwa))
                             nazwy.Add(nazwa);
                     }
-                    kursHandlowcyNazwy[kvp.Key] = nazwy.Count > 0 ? string.Join(", ", nazwy) : "";
+                    kursHandlowcyNazwy[kvp.Key] = nazwy.Count > 0 ? string.Join(", ", nazwy.Select(SkrocNazwe)) : "";
                 }
 
                 // Pobierz pełne nazwy użytkowników (Utworzyl/Zmienil to userId)
@@ -1113,46 +1145,33 @@ namespace Kalendarz1.Transport.Formularze
                 dt.Columns.Add("Handlowcy", typeof(string));
                 dt.Columns.Add("WymagaPrzydzialu", typeof(bool)); // Ukryta kolumna do formatowania
 
-                // Pobierz aktywne filtry
-                var filtrKierowcaId = (cboFiltrKierowca?.SelectedItem as Kierowca)?.KierowcaID;
-                var filtrPojazdId = (cboFiltrPojazd?.SelectedItem as Pojazd)?.PojazdID;
-                var filtrStatus = cboFiltrStatus?.SelectedItem?.ToString();
-                if (filtrStatus == "Wszystkie statusy") filtrStatus = null;
-
                 if (_kursy != null)
                 {
                     foreach (var kurs in _kursy.OrderBy(k => k.GodzWyjazdu))
                     {
-                        // Zastosuj filtry
-                        if (filtrKierowcaId.HasValue && kurs.KierowcaID != filtrKierowcaId.Value)
-                            continue;
-                        if (filtrPojazdId.HasValue && kurs.PojazdID != filtrPojazdId.Value)
-                            continue;
-                        if (!string.IsNullOrEmpty(filtrStatus) && kurs.Status != filtrStatus)
-                            continue;
 
                         var wyp = _wypelnienia.ContainsKey(kurs.KursID) ? _wypelnienia[kurs.KursID] : null;
                         var wymagaPrzydzialu = kurs.WymagaPrzydzialu;
 
                         // Wyświetl informację o braku przypisania
                         var kierowcaTekst = string.IsNullOrEmpty(kurs.KierowcaNazwa)
-                            ? "⚠ DO PRZYDZIELENIA"
+                            ? "⚠ BRAK"
                             : kurs.KierowcaNazwa;
 
                         var pojazdTekst = string.IsNullOrEmpty(kurs.PojazdRejestracja)
-                            ? "⚠ DO PRZYDZIELENIA"
+                            ? "⚠ BRAK"
                             : kurs.PojazdRejestracja;
 
                         // Status z bazy lub "Planowany" jako domyślny
                         var status = kurs.Status ?? "Planowany";
 
-                        // Kto utworzył kurs - pełna nazwa + data
+                        // Kto utworzył kurs - skrócona nazwa + data
                         var utworzylId = kurs.Utworzyl ?? "";
                         var utworzylName = "";
                         if (!string.IsNullOrEmpty(utworzylId))
                         {
                             var fullName = _userNameCache.TryGetValue(utworzylId, out var n) ? n : utworzylId;
-                            utworzylName = $"{fullName} ({kurs.UtworzonoUTC.ToLocalTime():dd.MM HH:mm})";
+                            utworzylName = $"{SkrocNazwe(fullName)} ({kurs.UtworzonoUTC.ToLocalTime():dd.MM HH:mm})";
                         }
 
                         // Handlowcy (kto ostatnio modyfikował zamówienia w kursie)
@@ -1180,52 +1199,65 @@ namespace Kalendarz1.Transport.Formularze
 
                 dgvKursy.DataSource = dt;
 
-                // Konfiguracja kolumn
-                if (dgvKursy.Columns["KursID"] != null)
-                    dgvKursy.Columns["KursID"].Visible = false;
+                // Konfiguracja kolumn - ukryj pomocnicze
+                foreach (var hiddenCol in new[] { "KursID", "WymagaPrzydzialu", "KierowcaID", "PojazdID", "UtworzylId", "Status" })
+                    if (dgvKursy.Columns[hiddenCol] != null)
+                        dgvKursy.Columns[hiddenCol].Visible = false;
 
-                // Ukryj kolumny pomocnicze
-                if (dgvKursy.Columns["WymagaPrzydzialu"] != null)
-                    dgvKursy.Columns["WymagaPrzydzialu"].Visible = false;
-                if (dgvKursy.Columns["KierowcaID"] != null)
-                    dgvKursy.Columns["KierowcaID"].Visible = false;
-                if (dgvKursy.Columns["PojazdID"] != null)
-                    dgvKursy.Columns["PojazdID"].Visible = false;
-                if (dgvKursy.Columns["UtworzylId"] != null)
-                    dgvKursy.Columns["UtworzylId"].Visible = false;
+                // Wyłącz AutoFill aby ustawić ręczne szerokości, Trasa dostanie Fill
+                dgvKursy.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
 
                 if (dgvKursy.Columns["Godzina"] != null)
                 {
-                    dgvKursy.Columns["Godzina"].Width = 80;
-                    dgvKursy.Columns["Godzina"].HeaderText = "Wyjazd";
+                    dgvKursy.Columns["Godzina"].Width = 55;
+                    dgvKursy.Columns["Godzina"].HeaderText = "Wyj.\ngodz.";
+                    dgvKursy.Columns["Godzina"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
 
                 if (dgvKursy.Columns["Kierowca"] != null)
                 {
-                    dgvKursy.Columns["Kierowca"].Width = 160;
+                    dgvKursy.Columns["Kierowca"].Width = 110;
+                    dgvKursy.Columns["Kierowca"].DefaultCellStyle.WrapMode = DataGridViewTriState.True;
+                    dgvKursy.Columns["Kierowca"].DefaultCellStyle.Font = new Font("Segoe UI", 8F);
                 }
 
                 if (dgvKursy.Columns["Pojazd"] != null)
                 {
-                    dgvKursy.Columns["Pojazd"].Width = 120;
+                    dgvKursy.Columns["Pojazd"].Width = 68;
+                    dgvKursy.Columns["Pojazd"].DefaultCellStyle.WrapMode = DataGridViewTriState.True;
+                    dgvKursy.Columns["Pojazd"].DefaultCellStyle.Font = new Font("Segoe UI", 8F);
+                }
+
+                if (dgvKursy.Columns["Trasa"] != null)
+                {
+                    dgvKursy.Columns["Trasa"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                    dgvKursy.Columns["Trasa"].MinimumWidth = 80;
+                    dgvKursy.Columns["Trasa"].DefaultCellStyle.Font = new Font("Segoe UI", 8F);
+                    dgvKursy.Columns["Trasa"].DefaultCellStyle.WrapMode = DataGridViewTriState.False;
+                }
+
+                if (dgvKursy.Columns["Pojemniki"] != null)
+                {
+                    dgvKursy.Columns["Pojemniki"].Width = 50;
+                    dgvKursy.Columns["Pojemniki"].HeaderText = "Poj.";
+                    dgvKursy.Columns["Pojemniki"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
 
                 if (dgvKursy.Columns["Wypełnienie"] != null)
                 {
-                    dgvKursy.Columns["Wypełnienie"].Width = 100;
-                    dgvKursy.Columns["Wypełnienie"].HeaderText = "Wypełnienie";
+                    dgvKursy.Columns["Wypełnienie"].Width = 50;
+                    dgvKursy.Columns["Wypełnienie"].HeaderText = "Wyp.%";
+                    dgvKursy.Columns["Wypełnienie"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
 
                 if (dgvKursy.Columns["Utworzył"] != null)
                 {
-                    dgvKursy.Columns["Utworzył"].Width = 180;
-                    dgvKursy.Columns["Utworzył"].HeaderText = "Utworzył";
+                    dgvKursy.Columns["Utworzył"].Width = 130;
                 }
 
                 if (dgvKursy.Columns["Handlowcy"] != null)
                 {
-                    dgvKursy.Columns["Handlowcy"].Width = 160;
-                    dgvKursy.Columns["Handlowcy"].HeaderText = "Handlowcy";
+                    dgvKursy.Columns["Handlowcy"].Width = 120;
                 }
                 System.Diagnostics.Debug.WriteLine("Calling UpdateSummary...");
                 UpdateSummary();
@@ -1415,21 +1447,21 @@ namespace Kalendarz1.Transport.Formularze
             if (dgvKursy.Columns[e.ColumnIndex].Name == "Kierowca")
             {
                 var kierowcaTekst = e.Value?.ToString() ?? "";
-                if (kierowcaTekst.Contains("DO PRZYDZIELENIA"))
+                if (kierowcaTekst.Contains("BRAK"))
                 {
-                    e.CellStyle.ForeColor = Color.FromArgb(230, 126, 34); // Pomarańczowy
-                    e.CellStyle.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+                    e.CellStyle.ForeColor = Color.FromArgb(230, 126, 34);
+                    e.CellStyle.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
                 }
             }
 
-            // Formatowanie kolumny pojazd - pomarańczowy tekst gdy brak przypisania
+            // Formatowanie kolumny pojazd
             if (dgvKursy.Columns[e.ColumnIndex].Name == "Pojazd")
             {
                 var pojazdTekst = e.Value?.ToString() ?? "";
-                if (pojazdTekst.Contains("DO PRZYDZIELENIA"))
+                if (pojazdTekst.Contains("BRAK"))
                 {
-                    e.CellStyle.ForeColor = Color.FromArgb(230, 126, 34); // Pomarańczowy
-                    e.CellStyle.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+                    e.CellStyle.ForeColor = Color.FromArgb(230, 126, 34);
+                    e.CellStyle.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
                 }
             }
 
@@ -2198,6 +2230,18 @@ namespace Kalendarz1.Transport.Formularze
             return avatar;
         }
 
+        /// <summary>
+        /// Skraca nazwę do formatu "Imie L." np. "Artur Danielewski" → "Artur D."
+        /// </summary>
+        private static string SkrocNazwe(string fullName)
+        {
+            if (string.IsNullOrWhiteSpace(fullName)) return fullName;
+            var parts = fullName.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length >= 2)
+                return $"{parts[0]} {parts[1][0]}.";
+            return fullName;
+        }
+
         private string UtworzUrlGoogleMaps(List<string> adresy)
         {
             if (adresy.Count < 2) return "";
@@ -2263,7 +2307,7 @@ namespace Kalendarz1.Transport.Formularze
                     FROM dbo.ZamowieniaMieso zm
                     WHERE CAST(zm.DataUboju AS DATE) = @Data
                       AND ISNULL(zm.Status, 'Nowe') NOT IN ('Anulowane')
-                      AND ISNULL(zm.TransportStatus, 'Oczekuje') NOT IN ('Przypisany', 'Własny')
+                      AND ISNULL(zm.TransportStatus, 'Oczekuje') NOT IN ('Przypisany', 'Wlasny')
                     ORDER BY zm.DataPrzyjazdu";
 
                 var tempList = new List<(int Id, int KlientId, DateTime DataOdbioru, DateTime DataUboju, decimal Palety, int Pojemniki)>();
@@ -2299,49 +2343,94 @@ namespace Kalendarz1.Transport.Formularze
                     await LoadMissingKlienciAsync(klientIdsToFetch);
                 }
 
-                // Budowanie tabeli
+                // Budowanie tabeli - kolumny: Ubój, Odbiór, Godz., Palety, Poj., Klient
+                var plCulture = new System.Globalization.CultureInfo("pl-PL");
                 var dt = new DataTable();
                 dt.Columns.Add("ID", typeof(int));
-                dt.Columns.Add("Odbiór", typeof(string));
+                dt.Columns.Add("IsGroupRow", typeof(bool));
                 dt.Columns.Add("Ubój", typeof(string));
-                dt.Columns.Add("Klient", typeof(string));
+                dt.Columns.Add("Odbiór", typeof(string));
                 dt.Columns.Add("Godz.", typeof(string));
                 dt.Columns.Add("Palety", typeof(string));
                 dt.Columns.Add("Poj.", typeof(int));
+                dt.Columns.Add("Klient", typeof(string));
 
-                foreach (var zam in tempList)
+                // Grupuj po dacie odbioru
+                var grouped = tempList
+                    .OrderBy(z => z.DataOdbioru.Date)
+                    .ThenBy(z => z.DataOdbioru)
+                    .GroupBy(z => z.DataOdbioru.Date);
+
+                foreach (var group in grouped)
                 {
-                    var klientNazwa = _klienciCache.TryGetValue(zam.KlientId, out var nazwa)
-                        ? nazwa
-                        : $"KH {zam.KlientId}";
-                    dt.Rows.Add(
-                        zam.Id,
-                        zam.DataOdbioru.ToString("MM-dd"),
-                        zam.DataUboju.ToString("MM-dd"),
-                        klientNazwa,
-                        zam.DataOdbioru.ToString("HH:mm"),
-                        zam.Palety.ToString("N1"),
-                        zam.Pojemniki
-                    );
+                    // Wiersz nagłówka grupy
+                    var dzienTygodnia = group.Key.ToString("dddd", plCulture);
+                    var groupHeader = $"▸ {group.Key:dd.MM} ({dzienTygodnia}) — {group.Count()} zam.";
+                    var groupRow = dt.NewRow();
+                    groupRow["ID"] = 0;
+                    groupRow["IsGroupRow"] = true;
+                    groupRow["Ubój"] = "";
+                    groupRow["Odbiór"] = groupHeader;
+                    groupRow["Godz."] = "";
+                    groupRow["Palety"] = "";
+                    groupRow["Poj."] = 0;
+                    groupRow["Klient"] = "";
+                    dt.Rows.Add(groupRow);
+
+                    foreach (var zam in group)
+                    {
+                        var klientNazwa = _klienciCache.TryGetValue(zam.KlientId, out var nazwa)
+                            ? nazwa : $"KH {zam.KlientId}";
+                        var ubojDzien = zam.DataUboju.ToString("dd.MM", plCulture)
+                            + " " + zam.DataUboju.ToString("ddd", plCulture);
+                        var odbiorDzien = zam.DataOdbioru.ToString("dd.MM", plCulture)
+                            + " " + zam.DataOdbioru.ToString("ddd", plCulture);
+                        dt.Rows.Add(
+                            zam.Id,
+                            false,
+                            ubojDzien,
+                            odbiorDzien,
+                            zam.DataOdbioru.ToString("HH:mm"),
+                            zam.Palety.ToString("N1"),
+                            zam.Pojemniki,
+                            klientNazwa
+                        );
+                    }
                 }
 
                 dgvWolneZamowienia.DataSource = dt;
 
                 // Konfiguracja kolumn
+                dgvWolneZamowienia.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+
                 if (dgvWolneZamowienia.Columns["ID"] != null)
                     dgvWolneZamowienia.Columns["ID"].Visible = false;
-                if (dgvWolneZamowienia.Columns["Odbiór"] != null)
-                    dgvWolneZamowienia.Columns["Odbiór"].Width = 50;
+                if (dgvWolneZamowienia.Columns["IsGroupRow"] != null)
+                    dgvWolneZamowienia.Columns["IsGroupRow"].Visible = false;
                 if (dgvWolneZamowienia.Columns["Ubój"] != null)
-                    dgvWolneZamowienia.Columns["Ubój"].Width = 50;
-                if (dgvWolneZamowienia.Columns["Klient"] != null)
-                    dgvWolneZamowienia.Columns["Klient"].FillWeight = 100;
+                    dgvWolneZamowienia.Columns["Ubój"].Width = 70;
+                if (dgvWolneZamowienia.Columns["Odbiór"] != null)
+                    dgvWolneZamowienia.Columns["Odbiór"].Width = 70;
                 if (dgvWolneZamowienia.Columns["Godz."] != null)
-                    dgvWolneZamowienia.Columns["Godz."].Width = 42;
+                    dgvWolneZamowienia.Columns["Godz."].Width = 46;
                 if (dgvWolneZamowienia.Columns["Palety"] != null)
-                    dgvWolneZamowienia.Columns["Palety"].Width = 42;
+                    dgvWolneZamowienia.Columns["Palety"].Width = 48;
                 if (dgvWolneZamowienia.Columns["Poj."] != null)
-                    dgvWolneZamowienia.Columns["Poj."].Width = 38;
+                    dgvWolneZamowienia.Columns["Poj."].Width = 42;
+                if (dgvWolneZamowienia.Columns["Klient"] != null)
+                    dgvWolneZamowienia.Columns["Klient"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+
+                // Formatuj wiersze grupujące
+                foreach (DataGridViewRow row in dgvWolneZamowienia.Rows)
+                {
+                    if (row.Cells["IsGroupRow"]?.Value != null && Convert.ToBoolean(row.Cells["IsGroupRow"].Value))
+                    {
+                        row.DefaultCellStyle.BackColor = Color.FromArgb(235, 230, 245);
+                        row.DefaultCellStyle.ForeColor = Color.FromArgb(100, 60, 140);
+                        row.DefaultCellStyle.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+                        row.Height = 30;
+                    }
+                }
 
                 // Aktualizuj licznik
                 lblWolneZamowieniaInfo.Text = tempList.Count.ToString();

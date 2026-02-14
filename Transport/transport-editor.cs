@@ -564,23 +564,31 @@ namespace Kalendarz1.Transport.Formularze
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
                 RowCount = 3,
-                Padding = new Padding(25),
+                Padding = new Padding(10),
                 BackColor = Color.FromArgb(240, 242, 247)
             };
 
-            mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 55));
-            mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45));
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 180));
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 80));
+            mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 58));  // Lewa: header + ładunki
+            mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 42));  // Prawa: wolne zamówienia
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 60));        // Header kursu (duży)
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 40));        // Ładunki (kompaktowe)
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));       // Przyciski
 
+            // Najpierw utwórz headerPanel (inicjalizuje dtpData potrzebne przez zamowieniaPanel)
             var headerPanel = CreateHeaderPanel();
+
+            // Wiersz 0, Kol 0: Header kursu (tylko lewa strona)
             mainLayout.Controls.Add(headerPanel, 0, 0);
-            mainLayout.SetColumnSpan(headerPanel, 2);
 
+            // Wiersz 0-1, Kol 1: Wolne zamówienia (pełna wysokość prawa strona)
+            var zamowieniaPanel = CreateZamowieniaPanel();
+            mainLayout.Controls.Add(zamowieniaPanel, 1, 0);
+            mainLayout.SetRowSpan(zamowieniaPanel, 2);
+
+            // Wiersz 1, Kol 0: Ładunki
             mainLayout.Controls.Add(CreateLadunkiPanel(), 0, 1);
-            mainLayout.Controls.Add(CreateZamowieniaPanel(), 1, 1);
 
+            // Wiersz 2: Przyciski (cała szerokość)
             var buttonsPanel = CreateButtonsPanel();
             mainLayout.Controls.Add(buttonsPanel, 0, 2);
             mainLayout.SetColumnSpan(buttonsPanel, 2);
@@ -597,14 +605,15 @@ namespace Kalendarz1.Transport.Formularze
                 Padding = new Padding(15)
             };
 
-            var lblKierowca = CreateLabel("KIEROWCA:", 20, 20, 90);
+            // === Wiersz 1 (Y=18): Kierowca ===
+            var lblKierowca = CreateLabel("KIEROWCA:", 15, 18, 90);
             lblKierowca.ForeColor = Color.FromArgb(156, 163, 175);
             lblKierowca.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
 
             cboKierowca = new ComboBox
             {
-                Location = new Point(115, 18),
-                Size = new Size(200, 26),
+                Location = new Point(110, 15),
+                Size = new Size(240, 28),
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 DropDownHeight = 600,
                 Font = new Font("Segoe UI", 10F),
@@ -617,8 +626,8 @@ namespace Kalendarz1.Transport.Formularze
             btnNowyKierowca = new Button
             {
                 Text = "+",
-                Location = new Point(320, 18),
-                Size = new Size(30, 26),
+                Location = new Point(355, 15),
+                Size = new Size(28, 28),
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.FromArgb(34, 197, 94),
                 ForeColor = Color.White,
@@ -628,14 +637,15 @@ namespace Kalendarz1.Transport.Formularze
             btnNowyKierowca.FlatAppearance.BorderSize = 0;
             btnNowyKierowca.Click += BtnNowyKierowca_Click;
 
-            var lblPojazd = CreateLabel("POJAZD:", 365, 20, 70);
+            // === Wiersz 1 (kontynuacja): Pojazd ===
+            var lblPojazd = CreateLabel("POJAZD:", 400, 18, 65);
             lblPojazd.ForeColor = Color.FromArgb(156, 163, 175);
             lblPojazd.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
 
             cboPojazd = new ComboBox
             {
-                Location = new Point(440, 18),
-                Size = new Size(150, 26),
+                Location = new Point(468, 15),
+                Size = new Size(160, 28),
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 DropDownHeight = 600,
                 Font = new Font("Segoe UI", 10F),
@@ -649,8 +659,8 @@ namespace Kalendarz1.Transport.Formularze
             btnNowyPojazd = new Button
             {
                 Text = "+",
-                Location = new Point(595, 18),
-                Size = new Size(30, 26),
+                Location = new Point(633, 15),
+                Size = new Size(28, 28),
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.FromArgb(34, 197, 94),
                 ForeColor = Color.White,
@@ -660,38 +670,29 @@ namespace Kalendarz1.Transport.Formularze
             btnNowyPojazd.FlatAppearance.BorderSize = 0;
             btnNowyPojazd.Click += BtnNowyPojazd_Click;
 
-            var lblData = CreateLabel("DATA:", 640, 20, 50);
+            // === Wiersz 2 (Y=58): Data + Godziny ===
+            var lblData = CreateLabel("DATA:", 15, 58, 45);
             lblData.ForeColor = Color.FromArgb(156, 163, 175);
             lblData.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
 
             dtpData = new DateTimePicker
             {
-                Location = new Point(695, 18),
-                Size = new Size(140, 26),
+                Location = new Point(65, 55),
+                Size = new Size(140, 28),
                 Format = DateTimePickerFormat.Short,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 CalendarMonthBackground = Color.FromArgb(52, 56, 64)
             };
             dtpData.ValueChanged += async (s, e) => await LoadWolneZamowienia();
 
-            lblAutoUpdate = new Label
-            {
-                Location = new Point(850, 20),
-                Size = new Size(300, 23),
-                Text = "",
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = Color.Orange,
-                Visible = false
-            };
-
-            var lblGodziny = CreateLabel("GODZINY:", 20, 60, 90);
+            var lblGodziny = CreateLabel("GODZINY:", 225, 58, 75);
             lblGodziny.ForeColor = Color.FromArgb(156, 163, 175);
             lblGodziny.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
 
             txtGodzWyjazdu = new MaskedTextBox
             {
-                Location = new Point(115, 58),
-                Size = new Size(65, 26),
+                Location = new Point(305, 55),
+                Size = new Size(65, 28),
                 Mask = "00:00",
                 Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 Text = "06:00",
@@ -701,15 +702,15 @@ namespace Kalendarz1.Transport.Formularze
                 BorderStyle = BorderStyle.FixedSingle
             };
 
-            var lblDo = CreateLabel("→", 185, 60, 30);
+            var lblDo = CreateLabel("→", 375, 58, 25);
             lblDo.TextAlign = ContentAlignment.MiddleCenter;
             lblDo.ForeColor = Color.FromArgb(255, 193, 7);
             lblDo.Font = new Font("Segoe UI", 12F);
 
             txtGodzPowrotu = new MaskedTextBox
             {
-                Location = new Point(220, 58),
-                Size = new Size(65, 26),
+                Location = new Point(405, 55),
+                Size = new Size(65, 28),
                 Mask = "00:00",
                 Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 Text = "18:00",
@@ -719,33 +720,47 @@ namespace Kalendarz1.Transport.Formularze
                 BorderStyle = BorderStyle.FixedSingle
             };
 
-            var lblTrasa = CreateLabel("TRASA:", 305, 60, 60);
+            lblAutoUpdate = new Label
+            {
+                Location = new Point(485, 58),
+                Size = new Size(200, 22),
+                Text = "",
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.Orange,
+                Visible = false
+            };
+
+            // === Wiersz 3 (Y=98): Trasa ===
+            var lblTrasa = CreateLabel("TRASA:", 15, 98, 55);
             lblTrasa.ForeColor = Color.FromArgb(156, 163, 175);
             lblTrasa.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
 
             txtTrasa = new TextBox
             {
-                Location = new Point(370, 58),
-                Size = new Size(700, 26),
+                Location = new Point(75, 96),
+                Size = new Size(590, 26),
                 Font = new Font("Segoe UI", 10F),
                 BackColor = Color.FromArgb(52, 56, 64),
                 ForeColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle,
                 PlaceholderText = "Trasa zostanie uzupełniona automatycznie...",
-                ReadOnly = true
+                ReadOnly = true,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
 
+            // === Wiersz 4 (Y=138): Wypełnienie ===
             var panelWypelnienie = new Panel
             {
-                Location = new Point(20, 110),
-                Size = new Size(1200, 50),
-                BackColor = Color.FromArgb(33, 37, 43)
+                Location = new Point(15, 138),
+                Size = new Size(650, 50),
+                BackColor = Color.FromArgb(33, 37, 43),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
 
             lblWypelnienie = new Label
             {
-                Location = new Point(15, 15),
-                Size = new Size(120, 20),
+                Location = new Point(10, 15),
+                Size = new Size(110, 20),
                 Text = "WYPEŁNIENIE:",
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(156, 163, 175)
@@ -753,8 +768,8 @@ namespace Kalendarz1.Transport.Formularze
 
             progressWypelnienie = new Panel
             {
-                Location = new Point(140, 13),
-                Size = new Size(700, 26),
+                Location = new Point(125, 12),
+                Size = new Size(300, 26),
                 BackColor = Color.FromArgb(55, 60, 70)
             };
             _progressFill = new Panel
@@ -778,30 +793,32 @@ namespace Kalendarz1.Transport.Formularze
 
             lblStatystyki = new Label
             {
-                Location = new Point(850, 15),
-                Size = new Size(330, 20),
+                Location = new Point(430, 15),
+                Size = new Size(215, 20),
                 Text = "0 palet z 0 dostępnych",
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(255, 193, 7),
-                TextAlign = ContentAlignment.MiddleRight
+                TextAlign = ContentAlignment.MiddleRight,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right
             };
 
             panelWypelnienie.Controls.AddRange(new Control[] { lblWypelnienie, progressWypelnienie, lblStatystyki });
 
-            // Info bar - kto utworzył/modyfikował (rysowany z avatarami)
+            // === Wiersz 5 (Y=198): Info bar ===
             _panelInfoKursu = new Panel
             {
-                Location = new Point(15, 162),
-                Size = new Size(1200, 18),
-                BackColor = Color.Transparent
+                Location = new Point(15, 198),
+                Size = new Size(650, 22),
+                BackColor = Color.Transparent,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
             _panelInfoKursu.Paint += PanelInfoKursu_Paint;
 
             panel.Controls.AddRange(new Control[] {
                 lblKierowca, cboKierowca, btnNowyKierowca,
                 lblPojazd, cboPojazd, btnNowyPojazd,
-                lblData, dtpData, lblAutoUpdate,
-                lblGodziny, txtGodzWyjazdu, lblDo, txtGodzPowrotu,
+                lblData, dtpData,
+                lblGodziny, txtGodzWyjazdu, lblDo, txtGodzPowrotu, lblAutoUpdate,
                 lblTrasa, txtTrasa,
                 panelWypelnienie,
                 _panelInfoKursu
@@ -952,80 +969,65 @@ namespace Kalendarz1.Transport.Formularze
             var panel = new Panel
             {
                 Dock = DockStyle.Fill,
-                Padding = new Padding(10),
+                Padding = new Padding(0),
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle
             };
 
-            var panelHeader = new Panel
+            // Toolbar na górze (kompaktowy, w jednej linii)
+            var panelToolbar = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 140,
-                BackColor = Color.FromArgb(248, 249, 252),
-                Padding = new Padding(10, 5, 10, 5)
+                Height = 36,
+                BackColor = Color.FromArgb(155, 89, 182),
+                Padding = new Padding(8, 4, 8, 4)
             };
 
             lblZamowieniaInfo = new Label
             {
-                Text = "WOLNE ZAMÓWIENIA:",
-                Location = new Point(10, 10),
-                Size = new Size(250, 25),
+                Text = "WOLNE ZAMÓWIENIA",
+                Location = new Point(8, 8),
+                AutoSize = true,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(52, 73, 94),
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-
-            // NOWE: RadioButtony
-            var lblFiltrujPoData = new Label
-            {
-                Text = "Filtruj wg:",
-                Location = new Point(10, 40),
-                Size = new Size(70, 20),
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(52, 73, 94)
+                ForeColor = Color.White
             };
 
             rbDataUboju = new RadioButton
             {
-                Text = "Data uboju",
-                Location = new Point(85, 40),
-                Size = new Size(100, 20),
+                Text = "Ubój",
+                Location = new Point(190, 9),
+                Size = new Size(55, 18),
                 Checked = true,
-                Font = new Font("Segoe UI", 9F),
-                ForeColor = Color.FromArgb(52, 73, 94)
+                Font = new Font("Segoe UI", 8F),
+                ForeColor = Color.White
             };
             rbDataUboju.CheckedChanged += async (s, e) =>
             {
                 if (rbDataUboju.Checked && _dataLoaded)
-                {
                     await LoadWolneZamowieniaForDate(_dtpZamowienia?.Value ?? dtpData.Value);
-                }
             };
 
             rbDataOdbioru = new RadioButton
             {
-                Text = "Data odbioru (stary system)",
-                Location = new Point(195, 40),
-                Size = new Size(180, 20),
-                Font = new Font("Segoe UI", 9F, FontStyle.Italic),
-                ForeColor = Color.Gray
+                Text = "Odbiór",
+                Location = new Point(248, 9),
+                Size = new Size(65, 18),
+                Font = new Font("Segoe UI", 8F, FontStyle.Italic),
+                ForeColor = Color.FromArgb(220, 200, 240)
             };
             rbDataOdbioru.CheckedChanged += async (s, e) =>
             {
                 if (rbDataOdbioru.Checked && _dataLoaded)
-                {
                     await LoadWolneZamowieniaForDate(_dtpZamowienia?.Value ?? dtpData.Value);
-                }
             };
 
             txtSzukajZamowienia = new TextBox
             {
-                Location = new Point(10, 65),
-                Size = new Size(300, 26),
-                Font = new Font("Segoe UI", 9F),
+                Location = new Point(320, 6),
+                Size = new Size(200, 24),
+                Font = new Font("Segoe UI", 8.5F),
                 ForeColor = Color.Gray,
-                Text = "Szukaj klienta lub handlowca...",
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+                Text = "Szukaj..."
             };
             txtSzukajZamowienia.GotFocus += (s, e) =>
             {
@@ -1040,7 +1042,7 @@ namespace Kalendarz1.Transport.Formularze
                 if (string.IsNullOrWhiteSpace(txtSzukajZamowienia.Text))
                 {
                     txtSzukajZamowienia.ForeColor = Color.Gray;
-                    txtSzukajZamowienia.Text = "Szukaj klienta lub handlowca...";
+                    txtSzukajZamowienia.Text = "Szukaj...";
                     _filtrZamowien = "";
                 }
             };
@@ -1055,10 +1057,10 @@ namespace Kalendarz1.Transport.Formularze
 
             var dtpZamowienia = new DateTimePicker
             {
-                Location = new Point(10, 100),
-                Size = new Size(150, 26),
+                Location = new Point(530, 6),
+                Size = new Size(120, 24),
                 Format = DateTimePickerFormat.Short,
-                Font = new Font("Segoe UI", 10F),
+                Font = new Font("Segoe UI", 9F),
                 Value = dtpData.Value
             };
             dtpZamowienia.ValueChanged += async (s, e) =>
@@ -1068,13 +1070,13 @@ namespace Kalendarz1.Transport.Formularze
 
             var btnRefreshZamowienia = new Button
             {
-                Text = "Odśwież",
-                Location = new Point(170, 100),
-                Size = new Size(70, 26),
+                Text = "⟳",
+                Location = new Point(655, 5),
+                Size = new Size(30, 26),
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(52, 152, 219),
+                BackColor = Color.FromArgb(120, 70, 150),
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 9F),
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
             btnRefreshZamowienia.FlatAppearance.BorderSize = 0;
@@ -1086,12 +1088,12 @@ namespace Kalendarz1.Transport.Formularze
             var btnToday = new Button
             {
                 Text = "Dziś",
-                Location = new Point(250, 100),
-                Size = new Size(50, 26),
+                Location = new Point(690, 5),
+                Size = new Size(45, 26),
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(108, 117, 125),
+                BackColor = Color.FromArgb(120, 70, 150),
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 9F),
+                Font = new Font("Segoe UI", 8F),
                 Cursor = Cursors.Hand
             };
             btnToday.FlatAppearance.BorderSize = 0;
@@ -1103,33 +1105,31 @@ namespace Kalendarz1.Transport.Formularze
 
             var lblLiczbaZamowien = new Label
             {
-                Location = new Point(310, 100),
-                Size = new Size(120, 26),
-                Text = "0 zamówień",
+                Location = new Point(745, 8),
+                Size = new Size(100, 20),
+                Text = "0 zam.",
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(52, 152, 219),
-                TextAlign = ContentAlignment.MiddleRight,
-                Anchor = AnchorStyles.Top | AnchorStyles.Right
+                ForeColor = Color.FromArgb(220, 220, 255),
+                TextAlign = ContentAlignment.MiddleLeft
             };
 
-            panelHeader.Controls.AddRange(new Control[] {
-        lblZamowieniaInfo,
-        lblFiltrujPoData, rbDataUboju, rbDataOdbioru,
-        txtSzukajZamowienia,
-        dtpZamowienia,
-        btnRefreshZamowienia,
-        btnToday,
-        lblLiczbaZamowien
-    });
+            panelToolbar.Controls.AddRange(new Control[] {
+                lblZamowieniaInfo,
+                rbDataUboju, rbDataOdbioru,
+                txtSzukajZamowienia,
+                dtpZamowienia,
+                btnRefreshZamowienia,
+                btnToday,
+                lblLiczbaZamowien
+            });
 
             _dtpZamowienia = dtpZamowienia;
             _lblLiczbaZamowien = lblLiczbaZamowien;
 
+            // Grid wolnych zamówień - styl jak w widoku głównym
             dgvWolneZamowienia = new DataGridView
             {
-                Location = new Point(10, 150),
-                Size = new Size(panel.Width - 20, panel.Height - 210),
-                Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
+                Dock = DockStyle.Fill,
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
                 AllowUserToResizeRows = false,
@@ -1139,22 +1139,37 @@ namespace Kalendarz1.Transport.Formularze
                 BackgroundColor = Color.White,
                 BorderStyle = BorderStyle.None,
                 RowHeadersVisible = false,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None,
+                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal
             };
 
             dgvWolneZamowienia.EnableHeadersVisualStyles = false;
-            dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 252);
-            dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(52, 73, 94);
-            dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            dgvWolneZamowienia.ColumnHeadersHeight = 30;
+            dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(245, 247, 250);
+            dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(100, 100, 120);
+            dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+            dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.Padding = new Padding(4, 6, 4, 6);
+            dgvWolneZamowienia.ColumnHeadersHeight = 28;
+            dgvWolneZamowienia.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None;
 
-            dgvWolneZamowienia.DefaultCellStyle.Font = new Font("Segoe UI", 9F);
+            dgvWolneZamowienia.DefaultCellStyle.Font = new Font("Segoe UI", 8.5F);
+            dgvWolneZamowienia.DefaultCellStyle.Padding = new Padding(4, 2, 4, 2);
             dgvWolneZamowienia.DefaultCellStyle.SelectionBackColor = Color.FromArgb(52, 152, 219);
-            dgvWolneZamowienia.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(249, 250, 252);
-            dgvWolneZamowienia.RowTemplate.Height = 28;
-            dgvWolneZamowienia.GridColor = Color.FromArgb(236, 240, 241);
+            dgvWolneZamowienia.DefaultCellStyle.SelectionForeColor = Color.White;
+            dgvWolneZamowienia.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(250, 250, 252);
+            dgvWolneZamowienia.RowTemplate.Height = 24;
+            dgvWolneZamowienia.GridColor = Color.FromArgb(240, 242, 245);
+            dgvWolneZamowienia.CellPainting += DgvEditorWolneZamowienia_CellPainting;
 
-            dgvWolneZamowienia.CellDoubleClick += async (s, e) => await DodajZamowienieDoKursu();
+            dgvWolneZamowienia.CellDoubleClick += async (s, e) =>
+            {
+                if (e.RowIndex >= 0)
+                {
+                    var row = dgvWolneZamowienia.Rows[e.RowIndex];
+                    if (row.Cells["IsGroupRow"]?.Value != null && Convert.ToBoolean(row.Cells["IsGroupRow"].Value))
+                        return;
+                    await DodajZamowienieDoKursu();
+                }
+            };
 
             // Drag & drop
             dgvWolneZamowienia.AllowDrop = true;
@@ -1176,22 +1191,25 @@ namespace Kalendarz1.Transport.Formularze
 
             dgvWolneZamowienia.ContextMenuStrip = contextMenuWolne;
 
+            // Przycisk dodawania - na dole
             btnDodajZamowienie = new Button
             {
-                Text = "⬅  Dodaj do kursu",
+                Text = "⬇  Dodaj zaznaczone do kursu",
                 Dock = DockStyle.Bottom,
-                Height = 40,
+                Height = 32,
                 BackColor = Color.FromArgb(34, 154, 67),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
             btnDodajZamowienie.FlatAppearance.BorderSize = 0;
             btnDodajZamowienie.FlatAppearance.MouseOverBackColor = Color.FromArgb(28, 130, 56);
             btnDodajZamowienie.Click += async (s, e) => await DodajZamowienieDoKursu();
 
-            panel.Controls.AddRange(new Control[] { panelHeader, dgvWolneZamowienia, btnDodajZamowienie });
+            panel.Controls.Add(dgvWolneZamowienia);
+            panel.Controls.Add(btnDodajZamowienie);
+            panel.Controls.Add(panelToolbar);
 
             return panel;
         }
@@ -2098,7 +2116,7 @@ namespace Kalendarz1.Transport.Formularze
                     bool jestWLiscieDoDodania = _zamowieniaDoDodania.Any(z => z.ZamowienieId == zamId);
 
                     if ((transportStatus == "Oczekuje" || string.IsNullOrEmpty(transportStatus) || _zamowieniaDoUsuniecia.Contains(zamId))
-                        && transportStatus != "Własny"  // NOWE: wykluczenie własnego transportu
+                        && transportStatus != "Wlasny"  // NOWE: wykluczenie własnego transportu (DB przechowuje bez ł)
                         && !jestWLiscieDoDodania)
                     {
                         var zamowienie = new ZamowienieDoTransportu
@@ -2174,14 +2192,14 @@ namespace Kalendarz1.Transport.Formularze
 
                 if (_lblLiczbaZamowien != null)
                 {
-                    _lblLiczbaZamowien.Text = $"{_wolneZamowienia.Count} zamówień";
+                    _lblLiczbaZamowien.Text = $"{_wolneZamowienia.Count} zam.";
 
                     if (_wolneZamowienia.Count == 0)
-                        _lblLiczbaZamowien.ForeColor = Color.Gray;
+                        _lblLiczbaZamowien.ForeColor = Color.FromArgb(180, 180, 200);
                     else if (_wolneZamowienia.Count > 15)
-                        _lblLiczbaZamowien.ForeColor = Color.OrangeRed;
+                        _lblLiczbaZamowien.ForeColor = Color.FromArgb(255, 180, 120);
                     else
-                        _lblLiczbaZamowien.ForeColor = Color.FromArgb(52, 152, 219);
+                        _lblLiczbaZamowien.ForeColor = Color.FromArgb(220, 220, 255);
                 }
             }
             catch (Exception ex)
@@ -2194,16 +2212,16 @@ namespace Kalendarz1.Transport.Formularze
 
         private void ShowZamowieniaInGrid()
         {
+            var plCulture = new System.Globalization.CultureInfo("pl-PL");
             var dt = new DataTable();
             dt.Columns.Add("ID", typeof(int));
-            dt.Columns.Add("Data odbioru", typeof(DateTime));
-            dt.Columns.Add("Data uboju", typeof(string));  // NOWE
-            dt.Columns.Add("Klient", typeof(string));
+            dt.Columns.Add("IsGroupRow", typeof(bool));
+            dt.Columns.Add("Ubój", typeof(string));
+            dt.Columns.Add("Odbiór", typeof(string));
             dt.Columns.Add("Godz.", typeof(string));
-            dt.Columns.Add("Palety", typeof(decimal));
-            dt.Columns.Add("Pojemniki", typeof(int));
-            dt.Columns.Add("Status", typeof(string));
-            dt.Columns.Add("Handlowiec", typeof(string));
+            dt.Columns.Add("Palety", typeof(string));
+            dt.Columns.Add("Poj.", typeof(int));
+            dt.Columns.Add("Klient", typeof(string));
             dt.Columns.Add("Adres", typeof(string));
 
             var zamowieniaDoPokazania = _wolneZamowienia.AsEnumerable();
@@ -2217,95 +2235,85 @@ namespace Kalendarz1.Transport.Formularze
                     z.ZamowienieId.ToString().Contains(filtr));
             }
 
-            foreach (var zam in zamowieniaDoPokazania.OrderBy(z => z.DataOdbioru).ThenBy(z => z.DataPrzyjazdu))
-            {
-                string dataUbojuStr = zam.DataUboju.HasValue
-                    ? zam.DataUboju.Value.ToString("yyyy-MM-dd")
-                    : "---";
+            // Grupuj po dacie odbioru (jak w widoku głównym)
+            var grouped = zamowieniaDoPokazania
+                .OrderBy(z => z.DataOdbioru.Date)
+                .ThenBy(z => z.DataPrzyjazdu)
+                .GroupBy(z => z.DataOdbioru.Date);
 
-                dt.Rows.Add(
-                    zam.ZamowienieId,
-                    zam.DataOdbioru,
-                    dataUbojuStr,  // NOWE
-                    zam.KlientNazwa,
-                    zam.GodzinaStr,
-                    zam.Palety,
-                    zam.Pojemniki,
-                    zam.Status,
-                    zam.Handlowiec,
-                    zam.Adres
-                );
+            foreach (var group in grouped)
+            {
+                // Wiersz nagłówka grupy
+                var dzienTygodnia = group.Key.ToString("dddd", plCulture);
+                var groupHeader = $"▸ {group.Key:dd.MM} ({dzienTygodnia}) — {group.Count()} zam.";
+                var groupRow = dt.NewRow();
+                groupRow["ID"] = 0;
+                groupRow["IsGroupRow"] = true;
+                groupRow["Ubój"] = "";
+                groupRow["Odbiór"] = groupHeader;
+                groupRow["Godz."] = "";
+                groupRow["Palety"] = "";
+                groupRow["Poj."] = 0;
+                groupRow["Klient"] = "";
+                groupRow["Adres"] = "";
+                dt.Rows.Add(groupRow);
+
+                foreach (var zam in group)
+                {
+                    var ubojDzien = zam.DataUboju.HasValue
+                        ? zam.DataUboju.Value.ToString("dd.MM", plCulture) + " " + zam.DataUboju.Value.ToString("ddd", plCulture)
+                        : "---";
+                    var odbiorDzien = zam.DataOdbioru.ToString("dd.MM", plCulture)
+                        + " " + zam.DataOdbioru.ToString("ddd", plCulture);
+
+                    dt.Rows.Add(
+                        zam.ZamowienieId,
+                        false,
+                        ubojDzien,
+                        odbiorDzien,
+                        zam.GodzinaStr,
+                        zam.Palety.ToString("N1"),
+                        zam.Pojemniki,
+                        zam.KlientNazwa,
+                        zam.Adres
+                    );
+                }
             }
 
             dgvWolneZamowienia.DataSource = dt;
+            dgvWolneZamowienia.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
 
             if (dgvWolneZamowienia.Columns["ID"] != null)
                 dgvWolneZamowienia.Columns["ID"].Visible = false;
-
-            if (dgvWolneZamowienia.Columns["Data odbioru"] != null)
-            {
-                dgvWolneZamowienia.Columns["Data odbioru"].Width = 85;
-                dgvWolneZamowienia.Columns["Data odbioru"].DefaultCellStyle.Format = "yyyy-MM-dd";
-                dgvWolneZamowienia.Columns["Data odbioru"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-                dgvWolneZamowienia.Columns["Data odbioru"].DisplayIndex = 0;
-            }
-
-            // NOWE: Kolumna Data uboju
-            if (dgvWolneZamowienia.Columns["Data uboju"] != null)
-            {
-                dgvWolneZamowienia.Columns["Data uboju"].Width = 85;
-                dgvWolneZamowienia.Columns["Data uboju"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-                dgvWolneZamowienia.Columns["Data uboju"].DefaultCellStyle.ForeColor = Color.DarkBlue;
-                dgvWolneZamowienia.Columns["Data uboju"].DefaultCellStyle.BackColor = Color.FromArgb(230, 240, 255);
-                dgvWolneZamowienia.Columns["Data uboju"].DisplayIndex = 1;
-            }
-
-            if (dgvWolneZamowienia.Columns["Klient"] != null)
-            {
-                dgvWolneZamowienia.Columns["Klient"].Width = 140;
-                dgvWolneZamowienia.Columns["Klient"].DisplayIndex = 2;
-            }
-
-            // ... reszta konfiguracji kolumn bez zmian, tylko zmień DisplayIndex o +1
+            if (dgvWolneZamowienia.Columns["IsGroupRow"] != null)
+                dgvWolneZamowienia.Columns["IsGroupRow"].Visible = false;
+            if (dgvWolneZamowienia.Columns["Ubój"] != null)
+                dgvWolneZamowienia.Columns["Ubój"].Width = 70;
+            if (dgvWolneZamowienia.Columns["Odbiór"] != null)
+                dgvWolneZamowienia.Columns["Odbiór"].Width = 70;
             if (dgvWolneZamowienia.Columns["Godz."] != null)
-            {
-                dgvWolneZamowienia.Columns["Godz."].Width = 50;
-                dgvWolneZamowienia.Columns["Godz."].DisplayIndex = 3;
-            }
+                dgvWolneZamowienia.Columns["Godz."].Width = 46;
             if (dgvWolneZamowienia.Columns["Palety"] != null)
-            {
-                dgvWolneZamowienia.Columns["Palety"].Width = 60;
-                dgvWolneZamowienia.Columns["Palety"].DefaultCellStyle.Format = "N1";
-                dgvWolneZamowienia.Columns["Palety"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-                dgvWolneZamowienia.Columns["Palety"].DisplayIndex = 4;
-            }
-            if (dgvWolneZamowienia.Columns["Pojemniki"] != null)
-            {
-                dgvWolneZamowienia.Columns["Pojemniki"].Width = 70;
-                dgvWolneZamowienia.Columns["Pojemniki"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-                dgvWolneZamowienia.Columns["Pojemniki"].DefaultCellStyle.ForeColor = Color.Blue;
-                dgvWolneZamowienia.Columns["Pojemniki"].DisplayIndex = 5;
-            }
-            if (dgvWolneZamowienia.Columns["Status"] != null)
-            {
-                dgvWolneZamowienia.Columns["Status"].Width = 100;
-                dgvWolneZamowienia.Columns["Status"].DisplayIndex = 6;
-            }
-            if (dgvWolneZamowienia.Columns["Handlowiec"] != null)
-            {
-                dgvWolneZamowienia.Columns["Handlowiec"].Width = 100;
-                dgvWolneZamowienia.Columns["Handlowiec"].DisplayIndex = 7;
-            }
+                dgvWolneZamowienia.Columns["Palety"].Width = 48;
+            if (dgvWolneZamowienia.Columns["Poj."] != null)
+                dgvWolneZamowienia.Columns["Poj."].Width = 42;
+            if (dgvWolneZamowienia.Columns["Klient"] != null)
+                dgvWolneZamowienia.Columns["Klient"].Width = 140;
             if (dgvWolneZamowienia.Columns["Adres"] != null)
-            {
-                dgvWolneZamowienia.Columns["Adres"].Width = 150;
                 dgvWolneZamowienia.Columns["Adres"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-                dgvWolneZamowienia.Columns["Adres"].DisplayIndex = 8;
-            }
 
-            // Kolorowanie wierszy - użyj DataUboju gdy dostępna
+            // Formatuj wiersze grupujące i koloruj dane
             foreach (DataGridViewRow row in dgvWolneZamowienia.Rows)
             {
+                if (row.Cells["IsGroupRow"]?.Value != null && Convert.ToBoolean(row.Cells["IsGroupRow"].Value))
+                {
+                    row.DefaultCellStyle.BackColor = Color.FromArgb(235, 230, 245);
+                    row.DefaultCellStyle.ForeColor = Color.FromArgb(100, 60, 140);
+                    row.DefaultCellStyle.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+                    row.Height = 30;
+                    continue;
+                }
+
                 var zamId = Convert.ToInt32(row.Cells["ID"].Value);
                 var zamowienie = _wolneZamowienia.FirstOrDefault(z => z.ZamowienieId == zamId);
 
@@ -2317,18 +2325,10 @@ namespace Kalendarz1.Transport.Formularze
 
                     var dzis = DateTime.Today;
 
-                    if (dataDoPorownan == dzis)
-                    {
-                        row.DefaultCellStyle.BackColor = Color.White;
-                    }
-                    else if (dataDoPorownan == dzis.AddDays(1))
-                    {
+                    if (dataDoPorownan == dzis.AddDays(1))
                         row.DefaultCellStyle.BackColor = Color.FromArgb(255, 253, 230);
-                    }
                     else if (dataDoPorownan == dzis.AddDays(2))
-                    {
                         row.DefaultCellStyle.BackColor = Color.FromArgb(230, 240, 255);
-                    }
                     else if (dataDoPorownan < dzis)
                     {
                         row.DefaultCellStyle.BackColor = Color.FromArgb(255, 230, 230);
@@ -2350,6 +2350,11 @@ namespace Kalendarz1.Transport.Formularze
         private async Task DodajZamowienieDoKursu()
         {
             if (dgvWolneZamowienia.CurrentRow == null) return;
+
+            // Pomiń wiersze nagłówków grup
+            if (dgvWolneZamowienia.CurrentRow.Cells["IsGroupRow"]?.Value != null
+                && Convert.ToBoolean(dgvWolneZamowienia.CurrentRow.Cells["IsGroupRow"].Value))
+                return;
 
             var zamId = Convert.ToInt32(dgvWolneZamowienia.CurrentRow.Cells["ID"].Value);
             var zamowienie = _wolneZamowienia.FirstOrDefault(z => z.ZamowienieId == zamId);
@@ -2512,7 +2517,7 @@ namespace Kalendarz1.Transport.Formularze
                         if (aktualneZamowienie != null)
                         {
                             // Wykryj anulowanie lub zmianę na transport własny
-                            if (aktualneZamowienie.Status == "Anulowane" || aktualneZamowienie.TransportStatus == "Własny")
+                            if (aktualneZamowienie.Status == "Anulowane" || aktualneZamowienie.TransportStatus == "Wlasny")
                             {
                                 ladunek.AnulowanyWZamowieniu = true;
                                 ladunek.ZmienionyWZamowieniu = true;
@@ -2655,7 +2660,9 @@ namespace Kalendarz1.Transport.Formularze
                         if (Convert.ToInt32(row.Cells["ID"].Value) == selectedZamId.Value)
                         {
                             row.Selected = true;
-                            dgvWolneZamowienia.CurrentCell = row.Cells[1];
+                            var firstVisCol = dgvWolneZamowienia.Columns.Cast<DataGridViewColumn>().FirstOrDefault(c => c.Visible);
+                            if (firstVisCol != null)
+                                dgvWolneZamowienia.CurrentCell = row.Cells[firstVisCol.Index];
                             break;
                         }
                     }
@@ -2996,6 +3003,15 @@ Adres: {zamowienie.Adres}";
                 var hitTest = dgvWolneZamowienia.HitTest(e.X, e.Y);
                 if (hitTest.RowIndex >= 0)
                 {
+                    // Nie rozpoczynaj drag z wiersza grupy
+                    var row = dgvWolneZamowienia.Rows[hitTest.RowIndex];
+                    if (row.Cells["IsGroupRow"]?.Value != null && Convert.ToBoolean(row.Cells["IsGroupRow"].Value))
+                    {
+                        _dragBoxFromMouseDown = Rectangle.Empty;
+                        _dragSource = null;
+                        return;
+                    }
+
                     _dragRowIndex = hitTest.RowIndex;
                     _dragSource = "wolne";
                     Size dragSize = SystemInformation.DragSize;
@@ -3229,6 +3245,43 @@ Adres: {zamowienie.Adres}";
             {
                 dgv.BackgroundColor = Color.White;
             }
+        }
+
+        private void DgvEditorWolneZamowienia_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
+        {
+            if (e.RowIndex < 0) return;
+            var row = dgvWolneZamowienia.Rows[e.RowIndex];
+            if (row.Cells["IsGroupRow"]?.Value == null || !Convert.ToBoolean(row.Cells["IsGroupRow"].Value))
+                return;
+
+            e.Handled = true;
+            var bgColor = row.Selected ? e.CellStyle.SelectionBackColor : Color.FromArgb(235, 230, 245);
+            using (var brush = new SolidBrush(bgColor))
+                e.Graphics.FillRectangle(brush, e.CellBounds);
+
+            var colName = dgvWolneZamowienia.Columns[e.ColumnIndex].Name;
+
+            // Rysuj tekst nagłówka grupy scalony w kolumnach Odbiór + Godz.
+            if (colName == "Odbiór")
+            {
+                var headerText = row.Cells["Odbiór"]?.Value?.ToString() ?? "";
+                var odbiorWidth = dgvWolneZamowienia.Columns["Odbiór"]?.Width ?? 0;
+                var godzWidth = dgvWolneZamowienia.Columns["Godz."]?.Width ?? 0;
+                var mergedWidth = odbiorWidth + godzWidth;
+
+                using (var font = new Font("Segoe UI", 7.5F, FontStyle.Bold))
+                using (var textBrush = new SolidBrush(Color.FromArgb(100, 60, 140)))
+                {
+                    var sf = new StringFormat { LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter };
+                    e.Graphics.DrawString(headerText, font, textBrush,
+                        new RectangleF(e.CellBounds.Left + 4, e.CellBounds.Top, mergedWidth - 6, e.CellBounds.Height), sf);
+                }
+            }
+
+            // Dolna linia
+            using (var pen = new Pen(Color.FromArgb(210, 200, 225)))
+                e.Graphics.DrawLine(pen, e.CellBounds.Left, e.CellBounds.Bottom - 1,
+                    e.CellBounds.Right, e.CellBounds.Bottom - 1);
         }
 
         #endregion

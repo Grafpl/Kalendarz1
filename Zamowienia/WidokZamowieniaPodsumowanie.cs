@@ -1682,17 +1682,17 @@ namespace Kalendarz1
 
                 if (strefa)
                 {
-                    nazwa = "\u26A0\uFE0F STREFA " + nazwa;
+                    nazwa = "\u26A0\uFE0F " + nazwa;
                 }
 
                 if (maHalal)
                 {
-                    nazwa = "\u262A\uFE0F HALAL " + nazwa;
+                    nazwa = "\U0001F52A " + nazwa;
                 }
 
                 if (maFolie)
                 {
-                    nazwa = "\U0001F39E\uFE0F FOLIA " + nazwa;
+                    nazwa = "\U0001F39E\uFE0F " + nazwa;
                 }
 
                 if (maNotatke)

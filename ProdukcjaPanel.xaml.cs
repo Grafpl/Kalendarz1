@@ -176,6 +176,18 @@ namespace Kalendarz1
             Close();
         }
 
+        private void btnTab_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is string tagStr && int.TryParse(tagStr, out int idx))
+            {
+                tabMain.SelectedIndex = idx;
+                var tabButtons = new[] { btnTabZamowienia, btnTabPlanDnia, btnTabStatystyki, btnTabHistoria };
+                foreach (var tb in tabButtons)
+                    tb.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#282A32"));
+                btn.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3C468E"));
+            }
+        }
+
         private async void dgvZamowienia1_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (dgvZamowienia1.SelectedItem != null)
@@ -664,9 +676,50 @@ namespace Kalendarz1
 
         private Button CreateProductButton(int productId, string productName, string groupName)
         {
+            // Spróbuj pobrać zdjęcie produktu
+            BitmapImage? img = null;
+            if (productId > 0)
+            {
+                img = GetProductImage(productId);
+            }
+            else if (!string.IsNullOrEmpty(groupName) && _grupyDoProduktow.TryGetValue(groupName, out var grpIds) && grpIds.Count > 0)
+            {
+                foreach (var gid in grpIds)
+                {
+                    img = GetProductImage(gid);
+                    if (img != null) break;
+                }
+            }
+
+            object content;
+            if (img != null)
+            {
+                var sp = new StackPanel { Orientation = Orientation.Horizontal };
+                var imgCtrl = new System.Windows.Controls.Image
+                {
+                    Source = img,
+                    Width = 22,
+                    Height = 22,
+                    Margin = new Thickness(0, 0, 4, 0),
+                };
+                RenderOptions.SetBitmapScalingMode(imgCtrl, BitmapScalingMode.HighQuality);
+                sp.Children.Add(imgCtrl);
+                sp.Children.Add(new TextBlock
+                {
+                    Text = productName,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Foreground = Brushes.White
+                });
+                content = sp;
+            }
+            else
+            {
+                content = productName;
+            }
+
             var btn = new Button
             {
-                Content = productName,
+                Content = content,
                 Tag = new ProductButtonTag { ProductId = productId, GroupName = groupName },
                 Height = 32,
                 MinWidth = 70,
@@ -2628,7 +2681,7 @@ namespace Kalendarz1
             public ZamowienieViewModel(ZamowienieInfo info) { Info = info; }
 
             // Ikonki przy nazwie klienta
-            public string Klient => $"{(Info.Strefa ? "\u26A0\uFE0F " : "")}{(Info.MaNotatke ? "\U0001F4DD " : "")}{(Info.MaFolie ? "\U0001F39E\uFE0F " : "")}{(Info.MaHalal ? "\U0001F52A " : "")}{(Info.MaE2 ? "\U0001F4E6 " : "")}{(Info.WlasnyTransport ? "\U0001F69A " : "")}{Info.Klient}";
+            public string Klient => $"{(Info.Strefa ? "\u26A0\uFE0F " : "")}{(Info.MaNotatke ? "\U0001F4DD " : "")}{(Info.MaFolie ? "\U0001F39E\uFE0F " : "")}{(Info.MaHalal ? "\U0001F52A " : "")}{(Info.MaE2 ? "\U0001F4E6 " : "")}{Info.Klient}";
 
             // Kolor nazwy klienta - żółty gdy zmodyfikowane, czerwony gdy strefa
             public Brush KlientColor => Info.Strefa ? new SolidColorBrush(Color.FromRgb(255, 200, 200)) :

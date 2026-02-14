@@ -1550,7 +1550,7 @@ namespace Kalendarz1
             public ZamowienieViewModel(ZamowienieInfo info) { Info = info; }
 
             // Ikonki przy nazwie klienta
-            public string Klient => $"{(Info.Strefa ? "\u26A0\uFE0F " : "")}{(Info.MaFolie ? "\U0001F39E\uFE0F " : "")}{(Info.MaHalal ? "\U0001F52A " : "")}{(Info.MaE2 ? "\U0001F4E6 " : "")}{(Info.WlasnyTransport ? "\U0001F69A " : "")}{Info.Klient}";
+            public string Klient => $"{(Info.Strefa ? "\u26A0\uFE0F " : "")}{(Info.MaFolie ? "\U0001F39E\uFE0F " : "")}{(Info.MaHalal ? "\U0001F52A " : "")}{(Info.MaE2 ? "\U0001F4E6 " : "")}{Info.Klient}";
 
             // Kolor nazwy klienta - żółty gdy zmodyfikowane, czerwony gdy strefa
             public Brush KlientColor => Info.Strefa ? new SolidColorBrush(Color.FromRgb(255, 200, 200)) :

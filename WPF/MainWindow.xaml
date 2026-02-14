@@ -314,6 +314,11 @@
                 <!-- Lewa kolumna - zakładki -->
                 <TabControl x:Name="tabOrders" Grid.Column="0" Background="Transparent" BorderThickness="0"
                             Margin="10,0,5,10" SelectionChanged="TabOrders_SelectionChanged">
+                    <TabControl.ItemContainerStyle>
+                        <Style TargetType="TabItem">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                        </Style>
+                    </TabControl.ItemContainerStyle>
                     <TabItem Header="Zamówienia" FontSize="12" FontWeight="SemiBold">
                         <DataGrid x:Name="dgOrders"
                                   Style="{StaticResource ModernDataGridStyle}"

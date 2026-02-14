@@ -1280,29 +1280,55 @@ namespace Kalendarz1
                         e.Row.Background = new SolidColorBrush(Colors.White);
                     }
 
-                    // Ładowanie avatara
-                    string ktoStwoID = row["KtoStwoID"]?.ToString();
-                    if (!string.IsNullOrEmpty(ktoStwoID))
+                    // Ładowanie avatara - używamy Dispatcher zamiast Loaded event
+                    // aby uniknąć kumulacji handlerów przy recyklingu wierszy
+                    string currentKtoStwoID = row["KtoStwoID"]?.ToString();
+                    if (!string.IsNullOrEmpty(currentKtoStwoID))
                     {
-                        e.Row.Loaded += (rowSender, rowArgs) =>
+                        var capturedRow = e.Row;
+                        var capturedId = currentKtoStwoID;
+                        Dispatcher.BeginInvoke(new Action(() =>
                         {
                             try
                             {
-                                LoadAvatarForRow(e.Row, ktoStwoID, "avatarImageWstawienia", "avatarBorderWstawienia");
+                                // Sprawdź czy DataContext nie zmienił się (recykling)
+                                if (capturedRow.DataContext is DataRowView currentData &&
+                                    currentData["KtoStwoID"]?.ToString() == capturedId)
+                                {
+                                    // Reset - ukryj avatar, pokaż inicjały (na wypadek recyklingu)
+                                    var ellipse = FindVisualChild<Ellipse>(capturedRow, "avatarImageWstawienia");
+                                    var border = FindVisualChild<Border>(capturedRow, "avatarBorderWstawienia");
+                                    if (ellipse != null) ellipse.Visibility = Visibility.Collapsed;
+                                    if (border != null) border.Visibility = Visibility.Visible;
+
+                                    LoadAvatarForRow(capturedRow, capturedId, "avatarImageWstawienia", "avatarBorderWstawienia");
+                                }
                             }
                             catch { }
-                        };
+                        }), System.Windows.Threading.DispatcherPriority.Loaded);
+                    }
+                    else
+                    {
+                        // Brak KtoStwoID - reset avatara (wiersz mógł być zrecyklowany)
+                        var ellipse = FindVisualChild<Ellipse>(e.Row, "avatarImageWstawienia");
+                        var border = FindVisualChild<Border>(e.Row, "avatarBorderWstawienia");
+                        if (ellipse != null) ellipse.Visibility = Visibility.Collapsed;
+                        if (border != null) border.Visibility = Visibility.Visible;
                     }
 
-                    // Double-click otwiera osobne okno ze szczegółami wstawienia i dostaw
-                    e.Row.MouseDoubleClick += (rowSender, rowArgs) =>
+                    // Double-click otwiera osobne okno - tylko raz (tag zapobiega kumulacji)
+                    if (e.Row.Tag == null || e.Row.Tag.ToString() != "wstawieniaHandlerSet")
                     {
-                        rowArgs.Handled = true;
-                        if (e.Row.DataContext is DataRowView rowData && rowData["LP"] != DBNull.Value)
+                        e.Row.Tag = "wstawieniaHandlerSet";
+                        e.Row.MouseDoubleClick += (rowSender, rowArgs) =>
                         {
-                            ShowDetailWindow("Szczegóły wstawienia - " + rowData["Dostawca"]?.ToString(), () => BuildWstawienieDetailContent(rowData));
-                        }
-                    };
+                            rowArgs.Handled = true;
+                            if (e.Row.DataContext is DataRowView rowData && rowData["LP"] != DBNull.Value)
+                            {
+                                ShowDetailWindow("Szczegóły wstawienia - " + rowData["Dostawca"]?.ToString(), () => BuildWstawienieDetailContent(rowData));
+                            }
+                        };
+                    }
                 }
             };
         }
@@ -2016,20 +2042,39 @@ namespace Kalendarz1
             if (e.Row.DataContext is DataRowView rowView)
             {
                 string userId = rowView["UserID"]?.ToString();
+                var capturedRow = e.Row;
+
+                // Avatar - używamy Dispatcher aby uniknąć problemów z recyklingiem
                 if (!string.IsNullOrEmpty(userId))
                 {
-                    LoadAvatarForHistoriaRow(e.Row, userId);
+                    var capturedId = userId;
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        try
+                        {
+                            if (capturedRow.DataContext is DataRowView currentData &&
+                                currentData["UserID"]?.ToString() == capturedId)
+                            {
+                                LoadAvatarForHistoriaRow(capturedRow, capturedId);
+                            }
+                        }
+                        catch { }
+                    }), System.Windows.Threading.DispatcherPriority.Loaded);
                 }
 
-                // Double-click otwiera osobne okno ze szczegółami historii
-                e.Row.MouseDoubleClick += (rowSender, rowArgs) =>
+                // Double-click - tylko raz (tag zapobiega kumulacji)
+                if (e.Row.Tag == null || e.Row.Tag.ToString() != "historiaHandlerSet")
                 {
-                    rowArgs.Handled = true;
-                    if (e.Row.DataContext is DataRowView rv)
+                    e.Row.Tag = "historiaHandlerSet";
+                    e.Row.MouseDoubleClick += (rowSender, rowArgs) =>
                     {
-                        ShowDetailWindow("Historia kontaktu - " + (rv["Dostawca"]?.ToString() ?? ""), () => BuildHistoriaDetailContent(rv));
-                    }
-                };
+                        rowArgs.Handled = true;
+                        if (capturedRow.DataContext is DataRowView rv)
+                        {
+                            ShowDetailWindow("Historia kontaktu - " + (rv["Dostawca"]?.ToString() ?? ""), () => BuildHistoriaDetailContent(rv));
+                        }
+                    };
+                }
             }
         }
 
