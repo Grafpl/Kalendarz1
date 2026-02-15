@@ -79,6 +79,7 @@ namespace Kalendarz1.Transport.Formularze
 
         // Cache klientów dla szybszego ładowania
         private static Dictionary<int, string> _klienciCache = new Dictionary<int, string>();
+        private static Dictionary<int, string> _klienciAdresCache = new Dictionary<int, string>();
         private static DateTime _klienciCacheTime = DateTime.MinValue;
 
         // Cache użytkowników (userId → fullName) i avatarów
@@ -1066,6 +1067,8 @@ namespace Kalendarz1.Transport.Formularze
                 // Zbierz KlientIds z ZAM_ ładunków aby pobrać Handlowców
                 var kursHandlowcy = new Dictionary<long, HashSet<string>>();
                 var allKlientIds = new HashSet<int>();
+                var ladunkiCountMap = new Dictionary<long, int>();
+                var kursZmiany = new Dictionary<long, List<string>>();
 
                 if (_kursy != null)
                 {
@@ -1075,20 +1078,51 @@ namespace Kalendarz1.Transport.Formularze
                         {
                             // Pobierz ładunki i zaktualizuj ZAM_ o live dane
                             var ladunki = await _repozytorium.PobierzLadunkiAsync(kurs.KursID);
+                            ladunkiCountMap[kurs.KursID] = ladunki.Count;
+
                             foreach (var lad in ladunki)
                             {
                                 if (lad.KodKlienta?.StartsWith("ZAM_") == true &&
-                                    int.TryParse(lad.KodKlienta.Substring(4), out int zamId) &&
-                                    liveZamowieniaMap.TryGetValue(zamId, out var liveData))
+                                    int.TryParse(lad.KodKlienta.Substring(4), out int zamId))
                                 {
-                                    lad.PojemnikiE2 = liveData.Pojemniki;
-                                    lad.TrybE2 = liveData.TrybE2;
-                                    allKlientIds.Add(liveData.KlientId);
+                                    if (liveZamowieniaMap.TryGetValue(zamId, out var liveData))
+                                    {
+                                        // Wykryj zmianę ilości
+                                        var oldPojemniki = lad.PojemnikiE2;
+                                        if (oldPojemniki != liveData.Pojemniki)
+                                        {
+                                            if (!kursZmiany.ContainsKey(kurs.KursID))
+                                                kursZmiany[kurs.KursID] = new List<string>();
+                                            var diff = liveData.Pojemniki - oldPojemniki;
+                                            var diffStr = diff > 0 ? $"+{diff}" : diff.ToString();
+                                            var kn = _klienciCache.TryGetValue(liveData.KlientId, out var knv) ? knv : $"KH {liveData.KlientId}";
+                                            kursZmiany[kurs.KursID].Add($"{kn}: Poj {oldPojemniki}→{liveData.Pojemniki} ({diffStr})");
+                                        }
 
-                                    if (!kursHandlowcy.ContainsKey(kurs.KursID))
-                                        kursHandlowcy[kurs.KursID] = new HashSet<string>();
-                                    // Tymczasowo przechowujemy KlientId jako string, zastąpimy nazwiskami
-                                    kursHandlowcy[kurs.KursID].Add(liveData.KlientId.ToString());
+                                        // Wykryj transport własny
+                                        if (liveData.TransportStatus == "Wlasny")
+                                        {
+                                            if (!kursZmiany.ContainsKey(kurs.KursID))
+                                                kursZmiany[kurs.KursID] = new List<string>();
+                                            var kn = _klienciCache.TryGetValue(liveData.KlientId, out var knv) ? knv : $"KH {liveData.KlientId}";
+                                            kursZmiany[kurs.KursID].Add($"{kn}: Transport WŁASNY!");
+                                        }
+
+                                        lad.PojemnikiE2 = liveData.Pojemniki;
+                                        lad.TrybE2 = liveData.TrybE2;
+                                        allKlientIds.Add(liveData.KlientId);
+
+                                        if (!kursHandlowcy.ContainsKey(kurs.KursID))
+                                            kursHandlowcy[kurs.KursID] = new HashSet<string>();
+                                        kursHandlowcy[kurs.KursID].Add(liveData.KlientId.ToString());
+                                    }
+                                    else
+                                    {
+                                        // Zamówienie zniknęło z mapy (anulowane)
+                                        if (!kursZmiany.ContainsKey(kurs.KursID))
+                                            kursZmiany[kurs.KursID] = new List<string>();
+                                        kursZmiany[kurs.KursID].Add($"ZAM_{zamId}: ANULOWANE!");
+                                    }
                                 }
                             }
                             var wynik = _repozytorium.ObliczPakowanieZLadunkow(ladunki, kurs.PojazdID ?? 0);
@@ -1144,6 +1178,10 @@ namespace Kalendarz1.Transport.Formularze
                 dt.Columns.Add("UtworzylId", typeof(string)); // Ukryta - userId do avatara
                 dt.Columns.Add("Handlowcy", typeof(string));
                 dt.Columns.Add("WymagaPrzydzialu", typeof(bool)); // Ukryta kolumna do formatowania
+                dt.Columns.Add("LiczbaLadunkow", typeof(int));   // Ukryta - F1
+                dt.Columns.Add("MaZmiany", typeof(bool));        // Ukryta - F2
+                dt.Columns.Add("OpisZmian", typeof(string));     // Ukryta - F2
+                dt.Columns.Add("Alert", typeof(string));         // Widoczna - F2
 
                 if (_kursy != null)
                 {
@@ -1178,6 +1216,11 @@ namespace Kalendarz1.Transport.Formularze
                         var handlowcy = kursHandlowcyNazwy.ContainsKey(kurs.KursID)
                             ? kursHandlowcyNazwy[kurs.KursID] : "";
 
+                        // F1+F2
+                        var liczbaLadunkow = ladunkiCountMap.ContainsKey(kurs.KursID) ? ladunkiCountMap[kurs.KursID] : 0;
+                        var maZmiany = kursZmiany.ContainsKey(kurs.KursID) && kursZmiany[kurs.KursID].Count > 0;
+                        var opisZmian = maZmiany ? string.Join("\n", kursZmiany[kurs.KursID]) : "";
+
                         dt.Rows.Add(
                             kurs.KursID,
                             kurs.GodzWyjazdu?.ToString(@"hh\:mm") ?? "--:--",
@@ -1192,7 +1235,11 @@ namespace Kalendarz1.Transport.Formularze
                             utworzylName,
                             utworzylId,
                             handlowcy,
-                            wymagaPrzydzialu
+                            wymagaPrzydzialu,
+                            liczbaLadunkow,
+                            maZmiany,
+                            opisZmian,
+                            maZmiany ? "⚠" : ""
                         );
                     }
                 }
@@ -1200,12 +1247,25 @@ namespace Kalendarz1.Transport.Formularze
                 dgvKursy.DataSource = dt;
 
                 // Konfiguracja kolumn - ukryj pomocnicze
-                foreach (var hiddenCol in new[] { "KursID", "WymagaPrzydzialu", "KierowcaID", "PojazdID", "UtworzylId", "Status" })
+                foreach (var hiddenCol in new[] { "KursID", "WymagaPrzydzialu", "KierowcaID", "PojazdID", "UtworzylId", "Status", "LiczbaLadunkow", "MaZmiany", "OpisZmian" })
                     if (dgvKursy.Columns[hiddenCol] != null)
                         dgvKursy.Columns[hiddenCol].Visible = false;
 
                 // Wyłącz AutoFill aby ustawić ręczne szerokości, Trasa dostanie Fill
                 dgvKursy.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+
+                // Kolumna Alert - pierwsza widoczna
+                if (dgvKursy.Columns["Alert"] != null)
+                {
+                    dgvKursy.Columns["Alert"].Width = 30;
+                    dgvKursy.Columns["Alert"].HeaderText = "";
+                    dgvKursy.Columns["Alert"].DisplayIndex = 0;
+                    dgvKursy.Columns["Alert"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    dgvKursy.Columns["Alert"].DefaultCellStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+                    dgvKursy.Columns["Alert"].Resizable = DataGridViewTriState.False;
+                    dgvKursy.Columns["Alert"].SortMode = DataGridViewColumnSortMode.NotSortable;
+                    dgvKursy.Columns["Alert"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                }
 
                 if (dgvKursy.Columns["Godzina"] != null)
                 {
@@ -1430,17 +1490,45 @@ namespace Kalendarz1.Transport.Formularze
 
             var row = dgvKursy.Rows[e.RowIndex];
 
-            // Sprawdź czy kurs wymaga przydzielenia zasobów
+            // === Priorytet: CZERWONY > POMARAŃCZOWY > ŻÓŁTY ===
+            int liczbaLadunkow = -1;
+            if (row.Cells["LiczbaLadunkow"]?.Value != null && row.Cells["LiczbaLadunkow"].Value != DBNull.Value)
+                liczbaLadunkow = Convert.ToInt32(row.Cells["LiczbaLadunkow"].Value);
+
+            bool maZmiany = false;
+            if (row.Cells["MaZmiany"]?.Value != null && row.Cells["MaZmiany"].Value != DBNull.Value)
+                maZmiany = Convert.ToBoolean(row.Cells["MaZmiany"].Value);
+
             bool wymagaPrzydzialu = false;
             if (row.Cells["WymagaPrzydzialu"]?.Value != null)
-            {
                 wymagaPrzydzialu = Convert.ToBoolean(row.Cells["WymagaPrzydzialu"].Value);
+
+            if (liczbaLadunkow == 0)
+            {
+                row.DefaultCellStyle.BackColor = Color.FromArgb(254, 230, 230);
+                row.DefaultCellStyle.ForeColor = Color.FromArgb(180, 40, 40);
+            }
+            else if (maZmiany)
+            {
+                row.DefaultCellStyle.BackColor = Color.FromArgb(255, 243, 230);
+            }
+            else if (wymagaPrzydzialu)
+            {
+                row.DefaultCellStyle.BackColor = Color.FromArgb(255, 248, 225);
             }
 
-            // Formatowanie wierszy wymagających przydzielenia - pomarańczowe tło
-            if (wymagaPrzydzialu)
+            // Kolumna Alert
+            if (dgvKursy.Columns[e.ColumnIndex].Name == "Alert")
             {
-                row.DefaultCellStyle.BackColor = Color.FromArgb(255, 248, 225); // Jasno-żółte tło
+                var alertVal = e.Value?.ToString() ?? "";
+                if (!string.IsNullOrEmpty(alertVal))
+                {
+                    e.CellStyle.ForeColor = Color.FromArgb(231, 76, 60);
+                    e.CellStyle.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
+                    var opis = row.Cells["OpisZmian"]?.Value?.ToString() ?? "";
+                    if (!string.IsNullOrEmpty(opis))
+                        row.Cells["Alert"].ToolTipText = opis;
+                }
             }
 
             // Formatowanie kolumny kierowca - pomarańczowy tekst gdy brak przypisania
@@ -2126,9 +2214,9 @@ namespace Kalendarz1.Transport.Formularze
         /// Pobiera LIVE dane zamówień z ZamowieniaMieso (LiczbaPojemnikow, TrybE2)
         /// aby widok główny zawsze pokazywał aktualne wartości.
         /// </summary>
-        private async Task<Dictionary<int, (int Pojemniki, bool TrybE2, int KlientId)>> PobierzLiveZamowieniaMapAsync()
+        private async Task<Dictionary<int, (int Pojemniki, bool TrybE2, int KlientId, string TransportStatus)>> PobierzLiveZamowieniaMapAsync()
         {
-            var map = new Dictionary<int, (int Pojemniki, bool TrybE2, int KlientId)>();
+            var map = new Dictionary<int, (int Pojemniki, bool TrybE2, int KlientId, string TransportStatus)>();
             try
             {
                 await using var cn = new SqlConnection(_connLibra);
@@ -2136,7 +2224,8 @@ namespace Kalendarz1.Transport.Formularze
                 var sql = @"SELECT zm.Id,
                                    ISNULL(zm.LiczbaPojemnikow, 0),
                                    ISNULL(zm.TrybE2, 0),
-                                   zm.KlientId
+                                   zm.KlientId,
+                                   ISNULL(zm.TransportStatus, 'Oczekuje')
                            FROM dbo.ZamowieniaMieso zm
                            WHERE ISNULL(zm.Status, '') <> 'Anulowane'";
                 await using var cmd = new SqlCommand(sql, cn);
@@ -2147,7 +2236,8 @@ namespace Kalendarz1.Transport.Formularze
                     var pojemniki = rdr.GetInt32(1);
                     var trybE2 = rdr.GetBoolean(2);
                     var klientId = rdr.GetInt32(3);
-                    map[id] = (pojemniki, trybE2, klientId);
+                    var transportStatus = rdr.GetString(4);
+                    map[id] = (pojemniki, trybE2, klientId, transportStatus);
                 }
             }
             catch { }
@@ -2381,6 +2471,8 @@ namespace Kalendarz1.Transport.Formularze
                     {
                         var klientNazwa = _klienciCache.TryGetValue(zam.KlientId, out var nazwa)
                             ? nazwa : $"KH {zam.KlientId}";
+                        if (_klienciAdresCache.TryGetValue(zam.KlientId, out var miasto) && !string.IsNullOrEmpty(miasto))
+                            klientNazwa = $"{klientNazwa} ({miasto})";
                         var ubojDzien = zam.DataUboju.ToString("dd.MM", plCulture)
                             + " " + zam.DataUboju.ToString("ddd", plCulture);
                         var odbiorDzien = zam.DataOdbioru.ToString("dd.MM", plCulture)
@@ -2456,8 +2548,11 @@ namespace Kalendarz1.Transport.Formularze
                 await cn.OpenAsync();
 
                 // Pobierz wszystkich klientów na raz (szybsze niż pojedyncze zapytania)
-                var sql = @"SELECT c.Id, ISNULL(c.Shortcut, 'KH ' + CAST(c.Id AS VARCHAR(10)))
-                            FROM SSCommon.STContractors c";
+                var sql = @"SELECT c.Id, ISNULL(c.Shortcut, 'KH ' + CAST(c.Id AS VARCHAR(10))),
+                                   ISNULL(poa.City, '')
+                            FROM SSCommon.STContractors c
+                            LEFT JOIN SSCommon.STPostOfficeAddresses poa
+                                ON poa.ContactGuid = c.ContactGuid AND poa.AddressName = N'adres domyślny'";
 
                 using var cmd = new SqlCommand(sql, cn);
                 using var reader = await cmd.ExecuteReaderAsync();
@@ -2466,7 +2561,10 @@ namespace Kalendarz1.Transport.Formularze
                 {
                     var id = reader.GetInt32(0);
                     var nazwa = reader.GetString(1);
+                    var miasto = reader.GetString(2);
                     _klienciCache[id] = nazwa;
+                    if (!string.IsNullOrWhiteSpace(miasto))
+                        _klienciAdresCache[id] = miasto.Trim();
                 }
 
                 _klienciCacheTime = DateTime.Now;

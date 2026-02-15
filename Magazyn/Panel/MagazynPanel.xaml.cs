@@ -100,6 +100,29 @@ namespace Kalendarz1
             Close();
         }
 
+        private void btnTabZamowienia_Click(object sender, RoutedEventArgs e)
+        {
+            pnlZamowienia.Visibility = Visibility.Visible;
+            pnlHistoria.Visibility = Visibility.Collapsed;
+            btnTabZamowienia.Background = new SolidColorBrush(Color.FromRgb(0x4A, 0x7A, 0x5A));
+            btnTabZamowienia.Foreground = Brushes.White;
+            btnTabHistoria.Background = new SolidColorBrush(Color.FromRgb(0x3A, 0x3C, 0x48));
+            btnTabHistoria.Foreground = new SolidColorBrush(Color.FromRgb(0xAA, 0xAA, 0xAA));
+        }
+
+        private async void btnTabHistoria_Click(object sender, RoutedEventArgs e)
+        {
+            pnlZamowienia.Visibility = Visibility.Collapsed;
+            pnlHistoria.Visibility = Visibility.Visible;
+            btnTabHistoria.Background = new SolidColorBrush(Color.FromRgb(0x4A, 0x7A, 0x5A));
+            btnTabHistoria.Foreground = Brushes.White;
+            btnTabZamowienia.Background = new SolidColorBrush(Color.FromRgb(0x3A, 0x3C, 0x48));
+            btnTabZamowienia.Foreground = new SolidColorBrush(Color.FromRgb(0xAA, 0xAA, 0xAA));
+            // Załaduj historię jeśli daty ustawione
+            if (dpHistoriaOd.SelectedDate.HasValue && dpHistoriaDo.SelectedDate.HasValue)
+                await LoadHistoriaWydanAsync(dpHistoriaOd.SelectedDate.Value, dpHistoriaDo.SelectedDate.Value);
+        }
+
         private async void chkShowShipmentsOnly_CheckedChanged(object sender, RoutedEventArgs e)
         {
             await ReloadAllAsync();
@@ -636,16 +659,40 @@ namespace Kalendarz1
 
         private Button CreateProductButton(int productId, string productName)
         {
+            var sp = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+
+            // Dodaj obrazek produktu jeśli dostępny
+            if (productId != 0 && _productImages.TryGetValue(productId, out var img) && img != null)
+            {
+                var image = new System.Windows.Controls.Image
+                {
+                    Source = img,
+                    Width = 28,
+                    Height = 28,
+                    Stretch = Stretch.Uniform,
+                    Margin = new Thickness(0, 0, 4, 0)
+                };
+                RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.HighQuality);
+                sp.Children.Add(image);
+            }
+
+            sp.Children.Add(new TextBlock
+            {
+                Text = productName,
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = Brushes.White,
+                FontSize = 12,
+                FontWeight = FontWeights.SemiBold
+            });
+
             var btn = new Button
             {
-                Content = productName,
+                Content = sp,
                 Tag = productId,
                 Height = 40,
-                MinWidth = 80,
-                Padding = new Thickness(12, 5, 12, 5),
+                MinWidth = 70,
+                Padding = new Thickness(8, 3, 8, 3),
                 Margin = new Thickness(3),
-                FontSize = 13,
-                FontWeight = FontWeights.SemiBold,
                 Foreground = Brushes.White,
                 Background = new SolidColorBrush(Color.FromRgb(0x3A, 0x3C, 0x48)),
                 BorderThickness = new Thickness(1),
@@ -792,7 +839,7 @@ namespace Kalendarz1
                             var bi = new BitmapImage();
                             bi.BeginInit();
                             bi.StreamSource = ms;
-                            bi.DecodePixelWidth = 32;
+                            bi.DecodePixelWidth = 140;
                             bi.CacheOption = BitmapCacheOption.OnLoad;
                             bi.EndInit();
                             bi.Freeze();
@@ -1232,7 +1279,6 @@ namespace Kalendarz1
                     {
                         // Nowa pozycja dodana po realizacji
                         zmiana = "🆕 NOWE";
-                        produktNazwa = "🆕 " + produktNazwa;
                     }
                     else if (ord.Ilosc != snap)
                     {
@@ -1262,7 +1308,7 @@ namespace Kalendarz1
                 foreach (var snapItem in snapshot.Where(s => !mapOrd.ContainsKey(s.Key)))
                 {
                     string produktNazwa = towary.ContainsKey(snapItem.Key) ? towary[snapItem.Key].Kod : $"Towar {snapItem.Key}";
-                    produktNazwa = "❌ " + produktNazwa;
+                    // produktNazwa bez ikony - zmiana widoczna w kolumnie "Zmiana"
                     var row = dt.NewRow();
                     row["Produkt"] = produktNazwa;
                     row["ProduktImg"] = (object?)GetProductImage(snapItem.Key) ?? DBNull.Value;
@@ -1549,8 +1595,13 @@ namespace Kalendarz1
             public ZamowienieInfo Info { get; }
             public ZamowienieViewModel(ZamowienieInfo info) { Info = info; }
 
-            // Ikonki przy nazwie klienta
-            public string Klient => $"{(Info.Strefa ? "\u26A0\uFE0F " : "")}{(Info.MaFolie ? "\U0001F39E\uFE0F " : "")}{(Info.MaHalal ? "\U0001F52A " : "")}{(Info.MaE2 ? "\U0001F4E6 " : "")}{Info.Klient}";
+            public string Klient => Info.Klient;
+
+            // Flagi statusów do ikon
+            public bool HasStrefa => Info.Strefa;
+            public bool HasHalal => Info.MaHalal;
+            public bool HasFolia => Info.MaFolie;
+            public bool HasE2 => Info.MaE2;
 
             // Kolor nazwy klienta - żółty gdy zmodyfikowane, czerwony gdy strefa
             public Brush KlientColor => Info.Strefa ? new SolidColorBrush(Color.FromRgb(255, 200, 200)) :

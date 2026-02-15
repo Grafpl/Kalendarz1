@@ -21,6 +21,8 @@ namespace Kalendarz1
     public partial class Mroznia : Form
     {
         private string connectionString = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+        private readonly string _connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        private readonly Dictionary<string, System.Drawing.Image> _produktImagesWF = new(StringComparer.OrdinalIgnoreCase);
 
         // === KOLORY MOTYWU ===
         private readonly Color PrimaryColor = Color.FromArgb(0, 120, 212);
@@ -1610,6 +1612,143 @@ namespace Kalendarz1
 
         private void LoadInitialData()
         {
+            LoadProductImagesForGrids();
+        }
+
+        private void LoadProductImagesForGrids()
+        {
+            try
+            {
+                // Krok 1: Pobierz zdjecia z LibraNet (TowarId -> bytes)
+                var imgBytes = new Dictionary<int, byte[]>();
+                using (var cn = new SqlConnection(_connLibra))
+                {
+                    cn.Open();
+                    var cmdCheck = new SqlCommand("SELECT CASE WHEN EXISTS (SELECT 1 FROM sys.tables WHERE name = 'TowarZdjecia') THEN 1 ELSE 0 END", cn);
+                    if ((int)cmdCheck.ExecuteScalar() == 0) return;
+
+                    var cmd = new SqlCommand("SELECT TowarId, Zdjecie FROM dbo.TowarZdjecia WHERE Aktywne = 1", cn);
+                    using var rdr = cmd.ExecuteReader();
+                    while (rdr.Read())
+                    {
+                        if (!rdr.IsDBNull(1))
+                            imgBytes[rdr.GetInt32(0)] = (byte[])rdr[1];
+                    }
+                }
+                if (imgBytes.Count == 0) return;
+
+                // Krok 2: Pobierz mapowanie ID -> kod z Handel (oba katalogi)
+                var idToKod = new Dictionary<int, string>();
+                using (var cn = new SqlConnection(connectionString))
+                {
+                    cn.Open();
+                    var ids = string.Join(",", imgBytes.Keys);
+                    var cmd = new SqlCommand($"SELECT ID, kod FROM HM.TW WHERE ID IN ({ids})", cn);
+                    using var rdr = cmd.ExecuteReader();
+                    while (rdr.Read())
+                        idToKod[rdr.GetInt32(0)] = rdr.GetString(1);
+                }
+
+                // Krok 3: Utworz slownik kod -> Image
+                foreach (var kvp in imgBytes)
+                {
+                    if (!idToKod.TryGetValue(kvp.Key, out string kod)) continue;
+                    try
+                    {
+                        using var ms = new MemoryStream(kvp.Value);
+                        var img = System.Drawing.Image.FromStream(ms);
+                        // Skaluj do 36x36
+                        var thumb = new Bitmap(36, 36);
+                        using (var g = Graphics.FromImage(thumb))
+                        {
+                            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                            g.DrawImage(img, 0, 0, 36, 36);
+                        }
+                        _produktImagesWF[kod] = thumb;
+                        img.Dispose();
+                    }
+                    catch { }
+                }
+
+                // Krok 4: Podepnij DataBindingComplete do wszystkich DataGridView
+                if (dgvStanMagazynu != null) dgvStanMagazynu.DataBindingComplete += Dgv_DataBindingComplete;
+                if (dgvDzienne != null) dgvDzienne.DataBindingComplete += Dgv_DataBindingComplete;
+                if (dgvZamowienia != null) dgvZamowienia.DataBindingComplete += Dgv_DataBindingComplete;
+            }
+            catch { }
+        }
+
+        private bool _isAddingImageColumn = false;
+
+        private void Dgv_DataBindingComplete(object sender, DataGridViewBindingCompleteEventArgs e)
+        {
+            if (_isAddingImageColumn) return;
+            if (sender is DataGridView dgv)
+                AddProductImagesToGrid(dgv);
+        }
+
+        private void AddProductImagesToGrid(DataGridView dgv)
+        {
+            if (_produktImagesWF.Count == 0) return;
+
+            // Znajdz kolumne z nazwa produktu
+            string prodCol = null;
+            foreach (var name in new[] { "Produkt", "kod", "Kod", "KodProduktu" })
+            {
+                if (dgv.Columns.Contains(name)) { prodCol = name; break; }
+            }
+            if (prodCol == null) return;
+
+            _isAddingImageColumn = true;
+            try
+            {
+                // Usun stara kolumne obrazkow
+                if (dgv.Columns.Contains("_Img"))
+                    dgv.Columns.Remove("_Img");
+
+                // Dodaj kolumne obrazkow na pozycji 0
+                var imgCol = new DataGridViewImageColumn
+                {
+                    Name = "_Img",
+                    HeaderText = "",
+                    Width = 42,
+                    ImageLayout = DataGridViewImageCellLayout.Zoom,
+                    DisplayIndex = 0
+                };
+                imgCol.DefaultCellStyle.NullValue = null;
+                dgv.Columns.Insert(0, imgCol);
+
+                // Wypelnij obrazkami
+                foreach (DataGridViewRow row in dgv.Rows)
+                {
+                    if (row.IsNewRow) continue;
+                    string produktName = row.Cells[prodCol]?.Value?.ToString();
+                    if (string.IsNullOrEmpty(produktName)) continue;
+
+                    // Dokladne dopasowanie
+                    if (_produktImagesWF.TryGetValue(produktName, out var img))
+                    {
+                        row.Cells["_Img"].Value = img;
+                        continue;
+                    }
+                    // Dopasowanie czesciowe (np. "Kurczak A" pasuje do "Kurczak A klasa mrozony")
+                    var match = _produktImagesWF.FirstOrDefault(kv =>
+                        produktName.StartsWith(kv.Key, StringComparison.OrdinalIgnoreCase) ||
+                        kv.Key.StartsWith(produktName, StringComparison.OrdinalIgnoreCase));
+                    if (match.Value != null)
+                        row.Cells["_Img"].Value = match.Value;
+                }
+
+                // Ustaw wiersz nieco wyzszy aby zmiescil obrazek
+                if (dgv.RowTemplate.Height < 40)
+                    dgv.RowTemplate.Height = 40;
+                foreach (DataGridViewRow row in dgv.Rows)
+                    if (row.Height < 40) row.Height = 40;
+            }
+            finally
+            {
+                _isAddingImageColumn = false;
+            }
         }
 
         // ============================================

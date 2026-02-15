@@ -2885,8 +2885,8 @@ namespace Kalendarz1
                             // MemoryStream NIE może być using - GDI+ wymaga otwartego strumienia
                             var ms = new System.IO.MemoryStream(data);
                             var bmp = new Bitmap(ms);
-                            // Stwórz niezależną miniaturkę 32x32
-                            var thumb = new Bitmap(bmp, 32, 32);
+                            // Stwórz niezależną miniaturkę 100x100
+                            var thumb = new Bitmap(bmp, 100, 100);
                             bmp.Dispose();
                             ms.Dispose();
                             _productImages[towarId] = thumb;

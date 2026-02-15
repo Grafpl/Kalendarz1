@@ -255,56 +255,24 @@
         </Border>
 
         <Grid x:Name="mainContentGrid" Grid.Row="1">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-
-            <!-- PASEK FILTRÓW I PRODUKTÓW - na całą szerokość -->
-            <Border Grid.Row="0" Background="#ECEFF1"
-                    Padding="8,6" CornerRadius="5" Margin="10,10,10,5">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="85"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-
-                    <TextBox x:Name="txtFilterRecipient" Grid.Column="0"
-                             Style="{StaticResource FilterTextBoxStyle}"
-                             Tag="Odbiorca..." Margin="0,0,5,0"
-                             TextChanged="TxtFilterRecipient_TextChanged"/>
-
-                    <StackPanel Grid.Column="1" Orientation="Vertical" VerticalAlignment="Center" Margin="5,0">
-                        <RadioButton x:Name="rbSwieze" Content="Św" GroupName="ProductCatalog"
-                                     VerticalAlignment="Center" Margin="0,0,0,2" IsChecked="True"
-                                     Checked="RbProductCatalog_Checked"/>
-                        <RadioButton x:Name="rbMrozone" Content="Mr" GroupName="ProductCatalog"
-                                     VerticalAlignment="Center"
-                                     Checked="RbProductCatalog_Checked"/>
-                    </StackPanel>
-
-                    <ScrollViewer Grid.Column="2" HorizontalScrollBarVisibility="Auto"
-                                  VerticalScrollBarVisibility="Disabled" Margin="5,0,0,0">
-                        <WrapPanel x:Name="pnlProductButtons" Orientation="Horizontal"/>
-                    </ScrollViewer>
-
-                    <!-- Hidden elements for compatibility -->
-                    <ComboBox x:Name="cbFilterProduct" Visibility="Collapsed"
-                              DisplayMemberPath="Value" SelectedValuePath="Key"/>
-                    <CheckBox x:Name="chkShowReleasesWithoutOrders" Visibility="Collapsed"
-                              Checked="ChkShowReleases_Changed" Unchecked="ChkShowReleases_Changed"/>
-                    <CheckBox x:Name="chkShowAnulowane" Visibility="Collapsed" IsChecked="False"
-                              Checked="ChkShowAnulowane_Changed" Unchecked="ChkShowAnulowane_Changed"/>
-                    <RadioButton x:Name="rbPickupDate" Visibility="Collapsed" GroupName="DateFilter"
-                                 Checked="RbDateFilter_Checked"/>
-                    <RadioButton x:Name="rbSlaughterDate" Visibility="Collapsed" GroupName="DateFilter"
-                                 Checked="RbDateFilter_Checked" IsChecked="True"/>
-                </Grid>
-            </Border>
+            <!-- Ukryte elementy kompatybilności -->
+            <ComboBox x:Name="cbFilterProduct" Visibility="Collapsed"
+                      DisplayMemberPath="Value" SelectedValuePath="Key"/>
+            <CheckBox x:Name="chkShowReleasesWithoutOrders" Visibility="Collapsed"
+                      Checked="ChkShowReleases_Changed" Unchecked="ChkShowReleases_Changed"/>
+            <CheckBox x:Name="chkShowAnulowane" Visibility="Collapsed" IsChecked="False"
+                      Checked="ChkShowAnulowane_Changed" Unchecked="ChkShowAnulowane_Changed"/>
+            <RadioButton x:Name="rbPickupDate" Visibility="Collapsed" GroupName="DateFilter"
+                         Checked="RbDateFilter_Checked"/>
+            <RadioButton x:Name="rbSlaughterDate" Visibility="Collapsed" GroupName="DateFilter"
+                         Checked="RbDateFilter_Checked" IsChecked="True"/>
+            <WrapPanel x:Name="pnlProductButtons" Visibility="Collapsed"/>
+            <TextBox x:Name="txtFilterRecipient" Visibility="Collapsed"/>
+            <RadioButton x:Name="rbSwieze" Visibility="Collapsed" IsChecked="True"/>
+            <RadioButton x:Name="rbMrozone" Visibility="Collapsed"/>
 
             <!-- ZAWARTOŚĆ - dwie kolumny z przesuwnym splitterem -->
-            <Grid Grid.Row="1">
+            <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition x:Name="leftColumnDef" Width="*" MinWidth="300"/>
                     <ColumnDefinition Width="Auto"/>
@@ -799,12 +767,42 @@
                 <!-- Prawa kolumna - szczegóły i podsumowanie -->
                 <Grid x:Name="rightPanel" Grid.Column="2" Margin="5,0,10,10">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="50*"/>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="50*"/>
+                    <RowDefinition Height="55*"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="45*"/>
                 </Grid.RowDefinitions>
 
-                <Border Grid.Row="0" Style="{StaticResource PanelBorderStyle}">
+                <!-- ComboBox filtrowania produktów + pole wyszukiwania -->
+                <Border Grid.Row="0" Background="#ECEFF1" CornerRadius="5" Padding="6,4" Margin="0,5,0,5">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Produkt:" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="#2C3E50" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <ComboBox x:Name="cbProductFilter" Grid.Column="1" FontSize="12" Height="30"
+                                  VerticalContentAlignment="Center"
+                                  MaxDropDownHeight="450"
+                                  SelectionChanged="CbProductFilter_SelectionChanged"/>
+                        <Border Grid.Column="2" Background="White" CornerRadius="3" Margin="5,0,0,0"
+                                BorderBrush="#CCC" BorderThickness="1">
+                            <Grid>
+                                <TextBlock x:Name="txtSearchWatermark" Text="Szukaj..."
+                                           FontSize="11" Foreground="#AAA" IsHitTestVisible="False"
+                                           VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                <TextBox x:Name="txtProductSearch" Width="120" Height="26" FontSize="11"
+                                         Background="Transparent" BorderThickness="0"
+                                         VerticalContentAlignment="Center" Padding="4,0"
+                                         TextChanged="TxtProductSearch_TextChanged"/>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Row="1" Style="{StaticResource PanelBorderStyle}">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -851,7 +849,7 @@
                     </Grid>
                 </Border>
 
-                <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,8,0,3">
+                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,3">
                     <TextBlock Text="Podsumowanie dnia"
                                Style="{StaticResource SectionHeaderStyle}" Margin="0,0,15,0"/>
                     <TextBlock Text="Bilans:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="10"/>
@@ -868,7 +866,7 @@
                           Style="{StaticResource ModernDataGridStyle}"
                           AutoGenerateColumns="False"/>
 
-                <Border Grid.Row="2" Style="{StaticResource PanelBorderStyle}">
+                <Border Grid.Row="3" Style="{StaticResource PanelBorderStyle}">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <WrapPanel x:Name="wpProductCards" Orientation="Horizontal"/>
                     </ScrollViewer>
@@ -889,7 +887,7 @@
                 <TextBlock x:Name="txtStatus" Grid.Column="0" Text="Gotowy"
                            Foreground="#BDC3C7" FontSize="11" VerticalAlignment="Center"/>
 
-                <TextBlock Grid.Column="1" Text="F5=Odśwież | Ctrl+F=Szukaj | Ctrl+N=Nowe | Esc=Wyczyść"
+                <TextBlock Grid.Column="1" Text="F5=Odśwież | Ctrl+F=Produkt | Ctrl+N=Nowe | Esc=Wyczyść"
                            Foreground="#7F8C8D" FontSize="10" VerticalAlignment="Center" Margin="0,0,15,0"/>
 
                 <TextBlock x:Name="txtStatusTime" Grid.Column="2" Text=""

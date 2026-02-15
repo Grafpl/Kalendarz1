@@ -15,6 +15,7 @@
     <Compile Remove="Menu\**" />
     <Compile Remove="Nowy folder2\**" />
     <Compile Remove="Nowy folder3\**" />
+    <Compile Remove="transport polecenie\**" />
     <EmbeddedResource Remove="Kalendarz\**" />
     <EmbeddedResource Remove="Menu\**" />
     <EmbeddedResource Remove="Nowy folder2\**" />

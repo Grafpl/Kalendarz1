@@ -11,6 +11,7 @@
         FontFamily="Segoe UI">
 
     <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
         <!-- Style for the circular progress bar -->
         <Style x:Key="CircularProgressBar" TargetType="ProgressBar">
             <Setter Property="Template">
@@ -219,9 +220,8 @@
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="⚠️ Strefa" Foreground="#FF6B6B" FontSize="10" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                 <TextBlock Text="🔪 Halal" Foreground="#4DB6AC" FontSize="10" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="🎞️ Folia" Foreground="#81C784" FontSize="10" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="📦 E2" Foreground="#64B5F6" FontSize="10" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="📝 Notatka" Foreground="#FFB74D" FontSize="10" VerticalAlignment="Center"/>
+                                <TextBlock Text="🎞️ Folia" Foreground="#64B5F6" FontSize="10" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="📦 40/paleta" Foreground="#999999" FontSize="10" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
                         <StackPanel Orientation="Horizontal">
@@ -235,8 +235,10 @@
                     <!-- Σ kg + Filtr towarów + Przyciski akcji -->
                     <DockPanel Grid.Column="3" VerticalAlignment="Center" Margin="10,0,0,0">
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                            <Button x:Name="btnRefresh" Content="🔄 Odśwież" Height="45" Padding="25,0" FontSize="15" FontWeight="Bold" Background="#376EA0" Foreground="White" BorderThickness="0" Margin="5,0,10,0" Click="btnRefresh_Click" Cursor="Hand"/>
-                            <Button x:Name="btnZrealizowano" Content="✓ ZREALIZOWANO" Height="45" Padding="35,0" FontSize="15" FontWeight="Bold" Background="#19874B" Foreground="White" BorderThickness="0" Margin="0,0,10,0" Click="btnZrealizowano_Click" Cursor="Hand"/>
+                            <StackPanel Orientation="Vertical" Margin="5,0,5,0">
+                                <Button x:Name="btnRefresh" Content="🔄 Odśwież" Height="35" Padding="15,0" FontSize="13" FontWeight="Bold" Background="#376EA0" Foreground="White" BorderThickness="0" Click="btnRefresh_Click" Cursor="Hand"/>
+                                <Button x:Name="btnZrealizowano" Content="✓ ZREALIZOWANO" Height="35" Padding="15,0" FontSize="13" FontWeight="Bold" Background="#19874B" Foreground="White" BorderThickness="0" Margin="0,3,0,0" Click="btnZrealizowano_Click" Cursor="Hand"/>
+                            </StackPanel>
                             <Button x:Name="btnClose" Content="✕" Width="50" Height="45" FontSize="22" FontWeight="Bold" Background="#AA2832" Foreground="White" BorderThickness="0" Click="btnClose_Click" Cursor="Hand"/>
                         </StackPanel>
                         <Border DockPanel.Dock="Left" Background="#1A3A5A" CornerRadius="4" Padding="10,5" Margin="0,0,5,0" VerticalAlignment="Center">
@@ -267,9 +269,9 @@
             <TabItem Header="📋 Zamówienia">
                 <Grid Background="#1C1E26">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="37*"/>
-                        <ColumnDefinition Width="37*"/>
-                        <ColumnDefinition Width="26*"/>
+                        <ColumnDefinition Width="40*"/>
+                        <ColumnDefinition Width="40*"/>
+                        <ColumnDefinition Width="20*"/>
                     </Grid.ColumnDefinitions>
 
                     <Border Grid.Column="0" Background="#22242E" CornerRadius="5" Margin="0,0,5,0">
@@ -284,7 +286,13 @@
                                 <DataGridTemplateColumn Header="Klient" Width="*">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding Klient}" Foreground="{Binding KlientColor}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="⚠️" Foreground="#FF6B6B" FontSize="13" Margin="0,0,2,0" VerticalAlignment="Center" Visibility="{Binding HasStrefa, Converter={StaticResource BoolToVis}}"/>
+                                                <TextBlock Text="🔪" Foreground="#4DB6AC" FontSize="13" Margin="0,0,2,0" VerticalAlignment="Center" Visibility="{Binding HasHalal, Converter={StaticResource BoolToVis}}"/>
+                                                <TextBlock Text="🎞️" Foreground="#64B5F6" FontSize="13" Margin="0,0,2,0" VerticalAlignment="Center" Visibility="{Binding HasFolia, Converter={StaticResource BoolToVis}}"/>
+                                                <TextBlock Text="📦" Foreground="#999999" FontSize="13" Margin="0,0,2,0" VerticalAlignment="Center" Visibility="{Binding HasE2, Converter={StaticResource BoolToVis}}"/>
+                                                <TextBlock Text="{Binding Klient}" Foreground="{Binding KlientColor}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                            </StackPanel>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -298,7 +306,7 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Wyjazd" Binding="{Binding CzasWyjazdDisplay}" Width="100">
+                                <DataGridTextColumn Header="Wyjazd" Binding="{Binding CzasWyjazdDisplay}" Width="150">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Foreground" Value="Orange"/>
@@ -306,7 +314,7 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="130">
+                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="160">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Foreground" Value="{Binding StatusColor}"/>
@@ -331,7 +339,13 @@
                                 <DataGridTemplateColumn Header="Klient" Width="*">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding Klient}" Foreground="{Binding KlientColor}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="⚠️" Foreground="#FF6B6B" FontSize="13" Margin="0,0,2,0" VerticalAlignment="Center" Visibility="{Binding HasStrefa, Converter={StaticResource BoolToVis}}"/>
+                                                <TextBlock Text="🔪" Foreground="#4DB6AC" FontSize="13" Margin="0,0,2,0" VerticalAlignment="Center" Visibility="{Binding HasHalal, Converter={StaticResource BoolToVis}}"/>
+                                                <TextBlock Text="🎞️" Foreground="#64B5F6" FontSize="13" Margin="0,0,2,0" VerticalAlignment="Center" Visibility="{Binding HasFolia, Converter={StaticResource BoolToVis}}"/>
+                                                <TextBlock Text="📦" Foreground="#999999" FontSize="13" Margin="0,0,2,0" VerticalAlignment="Center" Visibility="{Binding HasE2, Converter={StaticResource BoolToVis}}"/>
+                                                <TextBlock Text="{Binding Klient}" Foreground="{Binding KlientColor}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                            </StackPanel>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -345,7 +359,7 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Wyjazd" Binding="{Binding CzasWyjazdDisplay}" Width="100">
+                                <DataGridTextColumn Header="Wyjazd" Binding="{Binding CzasWyjazdDisplay}" Width="150">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Foreground" Value="Orange"/>
@@ -353,7 +367,7 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="130">
+                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="160">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Foreground" Value="{Binding StatusColor}"/>
@@ -372,15 +386,15 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="55*"/>
                             <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="20*"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="20*"/>
+                            <RowDefinition Height="25*"/>
                         </Grid.RowDefinitions>
-                        <!-- Info o handlowcu -->
-                        <Border Grid.Row="0" Background="#363842" CornerRadius="4" Padding="8,6" Margin="0,0,0,5">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="👤 Handlowiec:" Foreground="Gray" FontSize="12" VerticalAlignment="Center"/>
-                                <TextBlock x:Name="lblHandlowiec" Text="-" Foreground="White" FontSize="13" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        <!-- Legenda ikon -->
+                        <Border Grid.Row="0" Background="#2A2A2A" CornerRadius="4" Padding="8,5" Margin="0,0,0,5">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <TextBlock Text="⚠️ Strefa" Foreground="#FF6B6B" FontSize="11" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="🔪 Halal" Foreground="#4DB6AC" FontSize="11" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="🎞️ Folia" Foreground="#64B5F6" FontSize="11" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="📦 40/paleta" Foreground="#999999" FontSize="11" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
                         <!-- Przycisk przyjęcia zmiany - widoczny tylko gdy jest zmiana -->
@@ -408,104 +422,41 @@
                             </Button.Style>
                         </Button>
                         <Border Grid.Row="2" Background="#262832" CornerRadius="5" Margin="0,0,0,5">
-                            <DataGrid x:Name="dgvPozycje" Style="{StaticResource CustomDataGridStyle}" IsReadOnly="True" RowHeight="28" Margin="5" FontSize="11">
+                            <DataGrid x:Name="dgvPozycje" Style="{StaticResource CustomDataGridStyle}" IsReadOnly="True" RowHeight="60" Margin="5" FontSize="16">
                                 <DataGrid.Columns>
-                                    <DataGridTemplateColumn Header="Produkt" Width="2*">
+                                    <DataGridTemplateColumn Header="Produkt" Width="*">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
-                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                    <Image Source="{Binding ProduktImg}" Width="20" Height="20" Margin="2,0,3,0" RenderOptions.BitmapScalingMode="HighQuality"/>
-                                                    <TextBlock Text="{Binding Produkt}" VerticalAlignment="Center"/>
-                                                </StackPanel>
+                                                <DockPanel VerticalAlignment="Center">
+                                                    <Image Source="{Binding ProduktImg}" Width="48" Height="48" Margin="5,0,0,0" DockPanel.Dock="Right" RenderOptions.BitmapScalingMode="HighQuality"/>
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <TextBlock Text="⚠️" Foreground="#FF6B6B" FontSize="16" Margin="0,0,3,0" VerticalAlignment="Center" Visibility="{Binding Strefa, Converter={StaticResource BoolToVis}}"/>
+                                                        <TextBlock Text="🔪" Foreground="#4DB6AC" FontSize="16" Margin="0,0,3,0" VerticalAlignment="Center" Visibility="{Binding Halal, Converter={StaticResource BoolToVis}}"/>
+                                                        <TextBlock Text="🎞️" Foreground="#64B5F6" FontSize="16" Margin="0,0,3,0" VerticalAlignment="Center" Visibility="{Binding Folia, Converter={StaticResource BoolToVis}}"/>
+                                                        <TextBlock Text="📦" Foreground="#999999" FontSize="16" Margin="0,0,5,0" VerticalAlignment="Center" Visibility="{Binding E2, Converter={StaticResource BoolToVis}}"/>
+                                                        <TextBlock Text="{Binding Produkt}" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="16"/>
+                                                    </StackPanel>
+                                                </DockPanel>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
-                                    <DataGridTextColumn Header="Zam." Binding="{Binding [Zamówiono (kg)], StringFormat=N0}" Width="55">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                                <Setter Property="Margin" Value="0,0,5,0"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Zreal." Binding="{Binding Zrealizowano}" Width="50">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                                <Setter Property="Margin" Value="0,0,5,0"/>
-                                                <Setter Property="Foreground" Value="Orange"/>
-                                                <Setter Property="FontWeight" Value="Bold"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Wyd." Binding="{Binding [Wydano (kg)], StringFormat=N0}" Width="50">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                                <Setter Property="Margin" Value="0,0,5,0"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Różn." Binding="{Binding [Różnica (kg)], StringFormat=N0}" Width="50">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                                <Setter Property="Margin" Value="0,0,5,0"/>
-                                                <Setter Property="FontWeight" Value="Bold"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Zmiana" Binding="{Binding Zmiana}" Width="*">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                                <Setter Property="Foreground" Value="Orange"/>
-                                                <Setter Property="FontWeight" Value="Bold"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                    <DataGridCheckBoxColumn Header="Halal" Binding="{Binding Halal}" Width="45" IsReadOnly="True">
-                                        <DataGridCheckBoxColumn.ElementStyle>
-                                            <Style TargetType="CheckBox">
-                                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                                <Setter Property="IsHitTestVisible" Value="False"/>
-                                            </Style>
-                                        </DataGridCheckBoxColumn.ElementStyle>
-                                    </DataGridCheckBoxColumn>
-                                    <DataGridCheckBoxColumn Header="Folia" Binding="{Binding Folia}" Width="45" IsReadOnly="True">
-                                        <DataGridCheckBoxColumn.ElementStyle>
-                                            <Style TargetType="CheckBox">
-                                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                                <Setter Property="IsHitTestVisible" Value="False"/>
-                                            </Style>
-                                        </DataGridCheckBoxColumn.ElementStyle>
-                                    </DataGridCheckBoxColumn>
-                                    <DataGridCheckBoxColumn Header="E2" Binding="{Binding E2}" Width="35" IsReadOnly="True">
-                                        <DataGridCheckBoxColumn.ElementStyle>
-                                            <Style TargetType="CheckBox">
-                                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                                <Setter Property="IsHitTestVisible" Value="False"/>
-                                            </Style>
-                                        </DataGridCheckBoxColumn.ElementStyle>
-                                    </DataGridCheckBoxColumn>
-                                    <DataGridCheckBoxColumn Header="Strefa" Binding="{Binding Strefa}" Width="50" IsReadOnly="True">
-                                        <DataGridCheckBoxColumn.ElementStyle>
-                                            <Style TargetType="CheckBox">
-                                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                                <Setter Property="IsHitTestVisible" Value="False"/>
-                                            </Style>
-                                        </DataGridCheckBoxColumn.ElementStyle>
-                                    </DataGridCheckBoxColumn>
+                                    <DataGridTemplateColumn Header="Zam." Width="100">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,5,0" FontSize="16" FontWeight="Bold">
+                                                    <TextBlock.Text>
+                                                        <Binding Path="[Zamówiono (kg)]" StringFormat="{}{0:#,##0} kg" ConverterCulture="pl-PL"/>
+                                                    </TextBlock.Text>
+                                                </TextBlock>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
                                 </DataGrid.Columns>
                             </DataGrid>
                         </Border>
                         <TextBlock Grid.Row="3" Text="Notatka zamówienia" Background="#323440" Foreground="Yellow" FontWeight="Bold" FontSize="12" Padding="5,3"/>
                         <Border Grid.Row="4" Background="#343642" CornerRadius="5" Margin="0,3">
                             <TextBox x:Name="txtUwagi" Background="Transparent" Foreground="White" BorderThickness="0" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontSize="16" Margin="5"/>
-                        </Border>
-                        <TextBlock Grid.Row="5" Text="Notatka produkcji" Background="#323440" Foreground="LightBlue" FontWeight="Bold" FontSize="12" Padding="5,3"/>
-                        <Border Grid.Row="6" Background="#343642" CornerRadius="5" Margin="0,3,0,0">
-                            <TextBox x:Name="txtNotatkiTransportu" Background="Transparent" Foreground="White" BorderThickness="0" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontSize="16" Margin="5"/>
                         </Border>
                     </Grid>
                 </Grid>

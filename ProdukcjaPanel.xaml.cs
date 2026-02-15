@@ -134,11 +134,6 @@ namespace Kalendarz1
             await UndoRealizedAsync();
         }
 
-        private async void btnSaveNotes_Click(object sender, RoutedEventArgs e)
-        {
-            await SaveProductionNotesAsync();
-        }
-
         private async void btnZrealizowano_Click(object sender, RoutedEventArgs e)
         {
             var selected = SelectedZamowienie;
@@ -682,12 +677,25 @@ namespace Kalendarz1
             {
                 img = GetProductImage(productId);
             }
-            else if (!string.IsNullOrEmpty(groupName) && _grupyDoProduktow.TryGetValue(groupName, out var grpIds) && grpIds.Count > 0)
+            else if (!string.IsNullOrEmpty(groupName))
             {
-                foreach (var gid in grpIds)
+                // Dla grup: szukaj obrazka wśród produktów z _produktLookup które należą do tej grupy
+                foreach (var kvp in _produktLookup)
                 {
-                    img = GetProductImage(gid);
-                    if (img != null) break;
+                    if (_mapowanieScalowania.TryGetValue(kvp.Key, out var g) && g == groupName)
+                    {
+                        img = GetProductImage(kvp.Key);
+                        if (img != null) break;
+                    }
+                }
+                // Fallback: szukaj w _grupyDoProduktow
+                if (img == null && _grupyDoProduktow.TryGetValue(groupName, out var grpIds))
+                {
+                    foreach (var gid in grpIds)
+                    {
+                        img = GetProductImage(gid);
+                        if (img != null) break;
+                    }
                 }
             }
 
@@ -698,8 +706,8 @@ namespace Kalendarz1
                 var imgCtrl = new System.Windows.Controls.Image
                 {
                     Source = img,
-                    Width = 22,
-                    Height = 22,
+                    Width = 30,
+                    Height = 30,
                     Margin = new Thickness(0, 0, 4, 0),
                 };
                 RenderOptions.SetBitmapScalingMode(imgCtrl, BitmapScalingMode.HighQuality);
@@ -892,7 +900,7 @@ namespace Kalendarz1
                             var bi = new BitmapImage();
                             bi.BeginInit();
                             bi.StreamSource = ms;
-                            bi.DecodePixelWidth = 32;
+                            bi.DecodePixelWidth = 140;
                             bi.CacheOption = BitmapCacheOption.OnLoad;
                             bi.EndInit();
                             bi.Freeze();
@@ -1222,13 +1230,11 @@ namespace Kalendarz1
             {
                 dgvPozycje.ItemsSource = null;
                 txtUwagi.Text = "";
-                txtNotatkiTransportu.Text = "";
-                lblHandlowiec.Text = "-";
                 return;
             }
 
             var info = vm.Info;
-            lblHandlowiec.Text = string.IsNullOrWhiteSpace(info.Handlowiec) ? "-" : info.Handlowiec;
+
 
             if (info.IsShipmentOnly)
             {
@@ -1237,18 +1243,6 @@ namespace Kalendarz1
             }
 
             txtUwagi.Text = info.Uwagi;
-
-            try
-            {
-                using var cnProd = new SqlConnection(_connLibra);
-                await cnProd.OpenAsync();
-                var cmdProd = new SqlCommand("SELECT NotatkaProdukcja FROM dbo.ZamowieniaMiesoProdukcjaNotatki WHERE ZamowienieId = @Id", cnProd);
-                cmdProd.Parameters.AddWithValue("@Id", info.Id);
-                txtNotatkiTransportu.Text = (await cmdProd.ExecuteScalarAsync())?.ToString() ?? "";
-            }
-            catch { txtNotatkiTransportu.Text = ""; }
-
-            await EnsureNotesTableAsync();
 
             var orderPositions = new List<(int TowarId, decimal Ilosc, bool Folia, bool E2, bool Hallal, decimal? IloscZreal, bool Strefa)>();
             using (var cn = new SqlConnection(_connLibra))
@@ -1521,7 +1515,6 @@ namespace Kalendarz1
         private async Task LoadShipmentOnlyAsync(int klientId)
         {
             txtUwagi.Text = "(Wydanie bez zamówienia)";
-            txtNotatkiTransportu.Text = "";
 
             var shipments = await GetShipmentsForClientAsync(klientId);
             if (_filteredProductId.HasValue)
@@ -2523,33 +2516,6 @@ namespace Kalendarz1
             return snapshot;
         }
 
-        private async Task SaveProductionNotesAsync()
-        {
-            var orderId = GetSelectedOrderId();
-            if (!orderId.HasValue) return;
-
-            await EnsureNotesTableAsync();
-
-            string notatka = txtNotatkiTransportu.Text.Trim();
-            using var cn = new SqlConnection(_connLibra);
-            await cn.OpenAsync();
-
-            var checkCmd = new SqlCommand("SELECT COUNT(*) FROM dbo.ZamowieniaMiesoProdukcjaNotatki WHERE ZamowienieId = @Id", cn);
-            checkCmd.Parameters.AddWithValue("@Id", orderId.Value);
-
-            string sql = (int)await checkCmd.ExecuteScalarAsync() > 0
-                ? "UPDATE dbo.ZamowieniaMiesoProdukcjaNotatki SET NotatkaProdukcja = @Notatka, DataModyfikacji = GETDATE(), Uzytkownik = @User WHERE ZamowienieId = @Id"
-                : "INSERT INTO dbo.ZamowieniaMiesoProdukcjaNotatki (ZamowienieId, NotatkaProdukcja, DataModyfikacji, Uzytkownik) VALUES (@Id, @Notatka, GETDATE(), @User)";
-
-            var cmd = new SqlCommand(sql, cn);
-            cmd.Parameters.AddWithValue("@Id", orderId.Value);
-            cmd.Parameters.AddWithValue("@Notatka", string.IsNullOrWhiteSpace(notatka) ? (object)DBNull.Value : notatka);
-            cmd.Parameters.AddWithValue("@User", UserID);
-
-            await cmd.ExecuteNonQueryAsync();
-            MessageBox.Show("Zapisano notatkę produkcji.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-
         private void TryOpenShipmentDetails()
         {
             if (SelectedZamowienie != null && SelectedZamowienie.Info.IsShipmentOnly)
@@ -2680,9 +2646,13 @@ namespace Kalendarz1
             public ZamowienieInfo Info { get; }
             public ZamowienieViewModel(ZamowienieInfo info) { Info = info; }
 
-            // Ikonki przy nazwie klienta
-            public string Klient => $"{(Info.Strefa ? "\u26A0\uFE0F " : "")}{(Info.MaNotatke ? "\U0001F4DD " : "")}{(Info.MaFolie ? "\U0001F39E\uFE0F " : "")}{(Info.MaHalal ? "\U0001F52A " : "")}{(Info.MaE2 ? "\U0001F4E6 " : "")}{Info.Klient}";
+            public string Klient => Info.Klient;
 
+            // Flagi statusów do ikon
+            public bool HasStrefa => Info.Strefa;
+            public bool HasHalal => Info.MaHalal;
+            public bool HasFolia => Info.MaFolie;
+            public bool HasE2 => Info.MaE2;
             // Kolor nazwy klienta - żółty gdy zmodyfikowane, czerwony gdy strefa
             public Brush KlientColor => Info.Strefa ? new SolidColorBrush(Color.FromRgb(255, 200, 200)) :
                                         Info.CzyZmodyfikowaneOdRealizacji ? Brushes.Yellow : Brushes.White;

@@ -1638,12 +1638,23 @@ namespace Kalendarz1.Transport.Formularze
                 _ladunki = await LoadLadunkiFromDatabase(_kursId.Value);
             }
 
-            foreach (var ladunek in _ladunki.Where(l => l.KodKlienta?.StartsWith("ZAM_") == true))
+            // Sprawdź live dane i automatycznie usuń anulowane/własne/nieistniejące
+            var doUsuniecia = new List<LadunekWithPalety>();
+            foreach (var ladunek in _ladunki.Where(l => l.KodKlienta?.StartsWith("ZAM_") == true).ToList())
             {
                 if (int.TryParse(ladunek.KodKlienta.Substring(4), out int zamId))
                 {
                     var aktualneZamowienie = await PobierzAktualneZamowienie(zamId);
-                    if (aktualneZamowienie != null)
+
+                    if (aktualneZamowienie == null ||
+                        aktualneZamowienie.Status == "Anulowane" ||
+                        aktualneZamowienie.TransportStatus == "Wlasny")
+                    {
+                        doUsuniecia.Add(ladunek);
+                        if (!_zamowieniaDoUsuniecia.Contains(zamId))
+                            _zamowieniaDoUsuniecia.Add(zamId);
+                    }
+                    else
                     {
                         if (ladunek.Palety != aktualneZamowienie.Palety ||
                             ladunek.PojemnikiE2 != aktualneZamowienie.Pojemniki)
@@ -1656,6 +1667,15 @@ namespace Kalendarz1.Transport.Formularze
                         }
                     }
                 }
+            }
+
+            if (doUsuniecia.Count > 0)
+            {
+                foreach (var lad in doUsuniecia)
+                    _ladunki.Remove(lad);
+                for (int i = 0; i < _ladunki.Count; i++)
+                    _ladunki[i].Kolejnosc = i + 1;
+                System.Diagnostics.Debug.WriteLine($"[Transport] LoadLadunki: auto-usunięto {doUsuniecia.Count} nieaktualnych zamówień");
             }
 
             var dt = new DataTable();
@@ -2506,93 +2526,105 @@ namespace Kalendarz1.Transport.Formularze
             try
             {
                 bool anyChanges = false;
-                var zmienioneLadunki = new List<LadunekWithPalety>();
+                int usuniete = 0;
+                int zaktualizowane = 0;
+                var doUsuniecia = new List<LadunekWithPalety>();
 
-                foreach (var ladunek in _ladunki.Where(l => l.KodKlienta?.StartsWith("ZAM_") == true))
+                foreach (var ladunek in _ladunki.Where(l => l.KodKlienta?.StartsWith("ZAM_") == true).ToList())
                 {
                     if (int.TryParse(ladunek.KodKlienta.Substring(4), out int zamId))
                     {
                         var aktualneZamowienie = await PobierzAktualneZamowienie(zamId);
 
-                        if (aktualneZamowienie != null)
+                        // Zamówienie nie istnieje, anulowane lub transport własny → usuń z kursu
+                        if (aktualneZamowienie == null ||
+                            aktualneZamowienie.Status == "Anulowane" ||
+                            aktualneZamowienie.TransportStatus == "Wlasny")
                         {
-                            // Wykryj anulowanie lub zmianę na transport własny
-                            if (aktualneZamowienie.Status == "Anulowane" || aktualneZamowienie.TransportStatus == "Wlasny")
-                            {
-                                ladunek.AnulowanyWZamowieniu = true;
-                                ladunek.ZmienionyWZamowieniu = true;
-                                zmienioneLadunki.Add(ladunek);
-                                anyChanges = true;
-                                continue;
-                            }
+                            doUsuniecia.Add(ladunek);
+                            if (!_zamowieniaDoUsuniecia.Contains(zamId))
+                                _zamowieniaDoUsuniecia.Add(zamId);
+                            anyChanges = true;
+                            continue;
+                        }
 
-                            bool changed = false;
+                        bool changed = false;
 
-                            if (ladunek.Palety != aktualneZamowienie.Palety ||
-                                ladunek.PojemnikiE2 != aktualneZamowienie.Pojemniki)
-                            {
-                                ladunek.PoprzedniePalety = ladunek.Palety;
-                                ladunek.PoprzedniePojemniki = ladunek.PojemnikiE2;
-                                ladunek.Palety = aktualneZamowienie.Palety;
-                                ladunek.PojemnikiE2 = aktualneZamowienie.Pojemniki;
-                                changed = true;
-                            }
+                        if (ladunek.Palety != aktualneZamowienie.Palety ||
+                            ladunek.PojemnikiE2 != aktualneZamowienie.Pojemniki)
+                        {
+                            ladunek.PoprzedniePalety = ladunek.Palety;
+                            ladunek.PoprzedniePojemniki = ladunek.PojemnikiE2;
+                            ladunek.Palety = aktualneZamowienie.Palety;
+                            ladunek.PojemnikiE2 = aktualneZamowienie.Pojemniki;
+                            changed = true;
+                        }
 
-                            if (ladunek.TrybE2 != aktualneZamowienie.TrybE2)
-                            {
-                                ladunek.TrybE2 = aktualneZamowienie.TrybE2;
-                                changed = true;
-                            }
+                        if (ladunek.TrybE2 != aktualneZamowienie.TrybE2)
+                        {
+                            ladunek.TrybE2 = aktualneZamowienie.TrybE2;
+                            changed = true;
+                        }
 
-                            if (ladunek.DataUboju != aktualneZamowienie.DataUboju)
-                            {
-                                ladunek.DataUboju = aktualneZamowienie.DataUboju;
-                                changed = true;
-                            }
+                        if (ladunek.DataUboju != aktualneZamowienie.DataUboju)
+                        {
+                            ladunek.DataUboju = aktualneZamowienie.DataUboju;
+                            changed = true;
+                        }
 
-                            if (!string.IsNullOrEmpty(aktualneZamowienie.KlientNazwa) &&
-                                ladunek.NazwaKlienta != aktualneZamowienie.KlientNazwa)
-                            {
-                                ladunek.NazwaKlienta = aktualneZamowienie.KlientNazwa;
-                                changed = true;
-                            }
+                        if (!string.IsNullOrEmpty(aktualneZamowienie.KlientNazwa) &&
+                            ladunek.NazwaKlienta != aktualneZamowienie.KlientNazwa)
+                        {
+                            ladunek.NazwaKlienta = aktualneZamowienie.KlientNazwa;
+                            changed = true;
+                        }
 
-                            if (!string.IsNullOrEmpty(aktualneZamowienie.Adres) &&
-                                ladunek.Adres != aktualneZamowienie.Adres)
-                            {
-                                ladunek.Adres = aktualneZamowienie.Adres;
-                                changed = true;
-                            }
+                        if (!string.IsNullOrEmpty(aktualneZamowienie.Adres) &&
+                            ladunek.Adres != aktualneZamowienie.Adres)
+                        {
+                            ladunek.Adres = aktualneZamowienie.Adres;
+                            changed = true;
+                        }
 
-                            if (changed)
-                            {
-                                ladunek.ZmienionyWZamowieniu = true;
-                                zmienioneLadunki.Add(ladunek);
-                                anyChanges = true;
-                            }
+                        if (changed)
+                        {
+                            ladunek.ZmienionyWZamowieniu = true;
+                            zaktualizowane++;
+                            anyChanges = true;
                         }
                     }
                 }
 
+                // Usuń anulowane/własne z listy ładunków
+                if (doUsuniecia.Count > 0)
+                {
+                    foreach (var lad in doUsuniecia)
+                        _ladunki.Remove(lad);
+                    for (int i = 0; i < _ladunki.Count; i++)
+                        _ladunki[i].Kolejnosc = i + 1;
+                    usuniete = doUsuniecia.Count;
+                }
+
                 if (anyChanges)
                 {
-                    await LoadLadunki();
+                    RefreshLadunkiGrid();
                     await UpdateWypelnienie();
 
                     if (lblAutoUpdate != null)
                     {
-                        var anulowane = zmienioneLadunki.Count(l => l.AnulowanyWZamowieniu);
                         string msg;
-                        if (anulowane > 0)
-                            msg = $"⚠ {anulowane} anulowanych, {zmienioneLadunki.Count - anulowane} zaktualizowanych (nie zapisano)";
+                        if (usuniete > 0 && zaktualizowane > 0)
+                            msg = $"⚠ Usunięto {usuniete} anulowanych, zaktualizowano {zaktualizowane} pozycji";
+                        else if (usuniete > 0)
+                            msg = $"⚠ Usunięto {usuniete} anulowanych/własnych zamówień z kursu";
                         else
-                            msg = $"Zaktualizowano {zmienioneLadunki.Count} pozycji z zamówień (nie zapisano)";
+                            msg = $"Zaktualizowano {zaktualizowane} pozycji z zamówień";
 
                         lblAutoUpdate.Text = msg;
-                        lblAutoUpdate.ForeColor = anulowane > 0 ? Color.Red : Color.Orange;
+                        lblAutoUpdate.ForeColor = usuniete > 0 ? Color.Red : Color.Orange;
                         lblAutoUpdate.Visible = true;
 
-                        var hideTimer = new Timer { Interval = 5000 };
+                        var hideTimer = new Timer { Interval = 8000 };
                         hideTimer.Tick += (s, e) =>
                         {
                             lblAutoUpdate.Visible = false;
@@ -2605,7 +2637,7 @@ namespace Kalendarz1.Transport.Formularze
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Błąd podczas automatycznej aktualizacji: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Błąd podczas automatycznej aktualizacji: {ex.Message}");
             }
             finally
             {

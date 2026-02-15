@@ -1261,7 +1261,7 @@ namespace Kalendarz1.WPF
                 Width = 65,
                 Height = 65,
                 CornerRadius = new CornerRadius(8),
-                Background = new SolidColorBrush(Color.FromRgb(236, 240, 241)),
+                ClipToBounds = true,
                 Margin = new Thickness(0, 0, 12, 0),
                 Cursor = System.Windows.Input.Cursors.Hand,
                 ToolTip = productImage != null ? "Kliknij aby zmienić zdjęcie" : "Kliknij aby dodać zdjęcie"
@@ -1269,16 +1269,19 @@ namespace Kalendarz1.WPF
 
             if (productImage != null)
             {
-                // Użyj ImageBrush dla zaokrąglonych rogów
-                imageBorder.Background = new ImageBrush
+                var img = new System.Windows.Controls.Image
                 {
-                    ImageSource = productImage,
-                    Stretch = Stretch.UniformToFill
+                    Source = productImage,
+                    Width = 63,
+                    Height = 63,
+                    Stretch = Stretch.Uniform
                 };
+                RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
+                imageBorder.Child = img;
             }
             else
             {
-                // Placeholder - ikona aparatu
+                imageBorder.Background = new SolidColorBrush(Color.FromRgb(236, 240, 241));
                 imageBorder.Child = new TextBlock
                 {
                     Text = "📷",
@@ -2359,6 +2362,7 @@ namespace Kalendarz1.WPF
                 {
                     image.BeginInit();
                     image.CacheOption = BitmapCacheOption.OnLoad;
+                    image.DecodePixelWidth = 140;
                     image.StreamSource = ms;
                     image.EndInit();
                     image.Freeze();
@@ -3041,13 +3045,20 @@ namespace Kalendarz1.WPF
                 {
                     Width = 100, Height = 100,
                     CornerRadius = new CornerRadius(12),
-                    Background = productImage != null
-                        ? (Brush)new ImageBrush { ImageSource = productImage, Stretch = Stretch.UniformToFill }
-                        : new SolidColorBrush(Color.FromRgb(52, 73, 94)),
+                    ClipToBounds = true,
                     Margin = new Thickness(0, 0, 25, 0)
                 };
-                if (productImage == null)
+                if (productImage != null)
+                {
+                    var img = new System.Windows.Controls.Image { Source = productImage, Width = 96, Height = 96, Stretch = Stretch.Uniform };
+                    RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
+                    imageBorder.Child = img;
+                }
+                else
+                {
+                    imageBorder.Background = new SolidColorBrush(Color.FromRgb(52, 73, 94));
                     imageBorder.Child = new TextBlock { Text = "📦", FontSize = 40, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)) };
+                }
                 Grid.SetColumn(imageBorder, 0);
                 headerPanel.Children.Add(imageBorder);
 
@@ -4072,14 +4083,21 @@ namespace Kalendarz1.WPF
                 {
                     Width = 140, Height = 140,
                     CornerRadius = new CornerRadius(10),
-                    Background = productImage != null
-                        ? (Brush)new ImageBrush { ImageSource = productImage, Stretch = Stretch.UniformToFill }
-                        : new SolidColorBrush(Color.FromRgb(52, 73, 94)),
+                    ClipToBounds = true,
                     Margin = new Thickness(0, 0, 0, 8),
                     HorizontalAlignment = HorizontalAlignment.Center
                 };
-                if (productImage == null)
+                if (productImage != null)
+                {
+                    var img = new System.Windows.Controls.Image { Source = productImage, Width = 136, Height = 136, Stretch = Stretch.Uniform };
+                    RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
+                    imageBorder.Child = img;
+                }
+                else
+                {
+                    imageBorder.Background = new SolidColorBrush(Color.FromRgb(52, 73, 94));
                     imageBorder.Child = new TextBlock { Text = "📦", FontSize = 40, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)) };
+                }
                 leftPanel.Children.Add(imageBorder);
 
                 // Nazwa produktu
@@ -4307,19 +4325,32 @@ namespace Kalendarz1.WPF
                     int prodIndex = i; // Capture for closure
                     bool isSelected = (i == viewIndex);
 
-                    // Duży kafel produktu - obraz jako tło
+                    // Duży kafel produktu - obraz + tekst
                     var prodImage = GetProductImage(prod.Id);
                     var prodBorder = new Border
                     {
-                        Background = prodImage != null
-                            ? (Brush)new ImageBrush { ImageSource = prodImage, Stretch = Stretch.UniformToFill }
-                            : new SolidColorBrush(Color.FromRgb(80, 90, 100)),
+                        Background = new SolidColorBrush(Color.FromRgb(80, 90, 100)),
                         CornerRadius = new CornerRadius(12),
+                        ClipToBounds = true,
                         BorderBrush = new SolidColorBrush(isSelected ? Color.FromRgb(52, 152, 219) : Color.FromRgb(100, 110, 120)),
                         BorderThickness = new Thickness(isSelected ? 5 : 2),
                         Margin = new Thickness(3),
                         Cursor = System.Windows.Input.Cursors.Hand
                     };
+
+                    var tileGrid = new Grid();
+                    if (prodImage != null)
+                    {
+                        var tileImg = new System.Windows.Controls.Image
+                        {
+                            Source = prodImage,
+                            Stretch = Stretch.Uniform,
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            VerticalAlignment = VerticalAlignment.Center
+                        };
+                        RenderOptions.SetBitmapScalingMode(tileImg, BitmapScalingMode.HighQuality);
+                        tileGrid.Children.Add(tileImg);
+                    }
 
                     // Tylko tekst z cieniem na dole
                     var nameText = new TextBlock
@@ -4343,7 +4374,8 @@ namespace Kalendarz1.WPF
                         BlurRadius = 6
                     };
 
-                    prodBorder.Child = nameText;
+                    tileGrid.Children.Add(nameText);
+                    prodBorder.Child = tileGrid;
                     prodBorder.MouseLeftButtonDown += (s, e) => { viewIndex = prodIndex; refreshContent(); };
 
                     Grid.SetRow(prodBorder, i);

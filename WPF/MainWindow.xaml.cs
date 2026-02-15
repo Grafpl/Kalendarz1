@@ -504,6 +504,10 @@ namespace Kalendarz1.WPF
             // ✅ WYWOŁAJ PO RefreshAllDataAsync, gdy wszystkie kontrolki są już utworzone
             ApplyResponsiveLayout();
 
+            // Watermark dla pola wyszukiwania produktów
+            txtProductSearch.GotFocus += (s, ev) => { if (string.IsNullOrEmpty(txtProductSearch.Text)) txtSearchWatermark.Visibility = Visibility.Collapsed; };
+            txtProductSearch.LostFocus += (s, ev) => { if (string.IsNullOrEmpty(txtProductSearch.Text)) txtSearchWatermark.Visibility = Visibility.Visible; };
+
             // Auto-odświeżanie co 3 minuty
             _autoRefreshTimer = new System.Windows.Threading.DispatcherTimer();
             _autoRefreshTimer.Interval = TimeSpan.FromMinutes(3);
@@ -519,8 +523,8 @@ namespace Kalendarz1.WPF
             this.KeyDown += MainWindow_KeyDown;
             this.PreviewKeyDown += MainWindow_PreviewKeyDown;
 
-            // Domyślny fokus w filtrze
-            txtFilterRecipient.Focus();
+            // Domyślny fokus na okno (nie otwieraj ComboBox na starcie)
+            this.Focus();
 
             // Obsługa edycji notatek - zapisz przy utracie fokusa
             txtNotes.LostFocus += TxtNotes_LostFocus;
@@ -631,20 +635,25 @@ namespace Kalendarz1.WPF
 
         private void MainWindow_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
-            // Ctrl+F - Fokus na filtr
+            // Ctrl+F - Fokus na pole wyszukiwania produktów
             if (e.Key == System.Windows.Input.Key.F &&
                 (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) == System.Windows.Input.ModifierKeys.Control)
             {
-                txtFilterRecipient.Focus();
-                txtFilterRecipient.SelectAll();
+                txtProductSearch.Focus();
+                txtProductSearch.SelectAll();
                 e.Handled = true;
             }
-            // Escape - Wyczyść filtr lub zamknij
+            // Escape - Wyczyść filtr produktu (resetuj na "Wszystkie")
             else if (e.Key == System.Windows.Input.Key.Escape)
             {
-                if (!string.IsNullOrEmpty(txtFilterRecipient.Text))
+                if (!string.IsNullOrEmpty(txtProductSearch.Text))
                 {
-                    txtFilterRecipient.Text = "";
+                    txtProductSearch.Text = "";
+                    e.Handled = true;
+                }
+                else if (cbProductFilter.SelectedIndex > 0)
+                {
+                    cbProductFilter.SelectedIndex = 0;
                     e.Handled = true;
                 }
             }
@@ -1527,9 +1536,7 @@ namespace Kalendarz1.WPF
 
         private void TxtFilterRecipient_TextChanged(object sender, TextChangedEventArgs e)
         {
-            // PERFORMANCE: Debouncing - nie odpytuj SQL przy każdym klawiszu
-            _filterDebounceTimer?.Stop();
-            _filterDebounceTimer?.Start();
+            // Kompatybilność - TextBox jest teraz ukryty
         }
 
         private void CbFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -1566,10 +1573,8 @@ namespace Kalendarz1.WPF
 
         private async void RbProductCatalog_Checked(object sender, RoutedEventArgs e)
         {
+            // Kompatybilność - radio buttons są teraz ukryte, produkty łączone w ComboBox
             if (!_isInitialized) return;
-            GenerateProductButtons();
-            _selectedProductId = null;
-            await RefreshAllDataAsync();
         }
 
         private string GetProductIcon(string productName)
@@ -1682,43 +1687,192 @@ namespace Kalendarz1.WPF
 
         private void GenerateProductButtons()
         {
+            // Kompatybilność - stare przyciski nie są już używane
             pnlProductButtons.Children.Clear();
+            PopulateProductComboBox();
+        }
 
-            var catalog = rbSwieze.IsChecked == true ? _productCatalogSwieze : _productCatalogMrozone;
+        private HashSet<int> _todayProductIds = new();
+        private List<(int? id, string name, BitmapImage? image, bool inToday)> _allProductItems = new();
+        private bool _isFilteringComboBox = false;
 
-            // Przycisk "Wszystkie"
-            var btnAll = CreateProductButton("Wszystkie", "📋", (int?)null, isAllButton: true);
-            btnAll.Click += ProductButton_Click;
-            pnlProductButtons.Children.Add(btnAll);
+        private void PopulateProductComboBox(string filterText = null)
+        {
+            _isFilteringComboBox = true;
+            cbProductFilter.SelectionChanged -= CbProductFilter_SelectionChanged;
 
-            // Sortuj produkty i grupuj z separatorami
-            var sortedProducts = catalog.OrderBy(x => x.Value).ToList();
-            string lastGroup = "";
+            int? previousSelection = _selectedProductId;
 
-            foreach (var product in sortedProducts)
+            // Pełna przebudowa listy (nie filtrowanie tekstu)
+            if (filterText == null)
             {
-                string currentGroup = GetProductGroup(product.Value);
+                _allProductItems.Clear();
 
-                // Separator między grupami
-                if (!string.IsNullOrEmpty(lastGroup) && currentGroup != lastGroup)
+                var allProducts = new Dictionary<int, string>();
+                foreach (var kv in _productCatalogSwieze)
+                    allProducts[kv.Key] = kv.Value;
+                foreach (var kv in _productCatalogMrozone)
+                    allProducts[kv.Key] = kv.Value;
+
+                _allProductItems.Add((null, "Wszystkie produkty", null, false));
+
+                foreach (var kv in allProducts.Where(kv => _todayProductIds.Contains(kv.Key)).OrderBy(kv => kv.Value))
+                    _allProductItems.Add((kv.Key, kv.Value, GetProductImage(kv.Key), true));
+
+                foreach (var kv in allProducts.Where(kv => !_todayProductIds.Contains(kv.Key)).OrderBy(kv => kv.Value))
+                    _allProductItems.Add((kv.Key, kv.Value, GetProductImage(kv.Key), false));
+            }
+
+            cbProductFilter.Items.Clear();
+
+            string filter = filterText?.Trim() ?? "";
+            bool hasFilter = !string.IsNullOrEmpty(filter);
+
+            var items = hasFilter
+                ? _allProductItems.Where(p => p.id == null || p.name.Contains(filter, StringComparison.OrdinalIgnoreCase)).ToList()
+                : _allProductItems;
+
+            var todayItems = items.Where(p => p.inToday).ToList();
+            var otherItems = items.Where(p => !p.inToday && p.id.HasValue).ToList();
+
+            // "Wszystkie" — zawsze na górze
+            cbProductFilter.Items.Add(CreateProductComboItem(null, "📋 Wszystkie produkty", null, true, false));
+
+            // Sekcja: zamówione dziś
+            if (todayItems.Count > 0)
+            {
+                cbProductFilter.Items.Add(CreateSectionHeader($"▼ ZAMÓWIONE DZIŚ ({todayItems.Count})","#27AE60"));
+
+                foreach (var p in todayItems)
+                    cbProductFilter.Items.Add(CreateProductComboItem(p.id, p.name, p.image, false, true));
+            }
+
+            // Sekcja: pozostałe
+            if (otherItems.Count > 0)
+            {
+                cbProductFilter.Items.Add(CreateSectionHeader($"▼ POZOSTAŁE ({otherItems.Count})", "#95A5A6"));
+
+                foreach (var p in otherItems)
+                    cbProductFilter.Items.Add(CreateProductComboItem(p.id, p.name, p.image, false, false));
+            }
+
+            // Brak wyników
+            if (hasFilter && todayItems.Count == 0 && otherItems.Count == 0)
+            {
+                cbProductFilter.Items.Add(new ComboBoxItem
                 {
-                    var separator = new Border
+                    Content = $"Brak wyników dla \"{filter}\"",
+                    IsEnabled = false,
+                    FontStyle = FontStyles.Italic,
+                    Foreground = Brushes.Gray
+                });
+            }
+
+            // Przywróć wybór
+            if (!hasFilter)
+            {
+                bool restored = false;
+                if (previousSelection.HasValue)
+                {
+                    for (int i = 0; i < cbProductFilter.Items.Count; i++)
                     {
-                        Width = 1,
-                        Background = new SolidColorBrush(Color.FromRgb(189, 195, 199)),
-                        Margin = new Thickness(3, 6, 3, 6),
-                        VerticalAlignment = VerticalAlignment.Stretch
-                    };
-                    pnlProductButtons.Children.Add(separator);
+                        if (cbProductFilter.Items[i] is ComboBoxItem ci && ci.Tag is int tagId && tagId == previousSelection.Value)
+                        {
+                            cbProductFilter.SelectedIndex = i;
+                            restored = true;
+                            break;
+                        }
+                    }
                 }
+                if (!restored)
+                    cbProductFilter.SelectedIndex = 0;
+            }
 
-                string icon = GetProductIcon(product.Value);
-                var productImage = GetProductImage(product.Key);
-                var btn = CreateProductButton(product.Value, icon, product.Key, productImage: productImage);
-                btn.Click += ProductButton_Click;
-                pnlProductButtons.Children.Add(btn);
+            cbProductFilter.SelectionChanged += CbProductFilter_SelectionChanged;
+            _isFilteringComboBox = false;
+        }
 
-                lastGroup = currentGroup;
+        private ComboBoxItem CreateSectionHeader(string text, string colorHex)
+        {
+            var c = (Color)ColorConverter.ConvertFromString(colorHex);
+            return new ComboBoxItem
+            {
+                Content = new TextBlock
+                {
+                    Text = text,
+                    FontSize = 10,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(c),
+                    Padding = new Thickness(0, 4, 0, 2)
+                },
+                IsEnabled = false,
+                IsHitTestVisible = false,
+                Padding = new Thickness(4, 0, 4, 0)
+            };
+        }
+
+        private ComboBoxItem CreateProductComboItem(int? id, string name, BitmapImage? image, bool isBold, bool isToday)
+        {
+            var sp = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+
+            if (image != null)
+            {
+                var img = new System.Windows.Controls.Image
+                {
+                    Source = image,
+                    Width = 24,
+                    Height = 24,
+                    Margin = new Thickness(0, 0, 6, 0),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
+                sp.Children.Add(img);
+            }
+
+            if (isToday)
+            {
+                sp.Children.Add(new TextBlock
+                {
+                    Text = "● ",
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x27, 0xAE, 0x60)),
+                    FontSize = 10,
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+            }
+
+            sp.Children.Add(new TextBlock
+            {
+                Text = name,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                FontWeight = isBold ? FontWeights.Bold : (isToday ? FontWeights.SemiBold : FontWeights.Normal)
+            });
+
+            return new ComboBoxItem
+            {
+                Tag = id,
+                Content = sp,
+                Padding = new Thickness(4, 3, 4, 3)
+            };
+        }
+
+        private void TxtProductSearch_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_isFilteringComboBox) return;
+            string text = txtProductSearch.Text;
+            txtSearchWatermark.Visibility = string.IsNullOrEmpty(text) ? Visibility.Visible : Visibility.Collapsed;
+            PopulateProductComboBox(text);
+            if (!string.IsNullOrEmpty(text) && !cbProductFilter.IsDropDownOpen)
+                cbProductFilter.IsDropDownOpen = true;
+        }
+
+        private async void CbProductFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!_isInitialized || _isFilteringComboBox) return;
+            if (cbProductFilter.SelectedItem is ComboBoxItem selected && selected.IsEnabled)
+            {
+                _selectedProductId = selected.Tag as int?;
+                await RefreshAllDataAsync();
             }
         }
 
@@ -2790,6 +2944,13 @@ namespace Kalendarz1.WPF
                 stepSw.Stop();
                 timings.AppendLine($"2. Ładowanie zamówień: {stepSw.ElapsedMilliseconds} ms");
 
+                // 2b. Pobierz produkty z dzisiejszych zamówień i odśwież ComboBox
+                stepSw.Restart();
+                await LoadTodayProductIdsAsync(_selectedDate);
+                PopulateProductComboBox();
+                stepSw.Stop();
+                timings.AppendLine($"2b. Produkty dnia + ComboBox: {stepSw.ElapsedMilliseconds} ms");
+
                 // 3. Podsumowanie produktów
                 stepSw.Restart();
                 await DisplayProductAggregationAsync(_selectedDate);
@@ -3385,26 +3546,7 @@ ORDER BY zm.Id";
 
                 var (name, salesman) = contractors.TryGetValue(clientId, out var c) ? c : ($"Nieznany ({clientId})", "");
 
-                // Notatka nie jest już pokazywana jako ikona - usunięto zgodnie z wymaganiami
-                // if (hasNote)
-                // {
-                //     name = "📝 " + name;
-                // }
-
-                if (hasStrefa)
-                {
-                    name = "\u26A0\uFE0F " + name;
-                }
-
-                if (hasFoil)
-                {
-                    name = "\U0001F39E\uFE0F " + name;
-                }
-
-                if (hasHallal)
-                {
-                    name = "\U0001F52A " + name;
-                }
+                // Ikony statusu nie są już dodawane do tekstu - wyświetlane jako kolorowe ikony w kolumnie szablonowej
 
                 decimal released = 0m;
                 if (releasesPerClientProduct.TryGetValue(clientId, out var perProduct))
@@ -3717,6 +3859,34 @@ ORDER BY zm.Id";
             ApplyFilters();
         }
 
+        private async Task LoadTodayProductIdsAsync(DateTime day)
+        {
+            _todayProductIds.Clear();
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                string dateColumn = _showBySlaughterDate && _slaughterDateColumnExists ? "z.DataUboju" : "z.DataZamowienia";
+                string sql = $@"
+                    SELECT DISTINCT t.KodTowaru
+                    FROM dbo.ZamowieniaMiesoTowar t
+                    INNER JOIN dbo.ZamowieniaMieso z ON z.ID = t.ZamowienieId
+                    WHERE {dateColumn} = @Day AND z.Status <> N'Anulowane'
+                      AND t.KodTowaru IS NOT NULL";
+
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@Day", day.Date);
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    if (!reader.IsDBNull(0))
+                        _todayProductIds.Add(reader.GetInt32(0));
+                }
+            }
+            catch { }
+        }
+
         private async Task LoadTransportForDayAsync(DateTime day)
         {
             day = ValidateSqlDate(day);
@@ -4009,13 +4179,62 @@ ORDER BY zm.Id";
                 ElementStyle = kategoriaStyle
             });
 
-            // 1. Odbiorca - poszerzona kolumna (rozmiar M)
-            dgOrders.Columns.Add(new DataGridTextColumn
+            // 1. Odbiorca - kolumna szablonowa z kolorowymi ikonami statusu
             {
-                Header = "Odbiorca",
-                Binding = new System.Windows.Data.Binding("Odbiorca"),
-                Width = new DataGridLength(180)
-            });
+                var odbiorcaCol = new DataGridTemplateColumn
+                {
+                    Header = "Odbiorca",
+                    Width = new DataGridLength(200),
+                    IsReadOnly = true
+                };
+
+                var odbiorcaCellFactory = new FrameworkElementFactory(typeof(StackPanel));
+                odbiorcaCellFactory.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+                odbiorcaCellFactory.SetValue(StackPanel.VerticalAlignmentProperty, VerticalAlignment.Center);
+                odbiorcaCellFactory.SetValue(StackPanel.MarginProperty, new Thickness(2));
+
+                var boolToVisConv = new BooleanToVisibilityConverter();
+
+                // Ikona Strefa - czerwona
+                var icoStrefa = new FrameworkElementFactory(typeof(TextBlock));
+                icoStrefa.SetValue(TextBlock.TextProperty, "\u26A0\uFE0F");
+                icoStrefa.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(0xFF, 0x6B, 0x6B)));
+                icoStrefa.SetValue(TextBlock.FontSizeProperty, 12.0);
+                icoStrefa.SetValue(TextBlock.MarginProperty, new Thickness(0, 0, 2, 0));
+                icoStrefa.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+                icoStrefa.SetBinding(TextBlock.VisibilityProperty, new System.Windows.Data.Binding("MaStrefa") { Converter = boolToVisConv });
+                odbiorcaCellFactory.AppendChild(icoStrefa);
+
+                // Ikona Halal - teal
+                var icoHalal = new FrameworkElementFactory(typeof(TextBlock));
+                icoHalal.SetValue(TextBlock.TextProperty, "\U0001F52A");
+                icoHalal.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(0x4D, 0xB6, 0xAC)));
+                icoHalal.SetValue(TextBlock.FontSizeProperty, 12.0);
+                icoHalal.SetValue(TextBlock.MarginProperty, new Thickness(0, 0, 2, 0));
+                icoHalal.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+                icoHalal.SetBinding(TextBlock.VisibilityProperty, new System.Windows.Data.Binding("MaHallal") { Converter = boolToVisConv });
+                odbiorcaCellFactory.AppendChild(icoHalal);
+
+                // Ikona Folia - niebieska
+                var icoFolia = new FrameworkElementFactory(typeof(TextBlock));
+                icoFolia.SetValue(TextBlock.TextProperty, "\U0001F39E\uFE0F");
+                icoFolia.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(0x64, 0xB5, 0xF6)));
+                icoFolia.SetValue(TextBlock.FontSizeProperty, 12.0);
+                icoFolia.SetValue(TextBlock.MarginProperty, new Thickness(0, 0, 2, 0));
+                icoFolia.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+                icoFolia.SetBinding(TextBlock.VisibilityProperty, new System.Windows.Data.Binding("MaFolie") { Converter = boolToVisConv });
+                odbiorcaCellFactory.AppendChild(icoFolia);
+
+                // Tekst Odbiorca
+                var odbiorcaTxt = new FrameworkElementFactory(typeof(TextBlock));
+                odbiorcaTxt.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("Odbiorca"));
+                odbiorcaTxt.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+                odbiorcaTxt.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
+                odbiorcaCellFactory.AppendChild(odbiorcaTxt);
+
+                odbiorcaCol.CellTemplate = new DataTemplate { VisualTree = odbiorcaCellFactory };
+                dgOrders.Columns.Add(odbiorcaCol);
+            }
 
             // 2. Handlowiec z avatarem (rozmiar jak Utworzono - 32px display, 64px source)
             {
@@ -5187,7 +5406,7 @@ ORDER BY zm.Id";
                 Visibility = Visibility.Collapsed
             });
 
-            // Kolumna Produkt z miniaturką zdjęcia
+            // Kolumna Produkt z miniaturką zdjęcia i kolorowymi ikonami statusu
             var produktCol = new DataGridTemplateColumn
             {
                 Header = "Produkt",
@@ -5196,6 +5415,7 @@ ORDER BY zm.Id";
                 IsReadOnly = true
             };
             var cellTemplate = new DataTemplate();
+            var boolToVisConverter = new BooleanToVisibilityConverter();
             var spFactory = new FrameworkElementFactory(typeof(StackPanel));
             spFactory.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
             spFactory.SetValue(StackPanel.VerticalAlignmentProperty, VerticalAlignment.Center);
@@ -5206,6 +5426,33 @@ ORDER BY zm.Id";
             imgFactory.SetValue(System.Windows.Controls.Image.MarginProperty, new Thickness(0, 0, 4, 0));
             imgFactory.SetValue(RenderOptions.BitmapScalingModeProperty, BitmapScalingMode.HighQuality);
             spFactory.AppendChild(imgFactory);
+            // Ikona Strefa - czerwona
+            var icoStrefa = new FrameworkElementFactory(typeof(TextBlock));
+            icoStrefa.SetValue(TextBlock.TextProperty, "\u26A0\uFE0F");
+            icoStrefa.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(0xFF, 0x6B, 0x6B)));
+            icoStrefa.SetValue(TextBlock.FontSizeProperty, 11.0);
+            icoStrefa.SetValue(TextBlock.MarginProperty, new Thickness(0, 0, 2, 0));
+            icoStrefa.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            icoStrefa.SetBinding(TextBlock.VisibilityProperty, new System.Windows.Data.Binding("Strefa") { Converter = boolToVisConverter });
+            spFactory.AppendChild(icoStrefa);
+            // Ikona Halal - teal
+            var icoHalal = new FrameworkElementFactory(typeof(TextBlock));
+            icoHalal.SetValue(TextBlock.TextProperty, "\U0001F52A");
+            icoHalal.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(0x4D, 0xB6, 0xAC)));
+            icoHalal.SetValue(TextBlock.FontSizeProperty, 11.0);
+            icoHalal.SetValue(TextBlock.MarginProperty, new Thickness(0, 0, 2, 0));
+            icoHalal.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            icoHalal.SetBinding(TextBlock.VisibilityProperty, new System.Windows.Data.Binding("Hallal") { Converter = boolToVisConverter });
+            spFactory.AppendChild(icoHalal);
+            // Ikona Folia - niebieska
+            var icoFolia = new FrameworkElementFactory(typeof(TextBlock));
+            icoFolia.SetValue(TextBlock.TextProperty, "\U0001F39E\uFE0F");
+            icoFolia.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(0x64, 0xB5, 0xF6)));
+            icoFolia.SetValue(TextBlock.FontSizeProperty, 11.0);
+            icoFolia.SetValue(TextBlock.MarginProperty, new Thickness(0, 0, 2, 0));
+            icoFolia.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            icoFolia.SetBinding(TextBlock.VisibilityProperty, new System.Windows.Data.Binding("Folia") { Converter = boolToVisConverter });
+            spFactory.AppendChild(icoFolia);
             var txtFactory = new FrameworkElementFactory(typeof(TextBlock));
             txtFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("Produkt"));
             txtFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
@@ -6039,6 +6286,7 @@ ORDER BY zm.Id";
                     ms.Position = 0;
                     image.BeginInit();
                     image.CacheOption = BitmapCacheOption.OnLoad;
+                    image.DecodePixelWidth = 140;
                     image.StreamSource = ms;
                     image.EndInit();
                     image.Freeze();
@@ -6137,27 +6385,46 @@ ORDER BY zm.Id";
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-            // Zdjęcie produktu - rozmiar L
+            // Zdjęcie produktu
             var productImage = towarId > 0 ? GetProductImage(towarId) : null;
-            var imgBorder = new Border
+            Border imgBorder;
+            if (productImage != null)
             {
-                Width = 44,
-                Height = 44,
-                CornerRadius = new CornerRadius(5),
-                Background = productImage != null
-                    ? (Brush)new ImageBrush { ImageSource = productImage, Stretch = Stretch.UniformToFill }
-                    : new SolidColorBrush(Color.FromRgb(236, 240, 241)),
-                Margin = new Thickness(0, 0, 10, 0)
-            };
-            if (productImage == null)
-            {
-                imgBorder.Child = new TextBlock
+                var img = new System.Windows.Controls.Image
                 {
-                    Text = "📷",
-                    FontSize = 18,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166))
+                    Source = productImage,
+                    Width = 44,
+                    Height = 44,
+                    Stretch = Stretch.Uniform
+                };
+                RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
+                imgBorder = new Border
+                {
+                    Width = 46,
+                    Height = 46,
+                    CornerRadius = new CornerRadius(6),
+                    ClipToBounds = true,
+                    Child = img,
+                    Margin = new Thickness(0, 0, 8, 0)
+                };
+            }
+            else
+            {
+                imgBorder = new Border
+                {
+                    Width = 46,
+                    Height = 46,
+                    CornerRadius = new CornerRadius(6),
+                    Background = new SolidColorBrush(Color.FromRgb(236, 240, 241)),
+                    Margin = new Thickness(0, 0, 8, 0),
+                    Child = new TextBlock
+                    {
+                        Text = "📷",
+                        FontSize = 18,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166))
+                    }
                 };
             }
             Grid.SetColumn(imgBorder, 0);
@@ -6259,18 +6526,17 @@ ORDER BY zm.Id";
         /// </summary>
         private void FilterOrdersByProduct(int towarId, string nazwa)
         {
-            // Znajdź odpowiedni przycisk produktu i symuluj kliknięcie
-            foreach (var child in pnlProductButtons.Children.OfType<Button>())
+            // Znajdź odpowiedni element w ComboBox i wybierz go
+            for (int i = 0; i < cbProductFilter.Items.Count; i++)
             {
-                if (child.Tag is int tagId && tagId == towarId)
+                if (cbProductFilter.Items[i] is ComboBoxItem item && item.Tag is int tagId && tagId == towarId)
                 {
-                    // Symuluj kliknięcie przycisku
-                    child.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    cbProductFilter.SelectedIndex = i;
                     return;
                 }
             }
 
-            // Jeśli nie znaleziono przycisku, ustaw filtr ręcznie
+            // Jeśli nie znaleziono, ustaw filtr ręcznie
             _selectedProductId = towarId;
             _ = RefreshAllDataAsync();
         }
@@ -6742,15 +7008,10 @@ ORDER BY zm.Id";
 
         private void ApplyFilters()
         {
-            var txt = txtFilterRecipient.Text?.Trim().Replace("'", "''");
-
             // Filtruj zamówienia - sprawdź czy kolumny istnieją
             if (_dtOrders.Columns.Count > 0 && _dtOrders.Columns.Contains("Status"))
             {
                 var conditions = new List<string>();
-
-                if (!string.IsNullOrEmpty(txt) && _dtOrders.Columns.Contains("Odbiorca"))
-                    conditions.Add($"Odbiorca LIKE '%{txt}%'");
 
                 if (!_showReleasesWithoutOrders)
                     conditions.Add("Status <> 'Wydanie bez zamówienia'");
@@ -6759,24 +7020,6 @@ ORDER BY zm.Id";
                     conditions.Add("Status <> 'Anulowane'");
 
                 _dtOrders.DefaultView.RowFilter = string.Join(" AND ", conditions);
-            }
-
-            // Filtruj Transport
-            if (_dtTransport.DefaultView != null && _dtTransport.Columns.Contains("Odbiorca"))
-            {
-                var transportConditions = new List<string>();
-                if (!string.IsNullOrEmpty(txt))
-                    transportConditions.Add($"Odbiorca LIKE '%{txt}%'");
-                _dtTransport.DefaultView.RowFilter = string.Join(" AND ", transportConditions);
-            }
-
-            // Filtruj Historię zmian
-            if (_dtHistoriaZmian.DefaultView != null && _dtHistoriaZmian.Columns.Contains("Odbiorca"))
-            {
-                var historiaConditions = new List<string>();
-                if (!string.IsNullOrEmpty(txt))
-                    historiaConditions.Add($"Odbiorca LIKE '%{txt}%'");
-                _dtHistoriaZmian.DefaultView.RowFilter = string.Join(" AND ", historiaConditions);
             }
         }
 

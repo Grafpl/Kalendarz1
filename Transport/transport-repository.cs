@@ -623,7 +623,8 @@ namespace Kalendarz1.Transport.Repozytorium
             var sqlMaxKolejnosc = "SELECT ISNULL(MAX(Kolejnosc), 0) + 1 FROM dbo.Ladunek WHERE KursID = @KursID";
             using var cmdMax = new SqlCommand(sqlMaxKolejnosc, connection);
             cmdMax.Parameters.AddWithValue("@KursID", ladunek.KursID);
-            var nowaKolejnosc = (int)await cmdMax.ExecuteScalarAsync();
+            var scalarResult = await cmdMax.ExecuteScalarAsync();
+            var nowaKolejnosc = scalarResult != null && scalarResult != DBNull.Value ? Convert.ToInt32(scalarResult) : 1;
 
             var sql = @"INSERT INTO dbo.Ladunek
                        (KursID, Kolejnosc, KodKlienta, PojemnikiE2, PaletyH1, PlanE2NaPaleteOverride, Uwagi, TrybE2)
@@ -749,7 +750,7 @@ namespace Kalendarz1.Transport.Repozytorium
         public WynikPakowania ObliczPakowanieZLadunkow(List<Ladunek> ladunki, int pojazdId)
         {
             if (ladunki == null || ladunki.Count == 0)
-                return new WynikPakowania { SumaE2 = 0, PaletyNominal = 0, ProcNominal = 0 };
+                return new WynikPakowania { SumaE2 = 0, PaletyNominal = 0, ProcNominal = 0, PaletyMax = 0, ProcMax = 0 };
 
             int paletyPojazdu = 0;
             int planE2NaPalete = 36;
@@ -761,12 +762,15 @@ namespace Kalendarz1.Transport.Repozytorium
                 using var cmd = new SqlCommand("SELECT PaletyH1 FROM dbo.Pojazd WHERE PojazdID = @Id", cn);
                 cmd.Parameters.AddWithValue("@Id", pojazdId);
                 var result = cmd.ExecuteScalar();
-                if (result != null) paletyPojazdu = (int)result;
+                if (result != null && result != DBNull.Value) paletyPojazdu = Convert.ToInt32(result);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Transport] Błąd pobierania pojazdu {pojazdId}: {ex.Message}");
+            }
 
             if (paletyPojazdu == 0)
-                return new WynikPakowania { SumaE2 = ladunki.Sum(l => l.PojemnikiE2), PaletyNominal = 0, ProcNominal = 0 };
+                return new WynikPakowania { SumaE2 = ladunki.Sum(l => l.PojemnikiE2), PaletyPojazdu = paletyPojazdu, PaletyNominal = 0, PaletyMax = 0, ProcNominal = 0, ProcMax = 0, Nadwyzka = new List<PozycjaLike>() };
 
             var pozycje = ladunki.Select(l => l.ToPozycjaLike()).ToList();
             return _pakowanieSerwis.ObliczKurs(pozycje, paletyPojazdu, planE2NaPalete);

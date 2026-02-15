@@ -163,7 +163,7 @@ namespace Kalendarz1.MagazynLiczenie.Repozytorium
                             var bi = new BitmapImage();
                             bi.BeginInit();
                             bi.StreamSource = ms;
-                            bi.DecodePixelWidth = 48;
+                            bi.DecodePixelWidth = 140;
                             bi.CacheOption = BitmapCacheOption.OnLoad;
                             bi.EndInit();
                             bi.Freeze();
