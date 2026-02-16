@@ -25,6 +25,7 @@ namespace Kalendarz1
 
         private static bool? _dataAkceptacjiMagazynColumnExists = null;
         private static bool? _strefaColumnExists = null;
+        private static bool? _czyModMagazynuColumnExists = null;
         private readonly Dictionary<int, System.Windows.Media.Imaging.BitmapImage?> _productImages = new();
 
         public string UserID { get; set; } = "Magazynier";
@@ -792,6 +793,27 @@ namespace Kalendarz1
             return _dataAkceptacjiMagazynColumnExists.Value;
         }
 
+        private async Task<bool> CheckCzyModMagazynuColumnExistsAsync(SqlConnection cn)
+        {
+            if (_czyModMagazynuColumnExists.HasValue)
+                return _czyModMagazynuColumnExists.Value;
+
+            string checkSql = @"SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'CzyZmodyfikowaneDlaMagazynu'";
+            using var cmd = new SqlCommand(checkSql, cn);
+            var result = await cmd.ExecuteScalarAsync();
+            if (result == null)
+            {
+                try
+                {
+                    using var alter = new SqlCommand("ALTER TABLE [dbo].[ZamowieniaMieso] ADD CzyZmodyfikowaneDlaMagazynu BIT NULL DEFAULT 0", cn);
+                    await alter.ExecuteNonQueryAsync();
+                }
+                catch { }
+            }
+            _czyModMagazynuColumnExists = true;
+            return true;
+        }
+
         private async Task<bool> CheckStrefaColumnExistsAsync(SqlConnection cn)
         {
             if (_strefaColumnExists.HasValue)
@@ -821,11 +843,14 @@ namespace Kalendarz1
             try
             {
                 using var cn = new SqlConnection(_connLibra);
-                await cn.OpenAsync();
-                var cmdCheck = new SqlCommand("SELECT CASE WHEN EXISTS (SELECT 1 FROM sys.tables WHERE name = 'TowarZdjecia') THEN 1 ELSE 0 END", cn);
+                cn.Open();
+
+                using var cmdCheck = new SqlCommand(
+                    "SELECT CASE WHEN EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'TowarZdjecia') THEN 1 ELSE 0 END", cn);
                 if ((int)(await cmdCheck.ExecuteScalarAsync())! == 0) return;
 
-                var cmd = new SqlCommand("SELECT TowarId, Zdjecie FROM dbo.TowarZdjecia WHERE Aktywne = 1", cn);
+                using var cmd = new SqlCommand("SELECT TowarId, Zdjecie FROM dbo.TowarZdjecia WHERE Aktywne = 1", cn);
+                cmd.CommandTimeout = 30;
                 using var rdr = await cmd.ExecuteReaderAsync();
                 while (await rdr.ReadAsync())
                 {
@@ -835,21 +860,27 @@ namespace Kalendarz1
                         byte[] data = (byte[])rdr[1];
                         try
                         {
-                            var ms = new System.IO.MemoryStream(data);
-                            var bi = new BitmapImage();
+                            using var ms = new System.IO.MemoryStream(data);
+                            var bi = new System.Windows.Media.Imaging.BitmapImage();
                             bi.BeginInit();
                             bi.StreamSource = ms;
                             bi.DecodePixelWidth = 140;
-                            bi.CacheOption = BitmapCacheOption.OnLoad;
+                            bi.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
                             bi.EndInit();
                             bi.Freeze();
                             _productImages[towarId] = bi;
                         }
-                        catch { }
+                        catch (Exception exImg)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[MagazynPanel] Błąd dekodowania obrazka TowarId={towarId}: {exImg.Message}");
+                        }
                     }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MagazynPanel] Błąd ładowania obrazków: {ex.Message}");
+            }
         }
 
         private BitmapImage? GetProductImage(int towarId)
@@ -874,6 +905,7 @@ namespace Kalendarz1
                     // Sprawdź czy kolumny opcjonalne istnieją
                     bool hasAkceptacjaColumn = await CheckDataAkceptacjiMagazynColumnExistsAsync(cn);
                     bool hasStrefaColumn = await CheckStrefaColumnExistsAsync(cn);
+                    bool hasCzyModMagazynu = await CheckCzyModMagazynuColumnExistsAsync(cn);
 
                     string akceptacjaColumn = hasAkceptacjaColumn ? "z.DataAkceptacjiMagazyn" : "NULL AS DataAkceptacjiMagazyn";
                     string strefaColumn = hasStrefaColumn
@@ -896,6 +928,7 @@ namespace Kalendarz1
                     sqlBuilder.Append(", CAST(CASE WHEN EXISTS(SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id AND t.Folia = 1) THEN 1 ELSE 0 END AS BIT) AS MaFolie");
                     sqlBuilder.Append(", CAST(CASE WHEN EXISTS(SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id AND ISNULL(t.Hallal, 0) = 1) THEN 1 ELSE 0 END AS BIT) AS MaHalal");
                     sqlBuilder.Append(", CAST(CASE WHEN EXISTS(SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id AND ISNULL(t.E2, 0) = 1) THEN 1 ELSE 0 END AS BIT) AS MaE2");
+                    sqlBuilder.Append(hasCzyModMagazynu ? ", ISNULL(z.CzyZmodyfikowaneDlaMagazynu, 0) AS CzyZmodyfikowaneDlaMagazynuFlag" : ", CAST(0 AS BIT) AS CzyZmodyfikowaneDlaMagazynuFlag");
                     sqlBuilder.Append(" FROM dbo.ZamowieniaMieso z WHERE z.DataUboju=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')");
                     if (_filteredProductId.HasValue)
                         sqlBuilder.Append(" AND EXISTS (SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId=z.Id AND t.KodTowaru=@P)");
@@ -920,16 +953,16 @@ namespace Kalendarz1
                         }
 
                         // Sprawdź czy zamówienie zostało zmodyfikowane dla magazynu
-                        // Magazyn używa swojej własnej daty akceptacji lub DataRealizacji jako fallback
-                        bool czyZmodyfikowaneMagazyn = false;
-                        if (czyZrealizowane && dataOstatniejModyfikacji.HasValue)
+                        // 1) Flaga boolean ustawiana przez WidokZamowienia przy edycji
+                        bool czyZmodyfikowaneMagazynFlag = rd.GetBoolean(19);
+                        // 2) Timestamp comparison jako fallback (dla starszych danych)
+                        bool czyZmodyfikowaneMagazyn = czyZmodyfikowaneMagazynFlag;
+                        if (!czyZmodyfikowaneMagazyn && czyZrealizowane && dataOstatniejModyfikacji.HasValue)
                         {
-                            // Jeśli magazyn już zaakceptował, porównaj z jego datą akceptacji
                             if (dataAkceptacjiMagazyn.HasValue)
                             {
                                 czyZmodyfikowaneMagazyn = dataOstatniejModyfikacji.Value > dataAkceptacjiMagazyn.Value;
                             }
-                            // Jeśli magazyn jeszcze nie akceptował, użyj daty realizacji jako punktu odniesienia
                             else if (dataRealizacji.HasValue)
                             {
                                 czyZmodyfikowaneMagazyn = dataOstatniejModyfikacji.Value > dataRealizacji.Value;
@@ -1360,8 +1393,8 @@ namespace Kalendarz1
                     _dataAkceptacjiMagazynColumnExists = true;
                 }
 
-                // Zaktualizuj DataAkceptacjiMagazyn na teraz (osobna akceptacja dla magazynu)
-                var cmd = new SqlCommand("UPDATE dbo.ZamowieniaMieso SET DataAkceptacjiMagazyn = GETDATE() WHERE Id = @Id", cn);
+                // Zaktualizuj DataAkceptacjiMagazyn na teraz + resetuj flagę boolean (osobna akceptacja dla magazynu)
+                var cmd = new SqlCommand("UPDATE dbo.ZamowieniaMieso SET DataAkceptacjiMagazyn = GETDATE(), CzyZmodyfikowaneDlaMagazynu = 0 WHERE Id = @Id", cn);
                 cmd.Parameters.AddWithValue("@Id", selected.Info.Id);
                 await cmd.ExecuteNonQueryAsync();
 

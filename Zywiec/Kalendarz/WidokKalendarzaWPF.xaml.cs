@@ -81,6 +81,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
         private DateTime _contextMenuClosedTime = DateTime.MinValue;
         private const int CONTEXT_MENU_DRAG_BLOCK_MS = 500; // Blokuj drag przez 500ms po zamknięciu menu
 
+        // Flaga blokująca drag & drop gdy inline edit popup jest otwarty lub niedawno zamknięty
+        private DateTime _inlineEditClosedTime = DateTime.MinValue;
+        private bool _skipNextDragStart = false;
+
         // Multi-select
         private HashSet<string> _selectedLPs = new HashSet<string>();
 
@@ -104,6 +108,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         // Cancellation token dla async operacji
         private CancellationTokenSource _cts = new CancellationTokenSource();
+        // Dedykowany CTS dla ładowania szczegółów dostawy (anulowany przy zmianie selekcji)
+        private CancellationTokenSource _detailsCts = new CancellationTokenSource();
 
         // Serwis audytu zmian
         private AuditLogService _auditService;
@@ -150,6 +156,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
             SetupKeyboardShortcuts();
             SetupDragDrop();
             SetupGridKeyboardNav();
+            // Globalny handler zamykający popup edycji inline przy kliknięciu gdziekolwiek na oknie
+            this.PreviewMouseDown += Window_PreviewMouseDown_PopupGuard;
             // Menu kontekstowe jest teraz zdefiniowane w XAML
         }
 
@@ -846,11 +854,30 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 {
                     await conn.OpenAsync(_cts.Token);
 
-                    // Cena rolnicza
-                    double cenaRolnicza = await GetLatestPriceAsync(conn, "CenaRolnicza", "cena");
-                    double cenaMinister = await GetLatestPriceAsync(conn, "CenaMinisterialna", "cena");
-                    double cenaLaczona = (cenaRolnicza + cenaMinister) / 2;
                     double cenaTuszki = await GetLatestPriceAsync(conn, "CenaTuszki", "cena");
+
+                    // Rolnicza, Ministerialna i Łączona - z dnia dzisiejszego
+                    double cenaRolnicza = 0, cenaMinister = 0, cenaLaczona = 0;
+                    string sqlDzis = @"
+                        SELECT
+                            (SELECT TOP 1 CAST(Cena AS DECIMAL(10,2)) FROM [LibraNet].[dbo].[CenaRolnicza] WHERE Data = @dzis) AS Rolnicza,
+                            (SELECT TOP 1 CAST(Cena AS DECIMAL(10,2)) FROM [LibraNet].[dbo].[CenaMinisterialna] WHERE Data = @dzis) AS Minister";
+                    using (SqlCommand cmd = new SqlCommand(sqlDzis, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@dzis", DateTime.Today);
+                        using (var reader = await cmd.ExecuteReaderAsync(_cts.Token))
+                        {
+                            if (await reader.ReadAsync(_cts.Token))
+                            {
+                                if (!reader.IsDBNull(0)) cenaRolnicza = Convert.ToDouble(reader.GetValue(0));
+                                if (!reader.IsDBNull(1)) cenaMinister = Convert.ToDouble(reader.GetValue(1));
+                            }
+                        }
+                    }
+                    cenaLaczona = (cenaRolnicza > 0 && cenaMinister > 0)
+                        ? Math.Round((cenaRolnicza + cenaMinister) / 2.0, 2) : 0;
+
+                    System.Diagnostics.Debug.WriteLine($"[LoadCeny] Data={DateTime.Today:yyyy-MM-dd}, Rol={cenaRolnicza}, Min={cenaMinister}, Łącz=({cenaRolnicza}+{cenaMinister})/2={cenaLaczona}");
 
                     // Aktualizuj UI na głównym wątku
                     await Dispatcher.InvokeAsync(() =>
@@ -862,7 +889,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     });
                 }
             }
-            catch { }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[LoadCeny] BŁĄD OGÓLNY: {ex.Message}"); }
         }
 
         // Stara synchroniczna wersja dla kompatybilności
@@ -969,6 +996,136 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 }
             }
             catch { return 0; }
+        }
+
+        private void CmbTypCeny_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            HighlightPropCenaByType();
+        }
+
+        /// <summary>
+        /// Podświetla pole ceny odpowiadające wybranemu typowi ceny.
+        /// Kolory jak na tablicy: rolnicza=zielony, ministerialna=niebieski, łączona=fioletowy.
+        /// </summary>
+        private void HighlightPropCenaByType()
+        {
+            string typCeny = cmbTypCeny?.SelectedItem?.ToString()?.ToLowerInvariant() ?? "";
+
+            // Domyślne: szare, nieaktywne
+            var defaultBg = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F3F4F6"));
+            var defaultBorder = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#D1D5DB"));
+            var defaultFg = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#9CA3AF"));
+
+            // Resetuj wszystkie do domyślnych
+            var borderRol = txtPropRolnicza.Parent as System.Windows.Controls.StackPanel;
+            var borderMin = txtPropMinister.Parent as System.Windows.Controls.StackPanel;
+            var borderLacz = txtPropLaczona.Parent as System.Windows.Controls.StackPanel;
+
+            if (borderRol?.Parent is Border bRol)
+            {
+                bRol.Background = defaultBg; bRol.BorderBrush = defaultBorder;
+                txtPropRolnicza.Foreground = defaultFg;
+            }
+            if (borderMin?.Parent is Border bMin)
+            {
+                bMin.Background = defaultBg; bMin.BorderBrush = defaultBorder;
+                txtPropMinister.Foreground = defaultFg;
+            }
+            if (borderLacz?.Parent is Border bLacz)
+            {
+                bLacz.Background = defaultBg; bLacz.BorderBrush = defaultBorder;
+                txtPropLaczona.Foreground = defaultFg;
+            }
+
+            // Podświetl aktywne pole wg typu ceny
+            if (typCeny.Contains("rolnic") && borderRol?.Parent is Border brRol)
+            {
+                brRol.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E8F5E9"));
+                brRol.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#66BB6A"));
+                txtPropRolnicza.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2E7D32"));
+            }
+            else if (typCeny.Contains("minister") && borderMin?.Parent is Border brMin)
+            {
+                brMin.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E3F2FD"));
+                brMin.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#42A5F5"));
+                txtPropMinister.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1565C0"));
+            }
+            else if ((typCeny.Contains("łącz") || typCeny.Contains("laczo")) && borderLacz?.Parent is Border brLacz)
+            {
+                brLacz.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F3E5F5"));
+                brLacz.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#AB47BC"));
+                txtPropLaczona.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7B1FA2"));
+            }
+        }
+
+        /// <summary>
+        /// Pobiera 3 ceny z dnia dostawy: rolniczą, ministerialną i łączoną.
+        /// </summary>
+        private async Task UpdatePropCenaAsync()
+        {
+            try
+            {
+                DateTime? dataOdbioru = dpData.SelectedDate;
+
+                if (dataOdbioru == null)
+                {
+                    txtPropRolnicza.Text = "-";
+                    txtPropMinister.Text = "-";
+                    txtPropLaczona.Text = "-";
+                    HighlightPropCenaByType();
+                    System.Diagnostics.Debug.WriteLine("[UpdatePropCena] dpData.SelectedDate is null");
+                    return;
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[UpdatePropCena] Pobieram ceny dla daty: {dataOdbioru.Value:yyyy-MM-dd}");
+
+                double cenaRol = 0, cenaMin = 0;
+
+                // Pobierz ceny dokładnie z dnia dostawy
+                string sql = @"
+                    SELECT
+                        (SELECT TOP 1 CAST(Cena AS DECIMAL(10,2)) FROM [LibraNet].[dbo].[CenaRolnicza] WHERE Data = @data) AS Rolnicza,
+                        (SELECT TOP 1 CAST(Cena AS DECIMAL(10,2)) FROM [LibraNet].[dbo].[CenaMinisterialna] WHERE Data = @data) AS Minister";
+
+                using (SqlConnection conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync(_cts.Token);
+                    using (SqlCommand cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@data", dataOdbioru.Value.Date);
+                        using (var reader = await cmd.ExecuteReaderAsync(_cts.Token))
+                        {
+                            if (await reader.ReadAsync(_cts.Token))
+                            {
+                                if (!reader.IsDBNull(0)) cenaRol = Convert.ToDouble(reader.GetValue(0));
+                                if (!reader.IsDBNull(1)) cenaMin = Convert.ToDouble(reader.GetValue(1));
+                                System.Diagnostics.Debug.WriteLine($"[UpdatePropCena] Rol={cenaRol}, Min={cenaMin}");
+                            }
+                            else
+                            {
+                                System.Diagnostics.Debug.WriteLine("[UpdatePropCena] Brak wyników z zapytania SQL");
+                            }
+                        }
+                    }
+                }
+
+                double cenaLacz = (cenaRol > 0 && cenaMin > 0) ? Math.Round((cenaRol + cenaMin) / 2.0, 2) : 0;
+
+                txtPropRolnicza.Text = cenaRol > 0 ? $"{cenaRol:F2}" : "-";
+                txtPropMinister.Text = cenaMin > 0 ? $"{cenaMin:F2}" : "-";
+                txtPropLaczona.Text = cenaLacz > 0 ? $"{cenaLacz:F2}" : "-";
+
+                System.Diagnostics.Debug.WriteLine($"[UpdatePropCena] Wynik: Rol={txtPropRolnicza.Text}, Min={txtPropMinister.Text}, Łącz={txtPropLaczona.Text}");
+
+                HighlightPropCenaByType();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[UpdatePropCena] BŁĄD: {ex.Message}\n{ex.StackTrace}");
+                txtPropRolnicza.Text = "ERR";
+                txtPropMinister.Text = "ERR";
+                txtPropLaczona.Text = "ERR";
+            }
         }
 
         #endregion
@@ -1115,6 +1272,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         private async Task LoadNotatkiAsync(string lpDostawa)
         {
+            var token = _detailsCts.Token;
             try
             {
                 if (string.IsNullOrEmpty(lpDostawa)) return;
@@ -1123,7 +1281,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
-                    await conn.OpenAsync(_cts.Token);
+                    await conn.OpenAsync(token);
                     string sql = @"SELECT N.DataUtworzenia, N.KtoStworzyl, O.Name AS KtoDodal, N.Tresc
                                    FROM [LibraNet].[dbo].[Notatki] N
                                    LEFT JOIN [LibraNet].[dbo].[operators] O ON N.KtoStworzyl = O.ID
@@ -1132,9 +1290,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@Lp", lpDostawa);
-                        using (SqlDataReader reader = await cmd.ExecuteReaderAsync(_cts.Token))
+                        using (SqlDataReader reader = await cmd.ExecuteReaderAsync(token))
                         {
-                            while (await reader.ReadAsync(_cts.Token))
+                            while (await reader.ReadAsync(token))
                             {
                                 tempList.Add(new NotatkaModel
                                 {
@@ -1218,6 +1376,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         private async Task LoadZmianyDostawyAsync(string lpDostawa)
         {
+            var token = _detailsCts.Token;
             try
             {
                 if (string.IsNullOrEmpty(lpDostawa))
@@ -1230,13 +1389,13 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
-                    await conn.OpenAsync(_cts.Token);
+                    await conn.OpenAsync(token);
 
                     // Sprawdź czy tabela istnieje
                     using (var checkCmd = new SqlCommand(
                         "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'AuditLog_Dostawy'", conn))
                     {
-                        var exists = (int)await checkCmd.ExecuteScalarAsync(_cts.Token);
+                        var exists = (int)await checkCmd.ExecuteScalarAsync(token);
                         if (exists == 0) return;
                     }
 
@@ -1248,9 +1407,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@lp", lpDostawa);
-                        using (SqlDataReader reader = await cmd.ExecuteReaderAsync(_cts.Token))
+                        using (SqlDataReader reader = await cmd.ExecuteReaderAsync(token))
                         {
-                            while (await reader.ReadAsync(_cts.Token))
+                            while (await reader.ReadAsync(token))
                             {
                                 tempList.Add(new ZmianaDostawyModel
                                 {
@@ -2099,22 +2258,21 @@ namespace Kalendarz1.Zywiec.Kalendarz
             var selected = dgDostawy.SelectedItem as DostawaModel;
             if (selected != null && !selected.IsHeaderRow)
             {
+                // Anuluj poprzednie ładowanie szczegółów
+                _detailsCts.Cancel();
+                _detailsCts.Dispose();
+                _detailsCts = new CancellationTokenSource();
+
                 _selectedLP = selected.LP;
                 _ = LoadDeliveryDetailsAsync(selected.LP);
                 _ = LoadNotatkiAsync(selected.LP);
                 _ = LoadZmianyDostawyAsync(selected.LP);
 
-                // Aktualizuj nazwę hodowcy w sekcjach Notatki, Wstawienia i Dane dostawy (z LP)
+                // Aktualizuj nazwę hodowcy w sekcjach Notatki, Wstawienia i Dane dostawy
                 string lpDostawca = $"{selected.LP} - {selected.Dostawca ?? ""}";
                 txtHodowcaNotatki.Text = lpDostawca;
                 txtHodowcaWstawienia.Text = lpDostawca;
-                txtHodowcaDaneDostawy.Text = lpDostawca;
-
-                // Dzień tygodnia i data w nagłówku
-                var culture = new System.Globalization.CultureInfo("pl-PL");
-                string dzienNazwa = selected.DataOdbioru.ToString("dddd", culture);
-                dzienNazwa = char.ToUpper(dzienNazwa[0]) + dzienNazwa.Substring(1);
-                txtDzienDostawy.Text = $"{dzienNazwa}, {selected.DataOdbioru:dd.MM.yyyy}";
+                txtHodowcaDaneDostawy.Text = selected.Dostawca ?? "";
 
                 if (!string.IsNullOrEmpty(selected.LpW))
                 {
@@ -2140,7 +2298,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
             // Aktualizuj status bar z informacją o zaznaczeniu
             if (_selectedLPs.Count > 1)
             {
-                int totalAuta = dgDostawy.SelectedItems.Cast<DostawaModel>()
+                int totalAuta = dgDostawy.SelectedItems.OfType<DostawaModel>()
                     .Where(d => !d.IsHeaderRow && !d.IsSeparator)
                     .Sum(d => d.Auta);
                 txtStatusBar.Text = $"Zaznaczono: {_selectedLPs.Count} dostaw | Auta: {totalAuta}";
@@ -2271,22 +2429,21 @@ namespace Kalendarz1.Zywiec.Kalendarz
             var selected = dgDostawyNastepny.SelectedItem as DostawaModel;
             if (selected != null && !selected.IsHeaderRow)
             {
+                // Anuluj poprzednie ładowanie szczegółów
+                _detailsCts.Cancel();
+                _detailsCts.Dispose();
+                _detailsCts = new CancellationTokenSource();
+
                 _selectedLP = selected.LP;
                 _ = LoadDeliveryDetailsAsync(selected.LP);
                 _ = LoadNotatkiAsync(selected.LP);
                 _ = LoadZmianyDostawyAsync(selected.LP);
 
-                // Aktualizuj nazwę hodowcy w sekcjach Notatki, Wstawienia i Dane dostawy (z LP)
+                // Aktualizuj nazwę hodowcy w sekcjach Notatki, Wstawienia i Dane dostawy
                 string lpDostawca = $"{selected.LP} - {selected.Dostawca ?? ""}";
                 txtHodowcaNotatki.Text = lpDostawca;
                 txtHodowcaWstawienia.Text = lpDostawca;
-                txtHodowcaDaneDostawy.Text = lpDostawca;
-
-                // Dzień tygodnia i data w nagłówku
-                var culture = new System.Globalization.CultureInfo("pl-PL");
-                string dzienNazwa = selected.DataOdbioru.ToString("dddd", culture);
-                dzienNazwa = char.ToUpper(dzienNazwa[0]) + dzienNazwa.Substring(1);
-                txtDzienDostawy.Text = $"{dzienNazwa}, {selected.DataOdbioru:dd.MM.yyyy}";
+                txtHodowcaDaneDostawy.Text = selected.Dostawca ?? "";
 
                 if (!string.IsNullOrEmpty(selected.LpW))
                 {
@@ -2312,11 +2469,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         private async Task LoadDeliveryDetailsAsync(string lp)
         {
+            var token = _detailsCts.Token;
             try
             {
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
-                    await conn.OpenAsync(_cts.Token);
+                    await conn.OpenAsync(token);
                     string sql = @"SELECT HD.*, HD.KiedyWaga, HD.KiedySztuki, D.Address, D.PostalCode, D.City, D.Distance, D.Phone1, D.Phone2, D.Phone3,
                                    D.Info1, D.Info2, D.Info3, D.Email, D.TypOsobowosci, D.TypOsobowosci2,
                                    O1.Name as KtoStwoName, O2.Name as KtoModName, O3.Name as KtoWagaName, O4.Name as KtoSztukiName
@@ -2331,10 +2489,11 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@lp", lp);
-                        using (SqlDataReader r = await cmd.ExecuteReaderAsync(_cts.Token))
+                        using (SqlDataReader r = await cmd.ExecuteReaderAsync(token))
                         {
-                            if (await r.ReadAsync(_cts.Token))
+                            if (await r.ReadAsync(token))
                             {
+                                token.ThrowIfCancellationRequested();
                                 await Dispatcher.InvokeAsync(() =>
                                 {
                                     // Hodowca
@@ -2344,14 +2503,22 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                     txtMiejscH.Text = r["City"]?.ToString();
                                     txtKmH.Text = r["Distance"]?.ToString();
                                     txtEmail.Text = r["Email"]?.ToString();
-                                    txtTel1.Text = r["Phone1"]?.ToString();
-                                    txtTel2.Text = r["Phone2"]?.ToString();
-                                    txtTel3.Text = r["Phone3"]?.ToString();
+                                    var phone1 = r["Phone1"]?.ToString();
+                                    txtTel1.Text = FormatPhoneNumber(phone1);
+                                    txtTel2.Text = FormatPhoneNumber(r["Phone2"]?.ToString());
+                                    txtTel3.Text = FormatPhoneNumber(r["Phone3"]?.ToString());
                                     txtInfo1.Text = r["Info1"]?.ToString();
                                     txtInfo2.Text = r["Info2"]?.ToString();
                                     txtInfo3.Text = r["Info3"]?.ToString();
                                     cmbOsobowosc1.SelectedItem = r["TypOsobowosci"]?.ToString();
                                     cmbOsobowosc2.SelectedItem = r["TypOsobowosci2"]?.ToString();
+
+                                    // Aktualizuj numer telefonu obok nazwy hodowcy w karcie Dostawa
+                                    var dostawcaName = r["Dostawca"]?.ToString() ?? "";
+                                    if (!string.IsNullOrWhiteSpace(phone1))
+                                        txtHodowcaDaneDostawy.Text = $"{dostawcaName} ({FormatPhoneNumber(phone1)})";
+                                    else
+                                        txtHodowcaDaneDostawy.Text = dostawcaName;
 
                                     // Dostawa
                                     dpData.SelectedDate = r["DataOdbioru"] != DBNull.Value ? Convert.ToDateTime(r["DataOdbioru"]) : (DateTime?)null;
@@ -2366,6 +2533,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                     cmbTypUmowy.SelectedItem = r["TypUmowy"]?.ToString();
                                     txtDodatek.Text = r["Dodatek"]?.ToString();
                                     UpdateObliczoneAuta();
+                                    _ = UpdatePropCenaAsync();
 
                                     chkPotwWaga.IsChecked = r["PotwWaga"] != DBNull.Value && Convert.ToBoolean(r["PotwWaga"]);
                                     chkPotwSztuki.IsChecked = r["PotwSztuki"] != DBNull.Value && Convert.ToBoolean(r["PotwSztuki"]);
@@ -2411,6 +2579,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         private async Task LoadWstawieniaAsync(string lpWstawienia)
         {
+            var token = _detailsCts.Token;
             try
             {
                 if (string.IsNullOrEmpty(lpWstawienia)) return;
@@ -2420,16 +2589,16 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
-                    await conn.OpenAsync(_cts.Token);
+                    await conn.OpenAsync(token);
 
                     // Dane wstawienia
                     string sql = "SELECT * FROM dbo.WstawieniaKurczakow WHERE Lp = @lp";
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@lp", lpWstawienia);
-                        using (SqlDataReader reader = await cmd.ExecuteReaderAsync(_cts.Token))
+                        using (SqlDataReader reader = await cmd.ExecuteReaderAsync(token))
                         {
-                            if (await reader.ReadAsync(_cts.Token))
+                            if (await reader.ReadAsync(token))
                             {
                                 DateTime dataWstaw = Convert.ToDateTime(reader["DataWstawienia"]);
                                 string iloscWst = reader["IloscWstawienia"]?.ToString();
@@ -2451,9 +2620,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@lp", lpWstawienia);
-                        using (SqlDataReader reader = await cmd.ExecuteReaderAsync(_cts.Token))
+                        using (SqlDataReader reader = await cmd.ExecuteReaderAsync(token))
                         {
-                            while (await reader.ReadAsync(_cts.Token))
+                            while (await reader.ReadAsync(token))
                             {
                                 double sztuki = reader["SztukiDek"] != DBNull.Value ? Convert.ToDouble(reader["SztukiDek"]) : 0;
                                 sumaSztuk += sztuki;
@@ -2490,56 +2659,102 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         private async void DgDostawy_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
-            var dg = sender as DataGrid;
-            if (dg == null) return;
-
-            var selectedItem = dg.SelectedItem as DostawaModel;
-            if (selectedItem == null || selectedItem.IsHeaderRow || selectedItem.IsSeparator) return;
-
-            // Sprawdź którą kolumnę kliknięto
-            var point = e.GetPosition(dg);
-            var hitResult = VisualTreeHelper.HitTest(dg, point);
-            if (hitResult == null) return;
-
-            var cell = FindVisualParent<DataGridCell>(hitResult.VisualHit);
-            if (cell == null) return;
-
-            var column = cell.Column;
-            if (column == null) return;
-
-            string columnHeader = column.Header?.ToString() ?? "";
-
-            // Określ z której tabeli pochodzi element
-            bool isFromSecondTable = (dg == dgDostawyNastepny);
-
-            // Obsługa edycji dla konkretnych kolumn (z obsługą emoji w nagłówkach)
-            if (columnHeader == "🚛" || columnHeader.Contains("Auta"))
+            try
             {
-                await EditCellValueAsync(selectedItem.LP, "A", isFromSecondTable, cell);
+                var dg = sender as DataGrid;
+                if (dg == null) return;
+
+                var selectedItem = dg.SelectedItem as DostawaModel;
+                if (selectedItem == null || selectedItem.IsHeaderRow || selectedItem.IsSeparator) return;
+
+                // Sprawdź którą kolumnę kliknięto
+                var point = e.GetPosition(dg);
+                var hitResult = VisualTreeHelper.HitTest(dg, point);
+                if (hitResult == null) return;
+
+                var cell = FindVisualParent<DataGridCell>(hitResult.VisualHit);
+                if (cell == null) return;
+
+                var column = cell.Column;
+                if (column == null) return;
+
+                string columnHeader = column.Header?.ToString() ?? "";
+
+                // Określ z której tabeli pochodzi element
+                bool isFromSecondTable = (dg == dgDostawyNastepny);
+
+                // Zablokuj domyślne zachowanie DataGrid (BeginEdit)
+                e.Handled = true;
+
+                // Obsługa edycji dla konkretnych kolumn (z obsługą emoji w nagłówkach)
+                if (columnHeader == "🚛" || columnHeader.Contains("Auta"))
+                {
+                    await EditCellValueAsync(selectedItem.LP, "A", isFromSecondTable, cell);
+                }
+                else if (columnHeader == "🐔 Szt" || columnHeader.Contains("Szt"))
+                {
+                    await EditCellValueAsync(selectedItem.LP, "Szt", isFromSecondTable, cell);
+                }
+                else if (columnHeader == "⚖️ Waga" || columnHeader.Contains("Waga"))
+                {
+                    await EditCellValueAsync(selectedItem.LP, "Waga", isFromSecondTable, cell);
+                }
+                else if (columnHeader == "📊 Typ" || columnHeader.Contains("Typ"))
+                {
+                    await EditTypCenyAsync(selectedItem, isFromSecondTable, cell);
+                }
+                else if (columnHeader == "💰 Cena" || columnHeader.Contains("Cena"))
+                {
+                    await EditCenaAsync(selectedItem, isFromSecondTable, cell);
+                }
+                else if (columnHeader == "📝 Uwagi" || columnHeader.Contains("Uwagi"))
+                {
+                    await EditNoteAsync(selectedItem.LP, cell);
+                }
             }
-            else if (columnHeader == "🐔 Szt" || columnHeader.Contains("Szt"))
+            catch (Exception ex)
             {
-                await EditCellValueAsync(selectedItem.LP, "Szt", isFromSecondTable, cell);
-            }
-            else if (columnHeader == "⚖️ Waga" || columnHeader.Contains("Waga"))
-            {
-                await EditCellValueAsync(selectedItem.LP, "Waga", isFromSecondTable, cell);
-            }
-            else if (columnHeader == "📊 Typ" || columnHeader.Contains("Typ"))
-            {
-                await EditTypCenyAsync(selectedItem, isFromSecondTable);
-            }
-            else if (columnHeader == "💰 Cena" || columnHeader.Contains("Cena"))
-            {
-                await EditCenaAsync(selectedItem, isFromSecondTable);
-            }
-            else if (columnHeader == "📝 Uwagi" || columnHeader.Contains("Uwagi"))
-            {
-                await EditNoteAsync(selectedItem.LP);
+                ShowToast($"Błąd: {ex.Message}", ToastType.Error);
             }
         }
 
         private Popup _inlineEditPopup;
+
+        /// <summary>
+        /// Globalny handler: kliknięcie gdziekolwiek na oknie gdy popup jest otwarty
+        /// zamyka popup i POCHŁANIA klik (e.Handled=true), więc drag & drop nie wystartuje.
+        /// Popup jest w osobnym HWND, więc klik wewnątrz popup NIE trafia tutaj.
+        /// </summary>
+        private void Window_PreviewMouseDown_PopupGuard(object sender, MouseButtonEventArgs e)
+        {
+            if (_inlineEditPopup != null && _inlineEditPopup.IsOpen)
+            {
+                _inlineEditPopup.IsOpen = false;
+                e.Handled = true;
+            }
+        }
+
+        private void RecalculateDayHeader(ObservableCollection<DostawaModel> collection, DateTime date)
+        {
+            var header = collection.FirstOrDefault(d => d.IsHeaderRow && !d.IsSeparator && d.DataOdbioru.Date == date.Date);
+            if (header == null) return;
+
+            var deliveries = collection.Where(d => !d.IsHeaderRow && !d.IsSeparator && d.DataOdbioru.Date == date.Date).ToList();
+
+            double sumaAuta = 0, sumaSztuki = 0, sumaWagaPomnozona = 0, sumaCenaPomnozona = 0;
+            foreach (var d in deliveries)
+            {
+                sumaAuta += d.Auta;
+                sumaSztuki += d.SztukiDek;
+                sumaWagaPomnozona += (double)d.WagaDek * d.Auta;
+                sumaCenaPomnozona += (double)d.Cena * d.Auta;
+            }
+
+            header.SumaAuta = sumaAuta;
+            header.SumaSztuki = sumaSztuki;
+            header.SredniaWaga = sumaAuta > 0 ? sumaWagaPomnozona / sumaAuta : 0;
+            header.SredniaCena = sumaAuta > 0 ? sumaCenaPomnozona / sumaAuta : 0;
+        }
 
         private async Task EditCellValueAsync(string lp, string columnName, bool isFromSecondTable = false, DataGridCell targetCell = null)
         {
@@ -2575,7 +2790,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
             {
                 PlacementTarget = targetCell ?? (UIElement)this,
                 Placement = targetCell != null ? PlacementMode.Bottom : PlacementMode.Center,
-                StaysOpen = false,
+                StaysOpen = true, // Start true - przełączymy na false po zakończeniu zdarzeń myszy z double-click
                 AllowsTransparency = true,
                 PopupAnimation = PopupAnimation.Fade
             };
@@ -2607,36 +2822,49 @@ namespace Kalendarz1.Zywiec.Kalendarz
             popup.Child = border;
 
             bool saved = false;
+            bool cancelled = false;
 
             async Task SaveValueAsync()
             {
-                if (saved) return;
+                if (saved || cancelled) return;
                 saved = true;
                 string newValue = textBox.Text.Trim().Replace(",", ".");
-                if (newValue == currentValue)
-                {
-                    popup.IsOpen = false;
+                if (newValue == currentValue || string.IsNullOrWhiteSpace(newValue))
                     return;
-                }
                 try
                 {
+                    // Parsuj wartość przed zapisem
+                    object parsedValue;
+                    if (fieldName == "Auta")
+                        parsedValue = int.Parse(newValue);
+                    else if (fieldName == "SztukiDek")
+                        parsedValue = double.Parse(newValue, CultureInfo.InvariantCulture);
+                    else
+                        parsedValue = decimal.Parse(newValue, CultureInfo.InvariantCulture);
+
                     using (SqlConnection conn = new SqlConnection(ConnectionString))
                     {
                         await conn.OpenAsync();
                         string sql = $"UPDATE HarmonogramDostaw SET {fieldName} = @val, DataMod = GETDATE(), KtoMod = @kto WHERE LP = @lp";
                         using (SqlCommand cmd = new SqlCommand(sql, conn))
                         {
-                            if (fieldName == "Auta")
-                                cmd.Parameters.AddWithValue("@val", int.Parse(newValue));
-                            else if (fieldName == "SztukiDek")
-                                cmd.Parameters.AddWithValue("@val", double.Parse(newValue, CultureInfo.InvariantCulture));
-                            else
-                                cmd.Parameters.AddWithValue("@val", decimal.Parse(newValue, CultureInfo.InvariantCulture));
+                            cmd.Parameters.AddWithValue("@val", parsedValue);
                             cmd.Parameters.AddWithValue("@kto", UserID ?? "0");
                             cmd.Parameters.AddWithValue("@lp", lp);
                             await cmd.ExecuteNonQueryAsync();
                         }
                     }
+
+                    // Aktualizuj model w pamięci (PropertyChanged odświeży DataGrid natychmiast)
+                    switch (fieldName)
+                    {
+                        case "Auta": item.Auta = (int)parsedValue; break;
+                        case "SztukiDek": item.SztukiDek = (double)parsedValue; break;
+                        case "WagaDek": item.WagaDek = (decimal)parsedValue; break;
+                    }
+
+                    // Przelicz sumy nagłówka dnia
+                    RecalculateDayHeader(collection, item.DataOdbioru);
 
                     // AUDIT LOG
                     if (_auditService != null)
@@ -2648,33 +2876,54 @@ namespace Kalendarz1.Zywiec.Kalendarz
                             "Waga" => AuditChangeSource.DoubleClick_Waga,
                             _ => AuditChangeSource.DoubleClick_Auta
                         };
-                        await _auditService.LogFieldChangeAsync(
+                        // Fire-and-forget audit - nie blokuj UI
+                        _ = _auditService.LogFieldChangeAsync(
                             "HarmonogramDostaw", lp, source, fieldName,
                             currentValue, newValue,
                             new AuditContextInfo { Dostawca = item.Dostawca, DataOdbioru = item.DataOdbioru },
                             _cts.Token);
                     }
 
-                    popup.IsOpen = false;
                     ShowToast($"{columnName} zaktualizowane", ToastType.Success);
-                    await LoadDostawyAsync();
                 }
                 catch (Exception ex)
                 {
-                    saved = false;
                     ShowToast($"Błąd: {ex.Message}", ToastType.Error);
                 }
             }
 
             textBox.KeyDown += async (s, e) =>
             {
-                if (e.Key == Key.Enter) { e.Handled = true; await SaveValueAsync(); }
-                if (e.Key == Key.Escape) { e.Handled = true; popup.IsOpen = false; }
+                if (e.Key == Key.Enter)
+                {
+                    e.Handled = true;
+                    await SaveValueAsync();
+                    if (popup.IsOpen) popup.IsOpen = false;
+                }
+                if (e.Key == Key.Escape)
+                {
+                    e.Handled = true;
+                    cancelled = true;
+                    popup.IsOpen = false;
+                }
             };
 
-            popup.Closed += async (s, e) =>
+            popup.Closed += (s, e) =>
             {
-                if (!saved) await SaveValueAsync();
+                _inlineEditClosedTime = DateTime.Now;
+                _skipNextDragStart = true;
+                if (!saved && !cancelled)
+                {
+                    string newValue = textBox.Text.Trim().Replace(",", ".");
+                    if (newValue != currentValue && !string.IsNullOrWhiteSpace(newValue))
+                    {
+                        _ = Dispatcher.InvokeAsync(async () =>
+                        {
+                            try { await SaveValueAsync(); }
+                            catch { }
+                        });
+                    }
+                }
             };
 
             popup.IsOpen = true;
@@ -2683,36 +2932,61 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 textBox.SelectAll();
                 textBox.Focus();
             }), DispatcherPriority.Input);
+
         }
 
-        private async Task EditNoteAsync(string lp)
+        private async Task EditNoteAsync(string lp, DataGridCell targetCell = null)
         {
-            // Pokaż dialog edycji notatki
-            var dialog = new Window
+            // Zamknij poprzedni popup jeśli otwarty
+            if (_inlineEditPopup != null && _inlineEditPopup.IsOpen)
+                _inlineEditPopup.IsOpen = false;
+
+            var popup = new Popup
             {
-                Title = "Nowa notatka",
-                Width = 500,
-                Height = 300,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                Owner = this,
-                ResizeMode = ResizeMode.NoResize
+                PlacementTarget = targetCell ?? (UIElement)this,
+                Placement = targetCell != null ? PlacementMode.Bottom : PlacementMode.Center,
+                StaysOpen = true,
+                AllowsTransparency = true,
+                PopupAnimation = PopupAnimation.Fade
+            };
+            _inlineEditPopup = popup;
+
+            var border = new Border
+            {
+                Background = Brushes.White,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(33, 150, 243)),
+                BorderThickness = new Thickness(2),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(4),
+                Effect = new DropShadowEffect { BlurRadius = 8, Opacity = 0.3, ShadowDepth = 2 }
             };
 
-            var stack = new StackPanel { Margin = new Thickness(20) };
-            var textBox = new TextBox { Height = 120, TextWrapping = TextWrapping.Wrap, AcceptsReturn = true, FontSize = 16, Padding = new Thickness(10), Margin = new Thickness(0, 0, 0, 15) };
-
-            var buttonPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-            var btnOk = new Button { Content = "Dodaj", Width = 100, Height = 40, FontSize = 16, Margin = new Thickness(0, 0, 10, 0) };
-            var btnCancel = new Button { Content = "Anuluj", Width = 100, Height = 40, FontSize = 16 };
-
-            btnOk.Click += async (s, e) =>
+            var textBox = new TextBox
             {
+                FontSize = 14,
+                MinWidth = 250,
+                MaxWidth = 400,
+                MinHeight = 60,
+                MaxHeight = 120,
+                TextWrapping = TextWrapping.Wrap,
+                AcceptsReturn = false,
+                Padding = new Thickness(6, 3, 6, 3),
+                BorderThickness = new Thickness(0),
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+            };
+
+            border.Child = textBox;
+            popup.Child = border;
+
+            bool saved = false;
+            bool cancelled = false;
+
+            async Task SaveNoteAsync()
+            {
+                if (saved || cancelled) return;
+                saved = true;
                 string noteText = textBox.Text.Trim();
-                if (string.IsNullOrEmpty(noteText))
-                {
-                    ShowToast("Wpisz treść notatki", ToastType.Warning);
-                    return;
-                }
+                if (string.IsNullOrEmpty(noteText)) return;
 
                 try
                 {
@@ -2729,271 +3003,384 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         }
                     }
 
-                    // AUDIT LOG - logowanie dodania notatki
+                    // Aktualizuj model w pamięci
+                    var noteItem = _dostawy.FirstOrDefault(d => d.LP == lp && !d.IsHeaderRow && !d.IsSeparator)
+                                ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == lp && !d.IsHeaderRow && !d.IsSeparator);
+                    if (noteItem != null)
+                    {
+                        noteItem.Uwagi = noteText;
+                        noteItem.UwagiAutorID = UserID;
+                        noteItem.UwagiAutorName = UserName;
+                        noteItem.DataNotatki = DateTime.Now;
+                    }
+
+                    // Fire-and-forget audit
                     if (_auditService != null)
                     {
-                        await _auditService.LogNoteAddedAsync(lp, noteText, AuditChangeSource.DoubleClick_Uwagi,
+                        _ = _auditService.LogNoteAddedAsync(lp, noteText, AuditChangeSource.DoubleClick_Uwagi,
                             cancellationToken: _cts.Token);
                     }
 
-                    dialog.Close();
                     ShowToast("Notatka dodana", ToastType.Success);
-                    await LoadNotatkiAsync(lp);
-                    await LoadZmianyDostawyAsync(lp);
-                    // Odśwież tabele dostaw
-                    await LoadDostawyAsync();
+
+                    // Odśwież panel notatek w tle
+                    _ = Dispatcher.InvokeAsync(async () =>
+                    {
+                        try
+                        {
+                            await LoadNotatkiAsync(lp);
+                            await LoadZmianyDostawyAsync(lp);
+                        }
+                        catch { }
+                    });
                 }
                 catch (Exception ex)
                 {
                     ShowToast($"Błąd: {ex.Message}", ToastType.Error);
                 }
+            }
+
+            textBox.KeyDown += async (s, e) =>
+            {
+                if (e.Key == Key.Enter)
+                {
+                    e.Handled = true;
+                    await SaveNoteAsync();
+                    if (popup.IsOpen) popup.IsOpen = false;
+                }
+                if (e.Key == Key.Escape)
+                {
+                    e.Handled = true;
+                    cancelled = true;
+                    popup.IsOpen = false;
+                }
             };
 
-            btnCancel.Click += (s, e) => dialog.Close();
+            popup.Closed += (s, e) =>
+            {
+                _inlineEditClosedTime = DateTime.Now;
+                _skipNextDragStart = true;
+                if (!saved && !cancelled)
+                {
+                    string noteText = textBox.Text.Trim();
+                    if (!string.IsNullOrEmpty(noteText))
+                    {
+                        _ = Dispatcher.InvokeAsync(async () =>
+                        {
+                            try { await SaveNoteAsync(); }
+                            catch { }
+                        });
+                    }
+                }
+            };
 
-            buttonPanel.Children.Add(btnOk);
-            buttonPanel.Children.Add(btnCancel);
-            stack.Children.Add(new TextBlock { Text = "Wpisz treść notatki:", FontSize = 16, Margin = new Thickness(0, 0, 0, 10) });
-            stack.Children.Add(textBox);
-            stack.Children.Add(buttonPanel);
-            dialog.Content = stack;
+            popup.IsOpen = true;
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                textBox.Focus();
+            }), DispatcherPriority.Input);
 
-            textBox.Focus();
-            dialog.ShowDialog();
         }
 
-        private async Task EditTypCenyAsync(DostawaModel selectedItem, bool isFromSecondTable)
+        private async Task EditTypCenyAsync(DostawaModel selectedItem, bool isFromSecondTable, DataGridCell targetCell = null)
         {
             if (selectedItem == null || selectedItem.IsHeaderRow) return;
 
-            // Lista typów cen
-            var typyCeny = new[] { "wolnyrynek", "rolnicza", "łączona", "ministerialna" };
+            // Zamknij poprzedni popup jeśli otwarty
+            if (_inlineEditPopup != null && _inlineEditPopup.IsOpen)
+                _inlineEditPopup.IsOpen = false;
 
-            // Pokaż dialog wyboru typu ceny
-            var dialog = new Window
+            var typyCeny = new[] { "wolnyrynek", "rolnicza", "łączona", "ministerialna" };
+            string currentTyp = selectedItem.TypCeny;
+
+            var popup = new Popup
             {
-                Title = "Zmień typ ceny",
-                Width = 450,
-                Height = 300,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                Owner = this,
-                ResizeMode = ResizeMode.NoResize,
-                Background = new SolidColorBrush(Color.FromRgb(250, 250, 250))
+                PlacementTarget = targetCell ?? (UIElement)this,
+                Placement = targetCell != null ? PlacementMode.Bottom : PlacementMode.Center,
+                StaysOpen = true,
+                AllowsTransparency = true,
+                PopupAnimation = PopupAnimation.Fade
+            };
+            _inlineEditPopup = popup;
+
+            var border = new Border
+            {
+                Background = Brushes.White,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(33, 150, 243)),
+                BorderThickness = new Thickness(2),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(4),
+                Effect = new DropShadowEffect { BlurRadius = 8, Opacity = 0.3, ShadowDepth = 2 }
             };
 
-            var mainStack = new StackPanel { Margin = new Thickness(25) };
+            var stack = new StackPanel();
 
-            // Nagłówek
-            mainStack.Children.Add(new TextBlock
-            {
-                Text = $"Dostawa: {selectedItem.Dostawca}",
-                FontWeight = FontWeights.SemiBold,
-                FontSize = 16,
-                Margin = new Thickness(0, 0, 0, 15)
-            });
-
-            // ComboBox z typami cen
             var comboBox = new ComboBox
             {
                 ItemsSource = typyCeny,
                 SelectedItem = selectedItem.TypCeny,
-                FontSize = 18,
-                Padding = new Thickness(12, 10, 12, 10),
-                Margin = new Thickness(0, 0, 0, 20)
-            };
-            mainStack.Children.Add(new TextBlock { Text = "Wybierz typ ceny:", Margin = new Thickness(0, 0, 0, 8), FontSize = 16 });
-            mainStack.Children.Add(comboBox);
-
-            // Checkbox - zmień wszystkie powiązane dostawy
-            var checkBoxAll = new CheckBox
-            {
-                Content = "Zmień wszystkie dostawy z tego wstawienia",
-                FontSize = 14,
-                Margin = new Thickness(0, 0, 0, 20),
-                IsEnabled = !string.IsNullOrEmpty(selectedItem.LpW)
-            };
-            if (string.IsNullOrEmpty(selectedItem.LpW))
-            {
-                checkBoxAll.ToolTip = "Ta dostawa nie ma przypisanego wstawienia";
-            }
-            mainStack.Children.Add(checkBoxAll);
-
-            // Przyciski
-            var buttonPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-            var btnOk = new Button
-            {
-                Content = "Zapisz",
-                Width = 100,
-                Height = 40,
-                FontSize = 16,
-                Margin = new Thickness(0, 0, 10, 0),
-                Background = new SolidColorBrush(Color.FromRgb(37, 99, 235)),
-                Foreground = Brushes.White,
+                FontSize = 15,
+                FontWeight = FontWeights.SemiBold,
+                MinWidth = 160,
+                Padding = new Thickness(6, 3, 6, 3),
                 BorderThickness = new Thickness(0)
             };
-            var btnCancel = new Button
+
+            var checkBoxAll = new CheckBox
             {
-                Content = "Anuluj",
-                Width = 100,
-                Height = 40,
-                FontSize = 16
+                Content = "Wszystkie z wstawienia",
+                FontSize = 11,
+                Margin = new Thickness(4, 4, 4, 2),
+                IsEnabled = !string.IsNullOrEmpty(selectedItem.LpW),
+                Visibility = !string.IsNullOrEmpty(selectedItem.LpW) ? Visibility.Visible : Visibility.Collapsed
             };
 
-            btnOk.Click += async (s, e) =>
+            stack.Children.Add(comboBox);
+            stack.Children.Add(checkBoxAll);
+            border.Child = stack;
+            popup.Child = border;
+
+            bool saved = false;
+            bool cancelled = false;
+
+            async Task SaveTypCenyAsync()
             {
+                if (saved || cancelled) return;
+                saved = true;
                 string newTypCeny = comboBox.SelectedItem?.ToString();
-                if (string.IsNullOrEmpty(newTypCeny) || newTypCeny == selectedItem.TypCeny)
-                {
-                    dialog.Close();
-                    return;
-                }
+                if (string.IsNullOrEmpty(newTypCeny) || newTypCeny == currentTyp) return;
 
                 bool changeAll = checkBoxAll.IsChecked == true && !string.IsNullOrEmpty(selectedItem.LpW);
 
-                // Potwierdzenie
-                string message = changeAll
-                    ? $"Czy zmienić typ ceny na \"{newTypCeny}\" dla WSZYSTKICH dostaw z wstawienia {selectedItem.LpW}?"
-                    : $"Czy zmienić typ ceny na \"{newTypCeny}\" dla tej dostawy?";
-
-                if (MessageBox.Show(message, "Potwierdzenie zmiany typu ceny",
-                    MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                try
                 {
-                    try
+                    using (SqlConnection conn = new SqlConnection(ConnectionString))
                     {
-                        using (SqlConnection conn = new SqlConnection(ConnectionString))
+                        await conn.OpenAsync();
+                        if (changeAll)
                         {
-                            await conn.OpenAsync();
-
-                            string sql;
-                            if (changeAll)
+                            string sql = "UPDATE HarmonogramDostaw SET TypCeny = @typCeny, DataMod = GETDATE(), KtoMod = @kto WHERE LpW = @lpW";
+                            using (SqlCommand cmd = new SqlCommand(sql, conn))
                             {
-                                // Zmień dla wszystkich dostaw z tego samego wstawienia
-                                sql = "UPDATE HarmonogramDostaw SET TypCeny = @typCeny, DataMod = GETDATE(), KtoMod = @kto WHERE LpW = @lpW";
-                                using (SqlCommand cmd = new SqlCommand(sql, conn))
-                                {
-                                    cmd.Parameters.AddWithValue("@typCeny", newTypCeny);
-                                    cmd.Parameters.AddWithValue("@kto", UserID ?? "0");
-                                    cmd.Parameters.AddWithValue("@lpW", selectedItem.LpW);
-                                    int affected = await cmd.ExecuteNonQueryAsync();
-                                    ShowToast($"Zmieniono typ ceny dla {affected} dostaw", ToastType.Success);
-                                }
-                            }
-                            else
-                            {
-                                // Zmień tylko dla tej dostawy
-                                sql = "UPDATE HarmonogramDostaw SET TypCeny = @typCeny, DataMod = GETDATE(), KtoMod = @kto WHERE LP = @lp";
-                                using (SqlCommand cmd = new SqlCommand(sql, conn))
-                                {
-                                    cmd.Parameters.AddWithValue("@typCeny", newTypCeny);
-                                    cmd.Parameters.AddWithValue("@kto", UserID ?? "0");
-                                    cmd.Parameters.AddWithValue("@lp", selectedItem.LP);
-                                    await cmd.ExecuteNonQueryAsync();
-                                    ShowToast("Typ ceny zmieniony", ToastType.Success);
-                                }
+                                cmd.Parameters.AddWithValue("@typCeny", newTypCeny);
+                                cmd.Parameters.AddWithValue("@kto", UserID ?? "0");
+                                cmd.Parameters.AddWithValue("@lpW", selectedItem.LpW);
+                                int affected = await cmd.ExecuteNonQueryAsync();
+                                ShowToast($"Zmieniono typ ceny dla {affected} dostaw", ToastType.Success);
                             }
                         }
-
-                        dialog.Close();
-                        // Odśwież tabele dostaw
-                        await LoadDostawyAsync();
+                        else
+                        {
+                            string sql = "UPDATE HarmonogramDostaw SET TypCeny = @typCeny, DataMod = GETDATE(), KtoMod = @kto WHERE LP = @lp";
+                            using (SqlCommand cmd = new SqlCommand(sql, conn))
+                            {
+                                cmd.Parameters.AddWithValue("@typCeny", newTypCeny);
+                                cmd.Parameters.AddWithValue("@kto", UserID ?? "0");
+                                cmd.Parameters.AddWithValue("@lp", selectedItem.LP);
+                                await cmd.ExecuteNonQueryAsync();
+                                ShowToast("Typ ceny zmieniony", ToastType.Success);
+                            }
+                        }
                     }
-                    catch (Exception ex)
+
+                    // Aktualizuj model(e) w pamięci
+                    if (changeAll && !string.IsNullOrEmpty(selectedItem.LpW))
                     {
-                        ShowToast($"Błąd: {ex.Message}", ToastType.Error);
+                        foreach (var d in _dostawy.Where(x => x.LpW == selectedItem.LpW && !x.IsHeaderRow && !x.IsSeparator))
+                            d.TypCeny = newTypCeny;
+                        foreach (var d in _dostawyNastepnyTydzien.Where(x => x.LpW == selectedItem.LpW && !x.IsHeaderRow && !x.IsSeparator))
+                            d.TypCeny = newTypCeny;
+                    }
+                    else
+                    {
+                        selectedItem.TypCeny = newTypCeny;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ShowToast($"Błąd: {ex.Message}", ToastType.Error);
+                }
+            }
+
+            comboBox.KeyDown += async (s, e) =>
+            {
+                if (e.Key == Key.Enter)
+                {
+                    e.Handled = true;
+                    await SaveTypCenyAsync();
+                    if (popup.IsOpen) popup.IsOpen = false;
+                }
+                if (e.Key == Key.Escape)
+                {
+                    e.Handled = true;
+                    cancelled = true;
+                    popup.IsOpen = false;
+                }
+            };
+
+            popup.Closed += (s, e) =>
+            {
+                _inlineEditClosedTime = DateTime.Now;
+                _skipNextDragStart = true;
+                if (!saved && !cancelled)
+                {
+                    string newTypCeny = comboBox.SelectedItem?.ToString();
+                    if (!string.IsNullOrEmpty(newTypCeny) && newTypCeny != currentTyp)
+                    {
+                        _ = Dispatcher.InvokeAsync(async () =>
+                        {
+                            try { await SaveTypCenyAsync(); }
+                            catch { }
+                        });
                     }
                 }
             };
 
-            btnCancel.Click += (s, e) => dialog.Close();
+            popup.IsOpen = true;
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                comboBox.Focus();
+                comboBox.IsDropDownOpen = true;
+            }), DispatcherPriority.Input);
 
-            buttonPanel.Children.Add(btnOk);
-            buttonPanel.Children.Add(btnCancel);
-            mainStack.Children.Add(buttonPanel);
-
-            dialog.Content = mainStack;
-            dialog.ShowDialog();
         }
 
-        private async Task EditCenaAsync(DostawaModel selectedItem, bool isFromSecondTable)
+        private async Task EditCenaAsync(DostawaModel selectedItem, bool isFromSecondTable, DataGridCell targetCell = null)
         {
             if (selectedItem == null || selectedItem.IsHeaderRow) return;
 
+            // Zamknij poprzedni popup jeśli otwarty
+            if (_inlineEditPopup != null && _inlineEditPopup.IsOpen)
+                _inlineEditPopup.IsOpen = false;
+
             string currentValue = selectedItem.Cena.ToString("0.00").Replace(",", ".");
 
-            // Pokaż dialog edycji ceny
-            var dialog = new Window
+            var popup = new Popup
             {
-                Title = "Edycja ceny",
-                Width = 400,
-                Height = 200,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                Owner = this,
-                ResizeMode = ResizeMode.NoResize
+                PlacementTarget = targetCell ?? (UIElement)this,
+                Placement = targetCell != null ? PlacementMode.Bottom : PlacementMode.Center,
+                StaysOpen = true,
+                AllowsTransparency = true,
+                PopupAnimation = PopupAnimation.Fade
+            };
+            _inlineEditPopup = popup;
+
+            var border = new Border
+            {
+                Background = Brushes.White,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(33, 150, 243)),
+                BorderThickness = new Thickness(2),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(2),
+                Effect = new DropShadowEffect { BlurRadius = 8, Opacity = 0.3, ShadowDepth = 2 }
             };
 
-            var stack = new StackPanel { Margin = new Thickness(20) };
-            var textBox = new TextBox { Text = currentValue, FontSize = 24, Padding = new Thickness(10), Margin = new Thickness(0, 0, 0, 15) };
-            textBox.SelectAll();
-
-            var buttonPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-            var btnOk = new Button { Content = "OK", Width = 100, Height = 40, FontSize = 16, Margin = new Thickness(0, 0, 10, 0) };
-            var btnCancel = new Button { Content = "Anuluj", Width = 100, Height = 40, FontSize = 16 };
-
-            btnOk.Click += async (s, e) =>
+            var textBox = new TextBox
             {
+                Text = currentValue,
+                FontSize = 15,
+                FontWeight = FontWeights.SemiBold,
+                MinWidth = 80,
+                Padding = new Thickness(6, 3, 6, 3),
+                BorderThickness = new Thickness(0),
+                VerticalContentAlignment = VerticalAlignment.Center,
+                HorizontalContentAlignment = HorizontalAlignment.Right
+            };
+
+            border.Child = textBox;
+            popup.Child = border;
+
+            bool saved = false;
+            bool cancelled = false;
+
+            async Task SaveCenaAsync()
+            {
+                if (saved || cancelled) return;
+                saved = true;
                 string newValue = textBox.Text.Trim().Replace(",", ".");
+                if (newValue == currentValue || string.IsNullOrWhiteSpace(newValue)) return;
+
                 try
                 {
+                    decimal parsedCena = decimal.Parse(newValue, CultureInfo.InvariantCulture);
+
                     using (SqlConnection conn = new SqlConnection(ConnectionString))
                     {
                         await conn.OpenAsync();
                         string sql = "UPDATE HarmonogramDostaw SET Cena = @val, DataMod = GETDATE(), KtoMod = @kto WHERE LP = @lp";
                         using (SqlCommand cmd = new SqlCommand(sql, conn))
                         {
-                            cmd.Parameters.AddWithValue("@val", decimal.Parse(newValue, CultureInfo.InvariantCulture));
+                            cmd.Parameters.AddWithValue("@val", parsedCena);
                             cmd.Parameters.AddWithValue("@kto", UserID ?? "0");
                             cmd.Parameters.AddWithValue("@lp", selectedItem.LP);
                             await cmd.ExecuteNonQueryAsync();
                         }
                     }
 
-                    // AUDIT LOG - logowanie zmiany ceny
+                    // Aktualizuj model w pamięci
+                    selectedItem.Cena = parsedCena;
+                    var cenaCollection = _dostawy.Contains(selectedItem) ? _dostawy : _dostawyNastepnyTydzien;
+                    RecalculateDayHeader(cenaCollection, selectedItem.DataOdbioru);
+
+                    // Fire-and-forget audit
                     if (_auditService != null)
                     {
-                        await _auditService.LogFieldChangeAsync(
+                        _ = _auditService.LogFieldChangeAsync(
                             "HarmonogramDostaw", selectedItem.LP, AuditChangeSource.DoubleClick_Cena, "Cena",
                             currentValue, newValue,
                             new AuditContextInfo { Dostawca = selectedItem.Dostawca, DataOdbioru = selectedItem.DataOdbioru },
                             _cts.Token);
                     }
 
-                    dialog.Close();
                     ShowToast("Cena zaktualizowana", ToastType.Success);
-                    await LoadDostawyAsync();
                 }
                 catch (Exception ex)
                 {
                     ShowToast($"Błąd: {ex.Message}", ToastType.Error);
                 }
-            };
+            }
 
-            btnCancel.Click += (s, e) => dialog.Close();
-
-            textBox.KeyDown += (s, e) =>
+            textBox.KeyDown += async (s, e) =>
             {
-                if (e.Key == Key.Enter) btnOk.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                if (e.Key == Key.Escape) dialog.Close();
+                if (e.Key == Key.Enter)
+                {
+                    e.Handled = true;
+                    await SaveCenaAsync();
+                    if (popup.IsOpen) popup.IsOpen = false;
+                }
+                if (e.Key == Key.Escape)
+                {
+                    e.Handled = true;
+                    cancelled = true;
+                    popup.IsOpen = false;
+                }
             };
 
-            buttonPanel.Children.Add(btnOk);
-            buttonPanel.Children.Add(btnCancel);
-            stack.Children.Add(new TextBlock { Text = "Podaj nową wartość dla Cena:", FontSize = 16, Margin = new Thickness(0, 0, 0, 10) });
-            stack.Children.Add(textBox);
-            stack.Children.Add(buttonPanel);
-            dialog.Content = stack;
+            popup.Closed += (s, e) =>
+            {
+                _inlineEditClosedTime = DateTime.Now;
+                _skipNextDragStart = true;
+                if (!saved && !cancelled)
+                {
+                    string newValue = textBox.Text.Trim().Replace(",", ".");
+                    if (newValue != currentValue && !string.IsNullOrWhiteSpace(newValue))
+                    {
+                        _ = Dispatcher.InvokeAsync(async () =>
+                        {
+                            try { await SaveCenaAsync(); }
+                            catch { }
+                        });
+                    }
+                }
+            };
 
-            textBox.Focus();
-            dialog.ShowDialog();
+            popup.IsOpen = true;
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                textBox.SelectAll();
+                textBox.Focus();
+            }), DispatcherPriority.Input);
+
         }
 
         private void DgWstawienia_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
@@ -3284,14 +3671,22 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                 txtMiejscH.Text = r["City"]?.ToString();
                                 txtKmH.Text = r["Distance"]?.ToString();
                                 txtEmail.Text = r["Email"]?.ToString();
-                                txtTel1.Text = r["Phone1"]?.ToString();
-                                txtTel2.Text = r["Phone2"]?.ToString();
-                                txtTel3.Text = r["Phone3"]?.ToString();
+                                var phone1Sync = r["Phone1"]?.ToString();
+                                txtTel1.Text = FormatPhoneNumber(phone1Sync);
+                                txtTel2.Text = FormatPhoneNumber(r["Phone2"]?.ToString());
+                                txtTel3.Text = FormatPhoneNumber(r["Phone3"]?.ToString());
                                 txtInfo1.Text = r["Info1"]?.ToString();
                                 txtInfo2.Text = r["Info2"]?.ToString();
                                 txtInfo3.Text = r["Info3"]?.ToString();
                                 cmbOsobowosc1.SelectedItem = r["TypOsobowosci"]?.ToString();
                                 cmbOsobowosc2.SelectedItem = r["TypOsobowosci2"]?.ToString();
+
+                                // Aktualizuj numer telefonu obok nazwy hodowcy w karcie Dostawa
+                                var dostawcaNameSync = r["Dostawca"]?.ToString() ?? "";
+                                if (!string.IsNullOrWhiteSpace(phone1Sync))
+                                    txtHodowcaDaneDostawy.Text = $"{dostawcaNameSync} ({FormatPhoneNumber(phone1Sync)})";
+                                else
+                                    txtHodowcaDaneDostawy.Text = dostawcaNameSync;
 
                                 // Dostawa
                                 dpData.SelectedDate = r["DataOdbioru"] != DBNull.Value ? Convert.ToDateTime(r["DataOdbioru"]) : (DateTime?)null;
@@ -3306,6 +3701,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                 cmbTypUmowy.SelectedItem = r["TypUmowy"]?.ToString();
                                 txtDodatek.Text = r["Dodatek"]?.ToString();
                                 UpdateObliczoneAuta();
+                                _ = UpdatePropCenaAsync();
 
                                 chkPotwWaga.IsChecked = r["PotwWaga"] != DBNull.Value && Convert.ToBoolean(r["PotwWaga"]);
                                 chkPotwSztuki.IsChecked = r["PotwSztuki"] != DBNull.Value && Convert.ToBoolean(r["PotwSztuki"]);
@@ -5095,12 +5491,11 @@ namespace Kalendarz1.Zywiec.Kalendarz
             try
             {
                 var historiaWindow = new HistoriaZmianWindow(ConnectionString, UserID);
-                historiaWindow.Owner = this;
-                historiaWindow.Show();
+                historiaWindow.ShowDialog();
             }
             catch (Exception ex)
             {
-                ShowToast($"Błąd: {ex.Message}", ToastType.Error);
+                MessageBox.Show($"Błąd otwarcia historii zmian:\n{ex.Message}\n\n{ex.StackTrace}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -5229,6 +5624,62 @@ namespace Kalendarz1.Zywiec.Kalendarz
         {
             // Formatowanie kolorów usunięte na życzenie użytkownika
             // ComboBox zachowuje domyślny wygląd
+        }
+
+        private string FormatPhoneNumber(string phone)
+        {
+            if (string.IsNullOrWhiteSpace(phone)) return phone;
+            var digits = new string(phone.Where(char.IsDigit).ToArray());
+            if (digits.Length == 9)
+                return $"{digits.Substring(0, 3)} {digits.Substring(3, 3)} {digits.Substring(6, 3)}";
+            return phone;
+        }
+
+        private async void BtnZapiszHodowce_Click(object sender, RoutedEventArgs e)
+        {
+            string hodowca = cmbDostawca.SelectedItem?.ToString();
+            if (string.IsNullOrEmpty(hodowca))
+            {
+                ShowToast("Wybierz hodowcę", ToastType.Warning);
+                return;
+            }
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync(_cts.Token);
+                    string sql = @"UPDATE Dostawcy SET
+                                   Address = @Address, PostalCode = @PostalCode, City = @City,
+                                   Distance = @Distance, Email = @Email,
+                                   Phone1 = @Phone1, Phone2 = @Phone2, Phone3 = @Phone3,
+                                   TypOsobowosci = @TypOsobowosci, TypOsobowosci2 = @TypOsobowosci2
+                                   WHERE Name = @Name";
+
+                    using (SqlCommand cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Address", (object)txtUlicaH.Text ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@PostalCode", (object)txtKodPocztowyH.Text ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@City", (object)txtMiejscH.Text ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@Distance", int.TryParse(txtKmH.Text, out int km) ? km : (object)DBNull.Value);
+                        cmd.Parameters.AddWithValue("@Email", (object)txtEmail.Text ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@Phone1", (object)txtTel1.Text ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@Phone2", (object)txtTel2.Text ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@Phone3", (object)txtTel3.Text ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@TypOsobowosci", cmbOsobowosc1.SelectedItem ?? (object)DBNull.Value);
+                        cmd.Parameters.AddWithValue("@TypOsobowosci2", cmbOsobowosc2.SelectedItem ?? (object)DBNull.Value);
+                        cmd.Parameters.AddWithValue("@Name", hodowca);
+
+                        await cmd.ExecuteNonQueryAsync(_cts.Token);
+                    }
+                }
+
+                ShowToast("Dane hodowcy zapisane", ToastType.Success);
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd zapisu hodowcy: {ex.Message}", ToastType.Error);
+            }
         }
 
         private void BtnMapa_Click(object sender, RoutedEventArgs e)
@@ -5699,9 +6150,19 @@ namespace Kalendarz1.Zywiec.Kalendarz
         {
             // Ignoruj jeśli menu kontekstowe jest otwarte lub było niedawno zamknięte
             if (_isContextMenuOpen || (DateTime.Now - _contextMenuClosedTime).TotalMilliseconds < CONTEXT_MENU_DRAG_BLOCK_MS)
+                return;
+
+            // Ignoruj jeśli inline edit popup jest otwarty
+            if (_inlineEditPopup != null && _inlineEditPopup.IsOpen)
+                return;
+
+            // Pochłoń kliknięcie które zamknęło popup (nie startuj draga)
+            if (_skipNextDragStart)
             {
+                _skipNextDragStart = false;
                 return;
             }
+
             _dragStartPoint = e.GetPosition(null);
         }
 
@@ -5726,9 +6187,13 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
             // Ignoruj jeśli menu kontekstowe jest otwarte lub było niedawno zamknięte
             if (_isContextMenuOpen || (DateTime.Now - _contextMenuClosedTime).TotalMilliseconds < CONTEXT_MENU_DRAG_BLOCK_MS)
-            {
                 return;
-            }
+
+            // Ignoruj jeśli inline edit popup jest otwarty lub niedawno zamknięty
+            if (_inlineEditPopup != null && _inlineEditPopup.IsOpen)
+                return;
+            if (_skipNextDragStart)
+                return;
 
             var dg = sender as DataGrid;
             if (dg == null) return;
@@ -6703,17 +7168,30 @@ namespace Kalendarz1.Zywiec.Kalendarz
         public string LP { get; set; }
         public DateTime DataOdbioru { get; set; }
         public string Dostawca { get; set; }
-        public int Auta { get; set; }
-        public double SztukiDek { get; set; }
-        public decimal WagaDek { get; set; }
+
+        private int _auta;
+        public int Auta { get => _auta; set { _auta = value; OnPropertyChanged(); OnPropertyChanged(nameof(AutaDisplay)); } }
+
+        private double _sztukiDek;
+        public double SztukiDek { get => _sztukiDek; set { _sztukiDek = value; OnPropertyChanged(); OnPropertyChanged(nameof(SztukiDekDisplay)); } }
+
+        private decimal _wagaDek;
+        public decimal WagaDek { get => _wagaDek; set { _wagaDek = value; OnPropertyChanged(); OnPropertyChanged(nameof(WagaDekDisplay)); } }
+
         public string Bufor { get; set; }
-        public string TypCeny { get; set; }
-        public decimal Cena { get; set; }
+
+        private string _typCeny;
+        public string TypCeny { get => _typCeny; set { _typCeny = value; OnPropertyChanged(); OnPropertyChanged(nameof(TypCenyDisplay)); } }
+
+        private decimal _cena;
+        public decimal Cena { get => _cena; set { _cena = value; OnPropertyChanged(); OnPropertyChanged(nameof(CenaDisplay)); } }
         public int Distance { get; set; }
-        public string Uwagi { get; set; }
+        private string _uwagi;
+        public string Uwagi { get => _uwagi; set { _uwagi = value; OnPropertyChanged(); OnPropertyChanged(nameof(UwagiDisplay)); } }
         public string UwagiAutorID { get; set; }
         public string UwagiAutorName { get; set; }
-        public DateTime? DataNotatki { get; set; }
+        private DateTime? _dataNotatki;
+        public DateTime? DataNotatki { get => _dataNotatki; set { _dataNotatki = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsVeryRecentNote)); OnPropertyChanged(nameof(IsRecentNote)); } }
         public int? RoznicaDni { get; set; }
         public string LpW { get; set; }
         public bool PotwWaga { get; set; }
@@ -6731,10 +7209,18 @@ namespace Kalendarz1.Zywiec.Kalendarz
         public bool IsEmptyDay { get; set; }
 
         // Pola dla sum i średnich w nagłówku dnia
-        public double SumaAuta { get; set; }
-        public double SumaSztuki { get; set; }
-        public double SredniaWaga { get; set; }
-        public double SredniaCena { get; set; }
+        private double _sumaAuta;
+        public double SumaAuta { get => _sumaAuta; set { _sumaAuta = value; OnPropertyChanged(); OnPropertyChanged(nameof(AutaDisplay)); } }
+
+        private double _sumaSztuki;
+        public double SumaSztuki { get => _sumaSztuki; set { _sumaSztuki = value; OnPropertyChanged(); OnPropertyChanged(nameof(SztukiDekDisplay)); } }
+
+        private double _sredniaWaga;
+        public double SredniaWaga { get => _sredniaWaga; set { _sredniaWaga = value; OnPropertyChanged(); OnPropertyChanged(nameof(WagaDekDisplay)); } }
+
+        private double _sredniaCena;
+        public double SredniaCena { get => _sredniaCena; set { _sredniaCena = value; OnPropertyChanged(); OnPropertyChanged(nameof(CenaDisplay)); } }
+
         public double SredniaKM { get; set; }
         public double SredniaDoby { get; set; }
         public int SumaUbytek { get; set; }

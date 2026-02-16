@@ -452,6 +452,16 @@ namespace Kalendarz1
         private bool _strefaKolumnaIstnieje = false;
         private bool _isInitialized = false;
 
+        // ====== Podsumowanie dnia (bez filtra produktu) ======
+        private int _sumAllZamowien;
+        private int _sumAllWydanBezZam;
+        private decimal _sumAllKgZamowiono;
+        private decimal _sumAllKgWydano;
+        private int _sumAllPojemnikow;
+        private decimal _sumAllPalet;
+        private Dictionary<string, (int zZam, int bezZam, decimal kgZam, decimal kgWyd)> _sumAllHandlowiecStat = new();
+        private List<int> _allZamowieniaIdsForDay = new(); // Wszystkie ID zamówień dnia (bez filtra produktu)
+
         // ====== Dane i Cache ======
         private readonly DataTable _dtZamowienia = new();
         private readonly BindingSource _bsZamowienia = new();
@@ -1156,7 +1166,20 @@ namespace Kalendarz1
         {
             if (sender == cbFiltrujTowar)
             {
-                await OdswiezWszystkieDaneAsync();
+                // Filtr produktu zmienia TYLKO tabelę zamówień (lewą stronę).
+                // Podsumowanie dnia (dgvAgregacja + lblPodsumowanie) NIE zmienia się.
+                try
+                {
+                    await WczytajZamowieniaDlaDniaAsync(_selectedDate);
+                    if (_aktualneIdZamowienia.HasValue && _aktualneIdZamowienia.Value > 0)
+                        await WyswietlSzczegolyZamowieniaAsync(_aktualneIdZamowienia.Value);
+                    else
+                        WyczyscSzczegoly();
+                }
+                catch (Exception ex)
+                {
+                    ShowError($"Błąd podczas filtrowania: {ex.Message}", "Błąd");
+                }
                 return;
             }
 
@@ -1801,6 +1824,9 @@ namespace Kalendarz1
             foreach (var row in wydaniaBezZamowien.OrderByDescending(r => (decimal)r["IloscFaktyczna"]))
                 _dtZamowienia.Rows.Add(row.ItemArray);
 
+            // === Podsumowanie dnia BEZ filtra produktu ===
+            await ComputeUnfilteredSummaryAsync(dzien, kontrahenci, wydaniaPerKhidIdtw, klienciZamowien);
+
             _bsZamowienia.DataSource = _dtZamowienia;
             dgvZamowienia.DataSource = _bsZamowienia;
             _bsZamowienia.Sort = "Handlowiec ASC, IloscZamowiona DESC";
@@ -2308,148 +2334,188 @@ namespace Kalendarz1
 
         private async Task WyswietlAgregacjeProduktowAsync(DateTime dzien)
         {
-            var dtAg = new DataTable();
-            dtAg.Columns.Add("Produkt", typeof(string));
-            dtAg.Columns.Add("PlanowanyPrzychód", typeof(decimal));
-            dtAg.Columns.Add("FaktycznyPrzychód", typeof(decimal));
-            dtAg.Columns.Add("Zamówienia", typeof(decimal));
-            dtAg.Columns.Add("Bilans", typeof(decimal));
-
-            var (planPrzychodu, faktPrzychodu) = await PrognozaIFaktPrzychoduPerProduktAsync(dzien);
-
-            var sumaZamowien = new Dictionary<int, decimal>();
-            var zamowieniaIds = _dtZamowienia.AsEnumerable()
-                .Where(r => !string.Equals(r.Field<string>("Status"), "Anulowane", StringComparison.OrdinalIgnoreCase))
-                .Select(r => r.Field<int>("Id"))
-                .Where(id => id > 0)
-                .ToList();
-
-            if (zamowieniaIds.Any())
+            try
             {
-                await using var cn = new SqlConnection(_connLibra);
-                await cn.OpenAsync();
-                var sql = $"SELECT KodTowaru, SUM(Ilosc) FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId IN ({string.Join(",", zamowieniaIds)}) GROUP BY KodTowaru";
-                using var cmd = new SqlCommand(sql, cn);
-                using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                    sumaZamowien[reader.GetInt32(0)] = ReadDecimal(reader, 1);
-            }
+                var dtAg = new DataTable();
+                dtAg.Columns.Add("Produkt", typeof(string));
+                dtAg.Columns.Add("PlanowanyPrzychód", typeof(decimal));
+                dtAg.Columns.Add("FaktycznyPrzychód", typeof(decimal));
+                dtAg.Columns.Add("Zamówienia", typeof(decimal));
+                dtAg.Columns.Add("Do sprzedania", typeof(decimal));
+                dtAg.Columns.Add("Nadmiar", typeof(decimal));
 
-            // Agregacja z uwzględnieniem scalania towarów
-            // Słownik: nazwa produktu (lub grupa) -> (plan, fakt, zam)
-            var agregowane = new Dictionary<string, (decimal plan, decimal fakt, decimal zam)>(StringComparer.OrdinalIgnoreCase);
-            var towaryWGrupach = new HashSet<int>(); // idtw towarów już scalonych
+                var (planPrzychodu, faktPrzychodu) = await PrognozaIFaktPrzychoduPerProduktAsync(dzien);
 
-            // Najpierw zbierz towary w grupach scalania
-            foreach (var towar in _twKatalogCache)
-            {
-                if (_mapowanieScalowania.TryGetValue(towar.Key, out var nazwaGrupy))
+                // Bezpośrednie zapytanie — ZAWSZE pełne dane dnia, niezależnie od filtra produktu
+                var sumaZamowien = new Dictionary<int, decimal>();
                 {
-                    towaryWGrupach.Add(towar.Key);
+                    await using var cn = new SqlConnection(_connLibra);
+                    await cn.OpenAsync();
+                    string dataKol = (_pokazujPoDatachUboju && _dataUbojuKolumnaIstnieje) ? "zm.DataUboju" : "zm.DataZamowienia";
+                    var sql = $@"SELECT zmt.KodTowaru, SUM(zmt.Ilosc)
+                                 FROM [dbo].[ZamowieniaMiesoTowar] zmt
+                                 JOIN [dbo].[ZamowieniaMieso] zm ON zmt.ZamowienieId = zm.Id
+                                 WHERE {dataKol} = @Dzien AND zm.Status <> 'Anulowane'
+                                 GROUP BY zmt.KodTowaru";
+                    await using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@Dzien", dzien.Date);
+                    await using var reader = await cmd.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
+                        sumaZamowien[reader.GetInt32(0)] = ReadDecimal(reader, 1);
+                }
 
+                // Agregacja z uwzględnieniem scalania towarów
+                var agregowane = new Dictionary<string, (decimal plan, decimal fakt, decimal zam)>(StringComparer.OrdinalIgnoreCase);
+                var towaryWGrupach = new HashSet<int>();
+
+                foreach (var towar in _twKatalogCache)
+                {
+                    if (_mapowanieScalowania.TryGetValue(towar.Key, out var nazwaGrupy))
+                    {
+                        towaryWGrupach.Add(towar.Key);
+                        var plan = planPrzychodu.TryGetValue(towar.Key, out var p) ? p : 0m;
+                        var fakt = faktPrzychodu.TryGetValue(towar.Key, out var f) ? f : 0m;
+                        var zam = sumaZamowien.TryGetValue(towar.Key, out var z) ? z : 0m;
+
+                        if (agregowane.ContainsKey(nazwaGrupy))
+                        {
+                            var existing = agregowane[nazwaGrupy];
+                            agregowane[nazwaGrupy] = (existing.plan + plan, existing.fakt + fakt, existing.zam + zam);
+                        }
+                        else
+                        {
+                            agregowane[nazwaGrupy] = (plan, fakt, zam);
+                        }
+                    }
+                }
+
+                foreach (var towar in _twKatalogCache.OrderBy(kvp => kvp.Value))
+                {
+                    if (towaryWGrupach.Contains(towar.Key)) continue;
+                    var kod = towar.Value;
+                    if (IsKurczakB(kod)) continue;
                     var plan = planPrzychodu.TryGetValue(towar.Key, out var p) ? p : 0m;
                     var fakt = faktPrzychodu.TryGetValue(towar.Key, out var f) ? f : 0m;
                     var zam = sumaZamowien.TryGetValue(towar.Key, out var z) ? z : 0m;
+                    agregowane[kod] = (plan, fakt, zam);
+                }
 
-                    if (agregowane.ContainsKey(nazwaGrupy))
+                foreach (var kv in agregowane.OrderBy(x => x.Key))
+                {
+                    var bilans = kv.Value.fakt - kv.Value.zam;
+                    var doSprzedania = bilans > 0 ? bilans : 0m;
+                    var nadmiar = bilans < 0 ? Math.Abs(bilans) : 0m;
+                    dtAg.Rows.Add(kv.Key, kv.Value.plan, kv.Value.fakt, kv.Value.zam, doSprzedania, nadmiar);
+                }
+
+                dgvAgregacja.DataSource = dtAg;
+
+                if (dgvAgregacja.Columns["Zamówienia"] != null)
+                    dgvAgregacja.Sort(dgvAgregacja.Columns["Zamówienia"], System.ComponentModel.ListSortDirection.Descending);
+
+                foreach (DataGridViewColumn col in dgvAgregacja.Columns)
+                {
+                    if (col.Name != "Produkt")
+                        col.DefaultCellStyle.Format = "N0";
+                }
+
+                if (dgvAgregacja.Columns["PlanowanyPrzychód"] != null)
+                    dgvAgregacja.Columns["PlanowanyPrzychód"].HeaderText = "Plan przychód";
+                if (dgvAgregacja.Columns["FaktycznyPrzychód"] != null)
+                    dgvAgregacja.Columns["FaktycznyPrzychód"].HeaderText = "Fakt przychód";
+
+                // Kolorowanie kolumn Do sprzedania (zielony) i Nadmiar (czerwony)
+                if (dgvAgregacja.Columns["Do sprzedania"] != null)
+                    dgvAgregacja.Columns["Do sprzedania"].DefaultCellStyle.ForeColor = Color.FromArgb(0, 150, 0);
+                if (dgvAgregacja.Columns["Nadmiar"] != null)
+                    dgvAgregacja.Columns["Nadmiar"].DefaultCellStyle.ForeColor = Color.FromArgb(200, 0, 0);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"WyswietlAgregacjeProduktowAsync error: {ex}");
+            }
+        }
+
+        private async Task ComputeUnfilteredSummaryAsync(DateTime dzien, Dictionary<int, (string Nazwa, string Handlowiec)> kontrahenci, Dictionary<int, Dictionary<int, decimal>> wydaniaPerKhidIdtw, HashSet<int> klienciZamowien)
+        {
+            _sumAllZamowien = 0;
+            _sumAllWydanBezZam = 0;
+            _sumAllKgZamowiono = 0;
+            _sumAllKgWydano = 0;
+            _sumAllPojemnikow = 0;
+            _sumAllPalet = 0;
+            _sumAllHandlowiecStat = new();
+            _allZamowieniaIdsForDay = new();
+
+            try
+            {
+                // Zapytanie bez filtra produktu — zawsze pełne podsumowanie dnia
+                if (_twKatalogCache.Keys.Any())
+                {
+                    await using var cn = new SqlConnection(_connLibra);
+                    await cn.OpenAsync();
+                    var idwList = string.Join(",", _twKatalogCache.Keys);
+                    string dataKolumna = (_pokazujPoDatachUboju && _dataUbojuKolumnaIstnieje) ? "zm.DataUboju" : "zm.DataZamowienia";
+                    string sql = $@"SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc,
+                                           ISNULL(zm.LiczbaPojemnikow, 0), ISNULL(zm.LiczbaPalet, 0), zm.Status
+                                    FROM [dbo].[ZamowieniaMieso] zm
+                                    JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
+                                    WHERE {dataKolumna} = @Dzien AND zmt.KodTowaru IN ({idwList}) AND zm.Status <> 'Anulowane'
+                                    GROUP BY zm.Id, zm.KlientId, zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.Status";
+                    await using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@Dzien", dzien.Date);
+                    await using var rd = await cmd.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
                     {
-                        var existing = agregowane[nazwaGrupy];
-                        agregowane[nazwaGrupy] = (existing.plan + plan, existing.fakt + fakt, existing.zam + zam);
-                    }
-                    else
-                    {
-                        agregowane[nazwaGrupy] = (plan, fakt, zam);
+                        int orderId = rd.GetInt32(0);
+                        int klientId = rd.GetInt32(1);
+                        decimal ilosc = ReadDecimal(rd, 2);
+                        int pojemniki = (int)Math.Round(ReadDecimal(rd, 3));
+                        decimal palety = Math.Ceiling(ReadDecimal(rd, 4));
+                        string handlowiec = kontrahenci.TryGetValue(klientId, out var kh) ? kh.Handlowiec : "BRAK";
+
+                        _allZamowieniaIdsForDay.Add(orderId);
+                        _sumAllZamowien++;
+                        _sumAllKgZamowiono += ilosc;
+                        _sumAllPojemnikow += pojemniki;
+                        _sumAllPalet += palety;
+
+                        // Wydano z WZ (wszystkie produkty dla tego klienta)
+                        decimal wydane = wydaniaPerKhidIdtw.TryGetValue(klientId, out var perIdtw) ? perIdtw.Values.Sum() : 0m;
+                        _sumAllKgWydano += wydane;
+
+                        if (!_sumAllHandlowiecStat.ContainsKey(handlowiec))
+                            _sumAllHandlowiecStat[handlowiec] = (0, 0, 0, 0);
+                        var s = _sumAllHandlowiecStat[handlowiec];
+                        _sumAllHandlowiecStat[handlowiec] = (s.zZam + 1, s.bezZam, s.kgZam + ilosc, s.kgWyd + wydane);
                     }
                 }
+
+                // Wydania bez zamówień
+                foreach (var kv in wydaniaPerKhidIdtw)
+                {
+                    if (klienciZamowien.Contains(kv.Key)) continue;
+                    decimal wydane = kv.Value.Values.Sum();
+                    if (wydane == 0) continue;
+
+                    _sumAllWydanBezZam++;
+                    _sumAllKgWydano += wydane;
+
+                    string handlowiec = kontrahenci.TryGetValue(kv.Key, out var kh) ? kh.Handlowiec : "BRAK";
+                    if (!_sumAllHandlowiecStat.ContainsKey(handlowiec))
+                        _sumAllHandlowiecStat[handlowiec] = (0, 0, 0, 0);
+                    var s = _sumAllHandlowiecStat[handlowiec];
+                    _sumAllHandlowiecStat[handlowiec] = (s.zZam, s.bezZam + 1, s.kgZam, s.kgWyd + wydane);
+                }
             }
-
-            // Dodaj towary niescalone
-            foreach (var towar in _twKatalogCache.OrderBy(kvp => kvp.Value))
-            {
-                if (towaryWGrupach.Contains(towar.Key)) continue;
-
-                var kod = towar.Value;
-                if (IsKurczakB(kod)) continue;
-
-                var plan = planPrzychodu.TryGetValue(towar.Key, out var p) ? p : 0m;
-                var fakt = faktPrzychodu.TryGetValue(towar.Key, out var f) ? f : 0m;
-                var zam = sumaZamowien.TryGetValue(towar.Key, out var z) ? z : 0m;
-
-                agregowane[kod] = (plan, fakt, zam);
-            }
-
-            // Dodaj do DataTable
-            foreach (var kv in agregowane.OrderBy(x => x.Key))
-            {
-                var bilans = kv.Value.fakt - kv.Value.zam;
-                dtAg.Rows.Add(kv.Key, kv.Value.plan, kv.Value.fakt, kv.Value.zam, bilans);
-            }
-
-            dgvAgregacja.DataSource = dtAg;
-
-            dgvAgregacja.Sort(dgvAgregacja.Columns["PlanowanyPrzychód"], System.ComponentModel.ListSortDirection.Descending);
-
-            foreach (DataGridViewColumn col in dgvAgregacja.Columns)
-            {
-                if (col.Name != "Produkt")
-                    col.DefaultCellStyle.Format = "N0";
-            }
-
-            if (dgvAgregacja.Columns["PlanowanyPrzychód"] != null)
-                dgvAgregacja.Columns["PlanowanyPrzychód"].HeaderText = "Plan przychód";
-            if (dgvAgregacja.Columns["FaktycznyPrzychód"] != null)
-                dgvAgregacja.Columns["FaktycznyPrzychód"].HeaderText = "Fakt przychód";
+            catch { }
         }
 
         private void AktualizujPodsumowanieDnia()
         {
-            int liczbaZamowien = 0;
-            int liczbaWydanBezZamowien = 0;
-            decimal sumaKgZamowiono = 0;
-            decimal sumaKgWydano = 0;
-            int sumaPojemnikow = 0;
-            decimal sumaPalet = 0m;
-            var handlowiecStat = new Dictionary<string, (int zZam, int bezZam, decimal kgZam, decimal kgWyd)>();
-
-            if (_bsZamowienia.List is System.Collections.IEnumerable list)
-            {
-                foreach (var item in list)
-                {
-                    if (item is DataRowView drv)
-                    {
-                        var status = drv.Row.Field<string>("Status") ?? "";
-                        if (status == "Anulowane") continue;
-
-                        var handlowiec = drv.Row.Field<string>("Handlowiec") ?? "BRAK";
-                        var iloscZam = drv.Row.Field<decimal?>("IloscZamowiona") ?? 0m;
-                        var iloscWyd = drv.Row.Field<decimal?>("IloscFaktyczna") ?? 0m;
-                        var pojemniki = drv.Row.Field<int?>("Pojemniki") ?? 0;
-                        var palety = drv.Row.Field<decimal?>("Palety") ?? 0m;
-
-                        if (!handlowiecStat.ContainsKey(handlowiec))
-                            handlowiecStat[handlowiec] = (0, 0, 0, 0);
-
-                        if (status == "Wydanie bez zamówienia")
-                        {
-                            liczbaWydanBezZamowien++;
-                            sumaKgWydano += iloscWyd;
-                            handlowiecStat[handlowiec] = (handlowiecStat[handlowiec].zZam, handlowiecStat[handlowiec].bezZam + 1, handlowiecStat[handlowiec].kgZam, handlowiecStat[handlowiec].kgWyd + iloscWyd);
-                        }
-                        else
-                        {
-                            liczbaZamowien++;
-                            sumaKgZamowiono += iloscZam;
-                            sumaKgWydano += iloscWyd;
-                            sumaPojemnikow += pojemniki;
-                            sumaPalet += palety;
-                            handlowiecStat[handlowiec] = (handlowiecStat[handlowiec].zZam + 1, handlowiecStat[handlowiec].bezZam, handlowiecStat[handlowiec].kgZam + iloscZam, handlowiecStat[handlowiec].kgWyd + iloscWyd);
-                        }
-                    }
-                }
-            }
-            int suma = liczbaZamowien + liczbaWydanBezZamowien;
-            string perHandlowiec = string.Join(" | ", handlowiecStat.OrderBy(h => h.Key).Select(h => $"{h.Key}: {h.Value.zZam}/{h.Value.bezZam} ({h.Value.kgZam:N0}/{h.Value.kgWyd:N0}kg)"));
-            lblPodsumowanie.Text = $"Suma: {suma} ({liczbaZamowien} zam. / {liczbaWydanBezZamowien} wyd.) | " + $"Zamówiono: {sumaKgZamowiono:N0} kg | Wydano: {sumaKgWydano:N0} kg | " + $"Pojemn.: {sumaPojemnikow:N0} | Palet: {sumaPalet:N1} | {perHandlowiec}";
+            int suma = _sumAllZamowien + _sumAllWydanBezZam;
+            string perHandlowiec = string.Join(" | ", _sumAllHandlowiecStat.OrderBy(h => h.Key).Select(h => $"{h.Key}: {h.Value.zZam}/{h.Value.bezZam} ({h.Value.kgZam:N0}/{h.Value.kgWyd:N0}kg)"));
+            lblPodsumowanie.Text = $"Suma: {suma} ({_sumAllZamowien} zam. / {_sumAllWydanBezZam} wyd.) | " + $"Zamówiono: {_sumAllKgZamowiono:N0} kg | Wydano: {_sumAllKgWydano:N0} kg | " + $"Pojemn.: {_sumAllPojemnikow:N0} | Palet: {_sumAllPalet:N1} | {perHandlowiec}";
         }
 
         private void WyczyscSzczegoly()

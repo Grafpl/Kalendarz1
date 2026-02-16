@@ -86,6 +86,9 @@ namespace Kalendarz1.Transport.Formularze
         private Dictionary<string, string> _userNameCache = new Dictionary<string, string>();
         private Dictionary<string, Image> _avatarCache = new Dictionary<string, Image>();
 
+        // Mapowanie handlowiec name → userId (do avatarów z sieci)
+        private Dictionary<string, string> _handlowiecMapowanie;
+
         public TransportMainFormImproved(TransportRepozytorium repozytorium, string uzytkownik = null)
         {
             _repozytorium = repozytorium ?? throw new ArgumentNullException(nameof(repozytorium));
@@ -665,6 +668,8 @@ namespace Kalendarz1.Transport.Formularze
             dgvKursy.EnableHeadersVisualStyles = false;
             dgvKursy.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(250, 251, 253);
             dgvKursy.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(80, 90, 110);
+            dgvKursy.ColumnHeadersDefaultCellStyle.SelectionBackColor = Color.FromArgb(232, 218, 239);
+            dgvKursy.ColumnHeadersDefaultCellStyle.SelectionForeColor = Color.FromArgb(60, 40, 80);
             dgvKursy.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 7.5F, FontStyle.Bold);
             dgvKursy.ColumnHeadersDefaultCellStyle.Padding = new Padding(3, 2, 3, 2);
             dgvKursy.ColumnHeadersDefaultCellStyle.WrapMode = DataGridViewTriState.True;
@@ -674,8 +679,8 @@ namespace Kalendarz1.Transport.Formularze
             // Stylizacja wierszy
             dgvKursy.DefaultCellStyle.Font = new Font("Segoe UI", 9F);
             dgvKursy.DefaultCellStyle.Padding = new Padding(4, 4, 4, 4);
-            dgvKursy.DefaultCellStyle.SelectionBackColor = Color.FromArgb(52, 152, 219);
-            dgvKursy.DefaultCellStyle.SelectionForeColor = Color.White;
+            dgvKursy.DefaultCellStyle.SelectionBackColor = Color.FromArgb(232, 218, 239);
+            dgvKursy.DefaultCellStyle.SelectionForeColor = Color.FromArgb(60, 40, 80);
             dgvKursy.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(252, 252, 254);
             dgvKursy.RowTemplate.Height = 46;
             dgvKursy.GridColor = Color.FromArgb(240, 242, 246);
@@ -782,6 +787,7 @@ namespace Kalendarz1.Transport.Formularze
                 Dock = DockStyle.Fill,
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
+                AllowUserToResizeRows = false,
                 ReadOnly = true,
                 BackgroundColor = Color.White,
                 BorderStyle = BorderStyle.None,
@@ -795,18 +801,27 @@ namespace Kalendarz1.Transport.Formularze
             dgvWolneZamowienia.EnableHeadersVisualStyles = false;
             dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(245, 247, 250);
             dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(100, 100, 120);
+            dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.SelectionBackColor = Color.FromArgb(232, 218, 239);
+            dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.SelectionForeColor = Color.FromArgb(60, 40, 80);
             dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
             dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.Padding = new Padding(4, 6, 4, 6);
             dgvWolneZamowienia.ColumnHeadersHeight = 30;
             dgvWolneZamowienia.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None;
             dgvWolneZamowienia.DefaultCellStyle.Font = new Font("Segoe UI", 8.5F);
             dgvWolneZamowienia.DefaultCellStyle.Padding = new Padding(4, 2, 4, 2);
-            dgvWolneZamowienia.DefaultCellStyle.SelectionBackColor = Color.FromArgb(52, 152, 219);
-            dgvWolneZamowienia.DefaultCellStyle.SelectionForeColor = Color.White;
+            dgvWolneZamowienia.DefaultCellStyle.SelectionBackColor = Color.FromArgb(232, 218, 239);
+            dgvWolneZamowienia.DefaultCellStyle.SelectionForeColor = Color.FromArgb(60, 40, 80);
             dgvWolneZamowienia.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(250, 250, 252);
             dgvWolneZamowienia.RowTemplate.Height = 24;
             dgvWolneZamowienia.GridColor = Color.FromArgb(240, 242, 245);
             dgvWolneZamowienia.CellPainting += DgvWolneZamowienia_CellPainting;
+
+            // Menu kontekstowe - zmiana na własny odbiór
+            var contextMenuWolne = new ContextMenuStrip();
+            contextMenuWolne.Font = new Font("Segoe UI", 9.5F);
+            var menuWlasnyOdbior = new ToolStripMenuItem("🚗 Ustaw jako własny odbiór", null, async (s, ev) => await ZmienNaWlasnyOdbiorAsync());
+            contextMenuWolne.Items.Add(menuWlasnyOdbior);
+            dgvWolneZamowienia.ContextMenuStrip = contextMenuWolne;
 
             // Kontener dla grida z ramką
             var gridContainer = new Panel
@@ -828,26 +843,73 @@ namespace Kalendarz1.Transport.Formularze
         {
             if (e.RowIndex < 0) return;
             var row = dgvWolneZamowienia.Rows[e.RowIndex];
-            if (row.Cells["IsGroupRow"]?.Value == null || !Convert.ToBoolean(row.Cells["IsGroupRow"].Value))
+            var isGroupRow = row.Cells["IsGroupRow"]?.Value != null && Convert.ToBoolean(row.Cells["IsGroupRow"].Value);
+            var colName = dgvWolneZamowienia.Columns[e.ColumnIndex].Name;
+
+            // Renderowanie avatara handlowca w zwykłych wierszach
+            if (!isGroupRow && colName == "Handl.")
+            {
+                var cellValue = e.Value?.ToString() ?? "";
+                if (string.IsNullOrWhiteSpace(cellValue)) return;
+
+                e.Handled = true;
+                var selected = row.Selected;
+
+                using (var bgBrush = new SolidBrush(selected ? e.CellStyle.SelectionBackColor : e.CellStyle.BackColor))
+                    e.Graphics.FillRectangle(bgBrush, e.CellBounds);
+
+                e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                e.Graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+
+                var avatarSize = 26;
+                var avatarX = e.CellBounds.Left + 4;
+                var avatarY = e.CellBounds.Top + (e.CellBounds.Height - avatarSize) / 2;
+
+                var avatarImg = GetHandlowiecAvatar(cellValue, avatarSize);
+                if (avatarImg != null)
+                {
+                    using (var pen = new Pen(selected ? e.CellStyle.SelectionBackColor : Color.White, 2))
+                        e.Graphics.DrawEllipse(pen, avatarX - 1, avatarY - 1, avatarSize + 1, avatarSize + 1);
+                    e.Graphics.DrawImage(avatarImg, avatarX, avatarY, avatarSize, avatarSize);
+                }
+
+                // Skrócona nazwa handlowca
+                var textX = avatarX + avatarSize + 5;
+                var textColor = selected ? Color.White : Color.FromArgb(40, 50, 65);
+                var displayText = SkrocNazwe(cellValue);
+
+                using (var font = new Font("Segoe UI", 8F))
+                using (var brush = new SolidBrush(textColor))
+                {
+                    var sf = new StringFormat { LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter };
+                    var textRect = new RectangleF(textX, e.CellBounds.Top, e.CellBounds.Right - textX - 4, e.CellBounds.Height);
+                    e.Graphics.DrawString(displayText, font, brush, textRect, sf);
+                }
+
+                using (var borderPen = new Pen(dgvWolneZamowienia.GridColor))
+                    e.Graphics.DrawLine(borderPen, e.CellBounds.Left, e.CellBounds.Bottom - 1,
+                        e.CellBounds.Right - 1, e.CellBounds.Bottom - 1);
                 return;
+            }
+
+            // Wiersze grupujące - tylko one
+            if (!isGroupRow) return;
 
             e.Handled = true;
             var bgColor = row.Selected ? e.CellStyle.SelectionBackColor : Color.FromArgb(235, 230, 245);
             using (var brush = new SolidBrush(bgColor))
                 e.Graphics.FillRectangle(brush, e.CellBounds);
 
-            var colName = dgvWolneZamowienia.Columns[e.ColumnIndex].Name;
-
-            // Rysuj tekst nagłówka grupy scalony w kolumnach Odbiór + Godz.
+            // Rysuj tekst grupy w kolumnie Odbiór — scalony przez Odbiór+Godz.+Palety+Poj.
             if (colName == "Odbiór")
             {
                 var headerText = row.Cells["Odbiór"]?.Value?.ToString() ?? "";
-                // Oblicz łączną szerokość Odbiór + Godz.
-                var odbiorWidth = dgvWolneZamowienia.Columns["Odbiór"]?.Width ?? 0;
-                var godzWidth = dgvWolneZamowienia.Columns["Godz."]?.Width ?? 0;
-                var mergedWidth = odbiorWidth + godzWidth;
+                var mergedWidth = (dgvWolneZamowienia.Columns["Odbiór"]?.Width ?? 0)
+                    + (dgvWolneZamowienia.Columns["Godz."]?.Width ?? 0)
+                    + (dgvWolneZamowienia.Columns["Palety"]?.Width ?? 0)
+                    + (dgvWolneZamowienia.Columns["Poj."]?.Width ?? 0);
 
-                using (var font = new Font("Segoe UI", 7.5F, FontStyle.Bold))
+                using (var font = new Font("Segoe UI", 8F, FontStyle.Bold))
                 using (var textBrush = new SolidBrush(Color.FromArgb(100, 60, 140)))
                 {
                     var sf = new StringFormat { LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter };
@@ -855,7 +917,6 @@ namespace Kalendarz1.Transport.Formularze
                         new RectangleF(e.CellBounds.Left + 4, e.CellBounds.Top, mergedWidth - 6, e.CellBounds.Height), sf);
                 }
             }
-            // Godz. w wierszu grupy - nie rysuj nic (tekst już narysowany przez Odbiór)
 
             // Dolna linia
             using (var pen = new Pen(Color.FromArgb(210, 200, 225)))
@@ -997,6 +1058,9 @@ namespace Kalendarz1.Transport.Formularze
             {
                 System.Diagnostics.Debug.WriteLine("=== LoadInitialDataAsync START ===");
 
+                // Załaduj mapowanie handlowiec → userId (do avatarów)
+                await EnsureHandlowiecMappingLoadedAsync();
+
                 // Ustaw nazwę dnia tygodnia
                 lblDayName.Text = _selectedDate.ToString("dddd", new System.Globalization.CultureInfo("pl-PL"));
 
@@ -1070,13 +1134,16 @@ namespace Kalendarz1.Transport.Formularze
                 var ladunkiCountMap = new Dictionary<long, int>();
                 var kursZmiany = new Dictionary<long, List<string>>();
 
+                // Struktura do przechowania surowych danych alertów (przed pobraniem nazw klientów)
+                var rawAlerts = new List<(long KursID, int KlientId, string Type, int OldPoj, int NewPoj)>();
+                var rawAnulowane = new List<(long KursID, int ZamId)>();
+
                 if (_kursy != null)
                 {
                     foreach (var kurs in _kursy)
                     {
                         try
                         {
-                            // Pobierz ładunki i zaktualizuj ZAM_ o live dane
                             var ladunki = await _repozytorium.PobierzLadunkiAsync(kurs.KursID);
                             ladunkiCountMap[kurs.KursID] = ladunki.Count;
 
@@ -1087,26 +1154,12 @@ namespace Kalendarz1.Transport.Formularze
                                 {
                                     if (liveZamowieniaMap.TryGetValue(zamId, out var liveData))
                                     {
-                                        // Wykryj zmianę ilości
                                         var oldPojemniki = lad.PojemnikiE2;
                                         if (oldPojemniki != liveData.Pojemniki)
-                                        {
-                                            if (!kursZmiany.ContainsKey(kurs.KursID))
-                                                kursZmiany[kurs.KursID] = new List<string>();
-                                            var diff = liveData.Pojemniki - oldPojemniki;
-                                            var diffStr = diff > 0 ? $"+{diff}" : diff.ToString();
-                                            var kn = _klienciCache.TryGetValue(liveData.KlientId, out var knv) ? knv : $"KH {liveData.KlientId}";
-                                            kursZmiany[kurs.KursID].Add($"{kn}: Poj {oldPojemniki}→{liveData.Pojemniki} ({diffStr})");
-                                        }
+                                            rawAlerts.Add((kurs.KursID, liveData.KlientId, "Pojemniki", oldPojemniki, liveData.Pojemniki));
 
-                                        // Wykryj transport własny
                                         if (liveData.TransportStatus == "Wlasny")
-                                        {
-                                            if (!kursZmiany.ContainsKey(kurs.KursID))
-                                                kursZmiany[kurs.KursID] = new List<string>();
-                                            var kn = _klienciCache.TryGetValue(liveData.KlientId, out var knv) ? knv : $"KH {liveData.KlientId}";
-                                            kursZmiany[kurs.KursID].Add($"{kn}: Transport WŁASNY!");
-                                        }
+                                            rawAlerts.Add((kurs.KursID, liveData.KlientId, "Wlasny", 0, 0));
 
                                         lad.PojemnikiE2 = liveData.Pojemniki;
                                         lad.TrybE2 = liveData.TrybE2;
@@ -1118,10 +1171,7 @@ namespace Kalendarz1.Transport.Formularze
                                     }
                                     else
                                     {
-                                        // Zamówienie zniknęło z mapy (anulowane)
-                                        if (!kursZmiany.ContainsKey(kurs.KursID))
-                                            kursZmiany[kurs.KursID] = new List<string>();
-                                        kursZmiany[kurs.KursID].Add($"ZAM_{zamId}: ANULOWANE!");
+                                        rawAnulowane.Add((kurs.KursID, zamId));
                                     }
                                 }
                             }
@@ -1139,6 +1189,34 @@ namespace Kalendarz1.Transport.Formularze
                             };
                         }
                     }
+                }
+
+                // Pobierz nazwy klientów z Handel ZANIM wygenerujemy teksty alertów
+                if (allKlientIds.Count > 0)
+                    await LoadMissingKlienciAsync(allKlientIds);
+
+                // Teraz wygeneruj teksty alertów z prawidłowymi nazwami
+                foreach (var alert in rawAlerts)
+                {
+                    if (!kursZmiany.ContainsKey(alert.KursID))
+                        kursZmiany[alert.KursID] = new List<string>();
+                    var kn = _klienciCache.TryGetValue(alert.KlientId, out var knv) ? knv : $"KH {alert.KlientId}";
+                    if (alert.Type == "Pojemniki")
+                    {
+                        var diff = alert.NewPoj - alert.OldPoj;
+                        var diffStr = diff > 0 ? $"+{diff}" : diff.ToString();
+                        kursZmiany[alert.KursID].Add($"{kn}: Poj {alert.OldPoj}→{alert.NewPoj} ({diffStr})");
+                    }
+                    else if (alert.Type == "Wlasny")
+                    {
+                        kursZmiany[alert.KursID].Add($"{kn}: Transport WŁASNY!");
+                    }
+                }
+                foreach (var anul in rawAnulowane)
+                {
+                    if (!kursZmiany.ContainsKey(anul.KursID))
+                        kursZmiany[anul.KursID] = new List<string>();
+                    kursZmiany[anul.KursID].Add($"ZAM #{anul.ZamId}: ANULOWANE!");
                 }
 
                 // Pobierz nazwy handlowców hurtowo
@@ -1257,7 +1335,7 @@ namespace Kalendarz1.Transport.Formularze
                 // Kolumna Alert - pierwsza widoczna
                 if (dgvKursy.Columns["Alert"] != null)
                 {
-                    dgvKursy.Columns["Alert"].Width = 30;
+                    dgvKursy.Columns["Alert"].Width = 50;
                     dgvKursy.Columns["Alert"].HeaderText = "";
                     dgvKursy.Columns["Alert"].DisplayIndex = 0;
                     dgvKursy.Columns["Alert"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
@@ -1317,7 +1395,8 @@ namespace Kalendarz1.Transport.Formularze
 
                 if (dgvKursy.Columns["Handlowcy"] != null)
                 {
-                    dgvKursy.Columns["Handlowcy"].Width = 120;
+                    dgvKursy.Columns["Handlowcy"].HeaderText = "Handl.";
+                    dgvKursy.Columns["Handlowcy"].Width = 90;
                 }
                 System.Diagnostics.Debug.WriteLine("Calling UpdateSummary...");
                 UpdateSummary();
@@ -1677,8 +1756,7 @@ namespace Kalendarz1.Transport.Formularze
                 for (int i = count - 1; i >= 0; i--)
                 {
                     var x = startX + i * (avatarSize - overlap);
-                    // Handlowcy nie mają userId - używamy GenerateDefaultAvatar z nazwą jako id
-                    var avatarImg = GetOrCreateAvatar(names[i], names[i], avatarSize);
+                    var avatarImg = GetHandlowiecAvatar(names[i], avatarSize);
                     if (avatarImg != null)
                     {
                         // Biała obwódka
@@ -1872,165 +1950,95 @@ namespace Kalendarz1.Transport.Formularze
 
         #region Obsługa Map Google
 
-        private async void BtnMapa_Click(object sender, EventArgs e)
+        private void BtnMapa_Click(object sender, EventArgs e)
         {
             try
             {
-                Cursor = Cursors.WaitCursor;
-
-                // Connection strings
-                var connTransport = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
-                var connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
                 var connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+                var connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
 
-                // Open new Transport Map Window
-                var mapWindow = new TransportMapWindow(connTransport, connHandel, connLibra, _selectedDate, _currentUser);
+                var mapWindow = new Kalendarz1.Transport.TransportMapaWindow(connLibra, connHandel, _selectedDate);
                 mapWindow.Show();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd podczas otwierania mapy transportu: {ex.Message}",
+                MessageBox.Show($"Błąd podczas otwierania mapy: {ex.Message}",
                     "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-            finally
+        }
+
+        private async Task<List<string>> PobierzAdresyKursu(long kursId)
+        {
+            var ladunki = await _repozytorium.PobierzLadunkiAsync(kursId);
+
+            if (!ladunki.Any())
+                return new List<string>();
+
+            var adresy = new List<string>();
+            string bazaAdres = "Koziółki 40, 95-061 Dmosin, Polska";
+            adresy.Add(bazaAdres);
+
+            foreach (var ladunek in ladunki.OrderBy(l => l.Kolejnosc))
             {
-                Cursor = Cursors.Default;
+                string adres = "";
+
+                if (await CzyToZamowienie(ladunek.KodKlienta))
+                {
+                    adres = await PobierzAdresZZamowienia(ladunek.KodKlienta);
+                }
+                else
+                {
+                    adres = await PobierzAdresPoNazwie(ladunek.KodKlienta);
+                    if (string.IsNullOrEmpty(adres) && !string.IsNullOrEmpty(ladunek.Uwagi))
+                    {
+                        adres = await PobierzAdresPoNazwie(ladunek.Uwagi);
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(adres) && adres.Trim().Length > 5)
+                {
+                    if (!adres.ToLower().Contains("polska"))
+                    {
+                        adres += ", Polska";
+                    }
+                    adresy.Add(adres);
+                }
             }
+
+            // Powrót do bazy
+            if (adresy.Count > 1)
+                adresy.Add(bazaAdres);
+
+            return adresy;
         }
 
         private async Task OtworzMapeTrasy(long kursId)
         {
             try
             {
-                var ladunki = await _repozytorium.PobierzLadunkiAsync(kursId);
+                var adresy = await PobierzAdresyKursu(kursId);
 
-                if (!ladunki.Any())
+                if (adresy.Count <= 1)
                 {
                     MessageBox.Show("Kurs nie ma żadnych ładunków do wyświetlenia trasy.",
                         "Brak danych", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
 
-                var adresy = new List<string>();
-                var debugInfo = new List<string>();
-
-                string bazaAdres = "Koziółki 40, 95-061 Dmosin, Polska";
-                adresy.Add(bazaAdres);
-                debugInfo.Add($"START: {bazaAdres}");
-
-                int znalezioneAdresy = 0;
-                foreach (var ladunek in ladunki.OrderBy(l => l.Kolejnosc))
+                string googleMapsUrl = UtworzUrlGoogleMaps(adresy);
+                try
                 {
-                    debugInfo.Add($"--- Ładunek {ladunek.Kolejnosc}: '{ladunek.KodKlienta}' ---");
-                    debugInfo.Add($"  Uwagi: '{ladunek.Uwagi ?? "brak"}'");
-
-                    string adres = "";
-
-                    // Sprawdź czy to zamówienie
-                    if (await CzyToZamowienie(ladunek.KodKlienta))
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
                     {
-                        debugInfo.Add($"  ✓ To jest zamówienie");
-                        adres = await PobierzAdresZZamowienia(ladunek.KodKlienta);
-                        if (!string.IsNullOrEmpty(adres))
-                        {
-                            debugInfo.Add($"✓ ADRES Z ZAMÓWIENIA: {adres}");
-                        }
-                    }
-                    else
-                    {
-                        // Szukaj po kodzie klienta
-                        adres = await PobierzAdresPoNazwie(ladunek.KodKlienta);
-                        if (!string.IsNullOrEmpty(adres))
-                        {
-                            debugInfo.Add($"✓ ADRES PO KODZIE KLIENTA: {adres}");
-                        }
-                        else if (!string.IsNullOrEmpty(ladunek.Uwagi))
-                        {
-                            // Szukaj po uwagach
-                            adres = await PobierzAdresPoNazwie(ladunek.Uwagi);
-                            if (!string.IsNullOrEmpty(adres))
-                            {
-                                debugInfo.Add($"✓ ADRES PO UWAGACH: {adres}");
-                            }
-                        }
-                    }
-
-                    // Dodaj do trasy jeśli znaleziono
-                    if (!string.IsNullOrEmpty(adres) && adres.Trim().Length > 5)
-                    {
-                        if (!adres.ToLower().Contains("polska"))
-                        {
-                            adres += ", Polska";
-                        }
-                        adresy.Add(adres);
-                        znalezioneAdresy++;
-                        debugInfo.Add($"✓ DODANO DO TRASY: {adres}");
-                    }
-                    else
-                    {
-                        debugInfo.Add($"✗ BRAK ADRESU dla ładunku {ladunek.LadunekID}");
-                    }
+                        FileName = googleMapsUrl,
+                        UseShellExecute = true
+                    });
                 }
-
-                debugInfo.Add($"--- PODSUMOWANIE ---");
-                debugInfo.Add($"Łącznie ładunków: {ladunki.Count}");
-                debugInfo.Add($"Znalezionych adresów: {znalezioneAdresy}");
-                debugInfo.Add($"Wszystkich punktów trasy: {adresy.Count}");
-
-                // Pokaż debug w oknie
-                var debugText = string.Join("\n", debugInfo);
-                var debugForm = new Form
+                catch
                 {
-                    Text = "Debug - Analiza trasy",
-                    Size = new Size(1000, 700),
-                    StartPosition = FormStartPosition.CenterParent
-                };
-
-                var textBox = new TextBox
-                {
-                    Multiline = true,
-                    ScrollBars = ScrollBars.Both,
-                    Dock = DockStyle.Fill,
-                    Font = new Font("Consolas", 9),
-                    Text = debugText,
-                    ReadOnly = true
-                };
-
-                debugForm.Controls.Add(textBox);
-                debugForm.ShowDialog(this);
-
-                // Otwórz mapę jeśli znaleziono adresy
-                if (znalezioneAdresy > 0)
-                {
-                    adresy.Add(bazaAdres); // Powrót do bazy
-                    string googleMapsUrl = UtworzUrlGoogleMaps(adresy);
-
-                    if (MessageBox.Show($"Znaleziono {znalezioneAdresy} adresów.\nOtworzyć Google Maps?",
-                        "Potwierdź trasę", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
-                    {
-                        try
-                        {
-                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                            {
-                                FileName = googleMapsUrl,
-                                UseShellExecute = true
-                            });
-                        }
-                        catch
-                        {
-                            try
-                            {
-                                Clipboard.SetText(googleMapsUrl);
-                                MessageBox.Show($"URL skopiowany do schowka:\n{googleMapsUrl}",
-                                    "URL skopiowany", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                            }
-                            catch
-                            {
-                                MessageBox.Show($"URL: {googleMapsUrl}",
-                                    "Link do Google Maps", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                            }
-                        }
-                    }
+                    Clipboard.SetText(googleMapsUrl);
+                    MessageBox.Show("URL skopiowany do schowka.", "Informacja",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
             catch (Exception ex)
@@ -2299,6 +2307,22 @@ namespace Kalendarz1.Transport.Formularze
                     _userNameCache[id] = id;
         }
 
+        private async Task EnsureHandlowiecMappingLoadedAsync()
+        {
+            if (_handlowiecMapowanie != null) return;
+            _handlowiecMapowanie = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                using var cnLib = new SqlConnection(_connLibra);
+                await cnLib.OpenAsync();
+                using var cmd = new SqlCommand("SELECT HandlowiecName, UserID FROM UserHandlowcy", cnLib);
+                using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                    _handlowiecMapowanie[reader.GetString(0)] = reader.GetString(1);
+            }
+            catch { }
+        }
+
         private Image GetOrCreateAvatar(string userId, string displayName, int size)
         {
             var key = $"{userId}_{size}";
@@ -2318,6 +2342,19 @@ namespace Kalendarz1.Transport.Formularze
 
             _avatarCache[key] = avatar;
             return avatar;
+        }
+
+        /// <summary>
+        /// Zwraca avatar handlowca - jeśli jest mapowanie name→userId, szuka prawdziwego zdjęcia
+        /// </summary>
+        private Image GetHandlowiecAvatar(string handlowiecName, int size)
+        {
+            // Sprawdź mapowanie name → userId (z tabeli UserHandlowcy)
+            if (_handlowiecMapowanie != null &&
+                _handlowiecMapowanie.TryGetValue(handlowiecName, out var uid))
+                return GetOrCreateAvatar(uid, handlowiecName, size);
+
+            return GetOrCreateAvatar(handlowiecName, handlowiecName, size);
         }
 
         /// <summary>
@@ -2398,10 +2435,10 @@ namespace Kalendarz1.Transport.Formularze
                     WHERE CAST(zm.DataUboju AS DATE) = @Data
                       AND ISNULL(zm.Status, 'Nowe') NOT IN ('Anulowane')
                       AND ISNULL(zm.TransportStatus, 'Oczekuje') NOT IN ('Przypisany', 'Wlasny')
+                      AND zm.TransportKursID IS NULL
                     ORDER BY zm.DataPrzyjazdu";
 
-                var tempList = new List<(int Id, int KlientId, DateTime DataOdbioru, DateTime DataUboju, decimal Palety, int Pojemniki)>();
-                var klientIdsToFetch = new HashSet<int>();
+                var tempList = new List<(int Id, int KlientId, DateTime DataOdbioru, DateTime DataUboju, decimal Palety, int Pojemniki, string KlientNazwa, string Adres, string Handlowiec)>();
 
                 using (var cn = new SqlConnection(_connLibra))
                 {
@@ -2412,25 +2449,72 @@ namespace Kalendarz1.Transport.Formularze
                     using var reader = await cmd.ExecuteReaderAsync();
                     while (await reader.ReadAsync())
                     {
-                        var klientId = reader.GetInt32(1);
                         tempList.Add((
                             reader.GetInt32(0),
-                            klientId,
+                            reader.GetInt32(1),
                             reader.IsDBNull(2) ? _selectedDate : reader.GetDateTime(2),
                             reader.IsDBNull(3) ? _selectedDate : reader.GetDateTime(3),
                             reader.IsDBNull(4) ? 0m : reader.GetDecimal(4),
-                            reader.IsDBNull(5) ? 0 : reader.GetInt32(5)
+                            reader.IsDBNull(5) ? 0 : reader.GetInt32(5),
+                            "", "", ""
                         ));
-
-                        if (!_klienciCache.ContainsKey(klientId))
-                            klientIdsToFetch.Add(klientId);
                     }
                 }
 
-                // Pobierz tylko brakujących klientów (cache 30 min)
-                if (klientIdsToFetch.Count > 0 || (DateTime.Now - _klienciCacheTime).TotalMinutes > 30)
+                // Pobierz nazwy klientów z Handel (osobne połączenie - tak jak w edytorze)
+                // W osobnym try-catch żeby błąd nazw nie blokował wyświetlenia zamówień
+                if (tempList.Any())
                 {
-                    await LoadMissingKlienciAsync(klientIdsToFetch);
+                    try
+                    {
+                        var klientIds = string.Join(",", tempList.Select(z => z.KlientId).Distinct());
+                        // Identyczne zapytanie jak w transport-editor.cs LoadWolneZamowieniaForDate
+                        var sqlKlienci = $@"
+                            SELECT
+                                c.Id,
+                                ISNULL(c.Shortcut, 'KH ' + CAST(c.Id AS VARCHAR(10))) AS Nazwa,
+                                ISNULL(wym.CDim_Handlowiec_Val, '') AS Handlowiec,
+                                ISNULL(poa.Postcode, '') + ' ' + ISNULL(poa.Street, '') AS Adres
+                            FROM SSCommon.STContractors c
+                            LEFT JOIN SSCommon.ContractorClassification wym ON c.Id = wym.ElementId
+                            LEFT JOIN SSCommon.STPostOfficeAddresses poa ON poa.ContactGuid = c.ContactGuid
+                                AND poa.AddressName = N'adres domyślny'
+                            WHERE c.Id IN ({klientIds})";
+
+                        var klienciDict = new Dictionary<int, (string Nazwa, string Adres, string Handlowiec)>();
+                        using (var cnHandel = new SqlConnection(_connHandel))
+                        {
+                            await cnHandel.OpenAsync();
+                            using var cmdKlienci = new SqlCommand(sqlKlienci, cnHandel);
+                            using var readerKlienci = await cmdKlienci.ExecuteReaderAsync();
+                            while (await readerKlienci.ReadAsync())
+                            {
+                                var id = readerKlienci.GetInt32(0);
+                                var nazwa = readerKlienci.GetString(1);
+                                var handlowiec = readerKlienci.GetString(2);
+                                var adres = readerKlienci.GetString(3).Trim();
+                                klienciDict[id] = (nazwa, adres, handlowiec);
+                            }
+                        }
+
+                        for (int i = 0; i < tempList.Count; i++)
+                        {
+                            var zam = tempList[i];
+                            if (klienciDict.TryGetValue(zam.KlientId, out var klient))
+                                tempList[i] = (zam.Id, zam.KlientId, zam.DataOdbioru, zam.DataUboju, zam.Palety, zam.Pojemniki, klient.Nazwa, klient.Adres, klient.Handlowiec);
+                            else
+                                tempList[i] = (zam.Id, zam.KlientId, zam.DataOdbioru, zam.DataUboju, zam.Palety, zam.Pojemniki, $"KH {zam.KlientId}", "", "");
+                        }
+                    }
+                    catch (Exception exKlienci)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error loading klienci names: {exKlienci.Message}");
+                        for (int i = 0; i < tempList.Count; i++)
+                        {
+                            var zam = tempList[i];
+                            tempList[i] = (zam.Id, zam.KlientId, zam.DataOdbioru, zam.DataUboju, zam.Palety, zam.Pojemniki, $"KH {zam.KlientId}", "", "");
+                        }
+                    }
                 }
 
                 // Budowanie tabeli - kolumny: Ubój, Odbiór, Godz., Palety, Poj., Klient
@@ -2444,6 +2528,8 @@ namespace Kalendarz1.Transport.Formularze
                 dt.Columns.Add("Palety", typeof(string));
                 dt.Columns.Add("Poj.", typeof(int));
                 dt.Columns.Add("Klient", typeof(string));
+                dt.Columns.Add("Handl.", typeof(string));
+                dt.Columns.Add("Adres", typeof(string));
 
                 // Grupuj po dacie odbioru
                 var grouped = tempList
@@ -2454,8 +2540,8 @@ namespace Kalendarz1.Transport.Formularze
                 foreach (var group in grouped)
                 {
                     // Wiersz nagłówka grupy
-                    var dzienTygodnia = group.Key.ToString("dddd", plCulture);
-                    var groupHeader = $"▸ {group.Key:dd.MM} ({dzienTygodnia}) — {group.Count()} zam.";
+                    var dzienSkrot = group.Key.ToString("ddd", plCulture);
+                    var groupHeader = $"▸ {group.Key:dd.MM} {dzienSkrot} — {group.Count()} zam.";
                     var groupRow = dt.NewRow();
                     groupRow["ID"] = 0;
                     groupRow["IsGroupRow"] = true;
@@ -2465,14 +2551,13 @@ namespace Kalendarz1.Transport.Formularze
                     groupRow["Palety"] = "";
                     groupRow["Poj."] = 0;
                     groupRow["Klient"] = "";
+                    groupRow["Handl."] = "";
+                    groupRow["Adres"] = "";
                     dt.Rows.Add(groupRow);
 
                     foreach (var zam in group)
                     {
-                        var klientNazwa = _klienciCache.TryGetValue(zam.KlientId, out var nazwa)
-                            ? nazwa : $"KH {zam.KlientId}";
-                        if (_klienciAdresCache.TryGetValue(zam.KlientId, out var miasto) && !string.IsNullOrEmpty(miasto))
-                            klientNazwa = $"{klientNazwa} ({miasto})";
+                        var klientNazwa = zam.KlientNazwa;
                         var ubojDzien = zam.DataUboju.ToString("dd.MM", plCulture)
                             + " " + zam.DataUboju.ToString("ddd", plCulture);
                         var odbiorDzien = zam.DataOdbioru.ToString("dd.MM", plCulture)
@@ -2485,7 +2570,9 @@ namespace Kalendarz1.Transport.Formularze
                             zam.DataOdbioru.ToString("HH:mm"),
                             zam.Palety.ToString("N1"),
                             zam.Pojemniki,
-                            klientNazwa
+                            klientNazwa,
+                            zam.Handlowiec,
+                            zam.Adres
                         );
                     }
                 }
@@ -2510,7 +2597,11 @@ namespace Kalendarz1.Transport.Formularze
                 if (dgvWolneZamowienia.Columns["Poj."] != null)
                     dgvWolneZamowienia.Columns["Poj."].Width = 42;
                 if (dgvWolneZamowienia.Columns["Klient"] != null)
-                    dgvWolneZamowienia.Columns["Klient"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                    dgvWolneZamowienia.Columns["Klient"].Width = 140;
+                if (dgvWolneZamowienia.Columns["Handl."] != null)
+                    dgvWolneZamowienia.Columns["Handl."].Width = 90;
+                if (dgvWolneZamowienia.Columns["Adres"] != null)
+                    dgvWolneZamowienia.Columns["Adres"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
 
                 // Formatuj wiersze grupujące
                 foreach (DataGridViewRow row in dgvWolneZamowienia.Rows)
@@ -2540,6 +2631,42 @@ namespace Kalendarz1.Transport.Formularze
             }
         }
 
+        private async Task ZmienNaWlasnyOdbiorAsync()
+        {
+            if (dgvWolneZamowienia.CurrentRow == null) return;
+
+            var row = dgvWolneZamowienia.CurrentRow;
+            if (row.Cells["IsGroupRow"]?.Value != null && Convert.ToBoolean(row.Cells["IsGroupRow"].Value))
+                return;
+
+            var zamId = Convert.ToInt32(row.Cells["ID"].Value);
+            var klientNazwa = row.Cells["Klient"]?.Value?.ToString() ?? "";
+
+            var result = MessageBox.Show(
+                $"Czy na pewno ustawić zamówienie #{zamId}\n{klientNazwa}\njako własny odbiór?",
+                "Własny odbiór",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (result != DialogResult.Yes) return;
+
+            try
+            {
+                using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+                var sql = "UPDATE dbo.ZamowieniaMieso SET TransportStatus = 'Wlasny' WHERE Id = @Id";
+                using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@Id", zamId);
+                await cmd.ExecuteNonQueryAsync();
+
+                await LoadWolneZamowieniaAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
         private async Task LoadMissingKlienciAsync(HashSet<int> klientIds)
         {
             try
@@ -2547,9 +2674,9 @@ namespace Kalendarz1.Transport.Formularze
                 using var cn = new SqlConnection(_connHandel);
                 await cn.OpenAsync();
 
-                // Pobierz wszystkich klientów na raz (szybsze niż pojedyncze zapytania)
+                // Pobierz wszystkich klientów na raz (identycznie jak w transport-editor.cs)
                 var sql = @"SELECT c.Id, ISNULL(c.Shortcut, 'KH ' + CAST(c.Id AS VARCHAR(10))),
-                                   ISNULL(poa.City, '')
+                                   ISNULL(poa.Postcode, '') + ' ' + ISNULL(poa.Street, '')
                             FROM SSCommon.STContractors c
                             LEFT JOIN SSCommon.STPostOfficeAddresses poa
                                 ON poa.ContactGuid = c.ContactGuid AND poa.AddressName = N'adres domyślny'";

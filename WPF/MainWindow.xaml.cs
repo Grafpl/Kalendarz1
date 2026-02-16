@@ -93,6 +93,10 @@ namespace Kalendarz1.WPF
         private Dictionary<int, string> _kategorieOdbiorcow = new();
         private DateTime _kategorieOdbiorcowTime = DateTime.MinValue;
 
+        // ✅ CACHE dla konfiguracji produktów - wywoływana 2x w jednym cyklu odświeżania
+        private Dictionary<int, decimal> _cachedKonfiguracjaProduktow = new();
+        private DateTime _cachedKonfiguracjaProduktowDate = DateTime.MinValue;
+
         private Dictionary<string, List<int>> _grupyDoProduktow = new(); // NazwaGrupy -> lista TowarId
         private List<string> _grupyTowaroweNazwy = new(); // Lista nazw grup towarowych dla kolumn w tabeli zamówień
         private Dictionary<string, string> _grupyKolumnDoNazw = new(); // Sanitized column name -> original display name
@@ -487,22 +491,30 @@ namespace Kalendarz1.WPF
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             if (_isInitialized) return;
-            _isInitialized = true;
+
+            // ✅ Ustaw datę PRZED LoadInitialDataAsync, bo RadioButton.Checked może
+            // uruchomić RefreshAllDataAsync zanim _selectedDate zostanie ustawiony
+            _selectedDate = ValidateSqlDate(DateTime.Today);
 
             SetupDayButtons();
             btnDelete.Visibility = (UserID == "11111") ? Visibility.Visible : Visibility.Collapsed;
             chkShowReleasesWithoutOrders.IsChecked = _showReleasesWithoutOrders;
             chkShowAnulowane.IsChecked = false;
 
+            // _isInitialized = false → event handlery (RbDateFilter_Checked itp.)
+            // nie będą uruchamiać RefreshAllDataAsync podczas inicjalizacji
             await LoadInitialDataAsync();
             InicjalizujMenuKontekstoweBilansu();
 
-            _selectedDate = ValidateSqlDate(DateTime.Today);
+            // Teraz ustaw _isInitialized DOPIERO PO LoadInitialDataAsync
+            _isInitialized = true;
+
             UpdateDayButtonDates();
             await RefreshAllDataAsync(); // To utworzy DataGridy
 
             // ✅ WYWOŁAJ PO RefreshAllDataAsync, gdy wszystkie kontrolki są już utworzone
             ApplyResponsiveLayout();
+
 
             // Watermark dla pola wyszukiwania produktów
             txtProductSearch.GotFocus += (s, ev) => { if (string.IsNullOrEmpty(txtProductSearch.Text)) txtSearchWatermark.Visibility = Visibility.Collapsed; };
@@ -779,6 +791,12 @@ namespace Kalendarz1.WPF
 
         private async Task<Dictionary<int, decimal>> GetKonfiguracjaProduktowAsync(DateTime data)
         {
+            // ✅ CACHE: zwróć natychmiast jeśli ta sama data
+            if (_cachedKonfiguracjaProduktowDate == data.Date && _cachedKonfiguracjaProduktow.Count > 0)
+            {
+                return _cachedKonfiguracjaProduktow;
+            }
+
             var result = new Dictionary<int, decimal>();
             _mapowanieScalowania.Clear(); // Odśwież mapowanie scalowania
             _grupyDoProduktow.Clear(); // Odśwież mapowanie grup
@@ -855,6 +873,10 @@ namespace Kalendarz1.WPF
 
                 // Ustaw listę nazw grup towarowych (posortowane)
                 _grupyTowaroweNazwy = _grupyDoProduktow.Keys.OrderBy(n => n).ToList();
+
+                // ✅ Zapisz do cache
+                _cachedKonfiguracjaProduktow = result;
+                _cachedKonfiguracjaProduktowDate = data.Date;
 
                 return result;
             }
@@ -972,96 +994,83 @@ namespace Kalendarz1.WPF
         }
         private async Task LoadInitialDataAsync()
         {
-            await CheckAndCreateSlaughterDateColumnAsync();
-            await CheckAndCreateTransportKursIDColumnAsync();
-            await CheckAndCreateStatusColumnsAsync();
-            await CheckAndCreateAnulowanieColumnsAsync();
-            await CheckAndCreateWalutaColumnAsync();
-            await CheckAndCreateStrefaColumnAsync();
-            await EnsureHandlowiecMappingLoadedAsync();
+            // ✅ Równoległe sprawdzanie/tworzenie kolumn (zamiast sekwencyjne)
+            await Task.WhenAll(
+                CheckAndCreateSlaughterDateColumnAsync(),
+                CheckAndCreateTransportKursIDColumnAsync(),
+                CheckAndCreateStatusColumnsAsync(),
+                CheckAndCreateAnulowanieColumnsAsync(),
+                CheckAndCreateWalutaColumnAsync(),
+                CheckAndCreateStrefaColumnAsync(),
+                EnsureHandlowiecMappingLoadedAsync()
+            );
 
+            // ✅ Równoległe ładowanie: produkty, zdjęcia, użytkownicy, handlowcy
             _productCodeCache.Clear();
             _productCatalogCache.Clear();
             _productCatalogSwieze.Clear();
             _productCatalogMrozone.Clear();
+            _userCache.Clear();
+            _salesmenCache.Clear();
 
-            await using (var cn = new SqlConnection(_connHandel))
+            var taskProdukty = Task.Run(async () =>
             {
+                await using var cn = new SqlConnection(_connHandel);
                 await cn.OpenAsync();
                 await using var cmd = new SqlCommand("SELECT ID, kod, katalog FROM [HANDEL].[HM].[TW]", cn);
                 await using var reader = await cmd.ExecuteReaderAsync();
-
                 while (await reader.ReadAsync())
                 {
                     int idtw = reader.GetInt32(0);
                     string kod = reader.IsDBNull(1) ? "" : reader.GetString(1);
                     object katObj = reader.GetValue(2);
-
                     _productCodeCache[idtw] = kod;
-
                     if (!(katObj is DBNull))
                     {
                         int katalog = 0;
-                        if (katObj is int ki)
-                            katalog = ki;
-                        else
-                            int.TryParse(Convert.ToString(katObj), out katalog);
-
-                        if (katalog == 67095)
-                        {
-                            _productCatalogSwieze[idtw] = kod;
-                            _productCatalogCache[idtw] = kod;
-                        }
-                        else if (katalog == 67153)
-                        {
-                            _productCatalogMrozone[idtw] = kod;
-                            _productCatalogCache[idtw] = kod;
-                        }
+                        if (katObj is int ki) katalog = ki;
+                        else int.TryParse(Convert.ToString(katObj), out katalog);
+                        if (katalog == 67095) { _productCatalogSwieze[idtw] = kod; _productCatalogCache[idtw] = kod; }
+                        else if (katalog == 67153) { _productCatalogMrozone[idtw] = kod; _productCatalogCache[idtw] = kod; }
                     }
                 }
-            }
+            });
 
-            // Załaduj zdjęcia produktów (z TowarZdjecia) przed generowaniem przycisków
-            await LoadProductImagesAsync();
-
-            GenerateProductButtons();
-
-            _userCache.Clear();
-            await using (var cn2 = new SqlConnection(_connLibra))
+            var taskUsers = Task.Run(async () =>
             {
-                await cn2.OpenAsync();
-                await using var cmd = new SqlCommand("SELECT ID, Name FROM dbo.operators", cn2);
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+                await using var cmd = new SqlCommand("SELECT ID, Name FROM dbo.operators", cn);
                 await using var reader = await cmd.ExecuteReaderAsync();
-
                 while (await reader.ReadAsync())
                 {
                     var idStr = reader.IsDBNull(0) ? "" : reader.GetString(0);
                     var name = reader.IsDBNull(1) ? "" : reader.GetString(1);
-                    if (!string.IsNullOrEmpty(idStr))
-                        _userCache[idStr] = name;
+                    if (!string.IsNullOrEmpty(idStr)) _userCache[idStr] = name;
                 }
-            }
+            });
 
-            _salesmenCache.Clear();
-            await using (var cn3 = new SqlConnection(_connHandel))
+            var taskSalesmen = Task.Run(async () =>
             {
-                await cn3.OpenAsync();
+                await using var cn = new SqlConnection(_connHandel);
+                await cn.OpenAsync();
                 await using var cmd = new SqlCommand(
-                    @"SELECT DISTINCT CDim_Handlowiec_Val 
-                      FROM [HANDEL].[SSCommon].[ContractorClassification] 
-                      WHERE CDim_Handlowiec_Val IS NOT NULL 
-                      ORDER BY 1", cn3);
+                    @"SELECT DISTINCT CDim_Handlowiec_Val
+                      FROM [HANDEL].[SSCommon].[ContractorClassification]
+                      WHERE CDim_Handlowiec_Val IS NOT NULL
+                      ORDER BY 1", cn);
                 await using var reader = await cmd.ExecuteReaderAsync();
-
                 while (await reader.ReadAsync())
                 {
                     var val = reader.IsDBNull(0) ? "" : reader.GetString(0);
-                    if (!string.IsNullOrWhiteSpace(val))
-                        _salesmenCache.Add(val);
+                    if (!string.IsNullOrWhiteSpace(val)) _salesmenCache.Add(val);
                 }
-            }
+            });
 
-            // Salesmen cache is kept for potential future use
+            // Zdjęcia + 3 zapytania równolegle (zdjęcia na wątku tła — Freeze() pozwala)
+            await Task.WhenAll(taskProdukty, Task.Run(async () => await LoadProductImagesAsync()), taskUsers, taskSalesmen);
+
+            GenerateProductButtons();
 
             if (_slaughterDateColumnExists)
             {
@@ -2944,18 +2953,15 @@ namespace Kalendarz1.WPF
                 stepSw.Stop();
                 timings.AppendLine($"2. Ładowanie zamówień: {stepSw.ElapsedMilliseconds} ms");
 
-                // 2b. Pobierz produkty z dzisiejszych zamówień i odśwież ComboBox
+                // ✅ 2b + 3: Równoległe ładowanie produktów dnia + podsumowanie
                 stepSw.Restart();
-                await LoadTodayProductIdsAsync(_selectedDate);
+                var taskTodayProducts = LoadTodayProductIdsAsync(_selectedDate);
+                var taskAggregation = DisplayProductAggregationAsync(_selectedDate);
+                await taskTodayProducts;
                 PopulateProductComboBox();
+                await taskAggregation;
                 stepSw.Stop();
-                timings.AppendLine($"2b. Produkty dnia + ComboBox: {stepSw.ElapsedMilliseconds} ms");
-
-                // 3. Podsumowanie produktów
-                stepSw.Restart();
-                await DisplayProductAggregationAsync(_selectedDate);
-                stepSw.Stop();
-                timings.AppendLine($"3. Podsumowanie produktów: {stepSw.ElapsedMilliseconds} ms");
+                timings.AppendLine($"2b+3. Produkty+Podsumowanie(||): {stepSw.ElapsedMilliseconds} ms");
 
                 // NIE ładuj Transport, Historia, Dashboard w tle - lazy loading
                 // Te dane będą załadowane dopiero gdy użytkownik kliknie odpowiednią zakładkę
@@ -4155,6 +4161,12 @@ ORDER BY zm.Id";
             dgOrders.LoadingRow -= DgOrders_LoadingRow;
             dgOrders.LoadingRow += DgOrders_LoadingRow;
 
+            // ✅ Avatary nie są ucinane — mogą wychodzić poza wiersz
+            dgOrders.ClipToBounds = false;
+            var rowStyle = new Style(typeof(DataGridRow));
+            rowStyle.Setters.Add(new Setter(UIElement.ClipToBoundsProperty, false));
+            dgOrders.RowStyle = rowStyle;
+
             // 0. Kategoria odbiorcy - kolorowa kolumna A/B/C
             var kategoriaStyle = new Style(typeof(TextBlock));
             kategoriaStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center));
@@ -4272,6 +4284,10 @@ ORDER BY zm.Id";
                 cellFactory.AppendChild(txtFactory);
 
                 handTemplate.CellTemplate = new DataTemplate { VisualTree = cellFactory };
+                // ✅ Avatar nie ucinany
+                var avatarCellStyle = new Style(typeof(DataGridCell));
+                avatarCellStyle.Setters.Add(new Setter(UIElement.ClipToBoundsProperty, false));
+                handTemplate.CellStyle = avatarCellStyle;
                 dgOrders.Columns.Add(handTemplate);
             }
 
@@ -4423,6 +4439,10 @@ ORDER BY zm.Id";
 
             utworzonoTemplate.VisualTree = stackPanelFactory;
             utworzonoColumn.CellTemplate = utworzonoTemplate;
+            // ✅ Avatar nie ucinany
+            var utworzonoCellStyle = new Style(typeof(DataGridCell));
+            utworzonoCellStyle.Setters.Add(new Setter(UIElement.ClipToBoundsProperty, false));
+            utworzonoColumn.CellStyle = utworzonoCellStyle;
 
             dgOrders.Columns.Add(utworzonoColumn);
 
@@ -4562,6 +4582,9 @@ ORDER BY zm.Id";
 
         private void DgOrders_LoadingRow(object sender, DataGridRowEventArgs e)
         {
+            // ✅ Wyłącz clipping — avatary mogą wychodzić poza wiersz
+            e.Row.ClipToBounds = false;
+
             if (e.Row.Item is DataRowView rowView)
             {
                 var status = rowView.Row.Field<string>("Status") ?? "";
@@ -5660,35 +5683,57 @@ ORDER BY zm.Id";
             dtAgg.Columns.Add("Zamówienia", typeof(decimal));
             dtAgg.Columns.Add("Wydania", typeof(decimal));
             dtAgg.Columns.Add("Bilans", typeof(decimal));
+            dtAgg.Columns.Add("DoSprzedania", typeof(decimal));
+            dtAgg.Columns.Add("NadmiarVal", typeof(decimal));
 
             // Określ czy bilans ma uwzględniać wydania czy zamówienia
             bool uzywajWydan = rbBilansWydania?.IsChecked == true;
 
+            // ✅ OPTYMALIZACJA: Konfiguracja + Harmonogram + OrderIds równolegle
             diagSw.Restart();
-            var (wspolczynnikTuszki, procentA, procentB) = await GetKonfiguracjaWydajnosciAsync(day);
-            var konfiguracjaProduktow = await GetKonfiguracjaProduktowAsync(day);
-            diagTimes.Add(("Konfiguracja", diagSw.ElapsedMilliseconds));
+            var taskKonfWydajnosci = GetKonfiguracjaWydajnosciAsync(day);
+            var konfiguracjaProduktow = await GetKonfiguracjaProduktowAsync(day); // cached = instant
 
-            diagSw.Restart();
-            decimal totalMassDek = 0m;
-            await using (var cn = new SqlConnection(_connLibra))
+            string dateColAgg = (_showBySlaughterDate && _slaughterDateColumnExists) ? "DataUboju" : "DataZamowienia";
+
+            var taskHarmonogram = Task.Run(async () =>
             {
+                decimal mass = 0m;
+                await using var cn = new SqlConnection(_connLibra);
                 await cn.OpenAsync();
-                const string sql = @"SELECT WagaDek, SztukiDek FROM dbo.HarmonogramDostaw 
+                const string sql = @"SELECT WagaDek, SztukiDek FROM dbo.HarmonogramDostaw
             WHERE DataOdbioru = @Day AND Bufor = 'Potwierdzony'";
                 await using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Day", day.Date);
                 await using var rdr = await cmd.ExecuteReaderAsync();
-
                 while (await rdr.ReadAsync())
                 {
                     var weight = rdr.IsDBNull(0) ? 0m : Convert.ToDecimal(rdr.GetValue(0));
                     var quantity = rdr.IsDBNull(1) ? 0m : Convert.ToDecimal(rdr.GetValue(1));
-                    totalMassDek += (weight * quantity);
+                    mass += (weight * quantity);
                 }
-            }
+                return mass;
+            });
 
-            diagTimes.Add(("Harmonogram", diagSw.ElapsedMilliseconds));
+            var taskOrderIds = Task.Run(async () =>
+            {
+                var ids = new List<int>();
+                await using var cnIds = new SqlConnection(_connLibra);
+                await cnIds.OpenAsync();
+                var sqlIds = $"SELECT Id FROM [dbo].[ZamowieniaMieso] WHERE {dateColAgg} = @Day AND Status <> 'Anulowane'";
+                await using var cmdIds = new SqlCommand(sqlIds, cnIds);
+                cmdIds.Parameters.AddWithValue("@Day", day.Date);
+                await using var rdIds = await cmdIds.ExecuteReaderAsync();
+                while (await rdIds.ReadAsync()) ids.Add(rdIds.GetInt32(0));
+                return ids;
+            });
+
+            await Task.WhenAll(taskKonfWydajnosci, taskHarmonogram, taskOrderIds);
+
+            var (wspolczynnikTuszki, procentA, procentB) = await taskKonfWydajnosci;
+            decimal totalMassDek = await taskHarmonogram;
+            var orderIds = await taskOrderIds;
+            diagTimes.Add(("Konfig+Harm+Ids(||)", diagSw.ElapsedMilliseconds));
 
             decimal pulaTuszki = totalMassDek * (wspolczynnikTuszki / 100m);
             decimal pulaTuszkiA = pulaTuszki * (procentA / 100m);
@@ -5699,13 +5744,6 @@ ORDER BY zm.Id";
             var actualIncomeTuszkaA = new Dictionary<int, decimal>();
             var actualIncomeElementy = new Dictionary<int, decimal>();
             var orderSum = new Dictionary<int, decimal>();
-
-            var orderIds = _dtOrders.AsEnumerable()
-                .Where(r => !string.Equals(r.Field<string>("Status"), "Anulowane", StringComparison.OrdinalIgnoreCase))
-                .Where(r => r.Field<string>("Status") != "SUMA")
-                .Select(r => r.Field<int>("Id"))
-                .Where(id => id > 0)
-                .ToList();
 
             // ✅ UŻYJ CACHE PRZYCHODÓW (jeśli dostępny) - oszczędza ~500-1000ms!
             bool przychodyFromCache = _cachedPrzychodyDate == day.Date;
@@ -5789,69 +5827,60 @@ ORDER BY zm.Id";
             }
             diagTimes.Add(("PrzychZam" + (przychodyFromCache ? "©" : "(||)"), diagSw.ElapsedMilliseconds));
 
+            // ✅ OPTYMALIZACJA: Wydania + Stany równolegle
             diagSw.Restart();
-            // ✅ POBIERZ WYDANIA (WZ)
-            // ✅ UŻYJ CACHE WYDAŃ (jeśli dostępny dla tej daty) - oszczędza ~500-800ms!
-            var wydaniaSum = new Dictionary<int, decimal>();
             bool wydaniaFromCache = _cachedWydaniaDate == day.Date;
-            if (wydaniaFromCache)
-            {
-                wydaniaSum = _cachedWydaniaSum;
-            }
-            else
-            {
-                await using (var cn = new SqlConnection(_connHandel))
-                {
-                    await cn.OpenAsync();
-                    const string sqlWydania = @"SELECT MZ.idtw, SUM(ABS(MZ.ilosc))
-                        FROM [HANDEL].[HM].[MZ] MZ
-                        JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
-                        WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny=1 AND MG.data = @Day
-                        GROUP BY MZ.idtw";
-                    await using var cmd = new SqlCommand(sqlWydania, cn);
-                    cmd.Parameters.AddWithValue("@Day", day.Date);
-                    await using var reader = await cmd.ExecuteReaderAsync();
 
-                    while (await reader.ReadAsync())
-                    {
-                        int productId = reader.GetInt32(0);
-                        decimal qty = reader.IsDBNull(1) ? 0m : Convert.ToDecimal(reader.GetValue(1));
-                        wydaniaSum[productId] = qty;
-                    }
-                }
-                // Zapisz do cache
-                _cachedWydaniaSum = wydaniaSum;
-                _cachedWydaniaDate = day.Date;
-            }
-
-            // ✅ POBIERZ STANY MAGAZYNOWE
-            var stanyMagazynowe = new Dictionary<int, decimal>();
-            try
+            var taskWydaniaAgg = Task.Run(async () =>
             {
-                await using var cn = new SqlConnection(_connLibra);
+                if (wydaniaFromCache) return _cachedWydaniaSum;
+
+                var result = new Dictionary<int, decimal>();
+                await using var cn = new SqlConnection(_connHandel);
                 await cn.OpenAsync();
-
-                const string sqlStany = @"
-            SELECT ProduktId, Stan 
-            FROM dbo.StanyMagazynowe 
-            WHERE Data = @Data";
-
-                await using var cmd = new SqlCommand(sqlStany, cn);
-                cmd.Parameters.AddWithValue("@Data", day.Date);
+                const string sqlWydania = @"SELECT MZ.idtw, SUM(ABS(MZ.ilosc))
+                    FROM [HANDEL].[HM].[MZ] MZ
+                    JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
+                    WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny=1 AND MG.data = @Day
+                    GROUP BY MZ.idtw";
+                await using var cmd = new SqlCommand(sqlWydania, cn);
+                cmd.Parameters.AddWithValue("@Day", day.Date);
                 await using var reader = await cmd.ExecuteReaderAsync();
-
                 while (await reader.ReadAsync())
                 {
-                    int produktId = reader.GetInt32(0);
-                    decimal stan = reader.GetDecimal(1);
-                    stanyMagazynowe[produktId] = stan;
+                    int productId = reader.GetInt32(0);
+                    decimal qty = reader.IsDBNull(1) ? 0m : Convert.ToDecimal(reader.GetValue(1));
+                    result[productId] = qty;
                 }
-            }
-            catch
+                _cachedWydaniaSum = result;
+                _cachedWydaniaDate = day.Date;
+                return result;
+            });
+
+            var taskStanyMag = Task.Run(async () =>
             {
-                // Tabela może nie istnieć jeszcze - ignoruj błąd
-            }
-            diagTimes.Add(("WydStany" + (wydaniaFromCache ? "©" : ""), diagSw.ElapsedMilliseconds));
+                var result = new Dictionary<int, decimal>();
+                try
+                {
+                    await using var cn = new SqlConnection(_connLibra);
+                    await cn.OpenAsync();
+                    const string sqlStany = @"SELECT ProduktId, Stan FROM dbo.StanyMagazynowe WHERE Data = @Data";
+                    await using var cmd = new SqlCommand(sqlStany, cn);
+                    cmd.Parameters.AddWithValue("@Data", day.Date);
+                    await using var reader = await cmd.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
+                    {
+                        result[reader.GetInt32(0)] = reader.GetDecimal(1);
+                    }
+                }
+                catch { }
+                return result;
+            });
+
+            await Task.WhenAll(taskWydaniaAgg, taskStanyMag);
+            var wydaniaSum = await taskWydaniaAgg;
+            var stanyMagazynowe = await taskStanyMag;
+            diagTimes.Add(("WydStany(||)" + (wydaniaFromCache ? "©" : ""), diagSw.ElapsedMilliseconds));
 
             diagSw.Restart();
             var kurczakA = _productCatalogCache.FirstOrDefault(p =>
@@ -6062,6 +6091,7 @@ ORDER BY zm.Id";
             // ✅ BILANS CAŁKOWITY
             decimal bilansCalk = balanceA + bilansB;
 
+
             // ✅ UTWÓRZ KARTY PRODUKTÓW Z SZABLONU DASHBOARDU
             wpProductCards.Children.Clear();
 
@@ -6153,13 +6183,18 @@ ORDER BY zm.Id";
             // Zachowaj dane w dtAgg dla kompatybilności
             dtAgg.Rows.Add("═══ SUMA CAŁKOWITA ═══", planA + sumaPlanB, factA + sumaFaktB,
                 (stanMagA + sumaStanB > 0 ? (stanMagA + sumaStanB).ToString("N0") : ""),
-                ordersA + sumaZamB, wydaniaA + sumaWydB, bilansCalk);
-            dtAgg.Rows.Add("🐔 Kurczak A", planA, factA, stanA, ordersA, wydaniaA, balanceA);
+                ordersA + sumaZamB, wydaniaA + sumaWydB, bilansCalk,
+                bilansCalk > 0 ? bilansCalk : 0m, bilansCalk < 0 ? Math.Abs(bilansCalk) : 0m);
+            dtAgg.Rows.Add("🐔 Kurczak A", planA, factA, stanA, ordersA, wydaniaA, balanceA,
+                balanceA > 0 ? balanceA : 0m, balanceA < 0 ? Math.Abs(balanceA) : 0m);
             dtAgg.Rows.Add("🐔 Kurczak B", sumaPlanB, sumaFaktB,
-                (sumaStanB > 0 ? sumaStanB.ToString("N0") : ""), sumaZamB, sumaWydB, bilansB);
+                (sumaStanB > 0 ? sumaStanB.ToString("N0") : ""), sumaZamB, sumaWydB, bilansB,
+                bilansB > 0 ? bilansB : 0m, bilansB < 0 ? Math.Abs(bilansB) : 0m);
             foreach (var produkt in produktyB)
             {
-                dtAgg.Rows.Add(produkt.nazwa, produkt.plan, produkt.fakt, produkt.stan, produkt.zam, produkt.wyd, produkt.bilans);
+                var doSprz = produkt.bilans > 0 ? produkt.bilans : 0m;
+                var nadm = produkt.bilans < 0 ? Math.Abs(produkt.bilans) : 0m;
+                dtAgg.Rows.Add(produkt.nazwa, produkt.plan, produkt.fakt, produkt.stan, produkt.zam, produkt.wyd, produkt.bilans, doSprz, nadm);
             }
 
             // Ustaw źródło danych dla ukrytego DataGrid (kompatybilność)
@@ -6171,6 +6206,7 @@ ORDER BY zm.Id";
 
             diagTimes.Add(("Agregacja", diagSw.ElapsedMilliseconds));
             _lastAggregationDiag = diagTimes;
+
         }
 
         private string ShortenProductName(string name)
@@ -6210,6 +6246,7 @@ ORDER BY zm.Id";
 
                 const string sql = @"SELECT TowarId, Zdjecie FROM dbo.TowarZdjecia WHERE Aktywne = 1";
                 await using var cmd = new SqlCommand(sql, cn);
+                cmd.CommandTimeout = 30;
                 await using var rdr = await cmd.ExecuteReaderAsync();
 
                 while (await rdr.ReadAsync())
@@ -6223,7 +6260,10 @@ ORDER BY zm.Id";
                     }
                 }
             }
-            catch { /* Zdjęcia są opcjonalne */ }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainWindow] Błąd ładowania obrazków: {ex.Message}");
+            }
         }
 
         private async Task<List<int>> LoadDefaultDashboardProductIdsAsync()
@@ -6293,7 +6333,11 @@ ORDER BY zm.Id";
                 }
                 return image;
             }
-            catch { return null; }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainWindow] Błąd dekodowania obrazka: {ex.Message}");
+                return null;
+            }
         }
 
         private BitmapImage? GetProductImage(int towarId)
@@ -6371,21 +6415,35 @@ ORDER BY zm.Id";
 
             card.ContextMenu = contextMenu;
 
-            card.Effect = new System.Windows.Media.Effects.DropShadowEffect
+            // ✅ Pulsująca zielona obramówka dla filtrowanego produktu
+            if (towarId > 0 && _selectedProductId.HasValue && _selectedProductId.Value == towarId)
             {
-                ShadowDepth = 1,
-                Opacity = 0.15,
-                BlurRadius = 5
-            };
+                card.BorderBrush = new SolidColorBrush(Color.FromRgb(46, 204, 113));
+                card.BorderThickness = new Thickness(3);
+
+                var pulseAnim = new System.Windows.Media.Animation.ColorAnimation
+                {
+                    From = Color.FromRgb(46, 204, 113),
+                    To = Color.FromRgb(144, 238, 144),
+                    Duration = TimeSpan.FromMilliseconds(700),
+                    AutoReverse = true,
+                    RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever,
+                    EasingFunction = new System.Windows.Media.Animation.SineEase()
+                };
+
+                var brush = new SolidColorBrush(Color.FromRgb(46, 204, 113));
+                card.BorderBrush = brush;
+                brush.BeginAnimation(SolidColorBrush.ColorProperty, pulseAnim);
+            }
 
             var stack = new StackPanel();
 
-            // === NAGŁÓWEK: zdjęcie + nazwa ===
-            var headerGrid = new Grid { Margin = new Thickness(0, 0, 0, 6) };
+            // === NAGŁÓWEK: zdjęcie w lewym górnym rogu + nazwa obok ===
+            var headerGrid = new Grid { Margin = new Thickness(0, -4, 0, 2) };
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-            // Zdjęcie produktu
+            // Zdjęcie produktu — mniejsze, przesunięte w górę
             var productImage = towarId > 0 ? GetProductImage(towarId) : null;
             Border imgBorder;
             if (productImage != null)
@@ -6393,34 +6451,36 @@ ORDER BY zm.Id";
                 var img = new System.Windows.Controls.Image
                 {
                     Source = productImage,
-                    Width = 44,
-                    Height = 44,
+                    Width = 36,
+                    Height = 36,
                     Stretch = Stretch.Uniform
                 };
                 RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
                 imgBorder = new Border
                 {
-                    Width = 46,
-                    Height = 46,
+                    Width = 38,
+                    Height = 38,
                     CornerRadius = new CornerRadius(6),
                     ClipToBounds = true,
                     Child = img,
-                    Margin = new Thickness(0, 0, 8, 0)
+                    Margin = new Thickness(0, 0, 6, 0),
+                    VerticalAlignment = VerticalAlignment.Top
                 };
             }
             else
             {
                 imgBorder = new Border
                 {
-                    Width = 46,
-                    Height = 46,
+                    Width = 38,
+                    Height = 38,
                     CornerRadius = new CornerRadius(6),
                     Background = new SolidColorBrush(Color.FromRgb(236, 240, 241)),
-                    Margin = new Thickness(0, 0, 8, 0),
+                    Margin = new Thickness(0, 0, 6, 0),
+                    VerticalAlignment = VerticalAlignment.Top,
                     Child = new TextBlock
                     {
                         Text = "📷",
-                        FontSize = 18,
+                        FontSize = 14,
                         HorizontalAlignment = HorizontalAlignment.Center,
                         VerticalAlignment = VerticalAlignment.Center,
                         Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166))
@@ -6430,7 +6490,7 @@ ORDER BY zm.Id";
             Grid.SetColumn(imgBorder, 0);
             headerGrid.Children.Add(imgBorder);
 
-            // Nazwa produktu - rozmiar L
+            // Nazwa produktu
             var titleText = new TextBlock
             {
                 Text = nazwa,
@@ -6468,7 +6528,8 @@ ORDER BY zm.Id";
                 stack.Children.Add(stanPanel);
             }
 
-            // === BILANS - rozmiar L ===
+            // === DO SPRZEDANIA / NADMIAR ===
+            string bilansLabel = bilans >= 0 ? "Do sprzedania: " : "Nadmiar: ";
             var bilansColor = bilans >= 0 ? Color.FromRgb(39, 174, 96) : Color.FromRgb(231, 76, 60);
             var bilansText = new TextBlock
             {
@@ -6476,8 +6537,8 @@ ORDER BY zm.Id";
                 Margin = new Thickness(0, 5, 0, 0),
                 HorizontalAlignment = HorizontalAlignment.Right
             };
-            bilansText.Inlines.Add(new Run("Bilans: ") { Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)) });
-            bilansText.Inlines.Add(new Run($"{bilans:N0}") { FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(bilansColor) });
+            bilansText.Inlines.Add(new Run(bilansLabel) { Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)) });
+            bilansText.Inlines.Add(new Run($"{Math.Abs(bilans):N0}") { FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(bilansColor) });
             stack.Children.Add(bilansText);
 
             card.Child = stack;
@@ -6683,13 +6744,32 @@ ORDER BY zm.Id";
                 ElementStyle = wydStyle
             });
 
-            // 6. BILANS
+            // 6a. DO SPRZEDANIA (bilans > 0)
+            var doSprzStyle = new Style(typeof(TextBlock));
+            doSprzStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
+            doSprzStyle.Setters.Add(new Setter(TextBlock.PaddingProperty, new Thickness(0, 0, 8, 0)));
+            doSprzStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(0, 150, 0))));
+            doSprzStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.SemiBold));
             dgAggregation.Columns.Add(new DataGridTextColumn
             {
-                Header = "Bil.",
-                Binding = new System.Windows.Data.Binding("Bilans") { StringFormat = "N0" },
+                Header = "Do spr.",
+                Binding = new System.Windows.Data.Binding("DoSprzedania") { StringFormat = "N0" },
                 Width = new DataGridLength(70),
-                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
+                ElementStyle = doSprzStyle
+            });
+
+            // 6b. NADMIAR (bilans < 0)
+            var nadmiarStyle = new Style(typeof(TextBlock));
+            nadmiarStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
+            nadmiarStyle.Setters.Add(new Setter(TextBlock.PaddingProperty, new Thickness(0, 0, 8, 0)));
+            nadmiarStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(200, 0, 0))));
+            nadmiarStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.SemiBold));
+            dgAggregation.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Nadmiar",
+                Binding = new System.Windows.Data.Binding("NadmiarVal") { StringFormat = "N0" },
+                Width = new DataGridLength(70),
+                ElementStyle = nadmiarStyle
             });
 
             // 7. PRODUKT
@@ -6754,7 +6834,7 @@ ORDER BY zm.Id";
 
         private async void RbBilans_Checked(object sender, RoutedEventArgs e)
         {
-            // Odśwież agregację przy zmianie radio button
+            if (!_isInitialized) return;
             await RefreshAggregationAsync();
         }
 
@@ -6845,8 +6925,8 @@ ORDER BY zm.Id";
             szczegoly.AppendLine($"📊 SZCZEGÓŁY GRUPY: {nazwaGrupy}");
             szczegoly.AppendLine($"════════════════════════════════════════");
             szczegoly.AppendLine();
-            szczegoly.AppendLine($"{"Produkt",-25} {"Plan",10} {"Fakt",10} {"Zam.",10} {"Bilans",10}");
-            szczegoly.AppendLine($"{"───────────────────────",-25} {"──────────",10} {"──────────",10} {"──────────",10} {"──────────",10}");
+            szczegoly.AppendLine($"{"Produkt",-25} {"Plan",10} {"Fakt",10} {"Zam.",10} {"Do spr.",10} {"Nadmiar",10}");
+            szczegoly.AppendLine($"{"───────────────────────",-25} {"──────────",10} {"──────────",10} {"──────────",10} {"──────────",10} {"──────────",10}");
 
             decimal sumaPlan = 0, sumaFakt = 0, sumaZam = 0;
 
@@ -6858,8 +6938,10 @@ ORDER BY zm.Id";
                 var (plan, fakt, zam) = await PobierzDaneProduktuAsync(produktId, _selectedDate);
 
                 decimal bil = (fakt > 0 ? fakt : plan) - zam;
+                string doSprz = bil > 0 ? $"{bil:N0}" : "";
+                string nadm = bil < 0 ? $"{Math.Abs(bil):N0}" : "";
 
-                szczegoly.AppendLine($"{nazwaProdukt,-25} {plan,10:N0} {fakt,10:N0} {zam,10:N0} {bil,10:N0}");
+                szczegoly.AppendLine($"{nazwaProdukt,-25} {plan,10:N0} {fakt,10:N0} {zam,10:N0} {doSprz,10} {nadm,10}");
 
                 sumaPlan += plan;
                 sumaFakt += fakt;
@@ -6867,9 +6949,11 @@ ORDER BY zm.Id";
             }
 
             decimal sumaBilans = (sumaFakt > 0 ? sumaFakt : sumaPlan) - sumaZam;
+            string sumaDoSprz = sumaBilans > 0 ? $"{sumaBilans:N0}" : "";
+            string sumaNadm = sumaBilans < 0 ? $"{Math.Abs(sumaBilans):N0}" : "";
 
-            szczegoly.AppendLine($"{"───────────────────────",-25} {"──────────",10} {"──────────",10} {"──────────",10} {"──────────",10}");
-            szczegoly.AppendLine($"{"SUMA",-25} {sumaPlan,10:N0} {sumaFakt,10:N0} {sumaZam,10:N0} {sumaBilans,10:N0}");
+            szczegoly.AppendLine($"{"───────────────────────",-25} {"──────────",10} {"──────────",10} {"──────────",10} {"──────────",10} {"──────────",10}");
+            szczegoly.AppendLine($"{"SUMA",-25} {sumaPlan,10:N0} {sumaFakt,10:N0} {sumaZam,10:N0} {sumaDoSprz,10} {sumaNadm,10}");
             szczegoly.AppendLine();
             szczegoly.AppendLine($"Produktów w grupie: {produktyIds.Count}");
 
@@ -6921,13 +7005,18 @@ ORDER BY zm.Id";
                         fakt = Convert.ToDecimal(result);
                 }
 
-                // Pobierz zamówienia
-                var orderIds = _dtOrders.AsEnumerable()
-                    .Where(r => !string.Equals(r.Field<string>("Status"), "Anulowane", StringComparison.OrdinalIgnoreCase))
-                    .Where(r => r.Field<string>("Status") != "SUMA")
-                    .Select(r => r.Field<int>("Id"))
-                    .Where(id => id > 0)
-                    .ToList();
+                // Pobierz zamówienia (WSZYSTKIE dnia, bez filtra produktu)
+                var orderIds = new List<int>();
+                {
+                    string dateCol = (_showBySlaughterDate && _slaughterDateColumnExists) ? "DataUboju" : "DataZamowienia";
+                    await using var cnIds = new SqlConnection(_connLibra);
+                    await cnIds.OpenAsync();
+                    var sqlIds = $"SELECT Id FROM [dbo].[ZamowieniaMieso] WHERE {dateCol} = @Day AND Status <> 'Anulowane'";
+                    await using var cmdIds = new SqlCommand(sqlIds, cnIds);
+                    cmdIds.Parameters.AddWithValue("@Day", dzien.Date);
+                    await using var rdIds = await cmdIds.ExecuteReaderAsync();
+                    while (await rdIds.ReadAsync()) orderIds.Add(rdIds.GetInt32(0));
+                }
 
                 if (orderIds.Any())
                 {
@@ -7288,14 +7377,19 @@ ORDER BY zm.Id";
                 }
             }
 
-            // Pobierz zamówienia
+            // Pobierz zamówienia (WSZYSTKIE dnia, bez filtra produktu)
             var orderSum = new Dictionary<int, decimal>();
-            var orderIds = _dtOrders.AsEnumerable()
-                .Where(r => !string.Equals(r.Field<string>("Status"), "Anulowane", StringComparison.OrdinalIgnoreCase))
-                .Where(r => r.Field<string>("Status") != "SUMA")
-                .Select(r => r.Field<int>("Id"))
-                .Where(id => id > 0)
-                .ToList();
+            var orderIds = new List<int>();
+            {
+                string dateCol = (_showBySlaughterDate && _slaughterDateColumnExists) ? "DataUboju" : "DataZamowienia";
+                await using var cnIds = new SqlConnection(_connLibra);
+                await cnIds.OpenAsync();
+                var sqlIds = $"SELECT Id FROM [dbo].[ZamowieniaMieso] WHERE {dateCol} = @Day AND Status <> 'Anulowane'";
+                await using var cmdIds = new SqlCommand(sqlIds, cnIds);
+                cmdIds.Parameters.AddWithValue("@Day", day.Date);
+                await using var rdIds = await cmdIds.ExecuteReaderAsync();
+                while (await rdIds.ReadAsync()) orderIds.Add(rdIds.GetInt32(0));
+            }
 
             // Słownik: ProductId -> lista (Odbiorca, Ilosc, Handlowiec)
             var orderDetailsPerProductId = new Dictionary<int, List<(string odbiorca, decimal ilosc, string handlowiec)>>();

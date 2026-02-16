@@ -670,6 +670,7 @@ namespace Kalendarz1.Transport.Formularze
                 new DataGridViewTextBoxColumn { Name = "Godz", HeaderText = "Godz.", Width = 55, DefaultCellStyle = new DataGridViewCellStyle { ForeColor = ZpspColors.Purple, Font = ZpspFonts.Label9Bold } },
                 new DataGridViewTextBoxColumn { Name = "Palety", HeaderText = "Palety", Width = 55, DefaultCellStyle = new DataGridViewCellStyle { ForeColor = ZpspColors.Orange, Font = ZpspFonts.DgvPaletyBold, Alignment = DataGridViewContentAlignment.MiddleRight } },
                 new DataGridViewTextBoxColumn { Name = "Pojemniki", HeaderText = "Poj.", Width = 55, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleRight } },
+                new DataGridViewTextBoxColumn { Name = "Kg", HeaderText = "Kg", Width = 55, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleRight } },
                 new DataGridViewTextBoxColumn { Name = "Klient", HeaderText = "Klient", Width = 160, DefaultCellStyle = new DataGridViewCellStyle { Font = ZpspFonts.DgvClientBold } },
                 new DataGridViewTextBoxColumn { Name = "Adres", HeaderText = "Adres", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, DefaultCellStyle = new DataGridViewCellStyle { ForeColor = ZpspColors.TextGray, Font = ZpspFonts.Text9 } }
             );
@@ -835,7 +836,8 @@ namespace Kalendarz1.Transport.Formularze
                             z.DataPrzyjazdu, z.DataUboju,
                             ISNULL(z.TransportStatus, 'Oczekuje') AS TransportStatus,
                             ISNULL(a.ZipCode,'') + ' ' + ISNULL(a.City,'') AS Adres,
-                            ISNULL(wym.CDim_Handlowiec_Val, '') AS Handlowiec
+                            ISNULL(wym.CDim_Handlowiec_Val, '') AS Handlowiec,
+                            ISNULL((SELECT SUM(ISNULL(zmt.Ilosc, 0)) FROM dbo.ZamowieniaMiesoTowar zmt WHERE zmt.ZamowienieId = z.Id), 0) AS IloscKg
                           FROM ZamowieniaMieso z
                           LEFT JOIN [192.168.0.112].Handel.SSCommon.STContractors c ON z.KlientId = c.Id
                           LEFT JOIN [192.168.0.112].Handel.SSCommon.STPostOfficeAddresses a ON c.Id = a.ContractorId AND a.IsDefault = 1
@@ -865,7 +867,8 @@ namespace Kalendarz1.Transport.Formularze
                         DataUboju = rdr.IsDBNull(7) ? null : rdr.GetDateTime(7),
                         TransportStatus = rdr.GetString(8),
                         Adres = rdr.IsDBNull(9) ? "" : rdr.GetString(9).Trim(),
-                        Handlowiec = rdr.IsDBNull(10) ? "" : rdr.GetString(10)
+                        Handlowiec = rdr.IsDBNull(10) ? "" : rdr.GetString(10),
+                        IloscKg = rdr.IsDBNull(11) ? 0 : rdr.GetDecimal(11)
                     });
                 }
 
@@ -934,6 +937,7 @@ namespace Kalendarz1.Transport.Formularze
                     z.GodzinaStr,
                     z.Palety.ToString("N1"),
                     z.Pojemniki.ToString(),
+                    z.IloscKg > 0 ? z.IloscKg.ToString("N0") : "",
                     z.KlientNazwa,
                     z.Adres
                 );

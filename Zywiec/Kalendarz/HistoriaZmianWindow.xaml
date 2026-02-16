@@ -317,7 +317,7 @@
                         <TextBlock Text="📝 HISTORIA NOTATEK" FontWeight="Bold" FontSize="12" Foreground="#455A64"/>
                         <TextBlock x:Name="txtNotatkiCount" FontSize="12" Foreground="#78909C" Margin="10,0,0,0"/>
                     </StackPanel>
-                    <DataGrid Grid.Row="1" x:Name="dgNotatki" Style="{StaticResource AuditDataGridStyle}" RowHeight="Auto">
+                    <DataGrid Grid.Row="1" x:Name="dgNotatki" Style="{StaticResource AuditDataGridStyle}">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Data utworzenia" Binding="{Binding DataUtworzenia, StringFormat=yyyy-MM-dd HH:mm}" Width="140">
                                 <DataGridTextColumn.ElementStyle>

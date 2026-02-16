@@ -25,6 +25,7 @@ namespace Kalendarz1
 
         private static bool? _dataAkceptacjiProdukcjaColumnExists = null;
         private static bool? _strefaColumnExists = null;
+        private static bool? _czyModProdukcjiColumnExists = null;
         private readonly Dictionary<int, BitmapImage?> _productImages = new();
 
         public string UserID { get; set; } = "User";
@@ -853,6 +854,27 @@ namespace Kalendarz1
             return _dataAkceptacjiProdukcjaColumnExists.Value;
         }
 
+        private async Task<bool> CheckCzyModProdukcjiColumnExistsAsync(SqlConnection cn)
+        {
+            if (_czyModProdukcjiColumnExists.HasValue)
+                return _czyModProdukcjiColumnExists.Value;
+
+            string checkSql = @"SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'CzyZmodyfikowaneDlaProdukcji'";
+            using var cmd = new SqlCommand(checkSql, cn);
+            var result = await cmd.ExecuteScalarAsync();
+            if (result == null)
+            {
+                try
+                {
+                    using var alter = new SqlCommand("ALTER TABLE [dbo].[ZamowieniaMieso] ADD CzyZmodyfikowaneDlaProdukcji BIT NULL DEFAULT 0", cn);
+                    await alter.ExecuteNonQueryAsync();
+                }
+                catch { }
+            }
+            _czyModProdukcjiColumnExists = true;
+            return true;
+        }
+
         private async Task<bool> CheckStrefaColumnExistsAsync(SqlConnection cn)
         {
             if (_strefaColumnExists.HasValue)
@@ -882,11 +904,14 @@ namespace Kalendarz1
             try
             {
                 using var cn = new SqlConnection(_connLibra);
-                await cn.OpenAsync();
-                var cmdCheck = new SqlCommand("SELECT CASE WHEN EXISTS (SELECT 1 FROM sys.tables WHERE name = 'TowarZdjecia') THEN 1 ELSE 0 END", cn);
+                cn.Open();
+
+                using var cmdCheck = new SqlCommand(
+                    "SELECT CASE WHEN EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'TowarZdjecia') THEN 1 ELSE 0 END", cn);
                 if ((int)(await cmdCheck.ExecuteScalarAsync())! == 0) return;
 
-                var cmd = new SqlCommand("SELECT TowarId, Zdjecie FROM dbo.TowarZdjecia WHERE Aktywne = 1", cn);
+                using var cmd = new SqlCommand("SELECT TowarId, Zdjecie FROM dbo.TowarZdjecia WHERE Aktywne = 1", cn);
+                cmd.CommandTimeout = 30;
                 using var rdr = await cmd.ExecuteReaderAsync();
                 while (await rdr.ReadAsync())
                 {
@@ -896,7 +921,7 @@ namespace Kalendarz1
                         byte[] data = (byte[])rdr[1];
                         try
                         {
-                            var ms = new System.IO.MemoryStream(data);
+                            using var ms = new System.IO.MemoryStream(data);
                             var bi = new BitmapImage();
                             bi.BeginInit();
                             bi.StreamSource = ms;
@@ -906,11 +931,17 @@ namespace Kalendarz1
                             bi.Freeze();
                             _productImages[towarId] = bi;
                         }
-                        catch { }
+                        catch (Exception exImg)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[ProdukcjaPanel] Błąd dekodowania obrazka TowarId={towarId}: {exImg.Message}");
+                        }
                     }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ProdukcjaPanel] Błąd ładowania obrazków: {ex.Message}");
+            }
         }
 
         private BitmapImage? GetProductImage(int towarId)
@@ -949,6 +980,7 @@ namespace Kalendarz1
                     string akceptacjaColumn = hasAkceptacjaColumn ? ", z.DataAkceptacjiProdukcja" : ", NULL AS DataAkceptacjiProdukcja";
 
                     bool hasStrefaColumn = await CheckStrefaColumnExistsAsync(cn);
+                    bool hasCzyModProdukcji = await CheckCzyModProdukcjiColumnExistsAsync(cn);
 
                     // Sprawdź czy kolumny częściowej realizacji istnieją
                     bool hasPartialColumns = await CheckPartialRealizationColumnsExistAsync(cn);
@@ -986,6 +1018,7 @@ namespace Kalendarz1
                         ? ", CAST((SELECT MAX(CAST(ISNULL(ts.Strefa, 0) AS INT)) FROM dbo.ZamowieniaMiesoTowar ts WHERE ts.ZamowienieId = z.Id) AS BIT) AS Strefa"
                         : ", CAST(0 AS BIT) AS Strefa");
                     sqlBuilder.Append(", CAST(CASE WHEN EXISTS(SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id AND ISNULL(t.E2, 0) = 1) THEN 1 ELSE 0 END AS BIT) AS MaE2");
+                    sqlBuilder.Append(hasCzyModProdukcji ? ", ISNULL(z.CzyZmodyfikowaneDlaProdukcji, 0) AS CzyZmodyfikowaneDlaProdukcjiFlag" : ", CAST(0 AS BIT) AS CzyZmodyfikowaneDlaProdukcjiFlag");
                     sqlBuilder.Append($" FROM dbo.ZamowieniaMieso z WHERE z.{dateColumn}=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')");
                     if (_filteredProductId.HasValue)
                         sqlBuilder.Append(" AND EXISTS (SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId=z.Id AND t.KodTowaru=@P)");
@@ -1007,16 +1040,16 @@ namespace Kalendarz1
                         var czyZrealizowane = rd.GetBoolean(8);
 
                         // Sprawdź czy zamówienie zostało zmodyfikowane od czasu akceptacji przez produkcję
-                        // Produkcja używa DataAkceptacjiProdukcja, a DataRealizacji jako fallback
-                        bool czyZmodyfikowane = false;
-                        if (czyZrealizowane && dataOstatniejModyfikacji.HasValue)
+                        // 1) Flaga boolean ustawiana przez WidokZamowienia przy edycji
+                        bool czyZmodyfikowaneFlag = rd.GetBoolean(20);
+                        // 2) Timestamp comparison jako fallback (dla starszych danych)
+                        bool czyZmodyfikowane = czyZmodyfikowaneFlag;
+                        if (!czyZmodyfikowane && czyZrealizowane && dataOstatniejModyfikacji.HasValue)
                         {
-                            // Jeśli produkcja już zaakceptowała, porównaj z jej datą akceptacji
                             if (dataAkceptacjiProdukcja.HasValue)
                             {
                                 czyZmodyfikowane = dataOstatniejModyfikacji.Value > dataAkceptacjiProdukcja.Value;
                             }
-                            // Jeśli produkcja jeszcze nie akceptowała, użyj daty realizacji
                             else if (dataRealizacji.HasValue)
                             {
                                 czyZmodyfikowane = dataOstatniejModyfikacji.Value > dataRealizacji.Value;
@@ -1408,8 +1441,8 @@ namespace Kalendarz1
                 // Zaktualizuj snapshot do aktualnego stanu
                 await SaveOrderSnapshotAsync(cn, vm.Info.Id, "Realizacja");
 
-                // Zaktualizuj DataAkceptacjiProdukcja na teraz (osobna akceptacja dla produkcji)
-                var cmd = new SqlCommand("UPDATE dbo.ZamowieniaMieso SET DataAkceptacjiProdukcja = GETDATE() WHERE Id = @Id", cn);
+                // Zaktualizuj DataAkceptacjiProdukcja na teraz + resetuj flagę boolean (osobna akceptacja dla produkcji)
+                var cmd = new SqlCommand("UPDATE dbo.ZamowieniaMieso SET DataAkceptacjiProdukcja = GETDATE(), CzyZmodyfikowaneDlaProdukcji = 0 WHERE Id = @Id", cn);
                 cmd.Parameters.AddWithValue("@Id", vm.Info.Id);
                 await cmd.ExecuteNonQueryAsync();
 

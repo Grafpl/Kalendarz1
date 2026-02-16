@@ -82,15 +82,7 @@ namespace Kalendarz1.Kartoteka.Views
             _service = new KartotekaService(_libraNetConn, _handelConn);
 
             _isAdmin = _userId == "11111";
-            if (_isAdmin)
-            {
-                ComboBoxHandlowiec.Visibility = Visibility.Visible;
-                TextBlockHandlowiec.Text = "Administrator - wszystkie dane";
-            }
-            else
-            {
-                TextBlockHandlowiec.Text = $"Handlowiec: {_userName}";
-            }
+            TextBlockHandlowiec.Text = $"Handlowiec: {_userName}";
 
             LoadCompanyLogo();
             SetupLogoContextMenu();
@@ -255,22 +247,15 @@ namespace Kalendarz1.Kartoteka.Views
                 string handlowiec = null;
                 bool pokazWszystkich = false;
 
-                if (_userId == "11111")
+                var selected = ComboBoxHandlowiec.SelectedItem as ComboBoxItem;
+                var selectedText = selected?.Content?.ToString();
+                if (string.IsNullOrEmpty(selectedText) || selectedText == "Wszyscy")
                 {
-                    var selected = ComboBoxHandlowiec.SelectedItem as ComboBoxItem;
-                    var selectedText = selected?.Content?.ToString();
-                    if (string.IsNullOrEmpty(selectedText) || selectedText == "Wszyscy")
-                    {
-                        pokazWszystkich = true;
-                    }
-                    else
-                    {
-                        handlowiec = selectedText;
-                    }
+                    pokazWszystkich = true;
                 }
                 else
                 {
-                    handlowiec = _userName;
+                    handlowiec = selectedText;
                 }
 
                 await _service.EnsureTablesExistAsync();
@@ -283,8 +268,8 @@ namespace Kalendarz1.Kartoteka.Views
 
                 ApplySortAndRegenerate();
 
-                // Załaduj handlowców dla admina
-                if (_userId == "11111" && ComboBoxHandlowiec.Items.Count <= 1)
+                // Załaduj handlowców
+                if (ComboBoxHandlowiec.Items.Count <= 1)
                 {
                     ComboBoxHandlowiec.Items.Clear();
                     ComboBoxHandlowiec.Items.Add(new ComboBoxItem { Content = "Wszyscy", IsSelected = true });

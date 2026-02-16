@@ -400,6 +400,7 @@
 
         <Style x:Key="MainDataGridStyle" TargetType="DataGrid">
             <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="IsReadOnly" Value="True"/>
             <Setter Property="CanUserAddRows" Value="False"/>
             <Setter Property="CanUserDeleteRows" Value="False"/>
             <Setter Property="CanUserReorderColumns" Value="False"/>
@@ -1759,38 +1760,24 @@
                                             <DropShadowEffect BlurRadius="4" ShadowDepth="1" Opacity="0.08" Color="#000000"/>
                                         </Border.Effect>
                                         <StackPanel>
-                                            <!-- Nagłówek: Dzień + Hodowca + Zapisz -->
+                                            <!-- Nagłówek: Hodowca + Zapisz -->
                                             <Grid Margin="0,0,0,8">
                                                 <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
-                                                <!-- Badge z dniem tygodnia i datą -->
-                                                <Border Grid.Column="0" Background="#EFF6FF" CornerRadius="6" Padding="8,5" Margin="0,0,8,0" BorderBrush="#BFDBFE" BorderThickness="1">
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="📅" FontSize="12" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                                        <TextBlock x:Name="txtDzienDostawy" FontWeight="Bold" FontSize="12" Foreground="#1D4ED8" VerticalAlignment="Center"/>
-                                                    </StackPanel>
-                                                </Border>
+                                                <!-- Data ukryta -->
+                                                <TextBlock x:Name="txtDzienDostawy" Visibility="Collapsed"/>
                                                 <!-- Hodowca -->
-                                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
+                                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
                                                     <TextBlock Text="📋 " FontSize="12" VerticalAlignment="Center"/>
                                                     <TextBlock x:Name="txtHodowcaDaneDostawy" FontWeight="Bold" FontSize="13" Foreground="#166534" VerticalAlignment="Center"/>
                                                 </StackPanel>
-                                                <!-- Status + Typ ceny + Typ umowy -->
-                                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                                    <ComboBox x:Name="cmbStatus" FontSize="9" Height="26" Margin="0,0,4,0" MinWidth="80" SelectionChanged="CmbStatus_SelectionChanged">
-                                                        <ComboBox.Style>
-                                                            <Style TargetType="ComboBox"><Setter Property="Padding" Value="4,2"/></Style>
-                                                        </ComboBox.Style>
-                                                    </ComboBox>
-                                                    <ComboBox x:Name="cmbTypCeny" FontSize="9" Height="26" Margin="0,0,4,0" MinWidth="70"/>
-                                                    <ComboBox x:Name="cmbTypUmowy" FontSize="9" Height="26" MinWidth="70"/>
-                                                </StackPanel>
+                                                <!-- Puste -->
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"/>
                                                 <!-- Zapisz -->
-                                                <Button Grid.Column="3" Click="BtnZapiszDostawe_Click" Padding="14,6" FontSize="11" Cursor="Hand" ToolTip="Zapisz zmiany (Ctrl+S)">
+                                                <Button Grid.Column="2" Click="BtnZapiszDostawe_Click" Padding="14,6" FontSize="11" Cursor="Hand" ToolTip="Zapisz zmiany (Ctrl+S)">
                                                     <StackPanel Orientation="Horizontal">
                                                         <TextBlock Text="💾" FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center"/>
                                                         <TextBlock Text="Zapisz" FontWeight="SemiBold" VerticalAlignment="Center"/>
@@ -1873,13 +1860,14 @@
                                                 </Border>
                                             </Grid>
 
-                                            <!-- Wiersz 2: Cena, Dodatek, Potwierdzenia, Kalkulator -->
+                                            <!-- Wiersz 2: Cena, Dodatek, 3× ceny dnia -->
                                             <Grid Margin="0,0,0,4">
                                                 <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="80"/>
+                                                    <ColumnDefinition Width="80"/>
+                                                    <ColumnDefinition Width="60"/>
+                                                    <ColumnDefinition Width="60"/>
+                                                    <ColumnDefinition Width="60"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
@@ -1891,24 +1879,81 @@
                                                     </StackPanel>
                                                 </Border>
                                                 <!-- Dodatek -->
-                                                <Border Grid.Column="1" Background="#F8FAFC" CornerRadius="6" Padding="8,6" Margin="4,0,8,0" BorderBrush="#E2E8F0" BorderThickness="1">
+                                                <Border Grid.Column="1" Background="#F8FAFC" CornerRadius="6" Padding="8,6" Margin="0,0,4,0" BorderBrush="#E2E8F0" BorderThickness="1">
                                                     <StackPanel>
                                                         <TextBlock Text="➕ Dodatek" FontSize="9" Foreground="#475569" FontWeight="SemiBold" Margin="0,0,0,2"/>
                                                         <TextBox x:Name="txtDodatek" FontSize="15" FontWeight="Bold" Foreground="#334155" Background="Transparent" BorderThickness="0" Padding="0"/>
                                                     </StackPanel>
                                                 </Border>
+                                                <!-- Cena Rolnicza z dnia dostawy -->
+                                                <Border Grid.Column="2" Background="#F3F4F6" CornerRadius="4" Padding="4,4" Margin="0,0,2,0" BorderBrush="#D1D5DB" BorderThickness="1" ToolTip="Cena rolnicza z dnia dostawy">
+                                                    <StackPanel>
+                                                        <TextBlock Text="Rol." FontSize="8" Foreground="#9CA3AF"/>
+                                                        <TextBlock x:Name="txtPropRolnicza" FontSize="11" Foreground="#9CA3AF" FontWeight="SemiBold"/>
+                                                    </StackPanel>
+                                                </Border>
+                                                <!-- Cena Ministerialna z dnia dostawy -->
+                                                <Border Grid.Column="3" Background="#F3F4F6" CornerRadius="4" Padding="4,4" Margin="0,0,2,0" BorderBrush="#D1D5DB" BorderThickness="1" ToolTip="Cena ministerialna z dnia dostawy">
+                                                    <StackPanel>
+                                                        <TextBlock Text="Min." FontSize="8" Foreground="#9CA3AF"/>
+                                                        <TextBlock x:Name="txtPropMinister" FontSize="11" Foreground="#9CA3AF" FontWeight="SemiBold"/>
+                                                    </StackPanel>
+                                                </Border>
+                                                <!-- Cena Łączona z dnia dostawy -->
+                                                <Border Grid.Column="4" Background="#F3F4F6" CornerRadius="4" Padding="4,4" Margin="0,0,4,0" BorderBrush="#D1D5DB" BorderThickness="1" ToolTip="Cena łączona z dnia dostawy (śr. rolniczej i ministerialnej)">
+                                                    <StackPanel>
+                                                        <TextBlock Text="Łącz." FontSize="8" Foreground="#9CA3AF"/>
+                                                        <TextBlock x:Name="txtPropLaczona" FontSize="11" Foreground="#9CA3AF" FontWeight="SemiBold"/>
+                                                    </StackPanel>
+                                                </Border>
                                                 <!-- Potwierdzenie wagi -->
-                                                <Border x:Name="borderPotwWaga" Grid.Column="2" Background="#FEE2E2" CornerRadius="4" Padding="6,3" Margin="0,0,4,0" ToolTip="Potwierdzenie wagi" VerticalAlignment="Center">
+                                                <Border x:Name="borderPotwWaga" Grid.Column="5" Background="#FEE2E2" CornerRadius="4" Padding="6,3" Margin="0,0,4,0" ToolTip="Potwierdzenie wagi" VerticalAlignment="Center">
                                                     <StackPanel Orientation="Horizontal">
                                                         <CheckBox x:Name="chkPotwWaga" VerticalAlignment="Center" Margin="0,0,4,0" Click="ChkPotwWaga_Click"/>
-                                                        <TextBlock Text="⚖️ Waga" FontSize="8" VerticalAlignment="Center" Foreground="#DC2626"/>
+                                                        <TextBlock Text="⚖️" FontSize="8" VerticalAlignment="Center" Foreground="#DC2626"/>
                                                     </StackPanel>
                                                 </Border>
                                                 <!-- Potwierdzenie sztuk -->
-                                                <Border x:Name="borderPotwSztuki" Grid.Column="3" Background="#FEE2E2" CornerRadius="4" Padding="6,3" Margin="0,0,4,0" ToolTip="Potwierdzenie sztuk" VerticalAlignment="Center">
+                                                <Border x:Name="borderPotwSztuki" Grid.Column="6" Background="#FEE2E2" CornerRadius="4" Padding="6,3" Margin="0,0,0,0" ToolTip="Potwierdzenie sztuk" VerticalAlignment="Center">
                                                     <StackPanel Orientation="Horizontal">
                                                         <CheckBox x:Name="chkPotwSztuki" VerticalAlignment="Center" Margin="0,0,4,0" Click="ChkPotwSztuki_Click"/>
-                                                        <TextBlock Text="🐔 Szt." FontSize="8" VerticalAlignment="Center" Foreground="#DC2626"/>
+                                                        <TextBlock Text="🐔" FontSize="8" VerticalAlignment="Center" Foreground="#DC2626"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </Grid>
+
+                                            <!-- Wiersz 3: Status, Typ ceny, Typ umowy, Kalkulator -->
+                                            <Grid Margin="0,0,0,4">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <!-- Status -->
+                                                <Border Grid.Column="0" Background="#F8FAFC" CornerRadius="6" Padding="6,4" Margin="0,0,4,0" BorderBrush="#E2E8F0" BorderThickness="1">
+                                                    <StackPanel>
+                                                        <TextBlock Text="Status" FontSize="8" Foreground="#64748B" Margin="0,0,0,2"/>
+                                                        <ComboBox x:Name="cmbStatus" FontSize="9" Height="24" MinWidth="80" SelectionChanged="CmbStatus_SelectionChanged">
+                                                            <ComboBox.Style>
+                                                                <Style TargetType="ComboBox"><Setter Property="Padding" Value="4,2"/></Style>
+                                                            </ComboBox.Style>
+                                                        </ComboBox>
+                                                    </StackPanel>
+                                                </Border>
+                                                <!-- Typ ceny -->
+                                                <Border Grid.Column="1" Background="#F8FAFC" CornerRadius="6" Padding="6,4" Margin="0,0,4,0" BorderBrush="#E2E8F0" BorderThickness="1">
+                                                    <StackPanel>
+                                                        <TextBlock Text="Typ ceny" FontSize="8" Foreground="#64748B" Margin="0,0,0,2"/>
+                                                        <ComboBox x:Name="cmbTypCeny" FontSize="9" Height="24" MinWidth="70" SelectionChanged="CmbTypCeny_SelectionChanged"/>
+                                                    </StackPanel>
+                                                </Border>
+                                                <!-- Typ umowy -->
+                                                <Border Grid.Column="2" Background="#F8FAFC" CornerRadius="6" Padding="6,4" Margin="0,0,4,0" BorderBrush="#E2E8F0" BorderThickness="1">
+                                                    <StackPanel>
+                                                        <TextBlock Text="Typ umowy" FontSize="8" Foreground="#64748B" Margin="0,0,0,2"/>
+                                                        <ComboBox x:Name="cmbTypUmowy" FontSize="9" Height="24" MinWidth="70"/>
                                                     </StackPanel>
                                                 </Border>
                                                 <!-- Kalkulator transportu inline -->
@@ -1954,11 +1999,12 @@
                                                         </Button>
                                                     </StackPanel>
                                                 </Border>
-                                                <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0,0,0">
-                                                    <TextBlock x:Name="txtKtoWaga" FontSize="7" Foreground="#94A3B8" Margin="0,0,4,0"/>
-                                                    <TextBlock x:Name="txtKtoSztuki" FontSize="7" Foreground="#94A3B8"/>
-                                                </StackPanel>
                                             </Grid>
+                                            <!-- Ukryte pola użytkowników (wymagane przez code-behind) -->
+                                            <StackPanel Visibility="Collapsed">
+                                                <TextBlock x:Name="txtKtoWaga"/>
+                                                <TextBlock x:Name="txtKtoSztuki"/>
+                                            </StackPanel>
                                         </StackPanel>
                                     </Border>
 
@@ -2343,7 +2389,6 @@
                                 </StackPanel>
                             </ScrollViewer>
 
-                            <!-- Potwierdzenia wag/sztuk są teraz dostępne w menu kontekstowym tablic dostaw (dgDostawy/dgDostawyNastepny) -->
                         </Grid>
                     </TabItem>
 
@@ -2424,6 +2469,33 @@
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
                                     <Button Content="📍 Mapa" Style="{StaticResource ActionButtonStyle}" Click="BtnMapa_Click"/>
                                     <Button Content="📱 SMS" Style="{StaticResource WarningButtonStyle}" Click="BtnSMS_Click"/>
+                                    <Button Click="BtnZapiszHodowce_Click" Padding="14,6" FontSize="11" Cursor="Hand" Margin="4,0,0,0" ToolTip="Zapisz dane hodowcy do bazy">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="💾" FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Zapisz hodowcę" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="Background" Value="#10B981"/>
+                                                <Setter Property="Foreground" Value="White"/>
+                                                <Setter Property="BorderThickness" Value="0"/>
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            </Border>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="#059669"/>
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
                                 </StackPanel>
                             </StackPanel>
                         </ScrollViewer>

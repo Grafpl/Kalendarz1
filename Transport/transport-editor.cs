@@ -95,6 +95,7 @@ namespace Kalendarz1.Transport.Formularze
         private string _infoZmienilDate;
         private string _infoHandlowcy;
         private Dictionary<string, Image> _editorAvatarCache = new Dictionary<string, Image>();
+        private Dictionary<string, string> _handlowiecMapowanie;
 
         // Przyciski główne
         private Button btnZapisz;
@@ -121,7 +122,8 @@ namespace Kalendarz1.Transport.Formularze
             public bool AnulowanyWZamowieniu { get; set; }
             public decimal PoprzedniePalety { get; set; }
             public int PoprzedniePojemniki { get; set; }
-            public DateTime? DataUboju { get; set; }  // NOWE
+            public DateTime? DataUboju { get; set; }
+            public decimal IloscKg { get; set; }
         }
         public class KontrahentInfo
         {
@@ -1146,6 +1148,8 @@ namespace Kalendarz1.Transport.Formularze
             dgvWolneZamowienia.EnableHeadersVisualStyles = false;
             dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(245, 247, 250);
             dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(100, 100, 120);
+            dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.SelectionBackColor = Color.FromArgb(232, 218, 239);
+            dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.SelectionForeColor = Color.FromArgb(60, 40, 80);
             dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
             dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.Padding = new Padding(4, 6, 4, 6);
             dgvWolneZamowienia.ColumnHeadersHeight = 28;
@@ -1153,8 +1157,8 @@ namespace Kalendarz1.Transport.Formularze
 
             dgvWolneZamowienia.DefaultCellStyle.Font = new Font("Segoe UI", 8.5F);
             dgvWolneZamowienia.DefaultCellStyle.Padding = new Padding(4, 2, 4, 2);
-            dgvWolneZamowienia.DefaultCellStyle.SelectionBackColor = Color.FromArgb(52, 152, 219);
-            dgvWolneZamowienia.DefaultCellStyle.SelectionForeColor = Color.White;
+            dgvWolneZamowienia.DefaultCellStyle.SelectionBackColor = Color.FromArgb(232, 218, 239);
+            dgvWolneZamowienia.DefaultCellStyle.SelectionForeColor = Color.FromArgb(60, 40, 80);
             dgvWolneZamowienia.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(250, 250, 252);
             dgvWolneZamowienia.RowTemplate.Height = 24;
             dgvWolneZamowienia.GridColor = Color.FromArgb(240, 242, 245);
@@ -1322,6 +1326,7 @@ namespace Kalendarz1.Transport.Formularze
                 cboKierowca.SelectedIndex = -1;
                 cboPojazd.SelectedIndex = -1;
 
+                await EnsureHandlowiecMappingLoadedAsync();
                 await LoadWolneZamowienia();
 
                 if (_kursId.HasValue && _kursId.Value > 0)
@@ -1448,6 +1453,22 @@ namespace Kalendarz1.Transport.Formularze
             _panelInfoKursu?.Invalidate();
         }
 
+        private async Task EnsureHandlowiecMappingLoadedAsync()
+        {
+            if (_handlowiecMapowanie != null) return;
+            _handlowiecMapowanie = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                using var cnLib = new SqlConnection(_connLibra);
+                await cnLib.OpenAsync();
+                using var cmd = new SqlCommand("SELECT HandlowiecName, UserID FROM UserHandlowcy", cnLib);
+                using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                    _handlowiecMapowanie[reader.GetString(0)] = reader.GetString(1);
+            }
+            catch { }
+        }
+
         private Image GetEditorAvatar(string userId, string displayName, int size)
         {
             var key = $"{userId}_{size}";
@@ -1467,6 +1488,24 @@ namespace Kalendarz1.Transport.Formularze
 
             _editorAvatarCache[key] = avatar;
             return avatar;
+        }
+
+        private Image GetHandlowiecAvatar(string handlowiecName, int size)
+        {
+            if (_handlowiecMapowanie != null &&
+                _handlowiecMapowanie.TryGetValue(handlowiecName, out var uid))
+                return GetEditorAvatar(uid, handlowiecName, size);
+
+            return GetEditorAvatar(handlowiecName, handlowiecName, size);
+        }
+
+        private static string SkrocNazwe(string fullName)
+        {
+            if (string.IsNullOrWhiteSpace(fullName)) return fullName;
+            var parts = fullName.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length >= 2)
+                return $"{parts[0]} {parts[1][0]}.";
+            return fullName;
         }
 
         private void PanelInfoKursu_Paint(object sender, PaintEventArgs e)
@@ -1555,14 +1594,14 @@ namespace Kalendarz1.Transport.Formularze
                 using (var font = new Font("Segoe UI", 7.5F))
                 using (var brush = new SolidBrush(labelColor))
                 {
-                    g.DrawString("Handlowcy:", font, brush, x, 1);
-                    x += (int)g.MeasureString("Handlowcy:", font).Width + 3;
+                    g.DrawString("Handl.:", font, brush, x, 1);
+                    x += (int)g.MeasureString("Handl.:", font).Width + 3;
                 }
 
                 var names = _infoHandlowcy.Split(',').Select(n => n.Trim()).Where(n => !string.IsNullOrEmpty(n)).ToList();
                 foreach (var hName in names.Take(3))
                 {
-                    var avatar = GetEditorAvatar(hName, hName, avatarSize);
+                    var avatar = GetHandlowiecAvatar(hName, avatarSize);
                     if (avatar != null)
                     {
                         g.DrawImage(avatar, x, 1, avatarSize, avatarSize);
@@ -1665,6 +1704,7 @@ namespace Kalendarz1.Transport.Formularze
                             ladunek.PojemnikiE2 = aktualneZamowienie.Pojemniki;
                             ladunek.ZmienionyWZamowieniu = true;
                         }
+                        ladunek.IloscKg = aktualneZamowienie.IloscKg;
                     }
                 }
             }
@@ -1682,9 +1722,10 @@ namespace Kalendarz1.Transport.Formularze
             dt.Columns.Add("ID", typeof(long));
             dt.Columns.Add("Lp.", typeof(int));
             dt.Columns.Add("Klient", typeof(string));
-            dt.Columns.Add("Data uboju", typeof(string));  // NOWE
+            dt.Columns.Add("Data uboju", typeof(string));
             dt.Columns.Add("Palety", typeof(decimal));
             dt.Columns.Add("Pojemniki", typeof(int));
+            dt.Columns.Add("Kg", typeof(string));
             dt.Columns.Add("Adres", typeof(string));
             dt.Columns.Add("Uwagi", typeof(string));
             dt.Columns.Add("Status", typeof(string));
@@ -1723,7 +1764,7 @@ namespace Kalendarz1.Transport.Formularze
                     ladunek.Adres = adres;
                 }
 
-                // NOWE: Pobierz datę uboju dla zamówienia
+                // Pobierz datę uboju dla zamówienia
                 string dataUbojuStr = "---";
                 if (ladunek.KodKlienta?.StartsWith("ZAM_") == true &&
                     int.TryParse(ladunek.KodKlienta.Substring(4), out int zamId))
@@ -1752,9 +1793,10 @@ namespace Kalendarz1.Transport.Formularze
                     ladunek.LadunekID,
                     ladunek.Kolejnosc,
                     klientNazwa,
-                    dataUbojuStr,  // NOWE
+                    dataUbojuStr,
                     ladunek.Palety,
                     ladunek.PojemnikiE2,
+                    ladunek.IloscKg > 0 ? ladunek.IloscKg.ToString("N0") : "",
                     adres,
                     ladunek.Uwagi ?? "",
                     status
@@ -1791,6 +1833,10 @@ namespace Kalendarz1.Transport.Formularze
                 dgvLadunki.Columns["Pojemniki"].Width = 80;
                 dgvLadunki.Columns["Pojemniki"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
                 dgvLadunki.Columns["Pojemniki"].DefaultCellStyle.ForeColor = Color.Blue;
+            }
+            if (dgvLadunki.Columns["Kg"] != null)
+            {
+                dgvLadunki.Columns["Kg"].Width = 60;
             }
             if (dgvLadunki.Columns["Adres"] != null)
             {
@@ -1851,6 +1897,7 @@ namespace Kalendarz1.Transport.Formularze
             dt.Columns.Add("Data uboju", typeof(string));
             dt.Columns.Add("Palety", typeof(decimal));
             dt.Columns.Add("Pojemniki", typeof(int));
+            dt.Columns.Add("Kg", typeof(string));
             dt.Columns.Add("Adres", typeof(string));
             dt.Columns.Add("Uwagi", typeof(string));
             dt.Columns.Add("Status", typeof(string));
@@ -1889,6 +1936,7 @@ namespace Kalendarz1.Transport.Formularze
                     dataUbojuStr,
                     ladunek.Palety,
                     ladunek.PojemnikiE2,
+                    ladunek.IloscKg > 0 ? ladunek.IloscKg.ToString("N0") : "",
                     ladunek.Adres ?? "",
                     ladunek.Uwagi ?? "",
                     status
@@ -1921,6 +1969,10 @@ namespace Kalendarz1.Transport.Formularze
                 dgvLadunki.Columns["Pojemniki"].Width = 80;
                 dgvLadunki.Columns["Pojemniki"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
                 dgvLadunki.Columns["Pojemniki"].DefaultCellStyle.ForeColor = Color.Blue;
+            }
+            if (dgvLadunki.Columns["Kg"] != null)
+            {
+                dgvLadunki.Columns["Kg"].Width = 60;
             }
             if (dgvLadunki.Columns["Adres"] != null)
             {
@@ -2113,14 +2165,15 @@ namespace Kalendarz1.Transport.Formularze
                 SUM(ISNULL(zmt.Ilosc, 0)) AS IloscKg,
                 ISNULL(zm.TransportStatus, 'Oczekuje') AS TransportStatus,
                 zm.DataZamowienia,
-                zm.DataUboju
+                zm.DataUboju,
+                zm.TransportKursID
             FROM dbo.ZamowieniaMieso zm
             LEFT JOIN dbo.ZamowieniaMiesoTowar zmt ON zm.Id = zmt.ZamowienieId
             WHERE {dataKolumna} >= @DataOd AND {dataKolumna} <= @DataDo
               AND ISNULL(zm.Status, 'Nowe') NOT IN ('Anulowane')
             GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.Status, zm.Uwagi,
-                     zm.LiczbaPalet, zm.LiczbaPojemnikow, zm.TrybE2, zm.TransportStatus, 
-                     zm.DataZamowienia, zm.DataUboju
+                     zm.LiczbaPalet, zm.LiczbaPojemnikow, zm.TrybE2, zm.TransportStatus,
+                     zm.DataZamowienia, zm.DataUboju, zm.TransportKursID
             ORDER BY {dataKolumna}, zm.DataPrzyjazdu";
 
                 using var cmd = new SqlCommand(sql, cn);
@@ -2132,12 +2185,15 @@ namespace Kalendarz1.Transport.Formularze
                 {
                     var transportStatus = reader.GetString(9);
                     var zamId = reader.GetInt32(0);
+                    var hasKursId = !reader.IsDBNull(12);
 
                     bool jestWLiscieDoDodania = _zamowieniaDoDodania.Any(z => z.ZamowienieId == zamId);
+                    bool jestDoUsuniecia = _zamowieniaDoUsuniecia.Contains(zamId);
 
-                    if ((transportStatus == "Oczekuje" || string.IsNullOrEmpty(transportStatus) || _zamowieniaDoUsuniecia.Contains(zamId))
-                        && transportStatus != "Wlasny"  // NOWE: wykluczenie własnego transportu (DB przechowuje bez ł)
-                        && !jestWLiscieDoDodania)
+                    if ((transportStatus == "Oczekuje" || string.IsNullOrEmpty(transportStatus) || jestDoUsuniecia)
+                        && transportStatus != "Wlasny"
+                        && !jestWLiscieDoDodania
+                        && (!hasKursId || jestDoUsuniecia))
                     {
                         var zamowienie = new ZamowienieDoTransportu
                         {
@@ -2241,7 +2297,9 @@ namespace Kalendarz1.Transport.Formularze
             dt.Columns.Add("Godz.", typeof(string));
             dt.Columns.Add("Palety", typeof(string));
             dt.Columns.Add("Poj.", typeof(int));
+            dt.Columns.Add("Kg", typeof(string));
             dt.Columns.Add("Klient", typeof(string));
+            dt.Columns.Add("Handl.", typeof(string));
             dt.Columns.Add("Adres", typeof(string));
 
             var zamowieniaDoPokazania = _wolneZamowienia.AsEnumerable();
@@ -2264,8 +2322,8 @@ namespace Kalendarz1.Transport.Formularze
             foreach (var group in grouped)
             {
                 // Wiersz nagłówka grupy
-                var dzienTygodnia = group.Key.ToString("dddd", plCulture);
-                var groupHeader = $"▸ {group.Key:dd.MM} ({dzienTygodnia}) — {group.Count()} zam.";
+                var dzienSkrot = group.Key.ToString("ddd", plCulture);
+                var groupHeader = $"▸ {group.Key:dd.MM} {dzienSkrot} — {group.Count()} zam.";
                 var groupRow = dt.NewRow();
                 groupRow["ID"] = 0;
                 groupRow["IsGroupRow"] = true;
@@ -2274,7 +2332,9 @@ namespace Kalendarz1.Transport.Formularze
                 groupRow["Godz."] = "";
                 groupRow["Palety"] = "";
                 groupRow["Poj."] = 0;
+                groupRow["Kg"] = "";
                 groupRow["Klient"] = "";
+                groupRow["Handl."] = "";
                 groupRow["Adres"] = "";
                 dt.Rows.Add(groupRow);
 
@@ -2294,7 +2354,9 @@ namespace Kalendarz1.Transport.Formularze
                         zam.GodzinaStr,
                         zam.Palety.ToString("N1"),
                         zam.Pojemniki,
+                        zam.IloscKg > 0 ? zam.IloscKg.ToString("N0") : "",
                         zam.KlientNazwa,
+                        zam.Handlowiec,
                         zam.Adres
                     );
                 }
@@ -2317,8 +2379,12 @@ namespace Kalendarz1.Transport.Formularze
                 dgvWolneZamowienia.Columns["Palety"].Width = 48;
             if (dgvWolneZamowienia.Columns["Poj."] != null)
                 dgvWolneZamowienia.Columns["Poj."].Width = 42;
+            if (dgvWolneZamowienia.Columns["Kg"] != null)
+                dgvWolneZamowienia.Columns["Kg"].Width = 52;
             if (dgvWolneZamowienia.Columns["Klient"] != null)
                 dgvWolneZamowienia.Columns["Klient"].Width = 140;
+            if (dgvWolneZamowienia.Columns["Handl."] != null)
+                dgvWolneZamowienia.Columns["Handl."].Width = 90;
             if (dgvWolneZamowienia.Columns["Adres"] != null)
                 dgvWolneZamowienia.Columns["Adres"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
 
@@ -2397,6 +2463,7 @@ namespace Kalendarz1.Transport.Formularze
                     Uwagi = $"{zamowienie.KlientNazwa} ({zamowienie.GodzinaStr})",
                     Adres = zamowienie.Adres,
                     NazwaKlienta = zamowienie.KlientNazwa,
+                    IloscKg = zamowienie.IloscKg,
                     Kolejnosc = _ladunki.Count + 1
                 };
 
@@ -3204,6 +3271,7 @@ Adres: {zamowienie.Adres}";
                     Adres = zamowienie.Adres,
                     NazwaKlienta = zamowienie.KlientNazwa,
                     DataUboju = zamowienie.DataUboju,
+                    IloscKg = zamowienie.IloscKg,
                     Kolejnosc = _ladunki.Count + 1
                 };
 
@@ -3283,25 +3351,73 @@ Adres: {zamowienie.Adres}";
         {
             if (e.RowIndex < 0) return;
             var row = dgvWolneZamowienia.Rows[e.RowIndex];
-            if (row.Cells["IsGroupRow"]?.Value == null || !Convert.ToBoolean(row.Cells["IsGroupRow"].Value))
+            var isGroupRow = row.Cells["IsGroupRow"]?.Value != null && Convert.ToBoolean(row.Cells["IsGroupRow"].Value);
+            var colName = dgvWolneZamowienia.Columns[e.ColumnIndex].Name;
+
+            // Renderowanie avatara handlowca w zwykłych wierszach
+            if (!isGroupRow && colName == "Handl.")
+            {
+                var cellValue = e.Value?.ToString() ?? "";
+                if (string.IsNullOrWhiteSpace(cellValue)) return;
+
+                e.Handled = true;
+                var selected = row.Selected;
+
+                using (var bgBrush = new SolidBrush(selected ? e.CellStyle.SelectionBackColor : e.CellStyle.BackColor))
+                    e.Graphics.FillRectangle(bgBrush, e.CellBounds);
+
+                e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                e.Graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+
+                var avatarSize = 26;
+                var avatarX = e.CellBounds.Left + 4;
+                var avatarY = e.CellBounds.Top + (e.CellBounds.Height - avatarSize) / 2;
+
+                var avatarImg = GetHandlowiecAvatar(cellValue, avatarSize);
+                if (avatarImg != null)
+                {
+                    using (var pen = new Pen(selected ? e.CellStyle.SelectionBackColor : Color.White, 2))
+                        e.Graphics.DrawEllipse(pen, avatarX - 1, avatarY - 1, avatarSize + 1, avatarSize + 1);
+                    e.Graphics.DrawImage(avatarImg, avatarX, avatarY, avatarSize, avatarSize);
+                }
+
+                var textX = avatarX + avatarSize + 5;
+                var textColor = selected ? Color.White : Color.FromArgb(40, 50, 65);
+                var displayText = SkrocNazwe(cellValue);
+
+                using (var font = new Font("Segoe UI", 8F))
+                using (var brush = new SolidBrush(textColor))
+                {
+                    var sf = new StringFormat { LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter };
+                    var textRect = new RectangleF(textX, e.CellBounds.Top, e.CellBounds.Right - textX - 4, e.CellBounds.Height);
+                    e.Graphics.DrawString(displayText, font, brush, textRect, sf);
+                }
+
+                using (var borderPen = new Pen(dgvWolneZamowienia.GridColor))
+                    e.Graphics.DrawLine(borderPen, e.CellBounds.Left, e.CellBounds.Bottom - 1,
+                        e.CellBounds.Right - 1, e.CellBounds.Bottom - 1);
                 return;
+            }
+
+            // Wiersze grupujące
+            if (!isGroupRow) return;
 
             e.Handled = true;
             var bgColor = row.Selected ? e.CellStyle.SelectionBackColor : Color.FromArgb(235, 230, 245);
             using (var brush = new SolidBrush(bgColor))
                 e.Graphics.FillRectangle(brush, e.CellBounds);
 
-            var colName = dgvWolneZamowienia.Columns[e.ColumnIndex].Name;
-
-            // Rysuj tekst nagłówka grupy scalony w kolumnach Odbiór + Godz.
+            // Rysuj tekst grupy w kolumnie Odbiór — scalony przez Odbiór+Godz.+Palety+Poj.
             if (colName == "Odbiór")
             {
                 var headerText = row.Cells["Odbiór"]?.Value?.ToString() ?? "";
-                var odbiorWidth = dgvWolneZamowienia.Columns["Odbiór"]?.Width ?? 0;
-                var godzWidth = dgvWolneZamowienia.Columns["Godz."]?.Width ?? 0;
-                var mergedWidth = odbiorWidth + godzWidth;
+                var mergedWidth = (dgvWolneZamowienia.Columns["Odbiór"]?.Width ?? 0)
+                    + (dgvWolneZamowienia.Columns["Godz."]?.Width ?? 0)
+                    + (dgvWolneZamowienia.Columns["Palety"]?.Width ?? 0)
+                    + (dgvWolneZamowienia.Columns["Poj."]?.Width ?? 0)
+                    + (dgvWolneZamowienia.Columns["Kg"]?.Width ?? 0);
 
-                using (var font = new Font("Segoe UI", 7.5F, FontStyle.Bold))
+                using (var font = new Font("Segoe UI", 8F, FontStyle.Bold))
                 using (var textBrush = new SolidBrush(Color.FromArgb(100, 60, 140)))
                 {
                     var sf = new StringFormat { LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter };
@@ -3500,23 +3616,46 @@ Adres: {zamowienie.Adres}";
                         $"Zamówienie usunięte z kursu transportowego");
                 }
 
+                // Aktualizuj WSZYSTKIE zamówienia powiązane z ładunkami w kursie (nie tylko nowo dodane)
+                var zamIdyWKursie = new HashSet<int>();
+                foreach (var ladunek in _ladunki)
+                {
+                    if (ladunek.KodKlienta?.StartsWith("ZAM_") == true &&
+                        int.TryParse(ladunek.KodKlienta.Substring(4), out var zamId2))
+                    {
+                        zamIdyWKursie.Add(zamId2);
+                    }
+                }
+
+                // Dodaj też te z _zamowieniaDoDodania (na wypadek gdyby jeszcze nie były w _ladunki)
                 foreach (var zam in _zamowieniaDoDodania)
+                    zamIdyWKursie.Add(zam.ZamowienieId);
+
+                // Usuń te które są do usunięcia (już obsłużone wyżej)
+                foreach (var zamId in _zamowieniaDoUsuniecia)
+                    zamIdyWKursie.Remove(zamId);
+
+                foreach (var zamId in zamIdyWKursie)
                 {
                     var sql = @"UPDATE dbo.ZamowieniaMieso
                                SET TransportStatus = 'Przypisany', TransportKursId = @KursId
-                               WHERE Id = @ZamowienieId";
+                               WHERE Id = @ZamowienieId
+                                 AND (ISNULL(TransportStatus, '') != 'Przypisany' OR TransportKursId IS NULL OR TransportKursId != @KursId)";
 
                     using var cmd = new SqlCommand(sql, cn);
-                    cmd.Parameters.AddWithValue("@ZamowienieId", zam.ZamowienieId);
+                    cmd.Parameters.AddWithValue("@ZamowienieId", zamId);
                     cmd.Parameters.AddWithValue("@KursId", _kursId.Value);
-                    await cmd.ExecuteNonQueryAsync();
+                    var rows = await cmd.ExecuteNonQueryAsync();
 
-                    // Loguj przypisanie do kursu
-                    await HistoriaZmianService.LogujEdycje(zam.ZamowienieId, _uzytkownik, App.UserFullName,
-                        "Transport - przypisanie do kursu",
-                        "Oczekuje na przypisanie",
-                        kursInfo,
-                        $"Zamówienie przypisane do kursu transportowego");
+                    if (rows > 0)
+                    {
+                        // Loguj przypisanie do kursu (tylko jeśli coś się zmieniło)
+                        await HistoriaZmianService.LogujEdycje(zamId, _uzytkownik, App.UserFullName,
+                            "Transport - przypisanie do kursu",
+                            "Oczekuje na przypisanie",
+                            kursInfo,
+                            $"Zamówienie przypisane do kursu transportowego");
+                    }
                 }
 
                 _zamowieniaDoDodania.Clear();

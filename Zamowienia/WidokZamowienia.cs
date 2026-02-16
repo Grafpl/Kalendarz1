@@ -1533,6 +1533,8 @@ namespace Kalendarz1
             bool dataUbojuExists = await CheckIfColumnExists(cn, "DataUboju");
             bool walutaExists = await CheckIfColumnExists(cn, "Waluta");
             bool strefaTowarExists = await CheckStrefaTowarColumnExists(cn);
+            bool czyModMagazynuExists = await EnsureColumnExists(cn, "CzyZmodyfikowaneDlaMagazynu", "BIT NULL DEFAULT 0");
+            bool czyModProdukcjiExists = await EnsureColumnExists(cn, "CzyZmodyfikowaneDlaProdukcji", "BIT NULL DEFAULT 0");
 
             await using var tr = (SqlTransaction)await cn.BeginTransactionAsync();
 
@@ -1567,6 +1569,8 @@ namespace Kalendarz1
                 if (dataProdukcjiExists) updateSql += ", DataProdukcji = @dprod";
                 if (dataUbojuExists) updateSql += ", DataUboju = @duboj";
                 if (walutaExists) updateSql += ", Waluta = @waluta";
+                if (czyModMagazynuExists) updateSql += ", CzyZmodyfikowaneDlaMagazynu = 1";
+                if (czyModProdukcjiExists) updateSql += ", CzyZmodyfikowaneDlaProdukcji = 1";
 
                 updateSql += " WHERE Id = @id";
 
@@ -4264,6 +4268,22 @@ namespace Kalendarz1
             {
                 return false;
             }
+        }
+
+        private async Task<bool> EnsureColumnExists(SqlConnection cn, string columnName, string columnDef)
+        {
+            try
+            {
+                bool exists = await CheckIfColumnExists(cn, columnName);
+                if (!exists)
+                {
+                    await using var cmd = new SqlCommand(
+                        $"ALTER TABLE [dbo].[ZamowieniaMieso] ADD [{columnName}] {columnDef}", cn);
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                return true;
+            }
+            catch { return false; }
         }
 
         private bool? _strefaTowarColumnExists;
