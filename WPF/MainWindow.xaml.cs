@@ -3165,6 +3165,7 @@ namespace Kalendarz1.WPF
             _dtOrders.Columns.Add("MaFolie", typeof(bool));
             _dtOrders.Columns.Add("MaHallal", typeof(bool));
             _dtOrders.Columns.Add("MaStrefa", typeof(bool));
+            _dtOrders.Columns.Add("MaMrozone", typeof(bool));
             _dtOrders.Columns.Add("Trans", typeof(string));
             _dtOrders.Columns.Add("Prod", typeof(string));
             _dtOrders.Columns.Add("CzyMaCeny", typeof(bool));
@@ -3485,12 +3486,35 @@ ORDER BY zm.Id";
                 return result;
             });
 
+            // Zadanie 5: Sprawdź które zamówienia mają mrożone towary (katalog 67153)
+            var taskMrozone = Task.Run(async () =>
+            {
+                var result = new HashSet<int>();
+                if (zamowieniaIds.Any() && _productCatalogMrozone.Any())
+                {
+                    try
+                    {
+                        await using var cn = new SqlConnection(_connLibra);
+                        await cn.OpenAsync();
+                        var mrozonaIds = string.Join(",", _productCatalogMrozone.Keys);
+                        var sql = $"SELECT DISTINCT ZamowienieId FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId IN ({string.Join(",", zamowieniaIds)}) AND KodTowaru IN ({mrozonaIds})";
+                        await using var cmd = new SqlCommand(sql, cn);
+                        await using var rd = await cmd.ExecuteReaderAsync();
+                        while (await rd.ReadAsync())
+                            result.Add(rd.GetInt32(0));
+                    }
+                    catch { }
+                }
+                return result;
+            });
+
             // Czekaj na wszystkie równoległe zadania
-            await Task.WhenAll(taskTransportKurs, taskTransportInfo, taskGrupyTowarowe, taskSrednieCeny);
+            await Task.WhenAll(taskTransportKurs, taskTransportInfo, taskGrupyTowarowe, taskSrednieCeny, taskMrozone);
             transportTimes = await taskTransportKurs;
             transportInfo = await taskTransportInfo;
             sumaPerZamowieniePerGrupa = await taskGrupyTowarowe;
             srednieCenyZamowien = await taskSrednieCeny;
+            var zamowieniaMrozone = await taskMrozone;
 
             diagTimes.Add(("Trans+Grupy+Ceny(||)", diagSw.ElapsedMilliseconds));
             var cultureInfo = new CultureInfo("pl-PL");
@@ -3677,6 +3701,7 @@ ORDER BY zm.Id";
                 newRow["MaFolie"] = hasFoil;
                 newRow["MaHallal"] = hasHallal;
                 newRow["MaStrefa"] = hasStrefa;
+                newRow["MaMrozone"] = zamowieniaMrozone.Contains(id);
                 newRow["Trans"] = transColumn;
                 newRow["Prod"] = prodColumn;
                 newRow["CzyMaCeny"] = czyMaCeny;
@@ -3746,6 +3771,7 @@ ORDER BY zm.Id";
                 row["MaFolie"] = false;
                 row["MaHallal"] = false;
                 row["MaStrefa"] = false;
+                row["MaMrozone"] = false;
                 row["Trans"] = "";
                 row["Prod"] = "";
                 row["CzyMaCeny"] = false;
@@ -3826,6 +3852,7 @@ ORDER BY zm.Id";
                 summaryRow["MaFolie"] = false;
                 summaryRow["MaHallal"] = false;
                 summaryRow["MaStrefa"] = false;
+                summaryRow["MaMrozone"] = false;
                 summaryRow["Trans"] = "";
                 summaryRow["Prod"] = "";
                 summaryRow["CzyMaCeny"] = false;
@@ -4206,6 +4233,16 @@ ORDER BY zm.Id";
                 odbiorcaCellFactory.SetValue(StackPanel.MarginProperty, new Thickness(2));
 
                 var boolToVisConv = new BooleanToVisibilityConverter();
+
+                // Ikona Mrożone ❄️ - niebieska
+                var icoMrozone = new FrameworkElementFactory(typeof(TextBlock));
+                icoMrozone.SetValue(TextBlock.TextProperty, "\u2744\uFE0F");
+                icoMrozone.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(0x42, 0xA5, 0xF5)));
+                icoMrozone.SetValue(TextBlock.FontSizeProperty, 12.0);
+                icoMrozone.SetValue(TextBlock.MarginProperty, new Thickness(0, 0, 2, 0));
+                icoMrozone.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+                icoMrozone.SetBinding(TextBlock.VisibilityProperty, new System.Windows.Data.Binding("MaMrozone") { Converter = boolToVisConv });
+                odbiorcaCellFactory.AppendChild(icoMrozone);
 
                 // Ikona Strefa - czerwona
                 var icoStrefa = new FrameworkElementFactory(typeof(TextBlock));

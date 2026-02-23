@@ -520,7 +520,20 @@ namespace Kalendarz1
             WindowIconHelper.SetIcon(this);
             InitializeCustomComponents();
             UserHandlowcyManager.CreateTableIfNotExists();
+            EnsureAccessColumnSize();
             LoadUsers();
+        }
+
+        private void EnsureAccessColumnSize()
+        {
+            try
+            {
+                using var conn = new SqlConnection(connectionString);
+                conn.Open();
+                using var cmd = new SqlCommand("ALTER TABLE operators ALTER COLUMN Access VARCHAR(100)", conn);
+                cmd.ExecuteNonQuery();
+            }
+            catch { }
         }
 
         private void InitializeComponent()
@@ -1462,8 +1475,8 @@ namespace Kalendarz1
 
             try
             {
-                char[] accessArray = new char[50];
-                for (int i = 0; i < 50; i++) accessArray[i] = '0';
+                char[] accessArray = new char[56];
+                for (int i = 0; i < 56; i++) accessArray[i] = '0';
 
                 var accessMap = GetAccessMap();
 
@@ -1475,7 +1488,7 @@ namespace Kalendarz1
                         if (!string.IsNullOrEmpty(moduleKey) && checkbox.Checked)
                         {
                             var position = accessMap.FirstOrDefault(x => x.Value == moduleKey).Key;
-                            if (position >= 0 && position < 50)
+                            if (position >= 0 && position < 56)
                             {
                                 accessArray[position] = '1';
                             }
@@ -1961,7 +1974,9 @@ namespace Kalendarz1
                 // ═══════════════════════════════════════════════════════════════════════
                 new ModuleInfo("ZmianyUHodowcow", "Wnioski o Zmiany", "Zatwierdzanie zmian danych hodowców", "Administracja Systemu", "📝"),
                 new ModuleInfo("AdminPermissions", "Zarządzanie Uprawnieniami", "Nadawanie uprawnień użytkownikom", "Administracja Systemu", "🔐"),
-                new ModuleInfo("CallReminders", "Przypomnienia Telefonów", "Konfiguracja przypomnień o telefonach CRM", "Administracja Systemu", "⏰")
+                new ModuleInfo("CallReminders", "Przypomnienia Telefonów", "Konfiguracja przypomnień o telefonach CRM", "Administracja Systemu", "⏰"),
+                new ModuleInfo("ProductImages", "Zdjęcia Produktów", "Zarządzanie zdjęciami produktów", "Administracja Systemu", "📷"),
+                new ModuleInfo("PozyskiwanieHodowcow", "Pozyskiwanie Hodowców", "CRM do pozyskiwania nowych hodowców drobiu", "Zaopatrzenie i Zakupy", "🐔")
             };
         }
 
@@ -2025,7 +2040,9 @@ namespace Kalendarz1
                 [50] = "QuizDrobiarstwo",
                 [51] = "PulpitZarzadu",
                 [52] = "CallReminders",
-                [53] = "PorannyBriefing"
+                [53] = "PorannyBriefing",
+                [54] = "ProductImages",
+                [55] = "PozyskiwanieHodowcow"
             };
         }
 

@@ -1096,7 +1096,8 @@ namespace Kalendarz1
                 [51] = "PulpitZarzadu",
                 [52] = "CallReminders",
                 [53] = "PorannyBriefing",
-                [54] = "ProductImages"
+                [54] = "ProductImages",
+                [55] = "PozyskiwanieHodowcow"
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
@@ -1168,7 +1169,7 @@ namespace Kalendarz1
                 // ZAOPATRZENIE I ZAKUPY
                 "DaneHodowcy", "WstawieniaHodowcy", "TerminyDostawyZywca", "PlachtyAviloga",
                 "PanelPortiera", "PanelLekarza", "Specyfikacje", "RozliczeniaAvilog", "DokumentyZakupu",
-                "PlatnosciHodowcy", "ZakupPaszyPisklak", "RaportyHodowcow",
+                "PlatnosciHodowcy", "ZakupPaszyPisklak", "RaportyHodowcow", "PozyskiwanieHodowcow",
 
                 // PRODUKCJA I MAGAZYN
                 "ProdukcjaPodglad", "KalkulacjaKrojenia", "PrzychodMrozni", "LiczenieMagazynu",
@@ -1282,7 +1283,12 @@ namespace Kalendarz1
                     new MenuItemConfig("RaportyHodowcow", "Statystyki Hodowców",
                         "Raporty i analizy współpracy z hodowcami - wydajność, jakość, terminowość dostaw",
                         Color.FromArgb(27, 94, 32), // #1B5E20
-                        () => new RaportyStatystykiWindow(), "📊", "Raporty Hodowców")
+                        () => new RaportyStatystykiWindow(), "📊", "Raporty Hodowców"),
+
+                    new MenuItemConfig("PozyskiwanieHodowcow", "Pozyskiwanie Hodowców",
+                        "Baza hodowców drobiu z kontaktami telefonicznymi, notatkami i śledzeniem pozyskiwania",
+                        Color.FromArgb(56, 142, 60), // Zielony #388E3C
+                        () => new Hodowcy.PozyskiwanieHodowcowWindow(), "🐔", "Pozyskiwanie")
                 },
 
                 // ═══════════════════════════════════════════════════════════════════════════

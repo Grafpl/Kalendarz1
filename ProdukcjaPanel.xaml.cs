@@ -7,6 +7,7 @@ using System.Data;
 using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -306,6 +307,7 @@ namespace Kalendarz1
             lblHistoriaRealizacjiSumaKg.Text = result.Sum(h => h.IloscKg).ToString("N0");
             lblHistoriaRealizacjiPelne.Text = result.Count(h => h.StatusRealizacji.Contains("Zrealizowane")).ToString();
             lblHistoriaRealizacjiCzesciowe.Text = result.Count(h => h.StatusRealizacji.Contains("Częściowo")).ToString();
+            lblHistoriaRealizacjiWydane.Text = result.Count(h => h.StatusWydania.Contains("Wydane")).ToString();
         }
 
         private async Task LoadHistoriaRealizacjiAsync(DateTime dataOd, DateTime dataDo)
@@ -315,7 +317,7 @@ namespace Kalendarz1
             try
             {
                 // Pobierz zamówienia zrealizowane z LibraNet
-                var zamowienia = new List<(int Id, int KlientId, DateTime? DataRealizacji, DateTime? DataAkceptacji, string KtoRealizowal, string KtoAkceptowal, decimal Ilosc, bool CzyZrealizowane, bool CzyCzesciowoZrealizowane, string Uwagi)>();
+                var zamowienia = new List<(int Id, int KlientId, DateTime? DataRealizacji, DateTime? DataAkceptacji, string KtoRealizowal, string KtoAkceptowal, decimal Ilosc, bool CzyZrealizowane, bool CzyCzesciowoZrealizowane, string Uwagi, bool CzyWydane, DateTime? DataWydania)>();
 
                 using (var cn = new SqlConnection(_connLibra))
                 {
@@ -335,14 +337,25 @@ namespace Kalendarz1
                     string dataAkceptacjiCol = hasDataAkceptacji ? "z.DataAkceptacjiProdukcja" : "NULL";
                     string ktoAkceptowalCol = hasKtoAkceptowal ? "ISNULL(z.KtoAkceptowalProdukcja, '')" : "''";
 
+                    // Sprawdź kolumny wydania
+                    var checkColWydane = new SqlCommand("SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'CzyWydane'", cn);
+                    bool hasCzyWydane = (int)await checkColWydane.ExecuteScalarAsync() > 0;
+                    var checkColDataWyd = new SqlCommand("SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'DataWydania'", cn);
+                    bool hasDataWydania = (int)await checkColDataWyd.ExecuteScalarAsync() > 0;
+
+                    string czyWydaneCol = hasCzyWydane ? "ISNULL(z.CzyWydane, 0)" : "CAST(0 AS BIT)";
+                    string dataWydaniaCol = hasDataWydania ? "z.DataWydania" : "NULL";
+
                     string sql = $@"
                         SELECT z.Id, z.KlientId, z.DataRealizacji, {dataAkceptacjiCol} AS DataAkceptacji,
                                ISNULL(z.KtoRealizowal, '') AS KtoRealizowal,
                                {ktoAkceptowalCol} AS KtoAkceptowal,
-                               (SELECT SUM(ISNULL(t.Ilosc, 0)) FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id) AS TotalIlosc,
+                               (SELECT SUM(ISNULL(t.Ilosc, 0)) FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id AND ISNULL(t.Ilosc, 0) > 0) AS TotalIlosc,
                                ISNULL(z.CzyZrealizowane, 0) AS CzyZrealizowane,
                                {czesciowoCol} AS CzyCzesciowoZrealizowane,
-                               ISNULL(z.Uwagi, '') AS Uwagi
+                               ISNULL(z.Uwagi, '') AS Uwagi,
+                               {czyWydaneCol} AS CzyWydane,
+                               {dataWydaniaCol} AS DataWydania
                         FROM dbo.ZamowieniaMieso z
                         WHERE (z.CzyZrealizowane = 1 OR {czesciowoCol} = 1)
                           AND z.DataRealizacji >= @Od AND z.DataRealizacji < @DoPlus
@@ -365,7 +378,9 @@ namespace Kalendarz1
                             rd.IsDBNull(6) ? 0 : rd.GetDecimal(6),
                             rd.GetBoolean(7),
                             rd.GetBoolean(8),
-                            rd.GetString(9)
+                            rd.GetString(9),
+                            rd.GetBoolean(10),
+                            rd.IsDBNull(11) ? (DateTime?)null : rd.GetDateTime(11)
                         ));
                     }
                 }
@@ -381,6 +396,7 @@ namespace Kalendarz1
                     lblHistoriaRealizacjiSumaKg.Text = "0";
                     lblHistoriaRealizacjiPelne.Text = "0";
                     lblHistoriaRealizacjiCzesciowe.Text = "0";
+                    lblHistoriaRealizacjiWydane.Text = "0";
                     return;
                 }
 
@@ -424,14 +440,20 @@ namespace Kalendarz1
                     else
                         status = "📝 Zmodyfikowane";
 
+                    string statusWydania = z.CzyWydane ? "✅ Wydane" : "—";
+
                     _historiaRealizacjiAll.Add(new HistoriaRealizacjiItem
                     {
+                        ZamowienieId = z.Id,
                         DataRealizacji = z.DataRealizacji ?? DateTime.MinValue,
                         Klient = klientNazwa,
+                        KlientId = z.KlientId,
                         IloscKg = z.Ilosc,
                         KtoRealizowal = ktoRealizowalNazwa,
                         KtoAkceptowal = ktoAkceptowalNazwa,
                         StatusRealizacji = status,
+                        StatusWydania = statusWydania,
+                        DataWydania = z.DataWydania,
                         Uwagi = z.Uwagi
                     });
                 }
@@ -971,6 +993,18 @@ namespace Kalendarz1
 
             try
             {
+                // Pobierz ID mrożonych produktów z HANDEL (katalog 67153)
+                var frozenProductIds = new List<int>();
+                try
+                {
+                    using var cnH = new SqlConnection(_connHandel);
+                    await cnH.OpenAsync();
+                    using var cmdH = new SqlCommand("SELECT id FROM [HM].[TW] WHERE katalog = 67153", cnH);
+                    using var rdH = await cmdH.ExecuteReaderAsync();
+                    while (await rdH.ReadAsync()) frozenProductIds.Add(rdH.GetInt32(0));
+                }
+                catch { }
+
                 using (var cn = new SqlConnection(_connLibra))
                 {
                     await cn.OpenAsync();
@@ -994,7 +1028,7 @@ namespace Kalendarz1
 
                     var sqlBuilder = new System.Text.StringBuilder();
                     sqlBuilder.Append("SELECT z.Id, z.KlientId, ISNULL(z.Uwagi,'') AS Uwagi, ISNULL(z.Status,'Nowe') AS Status, ");
-                    sqlBuilder.Append("(SELECT SUM(ISNULL(t.Ilosc, 0)) FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id");
+                    sqlBuilder.Append("(SELECT SUM(ISNULL(t.Ilosc, 0)) FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id AND ISNULL(t.Ilosc, 0) > 0");
                     if (_filteredProductId.HasValue)
                         sqlBuilder.Append(" AND t.KodTowaru=@P");
                     else if (produktyDoFiltrowania != null)
@@ -1019,6 +1053,10 @@ namespace Kalendarz1
                         : ", CAST(0 AS BIT) AS Strefa");
                     sqlBuilder.Append(", CAST(CASE WHEN EXISTS(SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id AND ISNULL(t.E2, 0) = 1) THEN 1 ELSE 0 END AS BIT) AS MaE2");
                     sqlBuilder.Append(hasCzyModProdukcji ? ", ISNULL(z.CzyZmodyfikowaneDlaProdukcji, 0) AS CzyZmodyfikowaneDlaProdukcjiFlag" : ", CAST(0 AS BIT) AS CzyZmodyfikowaneDlaProdukcjiFlag");
+                    if (frozenProductIds.Any())
+                        sqlBuilder.Append($", CAST(CASE WHEN EXISTS(SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id AND t.KodTowaru IN ({string.Join(",", frozenProductIds)})) THEN 1 ELSE 0 END AS BIT) AS MaMrozone");
+                    else
+                        sqlBuilder.Append(", CAST(0 AS BIT) AS MaMrozone");
                     sqlBuilder.Append($" FROM dbo.ZamowieniaMieso z WHERE z.{dateColumn}=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')");
                     if (_filteredProductId.HasValue)
                         sqlBuilder.Append(" AND EXISTS (SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId=z.Id AND t.KodTowaru=@P)");
@@ -1081,7 +1119,8 @@ namespace Kalendarz1
                             CzyCzesciowoZrealizowane = czyCzesciowoZrealizowane,
                             ProcentRealizacji = procentRealizacji,
                             Strefa = rd.IsDBNull(18) ? false : rd.GetBoolean(18),
-                            MaE2 = rd.GetBoolean(19)
+                            MaE2 = rd.GetBoolean(19),
+                            MaMrozone = rd.GetBoolean(21)
                         };
                         _zamowienia[info.Id] = info;
                         klientIdsWithOrder.Add(info.KlientId);
@@ -1262,7 +1301,7 @@ namespace Kalendarz1
             if (vm == null)
             {
                 dgvPozycje.ItemsSource = null;
-                txtUwagi.Text = "";
+                pnlNotatki.Children.Clear();
                 return;
             }
 
@@ -1274,8 +1313,6 @@ namespace Kalendarz1
                 await LoadShipmentOnlyAsync(info.KlientId);
                 return;
             }
-
-            txtUwagi.Text = info.Uwagi;
 
             var orderPositions = new List<(int TowarId, decimal Ilosc, bool Folia, bool E2, bool Hallal, decimal? IloscZreal, bool Strefa)>();
             using (var cn = new SqlConnection(_connLibra))
@@ -1307,8 +1344,8 @@ namespace Kalendarz1
             if (_filteredProductId.HasValue)
                 shipments = shipments.Where(k => k.Key == _filteredProductId.Value).ToDictionary(k => k.Key, v => v.Value);
 
-            // Pobierz snapshot (jeśli zamówienie było realizowane)
-            var snapshot = info.CzyZrealizowane ? await GetOrderSnapshotAsync(info.Id, "Realizacja") : new Dictionary<int, (decimal Ilosc, bool Folia)>();
+            // Pobierz snapshot (jeśli zamówienie było realizowane lub zmodyfikowane od realizacji)
+            var snapshot = (info.CzyZrealizowane || info.CzyZmodyfikowaneOdRealizacji) ? await GetOrderSnapshotAsync(info.Id, "Realizacja") : new Dictionary<int, (decimal Ilosc, bool Folia, bool Hallal, bool E2, bool Strefa)>();
 
             var ids = orderPositions.Select(p => p.TowarId).Union(shipments.Keys).Union(snapshot.Keys).Where(i => i > 0).Distinct().ToList();
             var towarMap = await LoadTowaryAsync(ids);
@@ -1340,19 +1377,42 @@ namespace Kalendarz1
 
                 // Oblicz zmianę od snapshotu
                 string zmiana = "";
-                if (info.CzyZrealizowane && snapshot.Count > 0)
+                if (snapshot.Count > 0)
                 {
                     if (!snapshot.ContainsKey(id))
                     {
                         // Nowa pozycja dodana po realizacji
-                        zmiana = "🆕 NOWE";
-                        kod = "🆕 " + kod;
+                        var addParts = new List<string> { $"{ord.Ilosc:N0} kg" };
+                        if (ord.Folia) addParts.Add("\U0001f3de Folia");
+                        if (ord.Hallal) addParts.Add("\U0001f52a Halal");
+                        if (ord.E2) addParts.Add("\U0001f4e6 E2");
+                        if (ord.Strefa) addParts.Add("\u26a0 Strefa");
+                        zmiana = $"DODANO ({string.Join(", ", addParts)})";
+                        kod = "\U0001f195 " + kod;
                     }
-                    else if (ord.Ilosc != snap.Ilosc)
+                    else
                     {
-                        // Zmieniona ilość
-                        decimal diff = ord.Ilosc - snap.Ilosc;
-                        zmiana = diff > 0 ? $"+{diff:N0} kg" : $"{diff:N0} kg";
+                        var parts = new List<string>();
+
+                        // Zmiana ilości
+                        if (ord.Ilosc != snap.Ilosc)
+                        {
+                            decimal diff = ord.Ilosc - snap.Ilosc;
+                            parts.Add($"{snap.Ilosc:N0} \u2192 {ord.Ilosc:N0} kg ({(diff > 0 ? "+" : "")}{diff:N0})");
+                        }
+
+                        // Zmiana flag z ikonkami — było → jest
+                        if (ord.Folia != snap.Folia)
+                            parts.Add($"\U0001f3de Folia: {(snap.Folia ? "TAK" : "NIE")} \u2192 {(ord.Folia ? "TAK" : "NIE")}");
+                        if (ord.Hallal != snap.Hallal)
+                            parts.Add($"\U0001f52a Halal: {(snap.Hallal ? "TAK" : "NIE")} \u2192 {(ord.Hallal ? "TAK" : "NIE")}");
+                        if (ord.E2 != snap.E2)
+                            parts.Add($"\U0001f4e6 E2/40: {(snap.E2 ? "TAK" : "NIE")} \u2192 {(ord.E2 ? "TAK" : "NIE")}");
+                        if (ord.Strefa != snap.Strefa)
+                            parts.Add($"\u26a0 Strefa: {(snap.Strefa ? "TAK" : "NIE")} \u2192 {(ord.Strefa ? "TAK" : "NIE")}");
+
+                        if (parts.Count > 0)
+                            zmiana = string.Join(" | ", parts);
                     }
                 }
 
@@ -1379,7 +1439,7 @@ namespace Kalendarz1
             }
 
             // Sprawdź czy są pozycje usunięte (były w snapshocie, ale nie ma w aktualnym zamówieniu)
-            if (info.CzyZrealizowane && snapshot.Count > 0)
+            if (snapshot.Count > 0)
             {
                 foreach (var snapItem in snapshot.Where(s => !mapOrd.ContainsKey(s.Key)))
                 {
@@ -1392,7 +1452,13 @@ namespace Kalendarz1
                     row["Zrealizowano"] = "";
                     row["Wydano (kg)"] = 0m;
                     row["Różnica (kg)"] = 0m;
-                    row["Zmiana"] = $"USUNIĘTO ({snapItem.Value.Ilosc:N0} kg)";
+                    var snapFlags = new List<string>();
+                    if (snapItem.Value.Folia) snapFlags.Add("\U0001f3de Folia");
+                    if (snapItem.Value.Hallal) snapFlags.Add("\U0001f52a Halal");
+                    if (snapItem.Value.E2) snapFlags.Add("\U0001f4e6 E2");
+                    if (snapItem.Value.Strefa) snapFlags.Add("\u26a0 Strefa");
+                    string flagsStr = snapFlags.Count > 0 ? $", {string.Join(", ", snapFlags)}" : "";
+                    row["Zmiana"] = $"USUNIĘTO ({snapItem.Value.Ilosc:N0} kg{flagsStr})";
                     row["Halal"] = false;
                     row["Folia"] = false;
                     row["E2"] = false;
@@ -1405,6 +1471,104 @@ namespace Kalendarz1
 
             // Pokaż/ukryj przycisk "Przyjmuję zmianę"
             btnAcceptChange.Visibility = info.CzyZmodyfikowaneOdRealizacji ? Visibility.Visible : Visibility.Collapsed;
+
+            // Notatki lub opis zmian
+            pnlNotatki.Children.Clear();
+            var orangeBrush = new SolidColorBrush(Color.FromRgb(255, 180, 100));
+
+            if (info.CzyZmodyfikowaneOdRealizacji)
+            {
+                lblNotatkiHeader.Text = "\u26a0 Zmiany w zamówieniu";
+                lblNotatkiHeader.Foreground = new SolidColorBrush(Colors.Orange);
+
+                // Pobierz info kto/kiedy zmodyfikował + stara notatka
+                string modyfikowalPrzez = null;
+                string uwagiSnapshot = null;
+                try
+                {
+                    using var cnMod = new SqlConnection(_connLibra);
+                    await cnMod.OpenAsync();
+                    bool hasUwagiSnap = false;
+                    var cmdCheck = new SqlCommand("SELECT COUNT(*) FROM sys.columns WHERE object_id=OBJECT_ID('dbo.ZamowieniaMieso') AND name='UwagiSnapshot'", cnMod);
+                    hasUwagiSnap = (int)await cmdCheck.ExecuteScalarAsync() > 0;
+                    string sql = hasUwagiSnap
+                        ? "SELECT ModyfikowalPrzez, UwagiSnapshot FROM dbo.ZamowieniaMieso WHERE Id=@Id"
+                        : "SELECT ModyfikowalPrzez, NULL FROM dbo.ZamowieniaMieso WHERE Id=@Id";
+                    var cmdMod = new SqlCommand(sql, cnMod);
+                    cmdMod.Parameters.AddWithValue("@Id", info.Id);
+                    using var rdMod = await cmdMod.ExecuteReaderAsync();
+                    if (await rdMod.ReadAsync())
+                    {
+                        modyfikowalPrzez = rdMod.IsDBNull(0) ? null : rdMod.GetString(0);
+                        uwagiSnapshot = rdMod.IsDBNull(1) ? null : rdMod.GetString(1);
+                    }
+                }
+                catch { }
+
+                // Nagłówek: kto i kiedy
+                if (!string.IsNullOrEmpty(modyfikowalPrzez) || info.DataOstatniejModyfikacji.HasValue)
+                {
+                    var hdrParts = new List<string>();
+                    if (!string.IsNullOrEmpty(modyfikowalPrzez)) hdrParts.Add(modyfikowalPrzez);
+                    if (info.DataOstatniejModyfikacji.HasValue) hdrParts.Add(info.DataOstatniejModyfikacji.Value.ToString("dd.MM HH:mm"));
+                    pnlNotatki.Children.Add(new TextBlock { Text = $"Zmodyfikowa\u0142: {string.Join(", ", hdrParts)}", Foreground = orangeBrush, FontSize = 16, Margin = new Thickness(0, 0, 0, 6) });
+                }
+
+                // Pozycje ze zmianami — z obrazkami
+                bool anyChange = false;
+                foreach (DataRow row in dt.Rows)
+                {
+                    string zmiana = row["Zmiana"]?.ToString() ?? "";
+                    if (string.IsNullOrEmpty(zmiana)) continue;
+
+                    string produkt = row["Produkt"]?.ToString() ?? "";
+                    var img = row["ProduktImg"] as BitmapImage;
+
+                    // Wiersz: obrazek + nazwa produktu
+                    var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+                    if (img != null)
+                        sp.Children.Add(new System.Windows.Controls.Image { Source = img, Width = 36, Height = 36, Margin = new Thickness(0, 0, 6, 0) });
+                    sp.Children.Add(new TextBlock { Text = produkt, Foreground = orangeBrush, FontSize = 15, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
+                    pnlNotatki.Children.Add(sp);
+
+                    // Szczegóły zmiany
+                    foreach (var part in zmiana.Split(new[] { " | " }, StringSplitOptions.RemoveEmptyEntries))
+                        pnlNotatki.Children.Add(new TextBlock { Text = $"    {part}", Foreground = orangeBrush, FontSize = 14, TextWrapping = TextWrapping.Wrap });
+
+                    anyChange = true;
+                }
+
+                // Zmiana notatki
+                string currentUwagi = info.Uwagi?.Trim() ?? "";
+                string oldUwagi = uwagiSnapshot?.Trim() ?? "";
+                bool uwagiChanged = uwagiSnapshot != null && oldUwagi != currentUwagi;
+
+                if (uwagiChanged)
+                {
+                    pnlNotatki.Children.Add(new TextBlock { Text = "\U0001f4dd Notatka:", Foreground = orangeBrush, FontSize = 15, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 6, 0, 0) });
+                    pnlNotatki.Children.Add(new TextBlock { Text = $"    By\u0142o: \"{(string.IsNullOrEmpty(oldUwagi) ? "(brak)" : oldUwagi)}\"", Foreground = orangeBrush, FontSize = 14, TextWrapping = TextWrapping.Wrap });
+                    pnlNotatki.Children.Add(new TextBlock { Text = $"    Jest: \"{(string.IsNullOrEmpty(currentUwagi) ? "(usunięta)" : currentUwagi)}\"", Foreground = orangeBrush, FontSize = 14, TextWrapping = TextWrapping.Wrap });
+                    anyChange = true;
+                }
+
+                if (!anyChange)
+                    pnlNotatki.Children.Add(new TextBlock { Text = "(Brak danych porównawczych \u2014 kliknij przycisk, a następna zmiana pokaże szczegóły)", Foreground = Brushes.Gray, FontSize = 14 });
+
+                if (!uwagiChanged && !string.IsNullOrWhiteSpace(info.Uwagi))
+                    pnlNotatki.Children.Add(new TextBlock { Text = info.Uwagi, Foreground = Brushes.White, FontSize = 16, Margin = new Thickness(0, 8, 0, 0), TextWrapping = TextWrapping.Wrap });
+
+                gridPrawyPanel.RowDefinitions[3].Height = GridLength.Auto;
+                gridPrawyPanel.RowDefinitions[4].Height = new GridLength(1, GridUnitType.Star);
+            }
+            else
+            {
+                lblNotatkiHeader.Text = "Notatka zamówienia";
+                lblNotatkiHeader.Foreground = new SolidColorBrush(Colors.Yellow);
+                pnlNotatki.Children.Add(new TextBlock { Text = info.Uwagi ?? "", Foreground = Brushes.White, FontSize = 22, TextWrapping = TextWrapping.Wrap });
+
+                gridPrawyPanel.RowDefinitions[3].Height = new GridLength(15, GridUnitType.Star);
+                gridPrawyPanel.RowDefinitions[4].Height = new GridLength(65, GridUnitType.Star);
+            }
         }
 
         private async void btnAcceptChange_Click(object sender, RoutedEventArgs e)
@@ -1442,6 +1606,15 @@ namespace Kalendarz1
                 await SaveOrderSnapshotAsync(cn, vm.Info.Id, "Realizacja");
 
                 // Zaktualizuj DataAkceptacjiProdukcja na teraz + resetuj flagę boolean (osobna akceptacja dla produkcji)
+                // Wyczyść UwagiSnapshot (jeśli kolumna istnieje)
+                try
+                {
+                    var cmdClearUwagi = new SqlCommand("UPDATE dbo.ZamowieniaMieso SET UwagiSnapshot = NULL WHERE Id = @Id", cn);
+                    cmdClearUwagi.Parameters.AddWithValue("@Id", vm.Info.Id);
+                    await cmdClearUwagi.ExecuteNonQueryAsync();
+                }
+                catch { /* kolumna UwagiSnapshot może nie istnieć */ }
+
                 var cmd = new SqlCommand("UPDATE dbo.ZamowieniaMieso SET DataAkceptacjiProdukcja = GETDATE(), CzyZmodyfikowaneDlaProdukcji = 0 WHERE Id = @Id", cn);
                 cmd.Parameters.AddWithValue("@Id", vm.Info.Id);
                 await cmd.ExecuteNonQueryAsync();
@@ -1547,7 +1720,8 @@ namespace Kalendarz1
 
         private async Task LoadShipmentOnlyAsync(int klientId)
         {
-            txtUwagi.Text = "(Wydanie bez zamówienia)";
+            pnlNotatki.Children.Clear();
+            pnlNotatki.Children.Add(new TextBlock { Text = "(Wydanie bez zamówienia)", Foreground = Brushes.Gray, FontSize = 16 });
 
             var shipments = await GetShipmentsForClientAsync(klientId);
             if (_filteredProductId.HasValue)
@@ -1610,6 +1784,7 @@ namespace Kalendarz1
             dtPlan.Columns.Add("Wydania", typeof(decimal));
             dtPlan.Columns.Add("Bilans", typeof(decimal));
             dtPlan.Columns.Add("Procent", typeof(string));
+            dtPlan.Columns.Add("ProduktImg", typeof(object));
 
             decimal totalPlan = 0m;
             decimal totalFakt = 0m;
@@ -1812,7 +1987,8 @@ namespace Kalendarz1
                         ? $"  · {nazwa}"
                         : nazwa;
 
-                    dtPlan.Rows.Add(nazwaDisplay, plan, fakt, zam, wyd, bilans, procentTxt);
+                    var produktImg = GetProductImage(produktId);
+                    dtPlan.Rows.Add(nazwaDisplay, plan, fakt, zam, wyd, bilans, procentTxt, (object?)produktImg ?? DBNull.Value);
                     totalPlan += plan;
                     totalFakt += fakt;
                     totalZam += zam;
@@ -1827,7 +2003,7 @@ namespace Kalendarz1
                     string sumaLabel = !string.IsNullOrEmpty(_filteredGroupName)
                         ? $"═══ SUMA {_filteredGroupName.ToUpper()} ═══"
                         : "═══ SUMA ═══";
-                    dtPlan.Rows.Add(sumaLabel, totalPlan, totalFakt, totalZam, totalWyd, totalBilans, totalProcent);
+                    dtPlan.Rows.Add(sumaLabel, totalPlan, totalFakt, totalZam, totalWyd, totalBilans, totalProcent, DBNull.Value);
                 }
             }
             catch (Exception ex)
@@ -2493,7 +2669,11 @@ namespace Kalendarz1
                         CREATE INDEX IX_Snapshot_ZamowienieId ON dbo.ZamowieniaMiesoSnapshot(ZamowienieId);
                     END;
                     IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'DataOstatniejModyfikacji')
-                        ALTER TABLE dbo.ZamowieniaMieso ADD DataOstatniejModyfikacji DATETIME NULL;", cn);
+                        ALTER TABLE dbo.ZamowieniaMieso ADD DataOstatniejModyfikacji DATETIME NULL;
+                    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMiesoSnapshot') AND name = 'E2')
+                        ALTER TABLE dbo.ZamowieniaMiesoSnapshot ADD E2 BIT NULL DEFAULT 0;
+                    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMiesoSnapshot') AND name = 'Strefa')
+                        ALTER TABLE dbo.ZamowieniaMiesoSnapshot ADD Strefa BIT NULL DEFAULT 0;", cn);
                 await cmd.ExecuteNonQueryAsync();
                 _snapshotTableEnsured = true;
             }
@@ -2506,18 +2686,12 @@ namespace Kalendarz1
             {
                 await EnsureSnapshotTableAsync(cn);
 
-                // Usuń stary snapshot tego samego typu
-                var cmdDelete = new SqlCommand(@"DELETE FROM dbo.ZamowieniaMiesoSnapshot WHERE ZamowienieId = @ZamId AND TypSnapshotu = @Typ", cn);
-                cmdDelete.Parameters.AddWithValue("@ZamId", zamowienieId);
-                cmdDelete.Parameters.AddWithValue("@Typ", typSnapshotu);
-                await cmdDelete.ExecuteNonQueryAsync();
-
-                // Zapisz nowy snapshot
+                // Zapisz nowy snapshot (zachowaj historię — nie usuwamy starych)
                 var cmdInsert = new SqlCommand(@"
-                    INSERT INTO dbo.ZamowieniaMiesoSnapshot (ZamowienieId, KodTowaru, Ilosc, Folia, Hallal, TypSnapshotu)
-                    SELECT ZamowienieId, KodTowaru, Ilosc, Folia, Hallal, @Typ
+                    INSERT INTO dbo.ZamowieniaMiesoSnapshot (ZamowienieId, KodTowaru, Ilosc, Folia, Hallal, E2, Strefa, TypSnapshotu, DataSnapshotu)
+                    SELECT ZamowienieId, KodTowaru, Ilosc, Folia, Hallal, ISNULL(E2,0), ISNULL(Strefa,0), @Typ, GETDATE()
                     FROM dbo.ZamowieniaMiesoTowar
-                    WHERE ZamowienieId = @ZamId", cn);
+                    WHERE ZamowienieId = @ZamId AND Ilosc > 0", cn);
                 cmdInsert.Parameters.AddWithValue("@ZamId", zamowienieId);
                 cmdInsert.Parameters.AddWithValue("@Typ", typSnapshotu);
                 await cmdInsert.ExecuteNonQueryAsync();
@@ -2525,28 +2699,70 @@ namespace Kalendarz1
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Błąd zapisywania snapshotu: {ex.Message}"); }
         }
 
-        private async Task<Dictionary<int, (decimal Ilosc, bool Folia)>> GetOrderSnapshotAsync(int zamowienieId, string typSnapshotu)
+        private async Task<Dictionary<int, (decimal Ilosc, bool Folia, bool Hallal, bool E2, bool Strefa)>> GetOrderSnapshotAsync(int zamowienieId, string typSnapshotu)
         {
-            var snapshot = new Dictionary<int, (decimal Ilosc, bool Folia)>();
+            var snapshot = new Dictionary<int, (decimal Ilosc, bool Folia, bool Hallal, bool E2, bool Strefa)>();
             try
             {
                 using var cn = new SqlConnection(_connLibra);
                 await cn.OpenAsync();
 
-                var cmd = new SqlCommand(@"SELECT KodTowaru, Ilosc, ISNULL(Folia, 0)
+                // Sprawdź czy kolumny E2/Strefa istnieją w tabeli snapshotów
+                bool hasE2 = false, hasStrefa = false;
+                var cmdCols = new SqlCommand(@"SELECT name FROM sys.columns WHERE object_id=OBJECT_ID('dbo.ZamowieniaMiesoSnapshot') AND name IN ('E2','Strefa')", cn);
+                using (var rdCols = await cmdCols.ExecuteReaderAsync())
+                {
+                    while (await rdCols.ReadAsync())
+                    {
+                        if (rdCols.GetString(0) == "E2") hasE2 = true;
+                        if (rdCols.GetString(0) == "Strefa") hasStrefa = true;
+                    }
+                }
+
+                string e2Col = hasE2 ? ", ISNULL(E2, 0)" : ", CAST(0 AS BIT)";
+                string strefaCol = hasStrefa ? ", ISNULL(Strefa, 0)" : ", CAST(0 AS BIT)";
+
+                // Pobierz najnowszy snapshot danego typu (TOP 1 ... ORDER BY DataSnapshotu DESC)
+                var cmdDate = new SqlCommand($@"SELECT TOP 1 DataSnapshotu FROM dbo.ZamowieniaMiesoSnapshot
+                                                WHERE ZamowienieId = @ZamId AND TypSnapshotu = @Typ
+                                                ORDER BY DataSnapshotu DESC", cn);
+                cmdDate.Parameters.AddWithValue("@ZamId", zamowienieId);
+                cmdDate.Parameters.AddWithValue("@Typ", typSnapshotu);
+                var latestDate = await cmdDate.ExecuteScalarAsync();
+                if (latestDate == null || latestDate == DBNull.Value) return snapshot;
+
+                var cmd = new SqlCommand($@"SELECT KodTowaru, Ilosc, ISNULL(Folia, 0), ISNULL(Hallal, 0){e2Col}{strefaCol}
                                            FROM dbo.ZamowieniaMiesoSnapshot
-                                           WHERE ZamowienieId = @ZamId AND TypSnapshotu = @Typ", cn);
+                                           WHERE ZamowienieId = @ZamId AND TypSnapshotu = @Typ AND DataSnapshotu = @DataSnap", cn);
                 cmd.Parameters.AddWithValue("@ZamId", zamowienieId);
                 cmd.Parameters.AddWithValue("@Typ", typSnapshotu);
+                cmd.Parameters.AddWithValue("@DataSnap", (DateTime)latestDate);
 
                 using var rd = await cmd.ExecuteReaderAsync();
                 while (await rd.ReadAsync())
                 {
-                    snapshot[rd.GetInt32(0)] = (rd.GetDecimal(1), rd.GetBoolean(2));
+                    snapshot[rd.GetInt32(0)] = (rd.GetDecimal(1), rd.GetBoolean(2), rd.GetBoolean(3), rd.GetBoolean(4), rd.GetBoolean(5));
                 }
             }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Błąd pobierania snapshotu: {ex.Message}"); }
             return snapshot;
+        }
+
+        private void MenuHistoriaZamowienia_Click(object sender, RoutedEventArgs e)
+        {
+            var vm = SelectedZamowienie;
+            if (vm == null || vm.Info.IsShipmentOnly) return;
+            var win = new WPF.HistoriaSnapshotowWindow(vm.Info.Id, vm.Info.Klient, _connLibra, _connHandel);
+            win.Owner = Window.GetWindow(this);
+            win.Show();
+        }
+
+        private void MenuHistoriaRealizacji_ShowHistory_Click(object sender, RoutedEventArgs e)
+        {
+            if (dgvHistoriaRealizacji.SelectedItem is not HistoriaRealizacjiItem item) return;
+            var win = new WPF.HistoriaSnapshotowWindow(item.ZamowienieId, item.Klient, _connLibra, _connHandel);
+            win.Owner = Window.GetWindow(this);
+            win.Show();
         }
 
         private void TryOpenShipmentDetails()
@@ -2610,6 +2826,7 @@ namespace Kalendarz1
             public bool CzyCzesciowoZrealizowane { get; set; }
             public decimal? ProcentRealizacji { get; set; }
             public bool Strefa { get; set; } // Strefa ptasiej grypy/pomoru
+            public bool MaMrozone { get; set; } // Zamówienie zawiera mrożony towar (katalog 67153)
         }
 
         public class ContractorInfo
@@ -2627,12 +2844,18 @@ namespace Kalendarz1
 
         public class HistoriaRealizacjiItem
         {
+            public int ZamowienieId { get; set; }
             public DateTime DataRealizacji { get; set; }
+            public string DataRealizacjiDisplay => DataRealizacji == DateTime.MinValue ? "—" : DataRealizacji.ToString("dd.MM.yyyy HH:mm");
             public string Klient { get; set; } = "";
+            public int KlientId { get; set; }
             public decimal IloscKg { get; set; }
             public string KtoRealizowal { get; set; } = "";
             public string KtoAkceptowal { get; set; } = "";
             public string StatusRealizacji { get; set; } = "";
+            public string StatusWydania { get; set; } = "—";
+            public DateTime? DataWydania { get; set; }
+            public string DataWydaniaDisplay => DataWydania.HasValue ? DataWydania.Value.ToString("dd.MM HH:mm") : "";
             public string Uwagi { get; set; } = "";
         }
 
@@ -2686,6 +2909,7 @@ namespace Kalendarz1
             public bool HasHalal => Info.MaHalal;
             public bool HasFolia => Info.MaFolie;
             public bool HasE2 => Info.MaE2;
+            public bool HasMrozone => Info.MaMrozone;
             // Kolor nazwy klienta - żółty gdy zmodyfikowane, czerwony gdy strefa
             public Brush KlientColor => Info.Strefa ? new SolidColorBrush(Color.FromRgb(255, 200, 200)) :
                                         Info.CzyZmodyfikowaneOdRealizacji ? Brushes.Yellow : Brushes.White;

@@ -1535,6 +1535,7 @@ namespace Kalendarz1
             bool strefaTowarExists = await CheckStrefaTowarColumnExists(cn);
             bool czyModMagazynuExists = await EnsureColumnExists(cn, "CzyZmodyfikowaneDlaMagazynu", "BIT NULL DEFAULT 0");
             bool czyModProdukcjiExists = await EnsureColumnExists(cn, "CzyZmodyfikowaneDlaProdukcji", "BIT NULL DEFAULT 0");
+            bool uwagiSnapshotExists = await EnsureColumnExists(cn, "UwagiSnapshot", "NVARCHAR(MAX) NULL");
 
             await using var tr = (SqlTransaction)await cn.BeginTransactionAsync();
 
@@ -1571,6 +1572,7 @@ namespace Kalendarz1
                 if (walutaExists) updateSql += ", Waluta = @waluta";
                 if (czyModMagazynuExists) updateSql += ", CzyZmodyfikowaneDlaMagazynu = 1";
                 if (czyModProdukcjiExists) updateSql += ", CzyZmodyfikowaneDlaProdukcji = 1";
+                if (uwagiSnapshotExists) updateSql += ", UwagiSnapshot = CASE WHEN UwagiSnapshot IS NULL THEN Uwagi ELSE UwagiSnapshot END";
 
                 updateSql += " WHERE Id = @id";
 
@@ -1594,6 +1596,44 @@ namespace Kalendarz1
                 if (walutaExists) cmdUpdate.Parameters.AddWithValue("@waluta", cbWaluta?.SelectedItem?.ToString() ?? "PLN");
 
                 await cmdUpdate.ExecuteNonQueryAsync();
+
+                // Zapisz snapshot PRZED edycją — tworzy tabelę jeśli nie istnieje, zapisuje stan pre-edit
+                try
+                {
+                    var cmdSnap = new SqlCommand(@"
+                        -- 1. Utwórz tabelę jeśli nie istnieje
+                        IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE name='ZamowieniaMiesoSnapshot' AND type='U')
+                        BEGIN
+                            CREATE TABLE dbo.ZamowieniaMiesoSnapshot (
+                                Id INT IDENTITY(1,1) PRIMARY KEY,
+                                ZamowienieId INT NOT NULL,
+                                KodTowaru INT NOT NULL,
+                                Ilosc DECIMAL(18,3) NOT NULL,
+                                Folia BIT NULL,
+                                Hallal BIT NULL,
+                                E2 BIT NULL DEFAULT 0,
+                                Strefa BIT NULL DEFAULT 0,
+                                DataSnapshotu DATETIME NOT NULL DEFAULT GETDATE(),
+                                TypSnapshotu NVARCHAR(20) NOT NULL
+                            );
+                            CREATE INDEX IX_Snapshot_ZamowienieId ON dbo.ZamowieniaMiesoSnapshot(ZamowienieId);
+                        END;
+                        -- 2. Dodaj kolumny E2/Strefa jeśli brakuje (stara wersja tabeli)
+                        IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID('dbo.ZamowieniaMiesoSnapshot') AND name='E2')
+                            ALTER TABLE dbo.ZamowieniaMiesoSnapshot ADD E2 BIT NULL DEFAULT 0;
+                        IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID('dbo.ZamowieniaMiesoSnapshot') AND name='Strefa')
+                            ALTER TABLE dbo.ZamowieniaMiesoSnapshot ADD Strefa BIT NULL DEFAULT 0;
+                        -- 3. Zapisz snapshot tylko gdy nie istnieje (zachowaj ostatni zaakceptowany stan)
+                        IF NOT EXISTS (SELECT 1 FROM dbo.ZamowieniaMiesoSnapshot WHERE ZamowienieId=@id AND TypSnapshotu='Realizacja')
+                        BEGIN
+                            INSERT INTO dbo.ZamowieniaMiesoSnapshot (ZamowienieId, KodTowaru, Ilosc, Folia, Hallal, E2, Strefa, TypSnapshotu)
+                            SELECT ZamowienieId, KodTowaru, Ilosc, Folia, Hallal, ISNULL(E2,0), ISNULL(Strefa,0), 'Realizacja'
+                            FROM dbo.ZamowieniaMiesoTowar WHERE ZamowienieId=@id AND Ilosc > 0;
+                        END", cn, tr);
+                    cmdSnap.Parameters.AddWithValue("@id", orderId);
+                    await cmdSnap.ExecuteNonQueryAsync();
+                }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Snapshot save error: {ex.Message}"); }
 
                 var cmdDelete = new SqlCommand(@"DELETE FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = @id", cn, tr);
                 cmdDelete.Parameters.AddWithValue("@id", orderId);
