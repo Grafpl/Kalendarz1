@@ -1,4 +1,4 @@
-﻿namespace Kalendarz1
+namespace Kalendarz1
 {
     partial class NewHodowcaForm
     {
@@ -29,9 +29,15 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
+            this.SuspendLayout();
+            //
+            // NewHodowcaForm
+            //
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(800, 450);
-            this.Text = "NewHodowcaForm";
+            this.ClientSize = new System.Drawing.Size(920, 680);
+            this.Name = "NewHodowcaForm";
+            this.Text = "Nowy hodowca / dostawca";
+            this.ResumeLayout(false);
         }
 
         #endregion
