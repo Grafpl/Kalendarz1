@@ -836,7 +836,7 @@ SELECT SCOPE_IDENTITY();";
                         c.Parameters.AddWithValue("@PostalCode", Dbn(edtPostalCode.Text));
                         c.Parameters.AddWithValue("@City", Dbn(edtCity.Text));
                         c.Parameters.AddWithValue("@ProvinceID", cbbProvince.SelectedIndex > 0 ? cbbProvince.SelectedIndex : 0);
-                        c.Parameters.AddWithValue("@Distance", Dec(edtDistance.Text));
+                        c.Parameters.AddWithValue("@Distance", IntParse(edtDistance.Text));
                         c.Parameters.AddWithValue("@Phone1", Dbn(edtPhone1.Text));
                         c.Parameters.AddWithValue("@Phone2", Dbn(edtPhone2.Text));
                         c.Parameters.AddWithValue("@Phone3", Dbn(edtPhone3.Text));
@@ -852,18 +852,19 @@ SELECT SCOPE_IDENTITY();";
                         c.Parameters.AddWithValue("@Regon", Dbn(edtRegon.Text));
                         c.Parameters.AddWithValue("@Pesel", Dbn(edtPesel.Text));
                         c.Parameters.AddWithValue("@IDCard", Dbn(edtIDCard.Text));
-                        c.Parameters.AddWithValue("@IDCardDate", dtpIDCardDate.Checked ? (object)dtpIDCardDate.Value : DBNull.Value);
+                        c.Parameters.AddWithValue("@IDCardDate", dtpIDCardDate.Checked ? (object)dtpIDCardDate.Value.ToString("yyyy-MM-dd") : DBNull.Value);
                         c.Parameters.AddWithValue("@IDCardAuth", Dbn(edtIDCardAuth.Text));
                         gid = Convert.ToInt32(await c.ExecuteScalarAsync());
                     }
 
                     // Kind=1 auto-copy
                     const string sqlAddr = @"
-INSERT INTO DostawcyAdresy (CustomerGID,Kind,Name,Address,PostalCode,City,ProvinceID,Distance,Phone1,Info1,AnimNo,IRZPlus,Halt,Created,Modified)
-SELECT @G,1,Name,Address,PostalCode,City,ProvinceID,Distance,Phone1,Info1,AnimNo,IRZPlus,Halt,GetDate(),GetDate() FROM Dostawcy WHERE GID=@G;";
+INSERT INTO DostawcyAdresy (CustomerGID,Kind,Name,Address,PostalCode,City,ProvinceID,Distance,Phone1,Info1,AnimNo,IRZPlus,Halt,DefAdr,Deleted,Created,CreatedBy,Modified,ModifiedBy)
+SELECT @G,1,Name,Address,PostalCode,City,ProvinceID,Distance,Phone1,Info1,AnimNo,IRZPlus,ISNULL(Halt,0),0,0,GetDate(),@U,GetDate(),@U FROM Dostawcy WHERE GID=@G;";
                     using (var c = new SqlCommand(sqlAddr, con, tx))
                     {
                         c.Parameters.AddWithValue("@G", gid);
+                        c.Parameters.AddWithValue("@U", _currentUser);
                         await c.ExecuteNonQueryAsync();
                     }
 
@@ -871,16 +872,16 @@ SELECT @G,1,Name,Address,PostalCode,City,ProvinceID,Distance,Phone1,Info1,AnimNo
                     foreach (var fa in _farmAddresses.Where(a => !a.Deleted))
                     {
                         const string sqlFa = @"
-INSERT INTO DostawcyAdresy (CustomerGID,Kind,Name,Address,PostalCode,City,ProvinceID,Distance,Phone1,Info1,AnimNo,IRZPlus,Halt,Created,Modified)
-VALUES (@G,2,@N,@A,@P,@C,@Pr,@D,@Ph,@I,@An,@Ir,@H,GetDate(),GetDate());";
+INSERT INTO DostawcyAdresy (CustomerGID,Kind,Name,Address,PostalCode,City,ProvinceID,Distance,Phone1,Info1,AnimNo,IRZPlus,Halt,DefAdr,Deleted,Created,CreatedBy,Modified,ModifiedBy)
+VALUES (@G,2,@N,@A,@P,@C,@Pr,@D,@Ph,@I,@An,@Ir,@H,0,0,GetDate(),@U,GetDate(),@U);";
                         using var c = new SqlCommand(sqlFa, con, tx);
                         c.Parameters.AddWithValue("@G", gid);
                         c.Parameters.AddWithValue("@N", Dbn(fa.Name)); c.Parameters.AddWithValue("@A", Dbn(fa.Address));
                         c.Parameters.AddWithValue("@P", Dbn(fa.PostalCode)); c.Parameters.AddWithValue("@C", Dbn(fa.City));
-                        c.Parameters.AddWithValue("@Pr", fa.ProvinceID); c.Parameters.AddWithValue("@D", fa.Distance);
+                        c.Parameters.AddWithValue("@Pr", fa.ProvinceID); c.Parameters.AddWithValue("@D", (int)fa.Distance);
                         c.Parameters.AddWithValue("@Ph", Dbn(fa.Phone1)); c.Parameters.AddWithValue("@I", Dbn(fa.Info1));
                         c.Parameters.AddWithValue("@An", Dbn(fa.AnimNo)); c.Parameters.AddWithValue("@Ir", Dbn(fa.IRZPlus));
-                        c.Parameters.AddWithValue("@H", fa.Halt ? 1 : 0);
+                        c.Parameters.AddWithValue("@H", fa.Halt); c.Parameters.AddWithValue("@U", _currentUser);
                         await c.ExecuteNonQueryAsync();
                     }
 
@@ -965,6 +966,57 @@ VALUES (@G,2,@N,@A,@P,@C,@Pr,@D,@Ph,@I,@An,@Ir,@H,GetDate(),GetDate());";
             sb.AppendLine($"FarmAddresses count: {_farmAddresses.Count} (active: {_farmAddresses.Count(a => !a.Deleted)})");
             sb.AppendLine();
             sb.AppendLine($"ConnectionString: {_connectionString}");
+            sb.AppendLine();
+
+            // Auto-attach DB schema
+            try
+            {
+                sb.AppendLine("--- SCHEMAT BAZY DANYCH ---");
+                using var schemaCon = new SqlConnection(_connectionString);
+                schemaCon.Open();
+
+                foreach (var table in new[] { "Dostawcy", "DostawcyAdresy" })
+                {
+                    sb.AppendLine();
+                    sb.AppendLine($"=== TABELA: {table} ===");
+                    sb.AppendLine($"{"Kolumna",-30} {"Typ",-25} {"MaxLen",-8} {"Nullable",-9} {"Default"}");
+                    sb.AppendLine(new string('-', 110));
+
+                    const string schemaSql = @"
+SELECT c.COLUMN_NAME, c.DATA_TYPE, c.CHARACTER_MAXIMUM_LENGTH, c.IS_NULLABLE,
+       c.COLUMN_DEFAULT, c.NUMERIC_PRECISION, c.NUMERIC_SCALE
+FROM INFORMATION_SCHEMA.COLUMNS c
+WHERE c.TABLE_NAME = @T
+ORDER BY c.ORDINAL_POSITION;";
+                    using var cmd = new SqlCommand(schemaSql, schemaCon);
+                    cmd.Parameters.AddWithValue("@T", table);
+                    using var rd = cmd.ExecuteReader();
+                    while (rd.Read())
+                    {
+                        var colName = rd.GetString(0);
+                        var dataType = rd.GetString(1);
+                        var maxLen = rd.IsDBNull(2) ? "" : rd[2].ToString();
+                        var nullable = rd.GetString(3);
+                        var defVal = rd.IsDBNull(4) ? "" : rd[4].ToString();
+                        var numPrec = rd.IsDBNull(5) ? "" : rd[5].ToString();
+                        var numScale = rd.IsDBNull(6) ? "" : rd[6].ToString();
+
+                        string typeStr = dataType;
+                        if (!string.IsNullOrEmpty(maxLen))
+                            typeStr += $"({(maxLen == "-1" ? "MAX" : maxLen)})";
+                        else if (!string.IsNullOrEmpty(numPrec))
+                            typeStr += $"({numPrec},{numScale})";
+
+                        sb.AppendLine($"{colName,-30} {typeStr,-25} {maxLen,-8} {nullable,-9} {defVal}");
+                    }
+                }
+            }
+            catch (Exception schemaEx)
+            {
+                sb.AppendLine($"Blad pobierania schematu: {schemaEx.Message}");
+            }
+
+            sb.AppendLine();
             sb.AppendLine("══════════════════════════════════════════");
 
             var debugText = sb.ToString();
@@ -974,7 +1026,7 @@ VALUES (@G,2,@N,@A,@P,@C,@Pr,@D,@Ph,@I,@An,@Ir,@H,GetDate(),GetDate());";
             {
                 Text = "Debugger bledu zapisu",
                 StartPosition = FormStartPosition.CenterParent,
-                Size = new Size(750, 560),
+                Size = new Size(820, 650),
                 MinimumSize = new Size(500, 350),
                 BackColor = Color.FromArgb(30, 30, 30),
                 Font = new Font("Segoe UI", 10f)
@@ -1005,7 +1057,7 @@ VALUES (@G,2,@N,@A,@P,@C,@Pr,@D,@Ph,@I,@An,@Ir,@H,GetDate(),GetDate());";
 
             var bottomPanel = new Panel { Dock = DockStyle.Bottom, Height = 50, BackColor = Color.FromArgb(40, 40, 40) };
 
-            var btnCopy = new AnimatedButton("Kopiuj do schowka", Color.FromArgb(52, 152, 219)) { Size = new Size(180, 36), Location = new Point(10, 7) };
+            var btnCopy = new AnimatedButton("Kopiuj wszystko", Color.FromArgb(52, 152, 219)) { Size = new Size(170, 36), Location = new Point(10, 7) };
             btnCopy.Click += (_, __) =>
             {
                 Clipboard.SetText(debugText);
@@ -1029,6 +1081,7 @@ VALUES (@G,2,@N,@A,@P,@C,@Pr,@D,@Ph,@I,@An,@Ir,@H,GetDate(),GetDate());";
         static object Dbn(string s) => string.IsNullOrWhiteSpace(s) ? DBNull.Value : (object)s.Trim();
         static bool TryDec(string s, out decimal r) { if (string.IsNullOrWhiteSpace(s)) { r = 0; return true; } return decimal.TryParse(s.Replace(',', '.'), NumberStyles.Any, CultureInfo.InvariantCulture, out r); }
         static decimal Dec(string s) => TryDec(s, out var d) ? d : 0m;
+        static int IntParse(string s) => int.TryParse(s.Replace(',', '.').Split('.')[0], out var i) ? i : 0;
 
         static async Task<string> GenerateSmallestFreeIdAsync(SqlConnection con, int min = 1, int max = 999, int width = 3)
         {
