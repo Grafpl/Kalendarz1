@@ -460,7 +460,10 @@ namespace Kalendarz1.Hodowcy
 <meta charset='utf-8'/>
 <title>Mapa Hodowców ({count})</title>
 <link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'/>
+<link rel='stylesheet' href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css'/>
+<link rel='stylesheet' href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css'/>
 <script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script>
+<script src='https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js'></script>
 <style>
   * {{ margin:0; padding:0; box-sizing:border-box; }}
   html, body {{ height:100%; font-family:'Segoe UI',sans-serif; background:#f8fafc; }}
@@ -482,6 +485,15 @@ namespace Kalendarz1.Hodowcy
   .route-info-row b {{ color:#e2e8f0; }}
   .route-info-close {{ position:absolute; top:6px; right:10px; cursor:pointer; color:#94a3b8; font-size:16px; font-weight:700; line-height:1; }}
   .route-info-close:hover {{ color:#ef4444; }}
+  .marker-cluster-small {{ background:rgba(181,226,140,0.6); }}
+  .marker-cluster-small div {{ background:rgba(110,204,57,0.6); }}
+  .marker-cluster-medium {{ background:rgba(241,211,87,0.6); }}
+  .marker-cluster-medium div {{ background:rgba(240,194,12,0.6); }}
+  .marker-cluster-large {{ background:rgba(253,156,115,0.6); }}
+  .marker-cluster-large div {{ background:rgba(241,128,23,0.6); }}
+  .marker-cluster {{ background-clip:padding-box; border-radius:20px; }}
+  .marker-cluster div {{ width:30px; height:30px; margin-left:5px; margin-top:5px; text-align:center; border-radius:15px; font:12px 'Segoe UI',sans-serif; font-weight:700; color:#fff; }}
+  .marker-cluster span {{ line-height:30px; }}
 </style>
 </head><body>
 <div id='map'></div>
@@ -523,7 +535,13 @@ L.marker([BAZA_LAT, BAZA_LNG], {{icon:bazaIcon, zIndexOffset:1000}})
 
 var markers = {{}};
 var markerData = {{}};
-var markersLayer = L.layerGroup().addTo(map);
+var markersLayer = L.markerClusterGroup({{
+  maxClusterRadius: 40,
+  spiderfyOnMaxZoom: true,
+  showCoverageOnHover: false,
+  zoomToBoundsOnClick: true,
+  disableClusteringAtZoom: 15
+}}).addTo(map);
 
 // --- Route state ---
 var currentRoute = null;
@@ -583,10 +601,38 @@ function statusColor(s) {{
   return '#6b7280';
 }}
 
+function spreadOverlapping(data) {{
+  var groups = {{}};
+  data.forEach(function(d) {{
+    var key = d.lat.toFixed(5) + ',' + d.lng.toFixed(5);
+    if(!groups[key]) groups[key] = [];
+    groups[key].push(d);
+  }});
+  var offset = 0.0008;
+  Object.keys(groups).forEach(function(key) {{
+    var g = groups[key];
+    if(g.length <= 1) return;
+    for(var i = 0; i < g.length; i++) {{
+      var angle = (2 * Math.PI * i) / g.length;
+      var r = offset * (1 + Math.floor(i / 8) * 0.5);
+      g[i].lat += Math.cos(angle) * r;
+      g[i].lng += Math.sin(angle) * r;
+    }}
+  }});
+}}
+
 function addMarkers(data) {{
-  markersLayer.clearLayers();
+  map.removeLayer(markersLayer);
+  markersLayer = L.markerClusterGroup({{
+    maxClusterRadius: 35,
+    spiderfyOnMaxZoom: true,
+    showCoverageOnHover: false,
+    zoomToBoundsOnClick: true,
+    disableClusteringAtZoom: 14
+  }});
   markers = {{}};
   markerData = {{}};
+  spreadOverlapping(data);
   data.forEach(function(d) {{
     markerData[d.id] = d;
     var c = statusColor(d.s);
@@ -609,6 +655,7 @@ function addMarkers(data) {{
     markers[d.id] = marker;
     markersLayer.addLayer(marker);
   }});
+  map.addLayer(markersLayer);
   if(data.length>0) {{
     var bounds = L.latLngBounds(data.map(function(d){{ return [d.lat,d.lng]; }}));
     if(bounds.isValid()) map.fitBounds(bounds,{{padding:[30,30]}});
@@ -619,11 +666,10 @@ function focusMarker(id) {{
   var m = markers[id];
   if(m) {{
     clearRoute();
-    map.flyTo(m.getLatLng(), 14, {{duration:0.5}});
-    setTimeout(function() {{
+    markersLayer.zoomToShowLayer(m, function() {{
       m.openPopup();
       showRoute(id);
-    }}, 600);
+    }});
   }}
 }}
 

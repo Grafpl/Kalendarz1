@@ -1187,7 +1187,7 @@ SELECT TOP(1) RIGHT(REPLICATE('0',@Width)+CAST(N.n AS varchar(16)),@Width) FROM 
     // ══════════════════════════════════════
     //  MODEL ADRESU FERMY
     // ══════════════════════════════════════
-    internal class FarmAddressEntry
+    public class FarmAddressEntry
     {
         public string Name { get; set; } = "";
         public string Address { get; set; } = "";

@@ -1,0 +1,911 @@
+<Window x:Class="Kalendarz1.Hodowcy.HodowcaWizardWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Nowy hodowca / dostawca"
+        WindowStartupLocation="CenterScreen"
+        Width="1050" Height="720"
+        MinWidth="900" MinHeight="620"
+        Background="#0F172A"
+        FontFamily="Segoe UI"
+        Loaded="Window_Loaded"
+        KeyDown="Window_KeyDown">
+
+    <Window.Resources>
+        <!-- Dark Theme Brushes -->
+        <SolidColorBrush x:Key="BgPrimary" Color="#0F172A"/>
+        <SolidColorBrush x:Key="BgSecondary" Color="#1E293B"/>
+        <SolidColorBrush x:Key="BgTertiary" Color="#334155"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#94A3B8"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#64748B"/>
+        <SolidColorBrush x:Key="BorderDefault" Color="#334155"/>
+        <SolidColorBrush x:Key="AccentGreen" Color="#22C55E"/>
+        <SolidColorBrush x:Key="AccentBlue" Color="#3B82F6"/>
+        <SolidColorBrush x:Key="AccentOrange" Color="#F59E0B"/>
+        <SolidColorBrush x:Key="AccentPurple" Color="#A78BFA"/>
+        <SolidColorBrush x:Key="AccentRed" Color="#EF4444"/>
+
+        <!-- Card Style -->
+        <Style x:Key="CardStyle" TargetType="Border">
+            <Setter Property="Background" Value="#1E293B"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="BorderBrush" Value="#334155"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="20,16"/>
+            <Setter Property="Margin" Value="0,0,0,16"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="Black" Opacity="0.25" BlurRadius="15" ShadowDepth="0" Direction="270"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Dark TextBox -->
+        <Style x:Key="DarkTextBox" TargetType="TextBox">
+            <Setter Property="Background" Value="#334155"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="BorderBrush" Value="#475569"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="CaretBrush" Value="#E2E8F0"/>
+            <Style.Triggers>
+                <Trigger Property="IsFocused" Value="True">
+                    <Setter Property="BorderBrush" Value="#3B82F6"/>
+                </Trigger>
+                <Trigger Property="IsReadOnly" Value="True">
+                    <Setter Property="Background" Value="#1E293B"/>
+                    <Setter Property="Foreground" Value="#64748B"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Dark ComboBox -->
+        <Style x:Key="DarkComboBox" TargetType="ComboBox">
+            <Setter Property="Background" Value="#334155"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="BorderBrush" Value="#475569"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton x:Name="ToggleButton"
+                                          Background="{TemplateBinding Background}"
+                                          BorderBrush="{TemplateBinding BorderBrush}"
+                                          BorderThickness="{TemplateBinding BorderThickness}"
+                                          Focusable="false"
+                                          IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                          ClickMode="Press">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="Border" Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="6">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="20"/>
+                                                </Grid.ColumnDefinitions>
+                                                <ContentPresenter Grid.Column="0"/>
+                                                <Path Grid.Column="1" Fill="#94A3B8"
+                                                      HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                      Data="M 0 0 L 4 4 L 8 0 Z"/>
+                                            </Grid>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Border" Property="Background" Value="#475569"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <ContentPresenter IsHitTestVisible="False"
+                                              Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                              Margin="8,4,24,4"
+                                              VerticalAlignment="Center"
+                                              HorizontalAlignment="Left"/>
+                            <Popup Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                                <Grid SnapsToDevicePixels="True"
+                                      MinWidth="{TemplateBinding ActualWidth}" MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                    <Border Background="#1E293B" BorderBrush="#475569"
+                                            BorderThickness="1" CornerRadius="6" Margin="0,2,0,0">
+                                        <Border.Effect>
+                                            <DropShadowEffect Color="Black" Opacity="0.3" BlurRadius="10" ShadowDepth="2"/>
+                                        </Border.Effect>
+                                        <ScrollViewer Margin="4" SnapsToDevicePixels="True">
+                                            <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                        </ScrollViewer>
+                                    </Border>
+                                </Grid>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DarkComboBoxItem" TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="bd" Background="Transparent" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#334155"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#22C55E"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Dark CheckBox -->
+        <Style x:Key="DarkCheckBox" TargetType="CheckBox">
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,4"/>
+        </Style>
+
+        <!-- Dark DatePicker -->
+        <Style x:Key="DarkDatePicker" TargetType="DatePicker">
+            <Setter Property="Background" Value="#334155"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="BorderBrush" Value="#475569"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DatePicker">
+                        <Border x:Name="PART_Border" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <DatePickerTextBox x:Name="PART_TextBox" Grid.Column="0"
+                                                   Foreground="#E2E8F0" FontSize="{TemplateBinding FontSize}"
+                                                   Background="Transparent" BorderThickness="0"
+                                                   VerticalAlignment="Center" Padding="4,2"
+                                                   Focusable="{TemplateBinding Focusable}">
+                                    <DatePickerTextBox.Style>
+                                        <Style TargetType="DatePickerTextBox">
+                                            <Setter Property="Foreground" Value="#E2E8F0"/>
+                                            <Setter Property="CaretBrush" Value="#E2E8F0"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="DatePickerTextBox">
+                                                        <ScrollViewer x:Name="PART_ContentHost" Background="Transparent"
+                                                                      HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </DatePickerTextBox.Style>
+                                </DatePickerTextBox>
+                                <Button x:Name="PART_Button" Grid.Column="1" Focusable="False"
+                                        Background="Transparent" BorderThickness="0" Cursor="Hand"
+                                        Padding="4,0" VerticalAlignment="Center">
+                                    <Path Data="M 0,0 L 8,0 L 8,8 L 0,8 Z M 0,2 L 8,2 M 2,0 L 2,2 M 6,0 L 6,2"
+                                          Stroke="#94A3B8" StrokeThickness="1" Width="12" Height="12"/>
+                                </Button>
+                                <Popup x:Name="PART_Popup" AllowsTransparency="True" Placement="Bottom"
+                                       PlacementTarget="{Binding ElementName=PART_Border}" StaysOpen="False"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="PART_Border" Property="BorderBrush" Value="#3B82F6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="CalendarStyle">
+                <Setter.Value>
+                    <Style TargetType="Calendar">
+                        <Setter Property="Foreground" Value="#E2E8F0"/>
+                        <Setter Property="Background" Value="#1E293B"/>
+                        <Setter Property="BorderBrush" Value="#475569"/>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Primary Button -->
+        <Style x:Key="BtnPrimary" TargetType="Button">
+            <Setter Property="Background" Value="#22C55E"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#16A34A"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="bd" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Secondary Button -->
+        <Style x:Key="BtnSecondary" TargetType="Button">
+            <Setter Property="Background" Value="#334155"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#475569"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Icon Button -->
+        <Style x:Key="BtnIcon" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#94A3B8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#334155"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Danger Button -->
+        <Style x:Key="BtnDanger" TargetType="Button">
+            <Setter Property="Background" Value="#7F1D1D"/>
+            <Setter Property="Foreground" Value="#FCA5A5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#991B1B"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- DataGrid styles -->
+        <Style x:Key="DarkDataGrid" TargetType="DataGrid">
+            <Setter Property="Background" Value="#1E293B"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="BorderBrush" Value="#334155"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="RowBackground" Value="#1E293B"/>
+            <Setter Property="AlternatingRowBackground" Value="#253349"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#334155"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="SelectionUnit" Value="FullRow"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="CanUserDeleteRows" Value="False"/>
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+
+        <Style x:Key="DarkColumnHeader" TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#0F172A"/>
+            <Setter Property="Foreground" Value="#94A3B8"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="BorderBrush" Value="#334155"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+        </Style>
+
+        <Style x:Key="DarkDataGridRow" TargetType="DataGridRow">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#1E3A5F"/>
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#253349"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="DarkDataGridCell" TargetType="DataGridCell">
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#1E3A5F"/>
+                    <Setter Property="Foreground" Value="#E2E8F0"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <DockPanel>
+        <!-- HEADER -->
+        <Border DockPanel.Dock="Top" Padding="24,14,24,10">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#1E3A5F" Offset="0"/>
+                    <GradientStop Color="#334155" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="8"/>
+                    <RowDefinition Height="4"/>
+                </Grid.RowDefinitions>
+                <TextBlock x:Name="tbTitle" Grid.Row="0" Text="Nowy hodowca / dostawca"
+                           FontSize="20" FontWeight="Bold" Foreground="White"/>
+                <TextBlock x:Name="tbStepInfo" Grid.Row="1"
+                           Text="Krok 1 z 4 — Dane i adres"
+                           FontSize="12" Foreground="#94A3B8" Margin="0,2,0,0"/>
+                <!-- Progress bar -->
+                <Border Grid.Row="3" Background="#475569" CornerRadius="2" Height="4">
+                    <Border x:Name="progressFill" Background="#D4AF37" CornerRadius="2"
+                            HorizontalAlignment="Left" Width="0"/>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- FOOTER -->
+        <Border DockPanel.Dock="Bottom" Background="#0F172A" BorderBrush="#334155" BorderThickness="0,1,0,0"
+                Padding="24,10">
+            <Grid>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+                    <CheckBox x:Name="chkHalt" Style="{StaticResource DarkCheckBox}" Foreground="#EF4444"
+                              FontWeight="SemiBold">Wstrzymany (Halt)</CheckBox>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="btnPrev" Style="{StaticResource BtnSecondary}" Content="WSTECZ"
+                            Click="BtnPrev_Click" Visibility="Collapsed" Margin="0,0,8,0"/>
+                    <Button x:Name="btnNext" Style="{StaticResource BtnPrimary}" Content="DALEJ  &#x2192;"
+                            Background="#3B82F6" Click="BtnNext_Click" Margin="0,0,8,0"/>
+                    <Button x:Name="btnSave" Style="{StaticResource BtnPrimary}" Content="UTWO&#x0141;RZ"
+                            Click="BtnSave_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- SIDEBAR -->
+        <Border DockPanel.Dock="Left" Width="220" Background="#1E293B" BorderBrush="#334155" BorderThickness="0,0,1,0">
+            <StackPanel Margin="0,16,0,0">
+                <!-- Step 0 -->
+                <Border x:Name="sideStep0" Background="#3B82F6" CornerRadius="0" Cursor="Hand"
+                        MouseLeftButtonDown="SideStep0_Click" Padding="16,14">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse x:Name="sideDot0" Width="10" Height="10" Fill="#3B82F6" Margin="0,0,12,0"/>
+                        <TextBlock x:Name="sideLbl0" Text="&#x1F4CB;  Dane i adres" Foreground="White"
+                                   FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+                <!-- Step 1 -->
+                <Border x:Name="sideStep1" Background="Transparent" CornerRadius="0" Cursor="Hand"
+                        MouseLeftButtonDown="SideStep1_Click" Padding="16,14">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse x:Name="sideDot1" Width="8" Height="8" Fill="#22C55E" Margin="1,0,13,0"/>
+                        <TextBlock x:Name="sideLbl1" Text="&#x1F4B0;  Cennik i firma" Foreground="#94A3B8"
+                                   FontSize="13" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+                <!-- Step 2 -->
+                <Border x:Name="sideStep2" Background="Transparent" CornerRadius="0" Cursor="Hand"
+                        MouseLeftButtonDown="SideStep2_Click" Padding="16,14">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse x:Name="sideDot2" Width="8" Height="8" Fill="#F59E0B" Margin="1,0,13,0"/>
+                        <TextBlock x:Name="sideLbl2" Text="&#x1F50D;  ARiMR i uwagi" Foreground="#94A3B8"
+                                   FontSize="13" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+                <!-- Step 3 -->
+                <Border x:Name="sideStep3" Background="Transparent" CornerRadius="0" Cursor="Hand"
+                        MouseLeftButtonDown="SideStep3_Click" Padding="16,14">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse x:Name="sideDot3" Width="8" Height="8" Fill="#A78BFA" Margin="1,0,13,0"/>
+                        <TextBlock x:Name="sideLbl3" Text="&#x1F3E0;  Adresy ferm" Foreground="#94A3B8"
+                                   FontSize="13" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Keyboard shortcuts info -->
+                <TextBlock Margin="20,40,0,0" Foreground="#64748B" FontSize="11" LineHeight="18">
+                    <Run Text="Ctrl+S"/>
+                    <Run Text="  Zapisz" Foreground="#475569"/><LineBreak/>
+                    <Run Text="Alt+&#x2190;&#x2192;"/>
+                    <Run Text="  Nawigacja" Foreground="#475569"/><LineBreak/>
+                    <Run Text="Esc"/>
+                    <Run Text="       Zamknij" Foreground="#475569"/>
+                </TextBlock>
+            </StackPanel>
+        </Border>
+
+        <!-- CONTENT AREA -->
+        <Grid Background="#0F172A">
+            <!-- Change Request Confirmation Panel (hidden by default) -->
+            <Border x:Name="panelChangeRequest" Background="#1C1917" BorderBrush="#F59E0B"
+                    BorderThickness="0,0,0,2" Padding="20,16" Visibility="Collapsed"
+                    VerticalAlignment="Top" Panel.ZIndex="10">
+                <StackPanel>
+                    <TextBlock Text="Potwierdzenie zmian krytycznych" FontSize="16" FontWeight="Bold"
+                               Foreground="#F59E0B" Margin="0,0,0,6"/>
+                    <!-- Info: kto tworzy wniosek -->
+                    <Border Background="#1E293B" CornerRadius="8" Padding="12,8" Margin="0,0,0,10">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Wniosek tworzy:" Foreground="#94A3B8" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <Border Background="#1E3A5F" CornerRadius="6" Padding="10,4" Margin="0,0,12,0">
+                                <TextBlock x:Name="lblCrCreator" Foreground="#60A5FA" FontWeight="Bold" FontSize="13"/>
+                            </Border>
+                            <TextBlock Text="Data:" Foreground="#94A3B8" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock x:Name="lblCrDate" Foreground="#E2E8F0" FontSize="12" VerticalAlignment="Center"/>
+                            <TextBlock Text="&#x2022;" Foreground="#475569" FontSize="12" VerticalAlignment="Center" Margin="12,0,12,0"/>
+                            <TextBlock Text="Wniosek wymaga zatwierdzenia przez inn&#x0105; osob&#x0119;"
+                                       Foreground="#FBBF24" FontSize="11" FontStyle="Italic" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <DataGrid x:Name="dgChanges" Style="{StaticResource DarkDataGrid}"
+                              MaxHeight="200" Margin="0,0,0,12"
+                              ColumnHeaderStyle="{StaticResource DarkColumnHeader}"
+                              RowStyle="{StaticResource DarkDataGridRow}"
+                              CellStyle="{StaticResource DarkDataGridCell}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Pole" Binding="{Binding FieldLabel}" Width="180"/>
+                            <DataGridTextColumn Header="Stara warto&#x15B;&#x107;" Binding="{Binding OldValue}" Width="*"/>
+                            <DataGridTextColumn Header="Nowa warto&#x15B;&#x107;" Binding="{Binding NewValue}" Width="*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="#F97316"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="200"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                            <TextBlock Text="Pow&#x00F3;d zmiany (wymagany):" Foreground="#94A3B8" FontSize="12" Margin="0,0,0,4"/>
+                            <TextBox x:Name="tbCrReason" Style="{StaticResource DarkTextBox}" Height="60"
+                                     AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Data wej&#x15B;cia w &#x017C;ycie:" Foreground="#94A3B8" FontSize="12" Margin="0,0,0,4"/>
+                            <DatePicker x:Name="dpCrEffective" Style="{StaticResource DarkDatePicker}"/>
+                        </StackPanel>
+                    </Grid>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                        <Button Style="{StaticResource BtnSecondary}" Content="Anuluj" Margin="0,0,8,0"
+                                Click="BtnCrCancel_Click"/>
+                        <Button Style="{StaticResource BtnPrimary}" Content="Zg&#x0142;o&#x15B; wniosek i zapisz"
+                                Background="#F59E0B" Click="BtnCrSubmit_Click"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Step panels -->
+            <!-- STEP 0: Dane i adres -->
+            <ScrollViewer x:Name="step0" VerticalScrollBarVisibility="Auto" Padding="24,20">
+                <StackPanel MaxWidth="800">
+                    <!-- Card: Identyfikacja -->
+                    <Border Style="{StaticResource CardStyle}">
+                        <StackPanel>
+                            <Border BorderBrush="#3B82F6" BorderThickness="0,0,0,2" Margin="-20,-16,-20,16" Padding="20,10"
+                                    CornerRadius="12,12,0,0" Background="#1E293B">
+                                <TextBlock Text="Identyfikacja" FontSize="14" FontWeight="SemiBold" Foreground="#3B82F6"/>
+                            </Border>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="90"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="12"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Nazwa *" Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
+                                <TextBox x:Name="edtName" Grid.Row="0" Grid.Column="1" Style="{StaticResource DarkTextBox}" MaxLength="100"/>
+                                <Grid Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="90"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="60"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Symbol *" Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="edtID" Grid.Column="1" Style="{StaticResource DarkTextBox}" MaxLength="20"/>
+                                    <TextBlock Grid.Column="3" Text="Skr&#x00F3;t" Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="edtShortName" Grid.Column="4" Style="{StaticResource DarkTextBox}" MaxLength="50"/>
+                                </Grid>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Card: Adres -->
+                    <Border Style="{StaticResource CardStyle}">
+                        <StackPanel>
+                            <Border BorderBrush="#3B82F6" BorderThickness="0,0,0,2" Margin="-20,-16,-20,16" Padding="20,10"
+                                    CornerRadius="12,12,0,0" Background="#1E293B">
+                                <TextBlock Text="Adres" FontSize="14" FontWeight="SemiBold" Foreground="#3B82F6"/>
+                            </Border>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="90"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="12"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="12"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Ulica" Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
+                                <TextBox x:Name="edtAddress" Grid.Row="0" Grid.Column="1" Style="{StaticResource DarkTextBox}" MaxLength="100"/>
+
+                                <Grid Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="90"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="90"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Kod poczt." Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="edtPostalCode" Grid.Column="1" Style="{StaticResource DarkTextBox}" MaxLength="10"/>
+                                    <TextBlock Grid.Column="3" Text="Miejscow." Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="edtCity" Grid.Column="4" Style="{StaticResource DarkTextBox}" MaxLength="50"/>
+                                </Grid>
+
+                                <Grid Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="90"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="50"/>
+                                        <ColumnDefinition Width="80"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Wojewodzt." Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
+                                    <ComboBox x:Name="cbbProvince" Grid.Column="1" Style="{StaticResource DarkComboBox}"
+                                              ItemContainerStyle="{StaticResource DarkComboBoxItem}"/>
+                                    <TextBlock Grid.Column="3" Text="KM" Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="edtDistance" Grid.Column="4" Style="{StaticResource DarkTextBox}" MaxLength="10"/>
+                                    <CheckBox x:Name="cbIsFarmAddress" Grid.Column="6" Style="{StaticResource DarkCheckBox}"
+                                              Content="Adres = ferma"/>
+                                </Grid>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Card: Kontakt -->
+                    <Border Style="{StaticResource CardStyle}">
+                        <StackPanel>
+                            <Border BorderBrush="#3B82F6" BorderThickness="0,0,0,2" Margin="-20,-16,-20,16" Padding="20,10"
+                                    CornerRadius="12,12,0,0" Background="#1E293B">
+                                <TextBlock Text="Kontakt" FontSize="14" FontWeight="SemiBold" Foreground="#3B82F6"/>
+                            </Border>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="90"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="16"/>
+                                    <ColumnDefinition Width="90"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="12"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Telefon 1" Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
+                                <TextBox x:Name="edtPhone1" Grid.Row="0" Grid.Column="1" Style="{StaticResource DarkTextBox}" MaxLength="20"/>
+                                <TextBlock Grid.Row="0" Grid.Column="3" Text="Telefon 2" Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
+                                <TextBox x:Name="edtPhone2" Grid.Row="0" Grid.Column="4" Style="{StaticResource DarkTextBox}" MaxLength="20"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Telefon 3" Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
+                                <TextBox x:Name="edtPhone3" Grid.Row="2" Grid.Column="1" Style="{StaticResource DarkTextBox}" MaxLength="20"/>
+                                <TextBlock Grid.Row="2" Grid.Column="3" Text="Email" Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
+                                <TextBox x:Name="edtEmail" Grid.Row="2" Grid.Column="4" Style="{StaticResource DarkTextBox}" MaxLength="100"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- STEP 1: Cennik i firma -->
+            <ScrollViewer x:Name="step1" VerticalScrollBarVisibility="Auto" Padding="24,20" Visibility="Collapsed">
+                <StackPanel MaxWidth="800">
+                    <!-- Card: Cennik -->
+                    <Border Style="{StaticResource CardStyle}">
+                        <StackPanel>
+                            <Border BorderBrush="#22C55E" BorderThickness="0,0,0,2" Margin="-20,-16,-20,16" Padding="20,10"
+                                    CornerRadius="12,12,0,0" Background="#1E293B">
+                                <TextBlock Text="Cennik" FontSize="14" FontWeight="SemiBold" Foreground="#22C55E"/>
+                            </Border>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="90"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="16"/>
+                                    <ColumnDefinition Width="90"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="12"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Typ ceny" Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
+                                <ComboBox x:Name="cbbPriceType" Grid.Row="0" Grid.Column="1" Style="{StaticResource DarkComboBox}"
+                                          ItemContainerStyle="{StaticResource DarkComboBoxItem}"/>
+                                <TextBlock Grid.Row="0" Grid.Column="3" Text="Dodatek" Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
+                                <TextBox x:Name="edtAddition" Grid.Row="0" Grid.Column="4" Style="{StaticResource DarkTextBox}" MaxLength="10" Text="0"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Ubytek" Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
+                                <TextBox x:Name="edtLoss" Grid.Row="2" Grid.Column="1" Style="{StaticResource DarkTextBox}" MaxLength="10" Text="0"/>
+                                <CheckBox x:Name="cbIncDeadConf" Grid.Row="2" Grid.Column="3" Grid.ColumnSpan="2"
+                                          Style="{StaticResource DarkCheckBox}" Content="Pad&#x0142;e + konfiskaty w rozliczeniu"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Card: Dane firmy -->
+                    <Border Style="{StaticResource CardStyle}">
+                        <StackPanel>
+                            <Border BorderBrush="#22C55E" BorderThickness="0,0,0,2" Margin="-20,-16,-20,16" Padding="20,10"
+                                    CornerRadius="12,12,0,0" Background="#1E293B">
+                                <TextBlock Text="Dane firmy" FontSize="14" FontWeight="SemiBold" Foreground="#22C55E"/>
+                            </Border>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="110"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="16"/>
+                                    <ColumnDefinition Width="110"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="12"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="12"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="NIP" Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
+                                <TextBox x:Name="edtNIP" Grid.Row="0" Grid.Column="1" Style="{StaticResource DarkTextBox}" MaxLength="20"/>
+                                <TextBlock Grid.Row="0" Grid.Column="3" Text="REGON" Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
+                                <TextBox x:Name="edtRegon" Grid.Row="0" Grid.Column="4" Style="{StaticResource DarkTextBox}" MaxLength="20"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="PESEL" Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
+                                <TextBox x:Name="edtPesel" Grid.Row="2" Grid.Column="1" Style="{StaticResource DarkTextBox}" MaxLength="20"/>
+                                <TextBlock Grid.Row="2" Grid.Column="3" Text="Nr dowodu" Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
+                                <TextBox x:Name="edtIDCard" Grid.Row="2" Grid.Column="4" Style="{StaticResource DarkTextBox}" MaxLength="20"/>
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Wydany dnia" Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
+                                <DatePicker x:Name="dpIDCardDate" Grid.Row="4" Grid.Column="1" Style="{StaticResource DarkDatePicker}"/>
+                                <TextBlock Grid.Row="4" Grid.Column="3" Text="Wydany przez" Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
+                                <TextBox x:Name="edtIDCardAuth" Grid.Row="4" Grid.Column="4" Style="{StaticResource DarkTextBox}" MaxLength="100"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- STEP 2: ARiMR i uwagi -->
+            <ScrollViewer x:Name="step2" VerticalScrollBarVisibility="Auto" Padding="24,20" Visibility="Collapsed">
+                <StackPanel MaxWidth="800">
+                    <!-- Card: ARiMR -->
+                    <Border Style="{StaticResource CardStyle}">
+                        <StackPanel>
+                            <Border BorderBrush="#F59E0B" BorderThickness="0,0,0,2" Margin="-20,-16,-20,16" Padding="20,10"
+                                    CornerRadius="12,12,0,0" Background="#1E293B">
+                                <TextBlock Text="Identyfikacja ARiMR" FontSize="14" FontWeight="SemiBold" Foreground="#F59E0B"/>
+                            </Border>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="90"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="16"/>
+                                    <ColumnDefinition Width="90"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Nr gosp." Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
+                                <TextBox x:Name="edtAnimNo" Grid.Column="1" Style="{StaticResource DarkTextBox}" MaxLength="50"/>
+                                <TextBlock Grid.Column="3" Text="IRZPlus" Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
+                                <TextBox x:Name="edtIRZPlus" Grid.Column="4" Style="{StaticResource DarkTextBox}" MaxLength="50"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Card: Uwagi -->
+                    <Border Style="{StaticResource CardStyle}">
+                        <StackPanel>
+                            <Border BorderBrush="#F59E0B" BorderThickness="0,0,0,2" Margin="-20,-16,-20,16" Padding="20,10"
+                                    CornerRadius="12,12,0,0" Background="#1E293B">
+                                <TextBlock Text="Uwagi i notatki" FontSize="14" FontWeight="SemiBold" Foreground="#F59E0B"/>
+                            </Border>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="90"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="12"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="12"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="12"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Trasa" Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
+                                <TextBox x:Name="edtTrasa" Grid.Row="0" Grid.Column="1" Style="{StaticResource DarkTextBox}" MaxLength="4"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Info 1" Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
+                                <TextBox x:Name="edtInfo1" Grid.Row="2" Grid.Column="1" Style="{StaticResource DarkTextBox}" MaxLength="200"/>
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Info 2" Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
+                                <TextBox x:Name="edtInfo2" Grid.Row="4" Grid.Column="1" Style="{StaticResource DarkTextBox}" MaxLength="200"/>
+                                <TextBlock Grid.Row="6" Grid.Column="0" Text="Info 3" Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
+                                <TextBox x:Name="edtInfo3" Grid.Row="6" Grid.Column="1" Style="{StaticResource DarkTextBox}" MaxLength="200"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Card: Typ osobowosci i role -->
+                    <Border Style="{StaticResource CardStyle}">
+                        <StackPanel>
+                            <Border BorderBrush="#F59E0B" BorderThickness="0,0,0,2" Margin="-20,-16,-20,16" Padding="20,10"
+                                    CornerRadius="12,12,0,0" Background="#1E293B">
+                                <TextBlock Text="Typ osobowo&#x15B;ci i role" FontSize="14" FontWeight="SemiBold" Foreground="#F59E0B"/>
+                            </Border>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="110"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="16"/>
+                                    <ColumnDefinition Width="110"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="12"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Typ osob. 1" Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
+                                <ComboBox x:Name="cbbTyp1" Grid.Row="0" Grid.Column="1" Style="{StaticResource DarkComboBox}"
+                                          ItemContainerStyle="{StaticResource DarkComboBoxItem}"/>
+                                <TextBlock Grid.Row="0" Grid.Column="3" Text="Typ osob. 2" Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
+                                <ComboBox x:Name="cbbTyp2" Grid.Row="0" Grid.Column="4" Style="{StaticResource DarkComboBox}"
+                                          ItemContainerStyle="{StaticResource DarkComboBoxItem}"/>
+                                <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="5" Orientation="Horizontal">
+                                    <CheckBox x:Name="chkIsDeliverer" Style="{StaticResource DarkCheckBox}" Content="Dostawca" Margin="0,0,20,0"/>
+                                    <CheckBox x:Name="chkIsCustomer" Style="{StaticResource DarkCheckBox}" Content="Odbiorca" Margin="0,0,20,0"/>
+                                    <CheckBox x:Name="chkIsRolnik" Style="{StaticResource DarkCheckBox}" Content="Rolnik" Margin="0,0,20,0"/>
+                                    <CheckBox x:Name="chkIsSkupowy" Style="{StaticResource DarkCheckBox}" Content="Skupowy"/>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- STEP 3: Adresy ferm -->
+            <Grid x:Name="step3" Visibility="Collapsed" Margin="24,20">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Info banner -->
+                <Border Grid.Row="0" Background="#1E3A5F" CornerRadius="8" Padding="14,10" Margin="0,0,0,12">
+                    <TextBlock Foreground="#93C5FD" FontSize="12" TextWrapping="Wrap">
+                        Adresy ferm (Kind=2) dodane tutaj zostan&#x0105; zapisane razem z dostawc&#x0105;. Adres g&#x0142;&#x00F3;wny (Kind=1) tworzy si&#x0119; automatycznie z danych z kroku 1.
+                    </TextBlock>
+                </Border>
+
+                <!-- DataGrid -->
+                <DataGrid x:Name="dgFarmAddresses" Grid.Row="1"
+                          Style="{StaticResource DarkDataGrid}"
+                          ColumnHeaderStyle="{StaticResource DarkColumnHeader}"
+                          RowStyle="{StaticResource DarkDataGridRow}"
+                          CellStyle="{StaticResource DarkDataGridCell}"
+                          MouseDoubleClick="DgFarm_DoubleClick">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Nazwa" Binding="{Binding Name}" Width="*"/>
+                        <DataGridTextColumn Header="Adres" Binding="{Binding Address}" Width="*"/>
+                        <DataGridTextColumn Header="Miejscowo&#x15B;&#x107;" Binding="{Binding City}" Width="120"/>
+                        <DataGridTextColumn Header="Kod" Binding="{Binding PostalCode}" Width="80"/>
+                        <DataGridTextColumn Header="Nr gosp." Binding="{Binding AnimNo}" Width="100"/>
+                        <DataGridTextColumn Header="KM" Binding="{Binding Distance}" Width="60"/>
+                        <DataGridCheckBoxColumn Header="Wstrz." Binding="{Binding Halt}" Width="60"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <!-- Buttons -->
+                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,12,0,0">
+                    <Button Style="{StaticResource BtnPrimary}" Content="Dodaj" Margin="0,0,8,0"
+                            Click="BtnFarmAdd_Click"/>
+                    <Button Style="{StaticResource BtnSecondary}" Content="Edytuj" Margin="0,0,8,0"
+                            Click="BtnFarmEdit_Click"/>
+                    <Button Style="{StaticResource BtnDanger}" Content="Usu&#x0144;"
+                            Click="BtnFarmDelete_Click"/>
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </DockPanel>
+</Window>

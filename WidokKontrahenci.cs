@@ -835,8 +835,8 @@ namespace Kalendarz1
                 return;
             }
             string appUser = string.IsNullOrWhiteSpace(this.UserID) ? Environment.UserName : this.UserID;
-            using (var f = new HodowcaForm(idHodowca, appUser))
-                f.ShowDialog(this);
+            var w = new Hodowcy.HodowcaWizardWindow(connectionString, appUser, idHodowca);
+            w.ShowDialog();
         }
 
         private static T SafeGet<T>(DataRow r, string col)
@@ -854,8 +854,8 @@ namespace Kalendarz1
 
         private async Task OpenNewSupplierFormAsync()
         {
-            using var f = new NewHodowcaForm(connectionString, this.UserID ?? Environment.UserName);
-            if (f.ShowDialog(this) == DialogResult.OK)
+            var w = new Hodowcy.HodowcaWizardWindow(connectionString, this.UserID ?? Environment.UserName);
+            if (w.ShowDialog() == true)
             {
                 _pageIndex = 0;
                 await LoadSuppliersPageAsync();

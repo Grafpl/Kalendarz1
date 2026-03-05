@@ -1,0 +1,497 @@
+<Window x:Class="Kalendarz1.Hodowcy.AdminChangeRequestsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Wnioski o zmian&#x0119; &#x2014; akceptacja / odmowa"
+        WindowStartupLocation="CenterScreen"
+        WindowState="Maximized"
+        Width="1400" Height="860"
+        MinWidth="1100" MinHeight="700"
+        Background="#0F172A"
+        FontFamily="Segoe UI"
+        Loaded="Window_Loaded"
+        KeyDown="Window_KeyDown">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="BgPrimary" Color="#0F172A"/>
+        <SolidColorBrush x:Key="BgSecondary" Color="#1E293B"/>
+        <SolidColorBrush x:Key="BgTertiary" Color="#334155"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#94A3B8"/>
+        <SolidColorBrush x:Key="AccentGreen" Color="#22C55E"/>
+        <SolidColorBrush x:Key="AccentRed" Color="#EF4444"/>
+        <SolidColorBrush x:Key="AccentAmber" Color="#F59E0B"/>
+
+        <!-- Card -->
+        <Style x:Key="CardStyle" TargetType="Border">
+            <Setter Property="Background" Value="#1E293B"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="BorderBrush" Value="#334155"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="Black" Opacity="0.25" BlurRadius="15" ShadowDepth="0"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- TextBox -->
+        <Style x:Key="DarkTextBox" TargetType="TextBox">
+            <Setter Property="Background" Value="#334155"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="BorderBrush" Value="#475569"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="CaretBrush" Value="#E2E8F0"/>
+            <Style.Triggers>
+                <Trigger Property="IsFocused" Value="True">
+                    <Setter Property="BorderBrush" Value="#3B82F6"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- ComboBox -->
+        <Style x:Key="DarkComboBox" TargetType="ComboBox">
+            <Setter Property="Background" Value="#334155"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="BorderBrush" Value="#475569"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton x:Name="ToggleButton" Background="{TemplateBinding Background}"
+                                          BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                          Focusable="false" IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" ClickMode="Press">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="Border" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="24"/></Grid.ColumnDefinitions>
+                                                <Path Grid.Column="1" Fill="#94A3B8" HorizontalAlignment="Center" VerticalAlignment="Center" Data="M 0 0 L 4 4 L 8 0 Z"/>
+                                            </Grid>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Border" Property="Background" Value="#475569"/></Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <ContentPresenter IsHitTestVisible="False" Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" Margin="10,6,28,6" VerticalAlignment="Center"/>
+                            <Popup Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                                <Grid SnapsToDevicePixels="True" MinWidth="{TemplateBinding ActualWidth}" MaxHeight="300">
+                                    <Border Background="#1E293B" BorderBrush="#475569" BorderThickness="1" CornerRadius="8" Margin="0,2,0,0">
+                                        <Border.Effect><DropShadowEffect Color="Black" Opacity="0.3" BlurRadius="10" ShadowDepth="2"/></Border.Effect>
+                                        <ScrollViewer Margin="4"><StackPanel IsItemsHost="True"/></ScrollViewer>
+                                    </Border>
+                                </Grid>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DarkComboBoxItem" TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="bd" Background="Transparent" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True"><Setter TargetName="bd" Property="Background" Value="#334155"/></Trigger>
+                            <Trigger Property="IsSelected" Value="True"><Setter TargetName="bd" Property="Background" Value="#22C55E"/><Setter Property="Foreground" Value="White"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Buttons -->
+        <Style x:Key="BtnPrimary" TargetType="Button">
+            <Setter Property="Background" Value="#22C55E"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="#16A34A"/></Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="bd" Property="Opacity" Value="0.4"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="BtnDanger" TargetType="Button">
+            <Setter Property="Background" Value="#DC2626"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="#B91C1C"/></Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="bd" Property="Opacity" Value="0.4"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="BtnSecondary" TargetType="Button">
+            <Setter Property="Background" Value="#334155"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="#475569"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- DataGrid -->
+        <Style x:Key="DarkColumnHeader" TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#0F172A"/>
+            <Setter Property="Foreground" Value="#94A3B8"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="BorderBrush" Value="#334155"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+        </Style>
+
+        <Style x:Key="DarkDataGridRow" TargetType="DataGridRow">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="#1E3A5F"/></Trigger>
+                <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#253349"/></Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="DarkDataGridCell" TargetType="DataGridCell">
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#1E3A5F"/>
+                    <Setter Property="Foreground" Value="#E2E8F0"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <DockPanel>
+        <!-- HEADER -->
+        <Border DockPanel.Dock="Top" Padding="24,16">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#1E3A5F" Offset="0"/>
+                    <GradientStop Color="#334155" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <Grid>
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#x1F4DD;" FontSize="24" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <TextBlock Text="Wnioski o zmian&#x0119; danych hodowc&#x00F3;w" FontSize="22" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <TextBlock Text="Przegl&#x0105;danie, akceptacja i odrzucanie wniosk&#x00F3;w o zmiany p&#x00F3;l krytycznych dostawc&#x00F3;w"
+                               FontSize="12" Foreground="#94A3B8" Margin="36,4,0,0"/>
+                </StackPanel>
+
+                <!-- KPI badges -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <Border Background="#1E3A5F" CornerRadius="8" Padding="14,8" Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Oczekuj&#x0105;ce" Foreground="#94A3B8" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <Border Background="#F59E0B" CornerRadius="10" MinWidth="28" Padding="6,2">
+                                <TextBlock x:Name="lblPendingCount" Text="0" Foreground="White" FontWeight="Bold"
+                                           FontSize="13" HorizontalAlignment="Center"/>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#1E3A5F" CornerRadius="8" Padding="14,8">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Wszystkich" Foreground="#94A3B8" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <Border Background="#3B82F6" CornerRadius="10" MinWidth="28" Padding="6,2">
+                                <TextBlock x:Name="lblTotalCount" Text="0" Foreground="White" FontWeight="Bold"
+                                           FontSize="13" HorizontalAlignment="Center"/>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- FILTER BAR -->
+        <Border DockPanel.Dock="Top" Background="#1E293B" BorderBrush="#334155" BorderThickness="0,0,0,1" Padding="24,12">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Status:" Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <ComboBox x:Name="cbStatus" Style="{StaticResource DarkComboBox}" Width="180"
+                          ItemContainerStyle="{StaticResource DarkComboBoxItem}" SelectionChanged="CbStatus_Changed"/>
+
+                <TextBlock Text="Szukaj:" Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center" Margin="24,0,8,0"/>
+                <TextBox x:Name="tbSearch" Style="{StaticResource DarkTextBox}" Width="280"
+                         KeyDown="TbSearch_KeyDown"/>
+
+                <Button Style="{StaticResource BtnSecondary}" Content="&#x1F504; Od&#x15B;wie&#x017C;" Margin="12,0,0,0"
+                        Click="BtnRefresh_Click"/>
+
+                <TextBlock x:Name="lblRowCount" Text="" Foreground="#64748B" FontSize="12" FontStyle="Italic"
+                           VerticalAlignment="Center" Margin="20,0,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- MAIN CONTENT -->
+        <Grid Margin="24,16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" MinHeight="200"/>
+                <RowDefinition Height="8"/>
+                <RowDefinition Height="Auto" MinHeight="250" MaxHeight="400"/>
+            </Grid.RowDefinitions>
+
+            <!-- Request headers grid -->
+            <Border Grid.Row="0" Style="{StaticResource CardStyle}" Padding="0">
+                <DataGrid x:Name="dgHeaders"
+                          Background="#1E293B" Foreground="#E2E8F0"
+                          BorderThickness="0"
+                          RowBackground="#1E293B" AlternatingRowBackground="#253349"
+                          GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#334155"
+                          HeadersVisibility="Column" SelectionUnit="FullRow"
+                          CanUserAddRows="False" CanUserDeleteRows="False"
+                          AutoGenerateColumns="False" IsReadOnly="True"
+                          FontSize="13"
+                          ColumnHeaderStyle="{StaticResource DarkColumnHeader}"
+                          RowStyle="{StaticResource DarkDataGridRow}"
+                          CellStyle="{StaticResource DarkDataGridCell}"
+                          SelectionChanged="DgHeaders_SelectionChanged">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="ID" Binding="{Binding CRID}" Width="55"/>
+                        <DataGridTextColumn Header="ID Dost." Binding="{Binding DostawcaID}" Width="70"/>
+                        <DataGridTextColumn Header="Dostawca" Binding="{Binding DostawcaNazwa}" Width="SizeToCells"/>
+                        <DataGridTextColumn Header="Uzasadnienie" Binding="{Binding Reason}" Width="SizeToCells"/>
+                        <DataGridTemplateColumn Header="Utworzy&#x0142;" Width="SizeToCells">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Border Background="#1E3A5F" CornerRadius="6" Padding="8,3" HorizontalAlignment="Left">
+                                        <TextBlock Text="{Binding RequestedByName}" Foreground="#60A5FA" FontWeight="Bold" FontSize="12"/>
+                                    </Border>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Data utworzenia" Binding="{Binding RequestedAtLocal}" Width="130"/>
+                        <DataGridTextColumn Header="Obowi&#x0105;zuje od" Binding="{Binding EffectiveFromDisplay}" Width="95"/>
+                        <DataGridTemplateColumn Header="Status" Width="115">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Border x:Name="statusBorder" CornerRadius="10" Padding="10,4" HorizontalAlignment="Left">
+                                        <TextBlock x:Name="statusText" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                                    </Border>
+                                    <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding Status}" Value="Proposed">
+                                            <Setter TargetName="statusBorder" Property="Background" Value="#422006"/>
+                                            <Setter TargetName="statusText" Property="Text" Value="Oczekuj&#x0105;cy"/>
+                                            <Setter TargetName="statusText" Property="Foreground" Value="#F59E0B"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding DecyzjaTyp}" Value="Zaakceptowano">
+                                            <Setter TargetName="statusBorder" Property="Background" Value="#052E16"/>
+                                            <Setter TargetName="statusText" Property="Text" Value="Zaakceptowany"/>
+                                            <Setter TargetName="statusText" Property="Foreground" Value="#22C55E"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding DecyzjaTyp}" Value="Odrzucono">
+                                            <Setter TargetName="statusBorder" Property="Background" Value="#450A0A"/>
+                                            <Setter TargetName="statusText" Property="Text" Value="Odrzucony"/>
+                                            <Setter TargetName="statusText" Property="Foreground" Value="#EF4444"/>
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Zdecydowa&#x0142;" Binding="{Binding DecyzjaKtoName}" Width="SizeToCells"/>
+                        <DataGridTextColumn Header="Notatka adm." Binding="{Binding Notatka}" Width="SizeToCells"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Border>
+
+            <!-- Bottom: Creator info + Visual diff + Actions -->
+            <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="380"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Compact visual diff -->
+                <Border Grid.Column="0" Style="{StaticResource CardStyle}" Padding="0">
+                    <DockPanel>
+                        <Border DockPanel.Dock="Top" Background="#0F172A" Padding="16,8" CornerRadius="12,12,0,0">
+                            <Grid>
+                                <TextBlock Text="Szczeg&#x00F3;&#x0142;y zmian" Foreground="#94A3B8" FontWeight="SemiBold" FontSize="13"/>
+                                <TextBlock x:Name="lblItemCount" HorizontalAlignment="Right" Foreground="#64748B" FontSize="12" FontStyle="Italic"/>
+                            </Grid>
+                        </Border>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Background="#1E293B">
+                            <ItemsControl x:Name="icItems" Margin="8,6,8,8">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#0F172A" CornerRadius="8" Margin="4" Padding="12,8"
+                                                BorderBrush="#334155" BorderThickness="1" Width="320">
+                                            <StackPanel>
+                                                <!-- Field label -->
+                                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                                    <Border Background="#1E3A5F" CornerRadius="4" Padding="8,2" Margin="0,0,6,0">
+                                                        <TextBlock Text="{Binding FieldLabel}" Foreground="#60A5FA" FontWeight="Bold" FontSize="12"/>
+                                                    </Border>
+                                                    <TextBlock Text="{Binding Field}" Foreground="#475569" FontSize="10" VerticalAlignment="Center" FontStyle="Italic"/>
+                                                </StackPanel>
+                                                <!-- Old → New in one row -->
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="28"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <Border Grid.Column="0" Background="#1C1917" CornerRadius="6" Padding="8,5"
+                                                            BorderBrush="#7F1D1D" BorderThickness="1">
+                                                        <TextBlock Text="{Binding OldValueDisplay}" Foreground="#FCA5A5" FontSize="12"
+                                                                   TextTrimming="CharacterEllipsis" ToolTip="{Binding OldValueDisplay}"/>
+                                                    </Border>
+                                                    <TextBlock Grid.Column="1" Text="&#x2192;" FontSize="16" Foreground="#F59E0B"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    <Border Grid.Column="2" Background="#022C22" CornerRadius="6" Padding="8,5"
+                                                            BorderBrush="#14532D" BorderThickness="1">
+                                                        <TextBlock Text="{Binding NewValueDisplay}" Foreground="#86EFAC" FontSize="12"
+                                                                   FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding NewValueDisplay}"/>
+                                                    </Border>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Border>
+
+                <!-- Right panel: Creator info + Actions -->
+                <DockPanel Grid.Column="2">
+                    <!-- Creator info card -->
+                    <Border DockPanel.Dock="Top" Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                        <StackPanel x:Name="pnlCreatorInfo">
+                            <TextBlock Text="Informacje o wniosku" Foreground="#E2E8F0" FontWeight="Bold" FontSize="14" Margin="0,0,0,10"/>
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Utworzy&#x0142;:" Foreground="#94A3B8" FontSize="12" Margin="0,0,12,6"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="lblCreator" Foreground="#E2E8F0" FontWeight="SemiBold" FontSize="12"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Data:" Foreground="#94A3B8" FontSize="12" Margin="0,0,12,6"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="lblCreatedAt" Foreground="#E2E8F0" FontSize="12"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Pow&#x00F3;d:" Foreground="#94A3B8" FontSize="12" Margin="0,0,12,6"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="lblReason" Foreground="#E2E8F0" FontSize="12" TextWrapping="Wrap"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Obowi&#x0105;zuje od:" Foreground="#94A3B8" FontSize="12" Margin="0,0,12,0"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1" x:Name="lblEffective" Foreground="#E2E8F0" FontSize="12"/>
+                            </Grid>
+
+                            <!-- Self-approval warning -->
+                            <Border x:Name="pnlSelfWarning" Background="#422006" CornerRadius="8" Padding="12,8" Margin="0,8,0,0"
+                                    Visibility="Collapsed">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#x26A0;" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Text="Nie mo&#x017C;esz zatwierdzic w&#x0142;asnego wniosku. Musi to zrobi&#x107; inna osoba."
+                                               Foreground="#FBBF24" FontSize="12" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Actions card -->
+                    <Border Style="{StaticResource CardStyle}">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top" Text="D E C Y Z J A" Foreground="#E2E8F0" FontWeight="Bold" FontSize="15"
+                                       Margin="0,0,0,12"/>
+
+                            <!-- Decision buttons — large, prominent -->
+                            <StackPanel DockPanel.Dock="Bottom" Margin="0,14,0,0">
+                                <Button x:Name="btnAccept" Style="{StaticResource BtnPrimary}" Height="48" FontSize="16"
+                                        Content="&#x2714;  AKCEPTUJ WNIOSEK" Click="BtnAccept_Click" IsEnabled="False"
+                                        Margin="0,0,0,8"/>
+                                <Button x:Name="btnReject" Style="{StaticResource BtnDanger}" Height="48" FontSize="16"
+                                        Content="&#x2716;  ODRZU&#x106; WNIOSEK" Click="BtnReject_Click" IsEnabled="False"/>
+                            </StackPanel>
+
+                            <!-- Note section -->
+                            <StackPanel>
+                                <TextBlock Text="Notatka administratora:" Foreground="#94A3B8" FontSize="12" Margin="0,0,0,6"/>
+                                <TextBox x:Name="tbNote" Style="{StaticResource DarkTextBox}" Height="70"
+                                         AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                                         IsEnabled="False"/>
+                                <Button x:Name="btnSaveNote" Style="{StaticResource BtnSecondary}" Content="Zapisz notatk&#x0119;"
+                                        Margin="0,8,0,0" HorizontalAlignment="Left"
+                                        Click="BtnSaveNote_Click" IsEnabled="False"/>
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+                </DockPanel>
+            </Grid>
+        </Grid>
+    </DockPanel>
+</Window>

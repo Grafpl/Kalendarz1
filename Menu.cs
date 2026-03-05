@@ -39,6 +39,8 @@ namespace Kalendarz1
         private MeetingChangeMonitor meetingChangeMonitor;
         private Label _chatBadgeLabel;
         private System.Windows.Forms.Timer _chatBadgeTimer;
+        private Label _crBadgeLabel;
+        private System.Windows.Forms.Timer _crBadgeTimer;
 
         public MENU()
         {
@@ -49,6 +51,7 @@ namespace Kalendarz1
             ApplyModernStyle();
             StartTaskNotifications();
             StartChatBadgeTimer();
+            StartCrBadgeTimer();
         }
 
         private void StartTaskNotifications()
@@ -187,6 +190,43 @@ namespace Kalendarz1
             else
             {
                 _chatBadgeLabel.Visible = false;
+            }
+        }
+
+        private void StartCrBadgeTimer()
+        {
+            _crBadgeTimer = new System.Windows.Forms.Timer();
+            _crBadgeTimer.Interval = 30000; // Co 30 sekund
+            _crBadgeTimer.Tick += (s, e) => UpdateCrBadge();
+            _crBadgeTimer.Start();
+            UpdateCrBadge();
+        }
+
+        private void UpdateCrBadge()
+        {
+            if (_crBadgeLabel == null) return;
+            try
+            {
+                var count = Hodowcy.AdminChangeRequestsWindow.GetPendingCount(connectionString);
+                if (InvokeRequired)
+                    Invoke(new Action(() => UpdateCrBadgeUI(count)));
+                else
+                    UpdateCrBadgeUI(count);
+            }
+            catch { }
+        }
+
+        private void UpdateCrBadgeUI(int count)
+        {
+            if (_crBadgeLabel == null) return;
+            if (count > 0)
+            {
+                _crBadgeLabel.Text = count > 99 ? "99+" : count.ToString();
+                _crBadgeLabel.Visible = true;
+            }
+            else
+            {
+                _crBadgeLabel.Visible = false;
             }
         }
 
@@ -1288,7 +1328,12 @@ namespace Kalendarz1
                     new MenuItemConfig("PozyskiwanieHodowcow", "Pozyskiwanie Hodowców",
                         "Baza hodowców drobiu z kontaktami telefonicznymi, notatkami i śledzeniem pozyskiwania",
                         Color.FromArgb(56, 142, 60), // Zielony #388E3C
-                        () => new Hodowcy.PozyskiwanieHodowcowWindow(), "🐔", "Pozyskiwanie")
+                        () => new Hodowcy.PozyskiwanieHodowcowWindow(), "🐔", "Pozyskiwanie"),
+
+                    new MenuItemConfig("ZmianyUHodowcow", "Wnioski o Zmiany",
+                        "Przeglądanie i zatwierdzanie wniosków o zmiany danych hodowców zgłoszonych przez użytkowników",
+                        Color.FromArgb(27, 94, 32), // Ciemny zielony #1B5E20
+                        () => new Hodowcy.AdminChangeRequestsWindow(connectionString, App.UserID), "📝", "Zmiany Danych")
                 },
 
                 // ═══════════════════════════════════════════════════════════════════════════
@@ -1351,11 +1396,6 @@ namespace Kalendarz1
                 // ═══════════════════════════════════════════════════════════════════════════
                 ["ADMINISTRACJA SYSTEMU"] = new List<MenuItemConfig>
                 {
-                    new MenuItemConfig("ZmianyUHodowcow", "Wnioski o Zmiany",
-                        "Przeglądanie i zatwierdzanie wniosków o zmiany danych hodowców zgłoszonych przez użytkowników",
-                        Color.FromArgb(239, 154, 154), // Jasny czerwony #EF9A9A
-                        () => new AdminChangeRequestsForm(connectionString, App.UserID), "📝", "Zmiany Danych"),
-
                     new MenuItemConfig("AdminPermissions", "Zarządzanie Uprawnieniami",
                         "Panel administratora do nadawania i odbierania uprawnień dostępu użytkownikom systemu",
                         Color.FromArgb(211, 47, 47), // Czerwony #D32F2F
@@ -1737,6 +1777,37 @@ namespace Kalendarz1
                 tile.Controls.Add(badgeLabel);
                 badgeLabel.BringToFront();
                 // Badge na kafelku - aktualizowany osobno przez _chatBadgeLabel przy avatarze
+            }
+
+            // Badge z liczbą oczekujących wniosków o zmiany danych
+            if (config.ModuleName == "ZmianyUHodowcow")
+            {
+                var badgeLabel = new Label
+                {
+                    Text = "0",
+                    Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                    Size = new Size(26, 26),
+                    Location = new Point(tile.Width - 38, 8),
+                    ForeColor = Color.White,
+                    BackColor = Color.FromArgb(245, 158, 11), // Amber #F59E0B
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    Visible = false,
+                    Cursor = Cursors.Hand
+                };
+
+                badgeLabel.Paint += (s, e) =>
+                {
+                    e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                    using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                    {
+                        path.AddEllipse(0, 0, badgeLabel.Width - 1, badgeLabel.Height - 1);
+                        badgeLabel.Region = new Region(path);
+                    }
+                };
+
+                tile.Controls.Add(badgeLabel);
+                badgeLabel.BringToFront();
+                _crBadgeLabel = badgeLabel;
             }
 
             // Podłącz ikonę do efektu bounce

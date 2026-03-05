@@ -1486,8 +1486,14 @@ namespace Kalendarz1.Hodowcy
                 // Auto-search delivery history — first 5 chars of first word
                 string nazwa = drv["Dostawca"]?.ToString() ?? "";
                 var firstWord = nazwa.Split(new[] { ' ', '-', '/' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
-                txtSzukajDostawy.Text = firstWord.Length > 5 ? firstWord.Substring(0, 5) : firstWord;
+                string fraza = firstWord.Length > 5 ? firstWord.Substring(0, 5) : firstWord;
+                txtSzukajDostawy.Text = fraza;
+                txtSzukajWstawienia.Text = fraza;
+                txtSzukajKontakty.Text = fraza;
+                txtSzukajFraza.Text = fraza;
                 SzukajDostawy();
+                SzukajWstawienia();
+                SzukajKontakty();
             }
         }
 
@@ -2582,6 +2588,33 @@ namespace Kalendarz1.Hodowcy
 
         #endregion
 
+        #region Combined Search
+
+        private void TxtSzukajFraza_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+                SzukajWszystkie();
+        }
+
+        private void BtnSzukajFraza_Click(object sender, RoutedEventArgs e)
+        {
+            SzukajWszystkie();
+        }
+
+        private void SzukajWszystkie()
+        {
+            string fraza = txtSzukajFraza.Text?.Trim();
+            if (string.IsNullOrEmpty(fraza)) return;
+            txtSzukajDostawy.Text = fraza;
+            txtSzukajWstawienia.Text = fraza;
+            txtSzukajKontakty.Text = fraza;
+            SzukajDostawy();
+            SzukajWstawienia();
+            SzukajKontakty();
+        }
+
+        #endregion
+
         #region Delivery Search
 
         private void TxtSzukajDostawy_KeyDown(object sender, KeyEventArgs e)
@@ -2606,30 +2639,7 @@ namespace Kalendarz1.Hodowcy
 
             stackWynikiDostawy.Children.Clear();
             panelWynikiDostawy.Visibility = Visibility.Visible;
-
-            // Loading indicator with spinner
-            var loadingSp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
-            var spinner = new ProgressBar
-            {
-                IsIndeterminate = true,
-                Width = 80,
-                Height = 4,
-                Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#22C55E")),
-                Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#334155")),
-                BorderThickness = new Thickness(0),
-                Margin = new Thickness(0, 0, 8, 0),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            loadingSp.Children.Add(spinner);
-            loadingSp.Children.Add(new TextBlock
-            {
-                Text = "Szukam w bazie dostaw...",
-                Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#64748B")),
-                FontSize = 11,
-                FontStyle = FontStyles.Italic,
-                VerticalAlignment = VerticalAlignment.Center
-            });
-            stackWynikiDostawy.Children.Add(loadingSp);
+            stackWynikiDostawy.Children.Add(new TextBlock { Text = "...", FontSize = 9, Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#64748B")) });
 
             try
             {
@@ -2673,84 +2683,32 @@ namespace Kalendarz1.Hodowcy
 
                 if (results.Count == 0)
                 {
-                    var noResult = new Border
+                    stackWynikiDostawy.Children.Add(new TextBlock
                     {
-                        Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#7F1D1D")),
-                        CornerRadius = new CornerRadius(6),
-                        Padding = new Thickness(10, 8, 10, 8)
-                    };
-                    var noTxt = new TextBlock
-                    {
-                        Text = "Brak wyników — hodowca nigdy nie dostarczał",
+                        Text = "Brak — nigdy nie dostarczal",
                         Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FCA5A5")),
-                        FontSize = 11,
-                        FontWeight = FontWeights.SemiBold
-                    };
-                    noResult.Child = noTxt;
-                    stackWynikiDostawy.Children.Add(noResult);
+                        FontSize = 9, FontWeight = FontWeights.SemiBold, Margin = new Thickness(2)
+                    });
                 }
                 else
                 {
                     foreach (var (name, count, first, last) in results)
                     {
-                        var card = new Border
-                        {
-                            Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#14532D")),
-                            CornerRadius = new CornerRadius(6),
-                            Padding = new Thickness(10, 6, 10, 6),
-                            Margin = new Thickness(0, 0, 0, 4),
-                            BorderBrush = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#22C55E")),
-                            BorderThickness = new Thickness(0, 0, 0, 1),
-                            Cursor = Cursors.Hand,
-                            ToolTip = "Kliknij aby zobaczyć szczegóły i dostawy"
-                        };
-
+                        var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 1) };
+                        sp.Cursor = Cursors.Hand;
                         string capturedName = name;
-                        card.MouseLeftButtonDown += (s, args) =>
-                        {
-                            ShowDostawcaDetails(capturedName);
-                        };
+                        sp.MouseLeftButtonDown += (s, args) => ShowDostawcaDetails(capturedName);
 
-                        var sp = new StackPanel();
-
-                        var nameTb = new TextBlock
-                        {
-                            Text = name,
-                            FontSize = 12,
-                            FontWeight = FontWeights.Bold,
-                            Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#4ADE80"))
-                        };
-                        sp.Children.Add(nameTb);
-
-                        var statsSp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 0) };
-
-                        var countBadge = new Border
-                        {
-                            Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#0F172A")),
-                            CornerRadius = new CornerRadius(4),
-                            Padding = new Thickness(6, 2, 6, 2),
-                            Margin = new Thickness(0, 0, 8, 0)
-                        };
-                        countBadge.Child = new TextBlock
-                        {
-                            Text = $"{count} partii",
-                            FontSize = 10,
-                            FontWeight = FontWeights.Bold,
-                            Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#22C55E"))
-                        };
-                        statsSp.Children.Add(countBadge);
-
-                        statsSp.Children.Add(new TextBlock
-                        {
-                            Text = $"{first:dd.MM.yyyy} — {last:dd.MM.yyyy}",
-                            FontSize = 10,
-                            Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#94A3B8")),
-                            VerticalAlignment = VerticalAlignment.Center
-                        });
-
-                        sp.Children.Add(statsSp);
-                        card.Child = sp;
-                        stackWynikiDostawy.Children.Add(card);
+                        sp.Children.Add(new TextBlock { Text = name, FontSize = 10, FontWeight = FontWeights.Bold,
+                            Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#4ADE80")),
+                            Margin = new Thickness(0, 0, 6, 0), MaxWidth = 200, TextTrimming = TextTrimming.CharacterEllipsis });
+                        sp.Children.Add(new TextBlock { Text = $"{count}x", FontSize = 9, FontWeight = FontWeights.Bold,
+                            Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#22C55E")),
+                            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) });
+                        sp.Children.Add(new TextBlock { Text = $"{first:dd.MM.yy}-{last:dd.MM.yy}", FontSize = 9,
+                            Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#64748B")),
+                            VerticalAlignment = VerticalAlignment.Center });
+                        stackWynikiDostawy.Children.Add(sp);
                     }
                 }
             }
@@ -3024,6 +2982,244 @@ namespace Kalendarz1.Hodowcy
             catch (Exception ex)
             {
                 loadingTxt.Text = $"Błąd: {ex.Message}";
+            }
+        }
+
+        #endregion
+
+        #region Wstawienia Search
+
+        private void TxtSzukajWstawienia_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+                SzukajWstawienia();
+        }
+
+        private async void SzukajWstawienia()
+        {
+            string input = txtSzukajWstawienia.Text?.Trim();
+            if (string.IsNullOrEmpty(input)) return;
+
+            var words = input.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                             .Where(w => w.Length >= 2).ToArray();
+            if (words.Length == 0) return;
+
+            stackWynikiWstawienia.Children.Clear();
+            panelWynikiWstawienia.Visibility = Visibility.Visible;
+            stackWynikiWstawienia.Children.Add(new TextBlock { Text = "...", FontSize = 9, Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#64748B")) });
+
+            try
+            {
+                var results = new List<(string Dostawca, int LP, DateTime DataWstawienia, int Ilosc, string TypUmowy, string TypCeny)>();
+
+                await Task.Run(() =>
+                {
+                    using var conn = new SqlConnection(connectionString);
+                    conn.Open();
+
+                    var conditions = new List<string>();
+                    for (int i = 0; i < words.Length; i++)
+                        conditions.Add($"w.Dostawca LIKE @w{i}");
+
+                    // Unikalne ostatnie wstawienie per hodowca
+                    string sql = $@"
+                        WITH Ranked AS (
+                            SELECT w.Dostawca, w.LP, w.DataWstawienia, w.IloscWstawienia, w.TypUmowy,
+                                   ISNULL(w.TypCeny, '-') AS TypCeny,
+                                   ROW_NUMBER() OVER (PARTITION BY w.Dostawca ORDER BY w.DataWstawienia DESC) AS rn
+                            FROM dbo.WstawieniaKurczakow w
+                            WHERE ({string.Join(" AND ", conditions)})
+                        )
+                        SELECT Dostawca, LP, DataWstawienia, IloscWstawienia, TypUmowy, TypCeny
+                        FROM Ranked WHERE rn = 1
+                        ORDER BY DataWstawienia DESC";
+
+                    using var cmd = new SqlCommand(sql, conn);
+                    for (int i = 0; i < words.Length; i++)
+                        cmd.Parameters.AddWithValue($"@w{i}", $"%{words[i]}%");
+
+                    using var reader = cmd.ExecuteReader();
+                    while (reader.Read())
+                    {
+                        results.Add((
+                            reader["Dostawca"]?.ToString()?.Trim() ?? "",
+                            reader["LP"] is DBNull ? 0 : Convert.ToInt32(reader["LP"]),
+                            reader["DataWstawienia"] is DBNull ? DateTime.MinValue : Convert.ToDateTime(reader["DataWstawienia"]),
+                            reader["IloscWstawienia"] is DBNull ? 0 : Convert.ToInt32(reader["IloscWstawienia"]),
+                            reader["TypUmowy"]?.ToString()?.Trim() ?? "",
+                            reader["TypCeny"]?.ToString()?.Trim() ?? "-"
+                        ));
+                    }
+                });
+
+                stackWynikiWstawienia.Children.Clear();
+
+                if (results.Count == 0)
+                {
+                    stackWynikiWstawienia.Children.Add(new TextBlock
+                    {
+                        Text = "Brak wstawien",
+                        Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FCA5A5")),
+                        FontSize = 9, FontWeight = FontWeights.SemiBold, Margin = new Thickness(2)
+                    });
+                }
+                else
+                {
+                    foreach (var (dostawca, lp, dataWstawienia, ilosc, typUmowy, typCeny) in results)
+                    {
+                        var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 1) };
+                        sp.Children.Add(new TextBlock { Text = dostawca, FontSize = 10, FontWeight = FontWeights.Bold,
+                            Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#60A5FA")),
+                            Margin = new Thickness(0, 0, 4, 0), MaxWidth = 150, TextTrimming = TextTrimming.CharacterEllipsis });
+                        sp.Children.Add(new TextBlock { Text = $"LP:{lp}", FontSize = 9,
+                            Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#60A5FA")),
+                            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) });
+                        sp.Children.Add(new TextBlock { Text = $"{ilosc:#,##0}", FontSize = 9, FontWeight = FontWeights.Bold,
+                            Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#F59E0B")),
+                            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) });
+                        sp.Children.Add(new TextBlock { Text = dataWstawienia > DateTime.MinValue ? dataWstawienia.ToString("dd.MM.yy") : "", FontSize = 9,
+                            Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#94A3B8")),
+                            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) });
+                        sp.Children.Add(new TextBlock { Text = $"{typUmowy}/{typCeny}", FontSize = 8,
+                            Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#64748B")),
+                            VerticalAlignment = VerticalAlignment.Center });
+                        stackWynikiWstawienia.Children.Add(sp);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                stackWynikiWstawienia.Children.Clear();
+                stackWynikiWstawienia.Children.Add(new TextBlock
+                {
+                    Text = $"Blad: {ex.Message}",
+                    Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FCA5A5")),
+                    FontSize = 10
+                });
+            }
+        }
+
+        #endregion
+
+        #region Kontakty Search
+
+        private void TxtSzukajKontakty_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+                SzukajKontakty();
+        }
+
+        private async void SzukajKontakty()
+        {
+            string input = txtSzukajKontakty.Text?.Trim();
+            if (string.IsNullOrEmpty(input)) return;
+
+            var words = input.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                             .Where(w => w.Length >= 2).ToArray();
+            if (words.Length == 0) return;
+
+            stackWynikiKontakty.Children.Clear();
+            panelWynikiKontakty.Visibility = Visibility.Visible;
+            stackWynikiKontakty.Children.Add(new TextBlock { Text = "...", FontSize = 9, Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#64748B")) });
+
+            try
+            {
+                var results = new List<(string Dostawca, string UserName, DateTime? SnoozedUntil, string Reason, DateTime CreatedAt)>();
+
+                await Task.Run(() =>
+                {
+                    using var conn = new SqlConnection(connectionString);
+                    conn.Open();
+
+                    var conditions = new List<string>();
+                    for (int i = 0; i < words.Length; i++)
+                        conditions.Add($"ch.Dostawca LIKE @w{i}");
+
+                    string sql = $@"
+                        SELECT ch.Dostawca,
+                               ISNULL(o.Name, CAST(ch.UserID AS VARCHAR(20))) AS UserName,
+                               ch.SnoozedUntil,
+                               ch.Reason,
+                               ch.CreatedAt
+                        FROM dbo.ContactHistory ch
+                        LEFT JOIN dbo.operators o ON ch.UserID = o.ID
+                        WHERE ({string.Join(" AND ", conditions)})
+                        ORDER BY ch.CreatedAt DESC";
+
+                    using var cmd = new SqlCommand(sql, conn);
+                    for (int i = 0; i < words.Length; i++)
+                        cmd.Parameters.AddWithValue($"@w{i}", $"%{words[i]}%");
+
+                    using var reader = cmd.ExecuteReader();
+                    while (reader.Read())
+                    {
+                        results.Add((
+                            reader["Dostawca"]?.ToString()?.Trim() ?? "",
+                            reader["UserName"] is DBNull ? "" : reader["UserName"]?.ToString()?.Trim() ?? "",
+                            reader["SnoozedUntil"] is DBNull ? (DateTime?)null : Convert.ToDateTime(reader["SnoozedUntil"]),
+                            reader["Reason"] is DBNull ? "" : reader["Reason"]?.ToString()?.Trim() ?? "",
+                            reader["CreatedAt"] is DBNull ? DateTime.MinValue : Convert.ToDateTime(reader["CreatedAt"])
+                        ));
+                    }
+                });
+
+                stackWynikiKontakty.Children.Clear();
+
+                if (results.Count == 0)
+                {
+                    stackWynikiKontakty.Children.Add(new TextBlock
+                    {
+                        Text = "Brak w historii kontaktów",
+                        Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FCA5A5")),
+                        FontSize = 9, FontWeight = FontWeights.SemiBold, Margin = new Thickness(2)
+                    });
+                }
+                else
+                {
+                    foreach (var (dostawca, userName, snoozedUntil, reason, createdAt) in results)
+                    {
+                        var sp = new StackPanel { Margin = new Thickness(0, 0, 0, 2) };
+
+                        // Header line: name + user + date
+                        var headerSp = new StackPanel { Orientation = Orientation.Horizontal };
+                        headerSp.Children.Add(new TextBlock { Text = dostawca, FontSize = 10, FontWeight = FontWeights.Bold,
+                            Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#A78BFA")),
+                            Margin = new Thickness(0, 0, 4, 0), MaxWidth = 160, TextTrimming = TextTrimming.CharacterEllipsis });
+                        if (!string.IsNullOrEmpty(userName))
+                            headerSp.Children.Add(new TextBlock { Text = userName, FontSize = 8, FontWeight = FontWeights.Bold,
+                                Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#22C55E")),
+                                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) });
+                        if (snoozedUntil.HasValue)
+                            headerSp.Children.Add(new TextBlock { Text = $"nast: {snoozedUntil.Value:MM-dd}", FontSize = 8,
+                                Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FBBF24")),
+                                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) });
+                        if (createdAt > DateTime.MinValue)
+                            headerSp.Children.Add(new TextBlock { Text = createdAt.ToString("dd.MM HH:mm"), FontSize = 8,
+                                Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#64748B")),
+                                VerticalAlignment = VerticalAlignment.Center });
+                        sp.Children.Add(headerSp);
+
+                        // Reason line
+                        if (!string.IsNullOrEmpty(reason))
+                        {
+                            sp.Children.Add(new TextBlock { Text = reason, FontSize = 9,
+                                Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#E2E8F0")),
+                                MaxWidth = 280, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 0, 0, 0) });
+                        }
+
+                        stackWynikiKontakty.Children.Add(sp);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                stackWynikiKontakty.Children.Clear();
+                stackWynikiKontakty.Children.Add(new TextBlock
+                {
+                    Text = $"Blad: {ex.Message}",
+                    Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FCA5A5")),
+                    FontSize = 10
+                });
             }
         }
 

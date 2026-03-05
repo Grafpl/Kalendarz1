@@ -20,9 +20,9 @@ namespace Kalendarz1
 {
     public partial class Mroznia : Form
     {
-        private string connectionString = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
-        private readonly string _connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
-        private readonly string _connTransport = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        private string connectionString = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True;Connection Timeout=8";
+        private readonly string _connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True;Connection Timeout=8";
+        private readonly string _connTransport = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True;Connection Timeout=8";
         private readonly Dictionary<string, System.Drawing.Image> _produktImagesWF = new(StringComparer.OrdinalIgnoreCase);
 
         // Dane pozycji dziennych do CellPainting (index wiersza → lista pozycji)
@@ -86,6 +86,7 @@ namespace Kalendarz1
         private readonly Dictionary<string, Color> _handlowiecColors = new(StringComparer.OrdinalIgnoreCase);
         private Dictionary<string, string> _handlowiecMapowanie; // HandlowiecName → UserID
         private readonly Dictionary<string, Image> _handlowiecAvatarCache = new(StringComparer.OrdinalIgnoreCase);
+        private HashSet<int> _zatwierdzoneZamowienia = new(); // IDs zatwierdzonych zamówień
 
         // === ZAKŁADKA PRZESUNIĘCIA ZEW. ===
         private DataGridView dgvPrzesunięcia;
@@ -97,13 +98,6 @@ namespace Kalendarz1
         // === CACHE STATYSTYK (zastępują usunięte karty) ===
         private decimal lastWydano, lastPrzyjeto;
         private int lastDni;
-
-        // === LOADING OVERLAY ===
-        private Panel loadingOverlayPanel;
-        private Label loadingLabel;
-        private System.Windows.Forms.Timer spinnerTimer;
-        private int spinnerAngle;
-        private Panel spinnerPanel;
 
         // Kolory zakładek (1a - kolorowy wskaźnik)
         private readonly Color[] TabColors = new Color[]
@@ -147,7 +141,6 @@ namespace Kalendarz1
             InitializeComponent();
             WindowIconHelper.SetIcon(this);
             SetupEvents();
-            LoadInitialData();
         }
 
         private void InitializeComponent()
@@ -195,87 +188,8 @@ namespace Kalendarz1
 
             this.Controls.Add(mainLayout);
 
-            // === LOADING OVERLAY ===
-            InitializeLoadingOverlay();
-
             // === 7bb: TOAST NOTIFICATION SYSTEM ===
             InitializeToastSystem();
-        }
-
-        private void InitializeLoadingOverlay()
-        {
-            loadingOverlayPanel = new Panel
-            {
-                Dock = DockStyle.Fill,
-                BackColor = Color.FromArgb(160, 20, 20, 25),
-                Visible = false
-            };
-
-            // Centered card panel
-            spinnerPanel = new Panel
-            {
-                Size = new Size(300, 160),
-                BackColor = Color.Transparent
-            };
-            spinnerPanel.Paint += SpinnerPanel_Paint;
-
-            loadingLabel = new Label
-            {
-                Text = "Ładowanie...",
-                ForeColor = Color.White,
-                Font = new Font("Segoe UI", 12F, FontStyle.Regular),
-                BackColor = Color.Transparent,
-                AutoSize = false,
-                Size = new Size(300, 30),
-                TextAlign = ContentAlignment.MiddleCenter,
-                Location = new Point(0, 120)
-            };
-
-            spinnerPanel.Controls.Add(loadingLabel);
-            loadingOverlayPanel.Controls.Add(spinnerPanel);
-            this.Controls.Add(loadingOverlayPanel);
-            loadingOverlayPanel.BringToFront();
-
-            // Spinner animation timer
-            spinnerTimer = new System.Windows.Forms.Timer { Interval = 30 };
-            spinnerTimer.Tick += (s, e) =>
-            {
-                spinnerAngle = (spinnerAngle + 4) % 360;
-                spinnerPanel.Invalidate(new Rectangle(
-                    spinnerPanel.Width / 2 - 40, 10, 80, 80));
-            };
-        }
-
-        private void SpinnerPanel_Paint(object sender, PaintEventArgs e)
-        {
-            var g = e.Graphics;
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
-            var panel = (Panel)sender;
-            int w = panel.Width, h = panel.Height;
-
-            // Background rounded rect
-            using (var path = CreateRoundedRect(0, 0, w, h, 12))
-            {
-                using (var bgBrush = new SolidBrush(Color.FromArgb(37, 42, 49)))
-                    g.FillPath(bgBrush, path);
-                using (var borderPen = new Pen(Color.FromArgb(48, 54, 61), 1))
-                    g.DrawPath(borderPen, path);
-            }
-
-            // Rotating snowflake ❄ in center
-            int cx = w / 2, cy = 50;
-            string snowflake = "\u2744";
-            using (var snowFont = new Font("Segoe UI", 36F, FontStyle.Regular))
-            using (var snowBrush = new SolidBrush(Color.FromArgb(180, 210, 255)))
-            {
-                var state = g.Save();
-                g.TranslateTransform(cx, cy);
-                g.RotateTransform(spinnerAngle);
-                var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
-                g.DrawString(snowflake, snowFont, snowBrush, 0, 0, sf);
-                g.Restore(state);
-            }
         }
 
         private static GraphicsPath CreateRoundedRect(int x, int y, int w, int h, int r)
@@ -287,35 +201,6 @@ namespace Kalendarz1
             path.AddArc(x, y + h - r * 2 - 1, r * 2, r * 2, 90, 90);
             path.CloseFigure();
             return path;
-        }
-
-        private void ShowLoading(string message = "Ładowanie danych...")
-        {
-            if (this.InvokeRequired)
-            {
-                this.BeginInvoke(new Action(() => ShowLoading(message)));
-                return;
-            }
-            loadingLabel.Text = message;
-            // Center spinner panel
-            spinnerPanel.Location = new Point(
-                (loadingOverlayPanel.Width - spinnerPanel.Width) / 2,
-                (loadingOverlayPanel.Height - spinnerPanel.Height) / 2);
-            loadingOverlayPanel.Visible = true;
-            loadingOverlayPanel.BringToFront();
-            spinnerTimer.Start();
-            Application.DoEvents();
-        }
-
-        private void HideLoading()
-        {
-            if (this.InvokeRequired)
-            {
-                this.BeginInvoke(new Action(() => HideLoading()));
-                return;
-            }
-            spinnerTimer.Stop();
-            loadingOverlayPanel.Visible = false;
         }
 
         private Panel CreateAnalysisToolbar()
@@ -1805,7 +1690,7 @@ namespace Kalendarz1
                 try
                 {
                     if (splitZamMroz.Width > 100)
-                        splitZamMroz.SplitterDistance = (int)(splitZamMroz.Width * 0.60);
+                        splitZamMroz.SplitterDistance = (int)(splitZamMroz.Width * 0.72);
                 }
                 catch { }
             };
@@ -1817,10 +1702,12 @@ namespace Kalendarz1
             dgvZamMrozOrders.ColumnHeadersDefaultCellStyle.BackColor = TealColor;
             dgvZamMrozOrders.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
             dgvZamMrozOrders.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            dgvZamMrozOrders.ColumnHeadersDefaultCellStyle.WrapMode = DataGridViewTriState.True;
             dgvZamMrozOrders.EnableHeadersVisualStyles = false;
-            dgvZamMrozOrders.ColumnHeadersHeight = 36;
+            dgvZamMrozOrders.ColumnHeadersHeight = 44;
             dgvZamMrozOrders.RowTemplate.Height = 48;
             dgvZamMrozOrders.SelectionChanged += DgvZamMrozOrders_SelectionChanged;
+            dgvZamMrozOrders.CellClick += DgvZamMrozOrders_CellClick;
 
             // CellPainting: left-border color by status + handlowiec avatar
             dgvZamMrozOrders.CellPainting += DgvZamMrozOrders_CellPainting;
@@ -2150,38 +2037,49 @@ namespace Kalendarz1
 
             try
             {
-                ShowLoading("Ładowanie zamówień mrożonek...");
+                // Obrazki produktów w tle (nie blokuje UI)
+                _ = Task.Run(() => { try { LoadProductImagesForGrids(); } catch { } });
 
-                // Zamówienia mrożonki — teraz pierwsza zakładka, auto-load
+                // Zamówienia mrożonki z timeoutem 15s
                 _zamMrozLoaded = true;
-                await LoadZamowieniaMrozonkiAsync();
+                try
+                {
+                    using var ctsZam = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(15));
+                    await LoadZamowieniaMrozonkiAsync().WaitAsync(ctsZam.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    statusLabel.Text = "Timeout ładowania zamówień - kontynuuję...";
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Błąd zamówień: {ex.Message}");
+                }
                 _zamMrozAutoRefreshTimer.Enabled = true;
 
-                // Załaduj mroźnie zewnętrzne
-                LoadMroznieZewnetrzneDoTabeli();
+                // Mroźnie zewnętrzne
+                try { LoadMroznieZewnetrzneDoTabeli(); } catch { }
 
-                // Załaduj przesunięcia między mroźniami
+                // Przesunięcia
                 try { LoadPrzesunieciaDoTabeli(); } catch { }
 
-                // Załaduj stan magazynu w tle
-                BtnStanMagazynu_Click(null, null);
+                // Stan magazynu w tle (async)
+                try
+                {
+                    await LoadStanMagazynuAsync();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Błąd stanu magazynu: {ex.Message}");
+                }
 
-                // Automatycznie załaduj przegląd dzienny i wykresy
-                AutoLoadData();
+                // Przegląd dzienny i wykresy
+                try { AutoLoadData(); } catch { }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Błąd Mroznia_Load: {ex.Message}");
             }
-            finally
-            {
-                HideLoading();
-            }
-        }
-
-        private void LoadInitialData()
-        {
-            LoadProductImagesForGrids();
         }
 
         private void LoadProductImagesForGrids()
@@ -3548,14 +3446,18 @@ namespace Kalendarz1
             lastDni = dni;
         }
 
-        private void BtnStanMagazynu_Click(object sender, EventArgs e)
+        private async void BtnStanMagazynu_Click(object sender, EventArgs e)
+        {
+            await LoadStanMagazynuAsync();
+        }
+
+        private async Task LoadStanMagazynuAsync()
         {
             DateTime dataStan = dtpStanMagazynu.Value.Date;
             DateTime dataPoprzedni = dataStan.AddDays(-7); // Tydzień wcześniej
             bool isGrupowanie = chkGrupowanie.Checked; // Zawsze false (checkbox niewidoczny)
 
             statusLabel.Text = "Obliczam stan magazynu...";
-            ShowLoading("Obliczam stan magazynu...");
 
             try
             {
@@ -3585,29 +3487,27 @@ namespace Kalendarz1
                     GROUP BY kod
                     HAVING ABS(SUM([iloscwp])) <> 0";
 
-                using (SqlConnection conn = new SqlConnection(connectionString))
+                // Pobierz dane z bazy w tle (nie blokuje UI)
+                DataTable dtRaw = new DataTable();
+                DataTable dtPoprzedni = new DataTable();
+
+                await Task.Run(() =>
                 {
-                    conn.Open();
-
-                    // Pobierz aktualny stan
-                    SqlCommand cmd = new SqlCommand(query, conn);
-                    cmd.Parameters.AddWithValue("@EndDate", dataStan);
-
-                    DataTable dtRaw = new DataTable();
-                    using (SqlDataAdapter adapter = new SqlDataAdapter(cmd))
+                    using (SqlConnection conn = new SqlConnection(connectionString))
                     {
-                        adapter.Fill(dtRaw);
-                    }
+                        conn.Open();
 
-                    // Pobierz stan z tygodnia wcześniej
-                    SqlCommand cmdPoprzedni = new SqlCommand(queryPoprzedni, conn);
-                    cmdPoprzedni.Parameters.AddWithValue("@EndDate", dataPoprzedni);
+                        SqlCommand cmd = new SqlCommand(query, conn) { CommandTimeout = 15 };
+                        cmd.Parameters.AddWithValue("@EndDate", dataStan);
+                        using (SqlDataAdapter adapter = new SqlDataAdapter(cmd))
+                            adapter.Fill(dtRaw);
 
-                    DataTable dtPoprzedni = new DataTable();
-                    using (SqlDataAdapter adapter = new SqlDataAdapter(cmdPoprzedni))
-                    {
-                        adapter.Fill(dtPoprzedni);
+                        SqlCommand cmdPoprzedni = new SqlCommand(queryPoprzedni, conn) { CommandTimeout = 15 };
+                        cmdPoprzedni.Parameters.AddWithValue("@EndDate", dataPoprzedni);
+                        using (SqlDataAdapter adapter = new SqlDataAdapter(cmdPoprzedni))
+                            adapter.Fill(dtPoprzedni);
                     }
+                });
 
                     DataTable dtFinal;
 
@@ -3976,7 +3876,6 @@ namespace Kalendarz1
                     }
                     if (changedRows.Count > 0)
                         HighlightChangedRows(dgvStanMagazynu, changedRows);
-                }
 
                 // Zastosuj stan checkboxa ukrywania mroźni zewnętrznych
                 if (chkUkryjZewnetrzne != null && chkUkryjZewnetrzne.Checked)
@@ -3993,10 +3892,6 @@ namespace Kalendarz1
             {
                 MessageBox.Show($"Błąd: {ex.Message}\n\nSzczegóły: {ex.StackTrace}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 statusLabel.Text = "Błąd obliczania stanu";
-            }
-            finally
-            {
-                HideLoading();
             }
         }
 
@@ -5687,6 +5582,39 @@ namespace Kalendarz1
 
         #region Mroźnie zewnętrzne
 
+        private string GetZatwierdzeniaMrozFilePath()
+        {
+            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            string folder = Path.Combine(appData, "OfertaHandlowa");
+            if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
+            return Path.Combine(folder, "zatwierdzenia_mrozni.json");
+        }
+
+        private void LoadZatwierdzenia()
+        {
+            try
+            {
+                string path = GetZatwierdzeniaMrozFilePath();
+                if (File.Exists(path))
+                {
+                    string json = File.ReadAllText(path);
+                    var ids = JsonSerializer.Deserialize<List<int>>(json);
+                    _zatwierdzoneZamowienia = ids != null ? new HashSet<int>(ids) : new HashSet<int>();
+                }
+            }
+            catch { _zatwierdzoneZamowienia = new HashSet<int>(); }
+        }
+
+        private void SaveZatwierdzenia()
+        {
+            try
+            {
+                string json = JsonSerializer.Serialize(_zatwierdzoneZamowienia.ToList());
+                File.WriteAllText(GetZatwierdzeniaMrozFilePath(), json);
+            }
+            catch { }
+        }
+
         private string GetMroznieZewnetrzneFilePath()
         {
             string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
@@ -6738,16 +6666,19 @@ namespace Kalendarz1
 
         private void PopulateZamMrozOrdersGrid()
         {
+            LoadZatwierdzenia();
+
             var dt = new DataTable();
             dt.Columns.Add("ID", typeof(int));
             dt.Columns.Add("Data", typeof(string));
-            dt.Columns.Add("Klient", typeof(string));
-            dt.Columns.Add("Handlowiec", typeof(string));
-            dt.Columns.Add("Kg mrożone", typeof(decimal));
             dt.Columns.Add("Wyjazd", typeof(string));
             dt.Columns.Add("Pojazd", typeof(string));
             dt.Columns.Add("Kierowca", typeof(string));
+            dt.Columns.Add("Klient", typeof(string));
+            dt.Columns.Add("Handlowiec", typeof(string));
+            dt.Columns.Add("Kg mrożone", typeof(decimal));
             dt.Columns.Add("Status", typeof(string));
+            dt.Columns.Add("Zatwierdzono", typeof(string));
 
             // Sort by date first, then by departure time
             var sorted = _zamowieniaMrozone
@@ -6760,17 +6691,20 @@ namespace Kalendarz1
             {
                 string dayShort = _polishDayShort[(int)o.DataUboju.DayOfWeek];
                 string dateStr = $"{dayShort} {o.DataUboju:dd.MM}";
+                bool zatw = _zatwierdzoneZamowienia.Contains(o.Id);
 
                 dt.Rows.Add(
                     o.Id,
                     dateStr,
+                    o.CzasWyjazdu.HasValue ? o.CzasWyjazdu.Value.ToString(@"hh\:mm")
+                        : (o.WlasnyTransport && o.DataPrzyjazdu.HasValue ? o.DataPrzyjazdu.Value.ToString("HH:mm") : "-"),
+                    string.IsNullOrEmpty(o.NumerRejestracyjny) ? "-" : o.NumerRejestracyjny,
+                    string.IsNullOrEmpty(o.Kierowca) ? "-" : o.Kierowca,
                     o.Klient ?? $"KH {o.KlientId}",
                     o.Handlowiec ?? "(Brak)",
                     Math.Round(o.TotalIloscMrozone, 1),
-                    o.CzasWyjazdu.HasValue ? o.CzasWyjazdu.Value.ToString(@"hh\:mm") : "-",
-                    string.IsNullOrEmpty(o.NumerRejestracyjny) ? "-" : o.NumerRejestracyjny,
-                    string.IsNullOrEmpty(o.Kierowca) ? "-" : o.Kierowca,
-                    o.Status
+                    o.Status,
+                    zatw ? "TAK" : "NIE"
                 );
             }
 
@@ -6780,40 +6714,41 @@ namespace Kalendarz1
             if (dgvZamMrozOrders.Columns.Contains("ID"))
                 dgvZamMrozOrders.Columns["ID"].Visible = false;
 
-            // Style kolumn
+            // Style kolumn — dopasowane do zawartości
+            foreach (var colName in new[] { "Data", "Wyjazd", "Pojazd", "Kierowca", "Klient", "Handlowiec" })
+            {
+                if (dgvZamMrozOrders.Columns.Contains(colName))
+                    dgvZamMrozOrders.Columns[colName].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+            }
             if (dgvZamMrozOrders.Columns.Contains("Data"))
             {
-                dgvZamMrozOrders.Columns["Data"].Width = 75;
-                dgvZamMrozOrders.Columns["Data"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
                 dgvZamMrozOrders.Columns["Data"].DefaultCellStyle.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
                 dgvZamMrozOrders.Columns["Data"].DefaultCellStyle.ForeColor = Color.FromArgb(80, 80, 80);
             }
             if (dgvZamMrozOrders.Columns.Contains("Klient"))
                 dgvZamMrozOrders.Columns["Klient"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            if (dgvZamMrozOrders.Columns.Contains("Handlowiec"))
-            {
-                dgvZamMrozOrders.Columns["Handlowiec"].MinimumWidth = 140;
-            }
             if (dgvZamMrozOrders.Columns.Contains("Kg mrożone"))
             {
-                dgvZamMrozOrders.Columns["Kg mrożone"].Width = 90;
+                dgvZamMrozOrders.Columns["Kg mrożone"].Width = 80;
                 dgvZamMrozOrders.Columns["Kg mrożone"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
                 dgvZamMrozOrders.Columns["Kg mrożone"].DefaultCellStyle.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
                 dgvZamMrozOrders.Columns["Kg mrożone"].DefaultCellStyle.ForeColor = Color.FromArgb(0, 150, 136);
                 dgvZamMrozOrders.Columns["Kg mrożone"].DefaultCellStyle.Format = "#,##0.#";
-            }
-            if (dgvZamMrozOrders.Columns.Contains("Wyjazd"))
-            {
-                dgvZamMrozOrders.Columns["Wyjazd"].Width = 65;
-                dgvZamMrozOrders.Columns["Wyjazd"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
             }
             if (dgvZamMrozOrders.Columns.Contains("Status"))
             {
                 dgvZamMrozOrders.Columns["Status"].Width = 85;
                 dgvZamMrozOrders.Columns["Status"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
             }
+            if (dgvZamMrozOrders.Columns.Contains("Zatwierdzono"))
+            {
+                dgvZamMrozOrders.Columns["Zatwierdzono"].Width = 75;
+                dgvZamMrozOrders.Columns["Zatwierdzono"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                dgvZamMrozOrders.Columns["Zatwierdzono"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                dgvZamMrozOrders.Columns["Zatwierdzono"].DefaultCellStyle.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+            }
 
-            // Kolorowanie statusów per row + podświetlenie dzisiejszych
+            // Kolorowanie statusów + zatwierdzono per row
             foreach (DataGridViewRow row in dgvZamMrozOrders.Rows)
             {
                 string status = row.Cells["Status"].Value?.ToString() ?? "";
@@ -6823,12 +6758,75 @@ namespace Kalendarz1
                     row.DefaultCellStyle.ForeColor = PrimaryColor;
                 else if (status == "W realizacji")
                     row.DefaultCellStyle.ForeColor = WarningColor;
+
+                // Kolorowanie komórki Zatwierdzono
+                string zatw = row.Cells["Zatwierdzono"].Value?.ToString() ?? "NIE";
+                if (zatw == "TAK")
+                {
+                    row.Cells["Zatwierdzono"].Style.BackColor = Color.FromArgb(200, 240, 200);
+                    row.Cells["Zatwierdzono"].Style.ForeColor = Color.FromArgb(27, 94, 32);
+                    row.Cells["Zatwierdzono"].Style.SelectionBackColor = Color.FromArgb(170, 220, 170);
+                    row.Cells["Zatwierdzono"].Style.SelectionForeColor = Color.FromArgb(27, 94, 32);
+                }
+                else
+                {
+                    row.Cells["Zatwierdzono"].Style.BackColor = Color.FromArgb(255, 210, 210);
+                    row.Cells["Zatwierdzono"].Style.ForeColor = Color.FromArgb(183, 28, 28);
+                    row.Cells["Zatwierdzono"].Style.SelectionBackColor = Color.FromArgb(240, 180, 180);
+                    row.Cells["Zatwierdzono"].Style.SelectionForeColor = Color.FromArgb(183, 28, 28);
+                }
             }
 
             // Statystyki z separatorami tysięcy
             decimal sumaKg = _zamowieniaMrozone.Sum(o => o.TotalIloscMrozone);
             lblZamMrozSumaKg.Text = $"{sumaKg:#,##0.#} kg";
             lblZamMrozLiczbaZam.Text = _zamowieniaMrozone.Count.ToString("#,##0");
+        }
+
+        private void DgvZamMrozOrders_CellClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0) return;
+            if (!dgvZamMrozOrders.Columns.Contains("Zatwierdzono")) return;
+            if (e.ColumnIndex != dgvZamMrozOrders.Columns["Zatwierdzono"].Index) return;
+
+            // Tylko UserID 11111 może zatwierdzać
+            string userId = App.UserID ?? "";
+            if (userId != "11111")
+            {
+                MessageBox.Show("Nie masz uprawnień do zatwierdzania zamówień.", "Brak uprawnień", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var row = dgvZamMrozOrders.Rows[e.RowIndex];
+            if (row.Cells["ID"].Value == null || row.Cells["ID"].Value == DBNull.Value) return;
+            int zamId = (int)row.Cells["ID"].Value;
+
+            string current = row.Cells["Zatwierdzono"].Value?.ToString() ?? "NIE";
+            bool nowZatwierdzone = current != "TAK";
+
+            if (nowZatwierdzone)
+                _zatwierdzoneZamowienia.Add(zamId);
+            else
+                _zatwierdzoneZamowienia.Remove(zamId);
+
+            SaveZatwierdzenia();
+
+            // Aktualizuj komórkę
+            row.Cells["Zatwierdzono"].Value = nowZatwierdzone ? "TAK" : "NIE";
+            if (nowZatwierdzone)
+            {
+                row.Cells["Zatwierdzono"].Style.BackColor = Color.FromArgb(200, 240, 200);
+                row.Cells["Zatwierdzono"].Style.ForeColor = Color.FromArgb(27, 94, 32);
+                row.Cells["Zatwierdzono"].Style.SelectionBackColor = Color.FromArgb(170, 220, 170);
+                row.Cells["Zatwierdzono"].Style.SelectionForeColor = Color.FromArgb(27, 94, 32);
+            }
+            else
+            {
+                row.Cells["Zatwierdzono"].Style.BackColor = Color.FromArgb(255, 210, 210);
+                row.Cells["Zatwierdzono"].Style.ForeColor = Color.FromArgb(183, 28, 28);
+                row.Cells["Zatwierdzono"].Style.SelectionBackColor = Color.FromArgb(240, 180, 180);
+                row.Cells["Zatwierdzono"].Style.SelectionForeColor = Color.FromArgb(183, 28, 28);
+            }
         }
 
         private void DgvZamMrozOrders_SelectionChanged(object sender, EventArgs e)
@@ -6847,7 +6845,8 @@ namespace Kalendarz1
 
             lblZamMrozKlient.Text = order.Klient ?? $"KH {order.KlientId}";
             lblZamMrozHandlowiec.Text = order.Handlowiec ?? "(Brak)";
-            lblZamMrozWyjazd.Text = order.CzasWyjazdu.HasValue ? order.CzasWyjazdu.Value.ToString(@"hh\:mm") : "-";
+            lblZamMrozWyjazd.Text = order.CzasWyjazdu.HasValue ? order.CzasWyjazdu.Value.ToString(@"hh\:mm")
+                : (order.WlasnyTransport && order.DataPrzyjazdu.HasValue ? order.DataPrzyjazdu.Value.ToString("HH:mm") : "-");
             lblZamMrozPojazd.Text = string.IsNullOrEmpty(order.NumerRejestracyjny) ? "-" : order.NumerRejestracyjny;
             lblZamMrozKierowca.Text = string.IsNullOrEmpty(order.Kierowca) ? "-" : order.Kierowca;
             lblZamMrozStatus.Text = order.Status;
