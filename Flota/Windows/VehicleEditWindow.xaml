@@ -1,0 +1,337 @@
+<Window x:Class="Kalendarz1.Flota.Windows.VehicleEditWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:dxg="http://schemas.devexpress.com/winfx/2008/xaml/grid"
+        Title="Pojazd" Width="760" Height="720"
+        WindowStartupLocation="CenterOwner" ResizeMode="CanResize"
+        FontFamily="Segoe UI" FontSize="12" Background="#F0F3F7"
+        Loaded="Window_Loaded">
+
+    <Window.Resources>
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#5D6D7E"/>
+            <Setter Property="Margin" Value="0,6,8,2"/>
+        </Style>
+        <Style x:Key="FieldInput" TargetType="TextBox">
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Padding" Value="6,2"/>
+            <Setter Property="Margin" Value="0,2,0,4"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="SectionBorder" TargetType="Border">
+            <Setter Property="BorderBrush" Value="#E0E0E0"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="Padding" Value="0,4,0,8"/>
+            <Setter Property="Margin" Value="0,4"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TabControl x:Name="TabsVehicle" Grid.Row="0" Margin="8">
+
+            <!-- ═══ TAB: Dane pojazdu ═══ -->
+            <TabItem Header="  Dane pojazdu  ">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="Symbol (ID) *" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="TxtID" Grid.Row="1" Style="{StaticResource FieldInput}" Margin="0,2,8,4" MaxLength="10"/>
+
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="Typ *" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox x:Name="CmbKind" Grid.Row="1" Grid.Column="1" Height="28" Margin="0,2,8,4"
+                                      VerticalContentAlignment="Center">
+                                <ComboBoxItem Content="Samochod" Tag="1" IsSelected="True"/>
+                                <ComboBoxItem Content="Naczepa" Tag="2"/>
+                            </ComboBox>
+
+                            <TextBlock Grid.Row="0" Grid.Column="2" Text="Rejestracja *" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="TxtRejestracja" Grid.Row="1" Grid.Column="2" Style="{StaticResource FieldInput}"/>
+
+                            <TextBlock Grid.Row="2" Text="VIN" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="TxtVIN" Grid.Row="3" Style="{StaticResource FieldInput}" MaxLength="17" Margin="0,2,8,4"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="Marka" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="TxtMarka" Grid.Row="3" Grid.Column="1" Style="{StaticResource FieldInput}" Margin="0,2,8,4"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="2" Text="Model" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="TxtModel" Grid.Row="3" Grid.Column="2" Style="{StaticResource FieldInput}"/>
+
+                            <TextBlock Grid.Row="4" Text="Rok produkcji" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="TxtRok" Grid.Row="5" Style="{StaticResource FieldInput}" MaxLength="4" Margin="0,2,8,4"/>
+
+                            <TextBlock Grid.Row="4" Grid.Column="1" Text="Typ nadwozia" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox x:Name="CmbTypNadwozia" Grid.Row="5" Grid.Column="1" Height="28" Margin="0,2,8,4"
+                                      VerticalContentAlignment="Center" IsEditable="True">
+                                <ComboBoxItem Content="Chlodnia"/>
+                                <ComboBoxItem Content="Izoterma"/>
+                                <ComboBoxItem Content="Zywiec"/>
+                                <ComboBoxItem Content="Plandeka"/>
+                            </ComboBox>
+
+                            <TextBlock Grid.Row="4" Grid.Column="2" Text="Modul GPS" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="TxtGPS" Grid.Row="5" Grid.Column="2" Style="{StaticResource FieldInput}"/>
+                        </Grid>
+
+                        <!-- Parametry ladunkowe -->
+                        <Border Style="{StaticResource SectionBorder}" Margin="0,12,0,0">
+                            <StackPanel>
+                                <TextBlock Text="Parametry ladunkowe" FontWeight="Bold" FontSize="13" Foreground="#1E3A5F" Margin="0,0,0,8"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Text="Ladownosc (kg)" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox x:Name="TxtLadownosc" Grid.Row="1" Style="{StaticResource FieldInput}" Margin="0,2,8,4"/>
+
+                                    <TextBlock Grid.Column="1" Text="Maks. palet H1" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox x:Name="TxtMaxPalet" Grid.Row="1" Grid.Column="1" Style="{StaticResource FieldInput}" Margin="0,2,8,4"/>
+
+                                    <TextBlock Grid.Column="2" Text="Maks. pojemnikow E2" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox x:Name="TxtMaxE2" Grid.Row="1" Grid.Column="2" Style="{StaticResource FieldInput}"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Dane techniczne -->
+                        <Border Style="{StaticResource SectionBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Dane techniczne" FontWeight="Bold" FontSize="13" Foreground="#1E3A5F" Margin="0,0,0,8"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Text="Przebieg (km)" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox x:Name="TxtPrzebieg" Grid.Row="1" Style="{StaticResource FieldInput}" Margin="0,2,8,4"/>
+
+                                    <TextBlock Grid.Column="1" Text="Pojemnosc baku (L)" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox x:Name="TxtBak" Grid.Row="1" Grid.Column="1" Style="{StaticResource FieldInput}" Margin="0,2,8,4"/>
+
+                                    <TextBlock Grid.Column="2" Text="Sr. spalanie L/100km" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox x:Name="TxtSpalanie" Grid.Row="1" Grid.Column="2" Style="{StaticResource FieldInput}"/>
+
+                                    <TextBlock Grid.Row="2" Text="Temp. min (C)" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox x:Name="TxtTempMin" Grid.Row="3" Style="{StaticResource FieldInput}" Margin="0,2,8,4"/>
+
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="Temp. max (C)" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox x:Name="TxtTempMax" Grid.Row="3" Grid.Column="1" Style="{StaticResource FieldInput}" Margin="0,2,8,4"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Text="Uwagi" Style="{StaticResource FieldLabel}"/>
+                        <TextBox x:Name="TxtUwagi" Height="60" TextWrapping="Wrap" AcceptsReturn="True"
+                                 VerticalScrollBarVisibility="Auto" Margin="0,2,0,4"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ═══ TAB: Dokumenty/Ubezpieczenia ═══ -->
+            <TabItem Header="  Dokumenty/Ubezp.  ">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
+                    <StackPanel>
+                        <Border Style="{StaticResource SectionBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Przeglad techniczny" FontWeight="Bold" FontSize="13" Foreground="#1E3A5F" Margin="0,0,0,6"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Data nastepnego przegladu" Style="{StaticResource FieldLabel}"/>
+                                        <DatePicker x:Name="DpPrzeglad" Height="28" Margin="0,2,8,4"/>
+                                    </StackPanel>
+                                    <TextBlock x:Name="TxtPrzegladStatus" Grid.Column="1" VerticalAlignment="Center"
+                                               FontWeight="SemiBold" FontSize="12"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource SectionBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Ubezpieczenie OC" FontWeight="Bold" FontSize="13" Foreground="#1E3A5F" Margin="0,0,0,6"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Text="Nr polisy OC" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox x:Name="TxtNrOC" Grid.Row="1" Style="{StaticResource FieldInput}" Margin="0,2,8,4"/>
+                                    <TextBlock Grid.Column="1" Text="Ubezpieczyciel" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox x:Name="TxtUbezpieczyciel" Grid.Row="1" Grid.Column="1" Style="{StaticResource FieldInput}"/>
+                                    <TextBlock Grid.Row="2" Text="Wazne do" Style="{StaticResource FieldLabel}"/>
+                                    <DatePicker x:Name="DpUbezpieczenie" Grid.Row="3" Height="28" Margin="0,2,8,4"/>
+                                    <TextBlock x:Name="TxtUbezpStatus" Grid.Row="3" Grid.Column="1" VerticalAlignment="Center"
+                                               FontWeight="SemiBold" FontSize="12"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource SectionBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Ubezpieczenie AC" FontWeight="Bold" FontSize="13" Foreground="#1E3A5F" Margin="0,0,0,6"/>
+                                <StackPanel>
+                                    <TextBlock Text="Nr polisy AC" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox x:Name="TxtNrAC" Style="{StaticResource FieldInput}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ═══ TAB: Kierowcy ═══ -->
+            <TabItem Header="  Kierowcy  ">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Text="Aktualnie przypisani kierowcy:" FontWeight="Bold" FontSize="13"
+                               Foreground="#1E3A5F" Margin="0,4,0,6"/>
+
+                    <dxg:GridControl x:Name="GridAktualniKierowcy" Grid.Row="1" MaxHeight="150">
+                        <dxg:GridControl.Columns>
+                            <dxg:GridColumn FieldName="KierowcaNazwa" Header="Kierowca" Width="180" ReadOnly="True"/>
+                            <dxg:GridColumn FieldName="Rola" Header="Rola" Width="80" ReadOnly="True"/>
+                            <dxg:GridColumn FieldName="DataOd" Header="Od" Width="100" ReadOnly="True"/>
+                        </dxg:GridControl.Columns>
+                        <dxg:GridControl.View>
+                            <dxg:TableView AutoWidth="True" AllowEditing="False" ShowGroupPanel="False"/>
+                        </dxg:GridControl.View>
+                    </dxg:GridControl>
+
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,6">
+                        <Button Content="Przypisz kierowce" Padding="12,4"
+                                Background="#1E3A5F" Foreground="White" BorderThickness="0"
+                                Cursor="Hand" Click="BtnPrzypiszKierowce_Click"/>
+                        <Button Content="Zakoncz przypisanie" Padding="12,4"
+                                Background="#E74C3C" Foreground="White" BorderThickness="0"
+                                Cursor="Hand" Margin="8,0,0,0" Click="BtnZakonczPrzypisanieV_Click"/>
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="3" Text="Historia:" FontWeight="Bold" FontSize="13"
+                               Foreground="#1E3A5F" Margin="0,4,0,0" VerticalAlignment="Top"/>
+                    <dxg:GridControl x:Name="GridHistoriaKierowcy" Grid.Row="3" Margin="0,24,0,0">
+                        <dxg:GridControl.Columns>
+                            <dxg:GridColumn FieldName="KierowcaNazwa" Header="Kierowca" Width="180" ReadOnly="True"/>
+                            <dxg:GridColumn FieldName="Rola" Header="Rola" Width="80" ReadOnly="True"/>
+                            <dxg:GridColumn FieldName="DataOd" Header="Od" Width="100" ReadOnly="True"/>
+                            <dxg:GridColumn FieldName="DataDo" Header="Do" Width="100" ReadOnly="True"/>
+                            <dxg:GridColumn FieldName="Dni" Header="Dni" Width="60" ReadOnly="True"/>
+                        </dxg:GridControl.Columns>
+                        <dxg:GridControl.View>
+                            <dxg:TableView AutoWidth="True" AllowEditing="False" ShowGroupPanel="False"/>
+                        </dxg:GridControl.View>
+                    </dxg:GridControl>
+                </Grid>
+            </TabItem>
+
+            <!-- ═══ TAB: Serwis ═══ -->
+            <TabItem Header="  Serwis  ">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,8">
+                        <Button x:Name="BtnDodajSerwis" Content="+ Dodaj wpis" Padding="12,4"
+                                Background="#27AE60" Foreground="White" BorderThickness="0"
+                                Cursor="Hand" Click="BtnDodajSerwis_Click"/>
+                        <TextBlock Text="Typ:" VerticalAlignment="Center" Margin="16,0,4,0"/>
+                        <ComboBox x:Name="CmbSerwisTyp" Width="120" Height="28"
+                                  VerticalContentAlignment="Center" SelectionChanged="CmbSerwisTyp_Changed">
+                            <ComboBoxItem Content="Wszystkie" IsSelected="True"/>
+                            <ComboBoxItem Content="Przeglad"/>
+                            <ComboBoxItem Content="Naprawa"/>
+                            <ComboBoxItem Content="Tankowanie"/>
+                            <ComboBoxItem Content="OC"/>
+                            <ComboBoxItem Content="AC"/>
+                            <ComboBoxItem Content="Opony"/>
+                            <ComboBoxItem Content="Inne"/>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <dxg:GridControl x:Name="GridSerwis" Grid.Row="1">
+                        <dxg:GridControl.Columns>
+                            <dxg:GridColumn FieldName="Data" Header="Data" Width="100" ReadOnly="True"/>
+                            <dxg:GridColumn FieldName="TypZdarzenia" Header="Typ" Width="100" ReadOnly="True"/>
+                            <dxg:GridColumn FieldName="Opis" Header="Opis" Width="200" ReadOnly="True"/>
+                            <dxg:GridColumn FieldName="KosztBrutto" Header="Koszt PLN" Width="100" ReadOnly="True"/>
+                            <dxg:GridColumn FieldName="PrzebiegKm" Header="Km" Width="80" ReadOnly="True"/>
+                            <dxg:GridColumn FieldName="LitryPaliwa" Header="Litry" Width="70" ReadOnly="True"/>
+                            <dxg:GridColumn FieldName="Warsztat" Header="Warsztat" Width="120" ReadOnly="True"/>
+                            <dxg:GridColumn FieldName="NrFaktury" Header="Nr FV" Width="100" ReadOnly="True"/>
+                        </dxg:GridControl.Columns>
+                        <dxg:GridControl.View>
+                            <dxg:TableView AutoWidth="True" AllowEditing="False" ShowGroupPanel="False"/>
+                        </dxg:GridControl.View>
+                    </dxg:GridControl>
+
+                    <Border Grid.Row="2" Background="#ECF0F1" Padding="10,6" Margin="0,4,0,0" CornerRadius="4">
+                        <TextBlock x:Name="TxtSerwisPodsumowanie" FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold"/>
+                    </Border>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+        <!-- Bottom -->
+        <Border Grid.Row="1" Background="#ECF0F1" Padding="16,10">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="BtnZapisz" Content="ZAPISZ" Width="120" Height="36"
+                        Background="#27AE60" Foreground="White" FontWeight="Bold" FontSize="14"
+                        BorderThickness="0" Cursor="Hand" Click="BtnZapisz_Click"/>
+                <Button Content="ANULUJ" Width="100" Height="36" Margin="8,0,0,0"
+                        Background="#95A5A6" Foreground="White" FontWeight="Bold" FontSize="14"
+                        BorderThickness="0" Cursor="Hand" Click="BtnAnuluj_Click"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

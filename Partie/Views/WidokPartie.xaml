@@ -1,0 +1,419 @@
+<UserControl x:Class="Kalendarz1.Partie.Views.WidokPartie"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:dxg="http://schemas.devexpress.com/winfx/2008/xaml/grid"
+             xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+             mc:Ignorable="d"
+             d:DesignHeight="800" d:DesignWidth="1400"
+             Loaded="UserControl_Loaded">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <!-- Toolbar button style -->
+        <Style x:Key="ToolbarButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Margin" Value="3,0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#4DFFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#2DFFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Filter combo style -->
+        <Style x:Key="FilterCombo" TargetType="ComboBox">
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Margin" Value="4,0"/>
+            <Setter Property="MinWidth" Value="100"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Detail label -->
+        <Style x:Key="DetailLabel" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#7F8C8D"/>
+            <Setter Property="Margin" Value="0,2"/>
+        </Style>
+
+        <!-- Detail value -->
+        <Style x:Key="DetailValue" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#2C3E50"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+        </Style>
+
+        <!-- Section header -->
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#1E3A5F"/>
+            <Setter Property="Margin" Value="0,8,0,6"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Background="#F0F3F7">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- TOOLBAR -->
+        <Border Grid.Row="0" Background="#34495E" Height="50">
+            <DockPanel Margin="10,0">
+                <!-- Right side: action buttons -->
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="BtnNowaPartia" Content="+ Nowa partia" Style="{StaticResource ToolbarButton}"
+                            Background="#27AE60" Click="BtnNowaPartia_Click" ToolTip="Utworz nowa partie (Ctrl+N)"/>
+                    <Button x:Name="BtnZamknij" Content="Zamknij" Style="{StaticResource ToolbarButton}"
+                            Background="#E67E22" Click="BtnZamknij_Click" ToolTip="Zamknij zaznaczona partie"/>
+                    <Button x:Name="BtnOtworz" Content="Otworz" Style="{StaticResource ToolbarButton}"
+                            Background="#8E44AD" Click="BtnOtworz_Click" ToolTip="Ponownie otworz partie"/>
+                    <Border Width="1" Background="#5D6D7E" Margin="6,8"/>
+                    <Button x:Name="BtnExcel" Content="Excel" Style="{StaticResource ToolbarButton}"
+                            Background="#1E8449" Click="BtnExcel_Click" ToolTip="Eksport do Excel"/>
+                    <Button x:Name="BtnOdswiez" Content="Odswiez" Style="{StaticResource ToolbarButton}"
+                            Click="BtnOdswiez_Click" ToolTip="Odswiez dane (F5)"/>
+                    <Border Width="1" Background="#5D6D7E" Margin="6,8"/>
+                    <Button x:Name="BtnDashboard" Content="Dashboard" Style="{StaticResource ToolbarButton}"
+                            Background="#1E3A5F" Click="BtnDashboard_Click" ToolTip="Widok Produkcja Dzis"/>
+                </StackPanel>
+
+                <!-- Left side: filters -->
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Od:" Foreground="White" VerticalAlignment="Center" Margin="0,0,4,0"
+                               FontFamily="Segoe UI" FontSize="11"/>
+                    <DatePicker x:Name="dpOd" Width="120" SelectedDateChanged="Filter_Changed"/>
+
+                    <TextBlock Text="Do:" Foreground="White" VerticalAlignment="Center" Margin="12,0,4,0"
+                               FontFamily="Segoe UI" FontSize="11"/>
+                    <DatePicker x:Name="dpDo" Width="120" SelectedDateChanged="Filter_Changed"/>
+
+                    <TextBlock Text="Dzial:" Foreground="White" VerticalAlignment="Center" Margin="12,0,4,0"
+                               FontFamily="Segoe UI" FontSize="11"/>
+                    <ComboBox x:Name="CmbDzial" Style="{StaticResource FilterCombo}" Width="100"
+                              SelectionChanged="Filter_Changed">
+                        <ComboBoxItem Content="Wszystkie" IsSelected="True"/>
+                        <ComboBoxItem Content="1A" Tag="1A"/>
+                        <ComboBoxItem Content="0E" Tag="0E"/>
+                        <ComboBoxItem Content="0K" Tag="0K"/>
+                    </ComboBox>
+
+                    <TextBlock Text="Status:" Foreground="White" VerticalAlignment="Center" Margin="12,0,4,0"
+                               FontFamily="Segoe UI" FontSize="11"/>
+                    <ComboBox x:Name="CmbStatus" Style="{StaticResource FilterCombo}" Width="140"
+                              SelectionChanged="Filter_Changed">
+                        <ComboBoxItem Content="Wszystkie" IsSelected="True"/>
+                        <ComboBoxItem Content="Otwarte" Tag="0"/>
+                        <ComboBoxItem Content="Zamkniete" Tag="1"/>
+                        <ComboBoxItem Content="Zaplanowane" Tag="V2:PLANNED"/>
+                        <ComboBoxItem Content="W produkcji" Tag="V2:IN_PRODUCTION"/>
+                        <ComboBoxItem Content="Zamkn. z brakami" Tag="V2:CLOSED_INCOMPLETE"/>
+                    </ComboBox>
+
+                    <TextBox x:Name="TxtSzukaj" Width="200" Height="28" Margin="12,0,0,0"
+                             FontFamily="Segoe UI" FontSize="12"
+                             VerticalContentAlignment="Center" Padding="6,0"
+                             Tag="Szukaj (partia, dostawca)..."
+                             KeyDown="TxtSzukaj_KeyDown">
+                        <TextBox.Style>
+                            <Style TargetType="TextBox">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="TextBox">
+                                            <Border Background="White" CornerRadius="4" BorderBrush="#BDC3C7" BorderThickness="1"
+                                                    Padding="{TemplateBinding Padding}">
+                                                <Grid>
+                                                    <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
+                                                    <TextBlock x:Name="placeholder" Text="{TemplateBinding Tag}"
+                                                               Foreground="#95A5A6" VerticalAlignment="Center" Margin="2,0"
+                                                               IsHitTestVisible="False" FontStyle="Italic"/>
+                                                </Grid>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="Text" Value="">
+                                                    <Setter TargetName="placeholder" Property="Visibility" Value="Visible"/>
+                                                </Trigger>
+                                                <DataTrigger Binding="{Binding Text.Length, RelativeSource={RelativeSource Self}}" Value="0">
+                                                    <Setter TargetName="placeholder" Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                                <Trigger Property="IsFocused" Value="True">
+                                                    <Setter TargetName="placeholder" Property="Visibility" Value="Collapsed"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </TextBox.Style>
+                    </TextBox>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- MAIN GRID -->
+        <dxg:GridControl x:Name="gridPartie" Grid.Row="1" Margin="8"
+                         AutoGenerateColumns="None"
+                         SelectionMode="Row">
+            <dxg:GridControl.View>
+                <dxg:TableView x:Name="tableView"
+                               AllowEditing="False"
+                               ShowGroupPanel="False"
+                               AllowSorting="True"
+                               AllowColumnFiltering="True"
+                               ShowAutoFilterRow="True"
+                               NavigationStyle="Row"
+                               FocusedRowChanged="TableView_FocusedRowChanged"
+                               ShowFixedTotalSummary="True"/>
+            </dxg:GridControl.View>
+
+            <dxg:GridControl.Columns>
+                <dxg:GridColumn FieldName="Partia" Header="Partia" Width="95" Fixed="Left"/>
+                <dxg:GridColumn FieldName="CreateData" Header="Data" Width="85"/>
+                <dxg:GridColumn FieldName="CreateGodzina" Header="Godz." Width="65"/>
+                <dxg:GridColumn FieldName="CustomerName" Header="Dostawca" Width="170"/>
+                <dxg:GridColumn FieldName="CustomerID" Header="ID Dost." Width="70"/>
+                <dxg:GridColumn FieldName="DirID" Header="Dzial" Width="50"/>
+                <dxg:GridColumn FieldName="StatusText" Header="Status" Width="110"/>
+                <dxg:GridColumn FieldName="SztDekl" Header="Szt. dekl." Width="75">
+                    <dxg:GridColumn.EditSettings>
+                        <dxe:TextEditSettings HorizontalContentAlignment="Right" DisplayFormat="N0"/>
+                    </dxg:GridColumn.EditSettings>
+                </dxg:GridColumn>
+                <dxg:GridColumn FieldName="NettoSkup" Header="Netto skup kg" Width="100">
+                    <dxg:GridColumn.EditSettings>
+                        <dxe:TextEditSettings HorizontalContentAlignment="Right" DisplayFormat="N1"/>
+                    </dxg:GridColumn.EditSettings>
+                </dxg:GridColumn>
+                <dxg:GridColumn FieldName="WydanoKg" Header="Wydano kg" Width="95">
+                    <dxg:GridColumn.EditSettings>
+                        <dxe:TextEditSettings HorizontalContentAlignment="Right" DisplayFormat="N1"/>
+                    </dxg:GridColumn.EditSettings>
+                </dxg:GridColumn>
+                <dxg:GridColumn FieldName="PrzyjetoKg" Header="Przyjeto kg" Width="95">
+                    <dxg:GridColumn.EditSettings>
+                        <dxe:TextEditSettings HorizontalContentAlignment="Right" DisplayFormat="N1"/>
+                    </dxg:GridColumn.EditSettings>
+                </dxg:GridColumn>
+                <dxg:GridColumn FieldName="NaStanieKg" Header="Na stanie" Width="85">
+                    <dxg:GridColumn.EditSettings>
+                        <dxe:TextEditSettings HorizontalContentAlignment="Right" DisplayFormat="N1"/>
+                    </dxg:GridColumn.EditSettings>
+                </dxg:GridColumn>
+                <dxg:GridColumn FieldName="WydajnoscProc" Header="Wydajn.%" Width="75">
+                    <dxg:GridColumn.EditSettings>
+                        <dxe:TextEditSettings HorizontalContentAlignment="Right" DisplayFormat="N1"/>
+                    </dxg:GridColumn.EditSettings>
+                </dxg:GridColumn>
+                <dxg:GridColumn FieldName="KlasaBProc" Header="Kl.B %" Width="65">
+                    <dxg:GridColumn.EditSettings>
+                        <dxe:TextEditSettings HorizontalContentAlignment="Right" DisplayFormat="N1"/>
+                    </dxg:GridColumn.EditSettings>
+                </dxg:GridColumn>
+                <dxg:GridColumn FieldName="TempRampa" Header="Temp rampa" Width="85">
+                    <dxg:GridColumn.EditSettings>
+                        <dxe:TextEditSettings HorizontalContentAlignment="Right" DisplayFormat="N1"/>
+                    </dxg:GridColumn.EditSettings>
+                </dxg:GridColumn>
+                <dxg:GridColumn FieldName="QCBadge" Header="QC" Width="65"/>
+                <dxg:GridColumn FieldName="VetNo" Header="Swiad. wet." Width="90"/>
+                <dxg:GridColumn FieldName="OtworzylNazwa" Header="Otworzyl" Width="100"/>
+                <dxg:GridColumn FieldName="ZamknalNazwa" Header="Zamknal" Width="100"/>
+                <dxg:GridColumn FieldName="ZamkniecieInfo" Header="Zamkniecie" Width="130"/>
+            </dxg:GridControl.Columns>
+
+            <!-- Master-Detail: content panel -->
+            <dxg:GridControl.DetailDescriptor>
+                <dxg:DataControlDetailDescriptor>
+                    <dxg:DataControlDetailDescriptor.ContentTemplate>
+                        <DataTemplate>
+                            <Border x:Name="DetailBorder" Background="#FAFBFC" Padding="10" MinHeight="300"
+                                    Tag="{Binding Path=Row}">
+                                <TabControl x:Name="DetailTabs" FontFamily="Segoe UI" FontSize="12"
+                                            Loaded="DetailTabs_Loaded"
+                                            SelectionChanged="DetailTabs_SelectionChanged">
+                                    <TabItem Header="Wazenia" Tag="wazenia">
+                                        <dxg:GridControl x:Name="gridWazenia" AutoGenerateColumns="None"
+                                                         MaxHeight="350">
+                                            <dxg:GridControl.View>
+                                                <dxg:TableView AllowEditing="False" ShowGroupPanel="False"
+                                                               AllowSorting="True" ShowAutoFilterRow="False"
+                                                               RowStyle="{x:Null}"/>
+                                            </dxg:GridControl.View>
+                                            <dxg:GridControl.Columns>
+                                                <dxg:GridColumn FieldName="Godzina" Header="Godz." Width="65"/>
+                                                <dxg:GridColumn FieldName="ArticleName" Header="Artykul" Width="180"/>
+                                                <dxg:GridColumn FieldName="ActWeight" Header="Netto kg" Width="80">
+                                                    <dxg:GridColumn.EditSettings>
+                                                        <dxe:TextEditSettings HorizontalContentAlignment="Right" DisplayFormat="N1"/>
+                                                    </dxg:GridColumn.EditSettings>
+                                                </dxg:GridColumn>
+                                                <dxg:GridColumn FieldName="Quantity" Header="Szt" Width="50"/>
+                                                <dxg:GridColumn FieldName="Wagowy" Header="Operator" Width="100"/>
+                                                <dxg:GridColumn FieldName="Direction" Header="Kierunek" Width="70"/>
+                                                <dxg:GridColumn FieldName="Zrodlo" Header="Tabela" Width="65"/>
+                                                <dxg:GridColumn FieldName="Data" Header="Data" Width="85"/>
+                                            </dxg:GridControl.Columns>
+                                        </dxg:GridControl>
+                                    </TabItem>
+
+                                    <TabItem Header="Produkty" Tag="produkty">
+                                        <dxg:GridControl x:Name="gridProdukty" AutoGenerateColumns="None"
+                                                         MaxHeight="350">
+                                            <dxg:GridControl.View>
+                                                <dxg:TableView AllowEditing="False" ShowGroupPanel="False"
+                                                               ShowFixedTotalSummary="True"/>
+                                            </dxg:GridControl.View>
+                                            <dxg:GridControl.Columns>
+                                                <dxg:GridColumn FieldName="ArticleID" Header="ID" Width="70"/>
+                                                <dxg:GridColumn FieldName="ArticleName" Header="Artykul" Width="180"/>
+                                                <dxg:GridColumn FieldName="NettoKg" Header="Netto kg" Width="90">
+                                                    <dxg:GridColumn.EditSettings>
+                                                        <dxe:TextEditSettings HorizontalContentAlignment="Right" DisplayFormat="N1"/>
+                                                    </dxg:GridColumn.EditSettings>
+                                                </dxg:GridColumn>
+                                                <dxg:GridColumn FieldName="WydanoDodatnie" Header="Wydano" Width="85">
+                                                    <dxg:GridColumn.EditSettings>
+                                                        <dxe:TextEditSettings HorizontalContentAlignment="Right" DisplayFormat="N1"/>
+                                                    </dxg:GridColumn.EditSettings>
+                                                </dxg:GridColumn>
+                                                <dxg:GridColumn FieldName="StornoUjemne" Header="Storno" Width="80">
+                                                    <dxg:GridColumn.EditSettings>
+                                                        <dxe:TextEditSettings HorizontalContentAlignment="Right" DisplayFormat="N1"/>
+                                                    </dxg:GridColumn.EditSettings>
+                                                </dxg:GridColumn>
+                                                <dxg:GridColumn FieldName="SztDodatnie" Header="Szt" Width="60"/>
+                                                <dxg:GridColumn FieldName="IleWazen" Header="Wazen" Width="60"/>
+                                                <dxg:GridColumn FieldName="ProcentUdzialu" Header="% udzialu" Width="75">
+                                                    <dxg:GridColumn.EditSettings>
+                                                        <dxe:TextEditSettings HorizontalContentAlignment="Right" DisplayFormat="N1"/>
+                                                    </dxg:GridColumn.EditSettings>
+                                                </dxg:GridColumn>
+                                            </dxg:GridControl.Columns>
+                                        </dxg:GridControl>
+                                    </TabItem>
+
+                                    <TabItem Header="QC / Jakosc" Tag="qc">
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="10">
+                                            <StackPanel x:Name="panelQC">
+                                                <!-- Populated in code-behind -->
+                                                <TextBlock Text="Ladowanie danych QC..." Style="{StaticResource DetailLabel}"/>
+                                            </StackPanel>
+                                        </ScrollViewer>
+                                    </TabItem>
+
+                                    <TabItem Header="Skup" Tag="skup">
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="10">
+                                            <StackPanel x:Name="panelSkup">
+                                                <TextBlock Text="Ladowanie danych skupu..." Style="{StaticResource DetailLabel}"/>
+                                            </StackPanel>
+                                        </ScrollViewer>
+                                    </TabItem>
+
+                                    <TabItem Header="HACCP" Tag="haccp">
+                                        <dxg:GridControl x:Name="gridHaccp" AutoGenerateColumns="None"
+                                                         MaxHeight="350">
+                                            <dxg:GridControl.View>
+                                                <dxg:TableView AllowEditing="False" ShowGroupPanel="False"/>
+                                            </dxg:GridControl.View>
+                                            <dxg:GridControl.Columns>
+                                                <dxg:GridColumn FieldName="ZDzialu" Header="Z dzialu" Width="70"/>
+                                                <dxg:GridColumn FieldName="Artykul" Header="Artykul" Width="100"/>
+                                                <dxg:GridColumn FieldName="PartiaZrodlowa" Header="Partia zrodl." Width="95"/>
+                                                <dxg:GridColumn FieldName="NaDzial" Header="Na dzial" Width="70"/>
+                                                <dxg:GridColumn FieldName="ArtykulDocelowy" Header="Art. docelowy" Width="100"/>
+                                                <dxg:GridColumn FieldName="PartiaDocelowa" Header="Partia doc." Width="95"/>
+                                                <dxg:GridColumn FieldName="SumaKg" Header="Suma kg" Width="85">
+                                                    <dxg:GridColumn.EditSettings>
+                                                        <dxe:TextEditSettings HorizontalContentAlignment="Right" DisplayFormat="N1"/>
+                                                    </dxg:GridColumn.EditSettings>
+                                                </dxg:GridColumn>
+                                                <dxg:GridColumn FieldName="MinDate" Header="Od" Width="85"/>
+                                                <dxg:GridColumn FieldName="MaxDate" Header="Do" Width="85"/>
+                                            </dxg:GridControl.Columns>
+                                        </dxg:GridControl>
+                                    </TabItem>
+
+                                    <TabItem Header="Timeline" Tag="timeline">
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="400">
+                                            <ItemsControl x:Name="timelineList">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Padding="6,4" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="{Binding Icon}" FontSize="14" Width="24"
+                                                                           VerticalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding EventTime}" FontFamily="Consolas"
+                                                                           FontSize="11" Foreground="#7F8C8D" Width="140"
+                                                                           VerticalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding Description}" FontSize="12"
+                                                                           Foreground="#2C3E50" TextWrapping="Wrap"
+                                                                           VerticalAlignment="Center"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+                                    </TabItem>
+                                </TabControl>
+                            </Border>
+                        </DataTemplate>
+                    </dxg:DataControlDetailDescriptor.ContentTemplate>
+                </dxg:DataControlDetailDescriptor>
+            </dxg:GridControl.DetailDescriptor>
+
+            <!-- Total summaries -->
+            <dxg:GridControl.TotalSummary>
+                <dxg:GridSummaryItem SummaryType="Count" FieldName="Partia" DisplayFormat="Partii: {0}"/>
+                <dxg:GridSummaryItem SummaryType="Sum" FieldName="NettoSkup" DisplayFormat="Netto: {0:N0} kg"/>
+                <dxg:GridSummaryItem SummaryType="Sum" FieldName="WydanoKg" DisplayFormat="Wydano: {0:N0} kg"/>
+            </dxg:GridControl.TotalSummary>
+        </dxg:GridControl>
+
+        <!-- LOADING OVERLAY -->
+        <Border x:Name="LoadingOverlay" Grid.Row="1" Background="#80FFFFFF" Visibility="Collapsed">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <ProgressBar IsIndeterminate="True" Width="200" Height="4"/>
+                <TextBlock x:Name="LoadingText" Text="Ladowanie..." FontFamily="Segoe UI" FontSize="13"
+                           Foreground="#34495E" HorizontalAlignment="Center" Margin="0,10,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- FOOTER / STATS BAR -->
+        <Border Grid.Row="2" Background="#2C3E50" Height="32">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0">
+                <TextBlock x:Name="TxtStats" Text="Gotowe" Foreground="#BDC3C7"
+                           FontFamily="Segoe UI" FontSize="11"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

@@ -1,0 +1,406 @@
+<UserControl x:Class="Kalendarz1.Flota.Views.WidokFlota"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:dxg="http://schemas.devexpress.com/winfx/2008/xaml/grid"
+             xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+             mc:Ignorable="d"
+             d:DesignHeight="800" d:DesignWidth="1400"
+             Loaded="UserControl_Loaded">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <Style x:Key="ToolbarButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Margin" Value="3,0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#4DFFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#2DFFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="FilterCombo" TargetType="ComboBox">
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Margin" Value="4,0"/>
+            <Setter Property="MinWidth" Value="100"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="DetailLabel" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#7F8C8D"/>
+            <Setter Property="Margin" Value="0,2"/>
+        </Style>
+
+        <Style x:Key="DetailValue" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#2C3E50"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+        </Style>
+
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#1E3A5F"/>
+            <Setter Property="Margin" Value="0,10,0,4"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Background="#F0F3F7">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- MAIN TABS -->
+        <TabControl x:Name="MainTabs" Grid.Row="0" FontFamily="Segoe UI" FontSize="13" Margin="4">
+
+            <!-- ═══════════ TAB 1: KIEROWCY ═══════════ -->
+            <TabItem Header="  KIEROWCY  ">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Toolbar -->
+                    <Border Grid.Row="0" Background="#34495E" Height="50">
+                        <DockPanel Margin="10,0">
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button x:Name="BtnDodajKierowce" Content="+ Dodaj" Style="{StaticResource ToolbarButton}"
+                                        Background="#27AE60" Click="BtnDodajKierowce_Click"/>
+                                <Button x:Name="BtnEdytujKierowce" Content="Edytuj" Style="{StaticResource ToolbarButton}"
+                                        Background="#2980B9" Click="BtnEdytujKierowce_Click"/>
+                                <Button x:Name="BtnWstrzymajKierowce" Content="Wstrzymaj/Aktywuj" Style="{StaticResource ToolbarButton}"
+                                        Background="#E67E22" Click="BtnWstrzymajKierowce_Click"/>
+                                <Border Width="1" Background="#5D6D7E" Margin="6,8"/>
+                                <Button x:Name="BtnExcelKierowcy" Content="Excel" Style="{StaticResource ToolbarButton}"
+                                        Background="#1E8449" Click="BtnExcelKierowcy_Click"/>
+                                <Button Content="Odswiez" Style="{StaticResource ToolbarButton}"
+                                        Click="BtnOdswiezKierowcy_Click"/>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBox x:Name="TxtSzukajKierowce" Width="220" Height="28"
+                                         FontFamily="Segoe UI" FontSize="12"
+                                         VerticalContentAlignment="Center" Padding="6,0"
+                                         TextChanged="TxtSzukajKierowce_TextChanged"/>
+                                <TextBlock Text="Status:" Foreground="White" VerticalAlignment="Center" Margin="12,0,4,0"
+                                           FontFamily="Segoe UI" FontSize="11"/>
+                                <ComboBox x:Name="CmbStatusKierowcy" Style="{StaticResource FilterCombo}" Width="110"
+                                          SelectionChanged="FilterKierowcy_Changed">
+                                    <ComboBoxItem Content="Aktywni" IsSelected="True"/>
+                                    <ComboBoxItem Content="Wstrzymani"/>
+                                    <ComboBoxItem Content="Wszyscy"/>
+                                </ComboBox>
+                                <TextBlock Text="Typ:" Foreground="White" VerticalAlignment="Center" Margin="12,0,4,0"
+                                           FontFamily="Segoe UI" FontSize="11"/>
+                                <ComboBox x:Name="CmbTypKierowcy" Style="{StaticResource FilterCombo}" Width="110"
+                                          SelectionChanged="FilterKierowcy_Changed">
+                                    <ComboBoxItem Content="Wszyscy" IsSelected="True"/>
+                                    <ComboBoxItem Content="Etat"/>
+                                    <ComboBoxItem Content="Zlecenie"/>
+                                    <ComboBoxItem Content="B2B"/>
+                                    <ComboBoxItem Content="Agencja"/>
+                                </ComboBox>
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- Content: Grid + Detail Panel -->
+                    <Grid Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="65*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="35*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <dxg:GridControl x:Name="GridKierowcy" Grid.Column="0"
+                                         SelectionMode="Row"
+                                         SelectedItemChanged="GridKierowcy_SelectedItemChanged"
+                                         MouseDoubleClick="GridKierowcy_MouseDoubleClick">
+                            <dxg:GridControl.Columns>
+                                <dxg:GridColumn FieldName="GID" Header="ID" Width="50" ReadOnly="True"/>
+                                <dxg:GridColumn FieldName="Name" Header="Imie i nazwisko" Width="180" ReadOnly="True"/>
+                                <dxg:GridColumn FieldName="Phone1" Header="Telefon" Width="120" ReadOnly="True"/>
+                                <dxg:GridColumn FieldName="TypZatrudnienia" Header="Typ" Width="80" ReadOnly="True"/>
+                                <dxg:GridColumn FieldName="Halt" Header="Halt" Width="50" ReadOnly="True"/>
+                                <dxg:GridColumn FieldName="AktualneAuta" Header="Pojazd" Width="150" ReadOnly="True"/>
+                                <dxg:GridColumn FieldName="KursySkup30d" Header="Kursy 30d" Width="80" ReadOnly="True"/>
+                                <dxg:GridColumn FieldName="Km30d" Header="Km 30d" Width="80" ReadOnly="True"/>
+                            </dxg:GridControl.Columns>
+                            <dxg:GridControl.View>
+                                <dxg:TableView AutoWidth="True"
+                                               AllowEditing="False"
+                                               ShowGroupPanel="False"
+                                               NavigationStyle="Row"
+                                               RowStyle="{x:Null}"
+                                               x:Name="ViewKierowcy"/>
+                            </dxg:GridControl.View>
+                        </dxg:GridControl>
+
+                        <GridSplitter Grid.Column="1" Width="4" Background="#BDC3C7"
+                                      HorizontalAlignment="Center" VerticalAlignment="Stretch"/>
+
+                        <!-- Detail Panel -->
+                        <Border Grid.Column="2" Background="White" Margin="2" CornerRadius="4"
+                                BorderBrush="#E0E0E0" BorderThickness="1">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12">
+                                <StackPanel x:Name="PanelSzczegolyKierowcy">
+                                    <TextBlock x:Name="TxtKierowcaNazwa" FontSize="16" FontWeight="Bold"
+                                               Foreground="#1E3A5F" FontFamily="Segoe UI" Margin="0,0,0,4"/>
+                                    <TextBlock x:Name="TxtKierowcaTelefon" Style="{StaticResource DetailValue}"/>
+                                    <TextBlock x:Name="TxtKierowcaTyp" Style="{StaticResource DetailValue}"/>
+                                    <TextBlock x:Name="TxtKierowcaOd" Style="{StaticResource DetailValue}"/>
+
+                                    <TextBlock Text="Prawo jazdy" Style="{StaticResource SectionHeader}"/>
+                                    <TextBlock x:Name="TxtKierowcaPJ" Style="{StaticResource DetailValue}"/>
+
+                                    <TextBlock Text="Badania lekarskie" Style="{StaticResource SectionHeader}"/>
+                                    <TextBlock x:Name="TxtKierowcaBadania" Style="{StaticResource DetailValue}"/>
+
+                                    <TextBlock Text="BHP" Style="{StaticResource SectionHeader}"/>
+                                    <TextBlock x:Name="TxtKierowcaBHP" Style="{StaticResource DetailValue}"/>
+
+                                    <TextBlock Text="Przypisane pojazdy" Style="{StaticResource SectionHeader}"/>
+                                    <TextBlock x:Name="TxtKierowcaPojazdy" Style="{StaticResource DetailValue}" TextWrapping="Wrap"/>
+
+                                    <TextBlock Text="Statystyki (30 dni)" Style="{StaticResource SectionHeader}"/>
+                                    <TextBlock x:Name="TxtKierowcaStats" Style="{StaticResource DetailValue}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Border>
+                    </Grid>
+
+                    <!-- Status Bar -->
+                    <Border Grid.Row="2" Background="#ECF0F1" Height="28">
+                        <TextBlock x:Name="TxtStatusKierowcy" VerticalAlignment="Center" Margin="10,0"
+                                   FontFamily="Segoe UI" FontSize="11" Foreground="#2C3E50"/>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ═══════════ TAB 2: POJAZDY ═══════════ -->
+            <TabItem Header="  POJAZDY  ">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="#34495E" Height="50">
+                        <DockPanel Margin="10,0">
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button x:Name="BtnDodajPojazd" Content="+ Dodaj" Style="{StaticResource ToolbarButton}"
+                                        Background="#27AE60" Click="BtnDodajPojazd_Click"/>
+                                <Button x:Name="BtnEdytujPojazd" Content="Edytuj" Style="{StaticResource ToolbarButton}"
+                                        Background="#2980B9" Click="BtnEdytujPojazd_Click"/>
+                                <Button x:Name="BtnSerwis" Content="Serwis" Style="{StaticResource ToolbarButton}"
+                                        Background="#8E44AD" Click="BtnSerwis_Click"/>
+                                <Button x:Name="BtnTankowanie" Content="Tankowanie" Style="{StaticResource ToolbarButton}"
+                                        Background="#D35400" Click="BtnTankowanie_Click"/>
+                                <Border Width="1" Background="#5D6D7E" Margin="6,8"/>
+                                <Button Content="Excel" Style="{StaticResource ToolbarButton}"
+                                        Background="#1E8449" Click="BtnExcelPojazdy_Click"/>
+                                <Button Content="Odswiez" Style="{StaticResource ToolbarButton}"
+                                        Click="BtnOdswiezPojazdy_Click"/>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBox x:Name="TxtSzukajPojazdy" Width="220" Height="28"
+                                         FontFamily="Segoe UI" FontSize="12"
+                                         VerticalContentAlignment="Center" Padding="6,0"
+                                         TextChanged="TxtSzukajPojazdy_TextChanged"/>
+                                <TextBlock Text="Typ:" Foreground="White" VerticalAlignment="Center" Margin="12,0,4,0"
+                                           FontFamily="Segoe UI" FontSize="11"/>
+                                <ComboBox x:Name="CmbTypPojazdu" Style="{StaticResource FilterCombo}" Width="110"
+                                          SelectionChanged="FilterPojazdy_Changed">
+                                    <ComboBoxItem Content="Wszystkie" IsSelected="True"/>
+                                    <ComboBoxItem Content="Samochody"/>
+                                    <ComboBoxItem Content="Naczepy"/>
+                                </ComboBox>
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+
+                    <Grid Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="65*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="35*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <dxg:GridControl x:Name="GridPojazdy" Grid.Column="0"
+                                         SelectionMode="Row"
+                                         SelectedItemChanged="GridPojazdy_SelectedItemChanged"
+                                         MouseDoubleClick="GridPojazdy_MouseDoubleClick">
+                            <dxg:GridControl.Columns>
+                                <dxg:GridColumn FieldName="ID" Header="Symbol" Width="60" ReadOnly="True"/>
+                                <dxg:GridColumn FieldName="Registration" Header="Rejestracja" Width="110" ReadOnly="True"/>
+                                <dxg:GridColumn FieldName="Kind" Header="Typ" Width="50" ReadOnly="True"/>
+                                <dxg:GridColumn FieldName="Brand" Header="Marka" Width="80" ReadOnly="True"/>
+                                <dxg:GridColumn FieldName="Model" Header="Model" Width="100" ReadOnly="True"/>
+                                <dxg:GridColumn FieldName="Capacity" Header="Ladownosc" Width="80" ReadOnly="True"/>
+                                <dxg:GridColumn FieldName="AktualnyKierowca" Header="Kierowca" Width="150" ReadOnly="True"/>
+                                <dxg:GridColumn FieldName="KosztyYTD" Header="Koszty YTD" Width="90" ReadOnly="True"/>
+                            </dxg:GridControl.Columns>
+                            <dxg:GridControl.View>
+                                <dxg:TableView AutoWidth="True"
+                                               AllowEditing="False"
+                                               ShowGroupPanel="False"
+                                               NavigationStyle="Row"
+                                               x:Name="ViewPojazdy"/>
+                            </dxg:GridControl.View>
+                        </dxg:GridControl>
+
+                        <GridSplitter Grid.Column="1" Width="4" Background="#BDC3C7"
+                                      HorizontalAlignment="Center" VerticalAlignment="Stretch"/>
+
+                        <Border Grid.Column="2" Background="White" Margin="2" CornerRadius="4"
+                                BorderBrush="#E0E0E0" BorderThickness="1">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12">
+                                <StackPanel x:Name="PanelSzczegolyPojazdu">
+                                    <TextBlock x:Name="TxtPojazdNazwa" FontSize="16" FontWeight="Bold"
+                                               Foreground="#1E3A5F" FontFamily="Segoe UI" Margin="0,0,0,2"/>
+                                    <TextBlock x:Name="TxtPojazdRejestracja" Style="{StaticResource DetailValue}"/>
+                                    <TextBlock x:Name="TxtPojazdTyp" Style="{StaticResource DetailValue}"/>
+                                    <TextBlock x:Name="TxtPojazdVIN" Style="{StaticResource DetailValue}"/>
+
+                                    <TextBlock Text="Dokumenty" Style="{StaticResource SectionHeader}"/>
+                                    <TextBlock x:Name="TxtPojazdPrzeglad" Style="{StaticResource DetailValue}"/>
+                                    <TextBlock x:Name="TxtPojazdOC" Style="{StaticResource DetailValue}"/>
+
+                                    <TextBlock Text="Kierowca" Style="{StaticResource SectionHeader}"/>
+                                    <TextBlock x:Name="TxtPojazdKierowca" Style="{StaticResource DetailValue}" TextWrapping="Wrap"/>
+
+                                    <TextBlock Text="Ostatni serwis" Style="{StaticResource SectionHeader}"/>
+                                    <TextBlock x:Name="TxtPojazdSerwis" Style="{StaticResource DetailValue}" TextWrapping="Wrap"/>
+
+                                    <TextBlock Text="Koszty YTD" Style="{StaticResource SectionHeader}"/>
+                                    <TextBlock x:Name="TxtPojazdKoszty" Style="{StaticResource DetailValue}"/>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Border>
+                    </Grid>
+
+                    <Border Grid.Row="2" Background="#ECF0F1" Height="28">
+                        <TextBlock x:Name="TxtStatusPojazdy" VerticalAlignment="Center" Margin="10,0"
+                                   FontFamily="Segoe UI" FontSize="11" Foreground="#2C3E50"/>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ═══════════ TAB 3: PRZYPISANIA ═══════════ -->
+            <TabItem Header="  PRZYPISANIA  ">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="#34495E" Height="50">
+                        <DockPanel Margin="10,0">
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Content="Odswiez" Style="{StaticResource ToolbarButton}"
+                                        Click="BtnOdswiezPrzypisania_Click"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button x:Name="BtnPrzypiszKierowce" Content="Przypisz kierowce do pojazdu"
+                                        Style="{StaticResource ToolbarButton}" Background="#1E3A5F"
+                                        Click="BtnPrzypiszKierowce_Click"/>
+                                <TextBlock Text="Historia:" Foreground="White" VerticalAlignment="Center" Margin="16,0,4,0"
+                                           FontFamily="Segoe UI" FontSize="11"/>
+                                <ComboBox x:Name="CmbHistoriaPrzyp" Style="{StaticResource FilterCombo}" Width="120"
+                                          SelectionChanged="FilterPrzypisania_Changed">
+                                    <ComboBoxItem Content="Aktualne" IsSelected="True"/>
+                                    <ComboBoxItem Content="Wszystkie"/>
+                                </ComboBox>
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+
+                    <dxg:GridControl x:Name="GridPrzypisania" Grid.Row="1">
+                        <dxg:GridControl.Columns>
+                            <dxg:GridColumn FieldName="KierowcaNazwa" Header="Kierowca" Width="180" ReadOnly="True"/>
+                            <dxg:GridColumn FieldName="CarTrailerID" Header="Symbol" Width="60" ReadOnly="True"/>
+                            <dxg:GridColumn FieldName="Rejestracja" Header="Rejestracja" Width="110" ReadOnly="True"/>
+                            <dxg:GridColumn FieldName="PojazdMarka" Header="Pojazd" Width="150" ReadOnly="True"/>
+                            <dxg:GridColumn FieldName="Rola" Header="Rola" Width="90" ReadOnly="True"/>
+                            <dxg:GridColumn FieldName="DataOd" Header="Od" Width="100" ReadOnly="True"/>
+                            <dxg:GridColumn FieldName="DataDo" Header="Do" Width="100" ReadOnly="True"/>
+                            <dxg:GridColumn FieldName="Dni" Header="Dni" Width="60" ReadOnly="True"/>
+                            <dxg:GridColumn FieldName="Powod" Header="Powod" Width="200" ReadOnly="True"/>
+                        </dxg:GridControl.Columns>
+                        <dxg:GridControl.View>
+                            <dxg:TableView AutoWidth="True"
+                                           AllowEditing="False"
+                                           ShowGroupPanel="True"
+                                           NavigationStyle="Row"
+                                           x:Name="ViewPrzypisania"/>
+                        </dxg:GridControl.View>
+                    </dxg:GridControl>
+
+                    <Border Grid.Row="2" Background="#ECF0F1" Height="28">
+                        <TextBlock x:Name="TxtStatusPrzypisania" VerticalAlignment="Center" Margin="10,0"
+                                   FontFamily="Segoe UI" FontSize="11" Foreground="#2C3E50"/>
+                    </Border>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+        <!-- ═══════════ ALERTS PANEL ═══════════ -->
+        <Border x:Name="PanelAlerty" Grid.Row="1" Visibility="Collapsed"
+                Background="#FFF9C4" BorderBrush="#F9A825" BorderThickness="0,2,0,0"
+                MaxHeight="120">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="ALERTY" FontWeight="Bold" FontFamily="Segoe UI" FontSize="11"
+                           Foreground="#E65100" VerticalAlignment="Top" Margin="10,6"/>
+                <ItemsControl x:Name="ListAlerty" Grid.Column="1" Margin="4,4">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock FontFamily="Segoe UI" FontSize="11" Margin="0,1">
+                                <Run Text="{Binding Icon}" FontWeight="Bold"/>
+                                <Run Text="{Binding Text}"/>
+                            </TextBlock>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

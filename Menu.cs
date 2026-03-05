@@ -1,4 +1,5 @@
 using Kalendarz1.AnalizaPrzychoduProdukcji;
+using Kalendarz1.Partie.Views;
 using Kalendarz1.Avilog.Views;
 using Kalendarz1.HandlowiecDashboard.Views;
 using Kalendarz1.OfertaCenowa;
@@ -1137,7 +1138,10 @@ namespace Kalendarz1
                 [52] = "CallReminders",
                 [53] = "PorannyBriefing",
                 [54] = "ProductImages",
-                [55] = "PozyskiwanieHodowcow"
+                [55] = "PozyskiwanieHodowcow",
+                [56] = "KartotekaTowarow",
+                [57] = "Flota",
+                [58] = "ListaPartii"
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
@@ -1213,7 +1217,7 @@ namespace Kalendarz1
 
                 // PRODUKCJA I MAGAZYN
                 "ProdukcjaPodglad", "KalkulacjaKrojenia", "PrzychodMrozni", "LiczenieMagazynu",
-                "PanelMagazyniera", "AnalizaPrzychodu", "AnalizaWydajnosci",
+                "PanelMagazyniera", "AnalizaPrzychodu", "AnalizaWydajnosci", "ListaPartii",
 
                 // SPRZEDAŻ I CRM
                 "CRM", "KartotekaOdbiorcow", "MapaKlientow", "ZamowieniaOdbiorcow", "DashboardHandlowca",
@@ -1225,7 +1229,7 @@ namespace Kalendarz1
                 "DashboardZamowien", "QuizDrobiarstwo",
 
                 // OPAKOWANIA I TRANSPORT
-                "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "UstalanieTranportu",
+                "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "UstalanieTranportu", "Flota",
 
                 // FINANSE I ZARZĄDZANIE
                 "PulpitZarzadu", "DaneFinansowe", "CentrumSpotkan", "NotatkiZeSpotkan",
@@ -1388,7 +1392,17 @@ namespace Kalendarz1
                     new MenuItemConfig("AnalizaWydajnosci", "Analiza Wydajności",
                         "Porównanie masy żywca do masy tuszek - analiza strat i efektywności uboju",
                         Color.FromArgb(230, 81, 0), // Ciemny pomarańczowy #E65100
-                        () => new AnalizaWydajnosciKrojenia(connectionHandel), "📈", "Wydajność")
+                        () => new AnalizaWydajnosciKrojenia(connectionHandel), "📈", "Wydajność"),
+
+                    new MenuItemConfig("KartotekaTowarow", "Kartoteka Towarów",
+                        "Pełna kartoteka artykułów — ceny, składy, etykiety, zdjęcia, standardy wagi i zestawy rozbiorowe",
+                        Color.FromArgb(215, 110, 0), // Pomarańczowy #D76E00
+                        () => new KartotekaTowarow.KartotekaTowarowWindow(), "📦", "Towary"),
+
+                    new MenuItemConfig("ListaPartii", "Lista Partii Ubojowych",
+                        "Pełna lista partii ubojowych z ważeniami, kontrolą jakości, HACCP i rozliczeniami skupu",
+                        Color.FromArgb(200, 100, 0), // Ciemny pomarańczowy
+                        () => new ListaPartiiWindow(), "📋", "Partie")
                 },
 
                 // ═══════════════════════════════════════════════════════════════════════════
@@ -1574,12 +1588,17 @@ namespace Kalendarz1
 
                     new MenuItemConfig("UstalanieTranportu", "Planowanie Transportu",
                         "Organizacja tras dostaw do klientów z przydziałem pojazdów i kierowców",
-                        Color.FromArgb(0, 96, 100), // Ciemny turkusowy #006064
+                        Color.FromArgb(0, 131, 143), // Turkusowy #00838F
                         () => {
                             var connTransport = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
                             var repo = new Transport.Repozytorium.TransportRepozytorium(connTransport, connectionString);
                             return new Transport.Formularze.TransportMainFormImproved(repo, App.UserID);
-                        }, "🚚", "Transport")
+                        }, "🚚", "Transport"),
+
+                    new MenuItemConfig("Flota", "Flota Pojazdów",
+                        "Zarządzanie kierowcami, pojazdami, przypisaniami i serwisem - dokumenty, alerty, historia",
+                        Color.FromArgb(0, 96, 100), // Ciemny turkusowy #006064
+                        () => new Flota.Views.FlotaWindow(), "🚛", "Flota")
                 },
 
                 // ═══════════════════════════════════════════════════════════════════════════

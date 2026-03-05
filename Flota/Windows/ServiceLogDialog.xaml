@@ -1,0 +1,141 @@
+<Window x:Class="Kalendarz1.Flota.Windows.ServiceLogDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Nowy wpis serwisowy" Width="520" Height="520"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        FontFamily="Segoe UI" FontSize="12" Background="#F0F3F7"
+        Loaded="Window_Loaded">
+
+    <Window.Resources>
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#5D6D7E"/>
+            <Setter Property="Margin" Value="0,8,0,4"/>
+        </Style>
+        <Style x:Key="FieldInput" TargetType="TextBox">
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Padding" Value="6,2"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="Pojazd:" FontWeight="Bold" Foreground="#1E3A5F"/>
+        <TextBlock x:Name="TxtPojazd" Grid.Row="0" HorizontalAlignment="Right" FontWeight="SemiBold"/>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <TextBlock Text="Typ *" Style="{StaticResource FieldLabel}"/>
+            <ComboBox x:Name="CmbTyp" Grid.Row="1" Height="28" Margin="0,0,8,0"
+                      VerticalContentAlignment="Center" SelectionChanged="CmbTyp_SelectionChanged">
+                <ComboBoxItem Content="Przeglad"/>
+                <ComboBoxItem Content="Naprawa"/>
+                <ComboBoxItem Content="Tankowanie"/>
+                <ComboBoxItem Content="OC"/>
+                <ComboBoxItem Content="AC"/>
+                <ComboBoxItem Content="Opony"/>
+                <ComboBoxItem Content="Inne"/>
+            </ComboBox>
+            <TextBlock Grid.Column="1" Text="Data *" Style="{StaticResource FieldLabel}"/>
+            <DatePicker x:Name="DpData" Grid.Row="1" Grid.Column="1" Height="28"/>
+        </Grid>
+
+        <!-- Date next (for Przeglad/OC/AC) -->
+        <StackPanel x:Name="PanelDataNastepne" Grid.Row="2" Visibility="Collapsed">
+            <TextBlock Text="Data nastepnego (przegladu/ubezpieczenia)" Style="{StaticResource FieldLabel}"/>
+            <DatePicker x:Name="DpDataNastepne" Height="28"/>
+        </StackPanel>
+
+        <!-- Tankowanie fields -->
+        <Grid x:Name="PanelTankowanie" Grid.Row="3" Visibility="Collapsed">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <TextBlock Text="Litry" Style="{StaticResource FieldLabel}"/>
+            <TextBox x:Name="TxtLitry" Grid.Row="1" Style="{StaticResource FieldInput}" Margin="0,0,8,0"
+                     TextChanged="TankowanieCalc_Changed"/>
+            <TextBlock Grid.Column="1" Text="Cena/litr" Style="{StaticResource FieldLabel}"/>
+            <TextBox x:Name="TxtCenaLitra" Grid.Row="1" Grid.Column="1" Style="{StaticResource FieldInput}" Margin="0,0,8,0"
+                     TextChanged="TankowanieCalc_Changed"/>
+            <TextBlock Grid.Column="2" Text="RAZEM" Style="{StaticResource FieldLabel}"/>
+            <TextBlock x:Name="TxtTankowanieRazem" Grid.Row="1" Grid.Column="2"
+                       VerticalAlignment="Center" FontWeight="Bold" FontSize="14" Foreground="#27AE60"/>
+        </Grid>
+
+        <Grid Grid.Row="4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <TextBlock Text="Przebieg (km)" Style="{StaticResource FieldLabel}"/>
+            <TextBox x:Name="TxtPrzebieg" Grid.Row="1" Style="{StaticResource FieldInput}" Margin="0,0,8,0"/>
+            <TextBlock Grid.Column="1" Text="Koszt brutto (PLN)" Style="{StaticResource FieldLabel}"/>
+            <TextBox x:Name="TxtKoszt" Grid.Row="1" Grid.Column="1" Style="{StaticResource FieldInput}"/>
+        </Grid>
+
+        <Grid Grid.Row="5">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <TextBlock Text="Warsztat" Style="{StaticResource FieldLabel}"/>
+            <TextBox x:Name="TxtWarsztat" Grid.Row="1" Style="{StaticResource FieldInput}" Margin="0,0,8,0"/>
+            <TextBlock Grid.Column="1" Text="Nr faktury" Style="{StaticResource FieldLabel}"/>
+            <TextBox x:Name="TxtNrFaktury" Grid.Row="1" Grid.Column="1" Style="{StaticResource FieldInput}"/>
+        </Grid>
+
+        <TextBlock Grid.Row="6" Text="Opis" Style="{StaticResource FieldLabel}"/>
+        <TextBox x:Name="TxtOpis" Grid.Row="7" Height="50" TextWrapping="Wrap" AcceptsReturn="True"
+                 VerticalScrollBarVisibility="Auto"/>
+
+        <TextBlock Grid.Row="8" Text="Uwagi" Style="{StaticResource FieldLabel}"/>
+        <TextBox x:Name="TxtUwagiSerwis" Grid.Row="9" Height="40" TextWrapping="Wrap" AcceptsReturn="True"
+                 VerticalScrollBarVisibility="Auto"/>
+
+        <StackPanel Grid.Row="12" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button x:Name="BtnZapisz" Content="ZAPISZ" Width="120" Height="36"
+                    Background="#27AE60" Foreground="White" FontWeight="Bold"
+                    BorderThickness="0" Cursor="Hand" Click="BtnZapisz_Click"/>
+            <Button Content="ANULUJ" Width="100" Height="36" Margin="8,0,0,0"
+                    Background="#95A5A6" Foreground="White" FontWeight="Bold"
+                    BorderThickness="0" Cursor="Hand" Click="BtnAnuluj_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

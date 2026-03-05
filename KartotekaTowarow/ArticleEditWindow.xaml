@@ -1,0 +1,453 @@
+<Window x:Class="Kalendarz1.KartotekaTowarow.ArticleEditWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+        mc:Ignorable="d"
+        Title="Artykul" Width="850" Height="700"
+        MinWidth="700" MinHeight="550"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize"
+        Loaded="Window_Loaded">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#7F8C8D"/>
+            <Setter Property="Margin" Value="0,8,0,3"/>
+        </Style>
+
+        <Style x:Key="FieldTextBox" TargetType="TextBox">
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="BorderBrush" Value="#BDC3C7"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <Style x:Key="FieldCombo" TargetType="ComboBox">
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="6,4"/>
+        </Style>
+
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#1E3A5F"/>
+            <Setter Property="Margin" Value="0,12,0,6"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Background="#F0F3F7">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ═══ TAB CONTROL ═══ -->
+        <TabControl x:Name="TabMain" Grid.Row="0" Margin="10,10,10,0"
+                    FontFamily="Segoe UI" FontSize="12">
+
+            <!-- ════════════════════════════════════════════ -->
+            <!-- TAB 1: PODSTAWOWE -->
+            <!-- ════════════════════════════════════════════ -->
+            <TabItem Header="  Podstawowe  ">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Left column -->
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="ID (symbol) *" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="TxtID" Style="{StaticResource FieldTextBox}" MaxLength="10"/>
+
+                            <TextBlock Text="Nazwa *" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="TxtName" Style="{StaticResource FieldTextBox}" MaxLength="40"/>
+
+                            <TextBlock Text="Skrot nazwy" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="TxtShortName" Style="{StaticResource FieldTextBox}" MaxLength="20"/>
+
+                            <TextBlock Text="Nazwa etykiety linia 1" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="TxtNameLine1" Style="{StaticResource FieldTextBox}" MaxLength="40"/>
+
+                            <TextBlock Text="Nazwa etykiety linia 2" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="TxtNameLine2" Style="{StaticResource FieldTextBox}" MaxLength="40"/>
+
+                            <Border Height="1" Background="#ECF0F1" Margin="0,16,0,6"/>
+
+                            <TextBlock Text="Ceny" Style="{StaticResource SectionHeader}"/>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Cena 1" Style="{StaticResource FieldLabel}"/>
+                                    <dxe:SpinEdit x:Name="SpinCena1" MinValue="0" Increment="0.1"
+                                                  DisplayFormatString="N2" FontFamily="Segoe UI" FontSize="12"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Cena 2" Style="{StaticResource FieldLabel}"/>
+                                    <dxe:SpinEdit x:Name="SpinCena2" MinValue="0" Increment="0.1"
+                                                  DisplayFormatString="N2" FontFamily="Segoe UI" FontSize="12"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="4">
+                                    <TextBlock Text="Cena 3" Style="{StaticResource FieldLabel}"/>
+                                    <dxe:SpinEdit x:Name="SpinCena3" MinValue="0" Increment="0.1"
+                                                  DisplayFormatString="N2" FontFamily="Segoe UI" FontSize="12"/>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- Right column -->
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Jednostka miary *" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox x:Name="CmbJM" Style="{StaticResource FieldCombo}">
+                                <ComboBoxItem Content="kg" IsSelected="True"/>
+                                <ComboBoxItem Content="szt"/>
+                            </ComboBox>
+
+                            <TextBlock Text="Rodzaj" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox x:Name="CmbRodzaj" Style="{StaticResource FieldCombo}" IsEditable="False"/>
+
+                            <TextBlock Text="Grupa" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox x:Name="CmbGrupa" Style="{StaticResource FieldCombo}" IsEditable="True"/>
+
+                            <TextBlock Text="Podgrupa (Grupa1)" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox x:Name="CmbGrupa1" Style="{StaticResource FieldCombo}" IsEditable="True"/>
+
+                            <TextBlock Text="WRC (wspolczynnik rozbioru)" Style="{StaticResource FieldLabel}"/>
+                            <dxe:SpinEdit x:Name="SpinWRC" MinValue="0" MaxValue="1" Increment="0.01"
+                                          DisplayFormatString="N2" FontFamily="Segoe UI" FontSize="12"/>
+
+                            <TextBlock Text="Wydajnosc" Style="{StaticResource FieldLabel}"/>
+                            <dxe:SpinEdit x:Name="SpinWydajnosc" MinValue="0" Increment="0.1"
+                                          DisplayFormatString="N1" FontFamily="Segoe UI" FontSize="12"/>
+
+                            <TextBlock Text="Przelicznik" Style="{StaticResource FieldLabel}"/>
+                            <dxe:SpinEdit x:Name="SpinPrzelicznik" MinValue="0" Increment="0.01"
+                                          DisplayFormatString="N2" FontFamily="Segoe UI" FontSize="12"/>
+
+                            <CheckBox x:Name="ChkHalt" Content="  Wstrzymany (Halt)"
+                                      FontFamily="Segoe UI" FontSize="12" Margin="0,16,0,0"
+                                      Foreground="#E74C3C" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </Grid>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ════════════════════════════════════════════ -->
+            <!-- TAB 2: ETYKIETA I SKLAD -->
+            <!-- ════════════════════════════════════════════ -->
+            <TabItem Header="  Etykieta i sklad  ">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="20"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Termin waznosci (dni)" Style="{StaticResource FieldLabel}"/>
+                                <dxe:SpinEdit x:Name="SpinDuration" MinValue="0" Increment="1" IsFloatValue="False"
+                                              FontFamily="Segoe UI" FontSize="12"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Temperatura przechowywania" Style="{StaticResource FieldLabel}"/>
+                                <TextBox x:Name="TxtTemp" Style="{StaticResource FieldTextBox}" MaxLength="20"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <Border Height="1" Background="#ECF0F1" Margin="0,16,0,6"/>
+                        <TextBlock Text="Skladniki (na etykiete)" Style="{StaticResource SectionHeader}"/>
+
+                        <TextBlock Text="Skladnik 1" Style="{StaticResource FieldLabel}"/>
+                        <TextBox x:Name="TxtIng1" Style="{StaticResource FieldTextBox}" MaxLength="80"
+                                 TextChanged="Ingredients_Changed"/>
+                        <TextBlock Text="Skladnik 2" Style="{StaticResource FieldLabel}"/>
+                        <TextBox x:Name="TxtIng2" Style="{StaticResource FieldTextBox}" MaxLength="80"
+                                 TextChanged="Ingredients_Changed"/>
+                        <TextBlock Text="Skladnik 3" Style="{StaticResource FieldLabel}"/>
+                        <TextBox x:Name="TxtIng3" Style="{StaticResource FieldTextBox}" MaxLength="80"
+                                 TextChanged="Ingredients_Changed"/>
+                        <TextBlock Text="Skladnik 4" Style="{StaticResource FieldLabel}"/>
+                        <TextBox x:Name="TxtIng4" Style="{StaticResource FieldTextBox}" MaxLength="80"
+                                 TextChanged="Ingredients_Changed"/>
+
+                        <StackPanel x:Name="PanelExtraIngredients" Visibility="Collapsed">
+                            <TextBlock Text="Skladnik 5" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="TxtIng5" Style="{StaticResource FieldTextBox}" MaxLength="80"/>
+                            <TextBlock Text="Skladnik 6" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="TxtIng6" Style="{StaticResource FieldTextBox}" MaxLength="80"/>
+                            <TextBlock Text="Skladnik 7" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="TxtIng7" Style="{StaticResource FieldTextBox}" MaxLength="80"/>
+                            <TextBlock Text="Skladnik 8" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="TxtIng8" Style="{StaticResource FieldTextBox}" MaxLength="80"/>
+                        </StackPanel>
+
+                        <!-- Label preview -->
+                        <Border Height="1" Background="#ECF0F1" Margin="0,16,0,6"/>
+                        <TextBlock Text="Podglad etykiety" Style="{StaticResource SectionHeader}"/>
+                        <Border Background="White" BorderBrush="#BDC3C7" BorderThickness="1"
+                                CornerRadius="4" Padding="16" Margin="0,4">
+                            <StackPanel>
+                                <TextBlock x:Name="TxtLabelName" FontFamily="Segoe UI" FontSize="14"
+                                           FontWeight="Bold" Foreground="#2C3E50"/>
+                                <TextBlock FontFamily="Segoe UI" FontSize="11" Foreground="#7F8C8D" Margin="0,6,0,0">
+                                    <Run Text="Masa netto: ____ "/>
+                                    <Run x:Name="RunLabelJM" Text="kg"/>
+                                    <Run Text="   Nr partii: ________"/>
+                                </TextBlock>
+                                <TextBlock FontFamily="Segoe UI" FontSize="11" Foreground="#7F8C8D" Margin="0,2,0,0"
+                                           Text="Data produkcji: ____  Nalezy spozyc do: ____"/>
+                                <TextBlock x:Name="TxtLabelSklad" FontFamily="Segoe UI" FontSize="11"
+                                           Foreground="#2C3E50" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TxtLabelTemp" FontFamily="Segoe UI" FontSize="11"
+                                           Foreground="#2C3E50" Margin="0,2,0,0"/>
+                                <TextBlock FontFamily="Segoe UI" FontSize="10" Foreground="#95A5A6" Margin="0,6,0,0"
+                                           Text="Miejsce chowu i uboju - Polska"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ════════════════════════════════════════════ -->
+            <!-- TAB 3: STANDARDY WAGI -->
+            <!-- ════════════════════════════════════════════ -->
+            <TabItem Header="  Standardy wagi  ">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
+                    <StackPanel>
+                        <CheckBox x:Name="ChkIsStandard" Content="  Artykul standardowy (isStandard)"
+                                  FontFamily="Segoe UI" FontSize="13" FontWeight="SemiBold"
+                                  Foreground="#1E3A5F" Margin="0,8"
+                                  Checked="ChkIsStandard_Changed" Unchecked="ChkIsStandard_Changed"/>
+
+                        <StackPanel x:Name="PanelStandardFields" Visibility="Collapsed" Margin="20,10,0,0">
+                            <TextBlock Text="Waga standardowa (kg)" Style="{StaticResource FieldLabel}"/>
+                            <dxe:SpinEdit x:Name="SpinStdWeight" MinValue="0" Increment="0.1"
+                                          DisplayFormatString="N2" FontFamily="Segoe UI" FontSize="12"
+                                          MaxWidth="200" HorizontalAlignment="Left"
+                                          EditValueChanged="Standard_ValueChanged"/>
+
+                            <TextBlock Text="Tolerancja + (kg powyżej standardu)" Style="{StaticResource FieldLabel}"/>
+                            <dxe:SpinEdit x:Name="SpinStdTol" MinValue="0" Increment="0.1"
+                                          DisplayFormatString="N2" FontFamily="Segoe UI" FontSize="12"
+                                          MaxWidth="200" HorizontalAlignment="Left"
+                                          EditValueChanged="Standard_ValueChanged"/>
+
+                            <TextBlock Text="Tolerancja - (kg ponizej standardu)" Style="{StaticResource FieldLabel}"/>
+                            <dxe:SpinEdit x:Name="SpinStdTolMinus" MinValue="0" Increment="0.1"
+                                          DisplayFormatString="N2" FontFamily="Segoe UI" FontSize="12"
+                                          MaxWidth="200" HorizontalAlignment="Left"
+                                          EditValueChanged="Standard_ValueChanged"/>
+
+                            <!-- Weight visualization -->
+                            <Border Height="1" Background="#ECF0F1" Margin="0,20,0,10"/>
+                            <TextBlock Text="Wizualizacja zakresu" Style="{StaticResource SectionHeader}"/>
+                            <Grid Margin="0,10" MaxWidth="500" HorizontalAlignment="Left">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Bar -->
+                                <Grid Grid.Row="0" Height="24">
+                                    <Border Background="#ECF0F1" CornerRadius="12"/>
+                                    <Border x:Name="BarAcceptable" Background="#27AE60" CornerRadius="12"
+                                            HorizontalAlignment="Center" Width="200" Opacity="0.7"/>
+                                    <Border x:Name="BarStandard" Background="#D4AF37" Width="4"
+                                            HorizontalAlignment="Center" CornerRadius="2"/>
+                                </Grid>
+
+                                <!-- Labels -->
+                                <Grid Grid.Row="1" Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock x:Name="TxtMinWeight" Grid.Column="0"
+                                               FontFamily="Segoe UI" FontSize="11" Foreground="#E74C3C"
+                                               HorizontalAlignment="Left"/>
+                                    <TextBlock x:Name="TxtStdWeight" Grid.Column="1"
+                                               FontFamily="Segoe UI" FontSize="12" Foreground="#D4AF37"
+                                               FontWeight="Bold" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="TxtMaxWeight" Grid.Column="2"
+                                               FontFamily="Segoe UI" FontSize="11" Foreground="#E74C3C"
+                                               HorizontalAlignment="Right"/>
+                                </Grid>
+
+                                <TextBlock Grid.Row="2" HorizontalAlignment="Center"
+                                           FontFamily="Segoe UI" FontSize="10" Foreground="#95A5A6"
+                                           Margin="0,4,0,0" Text="akceptowalny zakres"/>
+                            </Grid>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ════════════════════════════════════════════ -->
+            <!-- TAB 4: ZDJECIA -->
+            <!-- ════════════════════════════════════════════ -->
+            <TabItem Header="  Zdjecia  ">
+                <Grid Margin="16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Buttons -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                        <Button x:Name="BtnAddPhoto" Content="  Dodaj zdjecie  " FontFamily="Segoe UI" FontSize="12"
+                                Background="#27AE60" Foreground="White" FontWeight="SemiBold"
+                                Padding="12,6" BorderThickness="0" Cursor="Hand"
+                                Click="BtnAddPhoto_Click"/>
+                        <Button x:Name="BtnDeletePhoto" Content="  Usun zaznaczone  " FontFamily="Segoe UI" FontSize="12"
+                                Background="#E74C3C" Foreground="White" FontWeight="SemiBold"
+                                Padding="12,6" Margin="8,0,0,0" BorderThickness="0" Cursor="Hand"
+                                Click="BtnDeletePhoto_Click"/>
+                    </StackPanel>
+
+                    <!-- Thumbnails -->
+                    <ListBox x:Name="ListPhotos" Grid.Row="1" Height="110"
+                             ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                             ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                             SelectionChanged="ListPhotos_SelectionChanged"
+                             Background="Transparent" BorderThickness="0">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Width="90" Height="90" CornerRadius="4" Margin="4"
+                                        Background="#ECF0F1" BorderBrush="#BDC3C7" BorderThickness="1"
+                                        ClipToBounds="True">
+                                    <StackPanel VerticalAlignment="Center">
+                                        <Image Source="{Binding Thumbnail}" Height="60" Stretch="Uniform"
+                                               RenderOptions.BitmapScalingMode="HighQuality"/>
+                                        <TextBlock Text="{Binding SizeText}" FontFamily="Segoe UI" FontSize="9"
+                                                   Foreground="#95A5A6" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <!-- Full preview -->
+                    <Border Grid.Row="2" Background="#ECF0F1" CornerRadius="6" Margin="0,8,0,0"
+                            ClipToBounds="True">
+                        <Grid>
+                            <TextBlock x:Name="TxtNoPhotoEdit" Text="Brak zdjec — kliknij 'Dodaj zdjecie' aby dodac"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       FontFamily="Segoe UI" FontSize="13" Foreground="#95A5A6"/>
+                            <Image x:Name="ImgPreview" Stretch="Uniform" Margin="8"
+                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ════════════════════════════════════════════ -->
+            <!-- TAB 5: POWIAZANIA -->
+            <!-- ════════════════════════════════════════════ -->
+            <TabItem Header="  Powiazania  ">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
+                    <StackPanel>
+                        <TextBlock Text="Artykuly powiazane" Style="{StaticResource SectionHeader}"/>
+
+                        <TextBlock Text="Powiazany 1" Style="{StaticResource FieldLabel}"/>
+                        <ComboBox x:Name="CmbRelated1" Style="{StaticResource FieldCombo}"
+                                  IsEditable="True" IsTextSearchEnabled="True"/>
+
+                        <TextBlock Text="Powiazany 2" Style="{StaticResource FieldLabel}"/>
+                        <ComboBox x:Name="CmbRelated2" Style="{StaticResource FieldCombo}"
+                                  IsEditable="True" IsTextSearchEnabled="True"/>
+
+                        <TextBlock Text="Powiazany 3" Style="{StaticResource FieldLabel}"/>
+                        <ComboBox x:Name="CmbRelated3" Style="{StaticResource FieldCombo}"
+                                  IsEditable="True" IsTextSearchEnabled="True"/>
+
+                        <!-- Partition sets (readonly) -->
+                        <Border Height="1" Background="#ECF0F1" Margin="0,16,0,6"/>
+                        <TextBlock Text="Zestawy rozbiorowe zawierajace ten artykul" Style="{StaticResource SectionHeader}"/>
+                        <TextBlock FontFamily="Segoe UI" FontSize="10" Foreground="#95A5A6" Margin="0,0,0,6"
+                                   Text="(readonly — zestawy zarzadzane osobno)"/>
+
+                        <ListBox x:Name="ListPartitions" Height="120"
+                                 Background="White" BorderBrush="#BDC3C7" BorderThickness="1"
+                                 FontFamily="Segoe UI" FontSize="12" IsEnabled="False">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Margin="4,2">
+                                        <Run Text="Zestaw "/>
+                                        <Run Text="{Binding Zestaw, Mode=OneWay}" FontWeight="SemiBold"/>
+                                        <Run Text=" / "/>
+                                        <Run Text="{Binding GrupaName, Mode=OneWay}"/>
+                                        <Run Text=" / Pozycja: "/>
+                                        <Run Text="{Binding Position, Mode=OneWay}"/>
+                                    </TextBlock>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <!-- Production config -->
+                        <Border Height="1" Background="#ECF0F1" Margin="0,16,0,6"/>
+                        <TextBlock Text="Konfiguracja produkcji" Style="{StaticResource SectionHeader}"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="20"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Procent udzialu w rozbioru (%)" Style="{StaticResource FieldLabel}"/>
+                                <dxe:SpinEdit x:Name="SpinProcentUdzialu" MinValue="0" MaxValue="100" Increment="0.1"
+                                              DisplayFormatString="N1" FontFamily="Segoe UI" FontSize="12"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Grupa skalowania" Style="{StaticResource FieldLabel}"/>
+                                <ComboBox x:Name="CmbGrupaScalowania" Style="{StaticResource FieldCombo}"
+                                          IsEditable="True" IsTextSearchEnabled="True"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+
+        <!-- ═══ BOTTOM BAR ═══ -->
+        <Border Grid.Row="1" Background="#F0F3F7" Padding="16,10">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="BtnSave" Content="  ZAPISZ  " FontFamily="Segoe UI" FontSize="13"
+                        Background="#27AE60" Foreground="White" FontWeight="Bold"
+                        Padding="20,8" MinWidth="120" BorderThickness="0" Cursor="Hand"
+                        Click="BtnSave_Click"/>
+                <Button x:Name="BtnCancel" Content="  ANULUJ  " FontFamily="Segoe UI" FontSize="13"
+                        Background="#E74C3C" Foreground="White"
+                        Padding="20,8" MinWidth="120" Margin="10,0,0,0" BorderThickness="0" Cursor="Hand"
+                        Click="BtnCancel_Click"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

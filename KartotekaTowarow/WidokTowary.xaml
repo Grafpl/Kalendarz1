@@ -1,0 +1,455 @@
+<UserControl x:Class="Kalendarz1.KartotekaTowarow.WidokTowary"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:dxg="http://schemas.devexpress.com/winfx/2008/xaml/grid"
+             xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+             mc:Ignorable="d"
+             d:DesignHeight="700" d:DesignWidth="1200"
+             Loaded="UserControl_Loaded">
+
+    <UserControl.InputBindings>
+        <KeyBinding Key="N" Modifiers="Ctrl" Command="{x:Static ApplicationCommands.New}"/>
+        <KeyBinding Key="E" Modifiers="Ctrl" Command="{x:Static ApplicationCommands.Open}"/>
+        <KeyBinding Key="F5" Command="{x:Static NavigationCommands.Refresh}"/>
+        <KeyBinding Key="Delete" Command="{x:Static ApplicationCommands.Delete}"/>
+    </UserControl.InputBindings>
+
+    <UserControl.CommandBindings>
+        <CommandBinding Command="{x:Static ApplicationCommands.New}" Executed="CmdDodaj_Executed"/>
+        <CommandBinding Command="{x:Static ApplicationCommands.Open}" Executed="CmdEdytuj_Executed"/>
+        <CommandBinding Command="{x:Static NavigationCommands.Refresh}" Executed="CmdOdswiez_Executed"/>
+        <CommandBinding Command="{x:Static ApplicationCommands.Delete}" Executed="CmdWstrzymaj_Executed"/>
+    </UserControl.CommandBindings>
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <!-- Toolbar button style -->
+        <Style x:Key="ToolbarButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="14,7"/>
+            <Setter Property="Margin" Value="2,0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#4DFFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#2DFFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Accent button (colored bg) -->
+        <Style x:Key="ToolbarAccent" TargetType="Button" BasedOn="{StaticResource ToolbarButton}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Opacity" Value="0.7"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Filter combo -->
+        <Style x:Key="FilterCombo" TargetType="ComboBox">
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Margin" Value="4,0"/>
+            <Setter Property="MinWidth" Value="100"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Detail label -->
+        <Style x:Key="DetailLabel" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Foreground" Value="#95A5A6"/>
+            <Setter Property="Margin" Value="0,2,0,0"/>
+        </Style>
+
+        <!-- Detail value -->
+        <Style x:Key="DetailValue" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#2C3E50"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+
+        <!-- Section separator -->
+        <Style x:Key="Separator" TargetType="Border">
+            <Setter Property="Height" Value="1"/>
+            <Setter Property="Background" Value="#E8ECF0"/>
+            <Setter Property="Margin" Value="0,4,0,8"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Background="#F0F3F7">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- TOOLBAR                                                     -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <Border Grid.Row="0" Height="52">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#1E3A5F" Offset="0"/>
+                    <GradientStop Color="#34495E" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <DockPanel Margin="12,0">
+                <!-- Right: action buttons -->
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="+ Nowy" Style="{StaticResource ToolbarAccent}"
+                            Background="#27AE60" Click="BtnDodaj_Click"
+                            ToolTip="Dodaj nowy artykul (Ctrl+N)"/>
+                    <Button x:Name="BtnEdytuj" Content="Edytuj" Style="{StaticResource ToolbarAccent}"
+                            Background="#2980B9" Click="BtnEdytuj_Click"
+                            ToolTip="Edytuj zaznaczony (Ctrl+E / dwuklik)"/>
+                    <Button x:Name="BtnKopiuj" Content="Kopiuj" Style="{StaticResource ToolbarButton}"
+                            Click="BtnKopiuj_Click" ToolTip="Kopiuj artykul jako nowy"/>
+                    <Button x:Name="BtnWstrzymaj" Content="Wstrzymaj" Style="{StaticResource ToolbarAccent}"
+                            Background="#E67E22" Click="BtnWstrzymaj_Click"
+                            ToolTip="Wstrzymaj/Aktywuj (Delete)"/>
+                    <Border Width="1" Background="#4D6D8E" Margin="8,10"/>
+                    <Button Content="Excel" Style="{StaticResource ToolbarButton}"
+                            Click="BtnExcel_Click" ToolTip="Eksportuj do pliku Excel"/>
+                    <Button Content="Odswiez" Style="{StaticResource ToolbarButton}"
+                            Click="BtnOdswiez_Click" ToolTip="Odswiez dane (F5)"/>
+                </StackPanel>
+
+                <!-- Left: filters -->
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- Search box with placeholder -->
+                    <Border Background="White" CornerRadius="4" Width="240" Height="30"
+                            BorderBrush="#5D7A99" BorderThickness="1">
+                        <Grid Margin="8,0">
+                            <TextBlock x:Name="PlaceholderText" Text="Szukaj po ID, nazwie..."
+                                       Foreground="#95A5A6" VerticalAlignment="Center" FontFamily="Segoe UI"
+                                       FontSize="12" FontStyle="Italic" IsHitTestVisible="False"/>
+                            <TextBox x:Name="TxtSzukaj" Background="Transparent" BorderThickness="0"
+                                     FontFamily="Segoe UI" FontSize="12" VerticalContentAlignment="Center"
+                                     TextChanged="TxtSzukaj_TextChanged"/>
+                        </Grid>
+                    </Border>
+
+                    <TextBlock Text="Grupa:" Foreground="#B0C4DE" VerticalAlignment="Center"
+                               Margin="14,0,4,0" FontFamily="Segoe UI" FontSize="11"/>
+                    <ComboBox x:Name="CmbGrupa" Style="{StaticResource FilterCombo}" Width="90"
+                              SelectionChanged="Filter_Changed"/>
+
+                    <TextBlock Text="JM:" Foreground="#B0C4DE" VerticalAlignment="Center"
+                               Margin="14,0,4,0" FontFamily="Segoe UI" FontSize="11"/>
+                    <ComboBox x:Name="CmbJM" Style="{StaticResource FilterCombo}" Width="70"
+                              SelectionChanged="Filter_Changed">
+                        <ComboBoxItem Content="Wszystkie" IsSelected="True"/>
+                        <ComboBoxItem Content="kg"/>
+                        <ComboBoxItem Content="szt"/>
+                    </ComboBox>
+
+                    <TextBlock Text="Status:" Foreground="#B0C4DE" VerticalAlignment="Center"
+                               Margin="14,0,4,0" FontFamily="Segoe UI" FontSize="11"/>
+                    <ComboBox x:Name="CmbStatus" Style="{StaticResource FilterCombo}" Width="120"
+                              SelectionChanged="Filter_Changed">
+                        <ComboBoxItem Content="Wszystkie" IsSelected="True"/>
+                        <ComboBoxItem Content="Aktywne"/>
+                        <ComboBoxItem Content="Wstrzymane"/>
+                        <ComboBoxItem Content="Standardowe"/>
+                        <ComboBoxItem Content="Bez ceny"/>
+                    </ComboBox>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- MAIN: Grid (75%) + Detail Panel (25%)                       -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <Grid Grid.Row="1" Margin="6,6,6,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*" MinWidth="290" MaxWidth="420"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- DevExpress Grid -->
+            <dxg:GridControl x:Name="gridArticles" Grid.Column="0"
+                             SelectionMode="Row"
+                             AutoGenerateColumns="None">
+                <dxg:GridControl.View>
+                    <dxg:TableView x:Name="tableView"
+                                   AllowEditing="True"
+                                   ShowSearchPanelMode="Never"
+                                   ShowGroupPanel="True"
+                                   AllowGrouping="True"
+                                   AllowSorting="True"
+                                   AllowColumnFiltering="True"
+                                   ShowAutoFilterRow="True"
+                                   NavigationStyle="Row"
+                                   FocusedRowChanged="TableView_FocusedRowChanged"
+                                   CellValueChanged="TableView_CellValueChanged"
+                                   RowDoubleClick="TableView_RowDoubleClick"
+                                   RowStyle="{x:Null}"
+                                   ShowFixedTotalSummary="True"
+                                   BestFitMode="AllRows"/>
+                </dxg:GridControl.View>
+
+                <dxg:GridControl.Columns>
+                    <dxg:GridColumn FieldName="ID" Header="ID" Width="70" ReadOnly="True" Fixed="Left"/>
+                    <dxg:GridColumn FieldName="Name" Header="Nazwa" Width="200" ReadOnly="True"/>
+                    <dxg:GridColumn FieldName="ShortName" Header="Skrot" Width="90" ReadOnly="True" Visible="False"/>
+                    <dxg:GridColumn FieldName="JM" Header="JM" Width="40" ReadOnly="True"/>
+                    <dxg:GridColumn FieldName="Cena1" Header="Cena 1" Width="80">
+                        <dxg:GridColumn.EditSettings>
+                            <dxe:SpinEditSettings DisplayFormat="N2" MinValue="0" Increment="0.1"/>
+                        </dxg:GridColumn.EditSettings>
+                    </dxg:GridColumn>
+                    <dxg:GridColumn FieldName="Cena2" Header="Cena 2" Width="80" Visible="False">
+                        <dxg:GridColumn.EditSettings>
+                            <dxe:SpinEditSettings DisplayFormat="N2" MinValue="0" Increment="0.1"/>
+                        </dxg:GridColumn.EditSettings>
+                    </dxg:GridColumn>
+                    <dxg:GridColumn FieldName="Cena3" Header="Cena 3" Width="80" Visible="False">
+                        <dxg:GridColumn.EditSettings>
+                            <dxe:SpinEditSettings DisplayFormat="N2" MinValue="0" Increment="0.1"/>
+                        </dxg:GridColumn.EditSettings>
+                    </dxg:GridColumn>
+                    <dxg:GridColumn FieldName="WRC" Header="WRC" Width="60" ReadOnly="True">
+                        <dxg:GridColumn.EditSettings>
+                            <dxe:SpinEditSettings DisplayFormat="P0"/>
+                        </dxg:GridColumn.EditSettings>
+                    </dxg:GridColumn>
+                    <dxg:GridColumn FieldName="Grupa" Header="Grupa" Width="55" ReadOnly="True"/>
+                    <dxg:GridColumn FieldName="Rodzaj" Header="Rodzaj" Width="55" ReadOnly="True"/>
+                    <dxg:GridColumn FieldName="Duration" Header="Termin" Width="55" ReadOnly="True"/>
+                    <dxg:GridColumn FieldName="Halt" Header="Wstrz." Width="55">
+                        <dxg:GridColumn.EditSettings>
+                            <dxe:CheckEditSettings/>
+                        </dxg:GridColumn.EditSettings>
+                    </dxg:GridColumn>
+                    <dxg:GridColumn FieldName="isStandard" Header="Std" Width="45" ReadOnly="True">
+                        <dxg:GridColumn.EditSettings>
+                            <dxe:CheckEditSettings/>
+                        </dxg:GridColumn.EditSettings>
+                    </dxg:GridColumn>
+                    <dxg:GridColumn FieldName="StandardWeight" Header="Waga std" Width="65" ReadOnly="True" Visible="False"/>
+                    <dxg:GridColumn FieldName="TempOfStorage" Header="Temp" Width="90" ReadOnly="True" Visible="False"/>
+                </dxg:GridControl.Columns>
+
+                <dxg:GridControl.TotalSummary>
+                    <dxg:GridSummaryItem FieldName="ID" SummaryType="Count" DisplayFormat="Razem: {0}"/>
+                </dxg:GridControl.TotalSummary>
+            </dxg:GridControl>
+
+            <!-- Splitter -->
+            <GridSplitter Grid.Column="1" Width="4" Background="Transparent"
+                          VerticalAlignment="Stretch" HorizontalAlignment="Center" Margin="1,0"/>
+
+            <!-- ═══ DETAIL PANEL ═══ -->
+            <Border Grid.Column="2" Background="White" CornerRadius="8" Margin="4,0,0,0"
+                    BorderBrush="#DEE2E6" BorderThickness="1">
+                <Grid>
+                    <!-- Empty state -->
+                    <TextBlock x:Name="TxtSelectHint" Text="Zaznacz artykul na liscie&#x0a;aby zobaczyc szczegoly"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               TextAlignment="Center" FontFamily="Segoe UI" FontSize="13"
+                               Foreground="#BDC3C7" LineHeight="22"/>
+
+                    <!-- Filled state -->
+                    <ScrollViewer x:Name="ScrollDetails" VerticalScrollBarVisibility="Auto" Padding="14"
+                                  Visibility="Collapsed">
+                        <StackPanel x:Name="PanelDetails">
+
+                            <!-- Photo -->
+                            <Border Height="190" CornerRadius="6" Background="#F8F9FA"
+                                    Margin="0,0,0,14" ClipToBounds="True">
+                                <Grid>
+                                    <TextBlock x:Name="TxtNoPhoto" Text="Brak zdjecia"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               FontFamily="Segoe UI" FontSize="12" Foreground="#CED4DA"/>
+                                    <Image x:Name="ImgArticle" Stretch="Uniform"
+                                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Name + ID badge -->
+                            <TextBlock x:Name="TxtDetailName" FontFamily="Segoe UI" FontSize="16"
+                                       FontWeight="Bold" Foreground="#1E3A5F" TextWrapping="Wrap"
+                                       Margin="0,0,0,2"/>
+                            <TextBlock x:Name="TxtDetailID" FontFamily="Segoe UI" FontSize="10"
+                                       Foreground="#95A5A6" Margin="0,0,0,10"/>
+
+                            <!-- Halt badge -->
+                            <Border x:Name="BadgeHalt" Visibility="Collapsed" Background="#FDEDEC"
+                                    CornerRadius="4" Padding="8,4" Margin="0,0,0,10" HorizontalAlignment="Left">
+                                <TextBlock Text="WSTRZYMANY" FontFamily="Segoe UI" FontSize="10"
+                                           FontWeight="Bold" Foreground="#E74C3C"/>
+                            </Border>
+
+                            <!-- Standard badge -->
+                            <Border x:Name="BadgeStandard" Visibility="Collapsed" Background="#FEF9E7"
+                                    CornerRadius="4" Padding="8,4" Margin="0,0,0,10" HorizontalAlignment="Left">
+                                <TextBlock x:Name="TxtBadgeStandard" FontFamily="Segoe UI" FontSize="10"
+                                           FontWeight="Bold" Foreground="#D4AF37"/>
+                            </Border>
+
+                            <Border Style="{StaticResource Separator}"/>
+
+                            <!-- Prices row -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="CENA 1" Style="{StaticResource DetailLabel}"/>
+                                    <TextBlock x:Name="TxtDetailCena1" Style="{StaticResource DetailValue}" FontSize="14"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="CENA 2" Style="{StaticResource DetailLabel}"/>
+                                    <TextBlock x:Name="TxtDetailCena2" Style="{StaticResource DetailValue}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="CENA 3" Style="{StaticResource DetailLabel}"/>
+                                    <TextBlock x:Name="TxtDetailCena3" Style="{StaticResource DetailValue}"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- JM + WRC row -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="JM" Style="{StaticResource DetailLabel}"/>
+                                    <TextBlock x:Name="TxtDetailJM" Style="{StaticResource DetailValue}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="WRC" Style="{StaticResource DetailLabel}"/>
+                                    <TextBlock x:Name="TxtDetailWRC" Style="{StaticResource DetailValue}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="WYDAJNOSC" Style="{StaticResource DetailLabel}"/>
+                                    <TextBlock x:Name="TxtDetailWydajnosc" Style="{StaticResource DetailValue}"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <Border Style="{StaticResource Separator}"/>
+
+                            <!-- Duration + Temp -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="TERMIN WAZNOSCI" Style="{StaticResource DetailLabel}"/>
+                                    <TextBlock x:Name="TxtDetailDuration" Style="{StaticResource DetailValue}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="TEMPERATURA" Style="{StaticResource DetailLabel}"/>
+                                    <TextBlock x:Name="TxtDetailTemp" Style="{StaticResource DetailValue}"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Ingredients -->
+                            <StackPanel x:Name="PanelIngredients" Visibility="Collapsed">
+                                <Border Style="{StaticResource Separator}"/>
+                                <TextBlock Text="SKLAD" Style="{StaticResource DetailLabel}"/>
+                                <TextBlock x:Name="TxtDetailSklad" Style="{StaticResource DetailValue}"
+                                           TextWrapping="Wrap" FontWeight="Normal" FontSize="11"/>
+                            </StackPanel>
+
+                            <!-- Partitions -->
+                            <StackPanel x:Name="PanelPartitions" Visibility="Collapsed">
+                                <Border Style="{StaticResource Separator}"/>
+                                <TextBlock Text="ZESTAWY ROZBIOROWE" Style="{StaticResource DetailLabel}"/>
+                                <ItemsControl x:Name="ListPartitions" Margin="0,4,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock FontFamily="Segoe UI" FontSize="11" Foreground="#2C3E50" Margin="0,1">
+                                                <Run Text="{Binding Name, Mode=OneWay}"/>
+                                                <Run Text=" — Zestaw " Foreground="#ADB5BD" FontSize="10"/>
+                                                <Run Text="{Binding Zestaw, Mode=OneWay}" Foreground="#ADB5BD" FontSize="10"/>
+                                                <Run Text=" / " Foreground="#ADB5BD" FontSize="10"/>
+                                                <Run Text="{Binding GrupaName, Mode=OneWay}" Foreground="#ADB5BD" FontSize="10"/>
+                                            </TextBlock>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+
+                            <!-- Related -->
+                            <StackPanel x:Name="PanelRelated" Visibility="Collapsed">
+                                <Border Style="{StaticResource Separator}"/>
+                                <TextBlock Text="POWIAZANE ARTYKULY" Style="{StaticResource DetailLabel}"/>
+                                <TextBlock x:Name="TxtRelated" Style="{StaticResource DetailValue}"
+                                           TextWrapping="Wrap" FontWeight="Normal"/>
+                            </StackPanel>
+
+                            <!-- Footer: modification info -->
+                            <Border Style="{StaticResource Separator}" Margin="0,10,0,4"/>
+                            <TextBlock x:Name="TxtDetailModified" FontFamily="Segoe UI" FontSize="9"
+                                       Foreground="#ADB5BD" HorizontalAlignment="Right"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- STATUS BAR                                                  -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <Border Grid.Row="2" Background="#1E3A5F" Height="26">
+            <DockPanel Margin="12,0">
+                <TextBlock x:Name="TxtLoadingIndicator" DockPanel.Dock="Right"
+                           Text="Ladowanie..." Foreground="#F39C12"
+                           FontFamily="Segoe UI" FontSize="10" VerticalAlignment="Center"
+                           Visibility="Collapsed"/>
+                <TextBlock x:Name="TxtStatus" Text="Ladowanie..." Foreground="#8EAFC4"
+                           FontFamily="Segoe UI" FontSize="10" VerticalAlignment="Center"/>
+            </DockPanel>
+        </Border>
+    </Grid>
+</UserControl>
